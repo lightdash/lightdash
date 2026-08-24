@@ -16,6 +16,7 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     ApiUpstreamDiffResults,
+    applyWarehouseLocation,
     assertEmbeddedAuth,
     assertIsAccountWithOrg,
     assertUnreachable,
@@ -244,6 +245,7 @@ import {
     type ParametersValuesMap,
     type RunQueryTags,
     type Tag,
+    type WarehouseLocation,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import {
@@ -4486,8 +4488,17 @@ export class ProjectService extends BaseService {
      * resolved warehouse setup (so we don't re-resolve and re-rotate credentials per
      * source). Used only to read the source's manifest, not to compile.
      */
+    /**
+     * An adapter that compiles one additional dbt source. It shares the
+     * project's warehouse connection, but compiles against the source's own
+     * database and schema when it has them — a source's models can live
+     * somewhere else in the same warehouse (its own dbt profile targets that
+     * location), and compiling with the project's location would resolve every
+     * one of its models to a table that holds different data or none.
+     */
     private async buildSourceAdapter(
         dbtConnection: DbtProjectConfig,
+        warehouseLocation: WarehouseLocation,
         organizationUuid: string | undefined,
         shared: {
             warehouseCredentials: CreateWarehouseCredentials;
@@ -4502,7 +4513,10 @@ export class ProjectService extends BaseService {
             );
         return projectAdapterFromConfig(
             resolvedConnection,
-            shared.warehouseCredentials,
+            applyWarehouseLocation(
+                shared.warehouseCredentials,
+                warehouseLocation,
+            ),
             shared.cachedWarehouse,
             shared.dbtVersionOption,
             this.lightdashConfig.dbt.environmentVariableAllowlist,
@@ -4643,6 +4657,7 @@ export class ProjectService extends BaseService {
                 try {
                     sourceAdapter = await this.buildSourceAdapter(
                         source.dbtConnection,
+                        source.warehouseLocation,
                         organizationUuid,
                         shared,
                     );

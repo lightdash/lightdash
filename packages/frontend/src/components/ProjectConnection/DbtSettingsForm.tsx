@@ -172,12 +172,12 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                                     label="Target name"
                                     description={
                                         <p>
-                                            <b>target</b> is the dataset/schema
-                                            in your data warehouse that
-                                            Lightdash will look for your dbt
-                                            models. By default, we set this to
-                                            be the same value as you have as the
-                                            default in your profiles.yml file.
+                                            The name Lightdash gives the dbt
+                                            target it compiles with. Set it to
+                                            match the target your dbt code
+                                            branches on. It does not change
+                                            which database or schema your models
+                                            are read from.
                                         </p>
                                     }
                                     disabled={disabled}

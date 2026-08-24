@@ -304,6 +304,7 @@ export type {
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
     WarehouseCredentials,
+    WarehouseLocation,
 } from './types/projects';
 export * from './types/promotion';
 export * from './types/queryHistory';
@@ -397,6 +398,7 @@ export * from './utils/resolveQueryTimezone';
 export * from './utils/externalSourceExplore';
 export * from './utils/virtualView';
 export * from './utils/warehouse';
+export * from './utils/warehouseLocation';
 export * from './utils/warehouseResourceLimits';
 export * from './visualizations/BigNumberDataModel';
 export * from './visualizations/CartesianChartDataModel';

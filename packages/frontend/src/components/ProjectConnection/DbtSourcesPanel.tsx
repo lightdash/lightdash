@@ -2,10 +2,13 @@ import {
     DbtProjectType,
     DefaultSupportedDbtVersion,
     FeatureFlags,
+    getWarehouseLocation,
+    getWarehouseLocationLabels,
     WarehouseTypes,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
     type ProjectDbtSourceSummary,
+    type WarehouseLocation,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -30,6 +33,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useProject } from '../../hooks/useProject';
 import {
     useCreateProjectDbtSourceMutation,
     useDeleteProjectDbtSourceMutation,
@@ -56,6 +60,12 @@ import { ProjectFormProvider } from './ProjectFormProvider';
  * warning icon instead, not this line).
  */
 const sourceIdentity = (source: ProjectDbtSourceSummary): string => {
+    const location = [
+        source.warehouseLocation.database,
+        source.warehouseLocation.schema,
+    ]
+        .filter(Boolean)
+        .join('.');
     if (source.repository) {
         return [
             source.repository,
@@ -63,11 +73,96 @@ const sourceIdentity = (source: ProjectDbtSourceSummary): string => {
             source.projectSubPath && source.projectSubPath !== '/'
                 ? source.projectSubPath
                 : null,
+            location || null,
         ]
             .filter(Boolean)
             .join(' · ');
     }
     return source.type ?? 'no connection';
+};
+
+/**
+ * The location fields as the form holds them: an empty string means "inherit
+ * the project's warehouse location", which the API expresses as null.
+ */
+type WarehouseLocationFormValues = {
+    database: string;
+    schema: string;
+};
+
+const toFormLocation = (
+    location: WarehouseLocation | undefined,
+): WarehouseLocationFormValues => ({
+    database: location?.database ?? '',
+    schema: location?.schema ?? '',
+});
+
+const toApiLocation = (
+    values: WarehouseLocationFormValues,
+): WarehouseLocation => ({
+    database: values.database.trim() || null,
+    schema: values.schema.trim() || null,
+});
+
+/**
+ * Where this source's models live in the project's warehouse. A source shares
+ * the project's warehouse connection, but its own dbt profile can target a
+ * different database and schema — left blank, the project's are used.
+ */
+const WarehouseLocationInputs: FC<{
+    projectUuid: string;
+    value: WarehouseLocationFormValues;
+    onChange: (value: WarehouseLocationFormValues) => void;
+}> = ({ projectUuid, value, onChange }) => {
+    const { data: project } = useProject(projectUuid);
+    const warehouseConnection = project?.warehouseConnection;
+    if (!warehouseConnection) {
+        return null;
+    }
+    const labels = getWarehouseLocationLabels(warehouseConnection.type);
+    const inherited = getWarehouseLocation(warehouseConnection);
+
+    return (
+        <Stack gap="xs">
+            <Text size="sm" fw={500}>
+                Where this source's models live
+            </Text>
+            <Text size="xs" c="dimmed">
+                Leave blank to use the project's warehouse connection. Set these
+                when this dbt project's own profile targets a different{' '}
+                {labels.database
+                    ? `${labels.database.toLowerCase()} or ${labels.schema.toLowerCase()}`
+                    : labels.schema.toLowerCase()}
+                .
+            </Text>
+            <Group grow align="flex-start">
+                {labels.database && (
+                    <TextInput
+                        label={labels.database}
+                        placeholder={inherited.database ?? undefined}
+                        value={value.database}
+                        onChange={(event) =>
+                            onChange({
+                                ...value,
+                                database: event.currentTarget.value,
+                            })
+                        }
+                    />
+                )}
+                <TextInput
+                    label={labels.schema}
+                    placeholder={inherited.schema ?? undefined}
+                    value={value.schema}
+                    onChange={(event) =>
+                        onChange({
+                            ...value,
+                            schema: event.currentTarget.value,
+                        })
+                    }
+                />
+            </Group>
+        </Stack>
+    );
 };
 
 const DbtSourceRow: FC<{
@@ -134,9 +229,18 @@ const DbtSourceRow: FC<{
  * The shared body for the add/edit modals: a name field plus the full dbt
  * connection form, wrapped in the providers `DbtSettingsForm` reads from.
  */
-const DbtSourceFields: FC<{ form: Form; intro: string }> = ({
+const DbtSourceFields: FC<{
+    form: Form;
+    intro: string;
+    projectUuid: string;
+    warehouseLocation: WarehouseLocationFormValues;
+    onWarehouseLocationChange: (value: WarehouseLocationFormValues) => void;
+}> = ({
     form,
     intro,
+    projectUuid,
+    warehouseLocation,
+    onWarehouseLocationChange,
 }) => (
     <FormProvider form={form}>
         <ProjectFormProvider isDbtSource>
@@ -151,6 +255,11 @@ const DbtSourceFields: FC<{ form: Form; intro: string }> = ({
                     {...form.getInputProps('name')}
                 />
                 <DbtSettingsForm disabled={false} />
+                <WarehouseLocationInputs
+                    projectUuid={projectUuid}
+                    value={warehouseLocation}
+                    onChange={onWarehouseLocationChange}
+                />
             </Stack>
         </ProjectFormProvider>
     </FormProvider>
@@ -162,6 +271,8 @@ const AddDbtSourceModal: FC<{
     onClose: () => void;
 }> = ({ projectUuid, opened, onClose }) => {
     const createMutation = useCreateProjectDbtSourceMutation(projectUuid);
+    const [warehouseLocation, setWarehouseLocation] =
+        useState<WarehouseLocationFormValues>(() => toFormLocation(undefined));
     const form = useForm({
         initialValues: {
             name: '',
@@ -182,6 +293,7 @@ const AddDbtSourceModal: FC<{
 
     const handleClose = () => {
         form.reset();
+        setWarehouseLocation(toFormLocation(undefined));
         onClose();
     };
 
@@ -192,6 +304,7 @@ const AddDbtSourceModal: FC<{
             {
                 name: form.values.name.trim(),
                 dbtConnection: form.values.dbt,
+                warehouseLocation: toApiLocation(warehouseLocation),
             },
             { onSuccess: handleClose },
         );
@@ -210,6 +323,9 @@ const AddDbtSourceModal: FC<{
         >
             <DbtSourceFields
                 form={form}
+                projectUuid={projectUuid}
+                warehouseLocation={warehouseLocation}
+                onWarehouseLocationChange={setWarehouseLocation}
                 intro="Connect another git-backed dbt project. Its models are merged with the primary source on every deploy and preview, using the project's warehouse and dbt version."
             />
         </MantineModal>
@@ -223,6 +339,10 @@ const EditDbtSourceModalInner: FC<{
     onClose: () => void;
 }> = ({ projectUuid, source, connection, onClose }) => {
     const updateMutation = useUpdateProjectDbtSourceMutation(projectUuid);
+    const [warehouseLocation, setWarehouseLocation] =
+        useState<WarehouseLocationFormValues>(() =>
+            toFormLocation(source.warehouseLocation),
+        );
     const form = useForm({
         initialValues: {
             name: source.name,
@@ -250,6 +370,7 @@ const EditDbtSourceModalInner: FC<{
                 data: {
                     name: form.values.name.trim(),
                     dbtConnection: form.values.dbt,
+                    warehouseLocation: toApiLocation(warehouseLocation),
                 },
             },
             { onSuccess: onClose },
@@ -269,6 +390,9 @@ const EditDbtSourceModalInner: FC<{
         >
             <DbtSourceFields
                 form={form}
+                projectUuid={projectUuid}
+                warehouseLocation={warehouseLocation}
+                onWarehouseLocationChange={setWarehouseLocation}
                 intro="Update this source's connection. Leave the access token blank to keep the saved one."
             />
         </MantineModal>
