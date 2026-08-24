@@ -314,7 +314,9 @@ ${context.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 ************
 [END DATA]
 
-Evaluate how relevant the provided context is to answering the query. Consider:
+Evaluate how relevant the provided context is to answering the query. This is not a factuality assessment: do not use the response as supporting context or judge whether its claims are correct. When the context includes a chart artifact and configuration that identifies the requested metric and applicable dimensions, filters, and time range, missing computed result rows alone must not lower the relevancy score or require independently verifying the response.
+
+Consider:
 1. Does the context contain information needed to answer the query?
 2. Is the context directly related to the query topic?
 3. How much of the context is actually useful for answering the query?
