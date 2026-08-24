@@ -81,6 +81,14 @@ granularity are all covered by a pre-aggregate. When several match, the
 smallest pre-aggregate wins.
 _Avoid_: routing, resolution
 
+**SQL custom dimension**:
+A query-defined dimension computed by a SQL expression. During matching, every
+semantic dimension referenced by the expression must be covered at a safely
+derivable grain. Expressions with no `${...}` references or with raw
+`${TABLE}.column` references can't be verified against materialized columns and
+never match.
+_Avoid_: custom SQL field, calculated dimension
+
 **Hit**:
 A query (or dashboard tile) served from a pre-aggregate instead of the source
 tables.
@@ -125,8 +133,9 @@ granularity — so each result row is served from a single materialization row
 and no re-aggregation occurs. The only kind of match that can serve
 non-additive metrics. Fields that group identically are interchangeable: a
 date-type base field counts as day grain, and the day alias of a date-type
-dimension counts as its stored raw values. A definition dimension referenced only by a query
-filter, or reached through a custom bin, does not count as selected.
+dimension counts as its stored raw values. A definition dimension referenced
+only by a query filter, or reached through a custom dimension, does not count
+as selected.
 
 **Audit**:
 A per-dashboard coverage report classifying each tile as hit, miss (with

@@ -1,7 +1,9 @@
 import {
+    CustomDimensionType,
     DimensionType,
     ExploreType,
     FieldType,
+    FilterOperator,
     MetricType,
     SupportedDbtAdapter,
     type Explore,
@@ -142,6 +144,75 @@ describe('PreAggregationExternalResolver', () => {
             'projectUuid',
             '__preagg__orders__orders_rollup',
         );
+    });
+
+    test('recompiles SQL custom dimensions against materialized columns', async () => {
+        const { resolver } = getResolver();
+
+        const result = await resolver.resolve({
+            ...baseResolveArgs,
+            metricQuery: {
+                ...metricQuery,
+                dimensions: ['status_present'],
+                customDimensions: [
+                    {
+                        id: 'status_present',
+                        type: CustomDimensionType.SQL,
+                        name: 'Status present',
+                        table: 'orders',
+                        sql: '${orders.status} IS NOT NULL',
+                        dimensionType: DimensionType.BOOLEAN,
+                    },
+                ],
+            },
+        });
+
+        expect(result.resolved).toBe(true);
+        if (!result.resolved) throw new Error('unreachable');
+        expect(result.query).toContain(
+            '((orders.orders_status) IS NOT NULL) AS "status_present"',
+        );
+        expect(result.query).toContain(`FROM ${EXTERNAL_TABLE} AS "orders"`);
+    });
+
+    test('recompiles SQL custom dimension filters against materialized columns', async () => {
+        const { resolver } = getResolver();
+
+        const result = await resolver.resolve({
+            ...baseResolveArgs,
+            metricQuery: {
+                ...metricQuery,
+                dimensions: [],
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'custom-filter',
+                                target: { fieldId: 'status_present' },
+                                operator: FilterOperator.EQUALS,
+                                values: [true],
+                            },
+                        ],
+                    },
+                },
+                customDimensions: [
+                    {
+                        id: 'status_present',
+                        type: CustomDimensionType.SQL,
+                        name: 'Status present',
+                        table: 'orders',
+                        sql: '${orders.status} IS NOT NULL',
+                        dimensionType: DimensionType.BOOLEAN,
+                    },
+                ],
+            },
+        });
+
+        expect(result.resolved).toBe(true);
+        if (!result.resolved) throw new Error('unreachable');
+        expect(result.query).toContain('WHERE');
+        expect(result.query).toContain('(orders.orders_status) IS NOT NULL');
     });
 
     test('returns unresolved when pre-aggregates are disabled', async () => {
