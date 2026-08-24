@@ -23,6 +23,8 @@ const authorizePage = () =>
         },
         loginUrl: '/login',
         hiddenInputs: [],
+        isSelfRegistered: false,
+        redirectOrigin: 'https://example.com',
     });
 
 describe('OAuth page templates', () => {

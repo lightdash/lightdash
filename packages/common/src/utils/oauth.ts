@@ -151,6 +151,20 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
             .oauth-message strong {
                 font-weight: 600;
             }
+            .oauth-warning {
+                padding: 12px 14px;
+                border: 1px solid #f0b429;
+                border-radius: 8px;
+                margin-bottom: 20px;
+                background: #fff8e6;
+                color: #5c3b00;
+                font-size: 13px;
+                line-height: 1.5;
+            }
+            .oauth-warning-origin {
+                overflow-wrap: anywhere;
+                font-weight: 600;
+            }
             .oauth-account {
                 border: 1px solid #e9ecef;
                 border-radius: 8px;
@@ -324,6 +338,13 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
                     <strong>{{client_name}}</strong> wants to access your Lightdash account
                 </p>
 
+                {{#if isSelfRegistered}}
+                <div class="oauth-warning">
+                    This application is self-registered and has not been verified by your organisation.
+                    The authorization code will be sent to <span class="oauth-warning-origin">{{redirectOrigin}}</span>.
+                </div>
+                {{/if}}
+
                 <div class="oauth-account">
                     <div class="oauth-account-user">
                         <div class="oauth-avatar" aria-hidden="true">{{user.initials}}</div>
@@ -437,6 +458,8 @@ export interface OAuthAuthorizeParams {
     scope: string;
     scopes: OAuthScopeDescription[];
     user: OAuthUser;
+    isSelfRegistered: boolean;
+    redirectOrigin: string;
     /** Where "Switch account" sends the user after logging out */
     loginUrl: string;
     hiddenInputs: OAuthHiddenInput[];

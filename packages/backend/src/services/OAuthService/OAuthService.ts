@@ -10,7 +10,11 @@ import {
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import { LightdashConfig } from '../../config/parseConfig';
-import { OAuth2Model } from '../../models/OAuth2Model';
+import {
+    isSelfRegisteredOAuthClient,
+    isValidSelfRegisteredRedirectUri,
+    OAuth2Model,
+} from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 
@@ -112,9 +116,25 @@ export class OAuthService extends BaseService {
         return false;
     }
 
-    public async getClientDisplayName(clientId: string): Promise<string> {
-        const clientName = await this.oauthModel.findClientName(clientId);
-        return clientName ?? getClientName(clientId);
+    public async getClientAuthorizationDetails(
+        clientId: string,
+        redirectUri: string,
+    ): Promise<{
+        clientName: string;
+        isSelfRegistered: boolean;
+    } | null> {
+        const client = await this.oauthModel.getClient(clientId);
+        if (
+            client === false ||
+            !(await this.oauthModel.validateRedirectUri(redirectUri, client))
+        ) {
+            return null;
+        }
+
+        return {
+            clientName: client.clientName ?? getClientName(clientId),
+            isSelfRegistered: isSelfRegisteredOAuthClient(client),
+        };
     }
 
     public async registerClient({
@@ -129,10 +149,7 @@ export class OAuthService extends BaseService {
         scopes?: string[];
     }) {
         for (const uri of redirectUris) {
-            try {
-                // eslint-disable-next-line no-new
-                new URL(uri);
-            } catch {
+            if (!isValidSelfRegisteredRedirectUri(uri)) {
                 throw new ParameterError(`Invalid redirect URI ${uri}`);
             }
         }

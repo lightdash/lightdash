@@ -4,6 +4,7 @@ import {
     generateOAuthRedirectPage,
     getErrorMessage,
     OAuthIntrospectResponse,
+    ParameterError,
     parseScopeString,
     type OAuthUserInfoResponse,
 } from '@lightdash/common';
@@ -88,23 +89,34 @@ oauthRouter.get('/authorize', async (req, res, next) => {
         code_challenge,
         code_challenge_method,
     } = req.query;
-    if (!client_id || !redirect_uri) {
+    if (typeof client_id !== 'string' || typeof redirect_uri !== 'string') {
         return res.status(400).send('Missing required parameters');
     }
 
-    // Render authorize page using Handlebars template
     const scopeString = (scope as string) || '';
-    const clientName = await getOAuthService(req).getClientDisplayName(
-        client_id as string,
-    );
+    let redirectOrigin: string;
+    try {
+        redirectOrigin = new URL(redirect_uri).origin;
+    } catch {
+        return res.status(400).send('Invalid redirect URI');
+    }
+    const clientDetails = await getOAuthService(
+        req,
+    ).getClientAuthorizationDetails(client_id, redirect_uri);
+    if (!clientDetails) {
+        return res.status(400).send('Invalid client or redirect URI');
+    }
+    const { clientName, isSelfRegistered } = clientDetails;
     res.set('Content-Type', 'text/html');
     return res.send(
         generateOAuthAuthorizePage({
             action: '/api/v1/oauth/authorize',
-            client_id: client_id as string,
+            client_id,
             client_name: clientName,
             scope: scopeString,
             scopes: parseScopeString(scopeString),
+            isSelfRegistered,
+            redirectOrigin,
             user: {
                 firstName: req.user.firstName,
                 lastName: req.user.lastName,
@@ -116,16 +128,16 @@ oauthRouter.get('/authorize', async (req, res, next) => {
                 {
                     name: 'response_type',
                     value: (req.query.response_type ||
-                        req.body.response_type ||
+                        req.body?.response_type ||
                         'code') as string,
                 },
                 {
                     name: 'client_id',
-                    value: client_id as string,
+                    value: client_id,
                 },
                 {
                     name: 'redirect_uri',
-                    value: redirect_uri as string,
+                    value: redirect_uri,
                 },
                 {
                     name: 'scope',
@@ -365,6 +377,12 @@ oauthRouter.post('/register', async (req, res) => {
         });
     } catch (error) {
         Logger.error(`Client registration error: ${getErrorMessage(error)}`);
+        if (error instanceof ParameterError) {
+            return res.status(400).json({
+                error: 'invalid_client_metadata',
+                error_description: error.message,
+            });
+        }
         return res.status(500).json({
             error: 'server_error',
             error_description:

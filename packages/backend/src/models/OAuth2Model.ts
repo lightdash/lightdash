@@ -16,6 +16,51 @@ import { nanoid } from 'nanoid';
 import { Scope } from 'oauth2-server';
 
 export const DEFAULT_OAUTH_CLIENT_ID = 'lightdash-cli';
+const JAVASCRIPT_PROTOCOL = ['java', 'script:'].join('');
+
+export type LightdashOAuthClient = Client & {
+    clientName: string;
+    organizationUuid: string | null;
+};
+
+export const isSelfRegisteredOAuthClient = (
+    client: LightdashOAuthClient,
+): boolean =>
+    client.id !== DEFAULT_OAUTH_CLIENT_ID && client.organizationUuid === null;
+
+export const isValidSelfRegisteredRedirectUri = (
+    redirectUri: string,
+): boolean => {
+    if (redirectUri.includes('*')) {
+        return false;
+    }
+
+    try {
+        const url = new URL(redirectUri);
+
+        const { protocol } = url;
+
+        if (protocol === 'https:') {
+            return url.hostname.length > 0;
+        }
+
+        if (protocol === 'http:') {
+            return ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+        }
+
+        return ![
+            'blob:',
+            'data:',
+            'file:',
+            JAVASCRIPT_PROTOCOL,
+            'vbscript:',
+            'ws:',
+            'wss:',
+        ].includes(protocol);
+    } catch {
+        return false;
+    }
+};
 
 export class OAuth2Model implements AuthorizationCodeModel {
     constructor(private database: Knex) {}
@@ -23,7 +68,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
     async getClient(
         clientId: string,
         clientSecret?: string | null,
-    ): Promise<Client | false> {
+    ): Promise<LightdashOAuthClient | false> {
         const query = this.database('oauth2_clients')
             .select('*')
             .where('client_id', clientId);
@@ -43,15 +88,9 @@ export class OAuth2Model implements AuthorizationCodeModel {
             id: client.client_id,
             redirectUris: client.redirect_uris,
             grants: client.grants,
+            clientName: client.client_name,
+            organizationUuid: client.organization_uuid,
         };
-    }
-
-    async findClientName(clientId: string): Promise<string | undefined> {
-        const client = await this.database('oauth2_clients')
-            .select('client_name')
-            .where('client_id', clientId)
-            .first();
-        return client?.client_name;
     }
 
     async saveAuthorizationCode(
@@ -105,6 +144,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_clients.grants',
                 'oauth2_clients.scopes',
                 'oauth2_clients.client_name',
+                'oauth2_clients.organization_uuid as client_organization_uuid',
                 'oauth2_authorization_codes.code_challenge',
                 'oauth2_authorization_codes.code_challenge_method',
             )
@@ -134,6 +174,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 id: result.client_id,
                 redirectUris: result.redirect_uris,
                 grants: result.grants,
+                clientName: result.client_name,
+                organizationUuid: result.client_organization_uuid,
             },
             user: {
                 userId: result.user_id,
@@ -192,6 +234,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_clients.grants',
                 'oauth2_clients.scopes',
                 'oauth2_clients.client_name',
+                'oauth2_clients.organization_uuid as client_organization_uuid',
                 'users.user_uuid',
             )
             .leftJoin(
@@ -215,6 +258,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 id: result.client_id,
                 redirectUris: result.redirect_uris,
                 grants: result.grants,
+                clientName: result.client_name,
+                organizationUuid: result.client_organization_uuid,
             },
             user: {
                 userId: result.user_id,
@@ -246,6 +291,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_clients.grants',
                 'oauth2_clients.scopes',
                 'oauth2_clients.client_name',
+                'oauth2_clients.organization_uuid as client_organization_uuid',
             )
             .leftJoin(
                 'oauth2_clients',
@@ -268,6 +314,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 id: result.client_id,
                 redirectUris: result.redirect_uris,
                 grants: result.grants,
+                clientName: result.client_name,
+                organizationUuid: result.client_organization_uuid,
             },
             user: {
                 userId: result.user_id,
@@ -294,7 +342,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
 
     async validateRedirectUri(
         redirectUri: string,
-        client: Client,
+        client: LightdashOAuthClient,
     ): Promise<boolean> {
         const escapeRegExp = (string: string) =>
             string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -304,6 +352,13 @@ export class OAuth2Model implements AuthorizationCodeModel {
 
         if (!client.redirectUris) {
             return false;
+        }
+
+        if (isSelfRegisteredOAuthClient(client)) {
+            return (
+                isValidSelfRegisteredRedirectUri(redirectUri) &&
+                client.redirectUris.includes(redirectUri)
+            );
         }
 
         const isValidRedirectUri =

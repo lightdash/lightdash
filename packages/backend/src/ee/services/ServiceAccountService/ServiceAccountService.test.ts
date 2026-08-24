@@ -112,6 +112,26 @@ const baseCreateArgs = (overrides: AnyType = {}) => ({
 });
 
 describe('ServiceAccountService.create with projectAccess', () => {
+    it('rejects creation from a self-registered OAuth client', async () => {
+        const mocks = buildMocks();
+        const service = buildService(mocks);
+
+        await expect(
+            service.create({
+                ...baseCreateArgs(),
+                authentication: {
+                    type: 'oauth',
+                    source: 'oauth-token',
+                    token: 'oauth-token',
+                    clientId: 'mcp-client-id',
+                    clientOrganizationUuid: null,
+                    scopes: [],
+                },
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(mocks.serviceAccountModel.create).not.toHaveBeenCalled();
+    });
+
     describe('validation (no SA insert)', () => {
         it.each([
             [

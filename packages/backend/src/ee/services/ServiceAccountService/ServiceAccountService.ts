@@ -5,6 +5,7 @@ import {
     CreateServiceAccount,
     ForbiddenError,
     getServiceAccountScopePermissions,
+    isSelfRegisteredOAuthAuthentication,
     NotFoundError,
     ParameterError,
     ServiceAccount,
@@ -16,6 +17,7 @@ import {
     SessionUser,
     UnexpectedDatabaseError,
     UpdateServiceAccount,
+    type Authentication,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -180,11 +182,22 @@ export class ServiceAccountService extends BaseService {
         user,
         tokenDetails,
         prefix = AuthTokenPrefix.SCIM,
+        authentication,
     }: {
         user: SessionUser;
         tokenDetails: CreateServiceAccount;
         prefix?: string;
+        authentication?: Authentication;
     }): Promise<ServiceAccount> {
+        if (
+            authentication &&
+            isSelfRegisteredOAuthAuthentication(authentication)
+        ) {
+            throw new ForbiddenError(
+                'Self-registered OAuth clients cannot create service accounts',
+            );
+        }
+
         // Project-scope create: validate before touching the DB so a malformed
         // request can't half-create an SA. The invariant is "Member-scoped SA
         // must have ≥1 project from the moment it exists", so we refuse any
