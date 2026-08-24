@@ -238,7 +238,8 @@ const chartConfigCustomChartTypeSchema = z.object({
         ),
     options: z
         .record(z.string(), customChartTypeOptionValueSchema)
-        .nullable()
+        .nullish()
+        .default(null)
         .describe(
             "Values for the type's config options, keyed by option name from the type's schema. null to use the type's defaults.",
         ),
