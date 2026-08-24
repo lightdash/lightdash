@@ -2,7 +2,7 @@ import { type ItemsMap } from '@lightdash/common';
 import { Button, Textarea, Popover } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import MantineIcon from '../../../../common/MantineIcon';
 import { useCustomVis } from '../hooks/useCustomVisAi';
 
@@ -19,9 +19,7 @@ export const GenerateVizWithAi = ({
     editorConfig: string;
     setEditorConfig: (config: string) => void;
 }) => {
-    const { projectUuid } = useParams<{
-        projectUuid: string;
-    }>();
+    const projectUuid = useProjectUuid();
     const [prompt, setPrompt] = useState('');
 
     const { mutate: getCustomVis, data, isLoading } = useCustomVis(projectUuid);

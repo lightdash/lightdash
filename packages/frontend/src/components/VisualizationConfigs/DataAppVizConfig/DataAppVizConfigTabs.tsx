@@ -7,13 +7,14 @@ import {
 } from '@lightdash/common';
 import { Anchor, Box, Stack, Text } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import { reconcileDataAppVizFieldMapping } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { chartTypeBuilderPath } from '../../../features/chartTypes/utils/chartTypeBuilderPath';
 import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useIsInsideChartGallery } from '../../common/ChartGallery/ChartGalleryContext';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -29,7 +30,7 @@ import DataAppVizSettings from './DataAppVizSettings';
 const NO_COLUMNS: ItemsMap = {};
 
 export const ConfigTabs: FC = memo(() => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const location = useLocation();
     const navigate = useNavigate();
     const { visualizationConfig, itemsMap, setChartType, setPivotDimensions } =
