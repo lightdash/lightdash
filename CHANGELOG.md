@@ -1,3 +1,10 @@
+## [1.242.3](https://github.com/lightdash/lightdash/compare/1.242.2...1.242.3) (2026-08-24)
+
+
+### Bug Fixes
+
+* condense the chart gallery sidebar into a drill-in flow ([#27909](https://github.com/lightdash/lightdash/issues/27909)) ([97ac4fa](https://github.com/lightdash/lightdash/commit/97ac4facaffdcf30e0b1467b3ca1512811c6d516))
+
 ## [1.242.2](https://github.com/lightdash/lightdash/compare/1.242.1...1.242.2) (2026-08-24)
 
 
