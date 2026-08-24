@@ -81,6 +81,8 @@ function createService(
         savedSqlModel: Partial<SavedSqlModel>;
         savedChartModel: Partial<SavedChartModel>;
         dashboardModel: Partial<DashboardModel>;
+        projectModel: Partial<ProjectModel>;
+        slackAuthenticationModel: Partial<SlackAuthenticationModel>;
         headlessBrowser: Record<string, unknown>;
     }> = {},
 ) {
@@ -104,13 +106,14 @@ function createService(
         fileStorageClient:
             mockFileStorageClient as unknown as FileStorageClient,
         slackClient: {} as unknown as SlackClient,
-        projectModel: {} as unknown as ProjectModel,
+        projectModel: (overrides.projectModel ?? {}) as unknown as ProjectModel,
         downloadFileModel:
             mockDownloadFileModel as unknown as DownloadFileModel,
         slackUnfurlImageModel:
             mockSlackUnfurlImageModel as unknown as SlackUnfurlImageModel,
         analytics: {} as unknown as LightdashAnalytics,
-        slackAuthenticationModel: {} as unknown as SlackAuthenticationModel,
+        slackAuthenticationModel: (overrides.slackAuthenticationModel ??
+            {}) as unknown as SlackAuthenticationModel,
         spacePermissionService: {} as unknown as SpacePermissionService,
         headlessBrowserLoginGrantModel:
             {} as unknown as HeadlessBrowserLoginGrantModel,
@@ -477,6 +480,163 @@ describe('UnfurlService', () => {
             );
 
             expect(result.isValid).toBe(false);
+        });
+    });
+
+    describe('parseUrl - project slugs', () => {
+        const ORGANIZATION_UUID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+        const PROJECT_UUID = '21eef0b9-5bae-40f3-851e-9554588e71a6';
+        const PROJECT_SLUG = 'analytics-project';
+        const CHART_UUID = '11111111-2222-4333-8444-555555555555';
+        const DASHBOARD_UUID = '66666666-7777-4888-8999-000000000000';
+
+        const projectModel = () => ({
+            getUuidBySlug: vi.fn().mockResolvedValue(PROJECT_UUID),
+        });
+
+        it('resolves a chart beneath an organization-scoped project slug', async () => {
+            const project = projectModel();
+            const get = vi.fn().mockResolvedValue({ uuid: CHART_UUID });
+            const service = createService({
+                projectModel: project,
+                savedChartModel: { get },
+            });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_SLUG}/saved/retired-chart-alias`,
+                ORGANIZATION_UUID,
+            );
+
+            expect(project.getUuidBySlug).toHaveBeenCalledWith(
+                ORGANIZATION_UUID,
+                PROJECT_SLUG,
+            );
+            expect(get).toHaveBeenCalledWith('retired-chart-alias', undefined, {
+                projectUuid: PROJECT_UUID,
+            });
+            expect(result).toMatchObject({
+                isValid: true,
+                projectUuid: PROJECT_UUID,
+                chartUuid: CHART_UUID,
+                minimalUrl: `http://headless-browser:8080/minimal/projects/${PROJECT_UUID}/saved/${CHART_UUID}`,
+            });
+        });
+
+        it('keeps UUID project URLs on the existing lookup-free path', async () => {
+            const project = projectModel();
+            const service = createService({ projectModel: project });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_UUID}/saved/${CHART_UUID}`,
+                ORGANIZATION_UUID,
+            );
+
+            expect(project.getUuidBySlug).not.toHaveBeenCalled();
+            expect(result).toMatchObject({
+                isValid: true,
+                projectUuid: PROJECT_UUID,
+                chartUuid: CHART_UUID,
+                minimalUrl: `http://headless-browser:8080/minimal/projects/${PROJECT_UUID}/saved/${CHART_UUID}`,
+            });
+        });
+
+        it('resolves a dashboard beneath an organization-scoped project slug', async () => {
+            const project = projectModel();
+            const getByIdOrSlug = vi
+                .fn()
+                .mockResolvedValue({ uuid: DASHBOARD_UUID });
+            const service = createService({
+                projectModel: project,
+                dashboardModel: { getByIdOrSlug },
+            });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_SLUG}/dashboards/sales-dashboard/view`,
+                ORGANIZATION_UUID,
+            );
+
+            expect(getByIdOrSlug).toHaveBeenCalledWith('sales-dashboard', {
+                projectUuid: PROJECT_UUID,
+            });
+            expect(result).toMatchObject({
+                isValid: true,
+                projectUuid: PROJECT_UUID,
+                dashboardUuid: DASHBOARD_UUID,
+                minimalUrl: `http://headless-browser:8080/minimal/projects/${PROJECT_UUID}/dashboards/${DASHBOARD_UUID}?`,
+            });
+        });
+
+        it('canonicalizes project slugs for SQL charts and explores', async () => {
+            const project = projectModel();
+            const getBySlug = vi.fn().mockResolvedValue({
+                savedSqlUuid: CHART_UUID,
+            });
+            const service = createService({
+                projectModel: project,
+                savedSqlModel: { getBySlug },
+            });
+
+            const sqlResult = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_SLUG}/sql-runner/saved-query`,
+                ORGANIZATION_UUID,
+            );
+            const exploreResult = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_SLUG}/tables/orders?foo=bar`,
+                ORGANIZATION_UUID,
+            );
+
+            expect(sqlResult).toMatchObject({
+                isValid: true,
+                projectUuid: PROJECT_UUID,
+                savedSqlUuid: CHART_UUID,
+                minimalUrl: `http://headless-browser:8080/minimal/projects/${PROJECT_UUID}/sql-runner/${CHART_UUID}`,
+            });
+            expect(exploreResult).toMatchObject({
+                isValid: true,
+                projectUuid: PROJECT_UUID,
+                exploreModel: 'orders',
+                minimalUrl: `http://headless-browser:8080/projects/${PROJECT_UUID}/tables/orders?foo=bar`,
+            });
+        });
+
+        it('fails safely when a project slug has no organization context', async () => {
+            const project = projectModel();
+            const get = vi.fn();
+            const service = createService({
+                projectModel: project,
+                savedChartModel: { get },
+            });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_SLUG}/saved/chart`,
+            );
+
+            expect(result.isValid).toBe(false);
+            expect(project.getUuidBySlug).not.toHaveBeenCalled();
+            expect(get).not.toHaveBeenCalled();
+        });
+
+        it('does not fall back to another organization', async () => {
+            const getUuidBySlug = vi
+                .fn()
+                .mockRejectedValue(new NotFoundError('not found'));
+            const get = vi.fn();
+            const service = createService({
+                projectModel: { getUuidBySlug },
+                savedChartModel: { get },
+            });
+
+            const result = await service.parseUrl(
+                `https://app.lightdash.cloud/projects/${PROJECT_SLUG}/saved/chart`,
+                ORGANIZATION_UUID,
+            );
+
+            expect(getUuidBySlug).toHaveBeenCalledWith(
+                ORGANIZATION_UUID,
+                PROJECT_SLUG,
+            );
+            expect(result.isValid).toBe(false);
+            expect(get).not.toHaveBeenCalled();
         });
     });
 

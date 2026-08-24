@@ -1278,6 +1278,33 @@ export class ProjectModel {
         };
     }
 
+    async getUuidBySlug(
+        organizationUuid: string,
+        projectSlug: string,
+    ): Promise<string> {
+        const project = await this.database(ProjectTableName)
+            .innerJoin(
+                OrganizationTableName,
+                `${ProjectTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .select(`${ProjectTableName}.project_uuid`)
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .where(`${ProjectTableName}.slug`, projectSlug)
+            .first();
+
+        if (!project) {
+            throw new NotFoundError(
+                `Cannot find project with slug: ${projectSlug}`,
+            );
+        }
+
+        return project.project_uuid;
+    }
+
     /*
     This method will load default values for backwards compatibility
     For example, when we introduce a new authentication type, we need to set the default value for the existing projects

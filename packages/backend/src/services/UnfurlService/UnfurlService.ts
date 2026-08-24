@@ -587,8 +587,12 @@ export class UnfurlService extends BaseService {
     async unfurlDetails(
         originUrl: string,
         selectedTabs: string[] | null,
+        organizationUuidContext?: string,
     ): Promise<Unfurl | undefined> {
-        const parsedUrl = await this.parseUrl(originUrl);
+        const parsedUrl = await this.parseUrl(
+            originUrl,
+            organizationUuidContext,
+        );
 
         if (
             !parsedUrl.isValid ||
@@ -2545,10 +2549,60 @@ export class UnfurlService extends BaseService {
         return fullUrl;
     }
 
-    async parseUrl(linkUrl: string): Promise<ParsedUrl> {
+    private async resolveProjectUuid(
+        projectIdentifier: string,
+        organizationUuid?: string,
+    ): Promise<string> {
+        const decodedIdentifier = decodeURIComponent(projectIdentifier);
+        if (uuidExactRegex.test(decodedIdentifier)) {
+            return decodedIdentifier;
+        }
+        if (!organizationUuid) {
+            throw new NotFoundError(
+                `Cannot resolve project slug without an organization`,
+            );
+        }
+
+        return this.projectModel.getUuidBySlug(
+            organizationUuid,
+            decodedIdentifier,
+        );
+    }
+
+    async parseUrl(
+        linkUrl: string,
+        organizationUuid?: string,
+    ): Promise<ParsedUrl> {
         const url = matchShareUrlNanoid(linkUrl)
             ? await this.getSharedUrl(linkUrl)
             : linkUrl;
+
+        const projectMatch = url.match(/\/projects\/([^/?#]+)/);
+        let resolvedUrl = url;
+        if (projectMatch) {
+            const [, projectIdentifier] = projectMatch;
+            try {
+                const projectUuid = await this.resolveProjectUuid(
+                    projectIdentifier,
+                    organizationUuid,
+                );
+                resolvedUrl = url.replace(
+                    `/projects/${projectIdentifier}`,
+                    `/projects/${projectUuid}`,
+                );
+            } catch (e) {
+                this.logger.debug(
+                    `Project ${projectIdentifier} did not resolve: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+                return {
+                    isValid: false,
+                    url,
+                    minimalUrl: url,
+                };
+            }
+        }
 
         const dashboardUrl = new RegExp(
             `/projects/(${uuid})/dashboards/([^/?#]+)`,
@@ -2560,8 +2614,8 @@ export class UnfurlService extends BaseService {
         );
         const appUrl = new RegExp(`/projects/${uuid}/apps/${uuid}`);
 
-        if (url.match(appUrl) !== null) {
-            const [projectUuid, appUuid] = url.match(uuidRegex) || [];
+        if (resolvedUrl.match(appUrl) !== null) {
+            const [projectUuid, appUuid] = resolvedUrl.match(uuidRegex) || [];
             return {
                 isValid: true,
                 lightdashPage: LightdashPage.APP,
@@ -2574,7 +2628,7 @@ export class UnfurlService extends BaseService {
                 appUuid,
             };
         }
-        const dashboardMatch = url.match(dashboardUrl);
+        const dashboardMatch = resolvedUrl.match(dashboardUrl);
         if (dashboardMatch !== null) {
             const [, projectUuid, encodedIdentifier] = dashboardMatch;
             try {
@@ -2609,7 +2663,7 @@ export class UnfurlService extends BaseService {
                 );
             }
         }
-        const chartMatch = url.match(chartUrl);
+        const chartMatch = resolvedUrl.match(chartUrl);
         if (chartMatch !== null) {
             const [, projectUuid, encodedIdentifier] = chartMatch;
             try {
@@ -2644,12 +2698,12 @@ export class UnfurlService extends BaseService {
                 );
             }
         }
-        if (url.match(exploreUrl) !== null) {
-            const [projectUuid] = url.match(uuidRegex) || [];
+        if (resolvedUrl.match(exploreUrl) !== null) {
+            const [projectUuid] = resolvedUrl.match(uuidRegex) || [];
 
-            const urlWithoutParams = url.split('?')[0];
+            const urlWithoutParams = resolvedUrl.split('?')[0];
             const exploreModel = urlWithoutParams.split('/tables/')[1];
-            const internalUrl = url.replace(
+            const internalUrl = resolvedUrl.replace(
                 this.lightdashConfig.siteUrl,
                 this.lightdashConfig.headlessBrowser.internalLightdashHost,
             );
@@ -2662,7 +2716,7 @@ export class UnfurlService extends BaseService {
                 exploreModel,
             };
         }
-        const sqlChartMatch = url.match(sqlChartUrl);
+        const sqlChartMatch = resolvedUrl.match(sqlChartUrl);
         if (sqlChartMatch !== null) {
             const [, projectUuid, slug] = sqlChartMatch;
             try {
@@ -2797,11 +2851,20 @@ export class UnfurlService extends BaseService {
             return;
         }
 
+        const organizationUuid =
+            await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                teamId,
+            );
+
         void event.links.map(async (l) => {
             const eventUserId = context.botUserId;
 
             try {
-                const details = await this.unfurlDetails(l.url, null);
+                const details = await this.unfurlDetails(
+                    l.url,
+                    null,
+                    organizationUuid,
+                );
 
                 if (details) {
                     this.analytics.track({

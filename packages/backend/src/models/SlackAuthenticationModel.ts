@@ -111,6 +111,26 @@ export class SlackAuthenticationModel {
         return row.slack_team_id;
     }
 
+    async getOrganizationUuidFromTeamId(teamId: string) {
+        const row = await this.database(SlackAuthTokensTableName)
+            .leftJoin(
+                'organizations',
+                'slack_auth_tokens.organization_id',
+                'organizations.organization_id',
+            )
+            .select('organization_uuid')
+            .where('slack_team_id', teamId)
+            .first();
+
+        if (!row) {
+            throw new NotFoundError(
+                `Could not find organization for Slack team ${teamId}`,
+            );
+        }
+
+        return row.organization_uuid;
+    }
+
     async getUserUuid(teamId: string) {
         const [row] = await this.database(SlackAuthTokensTableName)
             .leftJoin(
