@@ -213,9 +213,21 @@ const hardenMcpInputSchema = (inputSchema: unknown): unknown => {
                         ) {
                             throw new McpPayloadTooLargeError();
                         }
-                        return [childKey, visit(child, childKey, depth + 1)];
+                        return [
+                            childKey,
+                            visit(child, childKey, depth + 1),
+                            child,
+                        ];
                     })
-                    .filter(([, child]) => child !== undefined),
+                    // Drop only keys the sanitizer removed; keys that were
+                    // undefined to begin with must survive — the AI SDK Schema
+                    // wrapper is only recognized by asSchema() when its
+                    // `validate` key is present, even if undefined.
+                    .filter(
+                        ([, sanitized, original]) =>
+                            sanitized !== undefined || original === undefined,
+                    )
+                    .map(([childKey, sanitized]) => [childKey, sanitized]),
             );
             for (const symbol of Object.getOwnPropertySymbols(value)) {
                 Object.defineProperty(
