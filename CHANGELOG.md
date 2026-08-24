@@ -1,3 +1,10 @@
+## [1.241.1](https://github.com/lightdash/lightdash/compare/1.241.0...1.241.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* **data-apps:** make app clarification provider agnostic ([#27913](https://github.com/lightdash/lightdash/issues/27913)) ([a56d880](https://github.com/lightdash/lightdash/commit/a56d880a9739b142825931ee684ab75ec9a3c3dc))
+
 # [1.241.0](https://github.com/lightdash/lightdash/compare/1.240.3...1.241.0) (2026-08-24)
 
 
