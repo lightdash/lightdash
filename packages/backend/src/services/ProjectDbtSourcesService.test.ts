@@ -1,11 +1,13 @@
 import { Ability } from '@casl/ability';
 import {
     DbtProjectType,
+    EMPTY_WAREHOUSE_LOCATION,
     ForbiddenError,
     ParameterError,
     PossibleAbilities,
     SessionUser,
     UnexpectedServerError,
+    WarehouseTypes,
 } from '@lightdash/common';
 import { fromSession } from '../auth/account/account';
 import { buildAccount, defaultSessionUser } from '../auth/account/account.mock';
@@ -113,6 +115,29 @@ describe('ProjectDbtSourcesService', () => {
                 precedence: 0,
                 type: DbtProjectType.GITHUB,
                 repository: 'acme/primary',
+            });
+        });
+
+        it("reports the primary source's location from the project warehouse", async () => {
+            projectModel.get.mockResolvedValue({
+                projectUuid,
+                dbtConnection: primaryDbtConnection,
+                warehouseConnection: {
+                    type: WarehouseTypes.BIGQUERY,
+                    project: 'primary-gcp-project',
+                    dataset: 'prod',
+                },
+            } as never);
+            const service = getService();
+
+            const sources = await service.getProjectDbtSources(
+                adminAccount,
+                projectUuid,
+            );
+
+            expect(sources[0].warehouseLocation).toEqual({
+                database: 'primary-gcp-project',
+                schema: 'prod',
             });
         });
 
@@ -227,6 +252,114 @@ describe('ProjectDbtSourcesService', () => {
             expect(created.precedence).toBe(4);
         });
 
+        it("saves the source's own warehouse location", async () => {
+            projectDbtSourcesModel.createSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'jaffle-2',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: githubConnection,
+                warehouseLocation: {
+                    database: 'source-gcp-project',
+                    schema: 'source_dataset',
+                },
+            } as never);
+            const service = getService();
+
+            await service.createProjectDbtSource(adminAccount, projectUuid, {
+                name: 'jaffle-2',
+                dbtConnection: githubConnection as never,
+                warehouseLocation: {
+                    database: 'source-gcp-project',
+                    schema: 'source_dataset',
+                },
+            });
+
+            expect(projectDbtSourcesModel.createSource).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    warehouseLocation: {
+                        database: 'source-gcp-project',
+                        schema: 'source_dataset',
+                    },
+                }),
+            );
+        });
+
+        it('inherits the project location when the source sets none', async () => {
+            projectDbtSourcesModel.createSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'jaffle-2',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: githubConnection,
+                warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+            } as never);
+            const service = getService();
+
+            await service.createProjectDbtSource(adminAccount, projectUuid, {
+                name: 'jaffle-2',
+                dbtConnection: githubConnection as never,
+            });
+
+            expect(projectDbtSourcesModel.createSource).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+                }),
+            );
+        });
+
+        it('stores a blank location as inherit rather than as an override', async () => {
+            projectDbtSourcesModel.createSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'jaffle-2',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: githubConnection,
+                warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+            } as never);
+            const service = getService();
+
+            await service.createProjectDbtSource(adminAccount, projectUuid, {
+                name: 'jaffle-2',
+                dbtConnection: githubConnection as never,
+                warehouseLocation: { database: '', schema: '  ' },
+            });
+
+            expect(projectDbtSourcesModel.createSource).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+                }),
+            );
+        });
+
+        it('rejects a database on a warehouse whose tables have none', async () => {
+            projectModel.get.mockResolvedValue({
+                projectUuid,
+                dbtConnection: primaryDbtConnection,
+                warehouseConnection: {
+                    type: WarehouseTypes.CLICKHOUSE,
+                    schema: 'primary_schema',
+                },
+            } as never);
+            const service = getService();
+
+            await expect(
+                service.createProjectDbtSource(adminAccount, projectUuid, {
+                    name: 'jaffle-2',
+                    dbtConnection: githubConnection as never,
+                    warehouseLocation: {
+                        database: 'source-database',
+                        schema: null,
+                    },
+                }),
+            ).rejects.toThrow(ParameterError);
+
+            expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
+        });
+
         it('rejects a developer (no manage permission) with ForbiddenError', async () => {
             const service = getService();
 
@@ -290,6 +423,49 @@ describe('ProjectDbtSourcesService', () => {
             ).rejects.toThrow(ParameterError);
 
             expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
+        });
+
+        it("updates the source's warehouse location", async () => {
+            projectDbtSourcesModel.getSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+                dbtConnection: githubConnection,
+                warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+            } as never);
+            projectDbtSourcesModel.updateSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'jaffle-2',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: githubConnection,
+                warehouseLocation: {
+                    database: null,
+                    schema: 'source_dataset',
+                },
+            } as never);
+            const service = getService();
+
+            await service.updateProjectDbtSource(
+                adminAccount,
+                projectUuid,
+                sourceUuid,
+                {
+                    warehouseLocation: {
+                        database: null,
+                        schema: 'source_dataset',
+                    },
+                },
+            );
+
+            expect(projectDbtSourcesModel.updateSource).toHaveBeenCalledWith(
+                sourceUuid,
+                expect.objectContaining({
+                    warehouseLocation: {
+                        database: null,
+                        schema: 'source_dataset',
+                    },
+                }),
+            );
         });
 
         it('rejects a source uuid that belongs to a different project', async () => {

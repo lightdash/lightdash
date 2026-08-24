@@ -1011,6 +1011,17 @@ export type DbtProjectConfig =
     | DbtManifestProjectConfig;
 
 /**
+ * Where in the warehouse a set of models lives — the two levels of a table
+ * reference, whatever a given warehouse calls them (BigQuery project and
+ * dataset, Snowflake database and schema, Databricks catalog and schema). A
+ * null field means "inherit from the project's warehouse connection".
+ */
+export type WarehouseLocation = {
+    database: string | null;
+    schema: string | null;
+};
+
+/**
  * One dbt source connected to a project (PROD-7484 multiple dbt sources). The
  * project's own `dbt_connection` is the primary source (precedence 0); when a
  * project has no source rows it runs the single-source path unchanged (N=0
@@ -1033,6 +1044,7 @@ export type ProjectDbtSource = {
     isPrimary: boolean;
     precedence: number;
     dbtConnection: DbtProjectConfig | null;
+    warehouseLocation: WarehouseLocation;
     hasCredentialError: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -1043,12 +1055,14 @@ export type CreateProjectDbtSource = {
     isPrimary: boolean;
     precedence: number;
     dbtConnection: DbtProjectConfig | null;
+    warehouseLocation: WarehouseLocation;
 };
 
 export type UpdateProjectDbtSource = {
     name?: string;
     precedence?: number;
     dbtConnection?: DbtProjectConfig | null;
+    warehouseLocation?: WarehouseLocation;
 };
 
 /**
@@ -1060,6 +1074,10 @@ export type UpdateProjectDbtSource = {
  *
  * `hasCredentialError` is always `false` for the synthesised primary source.
  * See `ProjectDbtSource` for what it means on an additional source.
+ *
+ * `warehouseLocation` is where this source's models live in the project's
+ * warehouse. For the primary source it is the location the project's warehouse
+ * connection already points at.
  */
 export type ProjectDbtSourceSummary = {
     projectDbtSourceUuid: string;
@@ -1070,12 +1088,14 @@ export type ProjectDbtSourceSummary = {
     repository: string | null;
     branch: string | null;
     projectSubPath: string | null;
+    warehouseLocation: WarehouseLocation;
     hasCredentialError: boolean;
 };
 
 export type ApiCreateProjectDbtSource = {
     name: string;
     dbtConnection: DbtProjectConfig;
+    warehouseLocation?: WarehouseLocation;
 };
 
 export type ApiProjectDbtSourcesResponse = {
@@ -1105,6 +1125,7 @@ export type ApiProjectDbtSourceWithConnectionResponse = {
 export type ApiUpdateProjectDbtSource = {
     name?: string;
     dbtConnection?: DbtProjectConfig;
+    warehouseLocation?: WarehouseLocation;
 };
 
 export const isGitProjectType = (

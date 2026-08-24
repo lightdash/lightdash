@@ -4,15 +4,20 @@ import {
     ApiUpdateProjectDbtSource,
     DbtProjectConfig,
     DbtProjectType,
+    EMPTY_WAREHOUSE_LOCATION,
     ForbiddenError,
     getDbtEnvironmentVariableKeyError,
+    getWarehouseLocation,
+    normalizeWarehouseLocation,
     ParameterError,
     ProjectDbtSource,
     ProjectDbtSourceSummary,
     ProjectDbtSourceWithConnection,
     sensitiveDbtCredentialsFieldNames,
     UnexpectedServerError,
+    validateWarehouseLocation,
     type Account,
+    type WarehouseLocation,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
@@ -103,6 +108,7 @@ export class ProjectDbtSourcesService extends BaseService {
             isPrimary: source.isPrimary,
             precedence: source.precedence,
             type: source.dbtConnection?.type ?? null,
+            warehouseLocation: source.warehouseLocation,
             hasCredentialError: source.hasCredentialError,
             ...ProjectDbtSourcesService.gitIdentity(source.dbtConnection),
         };
@@ -121,6 +127,25 @@ export class ProjectDbtSourcesService extends BaseService {
                 throw new ParameterError(error);
             }
         });
+    }
+
+    /**
+     * Reject a location the project's warehouse cannot express while the user is
+     * still looking at the form, rather than at the next deploy.
+     */
+    private async resolveWarehouseLocation(
+        projectUuid: string,
+        warehouseLocation: WarehouseLocation | undefined,
+    ): Promise<WarehouseLocation | undefined> {
+        if (!warehouseLocation) {
+            return undefined;
+        }
+        const location = normalizeWarehouseLocation(warehouseLocation);
+        const project = await this.projectModel.get(projectUuid);
+        if (project.warehouseConnection) {
+            validateWarehouseLocation(project.warehouseConnection, location);
+        }
+        return location;
     }
 
     private async checkProjectAccess(
@@ -162,6 +187,9 @@ export class ProjectDbtSourcesService extends BaseService {
             isPrimary: true,
             precedence: 0,
             type: project.dbtConnection.type,
+            warehouseLocation: project.warehouseConnection
+                ? getWarehouseLocation(project.warehouseConnection)
+                : EMPTY_WAREHOUSE_LOCATION,
             hasCredentialError: false,
             ...ProjectDbtSourcesService.gitIdentity(project.dbtConnection),
         };
@@ -188,6 +216,10 @@ export class ProjectDbtSourcesService extends BaseService {
         ProjectDbtSourcesService.validateDbtEnvironmentVariables(
             data.dbtConnection,
         );
+        const warehouseLocation = await this.resolveWarehouseLocation(
+            projectUuid,
+            data.warehouseLocation,
+        );
         const existing =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         // Append after the highest existing precedence (primary is 0).
@@ -203,6 +235,8 @@ export class ProjectDbtSourcesService extends BaseService {
                 isPrimary: false,
                 precedence,
                 dbtConnection: data.dbtConnection,
+                warehouseLocation:
+                    warehouseLocation ?? EMPTY_WAREHOUSE_LOCATION,
             },
         );
         this.analytics.track({
@@ -287,6 +321,10 @@ export class ProjectDbtSourcesService extends BaseService {
                 data.dbtConnection,
             );
         }
+        const warehouseLocation = await this.resolveWarehouseLocation(
+            projectUuid,
+            data.warehouseLocation,
+        );
         // The edit form receives the connection with secrets stripped; restore
         // any the user did not re-enter from the stored connection.
         const dbtConnection =
@@ -301,6 +339,7 @@ export class ProjectDbtSourcesService extends BaseService {
             {
                 name: data.name,
                 dbtConnection,
+                warehouseLocation,
             },
         );
         return ProjectDbtSourcesService.toSummary(updated);

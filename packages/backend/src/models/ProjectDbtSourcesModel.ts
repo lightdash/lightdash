@@ -92,6 +92,10 @@ export class ProjectDbtSourcesModel {
             isPrimary: row.is_primary,
             precedence: row.precedence,
             dbtConnection,
+            warehouseLocation: {
+                database: row.warehouse_database,
+                schema: row.warehouse_schema,
+            },
             hasCredentialError,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
@@ -146,6 +150,8 @@ export class ProjectDbtSourcesModel {
                     precedence: data.precedence,
                     dbt_connection_type: data.dbtConnection?.type ?? null,
                     dbt_connection: this.encryptConnection(data.dbtConnection),
+                    warehouse_database: data.warehouseLocation.database,
+                    warehouse_schema: data.warehouseLocation.schema,
                 })
                 .returning('*');
             return this.convertRow(row);
@@ -182,6 +188,13 @@ export class ProjectDbtSourcesModel {
                               dbt_connection: this.encryptConnection(
                                   data.dbtConnection,
                               ),
+                          }
+                        : {}),
+                    ...(data.warehouseLocation !== undefined
+                        ? {
+                              warehouse_database:
+                                  data.warehouseLocation.database,
+                              warehouse_schema: data.warehouseLocation.schema,
                           }
                         : {}),
                     updated_at: new Date(),

@@ -16,6 +16,7 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     ApiUpstreamDiffResults,
+    applyWarehouseLocation,
     assertEmbeddedAuth,
     assertIsAccountWithOrg,
     assertUnreachable,
@@ -244,6 +245,7 @@ import {
     type ParametersValuesMap,
     type RunQueryTags,
     type Tag,
+    type WarehouseLocation,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import {
@@ -4484,10 +4486,14 @@ export class ProjectService extends BaseService {
     /**
      * Build an adapter for an additional dbt source, reusing the project's already
      * resolved warehouse setup (so we don't re-resolve and re-rotate credentials per
-     * source). Used only to read the source's manifest, not to compile.
+     * source). Used only to read the source's manifest, not to compile. The source
+     * compiles against its own database and schema when it has them: its models can
+     * live elsewhere in the same warehouse, and the project's location would resolve
+     * every one of them to a table holding different data or none.
      */
     private async buildSourceAdapter(
         dbtConnection: DbtProjectConfig,
+        warehouseLocation: WarehouseLocation,
         organizationUuid: string | undefined,
         shared: {
             warehouseCredentials: CreateWarehouseCredentials;
@@ -4502,7 +4508,10 @@ export class ProjectService extends BaseService {
             );
         return projectAdapterFromConfig(
             resolvedConnection,
-            shared.warehouseCredentials,
+            applyWarehouseLocation(
+                shared.warehouseCredentials,
+                warehouseLocation,
+            ),
             shared.cachedWarehouse,
             shared.dbtVersionOption,
             this.lightdashConfig.dbt.environmentVariableAllowlist,
@@ -4643,6 +4652,7 @@ export class ProjectService extends BaseService {
                 try {
                     sourceAdapter = await this.buildSourceAdapter(
                         source.dbtConnection,
+                        source.warehouseLocation,
                         organizationUuid,
                         shared,
                     );

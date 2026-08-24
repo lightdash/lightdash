@@ -10,6 +10,7 @@ import {
     DimensionType,
     DownloadFileType,
     DuckdbConnectionType,
+    EMPTY_WAREHOUSE_LOCATION,
     FeatureFlags,
     FilterOperator,
     ForbiddenError,
@@ -42,7 +43,9 @@ import {
     type RegisteredAccount,
     type UpdateProject,
     type UserWarehouseCredentialsWithSecrets,
+    type WarehouseLocation,
 } from '@lightdash/common';
+import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import { Readable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
@@ -4674,13 +4677,17 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             })),
         }) as unknown as ProjectAdapter;
 
-    const buildSource = (name: string): ProjectDbtSource => ({
+    const buildSource = (
+        name: string,
+        warehouseLocation: WarehouseLocation = EMPTY_WAREHOUSE_LOCATION,
+    ): ProjectDbtSource => ({
         projectDbtSourceUuid: `${name}-uuid`,
         projectUuid: 'project-uuid',
         name,
         isPrimary: false,
         precedence: 1,
         dbtConnection: { type: DbtProjectType.NONE },
+        warehouseLocation,
         hasCredentialError: false,
         createdAt: new Date('2026-08-16T00:00:00.000Z'),
         updatedAt: new Date('2026-08-16T00:00:00.000Z'),
@@ -4958,6 +4965,75 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         await expect(
             buildMergedAdapter(primaryManifest, sourceManifest),
         ).resolves.toBeDefined();
+    });
+
+    it('compiles a source with its own warehouse location', async () => {
+        const projectService = getMockedProjectService(
+            lightdashConfigMock,
+        ) as unknown as ProjectServiceInternals;
+        const buildSourceAdapter = vi
+            .spyOn(projectService, 'buildSourceAdapter')
+            .mockResolvedValue(
+                buildAdapterWithManifest(
+                    buildManifest([
+                        {
+                            uniqueId: 'model.pkg_b.customers',
+                            name: 'customers',
+                            packageName: 'pkg_b',
+                        },
+                    ]),
+                ),
+            );
+        const warehouseLocation: WarehouseLocation = {
+            database: 'source-database',
+            schema: 'source_schema',
+        };
+
+        await projectService.buildMergedManifestAdapter({
+            projectUuid: 'project-uuid',
+            organizationUuid: 'org-uuid',
+            primary: {
+                ...primary,
+                adapter: buildAdapterWithManifest(
+                    buildManifest([
+                        {
+                            uniqueId: 'model.pkg_a.orders',
+                            name: 'orders',
+                            packageName: 'pkg_a',
+                        },
+                    ]),
+                ),
+            },
+            sources: [buildSource('source-b', warehouseLocation)],
+            manifestFetchAdapters: [],
+        });
+
+        expect(buildSourceAdapter).toHaveBeenCalledWith(
+            { type: DbtProjectType.NONE },
+            warehouseLocation,
+            'org-uuid',
+            expect.objectContaining({
+                warehouseCredentials: primary.warehouseCredentials,
+            }),
+        );
+    });
+
+    it("builds the source's adapter with the source's location applied to the project credentials", async () => {
+        const projectService = getMockedProjectService(
+            lightdashConfigMock,
+        ) as unknown as ProjectServiceInternals;
+        vi.mocked(warehouseClientFromCredentials).mockClear();
+
+        await projectService.buildSourceAdapter(
+            { type: DbtProjectType.NONE },
+            { database: null, schema: 'source_schema' },
+            'org-uuid',
+            primary,
+        );
+
+        expect(warehouseClientFromCredentials).toHaveBeenCalledWith(
+            expect.objectContaining({ schema: 'source_schema' }),
+        );
     });
 
     it('flag OFF returns the primary adapter by identity and never queries getSources', async () => {

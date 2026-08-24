@@ -6,6 +6,7 @@ import {
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
     type ProjectDbtSourceSummary,
+    type WarehouseLocation,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -56,6 +57,12 @@ import { ProjectFormProvider } from './ProjectFormProvider';
  * warning icon instead, not this line).
  */
 const sourceIdentity = (source: ProjectDbtSourceSummary): string => {
+    const location = [
+        source.warehouseLocation.database,
+        source.warehouseLocation.schema,
+    ]
+        .filter(Boolean)
+        .join('.');
     if (source.repository) {
         return [
             source.repository,
@@ -63,12 +70,33 @@ const sourceIdentity = (source: ProjectDbtSourceSummary): string => {
             source.projectSubPath && source.projectSubPath !== '/'
                 ? source.projectSubPath
                 : null,
+            location || null,
         ]
             .filter(Boolean)
             .join(' · ');
     }
     return source.type ?? 'no connection';
 };
+
+/** An empty string means inherit, which the API expresses as null. */
+type WarehouseLocationFormValues = {
+    database: string;
+    schema: string;
+};
+
+const toFormLocation = (
+    location: WarehouseLocation | undefined,
+): WarehouseLocationFormValues => ({
+    database: location?.database ?? '',
+    schema: location?.schema ?? '',
+});
+
+const toApiLocation = (
+    values: WarehouseLocationFormValues | undefined,
+): WarehouseLocation => ({
+    database: values?.database.trim() || null,
+    schema: values?.schema.trim() || null,
+});
 
 const DbtSourceRow: FC<{
     source: ProjectDbtSourceSummary;
@@ -134,12 +162,13 @@ const DbtSourceRow: FC<{
  * The shared body for the add/edit modals: a name field plus the full dbt
  * connection form, wrapped in the providers `DbtSettingsForm` reads from.
  */
-const DbtSourceFields: FC<{ form: Form; intro: string }> = ({
-    form,
-    intro,
-}) => (
+const DbtSourceFields: FC<{
+    form: Form;
+    intro: string;
+    projectUuid: string;
+}> = ({ form, intro, projectUuid }) => (
     <FormProvider form={form}>
-        <ProjectFormProvider isDbtSource>
+        <ProjectFormProvider isDbtSource projectUuid={projectUuid}>
             <Stack gap="md">
                 <Text size="sm" c="dimmed">
                     {intro}
@@ -166,6 +195,7 @@ const AddDbtSourceModal: FC<{
         initialValues: {
             name: '',
             dbt: { ...dbtDefaults.formValues[DbtProjectType.GITHUB] },
+            warehouseLocation: toFormLocation(undefined),
             // Sources share the project's warehouse; the schema input is hidden
             // for sources so this is only here to satisfy the form shape.
             warehouse: {
@@ -192,6 +222,7 @@ const AddDbtSourceModal: FC<{
             {
                 name: form.values.name.trim(),
                 dbtConnection: form.values.dbt,
+                warehouseLocation: toApiLocation(form.values.warehouseLocation),
             },
             { onSuccess: handleClose },
         );
@@ -210,6 +241,7 @@ const AddDbtSourceModal: FC<{
         >
             <DbtSourceFields
                 form={form}
+                projectUuid={projectUuid}
                 intro="Connect another git-backed dbt project. Its models are merged with the primary source on every deploy and preview, using the project's warehouse and dbt version."
             />
         </MantineModal>
@@ -229,6 +261,7 @@ const EditDbtSourceModalInner: FC<{
             dbt: connection ?? {
                 ...dbtDefaults.formValues[DbtProjectType.GITHUB],
             },
+            warehouseLocation: toFormLocation(source.warehouseLocation),
             warehouse: {
                 type: WarehouseTypes.POSTGRES,
             } as CreateWarehouseCredentials,
@@ -250,6 +283,9 @@ const EditDbtSourceModalInner: FC<{
                 data: {
                     name: form.values.name.trim(),
                     dbtConnection: form.values.dbt,
+                    warehouseLocation: toApiLocation(
+                        form.values.warehouseLocation,
+                    ),
                 },
             },
             { onSuccess: onClose },
@@ -269,6 +305,7 @@ const EditDbtSourceModalInner: FC<{
         >
             <DbtSourceFields
                 form={form}
+                projectUuid={projectUuid}
                 intro="Update this source's connection. Leave the access token blank to keep the saved one."
             />
         </MantineModal>
