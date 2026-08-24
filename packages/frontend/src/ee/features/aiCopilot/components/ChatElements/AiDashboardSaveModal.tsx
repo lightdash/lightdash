@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import {
     type AiArtifact,
     type Dashboard,
-    type ToolDashboardArgs,
+    type ToolDashboardV2Args,
 } from '@lightdash/common';
 import {
     Button,
@@ -52,7 +52,7 @@ interface Props extends Omit<MantineModalProps, 'children' | 'title'> {
     artifactData: AiArtifact;
     projectUuid: string;
     agentUuid: string;
-    dashboardConfig: ToolDashboardArgs;
+    dashboardConfig: ToolDashboardV2Args;
     onSuccess?: (dashboard: Dashboard) => void;
 }
 

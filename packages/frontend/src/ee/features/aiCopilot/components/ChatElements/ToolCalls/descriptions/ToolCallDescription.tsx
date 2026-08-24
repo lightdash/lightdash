@@ -2,9 +2,6 @@ import type {
     DiscoverFieldsInput,
     ToolGrepFieldsArgs,
     ToolGetMetadataArgs,
-    ToolTableVizArgs,
-    ToolTimeSeriesArgs,
-    ToolVerticalBarArgs,
 } from '@lightdash/common';
 import {
     assertUnreachable,
@@ -14,7 +11,7 @@ import {
     type ToolAnalyzeFieldImpactArgs,
     type ToolComposerQueriesArgs,
     type ToolCreateScheduledDeliveryOutput,
-    type ToolDashboardArgs,
+    type ToolDashboardV2Args,
     type ToolDescribeWarehouseTableArgs,
     type ToolFindChartsArgs,
     type ToolFindContentArgs,
@@ -38,7 +35,6 @@ import {
 } from '@lightdash/common';
 import type { FC } from 'react';
 import type { ToolCallSummary } from '../utils/types';
-import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
 import {
     ComposerQueriesToolCallDescription,
     type ComposerQueryNodeStatus,
@@ -196,7 +192,7 @@ export const ToolCallDescription: FC<{
                 />
             );
         case 'generateDashboard':
-            const dashboardToolArgs = toolCall.toolArgs as ToolDashboardArgs;
+            const dashboardToolArgs = toolCall.toolArgs as ToolDashboardV2Args;
             return (
                 <DashboardToolCallDescription
                     title={dashboardToolArgs.title}
@@ -218,18 +214,6 @@ export const ToolCallDescription: FC<{
                     title={queryToolArgs.title}
                     queryConfig={queryToolArgs.queryConfig}
                     chartConfig={queryToolArgs.chartConfig}
-                />
-            );
-        case 'generateBarVizConfig':
-        case 'generateTableVizConfig':
-        case 'generateTimeSeriesVizConfig':
-            const chartToolArgs = toolCall.toolArgs as
-                | ToolTableVizArgs
-                | ToolTimeSeriesArgs
-                | ToolVerticalBarArgs;
-            return (
-                <AiChartGenerationToolCallDescription
-                    title={chartToolArgs.title}
                 />
             );
         case 'runSql':

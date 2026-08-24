@@ -1,5 +1,4 @@
 import {
-    AiResultType,
     ChartType,
     ECHARTS_DEFAULT_COLORS,
     getGroupByDimensions,
@@ -11,9 +10,6 @@ import {
     type DataAppVizChart,
     type EChartsSeries,
     type ToolRunQueryArgs,
-    type ToolTableVizArgs,
-    type ToolTimeSeriesArgs,
-    type ToolVerticalBarArgs,
 } from '@lightdash/common';
 import {
     Box,
@@ -61,11 +57,7 @@ import {
 type Props = {
     vizQueryData: ApiAiAgentThreadMessageVizQuery;
     results: InfiniteQueryResults;
-    chartConfig:
-        | ToolTableVizArgs
-        | ToolTimeSeriesArgs
-        | ToolVerticalBarArgs
-        | ToolRunQueryArgs;
+    chartConfig: ToolRunQueryArgs;
     // Set for custom chart type answers (from the artifact envelope): the
     // saved-chart shape the dedicated renderer mounts with.
     customChartType?: DataAppVizChart | null;
@@ -216,10 +208,9 @@ export const AiVisualizationRenderer: FC<Props> = ({
     const isCustomChartTypeAnswer = customChartType !== null;
 
     const defaultChartType: AiAgentChartTypeOption =
-        webAiChartConfig.type === AiResultType.QUERY_RESULT &&
-        !isCustomChartTypeSlugChartConfig(webAiChartConfig.vizTool.chartConfig)
-            ? (webAiChartConfig.vizTool.chartConfig?.defaultVizType ?? 'table')
-            : 'table';
+        isCustomChartTypeSlugChartConfig(webAiChartConfig.vizTool.chartConfig)
+            ? 'table'
+            : (webAiChartConfig.vizTool.chartConfig?.defaultVizType ?? 'table');
 
     const handleChartConfigChange = useCallback(
         (newConfig: ChartConfig) => {
@@ -300,23 +291,21 @@ export const AiVisualizationRenderer: FC<Props> = ({
                     }}
                 >
                     {headerContent}
-                    {webAiChartConfig.type === AiResultType.QUERY_RESULT &&
-                        !isCustomChartTypeAnswer &&
-                        onChartTypeChange && (
-                            <Group justify="flex-end">
-                                <AgentVisualizationChartTypeSwitcher
-                                    metricQuery={metricQuery}
-                                    selectedChartType={
-                                        selectedChartType ?? defaultChartType
-                                    }
-                                    hasGroupByDimensions={
-                                        (groupByDimensions?.length ?? 0) > 0
-                                    }
-                                    onChartTypeChange={onChartTypeChange}
-                                    variant={switcherVariant}
-                                />
-                            </Group>
-                        )}
+                    {!isCustomChartTypeAnswer && onChartTypeChange && (
+                        <Group justify="flex-end">
+                            <AgentVisualizationChartTypeSwitcher
+                                metricQuery={metricQuery}
+                                selectedChartType={
+                                    selectedChartType ?? defaultChartType
+                                }
+                                hasGroupByDimensions={
+                                    (groupByDimensions?.length ?? 0) > 0
+                                }
+                                onChartTypeChange={onChartTypeChange}
+                                variant={switcherVariant}
+                            />
+                        </Group>
+                    )}
                     <Box
                         flex="1"
                         mih={0}

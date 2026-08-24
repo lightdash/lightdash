@@ -3,9 +3,7 @@ import {
     type AiAgentMessageAssistant,
     type ApiAiAgentThreadMessageVizQuery,
     type ChartConfig,
-    type ToolTableVizArgs,
-    type ToolTimeSeriesArgs,
-    type ToolVerticalBarArgs,
+    type DashboardV2Visualization,
 } from '@lightdash/common';
 import {
     Center,
@@ -33,7 +31,7 @@ import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 
 type Props = {
-    visualization: ToolTableVizArgs | ToolTimeSeriesArgs | ToolVerticalBarArgs;
+    visualization: DashboardV2Visualization;
     projectUuid: string;
     agentUuid: string;
     threadUuid: string;
