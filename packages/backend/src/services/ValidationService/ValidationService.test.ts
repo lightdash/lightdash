@@ -178,6 +178,116 @@ describe('validation', () => {
             await validationService.generateValidation('projectUuid'),
         ).toEqual([]);
     });
+    it('Should report a split explore for a chart using the original name', async () => {
+        const sourceAExplore = {
+            ...explore,
+            name: 'sourceA__orders',
+            label: 'sourceA__orders',
+            baseTable: 'sourceA__orders',
+            tables: {
+                sourceA__orders: {
+                    ...explore.tables.table,
+                    name: 'sourceA__orders',
+                    originalName: 'orders',
+                },
+            },
+        };
+        const sourceBExplore = {
+            ...sourceAExplore,
+            name: 'sourceB__orders',
+            label: 'sourceB__orders',
+            baseTable: 'sourceB__orders',
+            tables: {
+                sourceB__orders: {
+                    ...sourceAExplore.tables.sourceA__orders,
+                    name: 'sourceB__orders',
+                },
+            },
+        };
+        vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce({
+            [sourceAExplore.name]: sourceAExplore,
+            [sourceBExplore.name]: sourceBExplore,
+        });
+        vi.mocked(
+            savedChartModel.findChartsForValidation,
+        ).mockResolvedValueOnce([
+            {
+                ...chartForValidation,
+                tableName: 'orders',
+                filters: {},
+                dimensions: ['orders_amount'],
+                metrics: [],
+                sorts: [],
+                customMetrics: [],
+                tableCalculations: [],
+                customMetricsBaseDimensions: [],
+                customMetricsFilters: [],
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.CHARTS]),
+        );
+
+        expect(errors).toEqual([
+            expect.objectContaining({
+                chartUuid: 'chartUuid',
+                error: 'Explore "orders" was split into "sourceA__orders" and "sourceB__orders". Pick one.',
+                errorType: 'explore split',
+                source: ValidationSourceType.Chart,
+            }),
+        ]);
+    });
+
+    it('keeps existing chart errors when an original name has one match', async () => {
+        const sourceAExplore = {
+            ...explore,
+            name: 'sourceA__orders',
+            label: 'sourceA__orders',
+            baseTable: 'sourceA__orders',
+            tables: {
+                sourceA__orders: {
+                    ...explore.tables.table,
+                    name: 'sourceA__orders',
+                    originalName: 'orders',
+                },
+            },
+        };
+        vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce({
+            [sourceAExplore.name]: sourceAExplore,
+        });
+        vi.mocked(
+            savedChartModel.findChartsForValidation,
+        ).mockResolvedValueOnce([
+            {
+                ...chartForValidation,
+                tableName: 'orders',
+                filters: {},
+                dimensions: ['orders_amount'],
+                metrics: [],
+                sorts: [],
+                customMetrics: [],
+                tableCalculations: [],
+                customMetricsBaseDimensions: [],
+                customMetricsFilters: [],
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.CHARTS]),
+        );
+
+        expect(errors).toEqual([
+            expect.objectContaining({
+                error: "Dimension error: the field 'orders_amount' no longer exists",
+                errorType: ValidationErrorType.Dimension,
+            }),
+        ]);
+    });
     it('Should validate project with dimension errors', async () => {
         (
             projectModel.findExploresFromCache as import('vitest').Mock

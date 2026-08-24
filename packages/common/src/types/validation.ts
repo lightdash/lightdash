@@ -186,6 +186,7 @@ export enum ValidationErrorType {
     Dimension = 'dimension',
     CustomMetric = 'custom metric',
     ChartConfiguration = 'chart configuration',
+    ExploreSplit = 'explore split',
 }
 
 export enum DashboardFilterValidationErrorType {
