@@ -194,17 +194,8 @@ const BASE_ROLE_SCOPES = {
         'view:Roadmap',
         'impersonate:User',
 
-        // PAT management. Granted dynamically at runtime via
-        // `applyOrganizationMemberDynamicAbilities` based on the
-        // deployment-wide `PAT_ALLOWED_ORG_ROLES` env var — that path
-        // remains the source of truth for system roles. Listing it
-        // here lets admin-clone custom roles surface the toggle in the
-        // role builder. **Caveat:** toggling it in a custom role
-        // *bypasses* the dynamic gate, since CASL is additive (the
-        // static scope-built rule wins regardless of deployment
-        // config). Operators who clone admin into a lower-privilege
-        // role should untick it manually if their deployment intends
-        // to restrict PAT to specific tiers.
+        // PAT management remains subject to the deployment-wide PAT policy.
+        // Listing it here lets admin-clone custom roles surface the toggle.
         'manage:PersonalAccessToken',
     ],
 } as const;

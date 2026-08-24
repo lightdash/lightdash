@@ -58,6 +58,17 @@ export const getUserAbilityBuilder = ({
 }: UserAbilityBuilderArgs): UserAbilityBuilderResult => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     const invalidScopes: string[] = [];
+    const hasPrimaryProjectCustomRole =
+        customRolesEnabled &&
+        projectProfiles.some(({ roleUuid }) => roleUuid !== undefined);
+    // A primary project custom role owns the user-global PAT decision; unlike
+    // normal project permissions, omitting this scope restricts the org default.
+    const organizationSystemPermissionsConfig = hasPrimaryProjectCustomRole
+        ? {
+              ...permissionsConfig,
+              pat: { ...permissionsConfig.pat, allowedOrgRoles: [] },
+          }
+        : permissionsConfig;
     // Extra custom roles are unioned on top of the slot; unknown uuids are
     // skipped (logged) rather than granting anything.
     const applyExtraRoles = (
@@ -80,30 +91,32 @@ export const getUserAbilityBuilder = ({
         });
     };
     if (user.role && user.organizationUuid) {
-        // Org-level custom role: if the user's organization_memberships row
-        // points at a role_uuid AND custom roles are enabled AND we have the
-        // role's scopes, build CASL from those scopes (same path as
-        // project-level custom roles below). Falls back to the system role
-        // path otherwise.
-        const orgCustomRoleScopes =
-            customRolesEnabled && user.roleUuid
-                ? customRoleScopes?.[user.roleUuid]
-                : undefined;
-
-        if (orgCustomRoleScopes) {
-            invalidScopes.push(
-                ...buildAbilityFromScopes(
-                    {
-                        organizationUuid: user.organizationUuid,
-                        userUuid: user.userUuid,
-                        scopes: orgCustomRoleScopes,
-                        isEnterprise,
-                        organizationRole: user.role,
-                        permissionsConfig,
-                    },
-                    builder,
-                ),
-            );
+        const primaryOrgCustomRoleUuid = customRolesEnabled
+            ? user.roleUuid
+            : undefined;
+        if (primaryOrgCustomRoleUuid !== undefined) {
+            const orgCustomRoleScopes =
+                customRoleScopes?.[primaryOrgCustomRoleUuid];
+            if (orgCustomRoleScopes === undefined) {
+                // eslint-disable-next-line no-console
+                console.error(
+                    `Custom role with uuid ${primaryOrgCustomRoleUuid} was not found`,
+                );
+            } else {
+                invalidScopes.push(
+                    ...buildAbilityFromScopes(
+                        {
+                            organizationUuid: user.organizationUuid,
+                            userUuid: user.userUuid,
+                            scopes: orgCustomRoleScopes,
+                            isEnterprise,
+                            organizationRole: user.role,
+                            permissionsConfig,
+                        },
+                        builder,
+                    ),
+                );
+            }
         } else {
             applyOrganizationMemberAbilities({
                 role: user.role,
@@ -112,7 +125,7 @@ export const getUserAbilityBuilder = ({
                     userUuid: user.userUuid,
                 },
                 builder,
-                permissionsConfig,
+                permissionsConfig: organizationSystemPermissionsConfig,
             });
         }
         applyExtraRoles(orgExtraRoleUuids, (scopes) =>
@@ -138,30 +151,29 @@ export const getUserAbilityBuilder = ({
                 }
 
                 const scopes = customRoleScopes?.[projectProfile.roleUuid];
-                if (!scopes) {
+                if (scopes === undefined) {
                     // eslint-disable-next-line no-console
                     console.error(
                         `Custom role with uuid ${projectProfile.roleUuid} was not found`,
                     );
-                    return;
+                } else {
+                    invalidScopes.push(
+                        ...buildAbilityFromScopes(
+                            {
+                                projectUuid: projectProfile.projectUuid,
+                                projectType: projectProfile.projectType,
+                                projectCreatedByUserUuid:
+                                    projectProfile.projectCreatedByUserUuid,
+                                userUuid: user.userUuid,
+                                scopes,
+                                isEnterprise,
+                                organizationRole: user.role,
+                                permissionsConfig,
+                            },
+                            builder,
+                        ),
+                    );
                 }
-
-                invalidScopes.push(
-                    ...buildAbilityFromScopes(
-                        {
-                            projectUuid: projectProfile.projectUuid,
-                            projectType: projectProfile.projectType,
-                            projectCreatedByUserUuid:
-                                projectProfile.projectCreatedByUserUuid,
-                            userUuid: user.userUuid,
-                            scopes,
-                            isEnterprise,
-                            organizationRole: user.role,
-                            permissionsConfig,
-                        },
-                        builder,
-                    ),
-                );
             } else {
                 projectMemberAbilities[projectProfile.role](
                     projectProfile,

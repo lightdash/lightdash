@@ -83,7 +83,7 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
             );
         });
 
-        it('falls through to the system role path when customRolesEnabled=true but the role has no scopes loaded', () => {
+        it('fails closed when an assigned organization custom role is missing', () => {
             const { builder } = getUserAbilityBuilder({
                 user: {
                     role: OrganizationMemberRole.ADMIN,
@@ -92,14 +92,19 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
                     roleUuid: CUSTOM_ROLE_UUID,
                 },
                 projectProfiles: [],
-                permissionsConfig: PERMISSIONS_CONFIG,
-                customRoleScopes: {}, // no scopes for this role
+                permissionsConfig: {
+                    pat: {
+                        enabled: true,
+                        allowedOrgRoles: [OrganizationMemberRole.ADMIN],
+                    },
+                },
+                customRoleScopes: {},
                 customRolesEnabled: true,
             });
-            ruleSetEqual(
-                builder.build().rules,
-                buildExpected(OrganizationMemberRole.ADMIN),
-            );
+            const ability = builder.build();
+
+            expect(ability.rules).toEqual([]);
+            expect(ability.can('manage', 'PersonalAccessToken')).toBe(false);
         });
     });
 
@@ -433,6 +438,97 @@ describe('getUserAbilityBuilder — role sets (extra custom roles)', () => {
     const EXTRA_ROLE_UUID = '22222222-2222-4222-a222-222222222222';
     const PROJECT_UUID = 'project-uuid';
     const PROJECT_EXTRA_ROLE_UUID = '33333333-3333-4333-a333-333333333333';
+    const patPermissionsConfig = {
+        pat: {
+            enabled: true,
+            allowedOrgRoles: [OrganizationMemberRole.MEMBER],
+        },
+    };
+
+    const buildProjectCustomRoleAbility = ({
+        scopes,
+        extraRoleUuids = [],
+        extraRoleScopes = {},
+    }: {
+        scopes?: string[];
+        extraRoleUuids?: string[];
+        extraRoleScopes?: Record<string, string[]>;
+    }) => {
+        const customRoleScopes = {
+            ...(scopes === undefined ? {} : { [CUSTOM_ROLE_UUID]: scopes }),
+            ...extraRoleScopes,
+        };
+        const { builder } = getUserAbilityBuilder({
+            user: {
+                role: OrganizationMemberRole.MEMBER,
+                organizationUuid: ORG_UUID,
+                userUuid: USER_UUID,
+                roleUuid: undefined,
+            },
+            projectProfiles: [
+                {
+                    projectUuid: PROJECT_UUID,
+                    role: ProjectMemberRole.VIEWER,
+                    userUuid: USER_UUID,
+                    roleUuid: CUSTOM_ROLE_UUID,
+                    extraRoleUuids,
+                },
+            ],
+            permissionsConfig: patPermissionsConfig,
+            customRoleScopes,
+            customRolesEnabled: true,
+            isEnterprise: true,
+        });
+        return builder.build();
+    };
+
+    const expectCanManagePat = (
+        ability: ReturnType<typeof buildProjectCustomRoleAbility>,
+        expected: boolean,
+    ) => {
+        expect(ability.can('manage', 'PersonalAccessToken')).toBe(expected);
+        expect(
+            ability.can(
+                'manage',
+                subject('PersonalAccessToken', {
+                    organizationUuid: ORG_UUID,
+                }),
+            ),
+        ).toBe(expected);
+    };
+
+    it('lets a primary project custom role restrict personal access tokens', () => {
+        const ability = buildProjectCustomRoleAbility({
+            scopes: ['view:Dashboard'],
+        });
+
+        expectCanManagePat(ability, false);
+    });
+
+    it('restricts personal access tokens when a primary project custom role is missing', () => {
+        const ability = buildProjectCustomRoleAbility({});
+
+        expectCanManagePat(ability, false);
+    });
+
+    it('applies an extra PAT role when the primary project custom role is missing', () => {
+        const ability = buildProjectCustomRoleAbility({
+            extraRoleUuids: [PROJECT_EXTRA_ROLE_UUID],
+            extraRoleScopes: {
+                [PROJECT_EXTRA_ROLE_UUID]: ['manage:PersonalAccessToken'],
+            },
+        });
+
+        expectCanManagePat(ability, true);
+    });
+
+    it('lets a primary project custom role grant personal access tokens', () => {
+        const ability = buildProjectCustomRoleAbility({
+            scopes: ['manage:PersonalAccessToken'],
+        });
+
+        expectCanManagePat(ability, true);
+    });
 
     it('unions an extra org custom role on top of a system role', () => {
         const { builder } = getUserAbilityBuilder({

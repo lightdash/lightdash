@@ -44,6 +44,19 @@ const addAccessCondition = (context: ScopeContext, role?: SpaceMemberRole) => ({
 /** Applies the UUID condition as the only condition for a scope. */
 const addDefaultUuidCondition = flow(addUuidCondition, Array.of);
 
+const personalAccessTokenConditions = (context: ScopeContext) => {
+    const { pat } = context.permissionsConfig ?? {};
+    if (
+        !pat?.enabled ||
+        !context.organizationRole ||
+        !pat.allowedOrgRoles.includes(context.organizationRole)
+    ) {
+        return null;
+    }
+
+    return context.organizationUuid ? addDefaultUuidCondition(context) : [];
+};
+
 /**
  * True only inside a preview the current user created. Shared by the @self
  * preview scopes; returns false for org-level assignments (no project context).
@@ -1024,8 +1037,7 @@ const scopes: Scope[] = [
         isEnterprise: true,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
         dependencies: [],
-        level: 'organization',
-        getConditions: addDefaultUuidCondition,
+        getConditions: personalAccessTokenConditions,
     },
     {
         name: 'impersonate:User',

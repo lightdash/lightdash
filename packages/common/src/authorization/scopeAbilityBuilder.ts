@@ -5,26 +5,6 @@ import { parseScope, parseScopes } from './parseScopes';
 import { getAllScopeMap } from './scopes';
 import { type MemberAbility } from './types';
 
-const handlePatConfigApplication = (
-    context: ScopeContext,
-    builder: AbilityBuilder<MemberAbility>,
-) => {
-    const { pat } = context?.permissionsConfig || {};
-    const hasPatRule = builder.rules.find(
-        (rule) =>
-            rule.action === 'manage' && rule.subject === 'PersonalAccessToken',
-    );
-
-    if (
-        !hasPatRule &&
-        pat?.enabled &&
-        context.organizationRole &&
-        pat?.allowedOrgRoles?.includes(context.organizationRole)
-    ) {
-        builder.can('manage', 'PersonalAccessToken');
-    }
-};
-
 /**
  * Apply scope-based abilities to a CASL ability builder
  * @param scopeNames - Array of scope names to apply
@@ -59,8 +39,6 @@ const applyScopeAbilities = (
             });
         }
     });
-
-    handlePatConfigApplication(context, builder);
 };
 
 type OptionalIdContext =

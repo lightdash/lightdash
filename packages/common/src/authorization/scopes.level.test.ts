@@ -19,7 +19,6 @@ const ORG_ONLY_SCOPE_NAMES = [
     'manage:GitIntegration',
     'view:OrganizationWarehouseCredentials',
     'manage:OrganizationWarehouseCredentials',
-    'manage:PersonalAccessToken',
     'manage:OrganizationColorPalette',
     'impersonate:User',
     'view:OrganizationDesign',
@@ -76,6 +75,9 @@ describe('scope levels', () => {
         expect(isScopeAssignableAtLevel('view:Dashboard', 'project')).toBe(
             true,
         );
+        expect(
+            isScopeAssignableAtLevel('manage:PersonalAccessToken', 'project'),
+        ).toBe(true);
         expect(isScopeAssignableAtLevel('view:Organization', 'project')).toBe(
             false,
         );
