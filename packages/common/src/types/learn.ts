@@ -17,8 +17,27 @@ export type LearnCatalogueEntry = {
     durationMinutes: number | null;
     tags: string[];
     track: string | null;
-    /** Scope tag this module teaches: `action:Subject` or `action:Subject@global`; null = untagged */
+    /**
+     * Scope tag this module teaches: `action:Subject` or
+     * `action:Subject@global`; null = untagged. For a CS-169 scope-group
+     * module this is the ENTRY scope — the member whose minimum holding role
+     * is lowest — so pre-CS-169 consumers keep working unchanged.
+     */
     scope: string | null;
+    /**
+     * CS-169 scope groups: the sorted unique set of the module's lesson
+     * scopes (singleton for a single-scope module, empty for an untagged
+     * one). Optional in the type — not just schema-defaulted like `scope` —
+     * so the board test fixtures shared byte-identically with the academy
+     * twin need not carry it; the schema default fills it on parse.
+     */
+    scopes?: string[];
+    /**
+     * One scope tag per lesson, in lesson order (null = untagged lesson).
+     * Empty for a pre-CS-169 catalogue. Optional for the same twin-fixture
+     * reason as `scopes`.
+     */
+    lessonScopes?: (string | null)[];
     requires: LearnFeatureRequirement[];
     publishedAt: string;
 };
@@ -54,6 +73,8 @@ export const LearnCatalogueEntrySchema: z.ZodType<LearnCatalogueEntry> = z
         tags: z.array(z.string()),
         track: z.string().nullable(),
         scope: z.string().nullable().default(null),
+        scopes: z.array(z.string()).default([]),
+        lessonScopes: z.array(z.string().nullable()).default([]),
         requires: z.array(LearnFeatureRequirementSchema).default([]),
         publishedAt: z.string(),
     })
@@ -83,6 +104,12 @@ export type LearnLesson = {
     id: string;
     title: string;
     html: string;
+    /**
+     * CS-169: the scope this lesson teaches (null = untagged, always
+     * visible). Defaulted by the schema so a pre-CS-169 course.json —
+     * immutable per contentHash, never rewritten — still parses.
+     */
+    scope: string | null;
 };
 
 /** A clickable region on a demo step, as fractions of the image. */
@@ -160,6 +187,7 @@ export const LearnCourseSchema = z
                     id: z.string().min(1),
                     title: z.string().min(1),
                     html: z.string(),
+                    scope: z.string().nullable().default(null),
                 })
                 .passthrough(),
         ),

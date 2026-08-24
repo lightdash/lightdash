@@ -23,12 +23,14 @@ import {
     useLearnCatalogue,
     useLearnRollups,
 } from '../../hooks';
+import { effectiveEntry, effectiveRollup } from '../../visibility';
 import { suggestionsFor } from '../ask';
 import { boardHighlights, resolveMatches } from '../askView';
 import { BOARD_WIDTH, type Seat } from '../layout';
 import {
     courseFor,
     defaultRoleFor,
+    isUnlocked,
     plural,
     railModel,
     ROLE_LABEL,
@@ -48,7 +50,7 @@ export const LearnBoardPanel: FC = () => {
     const navigate = useNavigate();
     const { user } = useApp();
     const catalogue = useLearnCatalogue();
-    const { rollups } = useLearnRollups();
+    const { rollups: rawRollups } = useLearnRollups();
     const badges = useLearnBadges();
     const ask = useLearnAsk();
     const [answer, setAnswer] = useState<AskAnswer | null>(null);
@@ -160,11 +162,37 @@ export const LearnBoardPanel: FC = () => {
         (node ?? tab)?.focus();
     }, []);
 
-    const entries = useMemo(
-        () => catalogue.data?.courses ?? [],
-        [catalogue.data],
-    );
     const held = useMemo(() => roleScopes(role), [role]);
+    // CS-169: every lessonCount downstream of here — railModel/moduleProgress
+    // denominators, node numerals, rail and pane "N lessons" — is the count of
+    // lessons visible to the selected role, so the twin board model stays
+    // untouched while a scope-group module renders per-role counts.
+    // Visible-lesson counts only make sense for modules the selected role
+    // HOLDS. A locked ask-match or a completed row from a previous role still
+    // describes the whole module — showing '0 lessons' there would be a lie.
+    const entries = useMemo(
+        () =>
+            (catalogue.data?.courses ?? []).map((entry) =>
+                isUnlocked(entry, held) ? effectiveEntry(entry, held) : entry,
+            ),
+        [catalogue.data, held],
+    );
+    // Doneness is derived too (CS-169 §6): a completed module whose visible
+    // lesson set grew re-opens. effectiveRollup is the identity for a module
+    // the role doesn't hold (visible count 0), so completed rows from other
+    // roles stay completed.
+    const rollups = useMemo(() => {
+        const derived = new Map(rawRollups);
+        for (const entry of entries) {
+            const rollup = effectiveRollup(
+                entry,
+                rawRollups.get(entry.id),
+                held,
+            );
+            if (rollup) derived.set(entry.id, rollup);
+        }
+        return derived;
+    }, [rawRollups, entries, held]);
     const prevHeld = useMemo(
         () => (prevRole ? roleScopes(prevRole) : null),
         [prevRole],
@@ -278,6 +306,7 @@ export const LearnBoardPanel: FC = () => {
                     rail={rail}
                     rollups={rollups}
                     role={role}
+                    held={held}
                     heldEntries={heldEntries}
                     tiers={tiers}
                     tiersLoading={badges.isInitialLoading}

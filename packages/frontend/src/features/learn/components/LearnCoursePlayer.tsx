@@ -20,16 +20,20 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import useApp from '../../../providers/App/useApp';
+import { defaultRoleFor, roleScopes } from '../board/model';
 import { wireCitations } from '../citations';
 import {
     getLessonBookmark,
     setLastCourseId,
     setLessonBookmark,
+    useLearnCatalogue,
     useLearnCourse,
     useLearnRollups,
     useRecordLearnEvent,
 } from '../hooks';
 import { cardState, emptyRollup } from '../model';
+import { effectiveRollup, filterCourseForScopes } from '../visibility';
 import { LearnDemo } from './LearnDemo';
 import styles from './LearnLesson.module.css';
 
@@ -57,12 +61,11 @@ export const LearnCoursePlayer: FC = () => {
         courseId: string;
     }>();
     const navigate = useNavigate();
+    const { user } = useApp();
+    const catalogue = useLearnCatalogue();
     const course = useLearnCourse(courseId);
     const { rollups } = useLearnRollups();
     const { record } = useRecordLearnEvent();
-
-    const rollup = (courseId && rollups.get(courseId)) || emptyRollup();
-    const state = cardState(courseId ? rollups.get(courseId) : undefined);
 
     // page ∈ [0, lessonCount-1] = lessons; page === lessonCount = quiz.
     const [page, setPage] = useState<number | null>(null);
@@ -74,7 +77,33 @@ export const LearnCoursePlayer: FC = () => {
         if (courseId) setLastCourseId(courseId);
     }, [courseId]);
 
-    const data = course.data;
+    // CS-169: the course is filtered to the held scopes BEFORE the paging and
+    // the index-parallel quiz answers state are built, so a hidden lesson can
+    // never be paged to and a hidden lesson's quiz question is never scored.
+    // The board's role picker is component-local and not shared with this
+    // route, so the held scopes derive from the learner's org role the same
+    // way the board derives its default tab.
+    const held = useMemo(
+        () => roleScopes(defaultRoleFor(user.data?.role)),
+        [user.data?.role],
+    );
+    const data = useMemo(
+        () =>
+            course.data ? filterCourseForScopes(course.data, held) : undefined,
+        [course.data, held],
+    );
+
+    // Doneness is derived against the visible lesson set (CS-169 §6): a
+    // module completed under a smaller set re-opens when the role holds more
+    // lessons. The catalogue entry carries the per-lesson scopes; when the
+    // catalogue is unavailable the raw rollup stands (legacy behaviour).
+    const entry = catalogue.data?.courses.find((c) => c.id === courseId);
+    const baseRollup = courseId ? rollups.get(courseId) : undefined;
+    const derivedRollup = entry
+        ? effectiveRollup(entry, baseRollup, held)
+        : baseRollup;
+    const rollup = derivedRollup ?? emptyRollup();
+    const state = cardState(derivedRollup);
 
     const eventObject = useMemo(
         () =>
@@ -97,7 +126,10 @@ export const LearnCoursePlayer: FC = () => {
     }, [data, page, courseId]);
 
     useEffect(() => {
-        if (!data || started || state !== 'open' || !eventObject) return;
+        // A course with no visible lessons is never "started" — the learner
+        // only ever sees the empty state below.
+        if (!data || data.lessons.length === 0) return;
+        if (started || state !== 'open' || !eventObject) return;
         setStarted(true);
         record({
             verb: 'started',
@@ -152,7 +184,35 @@ export const LearnCoursePlayer: FC = () => {
         );
     }
 
+    // CS-169: a role that holds none of the course's lesson scopes would
+    // reach the player with zero lessons and a zero-question quiz (scored
+    // NaN). Render an honest empty state instead.
+    if (data.lessons.length === 0) {
+        return (
+            <Stack gap="md" py="lg" maw={760} w="100%" mx="auto">
+                <Anchor
+                    size="sm"
+                    onClick={() => navigate(`/projects/${projectUuid}/learn`)}
+                >
+                    <Group gap={4}>
+                        <MantineIcon icon={IconArrowLeft} />
+                        All courses
+                    </Group>
+                </Anchor>
+                <SuboptimalState
+                    title="No lessons for your role"
+                    description="None of this course's lessons are available to your role. Head back to the course board to see what your role unlocks."
+                />
+            </Stack>
+        );
+    }
+
     const lessonCount = data.lessons.length;
+    // CS-169: the rollup can hold ids of lessons the role does not see, so
+    // the header count is the intersection with the visible lesson set.
+    const doneCount = data.lessons.filter((l) =>
+        rollup.lessonsCompleted.has(l.id),
+    ).length;
     const onQuiz = page >= lessonCount;
     const progressPct = Math.round(((page + 1) / (lessonCount + 1)) * 100);
 
@@ -212,8 +272,8 @@ export const LearnCoursePlayer: FC = () => {
                 <Stack gap={4}>
                     <Title order={2}>{data.title}</Title>
                     <Text size="sm" c="dimmed">
-                        {lessonCount} lessons · {rollup.lessonsCompleted.size}{' '}
-                        of {lessonCount} done
+                        {lessonCount} lessons · {doneCount} of {lessonCount}{' '}
+                        done
                         {rollup.passed ? ' · Passed' : ''}
                     </Text>
                 </Stack>

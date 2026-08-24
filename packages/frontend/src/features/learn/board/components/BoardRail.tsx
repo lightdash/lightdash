@@ -15,6 +15,8 @@ type Props = {
     rail: RailModel;
     rollups: Map<string, Rollup>;
     role: ProjectMemberRole;
+    /** The scope names the selected role holds — the pane filters its lesson list with them (CS-169). */
+    held: string[];
     heldEntries: LearnCatalogueEntry[];
     tiers: Map<string, LearnBadgeTier> | null;
     tiersLoading: boolean;
@@ -28,6 +30,7 @@ export const BoardRail: FC<Props> = ({
     rail,
     rollups,
     role,
+    held,
     heldEntries,
     tiers,
     tiersLoading,
@@ -72,6 +75,7 @@ export const BoardRail: FC<Props> = ({
             {selected ? (
                 <ModulePane
                     module={selected}
+                    held={held}
                     rollup={rollups.get(selected.entry.id)}
                     onClose={onClearSelection}
                     onOpen={onOpen}

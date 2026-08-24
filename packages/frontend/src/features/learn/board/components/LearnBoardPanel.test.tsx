@@ -50,6 +50,23 @@ const catalogue = [
     }),
 ];
 
+// Swappable so a test can serve a differently shaped catalogue (CS-169).
+const catalogueState: { courses: typeof catalogue } = { courses: catalogue };
+
+const defaultRollups = () =>
+    new Map([
+        [
+            'foundation',
+            {
+                ...emptyRollup(),
+                started: true,
+                lessonsCompleted: new Set(['l1']),
+            },
+        ],
+    ]);
+// Swappable so a test can hand the board different progress (CS-169).
+const rollupsState = { map: defaultRollups() };
+
 type AskCallbacks = {
     onSuccess?: (data: { matches: LearnAskMatch[] }) => void;
     onError?: () => void;
@@ -94,7 +111,7 @@ vi.mock('../../hooks', () => ({
     useLearnCatalogue: () => ({
         data: {
             generatedAt: '2026-08-01T00:00:00.000Z',
-            courses: catalogue,
+            courses: catalogueState.courses,
             suggestions: [
                 { query: 'Where do I find a chart?', courseId: 'foundation' },
                 { query: 'How do I build one?', courseId: 'dashboards' },
@@ -107,16 +124,7 @@ vi.mock('../../hooks', () => ({
         isError: false,
     }),
     useLearnRollups: () => ({
-        rollups: new Map([
-            [
-                'foundation',
-                {
-                    ...emptyRollup(),
-                    started: true,
-                    lessonsCompleted: new Set(['l1']),
-                },
-            ],
-        ]),
+        rollups: rollupsState.map,
         isLoading: false,
         serverSynced: false,
     }),
@@ -152,6 +160,107 @@ describe('LearnBoardPanel', () => {
         askState.isError = false;
         badgesState.data = bronzeEverywhere;
         badgesState.isInitialLoading = false;
+        catalogueState.courses = catalogue;
+        rollupsState.map = defaultRollups();
+    });
+
+    it('re-opens a completed module when a role change unlocks a lesson', async () => {
+        // Completed (quiz passed) with the 2 lessons visible to interactive
+        // viewer; the editor role holds all 3 — the module must leave the
+        // completed state and queue up as 2 of 3, not stay complete.
+        catalogueState.courses = [
+            entry({
+                id: 'comments',
+                title: 'Commenting on dashboards',
+                scope: 'view:DashboardComments',
+                lessonCount: 3,
+                lessonScopes: [
+                    'view:DashboardComments',
+                    'create:DashboardComments',
+                    'manage:DashboardComments',
+                ],
+            }),
+        ];
+        rollupsState.map = new Map([
+            [
+                'comments',
+                {
+                    ...emptyRollup(),
+                    started: true,
+                    passed: true,
+                    completed: true,
+                    lessonsCompleted: new Set(['l1', 'l2']),
+                },
+            ],
+        ]);
+        renderWithProviders(<LearnBoardPanel />, {
+            user: { role: OrganizationMemberRole.EDITOR },
+        });
+        await waitFor(() =>
+            expect(screen.getByRole('tab', { name: 'editor' })).toHaveAttribute(
+                'aria-selected',
+                'true',
+            ),
+        );
+        expect(screen.getByText(/1 module, 0 finished/)).toBeInTheDocument();
+        // The overall rail line and the queue card both count 2 of 3.
+        expect(screen.getAllByText(/2 of 3 lessons/).length).toBeGreaterThan(0);
+        // On the interactive viewer tab everything visible is done, so the
+        // module stays complete.
+        fireEvent.click(
+            screen.getByRole('tab', { name: 'interactive viewer' }),
+        );
+        expect(screen.getByText(/1 module, 1 finished/)).toBeInTheDocument();
+    });
+
+    it('counts only role-visible lessons for held modules and keeps full counts on locked ones', async () => {
+        // CS-169 scope-group module: a viewer holds view:DashboardComments
+        // but not create/manage, so 1 of 3 lessons is visible. The locked
+        // manage:Dashboard module keeps its full count — a locked node
+        // describes the whole module.
+        catalogueState.courses = [
+            entry({
+                id: 'comments',
+                title: 'Commenting on dashboards',
+                scope: 'view:DashboardComments',
+                lessonCount: 3,
+                lessonScopes: [
+                    'view:DashboardComments',
+                    'create:DashboardComments',
+                    'manage:DashboardComments',
+                ],
+            }),
+            entry({
+                id: 'dashboards',
+                title: 'Building dashboards',
+                scope: 'manage:Dashboard',
+                lessonCount: 3,
+                lessonScopes: ['manage:Dashboard', 'manage:Dashboard', null],
+            }),
+        ];
+        renderWithProviders(<LearnBoardPanel />, {
+            user: { role: OrganizationMemberRole.VIEWER },
+        });
+        await waitFor(() =>
+            expect(screen.getByRole('tab', { name: 'viewer' })).toHaveAttribute(
+                'aria-selected',
+                'true',
+            ),
+        );
+        const board = screen.getByTestId('learn-board');
+        expect(
+            board.querySelector(
+                '[aria-label="Commenting on dashboards, 1 lesson"]',
+            ),
+        ).not.toBeNull();
+        // Locked node: full lesson count, not the viewer-visible one.
+        expect(
+            board.querySelector(
+                '[aria-label="Building dashboards, 3 lessons"]',
+            ),
+        ).not.toBeNull();
+        // The rail totals sum visible lessons of held modules only.
+        expect(screen.getByText(/0 of 1 lesson ·/)).toBeInTheDocument();
     });
 
     it('defaults to the org role and lights only the held modules', async () => {

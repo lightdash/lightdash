@@ -1,7 +1,7 @@
-import { type LearnCourse } from '@lightdash/common';
+import { OrganizationMemberRole, type LearnCourse } from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import type * as ReactRouter from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { emptyRollup } from '../model';
 import { LearnCoursePlayer } from './LearnCoursePlayer';
@@ -26,6 +26,7 @@ const course: LearnCourse = {
         {
             id: 'l1',
             title: 'Save a chart',
+            scope: null,
             html:
                 '<p>Open the chart<a class="cit" href="#fig-1" data-hl="r1">1</a>.</p>' +
                 '<div data-demo="save-chart"></div>' +
@@ -55,9 +56,27 @@ const course: LearnCourse = {
     assetBaseUrl: 'https://cdn/courses/saving-charts/abc',
 };
 
+// Swappable so a test can serve a differently scoped course.
+const courseState: { data: LearnCourse } = { data: course };
+
 vi.mock('../hooks', () => ({
+    useLearnCatalogue: () => ({
+        data: {
+            generatedAt: '2026-08-01T00:00:00.000Z',
+            courses: [
+                {
+                    id: 'saving-charts',
+                    title: 'Saving charts',
+                    lessonCount: 1,
+                },
+            ],
+            suggestions: [],
+        },
+        isLoading: false,
+        isError: false,
+    }),
     useLearnCourse: () => ({
-        data: course,
+        data: courseState.data,
         isInitialLoading: false,
         isError: false,
     }),
@@ -73,6 +92,48 @@ vi.mock('../hooks', () => ({
 }));
 
 describe('LearnCoursePlayer', () => {
+    beforeEach(() => {
+        courseState.data = course;
+    });
+
+    it('renders an empty state instead of the player when the role holds none of the lesson scopes', async () => {
+        courseState.data = {
+            ...course,
+            lessons: [
+                {
+                    id: 'l1',
+                    title: 'Tidy the thread',
+                    scope: 'manage:DashboardComments',
+                    html: '<p>manage-only</p>',
+                },
+            ],
+            quiz: {
+                questions: [
+                    {
+                        id: 'q1',
+                        prompt: 'Q?',
+                        choices: ['a', 'b'],
+                        answer: 0,
+                    },
+                ],
+            },
+        };
+        // An org viewer maps to the viewer board role, which does not hold
+        // manage:DashboardComments.
+        renderWithProviders(<LearnCoursePlayer />, {
+            user: { role: OrganizationMemberRole.VIEWER },
+        });
+        await waitFor(() =>
+            expect(
+                screen.getByText(
+                    /None of this course's lessons are available to your role/,
+                ),
+            ).toBeInTheDocument(),
+        );
+        expect(screen.queryByText('manage-only')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Lesson 1 of/)).not.toBeInTheDocument();
+    });
+
     it('mounts a click-through demo where the lesson left its placeholder', async () => {
         renderWithProviders(<LearnCoursePlayer />);
         await waitFor(() =>
