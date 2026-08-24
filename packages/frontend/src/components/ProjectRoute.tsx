@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import React, { type FC } from 'react';
+import React, { useMemo, type FC } from 'react';
 import { Navigate, useParams } from 'react-router';
 import { validate as isUuidString } from 'uuid';
 import ErrorState from '../components/common/ErrorState';
@@ -25,6 +25,21 @@ const ResolvedProjectRoute: FC<
     });
 
     const { data: project, isError, error } = useProject(projectUuid);
+
+    // Stable identity: useProjectRoute/useProjectUuid consumers would
+    // otherwise re-render whenever this provider re-renders.
+    const projectRouteContext: ProjectRouteContextValue | null = useMemo(
+        () =>
+            project
+                ? {
+                      project,
+                      projectUuid,
+                      projectUrlIdentifier: getProjectUrlIdentifier(project),
+                  }
+                : null,
+        [project, projectUuid],
+    );
+
     if (isInitialLoading) {
         return <PageSpinner />;
     }
@@ -33,15 +48,9 @@ const ResolvedProjectRoute: FC<
         return <ErrorState error={error.error} />;
     }
 
-    if (!project) {
+    if (projectRouteContext === null) {
         return <Navigate to="/no-access" />;
     }
-
-    const projectRouteContext: ProjectRouteContextValue = {
-        project,
-        projectUuid,
-        projectUrlIdentifier: getProjectUrlIdentifier(project),
-    };
 
     return (
         <Can
