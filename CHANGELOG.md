@@ -1,3 +1,10 @@
+## [1.251.2](https://github.com/lightdash/lightdash/compare/1.251.1...1.251.2) (2026-08-24)
+
+
+### Bug Fixes
+
+* validate dbt source access tokens ([#27453](https://github.com/lightdash/lightdash/issues/27453)) ([0b6a25c](https://github.com/lightdash/lightdash/commit/0b6a25ca077e8c6c87c61aeadca5e615f06aa107))
+
 ## [1.251.1](https://github.com/lightdash/lightdash/compare/1.251.0...1.251.1) (2026-08-24)
 
 
