@@ -1,3 +1,10 @@
+# [1.240.0](https://github.com/lightdash/lightdash/compare/1.239.0...1.240.0) (2026-08-24)
+
+
+### Features
+
+* use project slugs in core frontend URLs ([#27826](https://github.com/lightdash/lightdash/issues/27826)) ([61fe719](https://github.com/lightdash/lightdash/commit/61fe719b7554792964466c9d24c5cb55e9d693e9))
+
 # [1.239.0](https://github.com/lightdash/lightdash/compare/1.238.0...1.239.0) (2026-08-24)
 
 
