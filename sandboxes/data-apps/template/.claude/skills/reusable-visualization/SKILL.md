@@ -229,6 +229,28 @@ exactly ONE source row and ONE metric-slot field, and only when
 show each action on its own flag (a viewer may have one permission but not
 the other).
 
+### Interaction hygiene
+
+One floating surface at a time, and no leftover emphasis — native Lightdash
+charts show a menu OR a tooltip, never both, and clicking leaves no mark
+highlighted:
+
+- **Opening the action menu closes the tooltip.** Drive tooltip visibility
+  from your own state (recharts: gate `<Tooltip>` via controlled props or a
+  wrapper's visibility; echarts: `dispatchAction({ type: 'hideTip' })` on
+  click). While the menu is open the tooltip stays hidden, and it must not
+  reappear until the pointer moves again after the menu closes.
+- **No persistent focus or active styling on a clicked mark.** Disable click
+  emphasis (recharts: no `activeShape` on click state; echarts: turn off
+  lingering `emphasis`/`select`) and blur any focused SVG node after opening
+  the menu. Only hover may emphasise, and only while hovering.
+- **Subtle hover, no cursor band.** The library-default full-height band
+  behind the hovered mark (recharts `<Tooltip cursor>`) is not native
+  behaviour — use `cursor={false}` or a faint theme-token fill.
+- **Tooltips are themed and deduplicated.** Background, text and border come
+  from the theme tokens (never library-default white), and each value appears
+  once: one line per series actually under the pointer.
+
 ## The declaration
 
 Alongside the component you emit one structured declaration — as **structured output, not a
@@ -364,4 +386,6 @@ Finally, if any mark maps to exactly one source row, the data-point action
 menu is wired: each interactive datum carries `sourceRow`, the underlying-data
 action is gated on `underlyingData.enabled`, and the drill action is gated on
 `drillDown.enabled`. Omitting the menu on a chart whose marks satisfy
-provenance is a defect, not a simplification.
+provenance is a defect, not a simplification. Then click a mark mentally:
+the tooltip closes, nothing stays highlighted, and only the menu remains —
+one floating surface at a time.
