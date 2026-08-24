@@ -144,9 +144,6 @@ export const useRecordLearnEvent = () => {
     return { record, isRecording: mutation.isLoading };
 };
 
-export const getLastCourseId = (): string | null =>
-    localStorage.getItem(LAST_COURSE_KEY);
-
 export const setLastCourseId = (courseId: string): void => {
     localStorage.setItem(LAST_COURSE_KEY, courseId);
 };

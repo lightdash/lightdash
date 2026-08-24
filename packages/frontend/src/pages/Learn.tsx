@@ -2,7 +2,7 @@ import { FeatureFlags } from '@lightdash/common';
 import { type FC } from 'react';
 import { Navigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
-import { LearnCataloguePanel } from '../features/learn/components/LearnCataloguePanel';
+import { LearnBoardPanel } from '../features/learn/board/components/LearnBoardPanel';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 
 const Learn: FC = () => {
@@ -25,7 +25,7 @@ const Learn: FC = () => {
             withXLargePaddedContent
             withLargeContent
         >
-            <LearnCataloguePanel />
+            <LearnBoardPanel />
         </Page>
     );
 };

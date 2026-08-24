@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+export type LearnFeatureRequirement = {
+    id: string;
+    label: string;
+    plan: string;
+};
+
 export type LearnCatalogueEntry = {
     id: string;
     title: string;
@@ -11,6 +17,9 @@ export type LearnCatalogueEntry = {
     durationMinutes: number | null;
     tags: string[];
     track: string | null;
+    /** Scope tag this module teaches: `action:Subject` or `action:Subject@global`; null = untagged */
+    scope: string | null;
+    requires: LearnFeatureRequirement[];
     publishedAt: string;
 };
 
@@ -18,6 +27,12 @@ export type LearnCatalogue = {
     generatedAt: string;
     courses: LearnCatalogueEntry[];
 };
+
+const LearnFeatureRequirementSchema = z.object({
+    id: z.string().min(1),
+    label: z.string(),
+    plan: z.string(),
+});
 
 export const LearnCatalogueEntrySchema: z.ZodType<LearnCatalogueEntry> = z
     .object({
@@ -31,6 +46,8 @@ export const LearnCatalogueEntrySchema: z.ZodType<LearnCatalogueEntry> = z
         durationMinutes: z.number().nullable(),
         tags: z.array(z.string()),
         track: z.string().nullable(),
+        scope: z.string().nullable().default(null),
+        requires: z.array(LearnFeatureRequirementSchema).default([]),
         publishedAt: z.string(),
     })
     .passthrough() as unknown as z.ZodType<LearnCatalogueEntry>;

@@ -55,6 +55,8 @@ const catalogueEntry = {
     durationMinutes: 25,
     tags: ['viewer'],
     track: 'foundations',
+    scope: 'view:Project',
+    requires: [],
     publishedAt: '2026-08-01T00:00:00.000Z',
 };
 
@@ -139,7 +141,13 @@ describe('LearnService', () => {
                 courses: [
                     {
                         ...catalogueEntry,
-                        requires: [{ id: 'ai-copilot' }],
+                        requires: [
+                            {
+                                id: 'ai-copilot',
+                                label: 'AI copilot',
+                                plan: 'enterprise',
+                            },
+                        ],
                         docsUrl: 'https://docs.lightdash.com/x',
                     },
                 ],
@@ -149,6 +157,17 @@ describe('LearnService', () => {
             expect(
                 (catalogue.courses[0] as Record<string, unknown>).docsUrl,
             ).toBe('https://docs.lightdash.com/x');
+        });
+
+        it('defaults scope and requires for a catalogue published before them', async () => {
+            const { service } = buildService();
+            const { scope, requires, ...legacy } = catalogueEntry;
+            fetchMock.mockResolvedValue(
+                jsonResponse({ ...cataloguePayload, courses: [legacy] }),
+            );
+            const catalogue = await service.getCatalogue(buildAccount());
+            expect(catalogue.courses[0].scope).toBeNull();
+            expect(catalogue.courses[0].requires).toEqual([]);
         });
 
         it('maps upstream failures to UnexpectedServerError', async () => {
