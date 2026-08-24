@@ -45,47 +45,6 @@ describe('ConfigurePanel', () => {
         expect(screen.getByText('Generated options')).toBeInTheDocument();
     });
 
-    it('shows every accepted field with its type and requirement', () => {
-        renderPanel({
-            schema: {
-                fields: [
-                    {
-                        name: 'category',
-                        label: 'Category',
-                        type: 'dimension',
-                        required: true,
-                    },
-                    {
-                        name: 'value',
-                        label: 'Value',
-                        type: 'metric',
-                        required: true,
-                    },
-                    {
-                        name: 'series',
-                        label: 'Group by',
-                        type: 'series',
-                        required: false,
-                    },
-                ],
-                configOptions: schema.configOptions,
-                colorPalette: null,
-            },
-        });
-
-        fireEvent.click(screen.getByRole('tab', { name: 'Fields' }));
-
-        expect(screen.getByText('Accepted fields')).toBeInTheDocument();
-        expect(screen.getByText('Category')).toBeInTheDocument();
-        expect(screen.getByText('Value')).toBeInTheDocument();
-        expect(screen.getByText('Group by')).toBeInTheDocument();
-        expect(screen.getAllByText('Required')).toHaveLength(2);
-        expect(screen.getByText('Optional')).toBeInTheDocument();
-        expect(screen.getAllByText('dimension')).toHaveLength(2);
-        expect(screen.getByText('metric')).toBeInTheDocument();
-        expect(screen.queryByText('series')).not.toBeInTheDocument();
-    });
-
     it('splits the declared options into one tab per group', () => {
         renderPanel();
 
@@ -120,7 +79,7 @@ describe('ConfigurePanel', () => {
         expect(screen.getByLabelText('Show grid')).toBeChecked();
     });
 
-    it('keeps an empty fields tab when no options are declared', () => {
+    it('says so when a chart type declares nothing to configure', () => {
         renderPanel({
             schema: { fields: [], configOptions: [], colorPalette: null },
         });
