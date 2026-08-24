@@ -103,6 +103,7 @@ import {
     getMergeSourceTableLabel,
     getMetricOverridesWithPopInheritance,
     getMetrics,
+    getModelsFromManifest,
     getParameterReferences,
     getPreAggregateExploreName,
     getTimezoneLabel,
