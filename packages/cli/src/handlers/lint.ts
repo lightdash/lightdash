@@ -1,5 +1,7 @@
 import {
+    assertUnreachable,
     chartAsCodeSchema,
+    ContentAsCodeType,
     dashboardAsCodeSchema,
     getErrorMessage,
     modelAsCodeSchema,
@@ -7,11 +9,19 @@ import {
 import type { ErrorObject } from 'ajv';
 import chalk from 'chalk';
 import * as fs from 'fs';
+import * as yaml from 'js-yaml';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as YAML from 'yaml';
 import { ajv } from '../ajv';
 import { categorizeError, LightdashAnalytics } from '../analytics/analytics';
+import {
+    classifyContentFilePath,
+    isSqlChartContent,
+    type ContentFileClassification,
+    type ContentFileType,
+} from './contentAsCode/fileDiscovery';
+import { getDownloadFolder } from './contentAsCodePaths';
 import { createSarifReport } from './lint/ajvToSarif';
 import { formatSarifForCli, getSarifSummary } from './lint/sarifFormatter';
 
@@ -23,13 +33,15 @@ type LintOptions = {
 
 type LocationMap = Map<string, { line: number; column: number }>;
 
+type LightdashCodeType = ContentFileType | 'model';
+
 type FileValidationResult = {
     filePath: string;
     valid: boolean;
     errors?: ErrorObject[];
     fileContent?: string;
     locationMap?: LocationMap;
-    type?: 'chart' | 'dashboard' | 'model';
+    type?: LightdashCodeType;
 };
 
 const validateChartSchema = ajv.compile(chartAsCodeSchema);
@@ -118,8 +130,15 @@ function buildLocationMap(
         return { data, locationMap };
     }
 
-    // Parse YAML with the 'yaml' package to access the Abstract Syntax Tree (AST)
-    const doc = YAML.parseDocument(fileContent);
+    // Match upload parsing, then normalize the value as it will be serialized
+    // into the upload request. Use `yaml` separately for source locations.
+    const parsedData = yaml.load(fileContent);
+    const serializedData = JSON.stringify(parsedData);
+    const data =
+        serializedData === undefined
+            ? parsedData
+            : (JSON.parse(serializedData) as unknown);
+    const doc = YAML.parseDocument(fileContent, { merge: true });
 
     function traverse(node: YAML.Node | null, jsonPath: string) {
         if (!node) return;
@@ -151,102 +170,291 @@ function buildLocationMap(
         }
     }
 
-    traverse(doc.contents, '');
+    if (doc.errors.length === 0) {
+        traverse(doc.contents, '');
+    }
 
-    // Convert to plain JS object for validation
-    const data = doc.toJS();
     return { data, locationMap };
+}
+
+function validateAsCodeSchema({
+    data,
+    fileContent,
+    filePath,
+    locationMap,
+    type,
+}: {
+    data: unknown;
+    fileContent: string;
+    filePath: string;
+    locationMap: LocationMap;
+    type: LightdashCodeType;
+}): FileValidationResult {
+    let validate;
+    switch (type) {
+        case 'chart':
+            validate = validateChartSchema;
+            break;
+        case 'dashboard':
+            validate = validateDashboardSchema;
+            break;
+        case 'model':
+            validate = validateModelSchema;
+            break;
+        default:
+            return assertUnreachable(
+                type,
+                `Unknown Lightdash Code type: ${type}`,
+            );
+    }
+    const valid = validate(data);
+
+    if (!valid && validate.errors) {
+        return {
+            filePath,
+            valid: false,
+            errors: validate.errors,
+            fileContent,
+            locationMap,
+            type,
+        };
+    }
+    return { filePath, valid: true, type };
 }
 
 /**
  * Validate a single YAML or JSON file
  */
-function validateFile(filePath: string): FileValidationResult {
+type LintData = {
+    type?: string;
+    contentType?: string;
+};
+
+function createErrorResult({
+    error,
+    fileContent,
+    filePath,
+    locationMap,
+    type,
+}: {
+    error: ErrorObject;
+    fileContent: string;
+    filePath: string;
+    locationMap?: LocationMap;
+    type: LightdashCodeType;
+}): FileValidationResult {
+    return {
+        filePath,
+        valid: false,
+        errors: [error],
+        fileContent,
+        locationMap,
+        type,
+    };
+}
+
+function getUploadType(
+    classification: ContentFileClassification | undefined,
+    data?: LintData,
+): ContentFileType | undefined {
+    if (classification?.kind === 'content') {
+        return classification.contentType;
+    }
+    if (classification?.kind !== 'loose') return undefined;
+
+    if (
+        data?.contentType === ContentAsCodeType.CHART ||
+        data?.contentType === ContentAsCodeType.SQL_CHART
+    ) {
+        return 'chart';
+    }
+    if (data?.contentType === ContentAsCodeType.DASHBOARD) {
+        return 'dashboard';
+    }
+    return undefined;
+}
+
+function getModelCodeType(data?: LintData): 'model' | undefined {
+    if (
+        data?.type === 'model' ||
+        data?.type === 'model/v1beta' ||
+        data?.type === 'model/v1'
+    ) {
+        return 'model';
+    }
+    return undefined;
+}
+
+function getPartialYamlData(fileContent: string): LintData | undefined {
     try {
-        // Read and parse file
-        const fileContent = fs.readFileSync(filePath, 'utf8');
+        const doc = YAML.parseDocument(fileContent, { merge: true });
+        const data = doc.toJS() as unknown;
+        return data && typeof data === 'object' && !Array.isArray(data)
+            ? (data as LintData)
+            : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+function getParseErrorLocation(
+    error: unknown,
+): { line: number; column: number } | undefined {
+    if (!error || typeof error !== 'object') return undefined;
+
+    const linePos = Reflect.get(error, 'linePos');
+    if (Array.isArray(linePos)) {
+        const firstPosition = linePos[0] as { line?: unknown; col?: unknown };
+        if (
+            typeof firstPosition?.line === 'number' &&
+            typeof firstPosition.col === 'number'
+        ) {
+            return { line: firstPosition.line, column: firstPosition.col };
+        }
+    }
+
+    const mark = Reflect.get(error, 'mark') as
+        | { line?: unknown; column?: unknown }
+        | undefined;
+    if (typeof mark?.line === 'number' && typeof mark.column === 'number') {
+        return { line: mark.line + 1, column: mark.column + 1 };
+    }
+    return undefined;
+}
+
+function createUnsupportedExtensionResult(
+    filePath: string,
+    fileContent: string,
+    type: ContentFileType,
+): FileValidationResult {
+    return createErrorResult({
+        filePath,
+        fileContent,
+        type,
+        error: {
+            keyword: 'extension',
+            instancePath: '',
+            schemaPath: '',
+            params: { allowedExtension: '.yml' },
+            message: "Content files must use the '.yml' extension",
+        },
+    });
+}
+
+function validateFile(
+    filePath: string,
+    contentRoot: string,
+): FileValidationResult {
+    const classification = classifyContentFilePath(filePath, contentRoot);
+    let fileContent: string | undefined;
+
+    try {
+        fileContent = fs.readFileSync(filePath, 'utf8');
         const isJson = filePath.endsWith('.json');
         const { data, locationMap } = buildLocationMap(fileContent, isJson);
+        const dataObj =
+            data && typeof data === 'object' && !Array.isArray(data)
+                ? (data as LintData)
+                : undefined;
+        const uploadType = getUploadType(classification, dataObj);
 
-        if (!data || typeof data !== 'object') {
-            return {
+        if (uploadType && classification?.supportedExtension === false) {
+            return createUnsupportedExtensionResult(
                 filePath,
-                valid: false,
-                // Skip non-object files as they're not lightdash code
-            };
+                fileContent,
+                uploadType,
+            );
         }
 
-        const dataObj = data as {
-            version?: number;
-            type?: string;
-            metricQuery?: unknown;
-            tiles?: unknown;
-        };
+        if (!dataObj) {
+            return uploadType
+                ? createErrorResult({
+                      filePath,
+                      fileContent,
+                      locationMap,
+                      type: uploadType,
+                      error: {
+                          keyword: 'type',
+                          instancePath: '',
+                          schemaPath: '#/type',
+                          params: { type: 'object' },
+                          message: 'must be object',
+                      },
+                  })
+                : { filePath, valid: true };
+        }
 
-        // Check if this is a model (has type: "model", "model/v1beta", or "model/v1")
-        if (
-            dataObj.type === 'model' ||
-            dataObj.type === 'model/v1beta' ||
-            dataObj.type === 'model/v1'
-        ) {
-            const valid = validateModelSchema(data);
-            if (!valid && validateModelSchema.errors) {
-                return {
-                    filePath,
-                    valid: false,
-                    errors: validateModelSchema.errors,
-                    fileContent,
-                    locationMap,
-                    type: 'model',
-                };
+        if (uploadType) {
+            if (uploadType === 'chart' && isSqlChartContent(dataObj)) {
+                return { filePath, valid: true, type: 'chart' };
             }
-            return { filePath, valid: true, type: 'model' };
+            return validateAsCodeSchema({
+                data,
+                fileContent,
+                filePath,
+                locationMap,
+                type: uploadType,
+            });
         }
 
-        // Check if this is a chart (has version and metricQuery)
-        if (dataObj.version === 1 && dataObj.metricQuery && !dataObj.tiles) {
-            const valid = validateChartSchema(data);
-            if (!valid && validateChartSchema.errors) {
-                return {
-                    filePath,
-                    valid: false,
-                    errors: validateChartSchema.errors,
-                    fileContent,
-                    locationMap,
-                    type: 'chart',
-                };
-            }
-            return { filePath, valid: true, type: 'chart' };
+        const modelType = getModelCodeType(dataObj);
+        if (modelType) {
+            return validateAsCodeSchema({
+                data,
+                fileContent,
+                filePath,
+                locationMap,
+                type: modelType,
+            });
         }
 
-        // Check if this is a dashboard (has version and tiles)
-        if (dataObj.version === 1 && dataObj.tiles) {
-            const valid = validateDashboardSchema(data);
-            if (!valid && validateDashboardSchema.errors) {
-                return {
-                    filePath,
-                    valid: false,
-                    errors: validateDashboardSchema.errors,
-                    fileContent,
-                    locationMap,
-                    type: 'dashboard',
-                };
-            }
-            return { filePath, valid: true, type: 'dashboard' };
-        }
-
-        // Not a lightdash code file
-        return {
-            filePath,
-            valid: true, // Don't report non-lightdash files as errors
-        };
+        return { filePath, valid: true };
     } catch (error) {
-        // Parsing error - skip this file
-        return {
+        const partialData = fileContent
+            ? getPartialYamlData(fileContent)
+            : undefined;
+        const uploadType = getUploadType(classification, partialData);
+        const type = uploadType ?? getModelCodeType(partialData);
+        if (!type) return { filePath, valid: true };
+        if (uploadType && classification?.supportedExtension === false) {
+            return createUnsupportedExtensionResult(
+                filePath,
+                fileContent ?? '',
+                uploadType,
+            );
+        }
+
+        const parseLocation = getParseErrorLocation(error);
+        const locationMap = parseLocation
+            ? new Map([['/', parseLocation]])
+            : undefined;
+        return createErrorResult({
             filePath,
-            valid: false,
-        };
+            fileContent: fileContent ?? '',
+            locationMap,
+            type,
+            error: {
+                keyword: 'parse',
+                instancePath: '',
+                schemaPath: '',
+                params: {},
+                message: getErrorMessage(error),
+            },
+        });
     }
+}
+
+function getDefaultContentRoot(searchPath: string): string {
+    const contentRootMarkers = [
+        '.lightdash-metadata.json',
+        'charts',
+        'dashboards',
+    ];
+    return contentRootMarkers.some((marker) =>
+        fs.existsSync(path.join(searchPath, marker)),
+    )
+        ? searchPath
+        : getDownloadFolder();
 }
 
 export async function lintHandler(options: LintOptions): Promise<void> {
@@ -261,6 +469,12 @@ export async function lintHandler(options: LintOptions): Promise<void> {
         // Check if path exists
         if (!fs.existsSync(searchPath)) {
             throw new Error(`Path does not exist: ${searchPath}`);
+        }
+        let contentRoot = getDefaultContentRoot(searchPath);
+        if (options.path) {
+            contentRoot = fs.statSync(searchPath).isFile()
+                ? path.dirname(searchPath)
+                : searchPath;
         }
 
         if (outputFormat === 'cli') {
@@ -292,7 +506,7 @@ export async function lintHandler(options: LintOptions): Promise<void> {
 
             // Validate each file
             for (const file of codeFiles) {
-                const result = validateFile(file);
+                const result = validateFile(file, contentRoot);
                 // Only track Lightdash Code files (models, charts, dashboards)
                 if (result.type) {
                     results.push(result);
@@ -304,7 +518,7 @@ export async function lintHandler(options: LintOptions): Promise<void> {
                     console.log(chalk.yellow('No Lightdash Code files found.'));
                     console.log(
                         chalk.dim(
-                            'Models must have type: model (or model/v1, model/v1beta), charts must have version: 1 + metricQuery, dashboards must have version: 1 + tiles',
+                            'Models must have type: model (or model/v1, model/v1beta). Charts and dashboards must be in their matching folder or declare contentType.',
                         ),
                     );
                 }
@@ -313,7 +527,7 @@ export async function lintHandler(options: LintOptions): Promise<void> {
                 const sarifResults = results
                     .filter(
                         (r) =>
-                            r.fileContent &&
+                            r.fileContent !== undefined &&
                             r.type &&
                             r.errors &&
                             r.errors.length > 0,
