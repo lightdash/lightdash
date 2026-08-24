@@ -1,4 +1,8 @@
-import { FeatureFlags, type DataAppViz } from '@lightdash/common';
+import {
+    assertUnreachable,
+    FeatureFlags,
+    type DataAppViz,
+} from '@lightdash/common';
 import {
     Anchor,
     Box,
@@ -9,11 +13,12 @@ import {
     Stack,
     Text,
     TextInput,
+    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
@@ -32,39 +37,66 @@ import {
 } from '../VisualizationCardOptions/useChartTypeOptions';
 import classes from './ChartTypeGallery.module.css';
 
+/** Rows shown before "Load more", keeping built-ins visible at first glance. */
+const INITIAL_PROJECT_TYPES_SHOWN = 5;
+
 export type ChartTypeGalleryItem = Omit<ChartTypeOption, 'id'> & {
     key: string;
     disabled: boolean;
+};
+
+/** Rows show per-item text and actions that grid cards deliberately drop. */
+export type ChartTypeGalleryRowItem = ChartTypeGalleryItem & {
+    description: string;
     /** Opens the chart type builder for this item; null hides the action. */
     onEdit: (() => void) | null;
 };
 
-type ThumbnailProps = Pick<ChartTypeOption, 'icon' | 'rotatedIcon'> & {
+type ChartTypeIconProps = Pick<ChartTypeOption, 'icon' | 'rotatedIcon'> & {
     small?: boolean;
 };
 
-export const ChartTypeThumbnail: FC<ThumbnailProps> = ({
+const ChartTypeIcon: FC<ChartTypeIconProps> = ({
     icon,
     rotatedIcon,
     small,
 }) => (
+    <MantineIcon
+        className={classes.icon}
+        data-rotated={rotatedIcon}
+        icon={icon}
+        size={small ? 'md' : 'xl'}
+        stroke={1.5}
+        color="blue"
+    />
+);
+
+export const ChartTypeThumbnail: FC<ChartTypeIconProps> = ({
+    small,
+    ...props
+}) => (
     <Box className={classes.thumbnail} data-small={small}>
-        <MantineIcon
-            className={classes.icon}
-            data-rotated={rotatedIcon}
-            icon={icon}
-            size={small ? 'md' : 'xl'}
-            color="blue"
-        />
+        <ChartTypeIcon small={small} {...props} />
     </Box>
 );
 
-export type ChartTypeGallerySection = {
+type ChartTypeGallerySectionBase = {
     label: string;
+    emptyMessage: string;
+};
+
+/** A static set of built-ins: a compact card grid, no remote-list states. */
+type ChartTypeGalleryGridSection = ChartTypeGallerySectionBase & {
+    layout: 'grid';
     items: ChartTypeGalleryItem[];
+};
+
+/** A remote list of project chart types: richer rows with list states. */
+type ChartTypeGalleryRowsSection = ChartTypeGallerySectionBase & {
+    layout: 'rows';
+    items: ChartTypeGalleryRowItem[];
     loading: boolean;
     errorMessage: string | null;
-    emptyMessage: string;
     onRetry: (() => void) | null;
     onLoadMore: (() => void) | null;
     loadingMore: boolean;
@@ -72,13 +104,204 @@ export type ChartTypeGallerySection = {
     onCreateNew: (() => void) | null;
 };
 
+export type ChartTypeGallerySection =
+    | ChartTypeGalleryGridSection
+    | ChartTypeGalleryRowsSection;
+
+// Observes the clamped description and reports whether it is actually cut
+// off; ResizeObserver fires on observe and on any later size change.
+const useIsClamped = () => {
+    const [isClamped, setIsClamped] = useState(false);
+    const observerRef = useRef<ResizeObserver | null>(null);
+    const ref = useCallback((node: HTMLParagraphElement | null) => {
+        observerRef.current?.disconnect();
+        observerRef.current = null;
+        if (!node) return;
+        observerRef.current = new ResizeObserver(() => {
+            setIsClamped(node.scrollHeight > node.clientHeight);
+        });
+        observerRef.current.observe(node);
+    }, []);
+    return { ref, isClamped };
+};
+
+const GalleryRow: FC<{ item: ChartTypeGalleryRowItem }> = ({ item }) => {
+    // The description is clamped to two lines; surface the full text on hover
+    // only when it is actually cut off.
+    const { ref, isClamped } = useIsClamped();
+
+    return (
+        <Box className={classes.rowWrapper}>
+            <Tooltip
+                label={item.description}
+                withinPortal
+                position="left"
+                withArrow
+                openDelay={500}
+                color="dark"
+                events={{ hover: true, focus: true, touch: false }}
+                disabled={!isClamped}
+                maw={300}
+                multiline
+            >
+                <UnstyledButton
+                    className={classes.row}
+                    data-selected={item.selected}
+                    data-has-edit={item.onEdit !== null}
+                    disabled={item.disabled}
+                    onClick={item.select}
+                >
+                    <Group wrap="nowrap" gap="sm">
+                        <ChartTypeThumbnail
+                            icon={item.icon}
+                            rotatedIcon={item.rotatedIcon}
+                        />
+                        <Stack gap={2} flex={1} miw={0}>
+                            <Text size="sm" fw={500}>
+                                {item.label}
+                            </Text>
+                            <Text ref={ref} fz="xs" c="dimmed" lineClamp={2}>
+                                {item.description}
+                            </Text>
+                        </Stack>
+                    </Group>
+                </UnstyledButton>
+            </Tooltip>
+            {item.onEdit !== null ? (
+                <Anchor
+                    component="button"
+                    type="button"
+                    className={classes.rowEdit}
+                    aria-label={`Edit ${item.label}`}
+                    fz="xs"
+                    fw={500}
+                    onClick={item.onEdit}
+                >
+                    Edit
+                </Anchor>
+            ) : null}
+        </Box>
+    );
+};
+
+const SectionEmpty: FC<{ message: string }> = ({ message }) => (
+    <Text fz="xs" c="dimmed">
+        {message}
+    </Text>
+);
+
+const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
+    switch (section.layout) {
+        case 'grid':
+            if (section.items.length === 0) {
+                return <SectionEmpty message={section.emptyMessage} />;
+            }
+            return (
+                <Box className={classes.grid}>
+                    {section.items.map((item) => (
+                        <UnstyledButton
+                            key={item.key}
+                            className={classes.card}
+                            data-selected={item.selected}
+                            disabled={item.disabled}
+                            onClick={item.select}
+                        >
+                            <ChartTypeIcon
+                                icon={item.icon}
+                                rotatedIcon={item.rotatedIcon}
+                            />
+                            <Text fz="xs" fw={500} lh={1.2}>
+                                {item.label}
+                            </Text>
+                        </UnstyledButton>
+                    ))}
+                </Box>
+            );
+        case 'rows':
+            if (section.loading) {
+                return (
+                    <Group gap="xs">
+                        <Loader size="xs" />
+                        <Text fz="xs" c="dimmed">
+                            Loading chart types…
+                        </Text>
+                    </Group>
+                );
+            }
+            if (section.errorMessage !== null) {
+                return (
+                    <Group justify="space-between" wrap="nowrap">
+                        <Text fz="xs" c="red">
+                            {section.errorMessage}
+                        </Text>
+                        {section.onRetry !== null ? (
+                            <Button
+                                variant="subtle"
+                                size="compact-xs"
+                                onClick={section.onRetry}
+                            >
+                                Retry
+                            </Button>
+                        ) : null}
+                    </Group>
+                );
+            }
+            if (section.items.length === 0) {
+                return <SectionEmpty message={section.emptyMessage} />;
+            }
+            return (
+                <>
+                    {section.items.map((item) => (
+                        <GalleryRow key={item.key} item={item} />
+                    ))}
+                </>
+            );
+        default:
+            return assertUnreachable(
+                section,
+                'Unknown chart type gallery section layout',
+            );
+    }
+};
+
+const RowsSectionActions: FC<{ section: ChartTypeGalleryRowsSection }> = ({
+    section,
+}) => (
+    <>
+        {section.onLoadMore !== null ? (
+            <Button
+                variant="subtle"
+                size="xs"
+                loading={section.loadingMore}
+                onClick={section.onLoadMore}
+            >
+                Load more
+            </Button>
+        ) : null}
+
+        {/* An action, not a chart type; wanted even when the section is empty. */}
+        {section.onCreateNew !== null ? (
+            <Button
+                variant="subtle"
+                size="xs"
+                px="xs"
+                leftSection={<MantineIcon icon={IconPlus} />}
+                onClick={section.onCreateNew}
+                justify="flex-start"
+            >
+                Create new chart type
+            </Button>
+        ) : null}
+    </>
+);
+
 type GalleryProps = {
     search: string;
     onSearchChange: (search: string) => void;
     sections: ChartTypeGallerySection[];
 };
 
-const ChartTypeGallery: FC<GalleryProps> = ({
+export const ChartTypeGallery: FC<GalleryProps> = ({
     search,
     onSearchChange,
     sections,
@@ -108,104 +331,10 @@ const ChartTypeGallery: FC<GalleryProps> = ({
                             {section.label}
                         </Text>
 
-                        {section.loading ? (
-                            <Group gap="xs">
-                                <Loader size="xs" />
-                                <Text fz="xs" c="dimmed">
-                                    Loading chart types…
-                                </Text>
-                            </Group>
-                        ) : section.errorMessage !== null ? (
-                            <Group justify="space-between" wrap="nowrap">
-                                <Text fz="xs" c="red">
-                                    {section.errorMessage}
-                                </Text>
-                                {section.onRetry !== null ? (
-                                    <Button
-                                        variant="subtle"
-                                        size="compact-xs"
-                                        onClick={section.onRetry}
-                                    >
-                                        Retry
-                                    </Button>
-                                ) : null}
-                            </Group>
-                        ) : section.items.length === 0 ? (
-                            <Text fz="xs" c="dimmed">
-                                {section.emptyMessage}
-                            </Text>
-                        ) : (
-                            section.items.map((item) => (
-                                <Box
-                                    key={item.key}
-                                    className={classes.rowWrapper}
-                                >
-                                    <UnstyledButton
-                                        className={classes.row}
-                                        data-selected={item.selected}
-                                        data-has-edit={item.onEdit !== null}
-                                        disabled={item.disabled}
-                                        onClick={item.select}
-                                    >
-                                        <Group wrap="nowrap" gap="sm">
-                                            <ChartTypeThumbnail
-                                                icon={item.icon}
-                                                rotatedIcon={item.rotatedIcon}
-                                            />
-                                            <Stack gap={2} flex={1}>
-                                                <Text size="sm" fw={500}>
-                                                    {item.label}
-                                                </Text>
-                                                <Text
-                                                    fz="xs"
-                                                    c="dimmed"
-                                                    lineClamp={2}
-                                                >
-                                                    {item.description}
-                                                </Text>
-                                            </Stack>
-                                        </Group>
-                                    </UnstyledButton>
-                                    {item.onEdit !== null ? (
-                                        <Anchor
-                                            component="button"
-                                            type="button"
-                                            className={classes.rowEdit}
-                                            fz="xs"
-                                            fw={500}
-                                            onClick={item.onEdit}
-                                        >
-                                            Edit
-                                        </Anchor>
-                                    ) : null}
-                                </Box>
-                            ))
-                        )}
+                        <SectionBody section={section} />
 
-                        {section.onLoadMore !== null ? (
-                            <Button
-                                variant="subtle"
-                                size="xs"
-                                loading={section.loadingMore}
-                                onClick={section.onLoadMore}
-                            >
-                                Load more
-                            </Button>
-                        ) : null}
-
-                        {/* An action, not a chart type; wanted even when the
-                            section is empty. */}
-                        {section.onCreateNew !== null ? (
-                            <Button
-                                variant="subtle"
-                                size="xs"
-                                px="xs"
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                                onClick={section.onCreateNew}
-                                justify="flex-start"
-                            >
-                                Create new chart type
-                            </Button>
+                        {section.layout === 'rows' ? (
+                            <RowsSectionActions section={section} />
                         ) : null}
                     </Stack>
                 ))}
@@ -226,6 +355,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     const navigate = useNavigate();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
+    const [showAllProjectTypes, setShowAllProjectTypes] = useState(false);
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
         true;
@@ -269,10 +399,9 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                 option.select();
                 onSelected();
             },
-            onEdit: null,
         }));
     const projectItems = projectTypes.map(
-        (dataAppViz: DataAppViz): ChartTypeGalleryItem => {
+        (dataAppViz: DataAppViz): ChartTypeGalleryRowItem => {
             const { label, icon, rotatedIcon } =
                 projectChartTypeItem(dataAppViz);
             return {
@@ -303,12 +432,25 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
         },
     );
 
+    // Cap the initial list so built-ins stay in view; searching shows every
+    // match, and a selection deeper in the list is never hidden.
+    const selectedProjectIdx = projectItems.findIndex((item) => item.selected);
+    const collapseProjectTypes =
+        !showAllProjectTypes &&
+        debouncedSearch === '' &&
+        projectItems.length > INITIAL_PROJECT_TYPES_SHOWN &&
+        selectedProjectIdx < INITIAL_PROJECT_TYPES_SHOWN;
+    const visibleProjectItems = collapseProjectTypes
+        ? projectItems.slice(0, INITIAL_PROJECT_TYPES_SHOWN)
+        : projectItems;
+
     const sections: ChartTypeGallerySection[] = [
         ...(dataAppsEnabled
             ? [
                   {
                       label: 'Project',
-                      items: projectItems,
+                      layout: 'rows' as const,
+                      items: visibleProjectItems,
                       loading: isInitialLoading,
                       errorMessage: error
                           ? 'Failed to load project chart types'
@@ -317,9 +459,11 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                           ? 'No project chart types match your search'
                           : 'No project chart types yet',
                       onRetry: error ? () => void refetch() : null,
-                      onLoadMore: hasNextPage
-                          ? () => void fetchNextPage()
-                          : null,
+                      onLoadMore: collapseProjectTypes
+                          ? () => setShowAllProjectTypes(true)
+                          : hasNextPage
+                            ? () => void fetchNextPage()
+                            : null,
                       loadingMore: isFetchingNextPage,
                       onCreateNew: canCreateChartType
                           ? () =>
@@ -335,14 +479,9 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             : []),
         {
             label: 'Built in',
+            layout: 'grid',
             items: builtInItems,
-            loading: false,
-            errorMessage: null,
             emptyMessage: 'No built-in chart types match your search',
-            onRetry: null,
-            onLoadMore: null,
-            loadingMore: false,
-            onCreateNew: null,
         },
     ];
 

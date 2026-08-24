@@ -1,0 +1,7 @@
+/* The offset scrollbar sits in the panel padding, so the scrolled content keeps
+   the same right edge as the header. */
+.scrollArea {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-right: -8px;
+}
