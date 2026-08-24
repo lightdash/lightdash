@@ -122,11 +122,12 @@ Lightdash is a TypeScript monorepo built with:
 
 ## Community
 
-Lightdash is open source and built with the community.
+Lightdash is open source and shaped by community feedback.
 
 - Join the [Lightdash Slack community](https://go.lightdash.com/community)
-- Open a [bug report or feature request](https://github.com/lightdash/lightdash/issues/new/choose)
-- Read the [contributing guide](https://github.com/lightdash/lightdash/blob/main/.github/CONTRIBUTING.md)
+- [Report a bug](https://github.com/lightdash/lightdash/issues/new?template=bug_report.yml)
+- [Request a feature](https://github.com/lightdash/lightdash/issues/new?template=feature-request.yml)
+- Read the [contributing guide](.github/CONTRIBUTING.md)
 - Follow Lightdash on [LinkedIn](https://www.linkedin.com/company/lightdash) and [X](https://twitter.com/lightdash_devs)
 
 Thanks to everyone who has contributed code, docs, issues, ideas, and feedback. See the [contributors graph](https://github.com/lightdash/lightdash/graphs/contributors) for the full community.
