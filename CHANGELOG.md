@@ -1,3 +1,10 @@
+## [1.251.5](https://github.com/lightdash/lightdash/compare/1.251.4...1.251.5) (2026-08-24)
+
+
+### Bug Fixes
+
+* rename the primary dbt source ([#27456](https://github.com/lightdash/lightdash/issues/27456)) ([a25af07](https://github.com/lightdash/lightdash/commit/a25af07947efade9b8cec21f76ad9d52bd22e417))
+
 ## [1.251.4](https://github.com/lightdash/lightdash/compare/1.251.3...1.251.4) (2026-08-24)
 
 
