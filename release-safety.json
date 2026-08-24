@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "1.243.2",
-  "previousVersion": "1.243.1",
-  "releaseDate": "2026-08-24T15:01:55.231Z",
+  "version": "1.244.0",
+  "previousVersion": "1.243.2",
+  "releaseDate": "2026-08-24T15:07:23.281Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,8 +20,10 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `findCustomChartTypes` enum value to the `results/allOf[subschema #2]/messages/items/anyOf[#/components/schemas/AiAgentMessageAssistant]/toolResults/items/allOf[subschema #2]/anyOf[subschema #1]/toolName` response property for the response status `200`"
+      ],
+      "advisoryCount": 1
     },
     "mcp": {
       "checked": true,

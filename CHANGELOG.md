@@ -1,3 +1,10 @@
+# [1.244.0](https://github.com/lightdash/lightdash/compare/1.243.2...1.244.0) (2026-08-24)
+
+
+### Features
+
+* **ai:** agent browses the custom chart type library ([#27867](https://github.com/lightdash/lightdash/issues/27867)) ([ae986b8](https://github.com/lightdash/lightdash/commit/ae986b85603a71a5616fb653a08630142a06f757))
+
 ## [1.243.2](https://github.com/lightdash/lightdash/compare/1.243.1...1.243.2) (2026-08-24)
 
 

@@ -22398,6 +22398,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['generateUuids'] },
                 { dataType: 'enum', enums: ['listContent'] },
                 { dataType: 'enum', enums: ['findExplores'] },
+                { dataType: 'enum', enums: ['findCustomChartTypes'] },
                 { dataType: 'enum', enums: ['findFields'] },
                 { dataType: 'enum', enums: ['searchSemanticLayer'] },
                 { dataType: 'enum', enums: ['analyzeFieldImpact'] },
