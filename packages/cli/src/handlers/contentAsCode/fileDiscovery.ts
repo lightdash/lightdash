@@ -2,11 +2,34 @@ import * as path from 'path';
 
 export type ContentFileType = 'chart' | 'dashboard';
 
-export const getContentFileType = (
+export type ContentFileClassification =
+    | {
+          kind: 'content';
+          contentType: ContentFileType;
+          supportedExtension: boolean;
+      }
+    | { kind: 'loose'; supportedExtension: boolean };
+
+const isWithinRoot = (filePath: string, rootPath: string): boolean => {
+    const relativePath = path.relative(rootPath, filePath);
+    return (
+        relativePath === '' ||
+        (!relativePath.startsWith(`..${path.sep}`) &&
+            relativePath !== '..' &&
+            !path.isAbsolute(relativePath))
+    );
+};
+
+export const classifyContentFilePath = (
     filePath: string,
-): ContentFileType | undefined => {
+    rootPath?: string,
+): ContentFileClassification | undefined => {
+    if (rootPath && !isWithinRoot(filePath, rootPath)) return undefined;
+
+    const supportedExtension = filePath.endsWith('.yml');
+    if (!supportedExtension && !filePath.endsWith('.yaml')) return undefined;
+
     if (
-        !filePath.endsWith('.yml') ||
         filePath.endsWith('.space.yml') ||
         filePath.endsWith('.language.map.yml')
     ) {
@@ -14,17 +37,18 @@ export const getContentFileType = (
     }
 
     const parentFolder = path.basename(path.dirname(filePath));
-    if (parentFolder === 'charts') return 'chart';
-    if (parentFolder === 'dashboards') return 'dashboard';
-    return undefined;
+    if (parentFolder === 'charts') {
+        return { kind: 'content', contentType: 'chart', supportedExtension };
+    }
+    if (parentFolder === 'dashboards') {
+        return {
+            kind: 'content',
+            contentType: 'dashboard',
+            supportedExtension,
+        };
+    }
+    return { kind: 'loose', supportedExtension };
 };
 
-export const isLooseContentFilePath = (filePath: string): boolean => {
-    const parentFolder = path.basename(path.dirname(filePath));
-    return (
-        filePath.endsWith('.yml') &&
-        !filePath.endsWith('.language.map.yml') &&
-        parentFolder !== 'charts' &&
-        parentFolder !== 'dashboards'
-    );
-};
+export const isSqlChartContent = (item: object): boolean =>
+    'sql' in item && !('tableName' in item);

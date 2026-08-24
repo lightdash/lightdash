@@ -100,8 +100,8 @@ import {
     withBuildLimitRetry,
 } from './apps/uploadRetry';
 import {
-    getContentFileType,
-    isLooseContentFilePath,
+    classifyContentFilePath,
+    isSqlChartContent,
 } from './contentAsCode/fileDiscovery';
 import {
     AI_AGENT_CODE_RESOURCE,
@@ -442,16 +442,29 @@ const hasUnsortedKeys = (obj: unknown): boolean => {
 const isLightdashContentFile = (
     folder: 'charts' | 'dashboards',
     entry: Dirent,
-) =>
-    entry.isFile() &&
-    entry.parentPath &&
-    getContentFileType(path.join(entry.parentPath, entry.name)) ===
-        (folder === 'charts' ? 'chart' : 'dashboard');
+) => {
+    if (!entry.isFile() || !entry.parentPath) return false;
 
-const isLooseContentFile = (entry: Dirent) =>
-    entry.isFile() &&
-    entry.parentPath &&
-    isLooseContentFilePath(path.join(entry.parentPath, entry.name));
+    const classification = classifyContentFilePath(
+        path.join(entry.parentPath, entry.name),
+    );
+    return (
+        classification?.kind === 'content' &&
+        classification.supportedExtension &&
+        `${classification.contentType}s` === folder
+    );
+};
+
+const isLooseContentFile = (entry: Dirent) => {
+    if (!entry.isFile() || !entry.parentPath) return false;
+
+    const classification = classifyContentFilePath(
+        path.join(entry.parentPath, entry.name),
+    );
+    return (
+        classification?.kind === 'loose' && classification.supportedExtension
+    );
+};
 
 const processYamlItem = <
     T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
@@ -2557,11 +2570,6 @@ const runUploadChangesPhase = async ({
     return updatedChanges;
 };
 
-// SQL charts have 'sql' field instead of 'tableName'/'metricQuery'
-const isSqlChart = (
-    item: ChartAsCode | DashboardAsCode | SqlChartAsCode,
-): item is SqlChartAsCode => 'sql' in item && !('tableName' in item);
-
 const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
     item: T & { needsUpdating: boolean },
     type: 'charts' | 'dashboards',
@@ -2585,7 +2593,7 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
         GlobalState.debug(`Upserting ${type} ${item.slug}`);
 
         // SQL charts use a different endpoint
-        const isSqlChartItem = type === 'charts' && isSqlChart(item);
+        const isSqlChartItem = type === 'charts' && isSqlChartContent(item);
         const endpoint = isSqlChartItem
             ? `/api/v1/projects/${projectId}/code/sqlCharts/${item.slug}`
             : `/api/v1/projects/${projectId}/code/${type}/${item.slug}`;
