@@ -1209,9 +1209,7 @@ Usage tips:
     },
   },
   {
-    "description": "Tool: findCustomChartTypes
-
-Purpose:
+    "description": "Purpose:
 Browse the project's custom chart type library. Set \`query\` to keyword-search types by name and description, or set \`slug\` to fetch one exact type — set exactly one of the two. Each match returns the type's slug plus its full schema: the field slots to bind query fields to (name, label, type, required) and the config options it accepts.
 
 Use it to look beyond the types inlined in availableCustomChartTypes, or to read a type's full schema before rendering through it.
@@ -1242,10 +1240,6 @@ Output:
           ],
         },
       },
-      "required": [
-        "query",
-        "slug",
-      ],
       "type": "object",
     },
     "name": "findCustomChartTypes",

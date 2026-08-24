@@ -884,28 +884,24 @@ export class AiAgentToolsService extends BaseService {
                 if (!(await this.customChartTypesEnabled(context))) {
                     return [];
                 }
-                const rows =
-                    'slug' in args
-                        ? [
-                              await this.appModel.findDataAppVisualizationBySlug(
-                                  context.projectUuid,
-                                  args.slug,
-                              ),
-                          ]
-                        : (
-                              await this.appModel.listDataAppVisualizations(
-                                  context.projectUuid,
-                                  {
-                                      page: 1,
-                                      pageSize:
-                                          AiAgentToolsService.CUSTOM_CHART_TYPES_SEARCH_LIMIT,
-                                  },
-                                  args.query,
-                              )
-                          ).data;
-                return this.parseCustomChartTypes(
-                    rows.filter((row) => row !== undefined),
+                if ('slug' in args) {
+                    const row =
+                        await this.appModel.findDataAppVisualizationBySlug(
+                            context.projectUuid,
+                            args.slug,
+                        );
+                    return this.parseCustomChartTypes(row ? [row] : []);
+                }
+                const { data } = await this.appModel.listDataAppVisualizations(
+                    context.projectUuid,
+                    {
+                        page: 1,
+                        pageSize:
+                            AiAgentToolsService.CUSTOM_CHART_TYPES_SEARCH_LIMIT,
+                    },
+                    args.query,
                 );
+                return this.parseCustomChartTypes(data);
             },
         );
     }

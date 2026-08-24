@@ -20,7 +20,7 @@ type Dependencies = {
 
 const toolDefinition = findCustomChartTypesToolDefinition.for('agent');
 
-// The args schema keeps both fields nullable (LLM tool inputs are flat
+// The args schema keeps both fields nullish (LLM tool inputs are flat
 // objects); exactly-one is enforced here with a retryable tool error.
 export const parseFindCustomChartTypesArgs = (
     args: ToolFindCustomChartTypesArgs,
