@@ -1,3 +1,10 @@
+## [1.248.1](https://github.com/lightdash/lightdash/compare/1.248.0...1.248.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* **ai:** Slack explore link opens custom chart type answers as data app viz ([#27938](https://github.com/lightdash/lightdash/issues/27938)) ([a56bf62](https://github.com/lightdash/lightdash/commit/a56bf625471b62490c831393e83e0152d3b2f931))
+
 # [1.248.0](https://github.com/lightdash/lightdash/compare/1.247.0...1.248.0) (2026-08-24)
 
 
