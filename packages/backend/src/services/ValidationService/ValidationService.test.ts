@@ -241,7 +241,7 @@ describe('validation', () => {
         ]);
     });
 
-    it('keeps existing chart errors when an original name has one match', async () => {
+    it('keeps a missing-model error when an original name has one match', async () => {
         const sourceAExplore = {
             ...explore,
             name: 'sourceA__orders',
@@ -283,8 +283,8 @@ describe('validation', () => {
 
         expect(errors).toEqual([
             expect.objectContaining({
-                error: "Dimension error: the field 'orders_amount' no longer exists",
-                errorType: ValidationErrorType.Dimension,
+                error: "Model error: the model 'orders' no longer exists",
+                errorType: ValidationErrorType.Model,
             }),
         ]);
     });

@@ -35,6 +35,7 @@ const source = {
     repository: 'org/old-repo',
     branch: 'main',
     projectSubPath: '/',
+    warehouseLocation: { database: null, schema: null },
 };
 
 const primarySource = {
@@ -47,6 +48,7 @@ const primarySource = {
     repository: 'org/primary',
     branch: 'main',
     projectSubPath: '/',
+    warehouseLocation: { database: null, schema: null },
 };
 
 const connection = {
@@ -77,6 +79,7 @@ const routeApi = (sourceName?: string) => {
                         repository: 'org/repo',
                         branch: 'main',
                         projectSubPath: '/',
+                        warehouseLocation: { database: null, schema: null },
                     });
                 }
                 return Promise.resolve(
@@ -160,7 +163,7 @@ describe('DbtSourcesPanel', () => {
 
         expect(
             within(dialog).getByText(
-                "Connect another git-backed dbt project. Its models are merged with this project's dbt connection on every deploy.",
+                "Connect another git-backed dbt project. Its models are merged with the primary source on every deploy and preview, using the project's warehouse and dbt version.",
             ),
         ).toBeInTheDocument();
     });

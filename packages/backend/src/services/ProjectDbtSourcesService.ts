@@ -16,9 +16,9 @@ import {
     ProjectDbtSourceWithConnection,
     sensitiveDbtCredentialsFieldNames,
     UnexpectedServerError,
-    validateWarehouseLocation,
-    validateProjectDbtSourceName,
     validateGithubToken,
+    validateProjectDbtSourceName,
+    validateWarehouseLocation,
     type Account,
     type WarehouseLocation,
 } from '@lightdash/common';
@@ -363,6 +363,9 @@ export class ProjectDbtSourcesService extends BaseService {
                 isPrimary: true,
                 precedence: 0,
                 type: project.dbtConnection.type,
+                warehouseLocation: project.warehouseConnection
+                    ? getWarehouseLocation(project.warehouseConnection)
+                    : EMPTY_WAREHOUSE_LOCATION,
                 hasCredentialError: false,
                 ...ProjectDbtSourcesService.gitIdentity(project.dbtConnection),
             };

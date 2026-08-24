@@ -300,7 +300,7 @@ describe('ProjectDbtSourcesService', () => {
         it("saves the source's own warehouse location", async () => {
             projectDbtSourcesModel.createSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
-                name: 'jaffle-2',
+                name: 'jaffle_2',
                 isPrimary: false,
                 precedence: 1,
                 dbtConnection: githubConnection,
@@ -312,7 +312,7 @@ describe('ProjectDbtSourcesService', () => {
             const service = getService();
 
             await service.createProjectDbtSource(adminAccount, projectUuid, {
-                name: 'jaffle-2',
+                name: 'jaffle_2',
                 dbtConnection: githubConnection as never,
                 warehouseLocation: {
                     database: 'source-gcp-project',
@@ -334,7 +334,7 @@ describe('ProjectDbtSourcesService', () => {
         it('inherits the project location when the source sets none', async () => {
             projectDbtSourcesModel.createSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
-                name: 'jaffle-2',
+                name: 'jaffle_2',
                 isPrimary: false,
                 precedence: 1,
                 dbtConnection: githubConnection,
@@ -343,7 +343,7 @@ describe('ProjectDbtSourcesService', () => {
             const service = getService();
 
             await service.createProjectDbtSource(adminAccount, projectUuid, {
-                name: 'jaffle-2',
+                name: 'jaffle_2',
                 dbtConnection: githubConnection as never,
             });
 
@@ -358,7 +358,7 @@ describe('ProjectDbtSourcesService', () => {
         it('stores a blank location as inherit rather than as an override', async () => {
             projectDbtSourcesModel.createSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
-                name: 'jaffle-2',
+                name: 'jaffle_2',
                 isPrimary: false,
                 precedence: 1,
                 dbtConnection: githubConnection,
@@ -367,7 +367,7 @@ describe('ProjectDbtSourcesService', () => {
             const service = getService();
 
             await service.createProjectDbtSource(adminAccount, projectUuid, {
-                name: 'jaffle-2',
+                name: 'jaffle_2',
                 dbtConnection: githubConnection as never,
                 warehouseLocation: { database: '', schema: '  ' },
             });
