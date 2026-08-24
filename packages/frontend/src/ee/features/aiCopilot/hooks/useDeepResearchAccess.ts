@@ -1,5 +1,4 @@
 import { subject } from '@casl/ability';
-import { LightdashMode } from '@lightdash/common';
 import useHealth from '../../../../hooks/health/useHealth';
 import { useImpersonation } from '../../../../hooks/user/useImpersonation';
 import useApp from '../../../../providers/App/useApp';
@@ -7,14 +6,12 @@ import useApp from '../../../../providers/App/useApp';
 export const canStartDeepResearch = ({
     canCreate,
     isEnvironmentReady,
-    isDemo,
     isImpersonating,
 }: {
     canCreate: boolean;
     isEnvironmentReady: boolean;
-    isDemo: boolean;
     isImpersonating: boolean;
-}): boolean => isEnvironmentReady && canCreate && !isDemo && !isImpersonating;
+}): boolean => isEnvironmentReady && canCreate && !isImpersonating;
 
 export const useDeepResearchAccess = (projectUuid: string | undefined) => {
     const { user } = useApp();
@@ -33,7 +30,6 @@ export const useDeepResearchAccess = (projectUuid: string | undefined) => {
     return canStartDeepResearch({
         canCreate,
         isEnvironmentReady: health.data !== undefined,
-        isDemo: health.data?.mode === LightdashMode.DEMO,
         isImpersonating,
     });
 };
