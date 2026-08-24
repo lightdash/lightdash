@@ -129,6 +129,30 @@ over every `CustomFormatType` × `{round: undefined, 0, 2, -2}` × every
 separator × `{negative, zero, fractional}` values. G1–G10 fall out as
 failures.
 
+### Blast radius of the gap fixes (existing converter consumers)
+
+The converter is not only the future population workhorse — it has live
+consumers today, and G1–G3 flip their behavior the moment they land. Fixing
+the converter globally is still right (a column-only variant would recreate
+the exact divergence step 1 exists to kill), but PR 1 must make these changes
+deliberate with golden/snapshot coverage:
+
+- **`getFieldFormatOverrideProps` (formatting.ts:1198)** — DEFAULT/ID/DATE/
+  TIMESTAMP format overrides currently take the structured-`formatOptions`
+  branch because the converter returns null; after G1–G3 they take the
+  expression branch, changing what is spread onto query result fields.
+- **Excel exports via `getExcelFormatExpression` (formatting.ts:1232)** —
+  DEFAULT-format fields get an explicit `#,##0.###` numFmt instead of
+  General. The COUNT `#,##0` guard (G11) already anticipates the count case;
+  plain-number cells change. Assert the new numFmt in ExcelService tests.
+- **`convertCustomMetricsToYaml` (convertCustomMetricsToYaml.ts:15)** —
+  writeback starts emitting `format: '#,##0.###'` where it previously
+  omitted the key: YAML diff churn and an idempotency hazard of the same
+  class as the `VirtualViewCoder` concern in §5. Pin the new output with a
+  snapshot and verify writeback round-trips (emit → parse → emit stable).
+- `fields.ts:186` (custom-metric format comparison) converts both sides, so
+  it is safe by construction — no action.
+
 ## 3. Population rules per query source
 
 Columns are **persisted at write time** into `query_history.columns`
