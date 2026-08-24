@@ -14,6 +14,40 @@ const mocks = vi.hoisted(() => ({
     closeConnection: vi.fn(),
 }));
 
+const invalidSessionError = () =>
+    new StatusError({
+        statusCode: TStatusCode.ERROR_STATUS,
+        errorMessage:
+            'Session handle: SessionHandle [session-id] has not been initialized',
+    });
+
+type MockFunction = ReturnType<typeof vi.fn>;
+type OperationOverrides = Partial<
+    Record<
+        'getSchema' | 'fetchChunk' | 'fetchAll' | 'hasMoreRows' | 'close',
+        MockFunction
+    >
+>;
+type SessionOverrides = Partial<
+    Record<'executeStatement' | 'getColumns' | 'close', MockFunction>
+>;
+
+const createOperation = (overrides: OperationOverrides = {}) => ({
+    getSchema: vi.fn(async () => schema),
+    fetchChunk: mocks.fetchChunk,
+    fetchAll: vi.fn(async () => []),
+    hasMoreRows: vi.fn(async () => false),
+    close: vi.fn(async () => undefined),
+    ...overrides,
+});
+
+const createSession = (overrides: SessionOverrides = {}) => ({
+    executeStatement: vi.fn(async () => createOperation()),
+    getColumns: vi.fn(async () => createOperation()),
+    close: vi.fn(async () => undefined),
+    ...overrides,
+});
+
 vi.mock('@databricks/sql', async () => ({
     ...(await vi.importActual<typeof import('@databricks/sql')>(
         '@databricks/sql',
@@ -32,15 +66,7 @@ describe('DatabricksWarehouseClient', () => {
     beforeEach(() => {
         mocks.fetchChunk.mockReset().mockResolvedValue(rows);
         mocks.closeConnection.mockReset().mockResolvedValue(undefined);
-        mocks.openSession.mockReset().mockResolvedValue({
-            executeStatement: vi.fn(() => ({
-                getSchema: vi.fn(async () => schema),
-                fetchChunk: mocks.fetchChunk,
-                hasMoreRows: vi.fn(async () => false),
-                close: vi.fn(async () => undefined),
-            })),
-            close: vi.fn(async () => undefined),
-        });
+        mocks.openSession.mockReset().mockResolvedValue(createSession());
     });
 
     it('surfaces Databricks status messages when opening a session fails', async () => {
@@ -74,6 +100,180 @@ describe('DatabricksWarehouseClient', () => {
         await warehouse.runQuery('fake sql');
 
         expect(mocks.fetchChunk).toHaveBeenCalledWith({ maxRows: 5000 });
+    });
+
+    it('reopens the session when it is invalid before rows are streamed', async () => {
+        const firstSession = createSession({
+            executeStatement: vi.fn(() =>
+                Promise.reject(invalidSessionError()),
+            ),
+        });
+        const secondSession = createSession();
+        mocks.openSession
+            .mockResolvedValueOnce(firstSession)
+            .mockResolvedValueOnce(secondSession);
+        const warehouse = new DatabricksWarehouseClient(credentials);
+
+        const results = await warehouse.runQuery('fake sql');
+
+        expect(results.rows).toEqual(rows);
+        expect(mocks.openSession).toHaveBeenCalledTimes(2);
+        expect(firstSession.close).toHaveBeenCalledOnce();
+    });
+
+    it('retries when an empty chunk was emitted before session loss', async () => {
+        const firstSession = createSession({
+            executeStatement: vi.fn(async () =>
+                createOperation({
+                    fetchChunk: vi.fn(async () => []),
+                    hasMoreRows: vi.fn(() =>
+                        Promise.reject(invalidSessionError()),
+                    ),
+                }),
+            ),
+        });
+        mocks.openSession
+            .mockResolvedValueOnce(firstSession)
+            .mockResolvedValueOnce(createSession());
+        const warehouse = new DatabricksWarehouseClient(credentials);
+
+        const results = await warehouse.runQuery('fake sql');
+
+        expect(results.rows).toEqual(rows);
+        expect(mocks.openSession).toHaveBeenCalledTimes(2);
+    });
+
+    it('stops retrying after three invalid sessions', async () => {
+        mocks.openSession.mockResolvedValue(
+            createSession({
+                executeStatement: vi.fn(() =>
+                    Promise.reject(invalidSessionError()),
+                ),
+            }),
+        );
+        const warehouse = new DatabricksWarehouseClient(credentials);
+
+        await expect(warehouse.runQuery('fake sql')).rejects.toMatchObject({
+            message:
+                'Session handle: SessionHandle [session-id] has not been initialized',
+        });
+        expect(mocks.openSession).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not retry invalid sessions after rows are streamed', async () => {
+        const streamCallback = vi.fn();
+        const firstSession = createSession({
+            executeStatement: vi.fn(async () =>
+                createOperation({
+                    hasMoreRows: vi.fn(() =>
+                        Promise.reject(invalidSessionError()),
+                    ),
+                }),
+            ),
+        });
+        mocks.openSession.mockResolvedValueOnce(firstSession);
+        const warehouse = new DatabricksWarehouseClient(credentials);
+
+        await expect(
+            warehouse.streamQuery('fake sql', streamCallback, {}),
+        ).rejects.toMatchObject({
+            message:
+                'Session handle: SessionHandle [session-id] has not been initialized',
+        });
+
+        expect(streamCallback).toHaveBeenCalledOnce();
+        expect(mocks.openSession).toHaveBeenCalledOnce();
+    });
+
+    it('does not retry other Databricks status errors', async () => {
+        const sqlError = new StatusError({
+            statusCode: TStatusCode.ERROR_STATUS,
+            errorMessage: 'Syntax error near FROM',
+        });
+        const firstSession = createSession({
+            executeStatement: vi.fn(() => Promise.reject(sqlError)),
+        });
+        mocks.openSession.mockResolvedValueOnce(firstSession);
+        const warehouse = new DatabricksWarehouseClient(credentials);
+
+        await expect(warehouse.runQuery('fake sql')).rejects.toMatchObject({
+            message: 'Syntax error near FROM',
+        });
+        expect(mocks.openSession).toHaveBeenCalledOnce();
+    });
+
+    it('bounds session replacements across the entire catalog fetch', async () => {
+        const createCatalogSession = (invalidTable: string) =>
+            createSession({
+                getColumns: vi.fn(
+                    (request: { tableName?: string } | undefined) =>
+                        request?.tableName === invalidTable
+                            ? Promise.reject(invalidSessionError())
+                            : Promise.resolve(createOperation()),
+                ),
+            });
+        mocks.openSession
+            .mockResolvedValueOnce(createCatalogSession('table_0'))
+            .mockResolvedValueOnce(createCatalogSession('table_100'))
+            .mockResolvedValueOnce(createCatalogSession('table_200'));
+        const warehouse = new DatabricksWarehouseClient(credentials);
+        const requests = Array.from({ length: 201 }, (_, index) => ({
+            database: 'database',
+            schema: 'schema',
+            table: `table_${index}`,
+        }));
+
+        await expect(warehouse.getCatalog(requests)).rejects.toMatchObject({
+            message:
+                'Session handle: SessionHandle [session-id] has not been initialized',
+        });
+        expect(mocks.openSession).toHaveBeenCalledTimes(3);
+    });
+
+    it('resumes catalog requests on a replacement session', async () => {
+        const tableOneColumns = [
+            {
+                COLUMN_NAME: 'id',
+                TYPE_NAME: 'BIGINT',
+            },
+        ];
+        const tableTwoColumns = [
+            {
+                COLUMN_NAME: 'name',
+                TYPE_NAME: 'STRING',
+            },
+        ];
+        const firstGetColumns = vi
+            .fn()
+            .mockResolvedValueOnce(
+                createOperation({
+                    fetchAll: vi.fn(async () => tableOneColumns),
+                }),
+            )
+            .mockRejectedValueOnce(invalidSessionError());
+        const secondGetColumns = vi.fn(async () =>
+            createOperation({
+                fetchAll: vi.fn(async () => tableTwoColumns),
+            }),
+        );
+        mocks.openSession
+            .mockResolvedValueOnce(
+                createSession({ getColumns: firstGetColumns }),
+            )
+            .mockResolvedValueOnce(
+                createSession({ getColumns: secondGetColumns }),
+            );
+        const warehouse = new DatabricksWarehouseClient(credentials);
+
+        const catalog = await warehouse.getCatalog([
+            { database: 'database', schema: 'schema', table: 'table_one' },
+            { database: 'database', schema: 'schema', table: 'table_two' },
+        ]);
+
+        expect(catalog.DEFAULT.schema.table_one.id).toBe('number');
+        expect(catalog.DEFAULT.schema.table_two.name).toBe('string');
+        expect(firstGetColumns).toHaveBeenCalledTimes(2);
+        expect(secondGetColumns).toHaveBeenCalledOnce();
     });
 });
 

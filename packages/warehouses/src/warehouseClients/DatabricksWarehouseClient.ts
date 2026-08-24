@@ -293,11 +293,24 @@ const DATABRICKS_QUERY_TIMEOUT_SECONDS = 300;
 // @databricks/sql defaults fetchChunk to 100k rows, which materializes entire
 // wide results in one array and can OOM the worker on large queries
 const DATABRICKS_FETCH_CHUNK_MAX_ROWS = 5000;
+const DATABRICKS_SESSION_MAX_ATTEMPTS = 3;
+const DATABRICKS_SESSION_RETRY_DELAY_MS = 250;
+const DATABRICKS_INVALID_SESSION_REGEX =
+    /Session handle:? .* (has not been initialized|had already closed)/;
 
 const getDatabricksErrorMessage = (error: unknown) =>
     error instanceof StatusError && error.message
         ? error.message
         : getErrorMessage(error);
+
+const isDatabricksInvalidSessionError = (error: unknown): boolean =>
+    error instanceof StatusError &&
+    DATABRICKS_INVALID_SESSION_REGEX.test(error.message);
+
+const waitForDatabricksSessionRetry = (attempt: number) =>
+    new Promise<void>((resolve) => {
+        setTimeout(resolve, DATABRICKS_SESSION_RETRY_DELAY_MS * attempt);
+    });
 
 export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabricksCredentials> {
     schema: string;
@@ -388,55 +401,51 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         return {
             session,
             close: async () => {
-                await session.close();
-                await connection.close();
+                try {
+                    await session.close();
+                } finally {
+                    await connection.close();
+                }
             },
         };
     }
 
-    async streamQuery(
+    private async streamQueryOnce(
         sql: string,
         streamCallback: (data: WarehouseResults) => void | Promise<void>,
         options: {
             values?: AnyType[];
-            tags?: Record<string, string>;
             timezone?: string;
         },
+        onRowsStreamed: () => void,
     ): Promise<void> {
         const { session, close } = await this.getSession();
         let query: IOperation | null = null;
 
-        let alteredQuery = sql;
-        if (options?.tags) {
-            alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(
-                options?.tags,
-            )}`;
-        }
-
         try {
-            if (options?.timezone) {
+            if (options.timezone) {
                 console.debug(
-                    `Setting databricks timezone to ${options?.timezone}`,
+                    `Setting databricks timezone to ${options.timezone}`,
                 );
                 const setTimezoneOp = await session.executeStatement(
                     `SET TIME ZONE '${options.timezone}'`,
                 );
                 try {
-                    await setTimezoneOp.finished(); // ensures SET is applied before main query
+                    await setTimezoneOp.finished();
                 } finally {
                     await setTimezoneOp.close();
                 }
             }
 
-            query = await session.executeStatement(alteredQuery, {
+            query = await session.executeStatement(sql, {
                 ...(this.enableTimeouts && {
                     queryTimeout: DATABRICKS_QUERY_TIMEOUT_SECONDS,
                 }),
-                ordinalParameters: options?.values,
+                ordinalParameters: options.values,
             });
 
-            const schema = await query.getSchema();
-            const fields = (schema?.columns ?? []).reduce<
+            const querySchema = await query.getSchema();
+            const fields = (querySchema?.columns ?? []).reduce<
                 Record<string, { type: DimensionType }>
             >(
                 (acc, column) => ({
@@ -456,22 +465,67 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 const chunk = await query.fetchChunk({
                     maxRows: DATABRICKS_FETCH_CHUNK_MAX_ROWS,
                 });
+                if (chunk.length > 0) {
+                    onRowsStreamed();
+                }
                 // eslint-disable-next-line no-await-in-loop
                 await streamCallback({ fields, rows: chunk });
                 // eslint-disable-next-line no-await-in-loop
             } while (await query.hasMoreRows());
-        } catch (e: unknown) {
-            throw new WarehouseQueryError(getDatabricksErrorMessage(e));
         } finally {
             try {
                 if (query) await query.close();
                 await close();
             } catch (e: unknown) {
-                // Only console error. Don't allow close errors to override the original error
                 console.error(
                     'Error closing Databricks session on streamQuery',
                     e,
                 );
+            }
+        }
+    }
+
+    async streamQuery(
+        sql: string,
+        streamCallback: (data: WarehouseResults) => void | Promise<void>,
+        options: {
+            values?: AnyType[];
+            tags?: Record<string, string>;
+            timezone?: string;
+        },
+    ): Promise<void> {
+        const alteredQuery = options.tags
+            ? `${sql}\n-- ${JSON.stringify(options.tags)}`
+            : sql;
+        let rowsStreamed = false;
+        const onRowsStreamed = () => {
+            rowsStreamed = true;
+        };
+
+        for (
+            let attempt = 1;
+            attempt <= DATABRICKS_SESSION_MAX_ATTEMPTS;
+            attempt += 1
+        ) {
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                await this.streamQueryOnce(
+                    alteredQuery,
+                    streamCallback,
+                    options,
+                    onRowsStreamed,
+                );
+                return;
+            } catch (e: unknown) {
+                const retry =
+                    !rowsStreamed &&
+                    attempt < DATABRICKS_SESSION_MAX_ATTEMPTS &&
+                    isDatabricksInvalidSessionError(e);
+                if (!retry) {
+                    throw new WarehouseQueryError(getDatabricksErrorMessage(e));
+                }
+                // eslint-disable-next-line no-await-in-loop
+                await waitForDatabricksSessionRetry(attempt);
             }
         }
     }
@@ -483,35 +537,86 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             table: string;
         }[],
     ) {
-        const { session, close } = await this.getSession();
+        let sessionHandle = await this.getSession();
+        let sessionAttempts = 1;
+        let refreshPromise: Promise<typeof sessionHandle> | null = null;
         let results: SchemaResult[][];
+
+        const refreshSession = async (
+            staleHandle: typeof sessionHandle,
+            invalidSessionError: unknown,
+        ) => {
+            if (sessionHandle !== staleHandle) {
+                return sessionHandle;
+            }
+            if (refreshPromise) {
+                return refreshPromise;
+            }
+            if (sessionAttempts >= DATABRICKS_SESSION_MAX_ATTEMPTS) {
+                throw invalidSessionError;
+            }
+
+            const retryAttempt = sessionAttempts;
+            sessionAttempts += 1;
+            refreshPromise = (async () => {
+                await waitForDatabricksSessionRetry(retryAttempt);
+                const newHandle = await this.getSession();
+                sessionHandle = newHandle;
+                try {
+                    await staleHandle.close();
+                } catch (e: unknown) {
+                    console.error(
+                        'Error closing invalid Databricks session on getCatalog',
+                        e,
+                    );
+                }
+                return newHandle;
+            })().finally(() => {
+                refreshPromise = null;
+            });
+
+            return refreshPromise;
+        };
 
         try {
             results = await processPromisesInBatches(
                 requests,
                 DEFAULT_BATCH_SIZE,
                 async (request) => {
-                    let query: IOperation | null = null;
-                    try {
-                        query = await session.getColumns({
-                            catalogName: request.database,
-                            schemaName: request.schema,
-                            tableName: request.table,
-                        });
-                        return (await query.fetchAll()) as SchemaResult[];
-                    } catch (e: unknown) {
-                        throw new WarehouseQueryError(
-                            getDatabricksErrorMessage(e),
-                        );
-                    } finally {
+                    let currentHandle = sessionHandle;
+                    while (true) {
+                        let query: IOperation | null = null;
                         try {
-                            if (query) await query.close();
+                            currentHandle = sessionHandle;
+                            // eslint-disable-next-line no-await-in-loop
+                            query = await currentHandle.session.getColumns({
+                                catalogName: request.database,
+                                schemaName: request.schema,
+                                tableName: request.table,
+                            });
+                            // eslint-disable-next-line no-await-in-loop
+                            return (await query.fetchAll()) as SchemaResult[];
                         } catch (e: unknown) {
-                            // Only console error. Don't allow close errors to override the original error
-                            console.error(
-                                'Error closing Databricks query on getCatalog',
+                            if (!isDatabricksInvalidSessionError(e)) {
+                                throw e;
+                            }
+                            // eslint-disable-next-line no-await-in-loop
+                            currentHandle = await refreshSession(
+                                currentHandle,
                                 e,
                             );
+                        } finally {
+                            try {
+                                if (query) {
+                                    // eslint-disable-next-line no-await-in-loop
+                                    await query.close();
+                                }
+                            } catch (e: unknown) {
+                                console.error(
+                                    'Error closing Databricks query on getCatalog',
+                                    e,
+                                );
+                            }
                         }
                     }
                 },
@@ -520,9 +625,8 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             throw new WarehouseQueryError(getDatabricksErrorMessage(e));
         } finally {
             try {
-                await close();
+                await sessionHandle.close();
             } catch (e: unknown) {
-                // Only console error. Don't allow close errors to override the original error
                 console.error(
                     'Error closing Databricks session on getCatalog',
                     e,
