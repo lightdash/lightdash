@@ -1,3 +1,10 @@
+# [1.239.0](https://github.com/lightdash/lightdash/compare/1.238.0...1.239.0) (2026-08-24)
+
+
+### Features
+
+* **pgwire:** treat aggregates over metric columns as the metric ([#27893](https://github.com/lightdash/lightdash/issues/27893)) ([b14ed0b](https://github.com/lightdash/lightdash/commit/b14ed0badcc222c56bf125288fd00cd6fd1ec5ad))
+
 # [1.238.0](https://github.com/lightdash/lightdash/compare/1.237.0...1.238.0) (2026-08-23)
 
 
