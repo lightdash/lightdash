@@ -1,3 +1,11 @@
+## [1.240.2](https://github.com/lightdash/lightdash/compare/1.240.1...1.240.2) (2026-08-24)
+
+
+### Bug Fixes
+
+* **ai:** allow Deep Research in Demo mode ([#27895](https://github.com/lightdash/lightdash/issues/27895)) ([d3f6f55](https://github.com/lightdash/lightdash/commit/d3f6f5525fe494fa052c7d8e698b5299b767262f))
+* resolve project slugs in support reports ([#27891](https://github.com/lightdash/lightdash/issues/27891)) ([f43770c](https://github.com/lightdash/lightdash/commit/f43770c01a4e16f5e1af5645639422944e79c611))
+
 ## [1.240.1](https://github.com/lightdash/lightdash/compare/1.240.0...1.240.1) (2026-08-24)
 
 
