@@ -168,7 +168,7 @@ export const ConfigTabs: FC = memo(() => {
                     label: 'Steps',
                     panel: (
                         <Stack>
-                            <ColorPaletteSection />
+                            <ColorPaletteSection variant="section" />
                             <Config>
                                 <Config.Section>
                                     <Config.Heading>Labels</Config.Heading>

@@ -14,7 +14,17 @@ import { PalettePicker } from '../../common/PalettePicker/PalettePicker';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from './Config';
 
-export const ColorPaletteSection: FC = () => {
+type Props = {
+    /**
+     * `section` heads the picker with a config heading, matching the other
+     * sections of a chart config panel. `field` labels the input itself at the
+     * size the surrounding controls use, so the picker reads as one more
+     * option rather than a section of its own.
+     */
+    variant: 'section' | 'field';
+};
+
+export const ColorPaletteSection: FC<Props> = ({ variant }) => {
     const dispatch = useExplorerDispatch();
     const savedChart = useExplorerSelector(selectSavedChart);
     const value = useExplorerSelector(selectUnsavedColorPaletteUuid);
@@ -52,7 +62,9 @@ export const ColorPaletteSection: FC = () => {
     return (
         <Config>
             <Config.Section>
-                <Config.Heading>Color palette</Config.Heading>
+                {variant === 'section' && (
+                    <Config.Heading>Color palette</Config.Heading>
+                )}
                 {overrideActive && (
                     <Callout variant="info">
                         A color palette override is set in your instance
@@ -70,7 +82,8 @@ export const ColorPaletteSection: FC = () => {
                     </Callout>
                 )}
                 <PalettePicker
-                    size="sm"
+                    size={variant === 'section' ? 'sm' : 'xs'}
+                    label={variant === 'field' ? 'Color palette' : undefined}
                     value={value}
                     onChange={(next) =>
                         dispatch(explorerActions.setColorPaletteUuid(next))

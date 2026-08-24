@@ -62,7 +62,7 @@ export const Series: FC = () => {
 
     return (
         <Stack>
-            <ColorPaletteSection />
+            <ColorPaletteSection variant="section" />
             <Config>
                 <Config.Section>
                     <Config.Group>

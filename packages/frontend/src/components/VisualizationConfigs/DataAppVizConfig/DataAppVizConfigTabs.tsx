@@ -214,7 +214,7 @@ export const ConfigTabs: FC = memo(() => {
                             setOption(dataAppVizUuid, name, value)
                         }
                         colorPalette={colorPalette}
-                        paletteControl={<ColorPaletteSection />}
+                        paletteControl={<ColorPaletteSection variant="field" />}
                     />
                 ) : (
                     <Text size="xs" c="dimmed">

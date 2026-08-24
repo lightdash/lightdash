@@ -216,7 +216,7 @@ export const Series: FC<Props> = ({ items }) => {
 
     return (
         <Stack gap="md">
-            <ColorPaletteSection />
+            <ColorPaletteSection variant="section" />
             <Divider />
             {hasMultipleSeries && (
                 <SeriesDrawOrderBar
