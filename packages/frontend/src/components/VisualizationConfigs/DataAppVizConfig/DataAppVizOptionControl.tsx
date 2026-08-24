@@ -10,6 +10,7 @@ import { useState, type FC } from 'react';
 import { NumberInput } from '../../common/NumberInput';
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
+import { DATA_APP_VIZ_CONTROL_WIDTH } from './dataAppVizControlLayout';
 
 // Free-text and colour edits fire continuously while typing / dragging, so
 // they're debounced before reaching chart state (and the iframe re-render).
@@ -68,14 +69,19 @@ const SelectOptionControl: FC<{
     value: string;
     onChange: (value: string) => void;
 }> = ({ option, value, onChange }) => (
-    <Select
-        size="xs"
-        label={option.label}
-        data={option.choices}
-        value={value}
-        allowDeselect={false}
-        onChange={(next) => onChange(next ?? option.default)}
-    />
+    <Config.Group wrap="nowrap" data-data-app-viz-control-row>
+        <Config.Label>{option.label}</Config.Label>
+        <Select
+            size="xs"
+            aria-label={option.label}
+            data={option.choices}
+            value={value}
+            w={DATA_APP_VIZ_CONTROL_WIDTH}
+            miw={DATA_APP_VIZ_CONTROL_WIDTH}
+            allowDeselect={false}
+            onChange={(next) => onChange(next ?? option.default)}
+        />
+    </Config.Group>
 );
 
 const NumberOptionControl: FC<{
@@ -83,15 +89,20 @@ const NumberOptionControl: FC<{
     value: number;
     onChange: (value: number) => void;
 }> = ({ option, value, onChange }) => (
-    <NumberInput
-        size="xs"
-        label={option.label}
-        value={value}
-        min={option.min}
-        max={option.max}
-        decimalScale="unlimited"
-        onNumberChange={(next) => onChange(next ?? option.default)}
-    />
+    <Config.Group wrap="nowrap" data-data-app-viz-control-row>
+        <Config.Label>{option.label}</Config.Label>
+        <NumberInput
+            size="xs"
+            aria-label={option.label}
+            value={value}
+            min={option.min}
+            max={option.max}
+            w={DATA_APP_VIZ_CONTROL_WIDTH}
+            miw={DATA_APP_VIZ_CONTROL_WIDTH}
+            decimalScale="unlimited"
+            onNumberChange={(next) => onChange(next ?? option.default)}
+        />
+    </Config.Group>
 );
 
 const TextOptionControl: FC<{
@@ -101,12 +112,17 @@ const TextOptionControl: FC<{
 }> = ({ option, value, onChange }) => {
     const draft = usePendingEdit(value, onChange);
     return (
-        <TextInput
-            size="xs"
-            label={option.label}
-            value={draft.current}
-            onChange={(event) => draft.edit(event.currentTarget.value)}
-        />
+        <Config.Group wrap="nowrap" data-data-app-viz-control-row>
+            <Config.Label>{option.label}</Config.Label>
+            <TextInput
+                size="xs"
+                aria-label={option.label}
+                value={draft.current}
+                w={DATA_APP_VIZ_CONTROL_WIDTH}
+                miw={DATA_APP_VIZ_CONTROL_WIDTH}
+                onChange={(event) => draft.edit(event.currentTarget.value)}
+            />
+        </Config.Group>
     );
 };
 

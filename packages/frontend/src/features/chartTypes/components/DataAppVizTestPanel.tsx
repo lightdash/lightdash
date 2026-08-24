@@ -6,8 +6,8 @@ import {
 import { Button, Card, Group, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import Callout from '../../../components/common/Callout';
-import { PalettePicker } from '../../../components/common/PalettePicker/PalettePicker';
 import DataAppVizOptionTabs from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizOptionTabs';
+import DataAppVizPaletteControl from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizPaletteControl';
 import { useDataAppVizTestContext } from '../hooks/useDataAppVizTestContext';
 import DataAppVizTestInputs from './DataAppVizTestInputs';
 
@@ -60,13 +60,10 @@ const DataAppVizTestPanel: FC<Props> = ({
                     onChange={setOption}
                     colorPalette={schema.colorPalette}
                     paletteControl={
-                        <PalettePicker
-                            label="Color palette"
+                        <DataAppVizPaletteControl
                             value={colorPaletteUuid}
                             onChange={setColorPaletteUuid}
                             palettes={palettes}
-                            parentLabel="Project default"
-                            showPreview={false}
                         />
                     }
                 />

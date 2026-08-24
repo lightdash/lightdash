@@ -1,0 +1,1 @@
+export const DATA_APP_VIZ_CONTROL_WIDTH = 144;

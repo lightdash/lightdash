@@ -24,6 +24,7 @@ type Props = {
     parentLabel: string;
     disabled?: boolean;
     label?: string;
+    ariaLabel?: string;
     description?: string;
     placeholder?: string;
     size?: 'xs' | 'sm' | 'md' | 'lg';
@@ -161,6 +162,7 @@ export const PalettePicker: FC<Props> = ({
     parentLabel,
     disabled,
     label,
+    ariaLabel,
     description,
     placeholder,
     size = 'xs',
@@ -190,6 +192,7 @@ export const PalettePicker: FC<Props> = ({
             <Select
                 size={size}
                 label={label}
+                aria-label={ariaLabel}
                 description={description}
                 placeholder={placeholder}
                 data={data}

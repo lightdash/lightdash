@@ -7,9 +7,9 @@ import {
 import { Box, Stack, Tabs, Text } from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
 import OverflowTabsList from '../../../components/common/OverflowTabsList/OverflowTabsList';
-import { PalettePicker } from '../../../components/common/PalettePicker/PalettePicker';
 import DataAppVizOptionControl from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizOptionControl';
 import { groupDataAppVizOptions } from '../../../components/VisualizationConfigs/DataAppVizConfig/dataAppVizOptionGroups';
+import DataAppVizPaletteControl from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizPaletteControl';
 import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
 import classes from './ConfigurePanel.module.css';
 
@@ -103,13 +103,10 @@ const ConfigurePanel: FC<Props> = ({
                                     />
                                 ))}
                                 {group.hasPalette && (
-                                    <PalettePicker
-                                        label="Color palette"
+                                    <DataAppVizPaletteControl
                                         value={colorPaletteUuid}
                                         onChange={onPaletteChange}
                                         palettes={palettes}
-                                        parentLabel="Project default"
-                                        showPreview={false}
                                     />
                                 )}
                             </Stack>

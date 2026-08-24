@@ -79,6 +79,19 @@ describe('ConfigurePanel', () => {
         expect(screen.getByLabelText('Show grid')).toBeChecked();
     });
 
+    it('aligns the palette picker with the declared options', () => {
+        renderPanel({ schema: { ...schema, colorPalette: {} } });
+
+        expect(
+            screen
+                .getByText('Color palette')
+                .closest('[data-data-app-viz-control-row]'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('textbox', { name: 'Color palette' }),
+        ).toBeInTheDocument();
+    });
+
     it('says so when a chart type declares nothing to configure', () => {
         renderPanel({
             schema: { fields: [], configOptions: [], colorPalette: null },

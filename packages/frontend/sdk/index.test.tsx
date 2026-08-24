@@ -390,6 +390,7 @@ describe('SDK AI agent', () => {
 
     it('calls onThreadChange for matching embed AI agent thread messages', async () => {
         const onThreadChange = vi.fn();
+        const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
         const { container } = render(
             <AiAgent
                 token={mockToken}
@@ -410,6 +411,13 @@ describe('SDK AI agent', () => {
             window.location.origin,
         );
 
+        await waitFor(() =>
+            expect(addEventListenerSpy).toHaveBeenCalledWith(
+                'message',
+                expect.any(Function),
+            ),
+        );
+
         window.dispatchEvent(
             new MessageEvent('message', {
                 origin: mockInstanceUrl,
@@ -425,10 +433,8 @@ describe('SDK AI agent', () => {
             }),
         );
 
-        await waitFor(() => {
-            expect(onThreadChange).toHaveBeenCalledWith({
-                threadUuid: 'test-thread-uuid',
-            });
+        expect(onThreadChange).toHaveBeenCalledExactlyOnceWith({
+            threadUuid: 'test-thread-uuid',
         });
     });
 });

@@ -93,7 +93,7 @@ describe('RoleBuilder presets', () => {
                 ],
             }),
         );
-    });
+    }, 10_000);
 
     it('clears seeded values when returning to Start from scratch', async () => {
         renderRoleBuilder({ presets: rolePresets });

@@ -13,6 +13,46 @@ const textOption: DataAppVizConfigOption = {
 };
 
 describe('DataAppVizOptionControl', () => {
+    it.each([
+        {
+            option: {
+                name: 'layout',
+                label: 'Layout',
+                type: 'select',
+                choices: [{ value: 'vertical', label: 'Vertical' }],
+                default: 'vertical',
+            } satisfies DataAppVizConfigOption,
+            value: 'vertical',
+        },
+        {
+            option: {
+                name: 'fontSize',
+                label: 'Font size',
+                type: 'number',
+                default: 12,
+            } satisfies DataAppVizConfigOption,
+            value: 12,
+        },
+        { option: textOption, value: 'Untitled' },
+    ])(
+        'aligns the $option.type control with its label',
+        ({ option, value }) => {
+            renderWithProviders(
+                <DataAppVizOptionControl
+                    option={option}
+                    value={value}
+                    onChange={vi.fn()}
+                />,
+            );
+
+            expect(
+                screen
+                    .getByText(option.label)
+                    .closest('[data-data-app-viz-control-row]'),
+            ).toBeInTheDocument();
+        },
+    );
+
     it('debounces text edits rather than pushing every keystroke', async () => {
         vi.useFakeTimers();
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });

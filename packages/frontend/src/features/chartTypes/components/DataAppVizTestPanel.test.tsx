@@ -53,12 +53,18 @@ vi.mock('../../../components/common/FieldSelect', () => ({
 vi.mock('../../../components/common/PalettePicker/PalettePicker', () => ({
     PalettePicker: ({
         label,
+        ariaLabel,
         onChange,
     }: {
-        label: string;
+        label?: string;
+        ariaLabel?: string;
         onChange: (value: string | null) => void;
     }) => (
-        <button type="button" onClick={() => onChange('ocean-palette')}>
+        <button
+            type="button"
+            aria-label={ariaLabel}
+            onClick={() => onChange('ocean-palette')}
+        >
             {label}
         </button>
     ),

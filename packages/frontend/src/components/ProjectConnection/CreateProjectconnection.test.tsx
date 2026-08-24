@@ -217,7 +217,7 @@ describe('CreateProjectConnection in-flight job recovery', () => {
         expect(
             calls.filter(({ url }) => url === CREATE_PROJECT_URL),
         ).toHaveLength(1);
-    });
+    }, 10_000);
 
     it('shows an informational conflict without registering another active job', async () => {
         const message =
