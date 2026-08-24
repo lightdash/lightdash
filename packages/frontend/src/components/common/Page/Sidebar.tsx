@@ -156,7 +156,6 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                 ref={sidebarRef}
                 direction="column"
                 className={classes.sidebarContainer}
-                data-open={isOpen}
                 style={{
                     '--sidebar-width': `${paperWidth}px`,
                     '--sidebar-min-width': `${minWidth}px`,
