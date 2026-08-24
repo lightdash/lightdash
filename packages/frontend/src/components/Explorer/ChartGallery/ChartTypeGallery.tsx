@@ -202,7 +202,6 @@ type ExplorerChartTypeGalleryProps = {
 const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     onSelected,
 }) => {
-    // Resolves the project uuid even when the URL carries the project slug.
     const projectUuid = useProjectUuid();
     const location = useLocation();
     const navigate = useNavigate();

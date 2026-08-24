@@ -30,7 +30,6 @@ import DataAppVizSettings from './DataAppVizSettings';
 const NO_COLUMNS: ItemsMap = {};
 
 export const ConfigTabs: FC = memo(() => {
-    // Resolves the project uuid even when the URL carries the project slug.
     const projectUuid = useProjectUuid();
     const location = useLocation();
     const navigate = useNavigate();

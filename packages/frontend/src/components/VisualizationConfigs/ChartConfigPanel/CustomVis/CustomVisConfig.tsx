@@ -128,7 +128,6 @@ const registerCustomCompletionProvider = (
 export const ConfigTabs: React.FC = memo(() => {
     const { visualizationConfig } = useVisualizationContext();
     const colorScheme = useComputedColorScheme();
-    // Resolves the project uuid even when the URL carries the project slug.
     const projectUuid = useProjectUuid();
     const location = useLocation();
     const navigate = useNavigate();

@@ -40,7 +40,6 @@ const isMode = (value: string): value is Mode =>
 
 const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
     const [mode, setMode] = useState<Mode>('configure');
-    // Resolves the project uuid even when the URL carries the project slug.
     const projectUuid = useProjectUuid();
     const location = useLocation();
     const { visualizationConfig } = useVisualizationContext();

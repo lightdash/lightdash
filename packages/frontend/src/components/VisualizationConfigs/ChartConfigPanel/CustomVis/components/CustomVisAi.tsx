@@ -19,7 +19,6 @@ export const GenerateVizWithAi = ({
     editorConfig: string;
     setEditorConfig: (config: string) => void;
 }) => {
-    // Resolves the project uuid even when the URL carries the project slug.
     const projectUuid = useProjectUuid();
     const [prompt, setPrompt] = useState('');
 
