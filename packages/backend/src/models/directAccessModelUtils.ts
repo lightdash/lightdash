@@ -51,53 +51,82 @@ export const groupDirectAccessRows = (
  * Direct grants cannot create project membership. This predicate keeps stored
  * grants inert unless the principal still has a current project access path.
  */
-export const getActiveProjectMemberPredicate = (trx: Knex): Knex.Raw =>
-    trx.raw(
-        `
-            ?? = TRUE AND (
-                ??.role != ?
-                OR ??.role_uuid IS NOT NULL
-                OR EXISTS (
-                    SELECT 1
-                    FROM ?? AS organization_extra_role
-                    WHERE organization_extra_role.user_id = ??.user_id
-                      AND organization_extra_role.organization_id = ??.organization_id
-                )
-                OR EXISTS (
-                    SELECT 1
-                    FROM ?? AS direct_project_membership
-                    WHERE direct_project_membership.user_id = ??.user_id
-                      AND direct_project_membership.project_id = ??.project_id
-                )
-                OR EXISTS (
-                    SELECT 1
-                    FROM ?? AS project_group_membership
-                    INNER JOIN ?? AS current_project_group_membership
-                        ON current_project_group_membership.group_uuid = project_group_membership.group_uuid
-                    WHERE project_group_membership.project_uuid = ??.project_uuid
-                      AND current_project_group_membership.user_id = ??.user_id
-                      AND current_project_group_membership.organization_id = ??.organization_id
-                )
-            )
-        `,
-        [
-            `${UserTableName}.is_active`,
-            OrganizationMembershipsTableName,
-            OrganizationMemberRole.MEMBER,
-            OrganizationMembershipsTableName,
-            OrganizationMembershipCustomRolesTableName,
-            UserTableName,
-            ProjectTableName,
-            ProjectMembershipsTableName,
-            UserTableName,
-            ProjectTableName,
-            ProjectGroupAccessTableName,
-            GroupMembershipTableName,
-            ProjectTableName,
-            UserTableName,
-            ProjectTableName,
-        ],
-    );
+export const getActiveProjectMemberPredicate =
+    (trx: Knex) =>
+    (predicate: Knex.QueryBuilder): void => {
+        void predicate
+            .where(`${UserTableName}.is_active`, true)
+            .andWhere((accessPath) => {
+                void accessPath
+                    .whereNot(
+                        `${OrganizationMembershipsTableName}.role`,
+                        OrganizationMemberRole.MEMBER,
+                    )
+                    .orWhereNotNull(
+                        `${OrganizationMembershipsTableName}.role_uuid`,
+                    )
+                    .orWhereExists((subquery) => {
+                        void subquery
+                            .select('*')
+                            .from({
+                                organization_extra_role:
+                                    OrganizationMembershipCustomRolesTableName,
+                            })
+                            .where(
+                                'organization_extra_role.user_id',
+                                trx.ref(`${UserTableName}.user_id`),
+                            )
+                            .where(
+                                'organization_extra_role.organization_id',
+                                trx.ref(`${ProjectTableName}.organization_id`),
+                            );
+                    })
+                    .orWhereExists((subquery) => {
+                        void subquery
+                            .select('*')
+                            .from({
+                                direct_project_membership:
+                                    ProjectMembershipsTableName,
+                            })
+                            .where(
+                                'direct_project_membership.user_id',
+                                trx.ref(`${UserTableName}.user_id`),
+                            )
+                            .where(
+                                'direct_project_membership.project_id',
+                                trx.ref(`${ProjectTableName}.project_id`),
+                            );
+                    })
+                    .orWhereExists((subquery) => {
+                        void subquery
+                            .select('*')
+                            .from({
+                                project_group_membership:
+                                    ProjectGroupAccessTableName,
+                            })
+                            .innerJoin(
+                                {
+                                    current_project_group_membership:
+                                        GroupMembershipTableName,
+                                },
+                                'current_project_group_membership.group_uuid',
+                                'project_group_membership.group_uuid',
+                            )
+                            .where(
+                                'project_group_membership.project_uuid',
+                                trx.ref(`${ProjectTableName}.project_uuid`),
+                            )
+                            .where(
+                                'current_project_group_membership.user_id',
+                                trx.ref(`${UserTableName}.user_id`),
+                            )
+                            .where(
+                                'current_project_group_membership.organization_id',
+                                trx.ref(`${ProjectTableName}.organization_id`),
+                            );
+                    });
+            });
+    };
 
 /**
  * A group grant is inert unless the granted group itself still holds current
@@ -105,18 +134,22 @@ export const getActiveProjectMemberPredicate = (trx: Knex): Knex.Raw =>
  * project group would keep working after the group is removed from the
  * project, for any member who retains a separate project access path.
  */
-export const getActiveGrantedGroupPredicate = (
-    trx: Knex,
-    groupAccessTable: string,
-): Knex.Raw =>
-    trx.raw(
-        `
-            EXISTS (
-                SELECT 1
-                FROM ?? AS granted_group_project_access
-                WHERE granted_group_project_access.group_uuid = ??.group_uuid
-                  AND granted_group_project_access.project_uuid = ??.project_uuid
-            )
-        `,
-        [ProjectGroupAccessTableName, groupAccessTable, ProjectTableName],
-    );
+export const getActiveGrantedGroupPredicate =
+    (trx: Knex, groupAccessTable: string) =>
+    (predicate: Knex.QueryBuilder): void => {
+        void predicate.whereExists((subquery) => {
+            void subquery
+                .select('*')
+                .from({
+                    granted_group_project_access: ProjectGroupAccessTableName,
+                })
+                .where(
+                    'granted_group_project_access.group_uuid',
+                    trx.ref(`${groupAccessTable}.group_uuid`),
+                )
+                .where(
+                    'granted_group_project_access.project_uuid',
+                    trx.ref(`${ProjectTableName}.project_uuid`),
+                );
+        });
+    };

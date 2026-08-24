@@ -132,10 +132,10 @@ export class SavedSqlAccessModel {
                     )
                     .where(`${UserTableName}.user_uuid`, userUuid)
                     .where(getActiveProjectMemberPredicate(trx))
-                    .whereRaw('?? = ??', [
+                    .where(
                         `${GroupMembershipTableName}.organization_id`,
-                        `${ProjectTableName}.organization_id`,
-                    ])
+                        trx.ref(`${ProjectTableName}.organization_id`),
+                    )
                     .where(
                         getActiveGrantedGroupPredicate(
                             trx,
