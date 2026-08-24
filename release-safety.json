@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "1.250.0",
-  "previousVersion": "1.249.0",
-  "releaseDate": "2026-08-24T16:51:46.464Z",
+  "version": "1.251.0",
+  "previousVersion": "1.250.0",
+  "releaseDate": "2026-08-24T16:56:39.606Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260816190000_add_primary_dbt_source_identity_to_projects.ts",
-        "edition": "core",
-        "tables": [
-          "projects"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": true,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

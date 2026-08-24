@@ -1,3 +1,10 @@
+# [1.251.0](https://github.com/lightdash/lightdash/compare/1.250.0...1.251.0) (2026-08-24)
+
+
+### Features
+
+* rename model and metric names that collide across dbt sources ([#27444](https://github.com/lightdash/lightdash/issues/27444)) ([aa707fa](https://github.com/lightdash/lightdash/commit/aa707fabc365b19058abda9e9e0fe1c799411ef7)), closes [#27439](https://github.com/lightdash/lightdash/issues/27439)
+
 # [1.250.0](https://github.com/lightdash/lightdash/compare/1.249.0...1.250.0) (2026-08-24)
 
 
