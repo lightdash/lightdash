@@ -58,7 +58,10 @@ import {
     CommercialFeatureFlags,
     ConflictError,
     ContentType,
+    dataAppVizSchema,
     DbtProjectType,
+    deriveDataAppVizPivotConfig,
+    deriveDataAppVizPivotConfiguration,
     derivePivotConfigurationFromChart,
     DownloadFileType,
     EmbedArtifactVersionJobPayload,
@@ -70,6 +73,7 @@ import {
     ForbiddenError,
     formatMergeQueryRefusal,
     GenerateArtifactQuestionJobPayload,
+    getDataAppVizChartFromArtifact,
     getErrorMessage,
     getGroupByDimensions,
     getItemId,
@@ -133,6 +137,10 @@ import {
     type AiDeepResearchPhase,
     type AiPromptContextInput,
     type AiWebAppThreadCreatedFrom,
+    type DataAppVizChart,
+    type ItemsMap,
+    type MetricQuery,
+    type PivotConfiguration,
     type SessionUser,
     type SuggestionValidationCatalog,
     type ToolRunQueryArgsTransformed,
@@ -204,6 +212,7 @@ import { type SlackClient } from '../../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { isUniqueConstraintViolation } from '../../../database/errors';
 import Logger from '../../../logging/logger';
+import { AppModel } from '../../../models/AppModel';
 import {
     CatalogModel,
     CatalogSearchContext,
@@ -529,6 +538,7 @@ type EmbedAiAgentRuntimeOptions = {
 
 type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
+    appModel: Pick<AppModel, 'findVisualizationApp'>;
     aiAgentMemoryModel: AiAgentMemoryModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
     externalSourceModel: Pick<ExternalSourceModel, 'getSource'>;
@@ -800,6 +810,8 @@ export const assertDeepResearchBedrockProfile = (
 
 export class AiAgentService extends BaseService {
     private readonly aiAgentModel: AiAgentModel;
+
+    private readonly appModel: Pick<AppModel, 'findVisualizationApp'>;
 
     private readonly inFlightStreamPrompts = new Map<
         string,
@@ -1211,6 +1223,7 @@ export class AiAgentService extends BaseService {
     constructor(dependencies: AiAgentServiceDependencies) {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
+        this.appModel = dependencies.appModel;
         this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
         this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
         this.externalSourceModel = dependencies.externalSourceModel;
@@ -2342,12 +2355,47 @@ export class AiAgentService extends BaseService {
         }
     }
 
+    // Pivot on the type's series slots, schema fetched at query time.
+    // Best-effort: a deleted app or invalid schema yields no pivot.
+    private async deriveCustomChartTypePivotConfiguration(
+        projectUuid: string,
+        customChartConfig: DataAppVizChart,
+        metricQuery: MetricQuery,
+        fields: ItemsMap,
+    ): Promise<PivotConfiguration | undefined> {
+        const app = await this.appModel.findVisualizationApp(
+            customChartConfig.dataAppVizUuid,
+            projectUuid,
+        );
+        const parsedSchema = dataAppVizSchema.safeParse(app?.viz_schema);
+        if (!parsedSchema.success) {
+            Logger.warn(
+                `Skipping custom chart type pivot for ${customChartConfig.dataAppVizUuid}: app missing or viz_schema failed validation`,
+            );
+            return undefined;
+        }
+        const pivotConfig = deriveDataAppVizPivotConfig(
+            parsedSchema.data.fields,
+            customChartConfig.fieldMapping,
+        );
+        return deriveDataAppVizPivotConfiguration(
+            customChartConfig.fieldMapping,
+            pivotConfig,
+            metricQuery,
+            fields,
+        );
+    }
+
     private async executeAsyncAiMetricQuery(
         user: SessionUser,
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
         vizConfig: AiAgentVizConfig['config'],
         parameters: ParametersValuesMap | null,
+        // Set for custom chart type answers (built from the artifact
+        // envelope): pivot derivation follows the type's schema instead of
+        // the builtin groupBy path.
+        customChartType?: DataAppVizChart,
     ) {
         const explore = await this.getExplore(
             user,
@@ -2387,16 +2435,25 @@ export class AiAgentService extends BaseService {
             fieldsMap: fields,
         });
         const groupByDimensions = getGroupByDimensions(webAiChartConfig);
-        const pivotConfiguration = groupByDimensions?.length
-            ? derivePivotConfigurationFromChart(
-                  {
-                      chartConfig: webAiChartConfig.echartsConfig,
-                      pivotConfig: { columns: groupByDimensions },
-                  },
-                  metricQueryWithCustomMetrics,
-                  fields,
-              )
-            : undefined;
+        let pivotConfiguration: PivotConfiguration | undefined;
+        if (customChartType) {
+            pivotConfiguration =
+                await this.deriveCustomChartTypePivotConfiguration(
+                    projectUuid,
+                    customChartType,
+                    metricQueryWithCustomMetrics,
+                    fields,
+                );
+        } else if (groupByDimensions?.length) {
+            pivotConfiguration = derivePivotConfigurationFromChart(
+                {
+                    chartConfig: webAiChartConfig.echartsConfig,
+                    pivotConfig: { columns: groupByDimensions },
+                },
+                metricQueryWithCustomMetrics,
+                fields,
+            );
+        }
 
         const asyncQuery = await this.asyncQueryService.executeAsyncMetricQuery(
             {
@@ -6900,8 +6957,18 @@ export class AiAgentService extends BaseService {
             };
         }
 
+        // Semantic and custom chart type artifacts share the query path:
+        // both store runQuery tool args. The custom envelope additionally
+        // carries the server-derived uuid, which drives schema-based pivot.
+        const artifactChartConfig = artifact.chartConfig;
+        const customChartType =
+            artifactChartConfig.source === 'customChartType'
+                ? (getDataAppVizChartFromArtifact(artifactChartConfig) ??
+                  undefined)
+                : undefined;
+
         const parsedVizConfig = parseVizConfig(
-            artifact.chartConfig.config,
+            artifactChartConfig.config,
             this.lightdashConfig.ai.copilot.maxQueryLimit,
         );
         if (!parsedVizConfig) {
@@ -6912,8 +6979,9 @@ export class AiAgentService extends BaseService {
             user,
             projectUuid,
             parsedVizConfig.metricQuery,
-            artifact.chartConfig.config,
+            artifactChartConfig.config,
             parsedVizConfig.parameters,
+            customChartType,
         );
 
         const metadata = {
@@ -6935,7 +7003,7 @@ export class AiAgentService extends BaseService {
                 artifactId: artifactUuid,
                 artifactVersionId: versionUuid,
                 vizType: parsedVizConfig.type,
-                source: 'semantic',
+                source: artifactChartConfig.source,
             },
         });
 
