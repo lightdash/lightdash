@@ -28,3 +28,7 @@
 .selectedChart {
     flex: 0 0 auto;
 }
+
+.buttonAnchor {
+    font-family: inherit;
+}

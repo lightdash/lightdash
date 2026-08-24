@@ -2,7 +2,6 @@ import { ChartType } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
-    Button,
     Group,
     Paper,
     SegmentedControl,
@@ -10,7 +9,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconArrowLeft, IconSettings, IconX } from '@tabler/icons-react';
+import { IconSettings, IconX } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link, useLocation } from 'react-router';
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
@@ -111,18 +110,6 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                         />
                     ) : (
                         <Stack className={classes.configure} gap="md">
-                            <Button
-                                variant="subtle"
-                                size="xs"
-                                px={0}
-                                leftSection={
-                                    <MantineIcon icon={IconArrowLeft} />
-                                }
-                                onClick={() => setMode('choose')}
-                            >
-                                Change chart type
-                            </Button>
-
                             <Paper
                                 className={classes.selectedChart}
                                 withBorder
@@ -134,33 +121,40 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                         icon={selectedItem.icon}
                                         rotatedIcon={selectedItem.rotatedIcon}
                                     />
-                                    <Stack gap={3}>
-                                        <Text fw={600}>
-                                            {selectedItem.label}
-                                        </Text>
-                                        <Group gap="xs">
-                                            {isProjectType &&
-                                            selectedProjectType &&
-                                            canEditSelectedType ? (
-                                                <Anchor
-                                                    component={Link}
-                                                    to={{
-                                                        pathname:
-                                                            chartTypeBuilderPath(
-                                                                projectUuid ??
-                                                                    '',
-                                                                selectedProjectType.dataAppVizUuid,
-                                                            ),
-                                                        search: location.search,
-                                                    }}
-                                                    fz="xs"
-                                                    fw={500}
-                                                >
-                                                    Edit ↗
-                                                </Anchor>
-                                            ) : null}
-                                        </Group>
-                                    </Stack>
+                                    <Text fw={600} truncate flex={1}>
+                                        {selectedItem.label}
+                                    </Text>
+                                    <Group gap="xs" wrap="nowrap">
+                                        {isProjectType &&
+                                        selectedProjectType &&
+                                        canEditSelectedType ? (
+                                            <Anchor
+                                                component={Link}
+                                                to={{
+                                                    pathname:
+                                                        chartTypeBuilderPath(
+                                                            projectUuid ?? '',
+                                                            selectedProjectType.dataAppVizUuid,
+                                                        ),
+                                                    search: location.search,
+                                                }}
+                                                fz="xs"
+                                                fw={500}
+                                            >
+                                                Edit ↗
+                                            </Anchor>
+                                        ) : null}
+                                        <Anchor
+                                            component="button"
+                                            type="button"
+                                            className={classes.buttonAnchor}
+                                            fz="xs"
+                                            fw={500}
+                                            onClick={() => setMode('choose')}
+                                        >
+                                            Change
+                                        </Anchor>
+                                    </Group>
                                 </Group>
                                 {isProjectType &&
                                 selectedProjectType?.description ? (
