@@ -8,8 +8,7 @@ import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/use
 import { renderWithProviders } from '../../../testing/testUtils';
 import ExplorerChartTypeGallery, {
     ChartTypeGallery,
-    type ChartTypeGalleryItem,
-    type ChartTypeGallerySection,
+    type ChartTypeGalleryRowItem,
 } from './ChartTypeGallery';
 
 const { mocks } = vi.hoisted(() => ({
@@ -76,7 +75,7 @@ vi.mock('react-router', async (importOriginal) => ({
 const galleryItem = (
     label: string,
     description: string,
-): ChartTypeGalleryItem => ({
+): ChartTypeGalleryRowItem => ({
     key: label,
     label,
     description,
@@ -85,23 +84,7 @@ const galleryItem = (
     selected: false,
     disabled: false,
     select: vi.fn(),
-});
-
-const gallerySection = (
-    label: string,
-    layout: ChartTypeGallerySection['layout'],
-    items: ChartTypeGalleryItem[],
-): ChartTypeGallerySection => ({
-    label,
-    layout,
-    items,
-    loading: false,
-    errorMessage: null,
-    emptyMessage: 'Nothing here',
-    onRetry: null,
-    onLoadMore: null,
-    loadingMore: false,
-    onCreateNew: null,
+    onEdit: null,
 });
 
 describe('ChartTypeGallery', () => {
@@ -111,12 +94,26 @@ describe('ChartTypeGallery', () => {
                 search=""
                 onSearchChange={vi.fn()}
                 sections={[
-                    gallerySection('Built in', 'grid', [
-                        galleryItem('Bar chart', 'Compare categories'),
-                    ]),
-                    gallerySection('Project', 'rows', [
-                        galleryItem('Event pulse', 'Reusable ranked bars'),
-                    ]),
+                    {
+                        label: 'Built in',
+                        layout: 'grid',
+                        items: [galleryItem('Bar chart', 'Compare categories')],
+                        emptyMessage: 'Nothing here',
+                    },
+                    {
+                        label: 'Project',
+                        layout: 'rows',
+                        items: [
+                            galleryItem('Event pulse', 'Reusable ranked bars'),
+                        ],
+                        emptyMessage: 'Nothing here',
+                        loading: false,
+                        errorMessage: null,
+                        onRetry: null,
+                        onLoadMore: null,
+                        loadingMore: false,
+                        onCreateNew: null,
+                    },
                 ]}
             />,
         );
@@ -189,21 +186,6 @@ describe('ExplorerChartTypeGallery', () => {
         expect(mocks.setCartesianType).toHaveBeenCalledWith(undefined);
         expect(mocks.setChartType).toHaveBeenCalledWith(ChartType.PIE);
         expect(onSelected).toHaveBeenCalledTimes(1);
-    });
-
-    it('renders built-ins as compact cards while project types keep descriptions', () => {
-        renderGallery();
-
-        // Built-in cards are icon + label only; the row description is gone.
-        expect(
-            screen.getByRole('button', { name: 'Pie chart' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByText('Show part-to-whole'),
-        ).not.toBeInTheDocument();
-
-        // Project chart types keep their richer row layout.
-        expect(screen.getByText('Reusable ranked bars')).toBeInTheDocument();
     });
 
     it('filters built-in choices using the gallery search', async () => {

@@ -15,67 +15,146 @@ import {
     IconPuzzle,
     IconSquareNumber1,
     IconTable,
-    type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import {
     ChartTypeGallery,
-    type ChartTypeGalleryItem,
+    type ChartTypeGalleryRowItem,
     type ChartTypeGallerySection,
 } from '../components/Explorer/ChartGallery/ChartTypeGallery';
 
-const builtInDefinitions: [string, TablerIcon, boolean][] = [
-    ['Bar chart', IconChartBar, false],
-    ['Horizontal bar chart', IconChartBar, true],
-    ['Line chart', IconChartLine, false],
-    ['Area chart', IconChartArea, false],
-    ['Scatter chart', IconChartDots, false],
-    ['Pie chart', IconChartPie, false],
-    ['Funnel chart', IconFilter, false],
-    ['Treemap', IconChartTreemap, false],
-    ['Gauge', IconGauge, false],
-    ['Sankey', IconGitMerge, false],
-    ['Map', IconMap, false],
-    ['Table', IconTable, false],
-    ['Big value', IconSquareNumber1, false],
-    ['Vega (JSON editor)', IconCode, false],
+type GalleryItemDef = Pick<
+    ChartTypeGalleryRowItem,
+    'label' | 'description' | 'icon' | 'rotatedIcon'
+>;
+
+const builtInDefinitions: GalleryItemDef[] = [
+    {
+        label: 'Bar chart',
+        description: 'Compare categories',
+        icon: IconChartBar,
+        rotatedIcon: false,
+    },
+    {
+        label: 'Horizontal bar chart',
+        description: 'Compare ranked categories',
+        icon: IconChartBar,
+        rotatedIcon: true,
+    },
+    {
+        label: 'Line chart',
+        description: 'Show a trend',
+        icon: IconChartLine,
+        rotatedIcon: false,
+    },
+    {
+        label: 'Area chart',
+        description: 'Compare magnitude over time',
+        icon: IconChartArea,
+        rotatedIcon: false,
+    },
+    {
+        label: 'Scatter chart',
+        description: 'Find relationships and outliers',
+        icon: IconChartDots,
+        rotatedIcon: false,
+    },
+    {
+        label: 'Pie chart',
+        description: 'Show part-to-whole',
+        icon: IconChartPie,
+        rotatedIcon: false,
+    },
+    {
+        label: 'Funnel chart',
+        description: 'Show stage conversion',
+        icon: IconFilter,
+        rotatedIcon: false,
+    },
+    {
+        label: 'Treemap',
+        description: 'Show hierarchical proportions',
+        icon: IconChartTreemap,
+        rotatedIcon: false,
+    },
+    {
+        label: 'Gauge',
+        description: 'Track progress toward a target',
+        icon: IconGauge,
+        rotatedIcon: false,
+    },
+    {
+        label: 'Sankey',
+        description: 'Show flow between categories',
+        icon: IconGitMerge,
+        rotatedIcon: false,
+    },
+    {
+        label: 'Map',
+        description: 'Plot geographic values',
+        icon: IconMap,
+        rotatedIcon: false,
+    },
+    {
+        label: 'Table',
+        description: 'Show every result row',
+        icon: IconTable,
+        rotatedIcon: false,
+    },
+    {
+        label: 'Big value',
+        description: 'Highlight a single metric',
+        icon: IconSquareNumber1,
+        rotatedIcon: false,
+    },
+    {
+        label: 'Vega (JSON editor)',
+        description: 'Write Vega-Lite JSON by hand',
+        icon: IconCode,
+        rotatedIcon: false,
+    },
 ];
 
-const buildBuiltIns = (
-    selectedKey: string | null,
-    disabled: boolean,
-    onSelect: (key: string) => void,
-): ChartTypeGalleryItem[] =>
-    builtInDefinitions.map(([label, icon, rotatedIcon]) => ({
-        key: label,
-        label,
-        description: null,
-        icon,
-        rotatedIcon,
-        selected: label === selectedKey,
-        disabled,
-        select: () => onSelect(label),
-    }));
-
-const projectDefinitions: [string, string][] = [
-    ['Event pulse', 'Ranked bars with weekly event totals'],
-    ['Retention curve', 'Cohort retention over the first 12 weeks'],
-];
-
-const buildProjectItems = (
-    selectedKey: string | null,
-    onSelect: (key: string) => void,
-): ChartTypeGalleryItem[] =>
-    projectDefinitions.map(([label, description]) => ({
-        key: label,
-        label,
-        description,
+const projectDefinitions: GalleryItemDef[] = [
+    {
+        label: 'Event pulse',
+        description: 'Ranked bars with weekly event totals',
         icon: IconPuzzle,
         rotatedIcon: false,
-        selected: label === selectedKey,
-        disabled: false,
-        select: () => onSelect(label),
+    },
+    {
+        label: 'Retention curve',
+        description: 'Cohort retention over the first 12 weeks',
+        icon: IconPuzzle,
+        rotatedIcon: false,
+    },
+];
+
+type BuildItemsArgs = {
+    selectedKey: string | null;
+    disabled: boolean;
+    onSelect: (key: string) => void;
+};
+
+const buildItems = (
+    defs: GalleryItemDef[],
+    { selectedKey, disabled, onSelect }: BuildItemsArgs,
+): ChartTypeGalleryRowItem[] =>
+    defs.map((def) => ({
+        ...def,
+        key: def.label,
+        selected: def.label === selectedKey,
+        disabled,
+        select: () => onSelect(def.label),
     }));
+
+const rowsListStates = {
+    loading: false,
+    errorMessage: null,
+    onRetry: null,
+    onLoadMore: null,
+    loadingMore: false,
+};
 
 type PlaygroundProps = {
     width: number;
@@ -99,8 +178,15 @@ const GalleryPlayground: FC<PlaygroundProps> = ({
     // Clicking selects, like the real gallery; the arg is only the initial state.
     const [clickedKey, setClickedKey] = useState<string | null>(null);
     const selectedKey = clickedKey ?? selectedLabel;
-    const matches = (label: string) =>
-        label.toLowerCase().includes(search.toLowerCase());
+    const matches = (item: ChartTypeGalleryRowItem) =>
+        item.label.toLowerCase().includes(search.toLowerCase());
+
+    const builtInItems = buildItems(builtInDefinitions, {
+        selectedKey,
+        disabled,
+        onSelect: setClickedKey,
+    }).filter(matches);
+    const builtInEmptyMessage = 'No built-in chart types match your search';
 
     const sections: ChartTypeGallerySection[] = [
         ...(showProjectSection
@@ -108,36 +194,34 @@ const GalleryPlayground: FC<PlaygroundProps> = ({
                   {
                       label: 'Project',
                       layout: 'rows' as const,
-                      items: buildProjectItems(
+                      items: buildItems(projectDefinitions, {
                           selectedKey,
-                          setClickedKey,
-                      ).filter((item) => matches(item.label)),
-                      loading: false,
-                      errorMessage: null,
+                          disabled: false,
+                          onSelect: setClickedKey,
+                      }).filter(matches),
                       emptyMessage: search
                           ? 'No project chart types match your search'
                           : 'No project chart types yet',
-                      onRetry: null,
-                      onLoadMore: null,
-                      loadingMore: false,
+                      ...rowsListStates,
                       onCreateNew: () => {},
                   },
               ]
             : []),
-        {
-            label: 'Built in',
-            layout: builtInLayout,
-            items: buildBuiltIns(selectedKey, disabled, setClickedKey).filter(
-                (item) => matches(item.label),
-            ),
-            loading: false,
-            errorMessage: null,
-            emptyMessage: 'No built-in chart types match your search',
-            onRetry: null,
-            onLoadMore: null,
-            loadingMore: false,
-            onCreateNew: null,
-        },
+        builtInLayout === 'grid'
+            ? {
+                  label: 'Built in',
+                  layout: 'grid' as const,
+                  items: builtInItems,
+                  emptyMessage: builtInEmptyMessage,
+              }
+            : {
+                  label: 'Built in',
+                  layout: 'rows' as const,
+                  items: builtInItems,
+                  emptyMessage: builtInEmptyMessage,
+                  ...rowsListStates,
+                  onCreateNew: null,
+              },
     ];
 
     return (
@@ -159,7 +243,7 @@ const meta: Meta<typeof GalleryPlayground> = {
         builtInLayout: { control: 'radio', options: ['grid', 'rows'] },
         selectedLabel: {
             control: 'select',
-            options: [null, ...builtInDefinitions.map(([label]) => label)],
+            options: [null, ...builtInDefinitions.map((def) => def.label)],
         },
     },
     args: {

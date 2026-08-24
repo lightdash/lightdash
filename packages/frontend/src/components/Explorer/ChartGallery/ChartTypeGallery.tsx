@@ -13,7 +13,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, useState, type FC, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
@@ -35,45 +35,190 @@ import classes from './ChartTypeGallery.module.css';
 export type ChartTypeGalleryItem = Omit<ChartTypeOption, 'id'> & {
     key: string;
     disabled: boolean;
-    /** Opens the chart type builder for this item; null hides the action. */
-    onEdit: (() => void) | null;
-    /** Shown in the rows layout; grid cards are icon + label only. */
-    description: string | null;
 };
 
-type ThumbnailProps = Pick<ChartTypeOption, 'icon' | 'rotatedIcon'> & {
+/** Rows show per-item text and actions that grid cards deliberately drop. */
+export type ChartTypeGalleryRowItem = ChartTypeGalleryItem & {
+    description: string;
+    /** Opens the chart type builder for this item; null hides the action. */
+    onEdit: (() => void) | null;
+};
+
+type ChartTypeIconProps = Pick<ChartTypeOption, 'icon' | 'rotatedIcon'> & {
     small?: boolean;
 };
 
-export const ChartTypeThumbnail: FC<ThumbnailProps> = ({
+const ChartTypeIcon: FC<ChartTypeIconProps> = ({
     icon,
     rotatedIcon,
     small,
 }) => (
+    <MantineIcon
+        className={classes.icon}
+        data-rotated={rotatedIcon}
+        icon={icon}
+        size={small ? 'md' : 'xl'}
+        color="blue"
+    />
+);
+
+export const ChartTypeThumbnail: FC<ChartTypeIconProps> = ({
+    small,
+    ...props
+}) => (
     <Box className={classes.thumbnail} data-small={small}>
-        <MantineIcon
-            className={classes.icon}
-            data-rotated={rotatedIcon}
-            icon={icon}
-            size={small ? 'md' : 'xl'}
-            color="blue"
-        />
+        <ChartTypeIcon small={small} {...props} />
     </Box>
 );
 
-export type ChartTypeGallerySection = {
+type ChartTypeGallerySectionBase = {
     label: string;
-    /** Built-ins render as a compact card grid; project types as rows. */
-    layout: 'grid' | 'rows';
-    items: ChartTypeGalleryItem[];
-    loading: boolean;
-    errorMessage: string | null;
     emptyMessage: string;
-    onRetry: (() => void) | null;
-    onLoadMore: (() => void) | null;
-    loadingMore: boolean;
-    /** Opens the chart type builder; null hides the create action. */
-    onCreateNew: (() => void) | null;
+};
+
+export type ChartTypeGallerySection =
+    /** A static set of built-ins: a compact card grid, no remote-list states. */
+    | (ChartTypeGallerySectionBase & {
+          layout: 'grid';
+          items: ChartTypeGalleryItem[];
+      })
+    /** A remote list of project chart types: richer rows with list states. */
+    | (ChartTypeGallerySectionBase & {
+          layout: 'rows';
+          items: ChartTypeGalleryRowItem[];
+          loading: boolean;
+          errorMessage: string | null;
+          onRetry: (() => void) | null;
+          onLoadMore: (() => void) | null;
+          loadingMore: boolean;
+          /** Opens the chart type builder; null hides the create action. */
+          onCreateNew: (() => void) | null;
+      });
+
+type GalleryItemButtonProps = {
+    item: ChartTypeGalleryItem;
+    className: string;
+    children: ReactNode;
+};
+
+const GalleryItemButton: FC<GalleryItemButtonProps> = ({
+    item,
+    className,
+    children,
+}) => (
+    <UnstyledButton
+        className={className}
+        data-selected={item.selected}
+        disabled={item.disabled}
+        onClick={item.select}
+    >
+        {children}
+    </UnstyledButton>
+);
+
+const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
+    if (section.layout === 'rows' && section.loading) {
+        return (
+            <Group gap="xs">
+                <Loader size="xs" />
+                <Text fz="xs" c="dimmed">
+                    Loading chart types…
+                </Text>
+            </Group>
+        );
+    }
+
+    if (section.layout === 'rows' && section.errorMessage !== null) {
+        return (
+            <Group justify="space-between" wrap="nowrap">
+                <Text fz="xs" c="red">
+                    {section.errorMessage}
+                </Text>
+                {section.onRetry !== null ? (
+                    <Button
+                        variant="subtle"
+                        size="compact-xs"
+                        onClick={section.onRetry}
+                    >
+                        Retry
+                    </Button>
+                ) : null}
+            </Group>
+        );
+    }
+
+    if (section.items.length === 0) {
+        return (
+            <Text fz="xs" c="dimmed">
+                {section.emptyMessage}
+            </Text>
+        );
+    }
+
+    if (section.layout === 'grid') {
+        return (
+            <Box className={classes.grid}>
+                {section.items.map((item) => (
+                    <GalleryItemButton
+                        key={item.key}
+                        item={item}
+                        className={classes.card}
+                    >
+                        <ChartTypeIcon
+                            icon={item.icon}
+                            rotatedIcon={item.rotatedIcon}
+                        />
+                        <Text fz="xs" fw={500} lh={1.2}>
+                            {item.label}
+                        </Text>
+                    </GalleryItemButton>
+                ))}
+            </Box>
+        );
+    }
+
+    return (
+        <>
+            {section.items.map((item) => (
+                <Box key={item.key} className={classes.rowWrapper}>
+                    <UnstyledButton
+                        className={classes.row}
+                        data-selected={item.selected}
+                        data-has-edit={item.onEdit !== null}
+                        disabled={item.disabled}
+                        onClick={item.select}
+                    >
+                        <Group wrap="nowrap" gap="sm">
+                            <ChartTypeThumbnail
+                                icon={item.icon}
+                                rotatedIcon={item.rotatedIcon}
+                            />
+                            <Stack gap={2} flex={1}>
+                                <Text size="sm" fw={500}>
+                                    {item.label}
+                                </Text>
+                                <Text fz="xs" c="dimmed" lineClamp={2}>
+                                    {item.description}
+                                </Text>
+                            </Stack>
+                        </Group>
+                    </UnstyledButton>
+                    {item.onEdit !== null ? (
+                        <Anchor
+                            component="button"
+                            type="button"
+                            className={classes.rowEdit}
+                            fz="xs"
+                            fw={500}
+                            onClick={item.onEdit}
+                        >
+                            Edit
+                        </Anchor>
+                    ) : null}
+                </Box>
+            ))}
+        </>
+    );
 };
 
 type GalleryProps = {
@@ -112,106 +257,10 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
                             {section.label}
                         </Text>
 
-                        {section.loading ? (
-                            <Group gap="xs">
-                                <Loader size="xs" />
-                                <Text fz="xs" c="dimmed">
-                                    Loading chart types…
-                                </Text>
-                            </Group>
-                        ) : section.errorMessage !== null ? (
-                            <Group justify="space-between" wrap="nowrap">
-                                <Text fz="xs" c="red">
-                                    {section.errorMessage}
-                                </Text>
-                                {section.onRetry !== null ? (
-                                    <Button
-                                        variant="subtle"
-                                        size="compact-xs"
-                                        onClick={section.onRetry}
-                                    >
-                                        Retry
-                                    </Button>
-                                ) : null}
-                            </Group>
-                        ) : section.items.length === 0 ? (
-                            <Text fz="xs" c="dimmed">
-                                {section.emptyMessage}
-                            </Text>
-                        ) : section.layout === 'grid' ? (
-                            <Box className={classes.grid}>
-                                {section.items.map((item) => (
-                                    <UnstyledButton
-                                        key={item.key}
-                                        className={classes.card}
-                                        data-selected={item.selected}
-                                        disabled={item.disabled}
-                                        onClick={item.select}
-                                    >
-                                        <MantineIcon
-                                            className={classes.icon}
-                                            data-rotated={item.rotatedIcon}
-                                            icon={item.icon}
-                                            size="xl"
-                                            color="blue"
-                                        />
-                                        <Text fz="xs" fw={500} lh={1.2}>
-                                            {item.label}
-                                        </Text>
-                                    </UnstyledButton>
-                                ))}
-                            </Box>
-                        ) : (
-                            section.items.map((item) => (
-                                <Box
-                                    key={item.key}
-                                    className={classes.rowWrapper}
-                                >
-                                    <UnstyledButton
-                                        className={classes.row}
-                                        data-selected={item.selected}
-                                        data-has-edit={item.onEdit !== null}
-                                        disabled={item.disabled}
-                                        onClick={item.select}
-                                    >
-                                        <Group wrap="nowrap" gap="sm">
-                                            <ChartTypeThumbnail
-                                                icon={item.icon}
-                                                rotatedIcon={item.rotatedIcon}
-                                            />
-                                            <Stack gap={2} flex={1}>
-                                                <Text size="sm" fw={500}>
-                                                    {item.label}
-                                                </Text>
-                                                {item.description !== null ? (
-                                                    <Text
-                                                        fz="xs"
-                                                        c="dimmed"
-                                                        lineClamp={2}
-                                                    >
-                                                        {item.description}
-                                                    </Text>
-                                                ) : null}
-                                            </Stack>
-                                        </Group>
-                                    </UnstyledButton>
-                                    {item.onEdit !== null ? (
-                                        <Anchor
-                                            component="button"
-                                            type="button"
-                                            className={classes.rowEdit}
-                                            fz="xs"
-                                            fw={500}
-                                            onClick={item.onEdit}
-                                        >
-                                            Edit
-                                        </Anchor>
-                                    ) : null}
-                                </Box>
-                            ))
-                        )}
+                        <SectionBody section={section} />
 
-                        {section.onLoadMore !== null ? (
+                        {section.layout === 'rows' &&
+                        section.onLoadMore !== null ? (
                             <Button
                                 variant="subtle"
                                 size="xs"
@@ -224,7 +273,8 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
 
                         {/* An action, not a chart type; wanted even when the
                             section is empty. */}
-                        {section.onCreateNew !== null ? (
+                        {section.layout === 'rows' &&
+                        section.onCreateNew !== null ? (
                             <Button
                                 variant="subtle"
                                 size="xs"
@@ -293,16 +343,14 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
         .map(({ id, ...option }) => ({
             ...option,
             key: id,
-            description: null,
             disabled,
             select: () => {
                 option.select();
                 onSelected();
             },
-            onEdit: null,
         }));
     const projectItems = projectTypes.map(
-        (dataAppViz: DataAppViz): ChartTypeGalleryItem => {
+        (dataAppViz: DataAppViz): ChartTypeGalleryRowItem => {
             const { label, icon, rotatedIcon } =
                 projectChartTypeItem(dataAppViz);
             return {
@@ -368,13 +416,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             label: 'Built in',
             layout: 'grid',
             items: builtInItems,
-            loading: false,
-            errorMessage: null,
             emptyMessage: 'No built-in chart types match your search',
-            onRetry: null,
-            onLoadMore: null,
-            loadingMore: false,
-            onCreateNew: null,
         },
     ];
 
