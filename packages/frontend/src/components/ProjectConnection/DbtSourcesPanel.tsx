@@ -301,7 +301,7 @@ const EditDbtSourceModalInner: FC<{
                 },
             },
             { onSuccess: onClose },
-        });
+        );
     };
 
     return (
