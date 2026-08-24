@@ -10,6 +10,7 @@ import {
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { UserTableName } from '../database/entities/users';
 import {
+    getActiveGrantedGroupPredicate,
     getActiveProjectMemberPredicate,
     groupDirectAccessRows,
     type DirectAccess,
@@ -135,6 +136,12 @@ export class SavedChartAccessModel {
                         `${GroupMembershipTableName}.organization_id`,
                         `${ProjectTableName}.organization_id`,
                     ])
+                    .where(
+                        getActiveGrantedGroupPredicate(
+                            trx,
+                            SavedChartGroupAccessTableName,
+                        ),
+                    )
                     .whereNull(`${SavedChartsTableName}.dashboard_uuid`)
                     .whereNull(`${SavedChartsTableName}.deleted_at`),
             );

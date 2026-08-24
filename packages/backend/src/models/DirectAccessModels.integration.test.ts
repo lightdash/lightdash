@@ -187,6 +187,11 @@ describe('direct access read models PostgreSQL integration', () => {
             group_uuid: groupUuid,
             user_id: userId,
         });
+        await transaction(ProjectGroupAccessTableName).insert({
+            project_uuid: projectUuid,
+            group_uuid: groupUuid,
+            role: ProjectMemberRole.VIEWER,
+        });
         await transaction(DashboardUserAccessTableName).insert({
             dashboard_uuid: dashboardUuid,
             user_uuid: SEED_ORG_1_ADMIN.user_uuid,
@@ -434,11 +439,6 @@ describe('direct access read models PostgreSQL integration', () => {
             group_uuid: groupUuid,
             user_id: principal.userId,
         });
-        await transaction(ProjectGroupAccessTableName).insert({
-            project_uuid: projectUuid,
-            group_uuid: groupUuid,
-            role: ProjectMemberRole.VIEWER,
-        });
 
         await expect(
             model.getUserAccess([dashboardUuid], principal.userUuid),
@@ -453,6 +453,33 @@ describe('direct access read models PostgreSQL integration', () => {
         await expect(
             model.getUserAccess([dashboardUuid], principal.userUuid),
         ).resolves.toEqual({});
+    });
+
+    it('makes a group grant inert after the group loses project access', async () => {
+        const principal = await createMemberPrincipal();
+        await transaction(ProjectMembershipsTableName).insert({
+            project_id: projectId,
+            user_id: principal.userId,
+            role: ProjectMemberRole.VIEWER,
+        });
+        await transaction(GroupMembershipTableName).insert({
+            organization_id: organizationId,
+            group_uuid: groupUuid,
+            user_id: principal.userId,
+        });
+
+        await expect(
+            model.getUserAccess([dashboardUuid], principal.userUuid),
+        ).resolves.toHaveProperty(`${dashboardUuid}.groupRoles`, [
+            SpaceMemberRole.ADMIN,
+        ]);
+
+        await transaction(ProjectGroupAccessTableName)
+            .where({ project_uuid: projectUuid, group_uuid: groupUuid })
+            .delete();
+        await expect(
+            model.getUserAccess([dashboardUuid], principal.userUuid),
+        ).resolves.toHaveProperty(`${dashboardUuid}.groupRoles`, []);
     });
 
     it('accepts primary and extra organization custom-role access paths', async () => {

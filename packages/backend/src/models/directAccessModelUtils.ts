@@ -98,3 +98,25 @@ export const getActiveProjectMemberPredicate = (trx: Knex): Knex.Raw =>
             ProjectTableName,
         ],
     );
+
+/**
+ * A group grant is inert unless the granted group itself still holds current
+ * access to the resource's project. Without this predicate, a grant made to a
+ * project group would keep working after the group is removed from the
+ * project, for any member who retains a separate project access path.
+ */
+export const getActiveGrantedGroupPredicate = (
+    trx: Knex,
+    groupAccessTable: string,
+): Knex.Raw =>
+    trx.raw(
+        `
+            EXISTS (
+                SELECT 1
+                FROM ?? AS granted_group_project_access
+                WHERE granted_group_project_access.group_uuid = ??.group_uuid
+                  AND granted_group_project_access.project_uuid = ??.project_uuid
+            )
+        `,
+        [ProjectGroupAccessTableName, groupAccessTable, ProjectTableName],
+    );

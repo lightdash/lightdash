@@ -11,6 +11,7 @@ import { ProjectTableName } from '../database/entities/projects';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import {
+    getActiveGrantedGroupPredicate,
     getActiveProjectMemberPredicate,
     groupDirectAccessRows,
     type DirectAccess,
@@ -145,6 +146,12 @@ export class DashboardAccessModel {
                         `${GroupMembershipTableName}.organization_id`,
                         `${ProjectTableName}.organization_id`,
                     ])
+                    .where(
+                        getActiveGrantedGroupPredicate(
+                            trx,
+                            DashboardGroupAccessTableName,
+                        ),
+                    )
                     .whereNull(`${DashboardsTableName}.deleted_at`),
             );
 

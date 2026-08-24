@@ -10,6 +10,7 @@ import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectTableName } from '../database/entities/projects';
 import { UserTableName } from '../database/entities/users';
 import {
+    getActiveGrantedGroupPredicate,
     getActiveProjectMemberPredicate,
     groupDirectAccessRows,
     type DirectAccess,
@@ -131,6 +132,12 @@ export class AppAccessModel {
                         `${GroupMembershipTableName}.organization_id`,
                         `${ProjectTableName}.organization_id`,
                     ])
+                    .where(
+                        getActiveGrantedGroupPredicate(
+                            trx,
+                            AppGroupAccessTableName,
+                        ),
+                    )
                     .whereNull(`${AppsTableName}.deleted_at`),
             );
 

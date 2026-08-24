@@ -10,6 +10,7 @@ import {
 } from '../database/entities/savedSqlAccess';
 import { UserTableName } from '../database/entities/users';
 import {
+    getActiveGrantedGroupPredicate,
     getActiveProjectMemberPredicate,
     groupDirectAccessRows,
     type DirectAccess,
@@ -135,6 +136,12 @@ export class SavedSqlAccessModel {
                         `${GroupMembershipTableName}.organization_id`,
                         `${ProjectTableName}.organization_id`,
                     ])
+                    .where(
+                        getActiveGrantedGroupPredicate(
+                            trx,
+                            SavedSqlGroupAccessTableName,
+                        ),
+                    )
                     .whereNull(`${SavedSqlTableName}.dashboard_uuid`)
                     .whereNull(`${SavedSqlTableName}.deleted_at`),
             );
