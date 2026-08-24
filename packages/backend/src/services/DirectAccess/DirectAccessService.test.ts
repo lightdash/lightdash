@@ -81,11 +81,11 @@ const createFeatureGate = (isEnabled: boolean): DirectAccessFeatureGate =>
 describe('DirectAccessService', () => {
     it('issues zero direct-model reads while the feature is unavailable', async () => {
         const models = createModels();
-        const service = new DirectAccessService(
+        const service = new DirectAccessService({
             models,
-            createActorRoleResolver(),
-            createFeatureGate(false),
-        );
+            actorRoleResolver: createActorRoleResolver(),
+            featureGate: createFeatureGate(false),
+        });
 
         const results = await Promise.all(
             resourceTypes.flatMap((resourceType) => {
@@ -94,11 +94,12 @@ describe('DirectAccessService', () => {
                     service.resolveUserAccess({
                         account,
                         resourceType,
-                        resourceUuids: [resourceUuid],
-                        logicalRoles: {
-                            [resourceUuid]: SpaceMemberRole.EDITOR,
+                        resources: {
+                            [resourceUuid]: {
+                                logicalRole: SpaceMemberRole.EDITOR,
+                                capabilityCeiling: null,
+                            },
                         },
-                        capabilityCeilings: { [resourceUuid]: null },
                     }),
                     service.getUserAccess({
                         account,
@@ -122,11 +123,11 @@ describe('DirectAccessService', () => {
 
     it('dispatches enabled reads and applies additive role resolution', async () => {
         const models = createModels();
-        const service = new DirectAccessService(
+        const service = new DirectAccessService({
             models,
-            createActorRoleResolver(),
-            createFeatureGate(true),
-        );
+            actorRoleResolver: createActorRoleResolver(),
+            featureGate: createFeatureGate(true),
+        });
 
         for (const resourceType of resourceTypes) {
             const resourceUuid = `${resourceType}-uuid`;
@@ -147,12 +148,11 @@ describe('DirectAccessService', () => {
                     return service.resolveUserAccess({
                         account,
                         resourceType,
-                        resourceUuids: [resourceUuid],
-                        logicalRoles: {
-                            [resourceUuid]: SpaceMemberRole.VIEWER,
-                        },
-                        capabilityCeilings: {
-                            [resourceUuid]: SpaceMemberRole.EDITOR,
+                        resources: {
+                            [resourceUuid]: {
+                                logicalRole: SpaceMemberRole.VIEWER,
+                                capabilityCeiling: SpaceMemberRole.EDITOR,
+                            },
                         },
                     });
                 }),
@@ -172,6 +172,43 @@ describe('DirectAccessService', () => {
         }
     });
 
+    it('applies capability ceilings only while the feature is enabled', async () => {
+        const resources = {
+            'dashboard-uuid': {
+                logicalRole: SpaceMemberRole.EDITOR,
+                capabilityCeiling: null,
+            },
+        };
+
+        const disabledService = new DirectAccessService({
+            models: createModels(),
+            actorRoleResolver: createActorRoleResolver(),
+            featureGate: createFeatureGate(false),
+        });
+        await expect(
+            disabledService.resolveUserAccess({
+                account,
+                resourceType: 'dashboard',
+                resources,
+            }),
+        ).resolves.toEqual({ 'dashboard-uuid': SpaceMemberRole.EDITOR });
+
+        const enabledModels = createModels();
+        vi.mocked(enabledModels.dashboard.getUserAccess).mockResolvedValue({});
+        const enabledService = new DirectAccessService({
+            models: enabledModels,
+            actorRoleResolver: createActorRoleResolver(),
+            featureGate: createFeatureGate(true),
+        });
+        await expect(
+            enabledService.resolveUserAccess({
+                account,
+                resourceType: 'dashboard',
+                resources,
+            }),
+        ).resolves.toEqual({ 'dashboard-uuid': undefined });
+    });
+
     it('discards a defense-in-depth read from another organization', async () => {
         const models = createModels();
         vi.mocked(models.dashboard.getUserAccess).mockResolvedValue({
@@ -182,22 +219,21 @@ describe('DirectAccessService', () => {
                 groupRoles: [],
             },
         });
-        const service = new DirectAccessService(
+        const service = new DirectAccessService({
             models,
-            createActorRoleResolver(),
-            createFeatureGate(true),
-        );
+            actorRoleResolver: createActorRoleResolver(),
+            featureGate: createFeatureGate(true),
+        });
 
         await expect(
             service.resolveUserAccess({
                 account,
                 resourceType: 'dashboard',
-                resourceUuids: ['dashboard-uuid'],
-                logicalRoles: {
-                    'dashboard-uuid': SpaceMemberRole.VIEWER,
-                },
-                capabilityCeilings: {
-                    'dashboard-uuid': SpaceMemberRole.ADMIN,
+                resources: {
+                    'dashboard-uuid': {
+                        logicalRole: SpaceMemberRole.VIEWER,
+                        capabilityCeiling: SpaceMemberRole.ADMIN,
+                    },
                 },
             }),
         ).resolves.toEqual({
@@ -208,11 +244,11 @@ describe('DirectAccessService', () => {
     it('fails closed before every write model', async () => {
         const models = createModels();
         const actorRoleResolver = createActorRoleResolver();
-        const service = new DirectAccessService(
+        const service = new DirectAccessService({
             models,
             actorRoleResolver,
-            createFeatureGate(false),
-        );
+            featureGate: createFeatureGate(false),
+        });
         const operations = resourceTypes.flatMap((type) => {
             const mutation = {
                 account,
@@ -259,12 +295,12 @@ describe('DirectAccessService', () => {
         const models = createModels();
         const auditLogger = vi.fn();
         const actorRoleResolver = createActorRoleResolver();
-        const service = new DirectAccessService(
+        const service = new DirectAccessService({
             models,
             actorRoleResolver,
-            createFeatureGate(true),
+            featureGate: createFeatureGate(true),
             auditLogger,
-        );
+        });
 
         await Promise.all(
             resourceTypes.map((type) =>
@@ -310,6 +346,26 @@ describe('DirectAccessService', () => {
             context: mutationResult,
             resource: { type: 'dashboard', uuid: 'dashboard-uuid' },
         });
+        expect(auditLogger).toHaveBeenCalledTimes(4);
+        for (const [event] of auditLogger.mock.calls) {
+            expect(event.actor).toMatchObject({
+                type: 'service-account',
+                uuid: 'audit-service-account-uuid',
+                organizationUuid: 'organization-uuid',
+            });
+            expect(event.context).toEqual({ requestId: 'request-id' });
+            expect(event.action).toBe('direct_access.grant');
+            expect(event.resource).toMatchObject({
+                organizationUuid: 'organization-uuid',
+                projectUuid: 'project-uuid',
+                metadata: expect.objectContaining({
+                    principalType: 'user',
+                    principalUuid: 'principal-uuid',
+                    beforeRole: null,
+                    afterRole: SpaceMemberRole.VIEWER,
+                }),
+            });
+        }
         expect(
             auditLogger.mock.calls.map(([event]) => [
                 event.resource.type,
@@ -328,11 +384,11 @@ describe('DirectAccessService', () => {
     it('forwards both authorization phases for every mutation operation', async () => {
         const models = createModels();
         const actorRoleResolver = createActorRoleResolver();
-        const service = new DirectAccessService(
+        const service = new DirectAccessService({
             models,
             actorRoleResolver,
-            createFeatureGate(true),
-        );
+            featureGate: createFeatureGate(true),
+        });
         const mutation = {
             account,
             resource: {
@@ -404,12 +460,12 @@ describe('DirectAccessService', () => {
         vi.mocked(models.dashboard.upsertUserAccess).mockRejectedValue(
             new Error('write failed'),
         );
-        const service = new DirectAccessService(
+        const service = new DirectAccessService({
             models,
-            createActorRoleResolver(),
-            createFeatureGate(true),
+            actorRoleResolver: createActorRoleResolver(),
+            featureGate: createFeatureGate(true),
             auditLogger,
-        );
+        });
 
         await expect(
             service.upsertUserAccess({
@@ -429,11 +485,11 @@ describe('DirectAccessService', () => {
         const models = createModels();
         const actorRoleResolver = createActorRoleResolver();
         const featureGate = createFeatureGate(true);
-        const service = new DirectAccessService(
+        const service = new DirectAccessService({
             models,
             actorRoleResolver,
             featureGate,
-        );
+        });
         const accountWithoutOrganization = {
             ...account,
             organization: {},

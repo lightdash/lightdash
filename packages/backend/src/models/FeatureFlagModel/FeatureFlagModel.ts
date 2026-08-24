@@ -288,6 +288,40 @@ export class FeatureFlagModel {
         return { id: args.featureFlagId, enabled: flag.default_enabled };
     }
 
+    // Organization-scoped resolution (org override > flag default) that
+    // deliberately ignores per-user overrides.
+    protected async tryGetOrganizationScopedFromDatabase(
+        featureFlagId: string,
+        organizationUuid: string,
+        { trx = this.database }: FeatureFlagQueryOptions = {},
+    ): Promise<FeatureFlag | null> {
+        try {
+            const flag = await trx(FeatureFlagsTableName)
+                .where('flag_id', featureFlagId)
+                .first();
+            if (!flag) {
+                return null;
+            }
+            const override = await FeatureFlagModel.organizationOverrideQuery(
+                trx,
+                featureFlagId,
+                organizationUuid,
+            ).first();
+            if (override) {
+                return { id: featureFlagId, enabled: override.enabled };
+            }
+            if (flag.default_enabled === null) {
+                return null;
+            }
+            return { id: featureFlagId, enabled: flag.default_enabled };
+        } catch (e) {
+            Logger.warn(
+                `Failed to check feature flag ${featureFlagId} from database, falling through: ${e}`,
+            );
+            return null;
+        }
+    }
+
     protected async tryGetOverrideFromDatabase(
         args: FeatureFlagLogicArgs,
         { trx = this.database }: FeatureFlagQueryOptions = {},

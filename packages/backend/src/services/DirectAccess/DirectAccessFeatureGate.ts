@@ -1,8 +1,10 @@
 import {
     CommercialFeatureFlags,
     ForbiddenError,
+    getErrorMessage,
     type RegisteredAccount,
 } from '@lightdash/common';
+import Logger from '../../logging/logger';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type LicenseService } from '../LicenseService/LicenseService';
 
@@ -28,7 +30,14 @@ export class DirectAccessFeatureGate {
                 },
             });
             return featureFlag.enabled;
-        } catch {
+        } catch (error) {
+            // Fail closed, but keep fault-denials distinguishable from
+            // policy denials in the logs.
+            Logger.warn(
+                `Direct access flag resolution failed; failing closed: ${getErrorMessage(
+                    error,
+                )}`,
+            );
             return false;
         }
     }

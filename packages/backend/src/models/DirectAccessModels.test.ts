@@ -1,6 +1,7 @@
 import { SpaceMemberRole } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
+import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import {
     AppGroupAccessTableName,
     AppUserAccessTableName,
@@ -17,9 +18,11 @@ import {
     SavedSqlGroupAccessTableName,
     SavedSqlUserAccessTableName,
 } from '../database/entities/savedSqlAccess';
+import { type UtilRepository } from '../utils/UtilRepository';
 import { AppAccessModel } from './AppAccessModel';
 import { DashboardAccessModel } from './DashboardAccessModel';
 import { type DirectAccess } from './directAccessModelUtils';
+import { ModelRepository } from './ModelRepository';
 import { SavedChartAccessModel } from './SavedChartAccessModel';
 import { SavedSqlAccessModel } from './SavedSqlAccessModel';
 
@@ -133,4 +136,27 @@ describe('direct access read models', () => {
             });
         },
     );
+});
+
+describe('direct access model wiring', () => {
+    it('exposes every concrete direct-access model with memoized getters', () => {
+        const models = new ModelRepository({
+            database: {} as Knex,
+            lightdashConfig: lightdashConfigMock,
+            utils: {} as UtilRepository,
+        });
+        expect(models.getAppAccessModel()).toBeInstanceOf(AppAccessModel);
+        expect(models.getDashboardAccessModel()).toBeInstanceOf(
+            DashboardAccessModel,
+        );
+        expect(models.getSavedChartAccessModel()).toBeInstanceOf(
+            SavedChartAccessModel,
+        );
+        expect(models.getSavedSqlAccessModel()).toBeInstanceOf(
+            SavedSqlAccessModel,
+        );
+        expect(models.getDashboardAccessModel()).toBe(
+            models.getDashboardAccessModel(),
+        );
+    });
 });

@@ -23,6 +23,7 @@ import { DirectAccessFeatureGate } from './DirectAccessFeatureGate';
 import {
     getLogicalAccessBatch,
     resolveDirectAccessBatch,
+    type DirectAccessResources,
 } from './directAccessResolver';
 
 export type DirectAccessResourceType =
@@ -78,13 +79,30 @@ type DirectAccessMutationInput = {
 };
 
 export class DirectAccessService extends BaseService {
-    constructor(
-        private readonly models: DirectAccessModels,
-        private readonly actorRoleResolver: DirectAccessActorRoleResolver,
-        private readonly featureGate: DirectAccessFeatureGate,
-        private readonly auditLogger?: DirectAccessAuditLogger,
-    ) {
+    private readonly models: DirectAccessModels;
+
+    private readonly actorRoleResolver: DirectAccessActorRoleResolver;
+
+    private readonly featureGate: DirectAccessFeatureGate;
+
+    private readonly auditLogger?: DirectAccessAuditLogger;
+
+    constructor({
+        models,
+        actorRoleResolver,
+        featureGate,
+        auditLogger,
+    }: {
+        models: DirectAccessModels;
+        actorRoleResolver: DirectAccessActorRoleResolver;
+        featureGate: DirectAccessFeatureGate;
+        auditLogger?: DirectAccessAuditLogger;
+    }) {
         super();
+        this.models = models;
+        this.actorRoleResolver = actorRoleResolver;
+        this.featureGate = featureGate;
+        this.auditLogger = auditLogger;
     }
 
     private static getOrganizationUuid(account: RegisteredAccount): UUID {
@@ -207,32 +225,29 @@ export class DirectAccessService extends BaseService {
     async resolveUserAccess({
         account,
         resourceType,
-        resourceUuids,
-        logicalRoles,
-        capabilityCeilings,
+        resources,
     }: {
         account: RegisteredAccount;
         resourceType: DirectAccessResourceType;
-        resourceUuids: UUID[];
-        logicalRoles: Record<string, SpaceMemberRole | undefined>;
-        capabilityCeilings: Record<string, SpaceMemberRole | null>;
+        resources: DirectAccessResources;
     }): Promise<Record<string, SpaceMemberRole | undefined>> {
         const organizationUuid =
             DirectAccessService.getOrganizationUuid(account);
         if (!(await this.featureGate.isEnabled(account))) {
-            return getLogicalAccessBatch(resourceUuids, logicalRoles);
+            // Disabled preserves pure logical-space behavior: capability
+            // ceilings belong to the direct-access feature and only apply
+            // while it is enabled.
+            return getLogicalAccessBatch(resources);
         }
         const directAccess = await this.getModel(resourceType).getUserAccess(
-            resourceUuids,
+            Object.keys(resources),
             account.user.userUuid,
             { organizationUuid },
         );
         return resolveDirectAccessBatch({
-            resourceUuids,
+            resources,
             directAccess,
             organizationUuid,
-            logicalRoles,
-            capabilityCeilings,
         });
     }
 

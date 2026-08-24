@@ -5,45 +5,54 @@ import {
 } from '@lightdash/common';
 import { type DirectAccess } from '../../models/directAccessModelUtils';
 
+/**
+ * Every resource carries an explicit ceiling decision; an absent entry cannot
+ * be silently conflated with "no capability".
+ */
+export type DirectAccessResources = Record<
+    UUID,
+    {
+        logicalRole: SpaceMemberRole | undefined;
+        capabilityCeiling: SpaceMemberRole | null;
+    }
+>;
+
 export const resolveDirectAccessBatch = ({
-    resourceUuids,
+    resources,
     directAccess,
     organizationUuid,
-    logicalRoles,
-    capabilityCeilings,
 }: {
-    resourceUuids: UUID[];
+    resources: DirectAccessResources;
     directAccess: Record<string, DirectAccess>;
     organizationUuid: UUID;
-    logicalRoles: Record<string, SpaceMemberRole | undefined>;
-    capabilityCeilings: Record<string, SpaceMemberRole | null>;
 }): Record<string, SpaceMemberRole | undefined> =>
     Object.fromEntries(
-        [...new Set(resourceUuids)].map((resourceUuid) => {
-            const candidate = directAccess[resourceUuid];
-            const direct =
-                candidate?.organizationUuid === organizationUuid
-                    ? candidate
-                    : undefined;
-            return [
-                resourceUuid,
-                resolveDirectAccessRole({
-                    logicalSpaceRole: logicalRoles[resourceUuid],
-                    directUserRole: direct?.userRole ?? undefined,
-                    directGroupRoles: direct?.groupRoles ?? [],
-                    capabilityCeiling: capabilityCeilings[resourceUuid] ?? null,
-                }),
-            ];
-        }),
+        Object.entries(resources).map(
+            ([resourceUuid, { logicalRole, capabilityCeiling }]) => {
+                const candidate = directAccess[resourceUuid];
+                const direct =
+                    candidate?.organizationUuid === organizationUuid
+                        ? candidate
+                        : undefined;
+                return [
+                    resourceUuid,
+                    resolveDirectAccessRole({
+                        logicalSpaceRole: logicalRole,
+                        directUserRole: direct?.userRole ?? undefined,
+                        directGroupRoles: direct?.groupRoles ?? [],
+                        capabilityCeiling,
+                    }),
+                ];
+            },
+        ),
     );
 
 export const getLogicalAccessBatch = (
-    resourceUuids: UUID[],
-    logicalRoles: Record<string, SpaceMemberRole | undefined>,
+    resources: DirectAccessResources,
 ): Record<string, SpaceMemberRole | undefined> =>
     Object.fromEntries(
-        [...new Set(resourceUuids)].map((resourceUuid) => [
+        Object.entries(resources).map(([resourceUuid, { logicalRole }]) => [
             resourceUuid,
-            logicalRoles[resourceUuid],
+            logicalRole,
         ]),
     );

@@ -43,6 +43,9 @@ describe('DirectAccessFeatureGate', () => {
     it('requires both a valid EE license and the single direct-access flag', async () => {
         const enabled = buildGate({ licensed: true, flagResult: true });
         await expect(enabled.gate.isEnabled(account)).resolves.toBe(true);
+        await expect(
+            enabled.gate.assertEnabled(account),
+        ).resolves.toBeUndefined();
         expect(enabled.get).toHaveBeenCalledWith({
             featureFlagId: CommercialFeatureFlags.DirectAccess,
             user: {

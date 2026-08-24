@@ -597,7 +597,9 @@ describe('direct access read models PostgreSQL integration', () => {
         });
 
         await expect(
-            model.getUserAccess([dashboardUuid], principal.userUuid),
+            model.getUserAccess([dashboardUuid], principal.userUuid, {
+                organizationUuid,
+            }),
         ).resolves.toHaveProperty(`${dashboardUuid}.groupRoles`, [
             SpaceMemberRole.ADMIN,
         ]);
@@ -606,7 +608,9 @@ describe('direct access read models PostgreSQL integration', () => {
             .where({ project_uuid: projectUuid, group_uuid: groupUuid })
             .delete();
         await expect(
-            model.getUserAccess([dashboardUuid], principal.userUuid),
+            model.getUserAccess([dashboardUuid], principal.userUuid, {
+                organizationUuid,
+            }),
         ).resolves.toHaveProperty(`${dashboardUuid}.groupRoles`, []);
     });
 
@@ -1075,6 +1079,7 @@ describe('direct access read models PostgreSQL integration', () => {
                         groupUuid: missingGroupUuid,
                         actorRole: SpaceMemberRole.ADMIN,
                         actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                        organizationUuid,
                     }),
                 ).rejects.toMatchObject({
                     name: 'NotFoundError',
