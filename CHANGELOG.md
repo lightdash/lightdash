@@ -1,3 +1,10 @@
+# [1.247.0](https://github.com/lightdash/lightdash/compare/1.246.0...1.247.0) (2026-08-24)
+
+
+### Features
+
+* **ai:** save custom chart type answers as saved charts ([#27874](https://github.com/lightdash/lightdash/issues/27874)) ([5f90419](https://github.com/lightdash/lightdash/commit/5f90419644f6c9139f50c1182647fc58d6d78432))
+
 # [1.246.0](https://github.com/lightdash/lightdash/compare/1.245.0...1.246.0) (2026-08-24)
 
 
