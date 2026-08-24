@@ -5,3 +5,6 @@ import { createContext, useContext } from 'react';
 export const ChartGalleryContext = createContext(false);
 
 export const useIsInsideChartGallery = () => useContext(ChartGalleryContext);
+
+/** Focus lands here when chart type authoring hands back to the sidebar. */
+export const CHART_GALLERY_SIDEBAR_TITLE_ID = 'chart-gallery-sidebar-title';

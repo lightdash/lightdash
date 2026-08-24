@@ -1,6 +1,5 @@
 import {
     derivePivotConfigurationFromChart,
-    ECHARTS_DEFAULT_COLORS,
     getFieldsFromMetricQuery,
     getHiddenTableFields,
     getPivotConfig,
@@ -11,7 +10,7 @@ import {
     type EChartsSeries,
     type FieldId,
 } from '@lightdash/common';
-import { Button, useComputedColorScheme } from '@mantine/core';
+import { Button } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
@@ -37,17 +36,12 @@ import {
     selectSorts,
     selectTableCalculationsMetadata,
     selectUnsavedChartVersion,
-    selectUnsavedColorPaletteUuid,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
-import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { resolveMergeColumnOrder } from '../../../features/mergeQuery/utils/resolveMergeColumnOrder';
-import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
-import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useExplore } from '../../../hooks/useExplore';
-import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useFullscreen from '../../../providers/Fullscreen/useFullscreen';
@@ -64,6 +58,8 @@ import { useIsChartGalleryEnabled } from '../ChartGallery/useIsChartGalleryEnabl
 import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
 import { SeriesContextMenu } from './SeriesContextMenu';
+import { useExplorerChartColorPalette } from './useExplorerChartColorPalette';
+import { useExplorerResultsData } from './useExplorerResultsData';
 import useVisualizationConfigPortalTarget from './useVisualizationConfigPortalTarget';
 import VisualizationTimezone from './VisualizationTimezone';
 import VisualizationWarning from './VisualizationWarning';
@@ -89,7 +85,6 @@ const VisualizationCard: FC<Props> = memo((props) => {
         minimal = false,
     } = props;
     const { health } = useApp();
-    const colorScheme = useComputedColorScheme();
     const dispatch = useExplorerDispatch();
     // In fullscreen the chart card header is hidden so the chart owns the viewport
     const { isFullscreen } = useFullscreen();
@@ -101,111 +96,19 @@ const VisualizationCard: FC<Props> = memo((props) => {
     const sorts = useExplorerSelector(selectSorts);
 
     const projectUuid = savedChart?.projectUuid || fallBackUUid;
-    const stagedColorPaletteUuid = useExplorerSelector(
-        selectUnsavedColorPaletteUuid,
-    );
-    // When the user has explicitly cleared a previously-set chart-level
-    // palette, ask the resolver to skip the chart-level branch but seed
-    // the space walk from the chart's own space — otherwise the resolver
-    // loses the space cascade entirely and falls back to project/org.
-    const isClearingChartLevelPalette =
-        stagedColorPaletteUuid === null && savedChart?.colorPaletteUuid != null;
-    const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
-        chartUuid: isClearingChartLevelPalette ? undefined : savedChart?.uuid,
-        spaceUuid: isClearingChartLevelPalette
-            ? savedChart?.spaceUuid
-            : undefined,
-        dashboardUuid: savedChart?.dashboardUuid ?? undefined,
-    });
-
-    const { data: palettes } = useColorPalettes({
-        enabled: stagedColorPaletteUuid !== null,
-    });
-    const stagedPalette = useMemo(() => {
-        if (stagedColorPaletteUuid === null) {
-            return undefined;
-        }
-        return palettes?.find(
-            (p) => p.colorPaletteUuid === stagedColorPaletteUuid,
-        );
-    }, [stagedColorPaletteUuid, palettes]);
-
-    const colorPalette = useMemo(() => {
-        if (stagedPalette) {
-            if (colorScheme === 'dark' && stagedPalette.darkColors) {
-                return stagedPalette.darkColors;
-            }
-            return stagedPalette.colors;
-        }
-        if (colorScheme === 'dark' && resolvedPalette?.darkColors) {
-            return resolvedPalette.darkColors;
-        }
-        return resolvedPalette?.colors ?? ECHARTS_DEFAULT_COLORS;
-    }, [colorScheme, resolvedPalette, stagedPalette]);
-
+    const colorPalette = useExplorerChartColorPalette(projectUuid);
     const {
         query,
         queryResults,
-        isLoading,
         getDownloadQueryUuid,
         validQueryArgs,
-    } = useExplorerQuery();
-    // A configured merge replaces the query it was built from: its result is
-    // the chart's result, so running both would cost two warehouse queries to
-    // show one of them.
-    const merge = useMergeSafe();
-    const mergeResults = merge?.mergeResults ?? null;
-    // A restored merge is the chart. Until it lands, the primary source's rows are the
-    // wrong numbers wearing the right config — show loading, not them.
-    const awaitingRestoredMerge =
-        !!merge?.isMerging &&
-        merge.wasRestored &&
-        !mergeResults &&
-        !merge.runError &&
-        merge.runErrors.length === 0;
-    const suppressPrimaryResults =
-        awaitingRestoredMerge ||
-        (!!merge?.isMerging &&
-            !mergeResults &&
-            (merge.isRunning ||
-                !!merge.runError ||
-                merge.runErrors.length > 0));
-    const isLoadingQueryResults = mergeResults
-        ? mergeResults.results.isFetchingRows
-        : !!merge?.isRunning ||
-          awaitingRestoredMerge ||
-          isLoading ||
-          queryResults.isFetchingRows;
-
-    const resultsData = useMemo(() => {
-        if (mergeResults) {
-            return {
-                ...mergeResults.results,
-                metricQuery: mergeResults.metricQuery,
-                fields: mergeResults.fields,
-                resolvedTimezone: undefined,
-            };
-        }
-        // No fields and no rows while the restored merge is pending: the
-        // chart config validates its layout against whatever fields it is
-        // given, and primary-source fields would fail the saved merged layout and
-        // rebuild it from defaults — silently discarding the saved config.
-        if (suppressPrimaryResults) {
-            return {
-                ...queryResults,
-                rows: [],
-                metricQuery: undefined,
-                fields: undefined,
-                resolvedTimezone: undefined,
-            };
-        }
-        return {
-            ...queryResults,
-            metricQuery: query.data?.metricQuery,
-            fields: query.data?.fields,
-            resolvedTimezone: query.data?.resolvedTimezone ?? undefined,
-        };
-    }, [query.data, queryResults, mergeResults, suppressPrimaryResults]);
+        missingRequiredParameters,
+        merge,
+        mergeResults,
+        suppressPrimaryResults,
+        isLoadingQueryResults,
+        resultsData,
+    } = useExplorerResultsData();
 
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     const parameters = useExplorerSelector(selectParameters);
@@ -323,8 +226,6 @@ const VisualizationCard: FC<Props> = memo((props) => {
         },
         [visualizationMetricQuery],
     );
-
-    const { missingRequiredParameters } = useExplorerQuery();
 
     const apiErrorDetail = useMemo(() => {
         const queryError = query.error?.error ?? queryResults.error?.error;

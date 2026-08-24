@@ -1,10 +1,20 @@
 import { type ChartType } from '@lightdash/common';
 import { ActionIcon, Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconArrowLeft, IconSettings, IconX } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { type FC } from 'react';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
+import {
+    explorerActions,
+    selectChartSidebarStep,
+    selectIsChartTypeAuthoring,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { ChartGalleryContext } from '../../common/ChartGallery/ChartGalleryContext';
+import {
+    CHART_GALLERY_SIDEBAR_TITLE_ID,
+    ChartGalleryContext,
+} from '../../common/ChartGallery/ChartGalleryContext';
 import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -20,10 +30,20 @@ type Props = {
     onClose: () => void;
 };
 
-type Mode = 'choose' | 'configure';
-
 const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
-    const [mode, setMode] = useState<Mode>('configure');
+    // The step lives in the store so authoring can hand back to it.
+    const step = useExplorerSelector(selectChartSidebarStep);
+    // While a type is being authored the sidebar configures it and stays.
+    const isAuthoring = useExplorerSelector(selectIsChartTypeAuthoring);
+    const dispatch = useExplorerDispatch();
+    const showChoose = () =>
+        dispatch(explorerActions.setChartSidebarStep('choose'));
+    const showConfigure = () =>
+        dispatch(explorerActions.setChartSidebarStep('configure'));
+    const handleClose = () => {
+        showConfigure();
+        onClose();
+    };
     const projectUuid = useProjectUuid();
     const { visualizationConfig } = useVisualizationContext();
     const { getSelectedChartTypeItem } = useChartTypeOptions();
@@ -40,6 +60,11 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
         chartType,
         selectedProjectType ?? null,
     );
+    // A type being authored has no name until its first version lands.
+    const selectedLabel =
+        isAuthoring && !selectedProjectType
+            ? 'New chart type'
+            : selectedItem.label;
 
     return (
         <ChartGalleryContext.Provider value={true}>
@@ -51,26 +76,34 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                 >
                     <Group gap="xs" wrap="nowrap">
                         <MantineIcon icon={IconSettings} />
-                        <Text fw={600}>Configure chart</Text>
-                    </Group>
-                    <Tooltip
-                        label="Close visualization config"
-                        position="right"
-                    >
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            size="sm"
-                            aria-label="Close visualization config"
-                            onClick={onClose}
+                        <Text
+                            id={CHART_GALLERY_SIDEBAR_TITLE_ID}
+                            fw={600}
+                            tabIndex={-1}
                         >
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    </Tooltip>
+                            Configure chart
+                        </Text>
+                    </Group>
+                    {!isAuthoring && (
+                        <Tooltip
+                            label="Close visualization config"
+                            position="right"
+                        >
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                aria-label="Close visualization config"
+                                onClick={handleClose}
+                            >
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
                 </Group>
 
                 <Stack className={classes.body} gap="md">
-                    {mode === 'choose' ? (
+                    {step === 'choose' ? (
                         <>
                             <Group gap="xs" wrap="nowrap">
                                 <ActionIcon
@@ -78,7 +111,7 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                     color="gray"
                                     size="sm"
                                     aria-label="Back to configuration"
-                                    onClick={() => setMode('configure')}
+                                    onClick={showConfigure}
                                 >
                                     <MantineIcon icon={IconArrowLeft} />
                                 </ActionIcon>
@@ -87,7 +120,7 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                 </Text>
                             </Group>
                             <ExplorerChartTypeGallery
-                                onSelected={() => setMode('configure')}
+                                onSelected={showConfigure}
                             />
                         </>
                     ) : (
@@ -99,18 +132,20 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                     rotatedIcon={selectedItem.rotatedIcon}
                                 />
                                 <Text fw={600} fz="sm" truncate flex={1}>
-                                    {selectedItem.label}
+                                    {selectedLabel}
                                 </Text>
-                                <Anchor
-                                    component="button"
-                                    type="button"
-                                    className={classes.buttonAnchor}
-                                    fz="xs"
-                                    fw={500}
-                                    onClick={() => setMode('choose')}
-                                >
-                                    Change
-                                </Anchor>
+                                {!isAuthoring && (
+                                    <Anchor
+                                        component="button"
+                                        type="button"
+                                        className={classes.buttonAnchor}
+                                        fz="xs"
+                                        fw={500}
+                                        onClick={showChoose}
+                                    >
+                                        Change
+                                    </Anchor>
+                                )}
                             </Group>
 
                             <VisualizationConfig
