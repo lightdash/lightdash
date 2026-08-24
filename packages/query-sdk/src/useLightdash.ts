@@ -19,9 +19,10 @@ import { QueryBuilder } from './query';
 import { savedChartQueryKey, type SavedChartQuery } from './savedChart';
 import type {
     Column,
-    DownloadUnderlyingDataOptions,
     DownloadResultsOptions,
     DownloadResultsResult,
+    DownloadUnderlyingDataOptions,
+    DrillDownAction,
     FormatFunction,
     Row,
     UnderlyingDataOptions,
@@ -39,6 +40,13 @@ export const buildLineageProps = (queryUuid: string | null): LineageProps =>
     queryUuid ? { 'data-ld-query': queryUuid } : {};
 
 const noopFormat: FormatFunction = (_row, _fieldId) => '';
+
+const drillDownUnavailable = (message: string): DrillDownAction => ({
+    enabled: false,
+    open: async () => {
+        throw new Error(message);
+    },
+});
 
 type UseLightdashResult = {
     /** Result rows as flat objects. Numbers are numbers, strings are strings. */
@@ -59,6 +67,8 @@ type UseLightdashResult = {
     queryUuid: string | null;
     /** Spread onto the root element of this query's UI block to enable data lineage. */
     lineage: LineageProps;
+    /** Native host drill-down bound to this loaded query. */
+    drillDown: DrillDownAction;
     /** Fetch raw rows behind an aggregated metric value from this query result. */
     getUnderlyingData: (
         options: UnderlyingDataOptions,
@@ -85,6 +95,11 @@ export function useLightdash(
     const [error, setError] = useState<Error | null>(null);
     const [fetchCount, setFetchCount] = useState(0);
     const [queryUuid, setQueryUuid] = useState<string | null>(null);
+    const [drillDown, setDrillDown] = useState<DrillDownAction>(() =>
+        drillDownUnavailable(
+            'Drill-down is not available before the query loads.',
+        ),
+    );
     const [getUnderlyingData, setGetUnderlyingData] = useState<
         UseLightdashResult['getUnderlyingData']
     >(() => async () => {
@@ -125,6 +140,11 @@ export function useLightdash(
         setError(null);
         setQueryUuid(null);
         setTotalResults(null);
+        setDrillDown(
+            drillDownUnavailable(
+                'Drill-down is not available before the query loads.',
+            ),
+        );
         setGetUnderlyingData(() => async () => {
             throw new Error(
                 'Underlying data is not available before the query loads.',
@@ -159,6 +179,12 @@ export function useLightdash(
                 setFormat(() => res.format);
                 setTotalResults(res.totalResults ?? res.rows.length);
                 setQueryUuid(res.queryUuid ?? null);
+                setDrillDown(
+                    res.drillDown ??
+                        drillDownUnavailable(
+                            'Native drill-down is not supported by this Lightdash transport. Use buildDrillDownQuery() for a custom or standalone drill experience.',
+                        ),
+                );
                 setGetUnderlyingData(
                     () => async (options: UnderlyingDataOptions) => {
                         if (!res.getUnderlyingData) {
@@ -216,6 +242,7 @@ export function useLightdash(
         refetch,
         queryUuid,
         lineage,
+        drillDown,
         getUnderlyingData,
         downloadUnderlyingData,
         downloadResults,

@@ -156,6 +156,21 @@ export type Row = Record<string, string | number | boolean | null>;
 
 export type FormatFunction = (row: Row, fieldId: string) => string;
 
+export type NativeDrillDownOptions = {
+    /** Original row returned by this query result. */
+    row: Row;
+    /** Metric from the source query. */
+    metric: string;
+};
+
+/** Native Lightdash drill-down bound to one loaded query result. */
+export type DrillDownAction = {
+    /** False outside a current Lightdash iframe host or without permission. */
+    enabled: boolean;
+    /** Ask the host to open its dimension picker and drilled Explore view. */
+    open: (options: NativeDrillDownOptions) => Promise<void>;
+};
+
 export type QueryResult = {
     rows: Row[];
     columns: Column[];
@@ -164,6 +179,8 @@ export type QueryResult = {
     totalResults?: number;
     /** Async query UUID for the source query. Useful for debugging and advanced flows. */
     queryUuid?: string;
+    /** Host-owned drill-down for a metric value from this query result. */
+    drillDown?: DrillDownAction;
     /**
      * Fetch raw rows behind an aggregated metric value from this query result.
      * Available when the transport supports Lightdash underlying-data queries.
@@ -277,6 +294,24 @@ export const VIZ_DRILL_DOWN_PATH = '/__sdk/viz/drill-down';
  * subsequent UI.
  */
 export type VizDrillDownIntent = {
+    row: Record<
+        string,
+        { value?: { raw?: unknown; formatted?: string } } | undefined
+    >;
+    metric: string;
+};
+
+/**
+ * Bridge-only virtual route for native drill-down from a full data app.
+ * Duplicated from `@lightdash/common` (`APP_SDK_DRILL_DOWN_PATH`) because the
+ * published SDK intentionally has no common-package dependency.
+ */
+export const DRILL_DOWN_PATH = '/__sdk/drill-down';
+
+/** Internal full-app click intent. Public callers pass a flat SDK row; the
+ * transport qualifies its keys and restores formatted values before posting. */
+export type HostDrillDownIntent = {
+    queryUuid: string;
     row: Record<
         string,
         { value?: { raw?: unknown; formatted?: string } } | undefined

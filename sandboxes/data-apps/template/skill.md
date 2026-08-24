@@ -330,6 +330,7 @@ If the dbt YAML declares a `parameters:` block (under a model's `meta:` / `confi
 | `lineage` | `LineageProps` | **Spread on the root element of every rendered query block** (`<div {...lineage}>`). Stamps the block so the host's Inspect data button can trace it back to this query — without it that button stays disabled. |
 | `refetch` | `() => void` | Re-run the query on demand. |
 | `queryUuid` | `string \| null` | The async Lightdash query UUID for the loaded source query. Rarely needed directly. |
+| `drillDown` | `{ enabled: boolean; open: ({ row, metric }) => Promise<void> }` | Open Lightdash's native drill-down dialog for a metric result. Show the action only when `enabled` is true and call it from a user action with the original result row. |
 | `getUnderlyingData` | `({ row, metric, limit? }) => Promise<{ rows, columns, format, queryUuid }>` | Fetch raw rows behind an aggregated metric value. Call from a user action, never on initial render. |
 | `downloadUnderlyingData` | `({ row, metric, fileType?, values?, limit?, filename? }) => Promise<{ fileUrl, truncated, queryUuid, jobId }>` | Schedule a backend CSV/XLSX export for raw rows behind an aggregated metric value. Call from a user action. |
 | `downloadResults` | `({ fileType?, values?, limit?, filename? }) => Promise<{ fileUrl, truncated, queryUuid, jobId }>` | Schedule a backend CSV/XLSX export. Call from a user action. |
@@ -800,7 +801,7 @@ Every user-triggered async data action must also show a loading state while it i
 - `downloadResults()` and `downloadUnderlyingData()` exports: disable export controls and show a spinner or "Exporting..." label until the promise settles.
 - PDF exports: disable the Download PDF button and show a spinner or "Exporting..." label until the file has been saved.
 - `getUnderlyingData()` requests: show a spinner in the dialog/sheet/table area until rows arrive.
-- Drilldown queries: show a spinner in the drilldown dialog while the drill query loads.
+- Custom inline drilldown queries: show a spinner in the app-owned dialog while the drill query loads. Native `drillDown.open()` loading is owned by Lightdash.
 - `refetch()` flows: show an inline refresh spinner or disabled refreshing state.
 
 **Keep the surrounding UI stable during loading.** Cards, headings, and layout should always render — only the data-driven content (chart, table body, KPI value) should be replaced with a spinner. This prevents the page from flashing or reflowing when data arrives.
@@ -985,16 +986,18 @@ wrong from the first frame.
 
 **When the clicked value represents a metric result, the same default action menu should also include "View underlying data".** Users should not have to explicitly ask for underlying data support. Add it for bars, points, slices, KPI values, pivot value cells, and table metric cells whenever you have the original source `row` and metric name. It should call `getUnderlyingData({ row, metric })` from a user action and show the rows in a dialog/sheet with loading and error states. That underlying-data table/dialog must include a Download button that calls `downloadUnderlyingData({ row, metric, ... })`. If the clicked cell is only a dimension/category value with no metric context, underlying-data actions can be omitted.
 
-Additional contextual options can be added when useful:
+The same metric-value menu should include **"Drill into …"** whenever the loaded result's `drillDown.enabled` is true. Call `drillDown.open({ row, metric })` with the original result row. Lightdash owns the dimension picker and results dialog, so app code must not choose the drill dimension or build a second query for this default interaction.
 
-- **Drill down** — see this metric broken down by another dimension
+Additional contextual options can be added when useful.
+
+For a custom inline or standalone drill experience, use `buildDrillDownQuery()` as described in [Custom drill-down queries](#custom-drill-down-queries).
 
 Use the `DropdownMenu` component. The menu opens on click; each option triggers its respective action.
 
 ```tsx
 import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { query, useLightdash, drillDown } from '@lightdash/query-sdk';
+import { query, useLightdash } from '@lightdash/query-sdk';
 import { Bar, BarChart } from 'recharts';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useGlobalFilters } from '@/lib/filters';
@@ -1012,10 +1015,15 @@ function RevenueChart() {
         () => baseQuery.filters(filtersFor(EXPLORE)),
         [filtersFor],
     );
-    const { data, format, loading, getUnderlyingData, downloadUnderlyingData } =
-        useLightdash(chartQuery);
+    const {
+        data,
+        format,
+        loading,
+        drillDown,
+        getUnderlyingData,
+        downloadUnderlyingData,
+    } = useLightdash(chartQuery);
     const [menuState, setMenuState] = useState(null); // { row, x, y }
-    const [drillState, setDrillState] = useState(null); // { query, title }
     const [underlyingState, setUnderlyingState] = useState(null); // { title, row, metric, promise }
 
     return (
@@ -1075,33 +1083,21 @@ function RevenueChart() {
                         }}>
                             View underlying data
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                            const row = menuState.row;
-                            setDrillState({
-                                query: drillDown({
-                                    sourceQuery: chartQuery,
-                                    metric: 'total_revenue',
-                                    dimension: 'order_date',
+                        {drillDown.enabled && (
+                            <DropdownMenuItem onClick={() => {
+                                const row = menuState.row;
+                                setMenuState(null);
+                                void drillDown.open({
                                     row,
-                                }),
-                                title: `Revenue for ${format(row, 'customer_segment')}`,
-                            });
-                            setMenuState(null);
-                        }}>
-                            Drill into revenue
-                        </DropdownMenuItem>
+                                    metric: 'total_revenue',
+                                });
+                            }}>
+                                Drill into revenue
+                            </DropdownMenuItem>
+                        )}
                     </DropdownMenuContent>
                 </DropdownMenu>,
                 document.body,
-            )}
-
-            {drillState && (
-                <Dialog open onOpenChange={() => setDrillState(null)}>
-                    <DialogContent className="max-w-3xl">
-                        <DialogHeader><DialogTitle>{drillState.title}</DialogTitle></DialogHeader>
-                        <DrillResults query={drillState.query} />
-                    </DialogContent>
-                </Dialog>
             )}
 
             {underlyingState && (
@@ -1131,7 +1127,7 @@ function RevenueChart() {
 
 `UnderlyingRows` should be a small component that resolves the promise, shows a spinner while pending, handles errors, and renders `result.columns` / `result.rows` in a scrollable table. Its header should include a Download button wired to `onDownload`, disabled while exporting, with a spinner or "Exporting..." label until the promise settles.
 
-**This is the default for every chart and table that renders Lightdash query data.** The "Filter by &lt;value&gt;" option is mandatory. "View underlying data" is also expected for metric values when the source row and metric are unambiguous, and every underlying-data table/dialog should include a Download button. "Drill into …" is encouraged where it makes sense.
+**This is the default for every chart and table that renders Lightdash query data.** The "Filter by &lt;value&gt;" option is mandatory. "View underlying data" is also expected for metric values when the source row and metric are unambiguous, and every underlying-data table/dialog should include a Download button. Include "Drill into …" for metric values whenever `drillDown.enabled` is true.
 
 If the user explicitly asks for a different interaction (e.g., "clicking should always filter without showing a menu" or "no drill-down needed"), follow their instructions. Otherwise, every data-powered chart and table gets the action menu — at minimum with the "Filter by &lt;value&gt;" option wired into the global filter context.
 
@@ -1232,9 +1228,9 @@ If a Recharts component covers it, **use Recharts** — even if a D3 version wou
 
 When you do need D3, **read `/app/references/d3.md` first.** It contains the React-19 + D3 integration pattern, five worked examples (bar, sankey, sunburst, word cloud, geo choropleth/globe), the cross-cutting rules (`CHART_COLORS`, `filtersFor`, action menu, no-cross-refetch animation), and a common-mistakes table. Don't try to wire D3 from memory — load the reference.
 
-## `drillDown()` Reference
+## Custom drill-down queries
 
-The action-menu example above shows typical `drillDown()` usage. For the full API (argument semantics, choosing the drill dimension, and the results-dialog pattern), read `/app/references/drilldown.md`.
+Native `drillDown.open({ row, metric })` is the default in Lightdash-hosted data apps. If a user explicitly requests an inline drill result, a predetermined drill dimension, or a standalone app experience, use `buildDrillDownQuery()` to compose and render that custom query. For the full helper API and results-dialog pattern, read `/app/references/drilldown.md`.
 
 ## Common Pitfalls
 

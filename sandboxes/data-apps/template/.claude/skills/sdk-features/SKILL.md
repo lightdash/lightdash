@@ -19,7 +19,8 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | "Inspect data" (Queries panel button) | `lineage` | required — see below |
 | "select an element", editor element picker | `inspect` | none (automatic) |
 | thumbnails / screenshots / scheduled deliveries | `screenshot` | required — see below |
-| drill down, click into a chart | `drill-down` | app code opt-in |
+| native drill down in a full app | `app-drill-down` | app code opt-in |
+| custom inline drill query | `drill-down` | app code opt-in |
 | drill into a viz data point (reusable visualization) | `viz-drill-down` | app code opt-in |
 | "share this view", URL that restores state | `url-state` | app code opt-in |
 | Google Sheets export | `gsheet-export` | app code opt-in |
@@ -101,12 +102,19 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
 
 ### App-code opt-ins (call the API where it fits the app)
 
-- `drill-down`: `drillDown(...)` derives a more detailed query from a clicked
-  result row — wire it to click handlers on charts/rows.
+- `app-drill-down`: every loaded `useLightdash()` result exposes
+  `drillDown: { enabled, open }`. Keep the original result row on each metric
+  datum, show "Drill into …" only when `drillDown.enabled`, and call
+  `drillDown.open({ row, metric })`. Lightdash opens its native dimension
+  picker and Explore flow.
+- `drill-down`: `buildDrillDownQuery(...)` (also exported under its original
+  name, `drillDown`) derives a query for a custom inline or standalone drill
+  experience. Do not use it for the ordinary hosted-app action.
 - `viz-drill-down`: in a reusable visualization, the data-point action menu
   offers "Drill into …" when `useVizContext().drillDown.enabled`; selection
   calls `drillDown.open({ row, metric })` and Lightdash opens its drill
-  dialog. Distinct from `drill-down`, which is the full-app query helper.
+  dialog. Distinct from `app-drill-down`, which is bound to a full app's
+  `useLightdash()` result.
 - `url-state`: `useUrlState(...)` syncs a piece of app state into the page URL
   so views can be shared and restored.
 - `gsheet-export`: `exportToSheets(...)` sends tabular results to a new

@@ -1125,6 +1125,19 @@ export type DataAppVizDrillDownIntent = {
     metric: string;
 };
 
+// Bridge-only virtual route: a full data app asks the host to drill from one
+// of its loaded SDK queries. The host owns the dimension picker and Explore
+// navigation; this route is never forwarded to the API.
+export const APP_SDK_DRILL_DOWN_PATH = '/__sdk/drill-down';
+
+// Unlike a reusable viz, a full app can run many queries. The query UUID binds
+// the click to the exact canonical metric query recorded by the host bridge.
+export type DataAppDrillDownIntent = {
+    queryUuid: string;
+    row: ResultRow;
+    metric: string;
+};
+
 // Host-owned render context pushed into a data app viz: field name → bound query
 // field id, the host-fetched result rows the renderer reads, the effective
 // config option values (stored value ?? declared default), and the palette

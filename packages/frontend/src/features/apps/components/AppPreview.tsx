@@ -122,7 +122,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 onLineageSelected={onLineageSelected}
                 lineageHighlightQueryUuid={lineageHighlightQueryUuid}
                 onLineageCancelled={onLineageCancelled}
-                capabilities={{ gsheetExport: true }}
+                capabilities={{ gsheetExport: true, drillDown: true }}
                 dataAppVizContext={dataAppVizContext}
                 urlStateSync
                 onSdkManifest={onSdkManifest}

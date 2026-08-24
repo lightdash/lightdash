@@ -146,6 +146,7 @@ type DrillDownExploreUrlArgs = {
     pivotReference?: PivotReference;
     explore?: Explore;
     timezone?: string;
+    parameters?: CreateSavedChartVersion['parameters'];
 };
 
 const drillDownExploreUrl = ({
@@ -159,6 +160,7 @@ const drillDownExploreUrl = ({
     pivotReference,
     explore,
     timezone,
+    parameters,
 }: DrillDownExploreUrlArgs) => {
     const createSavedChartVersion: CreateSavedChartVersion = {
         tableName,
@@ -193,6 +195,7 @@ const drillDownExploreUrl = ({
             type: ChartType.CARTESIAN,
             config: { layout: {}, eChartsConfig: {} },
         },
+        parameters,
     };
     const { pathname, search } = getExplorerUrlFromCreateSavedChartVersion(
         projectUuid,
@@ -215,6 +218,7 @@ export const DrillDownModal: FC = () => {
         tableName,
         drillDownConfig,
         resolvedTimezone,
+        parameters: contextParameters,
     } = useMetricQueryDataContext();
     const source = drillDownConfig?.source;
     const metricQuery = source?.metricQuery ?? contextMetricQuery;
@@ -257,6 +261,7 @@ export const DrillDownModal: FC = () => {
                 pivotReference: drillDownConfig.pivotReference,
                 explore,
                 timezone: resolvedTimezone,
+                parameters: source?.parameters ?? contextParameters,
             });
         }
     }, [
@@ -266,6 +271,8 @@ export const DrillDownModal: FC = () => {
         drillDownConfig,
         projectUuid,
         resolvedTimezone,
+        contextParameters,
+        source?.parameters,
     ]);
 
     const onClose = useCallback(() => {

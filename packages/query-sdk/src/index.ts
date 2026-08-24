@@ -2,8 +2,10 @@
 export { query } from './query';
 export { savedChart, type SavedChartQuery } from './savedChart';
 
-// Drill-down helper
-export { drillDown } from './drillDown';
+// Drill-down query builder (custom/standalone escape hatch). The original
+// name remains backwards compatible; the explicit alias distinguishes it
+// from the native `useLightdash().drillDown` action.
+export { drillDown, drillDown as buildDrillDownQuery } from './drillDown';
 
 // Client
 export { createClient, LightdashClient } from './client';
@@ -39,6 +41,7 @@ export type {
     DownloadResultsResult,
     DownloadResultsValues,
     DownloadUnderlyingDataOptions,
+    DrillDownAction,
     ExternalFetchMethod,
     ExternalFetchOptions,
     ExternalFetchResult,
@@ -49,6 +52,7 @@ export type {
     LightdashClientConfig,
     LightdashUser,
     MetricType,
+    NativeDrillDownOptions,
     QueryDefinition,
     QueryResult,
     Row,

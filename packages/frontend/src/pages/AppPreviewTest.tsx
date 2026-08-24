@@ -279,7 +279,7 @@ export default function AppPreviewTest() {
                     onQueryEvent={handleQueryEvent}
                     onExternalRequestEvent={handleExternalRequestEvent}
                     urlStateSync
-                    capabilities={{ gsheetExport: true }}
+                    capabilities={{ gsheetExport: true, drillDown: true }}
                     lineageEnabled={lineageEnabled}
                     onLineageAvailabilityChange={setLineageAvailable}
                     onLineageSelected={handleLineageSelected}

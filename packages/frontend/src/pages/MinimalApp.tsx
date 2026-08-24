@@ -301,6 +301,7 @@ export default function MinimalApp() {
                 identityKey={`${appUuid}:${latestReadyVersion}`}
                 onIframeLoad={handleIframeLoad}
                 onQueryEvent={handleQueryEvent}
+                capabilities={{ drillDown: captureMode === null }}
                 onScreenshotAvailabilityChange={handleScreenshotAvailable}
                 deliveryCapture={deliveryCapture}
                 // Both capture modes need every tab's data mounted: the

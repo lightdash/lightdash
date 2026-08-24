@@ -16,8 +16,10 @@ import type {
     ExternalFetchMethod,
     ExternalFetchOptions,
     ExternalFetchResult,
+    HostDrillDownIntent,
     Transport,
 } from './types';
+import { DRILL_DOWN_PATH } from './types';
 
 // ---------------------------------------------------------------------------
 // Protocol types — shared with the parent-side bridge (useAppSdkBridge)
@@ -46,6 +48,8 @@ export type SdkReadyMessage = {
      *  or its preview. Absent (never `false`) on ordinary interactive loads —
      *  see `deliveryRender.ts`'s `useDeliveryRender()`. */
     deliveryRender?: boolean;
+    /** Native full-app drill-down is available in this host for this viewer. */
+    drillDown?: { enabled?: boolean };
 };
 
 export type SdkScreenshotRequest = {
@@ -88,7 +92,10 @@ export type SdkGsheetExportColumn = {
     type?: SdkGsheetExportColumnType;
 };
 
-export type SdkGsheetExportRow = Record<string, string | number | boolean | null>;
+export type SdkGsheetExportRow = Record<
+    string,
+    string | number | boolean | null
+>;
 
 /**
  * Iframe → parent. The parent host (useAppSdkBridge) runs the Google OAuth
@@ -163,8 +170,9 @@ export const createRequestId = (): string =>
 function createPostMessageFetchAdapter(config: {
     targetWindow: Window;
     timeoutMs?: number;
+    onReady?: (message: SdkReadyMessage) => void;
 }): FetchAdapter {
-    const { targetWindow, timeoutMs = DEFAULT_TIMEOUT_MS } = config;
+    const { targetWindow, timeoutMs = DEFAULT_TIMEOUT_MS, onReady } = config;
     const pending = new Map<string, PendingRequest>();
 
     let readyResolve: (() => void) | null = null;
@@ -180,12 +188,17 @@ function createPostMessageFetchAdapter(config: {
         // The UUID ids already make spoofing hard — this closes the gap cheaply.
         if (event.source !== targetWindow) return;
         const { data } = event;
-        if (!data || typeof data !== 'object' || typeof data.type !== 'string') {
+        if (
+            !data ||
+            typeof data !== 'object' ||
+            typeof data.type !== 'string'
+        ) {
             return;
         }
 
         if (data.type === 'lightdash:sdk:ready') {
             clearTimeout(readyTimer);
+            onReady?.(data as SdkReadyMessage);
             readyResolve?.();
             readyResolve = null;
             return;
@@ -220,7 +233,11 @@ function createPostMessageFetchAdapter(config: {
         return new Promise<T>((resolve, reject) => {
             const timer = setTimeout(() => {
                 pending.delete(id);
-                reject(new Error(`SDK fetch timed out after ${timeoutMs}ms: ${method} ${path}`));
+                reject(
+                    new Error(
+                        `SDK fetch timed out after ${timeoutMs}ms: ${method} ${path}`,
+                    ),
+                );
             }, timeoutMs);
 
             pending.set(id, {
@@ -286,7 +303,11 @@ function createPostMessageExternalFetch(config: {
         // The UUID ids already make spoofing hard — this closes the gap cheaply.
         if (event.source !== targetWindow) return;
         const { data } = event;
-        if (!data || typeof data !== 'object' || typeof data.type !== 'string') {
+        if (
+            !data ||
+            typeof data !== 'object' ||
+            typeof data.type !== 'string'
+        ) {
             return;
         }
 
@@ -376,13 +397,27 @@ export function createPostMessageTransport(
     // Listen for the delivery/preview capture flag riding on the same
     // `lightdash:sdk:ready` handshake — see `useDeliveryRender()`.
     mountDeliveryRender(config.targetWindow);
+    let hostDrillDownEnabled = false;
     const adapter = createPostMessageFetchAdapter({
         targetWindow: config.targetWindow,
         timeoutMs: config.timeoutMs,
+        onReady: (message) => {
+            hostDrillDownEnabled = message.drillDown?.enabled === true;
+        },
     });
     const httpTransport = createApiTransport(
         { apiKey: '', baseUrl: '', projectUuid: config.projectUuid },
         adapter,
+        {
+            isEnabled: () => hostDrillDownEnabled,
+            open: async (intent: HostDrillDownIntent) => {
+                await adapter<Record<string, never>>(
+                    'POST',
+                    DRILL_DOWN_PATH,
+                    intent,
+                );
+            },
+        },
     );
     const externalFetch = createPostMessageExternalFetch({
         targetWindow: config.targetWindow,
