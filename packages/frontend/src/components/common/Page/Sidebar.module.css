@@ -144,13 +144,12 @@
     height: 100%;
     max-height: 100%;
     z-index: 1;
-}
-
-/* While open, the sidebar may give up width (down to its configured minimum)
-   before the page row overflows, so narrow windows reflow instead of clipping. */
-.sidebarContainer[data-open='true'] {
-    flex: 0 1 var(--sidebar-width);
-    min-width: min(var(--sidebar-width), var(--sidebar-min-width));
+    /* Sized by the paper, so the page content moves with its sliding margin,
+       yet free to yield down to the configured minimum before the page row
+       overflows. `width` only feeds the flex automatic minimum size (the
+       smaller of content and width): `flex-basis: content` ignores it. */
+    flex: 0 1 content;
+    width: var(--sidebar-min-width);
 }
 
 .sidebarPaper {
@@ -177,4 +176,11 @@
     width: calc(var(--sidebar-width) - 2 * var(--sidebar-padding));
     max-width: 100%;
     min-height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    /* No slide, but the fade still confirms the toggle. */
+    .sidebarPaper {
+        transition-property: opacity !important;
+    }
 }
