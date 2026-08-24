@@ -1,3 +1,11 @@
+## [1.251.3](https://github.com/lightdash/lightdash/compare/1.251.2...1.251.3) (2026-08-24)
+
+
+### Bug Fixes
+
+* **backend:** restore the getModelsFromManifest import ([#27959](https://github.com/lightdash/lightdash/issues/27959)) ([23c2c65](https://github.com/lightdash/lightdash/commit/23c2c65740924b99fc1416636e8a4a6ea4a345c5))
+* humanize metadata parse errors ([#27454](https://github.com/lightdash/lightdash/issues/27454)) ([49f8f52](https://github.com/lightdash/lightdash/commit/49f8f52aa0c92f3398e06de59ed346d3cc1c83db))
+
 ## [1.251.2](https://github.com/lightdash/lightdash/compare/1.251.1...1.251.2) (2026-08-24)
 
 
