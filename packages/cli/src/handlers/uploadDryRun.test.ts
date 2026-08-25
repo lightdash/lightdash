@@ -8,23 +8,29 @@ import {
     collectOrganizationUploadPlan,
     createUploadDryRunGroup,
     printUploadDryRunPlan,
+    summarizeUploadDryRun,
+    uploadDryRunWouldChange,
 } from './uploadDryRun';
 
 describe('addUploadDryRunOption', () => {
-    it('accepts --dry-run', () => {
+    it('accepts --dry-run, --json, and --strict', () => {
         const command = new Command();
         addUploadDryRunOption(command);
-        command.parse(['--dry-run'], { from: 'user' });
+        command.parse(['--dry-run', '--json', '--strict'], { from: 'user' });
 
         expect(command.opts().dryRun).toBe(true);
+        expect(command.opts().json).toBe(true);
+        expect(command.opts().strict).toBe(true);
     });
 
-    it('defaults --dry-run to false', () => {
+    it('defaults preview flags to false', () => {
         const command = new Command();
         addUploadDryRunOption(command);
         command.parse([], { from: 'user' });
 
         expect(command.opts().dryRun).toBe(false);
+        expect(command.opts().json).toBe(false);
+        expect(command.opts().strict).toBe(false);
     });
 });
 
@@ -44,16 +50,53 @@ describe('createUploadDryRunGroup', () => {
                 singular: 'chart',
                 slugs: ['zeta', 'alpha'],
                 unchangedSlugs: ['unchanged-chart'],
+                createSlugs: ['brand-new'],
+                skipAheadSlugs: ['edited-on-instance'],
             }),
         ).toEqual({
             label: 'Charts',
             singular: 'chart',
             items: [
-                { slug: 'alpha', action: 'UPLOAD' },
-                { slug: 'zeta', action: 'UPLOAD' },
-                { slug: 'unchanged-chart', action: 'NO_CHANGES' },
+                { slug: 'brand-new', action: 'create' },
+                { slug: 'alpha', action: 'update' },
+                { slug: 'zeta', action: 'update' },
+                { slug: 'unchanged-chart', action: 'no_change' },
+                { slug: 'edited-on-instance', action: 'skip_ahead' },
             ],
         });
+    });
+});
+
+describe('summarizeUploadDryRun', () => {
+    it('counts verdicts and treats skip-ahead as a change', () => {
+        const totals = summarizeUploadDryRun([
+            {
+                label: 'Charts',
+                singular: 'chart',
+                items: [
+                    { slug: 'new', action: 'create' },
+                    { slug: 'changed', action: 'update' },
+                    { slug: 'same', action: 'no_change' },
+                    { slug: 'ahead', action: 'skip_ahead' },
+                ],
+            },
+        ]);
+
+        expect(totals).toEqual({
+            create: 1,
+            update: 1,
+            no_change: 1,
+            skip_ahead: 1,
+        });
+        expect(uploadDryRunWouldChange(totals)).toBe(true);
+        expect(
+            uploadDryRunWouldChange({
+                create: 0,
+                update: 0,
+                no_change: 4,
+                skip_ahead: 0,
+            }),
+        ).toBe(false);
     });
 });
 
@@ -71,27 +114,62 @@ describe('printUploadDryRunPlan', () => {
         vi.restoreAllMocks();
     });
 
-    it('prints a grouped would-upload plan', () => {
+    it('prints a grouped would-update plan with totals', () => {
         printUploadDryRunPlan([
             {
                 label: 'Charts',
                 singular: 'chart',
                 items: [
-                    { slug: 'orders-over-time', action: 'UPLOAD' },
-                    { slug: 'stale-chart', action: 'NO_CHANGES' },
+                    { slug: 'orders-over-time', action: 'update' },
+                    { slug: 'stale-chart', action: 'no_change' },
+                    { slug: 'edited-on-instance', action: 'skip_ahead' },
                 ],
             },
         ]);
 
         const printed = output.join('\n');
         expect(printed).toContain('Dry run — no changes will be made.');
-        expect(printed).toContain('would upload chart orders-over-time');
+        expect(printed).toContain('would update chart orders-over-time');
+        expect(printed).toContain('no change chart stale-chart');
         expect(printed).toContain(
-            'would skip chart stale-chart (no local changes)',
+            'would skip chart edited-on-instance (instance ahead)',
+        );
+        expect(printed).toContain(
+            'Totals: 0 create, 1 update, 1 no change, 1 skip ahead.',
         );
         expect(printed).toContain(
             'No files were written and no content was uploaded.',
         );
+    });
+
+    it('prints JSON when requested', () => {
+        printUploadDryRunPlan(
+            [
+                {
+                    label: 'Charts',
+                    singular: 'chart',
+                    items: [{ slug: 'orders-over-time', action: 'update' }],
+                },
+            ],
+            { json: true },
+        );
+
+        expect(JSON.parse(output.join('\n'))).toEqual({
+            dryRun: true,
+            totals: {
+                create: 0,
+                update: 1,
+                no_change: 0,
+                skip_ahead: 0,
+            },
+            groups: [
+                {
+                    label: 'Charts',
+                    singular: 'chart',
+                    items: [{ slug: 'orders-over-time', action: 'update' }],
+                },
+            ],
+        });
     });
 
     it('prints an empty plan', () => {
@@ -135,7 +213,7 @@ describe('collectOrganizationUploadPlan', () => {
             {
                 label: 'Custom roles',
                 singular: 'custom role',
-                items: [{ slug: 'Developer view only', action: 'UPLOAD' }],
+                items: [{ slug: 'Developer view only', action: 'update' }],
             },
         ]);
     });

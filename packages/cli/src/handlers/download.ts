@@ -161,6 +161,7 @@ import {
     collectOrganizationUploadPlan,
     createUploadDryRunGroup,
     printUploadDryRunPlan,
+    uploadDryRunWouldChange,
     type UploadDryRunGroup,
 } from './uploadDryRun';
 
@@ -215,6 +216,8 @@ export type DownloadHandlerOptions = {
     organization: boolean;
     sendInvites?: boolean;
     dryRun?: boolean;
+    json?: boolean;
+    strict?: boolean;
 };
 
 type FolderScheme = 'flat' | 'nested';
@@ -3476,9 +3479,16 @@ export const uploadHandler = async (
 
     if (isOrganizationUpload) {
         if (options.dryRun === true) {
-            printUploadDryRunPlan(
+            const report = printUploadDryRunPlan(
                 await collectOrganizationUploadPlan(options.path),
+                { json: options.json === true },
             );
+            if (
+                options.strict === true &&
+                uploadDryRunWouldChange(report.totals)
+            ) {
+                process.exitCode = 1;
+            }
             return;
         }
         await uploadOrganizationContent({
@@ -3509,14 +3519,18 @@ export const uploadHandler = async (
 
     if (options.dryRun === true) {
         // Skip upserts, file writes, and any last-applied snapshot PUT.
-        printUploadDryRunPlan(
+        const report = printUploadDryRunPlan(
             await collectProjectUploadPlan({
                 options,
                 hasFilters,
                 shouldReconcileSpaces,
                 spaceFiles: preflightSpaceFiles,
             }),
+            { json: options.json === true },
         );
+        if (options.strict === true && uploadDryRunWouldChange(report.totals)) {
+            process.exitCode = 1;
+        }
         return;
     }
 

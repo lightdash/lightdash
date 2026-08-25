@@ -138,6 +138,8 @@ const makeDownloadHandlerOptions = (
     concurrency: 1,
     organization: false,
     dryRun: false,
+    json: false,
+    strict: false,
     ...overrides,
 });
 
@@ -1560,9 +1562,9 @@ describe('uploadHandler dry-run', () => {
 
         const printed = output.join('\n');
         expect(printed).toContain('Dry run — no changes will be made.');
-        expect(printed).toContain('would upload space finance');
-        expect(printed).toContain('would upload chart orders-over-time');
-        expect(printed).toContain('would upload dashboard weekly-kpis');
+        expect(printed).toContain('would update space finance');
+        expect(printed).toContain('would update chart orders-over-time');
+        expect(printed).toContain('would update dashboard weekly-kpis');
         expect(printed).toContain(
             'No files were written and no content was uploaded.',
         );
@@ -1573,6 +1575,42 @@ describe('uploadHandler dry-run', () => {
         expect(mutatingCalls).toEqual([]);
         expect(getContentAsCodeUploadPermissions).not.toHaveBeenCalled();
         await expect(fs.readFile(chartPath, 'utf-8')).resolves.toBe(before);
+        expect(process.exitCode).toBeUndefined();
+    });
+
+    it('prints JSON and sets exit code 1 with --strict when content would change', async () => {
+        await writeProjectContent();
+        const previousExitCode = process.exitCode;
+
+        await expect(
+            uploadHandler(
+                makeDownloadHandlerOptions({
+                    dryRun: true,
+                    json: true,
+                    strict: true,
+                    path: tmpDir,
+                    project: 'project-uuid',
+                    skipSpaces: false,
+                    skipVirtualViews: true,
+                    skipAgents: true,
+                    skipAlerts: true,
+                    skipGoogleSheets: true,
+                    skipScheduledDeliveries: true,
+                    skipExternalConnections: true,
+                }),
+            ),
+        ).resolves.toBeUndefined();
+
+        const report = JSON.parse(
+            output.find((line) => line.startsWith('{')) ?? '',
+        ) as {
+            dryRun: true;
+            totals: { update: number };
+        };
+        expect(report.dryRun).toBe(true);
+        expect(report.totals.update).toBeGreaterThan(0);
+        expect(process.exitCode).toBe(1);
+        process.exitCode = previousExitCode;
     });
 
     it('previews organization uploads without calling upsert APIs', async () => {
@@ -1601,7 +1639,7 @@ describe('uploadHandler dry-run', () => {
         ).resolves.toBeUndefined();
 
         expect(output.join('\n')).toContain(
-            'would upload custom role Developer view only',
+            'would update custom role Developer view only',
         );
         expect(
             vi

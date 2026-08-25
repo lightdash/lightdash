@@ -787,9 +787,11 @@ program
 
 const ORGANIZATION_MODE_OPTIONS = new Set([
     'dryRun',
+    'json',
     'organization',
     'path',
     'sendInvites',
+    'strict',
     'verbose',
 ]);
 
