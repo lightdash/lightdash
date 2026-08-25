@@ -167,18 +167,21 @@ const spaceContexts = {
         projectUuid: publicSpace.projectUuid,
         inheritsFromOrgOrProject: space.inherit_parent_permissions,
         access: [],
+        admins: [],
     },
     [privateSpace.uuid]: {
         organizationUuid: privateSpace.organizationUuid,
         projectUuid: privateSpace.projectUuid,
         inheritsFromOrgOrProject: privateSpace.inheritParentPermissions,
         access: [],
+        admins: [],
     },
     [publicSpace.uuid]: {
         organizationUuid: publicSpace.organizationUuid,
         projectUuid: publicSpace.projectUuid,
         inheritsFromOrgOrProject: publicSpace.inheritParentPermissions,
         access: publicSpace.access,
+        admins: [],
     },
 };
 
@@ -327,6 +330,30 @@ describe('DashboardService', () => {
                 },
             },
         });
+        expect(result).not.toHaveProperty('admins');
+    });
+
+    test('should keep the space name for an admin who also holds a direct grant', async () => {
+        const privateDashboard = {
+            ...dashboard,
+            spaceUuid: privateSpace.uuid,
+            spaceName: 'Private finance',
+        };
+        dashboardModel.getByIdOrSlug.mockResolvedValueOnce(privateDashboard);
+        spacePermissionService.getSpaceAccessContext.mockResolvedValueOnce({
+            ...spaceContexts[privateSpace.uuid],
+            admins: [{ userUuid: user.userUuid, source: 'organization' }],
+        });
+        directAccessService.resolveUserAccessForSessionUser.mockResolvedValueOnce(
+            {
+                [privateDashboard.uuid]: SpaceMemberRole.ADMIN,
+            },
+        );
+
+        const result = await service.getByIdOrSlug(user, privateDashboard.uuid);
+
+        expect(result.spaceName).toBe('Private finance');
+        expect(result).not.toHaveProperty('admins');
     });
 
     test('should deny the same private dashboard without effective direct access', async () => {

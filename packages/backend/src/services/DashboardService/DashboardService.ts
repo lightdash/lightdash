@@ -397,8 +397,16 @@ export class DashboardService
             })
         )[dashboard.uuid];
 
+        const isSpaceAdmin = spaceContext.admins.some(
+            ({ userUuid }) => userUuid === user.userUuid,
+        );
+
+        // `admins` stays internal: it is audit-display data on the space
+        // context and must not serialize into dashboard API responses.
         return {
-            ...spaceContext,
+            organizationUuid: spaceContext.organizationUuid,
+            projectUuid: spaceContext.projectUuid,
+            inheritsFromOrgOrProject: spaceContext.inheritsFromOrgOrProject,
             access: effectiveRole
                 ? DashboardService.getAccessForRole(
                       user,
@@ -407,7 +415,9 @@ export class DashboardService
                   )
                 : [],
             isDirectOnly:
-                logicalRole === undefined && effectiveRole !== undefined,
+                !isSpaceAdmin &&
+                logicalRole === undefined &&
+                effectiveRole !== undefined,
         };
     }
 
