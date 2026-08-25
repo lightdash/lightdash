@@ -342,7 +342,9 @@ describe('ExplorerChartTypeAuthoring', () => {
             store.getState().explorer.unsavedChartVersion.chartConfig.type,
         ).toBe(ChartType.DATA_APP_VIZ);
 
-        await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Back to chart' }),
+        );
 
         const { explorer } = store.getState();
         expect(explorer.chartTypeAuthoring).toBeNull();
@@ -372,7 +374,9 @@ describe('ExplorerChartTypeAuthoring', () => {
         );
         renderAuthoring({ dataAppVizUuid: null });
 
-        await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Back to chart' }),
+        );
 
         expect(discard).toHaveBeenCalledTimes(1);
     });
@@ -380,7 +384,9 @@ describe('ExplorerChartTypeAuthoring', () => {
     it('finishes on Configure with the chart on the authored type', async () => {
         const store = renderAuthoring({ step: 'choose' });
 
-        await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Back to chart' }),
+        );
 
         const { explorer } = store.getState();
         expect(explorer.chartTypeAuthoring).toBeNull();
@@ -419,7 +425,9 @@ describe('ExplorerChartTypeAuthoring', () => {
         );
         renderAuthoring({ dataAppVizUuid: null, claimedUuid: 'viz-new' });
 
-        await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Back to chart' }),
+        );
 
         expect(deleteApp).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -432,7 +440,9 @@ describe('ExplorerChartTypeAuthoring', () => {
     it('keeps a revised type when done', async () => {
         renderAuthoring();
 
-        await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Back to chart' }),
+        );
 
         expect(deleteApp).not.toHaveBeenCalled();
     });
@@ -446,7 +456,9 @@ describe('ExplorerChartTypeAuthoring', () => {
             renderAuthoring();
             expect(screen.getByRole('heading', { level: 2 })).toHaveFocus();
 
-            await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Back to chart' }),
+            );
             await new Promise((resolve) => requestAnimationFrame(resolve));
 
             expect(sidebarTitle).toHaveFocus();

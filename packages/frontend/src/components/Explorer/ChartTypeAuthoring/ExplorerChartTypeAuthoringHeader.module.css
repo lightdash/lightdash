@@ -6,44 +6,30 @@
     background: var(--mantine-color-background-0);
 }
 
-/* The title and its byline share a text baseline; the icons between them
-   have none, so they center against the taller title instead. */
+.divider {
+    width: 1px;
+    height: 22px;
+    background: var(--mantine-color-ldGray-2);
+    flex-shrink: 0;
+}
+
 .nameCluster {
     display: flex;
-    align-items: baseline;
-    gap: 10px;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
     min-width: 0;
 }
 
-.nameCluster > button {
-    align-self: center;
-}
-
-/* Sits by its neighbours and only gives way under pressure, so the gap
-   after it stays the row gap rather than a fixed slot. */
+/* Truncates only under real pressure from the actions, never at a fixed width. */
 .title {
     flex: 0 1 auto;
     min-width: 0;
-    max-width: 280px;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
 
-/* Yields after the title, so the actions never do. */
-.provenance {
-    flex: 0 1 auto;
-    min-width: 0;
-}
-
 .actions {
     flex: 0 0 auto;
     margin-left: auto;
-}
-
-/* Below a laptop width with both rails open, the title yields first. */
-@container authoring (max-width: 640px) {
-    .title {
-        max-width: 160px;
-    }
 }

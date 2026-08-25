@@ -23,7 +23,6 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { type ChartTypeAuthoringState } from '../../../providers/Explorer/types';
 import { CHART_GALLERY_SIDEBAR_TITLE_ID } from '../../common/ChartGallery/ChartGalleryContext';
-import { RefreshButton } from '../../RefreshButton';
 import { useSelectProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
 import { useDirtyPivotConfiguration } from '../VisualizationCard/useDirtyPivotConfiguration';
 import { useExplorerChartColorPalette } from '../VisualizationCard/useExplorerChartColorPalette';
@@ -232,17 +231,14 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
             }
             workspace={workspace}
             previewContext={previewContext}
-            runQuery={
-                <>
-                    <VisualizationWarning
-                        dirtyPivotConfiguration={dirtyPivotConfiguration}
-                        chartConfig={chartConfig}
-                        resultsData={resultsData}
-                        isLoading={isLoadingQueryResults}
-                        maxColumnLimit={health.data?.pivotTable?.maxColumnLimit}
-                    />
-                    <RefreshButton size="xs" />
-                </>
+            warning={
+                <VisualizationWarning
+                    dirtyPivotConfiguration={dirtyPivotConfiguration}
+                    chartConfig={chartConfig}
+                    resultsData={resultsData}
+                    isLoading={isLoadingQueryResults}
+                    maxColumnLimit={health.data?.pivotTable?.maxColumnLimit}
+                />
             }
             onDetailsSaved={handleDetailsSaved}
             onDone={handleDone}

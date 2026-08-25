@@ -125,7 +125,8 @@ describe('Explorer while a chart type is authored', () => {
         renderExplorer({ authoring: true });
 
         expect(screen.getByTestId('chart-type-authoring')).toBeInTheDocument();
-        expect(screen.queryByTestId('explorer-header')).not.toBeInTheDocument();
+        // The query controls stay where they always are.
+        expect(screen.getByTestId('explorer-header')).toBeInTheDocument();
         expect(screen.queryByTestId('results-card')).not.toBeInTheDocument();
         expect(screen.queryByTestId('filters-card')).not.toBeInTheDocument();
         expect(screen.getByTestId('merge-auto-run')).toBeInTheDocument();

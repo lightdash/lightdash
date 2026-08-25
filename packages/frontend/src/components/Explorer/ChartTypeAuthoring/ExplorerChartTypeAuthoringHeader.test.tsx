@@ -29,12 +29,10 @@ const renderHeader = (
         titleId: 'title',
         app,
         status: null,
-        provenanceVersion: null,
-        hasOrigin: false,
         upgrade: null,
         hasHistory: true,
         isHistoryOpen: false,
-        runQuery: null,
+        warning: null,
         onToggleHistory: vi.fn(),
         onUpgradeStarted: vi.fn(),
         onDetailsSaved: vi.fn(),
@@ -51,7 +49,7 @@ describe('ExplorerChartTypeAuthoringHeader', () => {
 
         const heading = screen.getByRole('heading', {
             level: 2,
-            name: 'Revenue changes waterfall',
+            name: 'Editing chart type · Revenue changes waterfall',
         });
         expect(heading).toHaveFocus();
         expect(screen.getByRole('status')).toHaveTextContent('');
@@ -106,42 +104,26 @@ describe('ExplorerChartTypeAuthoringHeader', () => {
         expect(screen.getByRole('dialog')).toHaveTextContent('Upgrade');
     });
 
-    it('shows where the type came from and explains it on demand', () => {
-        renderHeader({
-            provenanceVersion: {
-                version: 1,
-                createdAt: new Date().toISOString(),
-                createdByUser: {
-                    userUuid: 'user-1',
-                    firstName: 'David',
-                    lastName: 'Attenborough',
-                },
-            } as never,
-            hasOrigin: true,
-        });
+    it('explains the type on demand and hosts the warning it is given', () => {
+        renderHeader({ warning: <output>Results may be incorrect</output> });
 
-        expect(
-            screen.getByText(/Built by David Attenborough/),
-        ).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Chart type description' }),
         ).toBeInTheDocument();
-    });
-
-    it('hosts the run-query control it is given', () => {
-        renderHeader({ runQuery: <button type="button">Run query</button> });
         expect(
-            screen.getByRole('button', { name: 'Run query' }),
+            screen.getByText('Results may be incorrect'),
         ).toBeInTheDocument();
     });
 
-    it('always offers Done and reports whether history is open', async () => {
+    it('always offers a way back and reports whether history is open', async () => {
         const props = renderHeader({ isHistoryOpen: true });
 
         expect(
             screen.getByRole('button', { name: 'Version history' }),
         ).toHaveAttribute('aria-pressed', 'true');
-        await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Back to chart' }),
+        );
         expect(props.onDone).toHaveBeenCalledTimes(1);
     });
 });

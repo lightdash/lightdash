@@ -1,17 +1,16 @@
-import {
-    getAppDisplayName,
-    type ApiAppVersionSummary,
-} from '@lightdash/common';
+import { getAppDisplayName } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
     Button,
     Group,
+    Text,
     Title,
     Tooltip,
     VisuallyHidden,
 } from '@mantine/core';
 import {
+    IconChevronLeft,
     IconHistory,
     IconInfoCircle,
     IconPencil,
@@ -21,8 +20,6 @@ import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
 import AppUpgradeModal from '../../../features/apps/components/AppUpgradeModal';
 import { type SdkUpgradeOffer } from '../../../features/apps/hooks/useSdkUpgradeStatus';
-import { getVersionAuthorName } from '../../../features/apps/utils/versionsToChatMessages';
-import VersionProvenance from '../../../features/chartTypes/builder/VersionProvenance';
 import MantineIcon from '../../common/MantineIcon';
 import { authoringStatusLabel, type AuthoringStatus } from './authoringStatus';
 import classes from './ExplorerChartTypeAuthoringHeader.module.css';
@@ -33,15 +30,11 @@ type Props = {
     /** Null while no app exists yet (a new type before its first build). */
     app: { appUuid: string; name: string; description: string } | null;
     status: AuthoringStatus | null;
-    /** The version the provenance line reports; null while history is empty. */
-    provenanceVersion: ApiAppVersionSummary | null;
-    /** Whether `provenanceVersion` really is the origin (v1 is loaded). */
-    hasOrigin: boolean;
     upgrade: (SdkUpgradeOffer & { disabled: boolean }) | null;
     hasHistory: boolean;
     isHistoryOpen: boolean;
-    /** The host's run-query control; null when no query backs the session. */
-    runQuery: ReactNode;
+    /** The host's results-staleness warning; renders nothing while clean. */
+    warning: ReactNode;
     onToggleHistory: () => void;
     onUpgradeStarted: () => void;
     onDetailsSaved: () => void;
@@ -53,12 +46,10 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
     titleId,
     app,
     status,
-    provenanceVersion,
-    hasOrigin,
     upgrade,
     hasHistory,
     isHistoryOpen,
-    runQuery,
+    warning,
     onToggleHistory,
     onUpgradeStarted,
     onDetailsSaved,
@@ -71,6 +62,7 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
     const title = app
         ? getAppDisplayName(app.name, app.appUuid)
         : 'New chart type';
+    const headingText = app ? `Editing chart type · ${title}` : title;
 
     // Entering replaces what had focus; land on what this surface is.
     const titleRef = useRef<HTMLHeadingElement>(null);
@@ -80,6 +72,15 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
 
     return (
         <Group className={classes.header} gap="sm" wrap="nowrap">
+            <Button
+                size="xs"
+                variant="default"
+                leftSection={<MantineIcon icon={IconChevronLeft} size={15} />}
+                onClick={onDone}
+            >
+                Back to chart
+            </Button>
+            <Box className={classes.divider} />
             <Box className={classes.nameCluster}>
                 <Title
                     ref={titleRef}
@@ -88,9 +89,14 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                     className={classes.title}
                     fz="sm"
                     fw={600}
-                    title={title}
+                    title={headingText}
                     tabIndex={-1}
                 >
+                    {app && (
+                        <Text span fz="sm" fw={400} c="dimmed">
+                            {'Editing chart type · '}
+                        </Text>
+                    )}
                     {title}
                 </Title>
                 {app && app.description && (
@@ -124,20 +130,12 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                         </ActionIcon>
                     </Tooltip>
                 )}
-                {provenanceVersion && (
-                    <VersionProvenance
-                        className={classes.provenance}
-                        authorName={getVersionAuthorName(provenanceVersion)}
-                        at={new Date(provenanceVersion.createdAt)}
-                        isOrigin={hasOrigin}
-                    />
-                )}
             </Box>
             <VisuallyHidden role="status">
                 {status ? authoringStatusLabel(status) : ''}
             </VisuallyHidden>
             <Group className={classes.actions} gap="xs" wrap="nowrap">
-                {runQuery}
+                {warning}
                 {upgradeAvailable && (
                     <Button
                         size="compact-sm"
@@ -163,9 +161,6 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                         </ActionIcon>
                     </Tooltip>
                 )}
-                <Button size="compact-sm" onClick={onDone}>
-                    Done
-                </Button>
             </Group>
             {app && isEditingDetails && (
                 <AppUpdateModal

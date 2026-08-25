@@ -14,8 +14,8 @@ type Props = {
     upgrade: (SdkUpgradeOffer & { disabled: boolean }) | null;
     workspace: ChartTypeBuilderWorkspaceState;
     previewContext: DataAppVizContext | null;
-    /** The host's run-query control; null when no query backs the session. */
-    runQuery: ReactNode;
+    /** The host's results-staleness warning; renders nothing while clean. */
+    warning: ReactNode;
     onDetailsSaved: () => void;
     onDone: () => void;
 };
@@ -27,14 +27,11 @@ const ExplorerChartTypeAuthoringView: FC<Props> = ({
     upgrade,
     workspace,
     previewContext,
-    runQuery,
+    warning,
     onDetailsSaved,
     onDone,
 }) => {
     const titleId = useId();
-    const provenanceVersion = workspace.history.hasOrigin
-        ? workspace.history.oldest
-        : workspace.history.latest;
     return (
         <Box
             component="section"
@@ -47,12 +44,10 @@ const ExplorerChartTypeAuthoringView: FC<Props> = ({
                 titleId={titleId}
                 app={app}
                 status={deriveAuthoringStatus(workspace)}
-                provenanceVersion={provenanceVersion}
-                hasOrigin={workspace.history.hasOrigin}
                 upgrade={upgrade}
                 hasHistory={workspace.hasHistory}
                 isHistoryOpen={workspace.isHistoryOpen}
-                runQuery={runQuery}
+                warning={warning}
                 onToggleHistory={workspace.toggleHistory}
                 onUpgradeStarted={workspace.openHistory}
                 onDetailsSaved={onDetailsSaved}
