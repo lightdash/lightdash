@@ -6,7 +6,14 @@ import {
 } from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
 import { IconPuzzle } from '@tabler/icons-react';
-import { useEffect, useMemo, useRef, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import AppIframePreview from '../../features/apps/AppIframePreview';
 import { useChartVersionPreview } from '../../features/apps/ChartVersionPreview/useChartVersionPreview';
@@ -28,6 +35,7 @@ import MantineIcon from '../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
+import { SCREENSHOT_READY_FALLBACK_MS } from './constants';
 import { resolveVizDrillDownConfig } from './vizDrillDownConfig';
 import { buildVizUnderlyingDataRequest } from './vizUnderlyingDataRequest';
 
@@ -81,14 +89,21 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     // screenshot/export/unfurl renders simply skip the drill-by event.
     const trackingContext = useTracking({ failSilently: true });
     const hasSignaledScreenshotReady = useRef(false);
-
-    // Signal screenshot readiness on mount so dashboard capture isn't blocked
-    // waiting on the sandboxed iframe (which runs its own async query).
-    useEffect(() => {
+    const signalScreenshotReady = useCallback(() => {
         if (hasSignaledScreenshotReady.current) return;
-        onScreenshotReady?.();
         hasSignaledScreenshotReady.current = true;
+        onScreenshotReady?.();
     }, [onScreenshotReady]);
+
+    // The iframe SDK posts `lightdash:sdk:screenshot-available` at bundle
+    // boot — proof the sandbox is alive, not that the viz painted.
+    const [screenshotAnnounced, setScreenshotAnnounced] = useState(false);
+    const handleScreenshotAvailabilityChange = useCallback(
+        (available: boolean) => {
+            if (available) setScreenshotAnnounced(true);
+        },
+        [],
+    );
 
     // Fetch every page so the renderer gets all rows — surfaces that don't
     // auto-fetch (dashboard tiles) would otherwise push a partial result.
@@ -292,16 +307,47 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         drillDownEnabled,
     ]);
 
+    // Ready only once the sandbox has booted AND the viz context has been
+    // handed to the bridge — the closest renderer-side proxy for "the viz has
+    // what it needs to paint". The context push itself runs in the child's
+    // effect, which commits before this one.
+    useEffect(() => {
+        if (screenshotAnnounced && dataAppVizContext) signalScreenshotReady();
+    }, [screenshotAnnounced, dataAppVizContext, signalScreenshotReady]);
+
+    // Terminal placeholders render synchronously and never mount the iframe —
+    // their placeholder frame IS the final frame, so report it ready now
+    // instead of stalling the delivery until the fallback timeout.
+    const terminalRequestErrorMessage = getTerminalRequestErrorMessage([
+        renderMetadataError,
+        getVisiblePreviewTokenError(previewTokenError, !!token),
+    ]);
+    const isTerminalPlaceholder =
+        !projectUuid ||
+        dataAppVizUuid === null ||
+        !!terminalRequestErrorMessage ||
+        renderMetadata?.state === 'building' ||
+        renderMetadata?.state === 'unavailable' ||
+        renderMetadata?.state === 'failed';
+    useEffect(() => {
+        if (isTerminalPlaceholder) signalScreenshotReady();
+    }, [isTerminalPlaceholder, signalScreenshotReady]);
+
+    useEffect(() => {
+        if (!onScreenshotReady) return;
+        const timer = setTimeout(
+            signalScreenshotReady,
+            SCREENSHOT_READY_FALLBACK_MS,
+        );
+        return () => clearTimeout(timer);
+    }, [onScreenshotReady, signalScreenshotReady]);
+
     if (!projectUuid || dataAppVizUuid === null) {
         return (
             <DataAppVizPlaceholder message="Pick a custom chart type to render." />
         );
     }
 
-    const terminalRequestErrorMessage = getTerminalRequestErrorMessage([
-        renderMetadataError,
-        getVisiblePreviewTokenError(previewTokenError, !!token),
-    ]);
     if (terminalRequestErrorMessage) {
         return <DataAppVizPlaceholder message={terminalRequestErrorMessage} />;
     }
@@ -359,6 +405,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             appUuid={dataAppVizUuid}
             identityKey={dataAppVizUuid}
             dataAppVizContext={dataAppVizContext}
+            onScreenshotAvailabilityChange={handleScreenshotAvailabilityChange}
             rewriteVizUnderlyingDataRequest={rewriteVizUnderlyingDataRequest}
             onVizDrillDownIntent={onVizDrillDownIntent}
         />
