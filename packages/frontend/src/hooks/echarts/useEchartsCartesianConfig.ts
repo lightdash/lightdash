@@ -1056,6 +1056,16 @@ export const getCartesianLabelPosition = ({
     return position === 'top' ? 'insideTop' : position;
 };
 
+export const getSeriesLineStyle = (
+    series: Series,
+): EChartsSeries['lineStyle'] | undefined => {
+    if (series.type !== CartesianSeriesType.LINE || series.areaStyle) {
+        return undefined;
+    }
+
+    return { type: series.lineStyle ?? 'solid' };
+};
+
 const getPivotSeries = ({
     series,
     pivotReference,
@@ -1087,6 +1097,7 @@ const getPivotSeries = ({
 
     return {
         ...series,
+        lineStyle: getSeriesLineStyle(series),
         emphasis: {
             focus: 'series',
         },
@@ -1281,6 +1292,7 @@ const getSimpleSeries = ({
     resolvedTimezone,
 }: GetSimpleSeriesArg) => ({
     ...series,
+    lineStyle: getSeriesLineStyle(series),
     xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
     yAxisIndex: flipAxes ? undefined : series.yAxisIndex,
     emphasis: {

@@ -33,6 +33,7 @@ import { EditableText } from '../../common/EditableText';
 import { GrabIcon } from '../../common/GrabIcon';
 import compactStyles from '../../mantineTheme.module.css';
 import { ChartTypeSelect } from './ChartTypeSelect';
+import { LineStyleSelect } from './LineStyleSelect';
 
 type Props = {
     isCollapsable?: boolean;
@@ -365,7 +366,19 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     </Group>
                     {(type === CartesianSeriesType.LINE ||
                         type === CartesianSeriesType.AREA) && (
-                        <Group gap="xs">
+                        <Group gap="xs" align="end">
+                            {type === CartesianSeriesType.LINE && (
+                                <LineStyleSelect
+                                    label={isGrouped ? undefined : 'Line style'}
+                                    value={series.lineStyle}
+                                    onChange={(lineStyle) => {
+                                        updateSingleSeries({
+                                            ...series,
+                                            lineStyle,
+                                        });
+                                    }}
+                                />
+                            )}
                             <Checkbox
                                 size="xs"
                                 classNames={{

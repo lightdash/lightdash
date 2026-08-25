@@ -2925,6 +2925,10 @@
                     },
                     "type": "object"
                 },
+                "lineStyle": {
+                    "$ref": "#/$defs/SeriesLineStyle",
+                    "description": "Stroke style for line charts"
+                },
                 "markLine": {
                     "$ref": "#/$defs/MarkLine",
                     "description": "Reference line configuration"
@@ -2967,6 +2971,10 @@
             },
             "required": ["type", "encode"],
             "type": "object"
+        },
+        "SeriesLineStyle": {
+            "enum": ["solid", "dashed", "dotted"],
+            "type": "string"
         },
         "SeriesMetadata": {
             "properties": {

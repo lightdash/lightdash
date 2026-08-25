@@ -61,6 +61,7 @@ const hasSamePivotFields = (
 export type GetExpectedSeriesMapArgs = {
     defaultSmooth?: boolean;
     defaultShowSymbol?: boolean;
+    defaultLineStyle?: Series['lineStyle'];
     defaultCartesianType: CartesianSeriesType;
     defaultAreaStyle: Series['areaStyle'];
     isStacked: boolean;
@@ -77,6 +78,7 @@ export type GetExpectedSeriesMapArgs = {
 export const getExpectedSeriesMap = ({
     defaultSmooth,
     defaultShowSymbol,
+    defaultLineStyle,
     defaultCartesianType,
     defaultAreaStyle,
     isStacked,
@@ -102,6 +104,9 @@ export const getExpectedSeriesMap = ({
         areaStyle: defaultAreaStyle,
         yAxisIndex: 0,
         label: defaultLabel,
+        ...(defaultLineStyle !== undefined && {
+            lineStyle: defaultLineStyle,
+        }),
         ...(defaultStackLabel !== undefined && {
             stackLabel: defaultStackLabel,
         }),
@@ -263,6 +268,11 @@ export const mergeExistingAndExpectedSeries = ({
                     seriesToAdd = {
                         ...seriesToAdd,
                         yAxisIndex: seriesInSameGroup.yAxisIndex,
+                        ...(seriesInSameGroup.lineStyle !== undefined
+                            ? { lineStyle: seriesInSameGroup.lineStyle }
+                            : seriesToAdd.lineStyle !== undefined
+                              ? { lineStyle: 'solid' }
+                              : {}),
                     };
                 }
             }

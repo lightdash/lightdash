@@ -1277,9 +1277,11 @@ const useCartesianChartConfig = ({
                 const defaultStackLabel = prev?.series?.[0]?.stackLabel;
 
                 const defaultShowSymbol = prev?.series?.[0]?.showSymbol;
+                const defaultLineStyle = prev?.series?.[0]?.lineStyle;
                 const expectedSeriesMap = getExpectedSeriesMap({
                     defaultSmooth,
                     defaultShowSymbol,
+                    defaultLineStyle,
                     defaultAreaStyle,
                     defaultCartesianType,
                     isStacked,
