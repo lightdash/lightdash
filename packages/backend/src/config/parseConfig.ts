@@ -29,6 +29,7 @@ import {
     WarehouseTypes,
     WeekDay,
     type GroupProjectAccessSetupEntry,
+    type HealthState,
     type SchedulerTaskName,
     type UserAttributeSetupEntry,
 } from '@lightdash/common';
@@ -414,6 +415,21 @@ const parseEnum = <T>(
         );
     }
     return value as T;
+};
+
+const getMobileMinimumVersionFromEnvironmentVariable = (
+    name: string,
+): string | null => {
+    const value = process.env[name];
+    if (value === undefined) return null;
+
+    if (!/^\d+(?:\.\d+)*$/.test(value)) {
+        throw new ParseError(
+            `Cannot parse environment variable "${name}". Value must contain dot-separated non-negative integer components but ${name}=${value}`,
+        );
+    }
+
+    return value;
 };
 
 // WeekDay is a numeric enum, so a generic Object.values check would accept the
@@ -1432,6 +1448,7 @@ export type LightdashConfig = {
     postmark: PostmarkConfig;
     rudder: RudderConfig;
     mode: LightdashMode;
+    mobile: HealthState['mobile'];
     license: {
         licenseKey: string | null;
     };
@@ -2717,6 +2734,16 @@ export const parseConfig = (): LightdashConfig => {
 
     return {
         mode,
+        mobile: {
+            minimumSupportedVersion: {
+                android: getMobileMinimumVersionFromEnvironmentVariable(
+                    'LIGHTDASH_MOBILE_MINIMUM_ANDROID_VERSION',
+                ),
+                ios: getMobileMinimumVersionFromEnvironmentVariable(
+                    'LIGHTDASH_MOBILE_MINIMUM_IOS_VERSION',
+                ),
+            },
+        },
         cookieSameSite: iframeEmbeddingEnabled ? 'none' : 'lax',
         license: {
             licenseKey,

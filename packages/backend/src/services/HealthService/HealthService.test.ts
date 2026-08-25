@@ -113,6 +113,36 @@ describe('health', () => {
         });
     });
 
+    it('returns independently configured mobile minimum versions', async () => {
+        const service = new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                mobile: {
+                    minimumSupportedVersion: {
+                        android: '1.10',
+                        ios: '2.3.4',
+                    },
+                },
+            },
+            licenseService,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+        });
+
+        await expect(service.getHealthState(undefined)).resolves.toEqual({
+            ...BaseResponse,
+            mobile: {
+                minimumSupportedVersion: {
+                    android: '1.10',
+                    ios: '2.3.4',
+                },
+            },
+        });
+    });
+
     it('advertises playground projects only when a license key is configured', async () => {
         expect(
             (await healthService.getHealthState(undefined))

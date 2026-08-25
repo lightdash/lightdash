@@ -554,6 +554,12 @@ export type HealthState = {
     };
     mode: LightdashMode;
     version: string;
+    mobile: {
+        minimumSupportedVersion: {
+            android: string | null;
+            ios: string | null;
+        };
+    };
     localDbtEnabled: boolean;
     defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;
