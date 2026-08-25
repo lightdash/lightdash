@@ -380,6 +380,26 @@ describe('direct access read models PostgreSQL integration', () => {
                 SEED_ORG_1_ADMIN.user_uuid,
             ),
         ).resolves.toEqual({});
+        await expect(
+            new SavedChartAccessModel(transaction).upsertUserAccess({
+                resourceUuid: savedChart.saved_query_uuid,
+                userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                role: SpaceMemberRole.VIEWER,
+                actorRole: SpaceMemberRole.ADMIN,
+                actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            }),
+        ).rejects.toMatchObject({ name: 'NotFoundError' });
+        await expect(
+            new SavedSqlAccessModel(transaction).upsertUserAccess({
+                resourceUuid: savedSql.saved_sql_uuid,
+                userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                role: SpaceMemberRole.VIEWER,
+                actorRole: SpaceMemberRole.ADMIN,
+                actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            }),
+        ).rejects.toMatchObject({ name: 'NotFoundError' });
     });
 
     it('makes a group grant inert immediately after membership removal', async () => {
@@ -513,5 +533,591 @@ describe('direct access read models PostgreSQL integration', () => {
             `${dashboardUuid}.userRole`,
             SpaceMemberRole.EDITOR,
         );
+    });
+
+    it('atomically writes and resets grants for every concrete resource', async () => {
+        const cases = [
+            {
+                model: new DashboardAccessModel(transaction),
+                resourceUuid: dashboardUuid,
+                upsertUser: () =>
+                    new DashboardAccessModel(transaction).upsertUserAccess({
+                        resourceUuid: dashboardUuid,
+                        userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        role: SpaceMemberRole.EDITOR,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                        grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    }),
+                upsertGroup: () =>
+                    new DashboardAccessModel(transaction).upsertGroupAccess({
+                        resourceUuid: dashboardUuid,
+                        groupUuid,
+                        role: SpaceMemberRole.VIEWER,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                        grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    }),
+                reset: () =>
+                    new DashboardAccessModel(transaction).resetAccess({
+                        resourceUuid: dashboardUuid,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                    }),
+            },
+            {
+                model: new SavedChartAccessModel(transaction),
+                resourceUuid: savedChartUuid,
+                upsertUser: () =>
+                    new SavedChartAccessModel(transaction).upsertUserAccess({
+                        resourceUuid: savedChartUuid,
+                        userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        role: SpaceMemberRole.EDITOR,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                        grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    }),
+                upsertGroup: () =>
+                    new SavedChartAccessModel(transaction).upsertGroupAccess({
+                        resourceUuid: savedChartUuid,
+                        groupUuid,
+                        role: SpaceMemberRole.VIEWER,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                        grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    }),
+                reset: () =>
+                    new SavedChartAccessModel(transaction).resetAccess({
+                        resourceUuid: savedChartUuid,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                    }),
+            },
+            {
+                model: new SavedSqlAccessModel(transaction),
+                resourceUuid: savedSqlUuid,
+                upsertUser: () =>
+                    new SavedSqlAccessModel(transaction).upsertUserAccess({
+                        resourceUuid: savedSqlUuid,
+                        userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        role: SpaceMemberRole.EDITOR,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                        grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    }),
+                upsertGroup: () =>
+                    new SavedSqlAccessModel(transaction).upsertGroupAccess({
+                        resourceUuid: savedSqlUuid,
+                        groupUuid,
+                        role: SpaceMemberRole.VIEWER,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                        grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    }),
+                reset: () =>
+                    new SavedSqlAccessModel(transaction).resetAccess({
+                        resourceUuid: savedSqlUuid,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                    }),
+            },
+            {
+                model: new AppAccessModel(transaction),
+                resourceUuid: appUuid,
+                upsertUser: () =>
+                    new AppAccessModel(transaction).upsertUserAccess({
+                        resourceUuid: appUuid,
+                        userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        role: SpaceMemberRole.EDITOR,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                        grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    }),
+                upsertGroup: () =>
+                    new AppAccessModel(transaction).upsertGroupAccess({
+                        resourceUuid: appUuid,
+                        groupUuid,
+                        role: SpaceMemberRole.VIEWER,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                        grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    }),
+                reset: () =>
+                    new AppAccessModel(transaction).resetAccess({
+                        resourceUuid: appUuid,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                    }),
+            },
+        ];
+
+        await Promise.all(
+            cases.map(async (testCase) => {
+                await expect(testCase.upsertUser()).resolves.toMatchObject({
+                    organizationUuid,
+                    projectUuid,
+                    beforeRole: SpaceMemberRole.VIEWER,
+                    afterRole: SpaceMemberRole.EDITOR,
+                });
+                await expect(testCase.upsertGroup()).resolves.toMatchObject({
+                    beforeRole: SpaceMemberRole.ADMIN,
+                    afterRole: SpaceMemberRole.VIEWER,
+                });
+                await expect(
+                    testCase.model.getUserAccess(
+                        [testCase.resourceUuid],
+                        SEED_ORG_1_ADMIN.user_uuid,
+                    ),
+                ).resolves.toMatchObject({
+                    [testCase.resourceUuid]: {
+                        userRole: SpaceMemberRole.EDITOR,
+                        groupRoles: [SpaceMemberRole.VIEWER],
+                    },
+                });
+                await expect(testCase.reset()).resolves.toMatchObject({
+                    revokedUsers: 1,
+                    revokedGroups: 1,
+                });
+                await expect(
+                    testCase.model.getUserAccess(
+                        [testCase.resourceUuid],
+                        SEED_ORG_1_ADMIN.user_uuid,
+                    ),
+                ).resolves.toEqual({});
+            }),
+        );
+    });
+
+    it('rejects unauthorized and cross-tenant writes without revealing targets', async () => {
+        let queryCount = 0;
+        const countQueries = () => {
+            queryCount += 1;
+        };
+        transaction.on('query', countQueries);
+        await expect(
+            model.upsertUserAccess({
+                resourceUuid: randomUUID(),
+                userUuid: randomUUID(),
+                role: SpaceMemberRole.ADMIN,
+                actorRole: SpaceMemberRole.EDITOR,
+                actorRoleResolver: async () => SpaceMemberRole.EDITOR,
+                grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            }),
+        ).rejects.toMatchObject({ name: 'ForbiddenError' });
+        transaction.removeListener('query', countQueries);
+        expect(queryCount).toBe(0);
+
+        await expect(
+            model.upsertUserAccess({
+                resourceUuid: randomUUID(),
+                userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                role: SpaceMemberRole.VIEWER,
+                actorRole: SpaceMemberRole.ADMIN,
+                actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            }),
+        ).rejects.toMatchObject({
+            name: 'NotFoundError',
+            message: 'Direct access target not found',
+        });
+
+        const [foreignOrganization] = await transaction(OrganizationTableName)
+            .insert({ organization_name: `Foreign org ${randomUUID()}` })
+            .returning('organization_id');
+        const foreignUserUuid = randomUUID();
+        const [foreignUser] = await transaction(UserTableName)
+            .insert({
+                user_uuid: foreignUserUuid,
+                first_name: 'Foreign',
+                last_name: 'Principal',
+                is_marketing_opted_in: false,
+                is_tracking_anonymized: false,
+                is_setup_complete: true,
+                is_active: true,
+            })
+            .returning('user_id');
+        await transaction(OrganizationMembershipsTableName).insert({
+            organization_id: foreignOrganization.organization_id,
+            user_id: foreignUser.user_id,
+            role: OrganizationMemberRole.ADMIN,
+        });
+        await expect(
+            model.upsertUserAccess({
+                resourceUuid: dashboardUuid,
+                userUuid: foreignUserUuid,
+                role: SpaceMemberRole.VIEWER,
+                actorRole: SpaceMemberRole.ADMIN,
+                actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            }),
+        ).rejects.toMatchObject({
+            name: 'NotFoundError',
+            message: 'Direct access target not found',
+        });
+    });
+
+    it('allows self-revoke but prevents an editor from revoking admin access', async () => {
+        await expect(
+            model.revokeUserAccess({
+                resourceUuid: dashboardUuid,
+                userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                actorRole: SpaceMemberRole.VIEWER,
+                actorRoleResolver: async () => SpaceMemberRole.VIEWER,
+                actorUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            }),
+        ).resolves.toMatchObject({
+            beforeRole: SpaceMemberRole.VIEWER,
+            afterRole: null,
+        });
+
+        await expect(
+            model.revokeGroupAccess({
+                resourceUuid: dashboardUuid,
+                groupUuid,
+                actorRole: SpaceMemberRole.EDITOR,
+                actorRoleResolver: async () => SpaceMemberRole.EDITOR,
+            }),
+        ).rejects.toMatchObject({ name: 'ForbiddenError' });
+        await expect(
+            model.upsertGroupAccess({
+                resourceUuid: dashboardUuid,
+                groupUuid,
+                role: SpaceMemberRole.VIEWER,
+                actorRole: SpaceMemberRole.EDITOR,
+                actorRoleResolver: async () => SpaceMemberRole.EDITOR,
+                grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            }),
+        ).rejects.toMatchObject({ name: 'ForbiddenError' });
+    });
+
+    it('hides resource existence when a self-revoke has no direct grant', async () => {
+        const principalUuid = randomUUID();
+        const cases = [
+            {
+                model: new DashboardAccessModel(transaction),
+                resourceUuid: dashboardUuid,
+            },
+            {
+                model: new SavedChartAccessModel(transaction),
+                resourceUuid: savedChartUuid,
+            },
+            {
+                model: new SavedSqlAccessModel(transaction),
+                resourceUuid: savedSqlUuid,
+            },
+            {
+                model: new AppAccessModel(transaction),
+                resourceUuid: appUuid,
+            },
+        ];
+
+        await Promise.all(
+            cases.map(({ model: accessModel, resourceUuid }) =>
+                expect(
+                    accessModel.revokeUserAccess({
+                        resourceUuid,
+                        userUuid: principalUuid,
+                        actorRole: SpaceMemberRole.VIEWER,
+                        actorRoleResolver: async () => SpaceMemberRole.VIEWER,
+                        actorUserUuid: principalUuid,
+                    }),
+                ).rejects.toMatchObject({
+                    name: 'NotFoundError',
+                    message: 'Direct access target not found',
+                }),
+            ),
+        );
+        await expect(
+            model.revokeUserAccess({
+                resourceUuid: randomUUID(),
+                userUuid: principalUuid,
+                actorRole: SpaceMemberRole.VIEWER,
+                actorRoleResolver: async () => SpaceMemberRole.VIEWER,
+                actorUserUuid: principalUuid,
+            }),
+        ).rejects.toMatchObject({
+            name: 'NotFoundError',
+            message: 'Direct access target not found',
+        });
+    });
+
+    it('throws NotFoundError when revoking a missing group grant', async () => {
+        const missingGroupUuid = randomUUID();
+        const cases = [
+            {
+                model: new DashboardAccessModel(transaction),
+                resourceUuid: dashboardUuid,
+            },
+            {
+                model: new SavedChartAccessModel(transaction),
+                resourceUuid: savedChartUuid,
+            },
+            {
+                model: new SavedSqlAccessModel(transaction),
+                resourceUuid: savedSqlUuid,
+            },
+            {
+                model: new AppAccessModel(transaction),
+                resourceUuid: appUuid,
+            },
+        ];
+
+        await Promise.all(
+            cases.map(({ model: accessModel, resourceUuid }) =>
+                expect(
+                    accessModel.revokeGroupAccess({
+                        resourceUuid,
+                        groupUuid: missingGroupUuid,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                    }),
+                ).rejects.toMatchObject({
+                    name: 'NotFoundError',
+                    message: 'Direct access target not found',
+                }),
+            ),
+        );
+    });
+
+    it('rolls back a role replacement when grantor attribution is invalid', async () => {
+        await expect(
+            model.upsertUserAccess({
+                resourceUuid: dashboardUuid,
+                userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                role: SpaceMemberRole.EDITOR,
+                actorRole: SpaceMemberRole.ADMIN,
+                actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                grantedByUserUuid: randomUUID(),
+            }),
+        ).rejects.toBeDefined();
+
+        await expect(
+            transaction(DashboardUserAccessTableName)
+                .where({
+                    dashboard_uuid: dashboardUuid,
+                    user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+                })
+                .first('space_role'),
+        ).resolves.toMatchObject({ space_role: SpaceMemberRole.VIEWER });
+    });
+
+    it('preserves a grant after its attributed grantor is deleted', async () => {
+        const grantor = await createMemberPrincipal();
+        await transaction(ProjectMembershipsTableName).insert({
+            project_id: projectId,
+            user_id: grantor.userId,
+            role: ProjectMemberRole.ADMIN,
+        });
+        await model.upsertUserAccess({
+            resourceUuid: dashboardUuid,
+            userUuid: SEED_ORG_1_ADMIN.user_uuid,
+            role: SpaceMemberRole.EDITOR,
+            actorRole: SpaceMemberRole.ADMIN,
+            actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+            grantedByUserUuid: grantor.userUuid,
+        });
+        await expect(
+            transaction(DashboardUserAccessTableName)
+                .where({
+                    dashboard_uuid: dashboardUuid,
+                    user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+                })
+                .first('granted_by_user_uuid'),
+        ).resolves.toMatchObject({
+            granted_by_user_uuid: grantor.userUuid,
+        });
+
+        await transaction(UserTableName)
+            .where('user_uuid', grantor.userUuid)
+            .delete();
+        await expect(
+            transaction(DashboardUserAccessTableName)
+                .where({
+                    dashboard_uuid: dashboardUuid,
+                    user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+                })
+                .first('granted_by_user_uuid'),
+        ).resolves.toMatchObject({ granted_by_user_uuid: null });
+    });
+
+    it('holds actor authority locks through the direct mutation', async () => {
+        const actor = await createMemberPrincipal();
+        await transaction(ProjectMembershipsTableName).insert({
+            project_id: projectId,
+            user_id: actor.userId,
+            role: ProjectMemberRole.ADMIN,
+        });
+        await transaction.commit();
+
+        const grantBlocker = await database.transaction();
+        let downgradeTransaction: Knex.Transaction | undefined;
+        let mutation:
+            | ReturnType<DashboardAccessModel['upsertUserAccess']>
+            | undefined;
+        let downgrade: Promise<number> | undefined;
+
+        try {
+            await grantBlocker(DashboardUserAccessTableName)
+                .where({
+                    dashboard_uuid: dashboardUuid,
+                    user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+                })
+                .forUpdate()
+                .first();
+
+            let markActorResolved: () => void = () => undefined;
+            const actorResolved = new Promise<void>((resolve) => {
+                markActorResolved = resolve;
+            });
+            mutation = new DashboardAccessModel(database).upsertUserAccess({
+                resourceUuid: dashboardUuid,
+                userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                role: SpaceMemberRole.EDITOR,
+                actorRole: SpaceMemberRole.ADMIN,
+                actorRoleResolver: async ({ transaction: mutationTrx }) => {
+                    const membership = await mutationTrx(
+                        ProjectMembershipsTableName,
+                    )
+                        .where({
+                            project_id: projectId,
+                            user_id: actor.userId,
+                        })
+                        .forShare()
+                        .first<{ role: SpaceMemberRole }>('role');
+                    markActorResolved();
+                    return membership?.role;
+                },
+                grantedByUserUuid: actor.userUuid,
+            });
+
+            await actorResolved;
+            downgradeTransaction = await database.transaction();
+            const backend = await downgradeTransaction.raw<{
+                rows: Array<{ pid: number }>;
+            }>('SELECT pg_backend_pid() AS pid');
+            const [{ pid: downgradePid }] = backend.rows;
+            downgrade = downgradeTransaction(ProjectMembershipsTableName)
+                .where({ project_id: projectId, user_id: actor.userId })
+                .update({ role: ProjectMemberRole.VIEWER })
+                .then((updatedRows) => updatedRows);
+
+            const waitForDowngradeLock = async (
+                attemptsRemaining: number,
+            ): Promise<void> => {
+                const activity = await database('pg_stat_activity')
+                    .where('pid', downgradePid)
+                    .first<{ wait_event_type: string | null }>(
+                        'wait_event_type',
+                    );
+                if (activity?.wait_event_type === 'Lock') {
+                    return;
+                }
+                if (attemptsRemaining === 0) {
+                    throw new Error(
+                        'Concurrent authority downgrade did not wait on a lock',
+                    );
+                }
+                await new Promise((resolve) => {
+                    setTimeout(resolve, 10);
+                });
+                return waitForDowngradeLock(attemptsRemaining - 1);
+            };
+            await waitForDowngradeLock(50);
+
+            await grantBlocker.commit();
+            await expect(mutation).resolves.toMatchObject({
+                afterRole: SpaceMemberRole.EDITOR,
+            });
+            await downgrade;
+            await downgradeTransaction.commit();
+
+            await expect(
+                database(DashboardUserAccessTableName)
+                    .where({
+                        dashboard_uuid: dashboardUuid,
+                        user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+                    })
+                    .first('space_role'),
+            ).resolves.toMatchObject({ space_role: SpaceMemberRole.EDITOR });
+        } finally {
+            if (!grantBlocker.isCompleted()) {
+                await grantBlocker.rollback();
+            }
+            if (mutation !== undefined) {
+                await Promise.allSettled([mutation]);
+            }
+            if (downgrade !== undefined) {
+                await Promise.allSettled([downgrade]);
+            }
+            if (
+                downgradeTransaction !== undefined &&
+                !downgradeTransaction.isCompleted()
+            ) {
+                await downgradeTransaction.rollback();
+            }
+            await database(DashboardsTableName)
+                .where('dashboard_uuid', dashboardUuid)
+                .delete();
+            await database(SavedChartsTableName)
+                .where('saved_query_uuid', savedChartUuid)
+                .delete();
+            await database(SavedSqlTableName)
+                .where('saved_sql_uuid', savedSqlUuid)
+                .delete();
+            await database(AppsTableName).where('app_id', appUuid).delete();
+            await database(GroupTableName)
+                .where('group_uuid', groupUuid)
+                .delete();
+            await database(UserTableName)
+                .where('user_uuid', actor.userUuid)
+                .delete();
+        }
+    });
+
+    it('serializes concurrent replacements without duplicate rows', async () => {
+        await transaction.commit();
+        try {
+            const committedModel = new DashboardAccessModel(database);
+            await Promise.all([
+                committedModel.upsertUserAccess({
+                    resourceUuid: dashboardUuid,
+                    userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    role: SpaceMemberRole.VIEWER,
+                    actorRole: SpaceMemberRole.ADMIN,
+                    actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                    grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                }),
+                committedModel.upsertUserAccess({
+                    resourceUuid: dashboardUuid,
+                    userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    role: SpaceMemberRole.EDITOR,
+                    actorRole: SpaceMemberRole.ADMIN,
+                    actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                    grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                }),
+            ]);
+            const rows = await database(DashboardUserAccessTableName).where({
+                dashboard_uuid: dashboardUuid,
+                user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+            });
+            expect(rows).toHaveLength(1);
+            expect([SpaceMemberRole.VIEWER, SpaceMemberRole.EDITOR]).toContain(
+                rows[0].space_role,
+            );
+        } finally {
+            await database(DashboardsTableName)
+                .where('dashboard_uuid', dashboardUuid)
+                .delete();
+            await database(SavedChartsTableName)
+                .where('saved_query_uuid', savedChartUuid)
+                .delete();
+            await database(SavedSqlTableName)
+                .where('saved_sql_uuid', savedSqlUuid)
+                .delete();
+            await database(AppsTableName).where('app_id', appUuid).delete();
+            await database(GroupTableName)
+                .where('group_uuid', groupUuid)
+                .delete();
+        }
     });
 });
