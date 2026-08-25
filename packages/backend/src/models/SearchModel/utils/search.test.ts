@@ -21,9 +21,9 @@ describe('getFullTextSearchQuery', () => {
 
 describe('getExactOrPrefixLabelScore', () => {
     it('scores exact label matches highest', () => {
-        expect(getExactOrPrefixLabelScore('monthly revenue', 'Monthly Revenue')).toBe(
-            2,
-        );
+        expect(
+            getExactOrPrefixLabelScore('monthly revenue', 'Monthly Revenue'),
+        ).toBe(2);
     });
 
     it('scores prefix matches above partial matches', () => {
@@ -48,10 +48,13 @@ describe('getExactOrPrefixLabelScore', () => {
 
 describe('searchReservingVerified', () => {
     it('returns only verified results when verifiedOnly is true', async () => {
-        const results = await searchReservingVerified(true, async ({ verifiedOnly }) => {
-            expect(verifiedOnly).toBe(true);
-            return [{ uuid: 'v1', search_rank: 1 }];
-        });
+        const results = await searchReservingVerified(
+            true,
+            async ({ verifiedOnly }) => {
+                expect(verifiedOnly).toBe(true);
+                return [{ uuid: 'v1', search_rank: 1 }];
+            },
+        );
         expect(results).toEqual([{ uuid: 'v1', search_rank: 1 }]);
     });
 

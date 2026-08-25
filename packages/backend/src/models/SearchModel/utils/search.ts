@@ -171,10 +171,7 @@ export function getWebSearchRankCalcSql({
         return database.raw(tsRankSql, bindings);
     }
 
-    return database.raw(
-        `(${tsRankSql} + ${getNameMatchBoostSql()})`,
-        bindings,
-    );
+    return database.raw(`(${tsRankSql} + ${getNameMatchBoostSql()})`, bindings);
 }
 
 export function getRegexFromUserQuery(query: string) {
