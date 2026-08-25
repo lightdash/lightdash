@@ -1,3 +1,17 @@
+# [1.256.0](https://github.com/lightdash/lightdash/compare/1.255.0...1.256.0) (2026-08-25)
+
+
+### Bug Fixes
+
+* **api:** quiet expected not-found errors ([#27977](https://github.com/lightdash/lightdash/issues/27977)) ([e816e3c](https://github.com/lightdash/lightdash/commit/e816e3cdfcc593d463f45e08d740a9f843ee4e25))
+
+
+### Features
+
+* **auth:** add batched direct access reads ([#27923](https://github.com/lightdash/lightdash/issues/27923)) ([99ec07c](https://github.com/lightdash/lightdash/commit/99ec07c58bee5cdc4b23255379ac4860d5073fb0)), closes [#27922](https://github.com/lightdash/lightdash/issues/27922)
+* **auth:** add transactional direct access writes ([#27924](https://github.com/lightdash/lightdash/issues/27924)) ([501ec4e](https://github.com/lightdash/lightdash/commit/501ec4e2fb076b326cdbd9cb50e639df06c3353d)), closes [#27923](https://github.com/lightdash/lightdash/issues/27923)
+* **auth:** gate direct access service ([#27925](https://github.com/lightdash/lightdash/issues/27925)) ([7e8089e](https://github.com/lightdash/lightdash/commit/7e8089e5a2dec4ced21a3b18c41ba1aa6be876a2)), closes [#27924](https://github.com/lightdash/lightdash/issues/27924)
+
 # [1.255.0](https://github.com/lightdash/lightdash/compare/1.254.0...1.255.0) (2026-08-25)
 
 
