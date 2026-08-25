@@ -63,6 +63,7 @@ const DataAppVizSettings: FC<Props> = ({
                         <Config.Section>
                             <Config.Heading>{field.label}</Config.Heading>
                             <FieldSelect
+                                size="xs"
                                 placeholder={`Select ${field.label.toLowerCase()}`}
                                 disabled={items.length === 0}
                                 item={selectedItem}

@@ -1,5 +1,5 @@
 import { isDimension } from '@lightdash/common';
-import { useMemo, type FC } from 'react';
+import { useMemo, type ComponentProps, type FC } from 'react';
 import {
     selectSavedChart,
     selectUnsavedColorPaletteUuid,
@@ -14,7 +14,11 @@ import { PalettePicker } from '../../common/PalettePicker/PalettePicker';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from './Config';
 
-export const ColorPaletteSection: FC = () => {
+type Props = {
+    size?: ComponentProps<typeof PalettePicker>['size'];
+};
+
+export const ColorPaletteSection: FC<Props> = ({ size = 'sm' }) => {
     const dispatch = useExplorerDispatch();
     const savedChart = useExplorerSelector(selectSavedChart);
     const value = useExplorerSelector(selectUnsavedColorPaletteUuid);
@@ -70,7 +74,7 @@ export const ColorPaletteSection: FC = () => {
                     </Callout>
                 )}
                 <PalettePicker
-                    size="sm"
+                    size={size}
                     value={value}
                     onChange={(next) =>
                         dispatch(explorerActions.setColorPaletteUuid(next))
