@@ -94,6 +94,10 @@ the resource returned by the backend.
 7. The backend returns a `CREATE`, `UPDATE`, or `NO_CHANGES` action.
 8. The CLI aggregates those actions and reports any per-file failures.
 
+`--dry-run` on upload discovers the same local files and prints which slugs
+would be uploaded, grouped by content type, without calling upsert APIs,
+writing files, or recording a last-applied snapshot.
+
 Sending resources individually is useful when files are independent. A bad
 file can fail without preventing valid sibling files from being processed. The
 backend still owns the transaction and atomicity of each individual resource.

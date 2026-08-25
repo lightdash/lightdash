@@ -55,6 +55,7 @@ import { setWarehouseHandler } from './handlers/setWarehouse';
 import { slugUpdateHandler } from './handlers/slugUpdate';
 import { sqlHandler } from './handlers/sql';
 import { registerUpgradeCheckCommand } from './handlers/upgradeCheck';
+import { addUploadDryRunOption } from './handlers/uploadDryRun';
 import { validateHandler } from './handlers/validate';
 import { warehouseCatalogHandler } from './handlers/warehouseCatalog';
 import * as styles from './styles';
@@ -785,6 +786,7 @@ program
     .action(stopPreviewHandler);
 
 const ORGANIZATION_MODE_OPTIONS = new Set([
+    'dryRun',
     'organization',
     'path',
     'sendInvites',
@@ -1107,6 +1109,8 @@ const uploadCommand = program
         'send invitations to eligible pending users during organization upload',
         false,
     );
+
+addUploadDryRunOption(uploadCommand);
 
 uploadCommand.action(withOrganizationMode(uploadHandler));
 

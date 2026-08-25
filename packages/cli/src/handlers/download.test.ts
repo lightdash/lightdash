@@ -137,6 +137,7 @@ const makeDownloadHandlerOptions = (
     stripPivotSeries: false,
     concurrency: 1,
     organization: false,
+    dryRun: false,
     ...overrides,
 });
 
@@ -1468,6 +1469,183 @@ describe('uploadHandler failures', () => {
                 }),
             ),
         ).rejects.toBe(fatalError);
+    });
+});
+
+describe('uploadHandler dry-run', () => {
+    let tmpDir: string;
+    let output: string[];
+
+    const writeProjectContent = async () => {
+        await fs.mkdir(path.join(tmpDir, 'spaces'), { recursive: true });
+        await fs.mkdir(path.join(tmpDir, 'charts'), { recursive: true });
+        await fs.mkdir(path.join(tmpDir, 'dashboards'), { recursive: true });
+        await fs.writeFile(
+            path.join(tmpDir, 'spaces', 'finance.space.yml'),
+            [
+                'contentType: space',
+                'version: 1',
+                'spaceName: Finance',
+                'slug: finance',
+                '',
+            ].join('\n'),
+        );
+        await fs.writeFile(
+            path.join(tmpDir, 'charts', 'orders.yml'),
+            [
+                'contentType: chart',
+                'name: Orders over time',
+                'slug: orders-over-time',
+                'spaceSlug: finance',
+                '',
+            ].join('\n'),
+        );
+        await fs.writeFile(
+            path.join(tmpDir, 'dashboards', 'weekly.yml'),
+            [
+                'contentType: dashboard',
+                'name: Weekly KPIs',
+                'slug: weekly-kpis',
+                'spaceSlug: finance',
+                'tiles: []',
+                'version: 1',
+                '',
+            ].join('\n'),
+        );
+    };
+
+    beforeEach(async () => {
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'upload-dry-run-'));
+        output = [];
+        vi.spyOn(console, 'info').mockImplementation((message?: unknown) => {
+            output.push(String(message ?? ''));
+        });
+        vi.mocked(lightdashApi).mockReset(); // pragma: allowlist secret
+        vi.mocked(getContentAsCodeUploadPermissions).mockReset();
+        vi.mocked(lightdashApi).mockImplementation(async ({ method, url }) => { // pragma: allowlist secret
+            if (url.includes('/health')) {
+                return { version: '0.0.0' } as never;
+            }
+            throw new Error(`Unexpected API call: ${method} ${url}`);
+        });
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('accepts dryRun and prints slugs without calling upsert APIs', async () => {
+        await writeProjectContent();
+        const chartPath = path.join(tmpDir, 'charts', 'orders.yml');
+        const before = await fs.readFile(chartPath, 'utf-8');
+
+        await expect(
+            uploadHandler(
+                makeDownloadHandlerOptions({
+                    dryRun: true,
+                    path: tmpDir,
+                    project: 'project-uuid',
+                    skipSpaces: false,
+                    skipVirtualViews: true,
+                    skipAgents: true,
+                    skipAlerts: true,
+                    skipGoogleSheets: true,
+                    skipScheduledDeliveries: true,
+                    skipExternalConnections: true,
+                }),
+            ),
+        ).resolves.toBeUndefined();
+
+        const printed = output.join('\n');
+        expect(printed).toContain('Dry run — no changes will be made.');
+        expect(printed).toContain('would upload space finance');
+        expect(printed).toContain('would upload chart orders-over-time');
+        expect(printed).toContain('would upload dashboard weekly-kpis');
+        expect(printed).toContain(
+            'No files were written and no content was uploaded.',
+        );
+
+        const mutatingCalls = vi
+            .mocked(lightdashApi) // pragma: allowlist secret
+            .mock.calls.filter(([request]) => request.method !== 'GET');
+        expect(mutatingCalls).toEqual([]);
+        expect(getContentAsCodeUploadPermissions).not.toHaveBeenCalled();
+        await expect(fs.readFile(chartPath, 'utf-8')).resolves.toBe(before);
+    });
+
+    it('previews organization uploads without calling upsert APIs', async () => {
+        await fs.mkdir(path.join(tmpDir, 'custom-roles'), { recursive: true });
+        await fs.writeFile(
+            path.join(tmpDir, 'custom-roles', 'developer.yml'),
+            [
+                'version: 1',
+                'name: Developer view only',
+                'description: null',
+                'level: project',
+                'scopes:',
+                '  - view:Dashboard',
+                '',
+            ].join('\n'),
+        );
+
+        await expect(
+            uploadHandler(
+                makeDownloadHandlerOptions({
+                    dryRun: true,
+                    organization: true,
+                    path: tmpDir,
+                }),
+            ),
+        ).resolves.toBeUndefined();
+
+        expect(output.join('\n')).toContain(
+            'would upload custom role Developer view only',
+        );
+        expect(
+            vi
+                .mocked(lightdashApi) // pragma: allowlist secret
+                .mock.calls.filter(([request]) => request.method !== 'GET'),
+        ).toEqual([]);
+    });
+
+    it('still errors when conflicting flags are combined with dry-run', async () => {
+        await expect(
+            uploadHandler(
+                makeDownloadHandlerOptions({
+                    dryRun: true,
+                    spacesOnly: true,
+                    skipSpaces: true,
+                    project: 'project-uuid',
+                }),
+            ),
+        ).rejects.toThrow(
+            'Nothing to upload: --spaces-only cannot be combined with --skip-spaces.',
+        );
+        await expect(
+            uploadHandler(
+                makeDownloadHandlerOptions({
+                    dryRun: true,
+                    appsOnly: true,
+                    spacesOnly: true,
+                    skipSpaces: false,
+                    project: 'project-uuid',
+                }),
+            ),
+        ).rejects.toThrow('--apps-only cannot be combined with --spaces-only.');
+        await expect(
+            uploadHandler(
+                makeDownloadHandlerOptions({
+                    dryRun: true,
+                    appsOnly: true,
+                    charts: ['orders-over-time'],
+                    project: 'project-uuid',
+                }),
+            ),
+        ).rejects.toThrow(
+            '--apps-only cannot be combined with --charts or --dashboards.',
+        );
+        expect(vi.mocked(lightdashApi)).not.toHaveBeenCalled(); // pragma: allowlist secret
     });
 });
 

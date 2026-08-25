@@ -157,6 +157,12 @@ import {
     writeSpaceFiles,
     type SpaceCodeFile,
 } from './spacesAsCode';
+import {
+    collectOrganizationUploadPlan,
+    createUploadDryRunGroup,
+    printUploadDryRunPlan,
+    type UploadDryRunGroup,
+} from './uploadDryRun';
 
 export type DownloadHandlerOptions = {
     verbose: boolean;
@@ -208,6 +214,7 @@ export type DownloadHandlerOptions = {
     gzip?: boolean;
     organization: boolean;
     sendInvites?: boolean;
+    dryRun?: boolean;
 };
 
 type FolderScheme = 'flat' | 'nested';
@@ -3060,6 +3067,355 @@ const isFilteredWithNoDashboards = (
     dashboardSlugs: string[],
 ): boolean => hasFilters && dashboardSlugs.length === 0;
 
+const toUploadPlanItems = (
+    items: Array<{ slug: string; needsUpdating?: boolean }>,
+    force: boolean,
+): { slugs: string[]; unchangedSlugs: string[] } => {
+    const slugs: string[] = [];
+    const unchangedSlugs: string[] = [];
+    items.forEach((item) => {
+        if (!force && item.needsUpdating === false) {
+            unchangedSlugs.push(item.slug);
+            return;
+        }
+        slugs.push(item.slug);
+    });
+    return { slugs, unchangedSlugs };
+};
+
+const collectAppPlanSlugs = async ({
+    options,
+    hasFilters,
+    dashboardItems,
+}: {
+    options: DownloadHandlerOptions;
+    hasFilters: boolean;
+    dashboardItems: DashboardAsCode[];
+}): Promise<string[]> => {
+    const explicitAppReferences = Array.isArray(options.apps)
+        ? options.apps
+        : [];
+    const isExplicitAppSelection =
+        options.includeApps === true || explicitAppReferences.length > 0;
+    const autoPushAppSlugs = isFilteredWithNoDashboards(
+        hasFilters,
+        options.dashboards,
+    )
+        ? []
+        : selectDashboardAppSlugs(dashboardItems, options.dashboards);
+    if (!isExplicitAppSelection && autoPushAppSlugs.length === 0) {
+        return [];
+    }
+
+    const uploadFilter = isExplicitAppSelection
+        ? getDataAppUploadFilter(
+              explicitAppReferences,
+              options.includeApps === true,
+          )
+        : null;
+
+    const appsDir = path.join(getDownloadFolder(options.path), 'apps');
+    let appFolderEntries: Dirent[];
+    try {
+        appFolderEntries = await fs.readdir(appsDir, { withFileTypes: true });
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+            return [];
+        }
+        throw error;
+    }
+
+    const slugs: string[] = [];
+    for (const subDir of appFolderEntries.filter((entry) =>
+        entry.isDirectory(),
+    )) {
+        try {
+            const code = await readBundleFromDir(
+                path.join(appsDir, subDir.name),
+            );
+            const matchesFilter = uploadFilterMatches(
+                uploadFilter,
+                code.manifest,
+            );
+            const isAutoPushCandidate =
+                code.manifest.slug !== undefined &&
+                autoPushAppSlugs.includes(code.manifest.slug);
+            if (
+                matchesFilter &&
+                (isExplicitAppSelection || isAutoPushCandidate)
+            ) {
+                slugs.push(code.manifest.slug ?? subDir.name);
+            }
+        } catch {
+            slugs.push(subDir.name);
+        }
+    }
+    return slugs;
+};
+
+const collectProjectUploadPlan = async ({
+    options,
+    hasFilters,
+    shouldReconcileSpaces,
+    spaceFiles,
+}: {
+    options: DownloadHandlerOptions;
+    hasFilters: boolean;
+    shouldReconcileSpaces: boolean;
+    spaceFiles: SpaceCodeFile[];
+}): Promise<UploadDryRunGroup[]> => {
+    const groups: UploadDryRunGroup[] = [];
+    const pushGroup = (group: UploadDryRunGroup | null) => {
+        if (group !== null) {
+            groups.push(group);
+        }
+    };
+
+    if (shouldReconcileSpaces) {
+        pushGroup(
+            createUploadDryRunGroup({
+                label: 'Spaces',
+                singular: 'space',
+                slugs: spaceFiles.map(({ space }) => space.slug),
+            }),
+        );
+    }
+    if (options.spacesOnly) {
+        return groups;
+    }
+
+    const looseFiles = await readLooseCodeFiles(options.path);
+    let dashboardItemsPromise: Promise<DashboardAsCode[]> | undefined;
+    const loadDashboardItems = () => {
+        dashboardItemsPromise =
+            dashboardItemsPromise ??
+            readDashboardItems(options.path, looseFiles.dashboards);
+        return dashboardItemsPromise;
+    };
+
+    if (!options.skipVirtualViews) {
+        let virtualViewCandidates: string[] = [];
+        if (
+            options.includeVirtualViews === true &&
+            hasFilters &&
+            (options.charts.length > 0 || options.dashboards.length > 0)
+        ) {
+            virtualViewCandidates = selectVirtualViewCandidates({
+                chartItems: [
+                    ...(await readCodeFiles<ChartAsCode>(
+                        'charts',
+                        options.path,
+                    )),
+                    ...looseFiles.charts,
+                ],
+                chartSlugs: options.charts,
+                dashboardItems:
+                    options.dashboards.length > 0
+                        ? await loadDashboardItems()
+                        : [],
+                dashboardSlugs: options.dashboards,
+            });
+        }
+        if (
+            !(
+                hasFilters &&
+                options.virtualViews.length === 0 &&
+                virtualViewCandidates.length === 0
+            )
+        ) {
+            const virtualViews = await readVirtualViewFiles(options.path);
+            const candidateSet = new Set(virtualViewCandidates);
+            const selected =
+                options.virtualViews.length > 0 || candidateSet.size > 0
+                    ? virtualViews.filter(
+                          ({ slug }) =>
+                              options.virtualViews.includes(slug) ||
+                              candidateSet.has(slug),
+                      )
+                    : virtualViews;
+            pushGroup(
+                createUploadDryRunGroup({
+                    label: 'Virtual views',
+                    singular: 'virtual view',
+                    slugs: selected.map(({ slug }) => slug),
+                }),
+            );
+        }
+    }
+
+    if (
+        !options.skipExternalConnections &&
+        !(hasFilters && options.externalConnections.length === 0)
+    ) {
+        const connections = await readExternalConnectionFiles(options.path);
+        const selected = options.externalConnections.length
+            ? connections.filter(({ slug }) =>
+                  options.externalConnections.includes(slug),
+              )
+            : connections;
+        pushGroup(
+            createUploadDryRunGroup({
+                label: 'External connections',
+                singular: 'external connection',
+                slugs: selected.map(({ slug }) => slug),
+            }),
+        );
+    }
+
+    pushGroup(
+        createUploadDryRunGroup({
+            label: 'Data apps',
+            singular: 'data app',
+            slugs: await collectAppPlanSlugs({
+                options,
+                hasFilters,
+                dashboardItems: await loadDashboardItems(),
+            }),
+        }),
+    );
+
+    const chartSlugs = options.includeCharts
+        ? Array.from(
+              new Set([
+                  ...options.charts,
+                  ...selectDashboardChartSlugs(
+                      await loadDashboardItems(),
+                      options.dashboards,
+                  ),
+              ]),
+          )
+        : options.charts;
+    if (!(hasFilters && chartSlugs.length === 0)) {
+        const folderCharts = await readCodeFiles<ChartAsCode>(
+            'charts',
+            options.path,
+        );
+        const charts = [...folderCharts, ...looseFiles.charts];
+        const selectedCharts =
+            chartSlugs.length > 0
+                ? charts.filter((chart) => chartSlugs.includes(chart.slug))
+                : charts;
+        const savedCharts = selectedCharts.filter(
+            (chart) => !isSqlChartContent(chart),
+        );
+        const sqlCharts = selectedCharts.filter((chart) =>
+            isSqlChartContent(chart),
+        );
+        pushGroup(
+            createUploadDryRunGroup({
+                label: 'Charts',
+                singular: 'chart',
+                ...toUploadPlanItems(savedCharts, options.force),
+            }),
+        );
+        pushGroup(
+            createUploadDryRunGroup({
+                label: 'SQL charts',
+                singular: 'SQL chart',
+                ...toUploadPlanItems(sqlCharts, options.force),
+            }),
+        );
+    }
+
+    if (!(hasFilters && options.dashboards.length === 0)) {
+        const folderDashboards = await readCodeFiles<DashboardAsCode>(
+            'dashboards',
+            options.path,
+        );
+        const dashboards = [...folderDashboards, ...looseFiles.dashboards];
+        const selectedDashboards =
+            options.dashboards.length > 0
+                ? dashboards.filter((dashboard) =>
+                      options.dashboards.includes(dashboard.slug),
+                  )
+                : dashboards;
+        pushGroup(
+            createUploadDryRunGroup({
+                label: 'Dashboards',
+                singular: 'dashboard',
+                ...toUploadPlanItems(selectedDashboards, options.force),
+            }),
+        );
+    }
+
+    if (!options.skipAgents && !(hasFilters && options.agents.length === 0)) {
+        const agents = await readAiAgentFiles(options.path);
+        const selected = options.agents.length
+            ? agents.filter((agent) => options.agents.includes(agent.slug))
+            : agents;
+        pushGroup(
+            createUploadDryRunGroup({
+                label: 'AI agents',
+                singular: 'AI agent',
+                slugs: selected.map(({ slug }) => slug),
+            }),
+        );
+    }
+
+    if (!options.skipAlerts && !(hasFilters && options.alerts.length === 0)) {
+        const alerts = await readScheduledContentFiles(
+            ContentAsCodeTypeEnum.ALERT,
+            options.path,
+        );
+        const selected = options.alerts.length
+            ? alerts.filter((item) => options.alerts.includes(item.slug))
+            : alerts;
+        pushGroup(
+            createUploadDryRunGroup({
+                label: 'Alerts',
+                singular: 'alert',
+                slugs: selected.map(({ slug }) => slug),
+            }),
+        );
+    }
+
+    if (
+        !options.skipScheduledDeliveries &&
+        !(hasFilters && options.scheduledDeliveries.length === 0)
+    ) {
+        const deliveries = await readScheduledContentFiles(
+            ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
+            options.path,
+        );
+        const selected = options.scheduledDeliveries.length
+            ? deliveries.filter((item) =>
+                  options.scheduledDeliveries.includes(item.slug),
+              )
+            : deliveries;
+        pushGroup(
+            createUploadDryRunGroup({
+                label: 'Scheduled deliveries',
+                singular: 'scheduled delivery',
+                slugs: selected.map(({ slug }) => slug),
+            }),
+        );
+    }
+
+    if (
+        !options.skipGoogleSheets &&
+        !(hasFilters && options.googleSheets.length === 0)
+    ) {
+        const googleSheets = await readScheduledContentFiles(
+            ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
+            options.path,
+        );
+        const selected = options.googleSheets.length
+            ? googleSheets.filter((item) =>
+                  options.googleSheets.includes(item.slug),
+              )
+            : googleSheets;
+        pushGroup(
+            createUploadDryRunGroup({
+                label: 'Google Sheets syncs',
+                singular: 'Google Sheets sync',
+                slugs: selected.map(({ slug }) => slug),
+            }),
+        );
+    }
+
+    return groups;
+};
+
 export const uploadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
@@ -3119,6 +3475,12 @@ export const uploadHandler = async (
     }
 
     if (isOrganizationUpload) {
+        if (options.dryRun === true) {
+            printUploadDryRunPlan(
+                await collectOrganizationUploadPlan(options.path),
+            );
+            return;
+        }
         await uploadOrganizationContent({
             customPath: options.path,
             config,
@@ -3139,7 +3501,24 @@ export const uploadHandler = async (
     const projectId = projectSelection.projectUuid;
 
     // Log current project info
-    logSelectedProject(projectSelection, config, 'Uploading to');
+    logSelectedProject(
+        projectSelection,
+        config,
+        options.dryRun === true ? 'Previewing upload to' : 'Uploading to',
+    );
+
+    if (options.dryRun === true) {
+        // Skip upserts, file writes, and any last-applied snapshot PUT.
+        printUploadDryRunPlan(
+            await collectProjectUploadPlan({
+                options,
+                hasFilters,
+                shouldReconcileSpaces,
+                spaceFiles: preflightSpaceFiles,
+            }),
+        );
+        return;
+    }
 
     let changes: Record<string, number> = {};
     const counts: ProjectContentAsCodeCounts = {};
@@ -4056,6 +4435,7 @@ export const testHelpers = {
     shouldDownloadAiAgents,
     sortSpaceFilesParentFirst,
     summarizeUploadChanges,
+    collectProjectUploadPlan,
     upsertAiAgents,
     upsertExternalConnections,
     upsertSpaces,
