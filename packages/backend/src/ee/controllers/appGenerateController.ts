@@ -109,7 +109,9 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
-     * List the project's data apps (for the embed config allowlist picker).
+     * List the project's data apps (for the embed config allowlist picker
+     * and the CLI's project-wide listing). Custom chart types are never
+     * included — they have their own listing at /chart-types.
      * @summary List project data apps
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -125,6 +127,34 @@ export class AppGenerateController extends BaseController {
         const results = await this.getAppGenerateService().listAppsForProject(
             toSessionUser(req.account),
             projectUuid,
+            'exclude',
+        );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * List the project's custom chart types (for the CLI's
+     * chart-types-as-code listing). Same shape as the data apps listing;
+     * a 404 tells older CLIs the server predates the split.
+     * @summary List project custom chart types
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/chart-types')
+    @OperationId('listProjectChartTypes')
+    async listProjectChartTypes(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiEmbedProjectAppsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.getAppGenerateService().listAppsForProject(
+            toSessionUser(req.account),
+            projectUuid,
+            'only',
         );
         return {
             status: 'ok',
