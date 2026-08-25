@@ -78,6 +78,7 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getAdjustedCronByOffset } from '../../utils/cronUtils';
 import { validateSchedulerWebhookTargets } from '../../utils/schedulerWebhookValidation';
 import { BaseService } from '../BaseService';
+import type { DashboardService } from '../DashboardService/DashboardService';
 import type { SoftDeleteOptions } from '../SoftDeletableService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
@@ -99,6 +100,7 @@ type SchedulerServiceArguments = {
     userService: UserService;
     jobModel: JobModel;
     spacePermissionService: SpacePermissionService;
+    getDashboardService: () => DashboardService;
 };
 
 const getLightdashJobUuid = (
@@ -147,6 +149,8 @@ export class SchedulerService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    getDashboardService: () => DashboardService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -164,6 +168,7 @@ export class SchedulerService extends BaseService {
         userService,
         jobModel,
         spacePermissionService,
+        getDashboardService,
     }: SchedulerServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -182,6 +187,7 @@ export class SchedulerService extends BaseService {
         this.userService = userService;
         this.jobModel = jobModel;
         this.spacePermissionService = spacePermissionService;
+        this.getDashboardService = getDashboardService;
     }
 
     public async getSchedulerProjectContext(
@@ -412,31 +418,11 @@ export class SchedulerService extends BaseService {
             )
                 throw new ForbiddenError();
         } else if (scheduler.dashboardUuid) {
-            const { organizationUuid, spaceUuid, projectUuid } =
-                await this.dashboardModel.getByIdOrSlug(
-                    scheduler.dashboardUuid,
-                );
-            const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
-                    spaceUuid,
-                );
-
-            if (
-                auditedAbility.cannot(
-                    'view',
-                    subject('Dashboard', {
-                        organizationUuid,
-                        projectUuid,
-                        inheritsFromOrgOrProject,
-                        access,
-                        metadata: {
-                            dashboardUuid: scheduler.dashboardUuid,
-                        },
-                    }),
-                )
-            )
-                throw new ForbiddenError();
+            await this.getDashboardService().assertViewAccess(
+                user,
+                scheduler.dashboardUuid,
+                { includeDependencies: false },
+            );
         } else if (scheduler.savedSqlUuid) {
             const sqlChart = await this.savedSqlModel.getByUuid(
                 scheduler.savedSqlUuid,
@@ -965,6 +951,13 @@ export class SchedulerService extends BaseService {
             scheduler: existingScheduler,
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
+        if (existingScheduler.dashboardUuid) {
+            await this.getDashboardService().assertViewAccess(
+                user,
+                existingScheduler.dashboardUuid,
+                { includeDependencies: false },
+            );
+        }
 
         if (isAppScheduler(existingScheduler)) {
             SchedulerService.validateAppSchedulerDelivery(updatedScheduler);
@@ -1071,8 +1064,16 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
         const {
+            scheduler: existingScheduler,
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
+        if (existingScheduler.dashboardUuid) {
+            await this.getDashboardService().assertViewAccess(
+                user,
+                existingScheduler.dashboardUuid,
+                { includeDependencies: false },
+            );
+        }
 
         // Remove scheduled jobs, even if the scheduler is not enabled
         await this.schedulerClient.deleteScheduledJobs(schedulerUuid, {
@@ -1293,6 +1294,13 @@ export class SchedulerService extends BaseService {
             scheduler,
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
+        if (scheduler.dashboardUuid) {
+            await this.getDashboardService().assertViewAccess(
+                user,
+                scheduler.dashboardUuid,
+                { includeDependencies: false },
+            );
+        }
         await this.schedulerClient.deleteScheduledJobs(schedulerUuid, {
             organizationUuid,
             projectUuid,
@@ -1816,6 +1824,22 @@ export class SchedulerService extends BaseService {
 
         await this.checkViewResource(user, scheduler);
 
+        return this.enqueueSchedulerByUuid(
+            user,
+            scheduler,
+            schedulerUuid,
+            organizationUuid,
+            projectUuid,
+        );
+    }
+
+    private enqueueSchedulerByUuid(
+        user: SessionUser,
+        scheduler: Scheduler,
+        schedulerUuid: string,
+        organizationUuid: string,
+        projectUuid: string,
+    ) {
         return this.schedulerClient.addScheduledDeliveryJob(
             new Date(),
             {

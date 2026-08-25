@@ -66,6 +66,7 @@ import {
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { BaseService } from '../BaseService';
+import type { DashboardService } from '../DashboardService/DashboardService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { ProjectService } from '../ProjectService/ProjectService';
@@ -84,6 +85,7 @@ type CsvServiceArguments = {
     projectModel: ProjectModel;
     pivotTableService: PivotTableService;
     persistentDownloadFileService: PersistentDownloadFileService;
+    getDashboardService: () => DashboardService;
 };
 
 export const getSchedulerCsvLimit = (
@@ -161,6 +163,8 @@ export class CsvService extends BaseService {
 
     persistentDownloadFileService: PersistentDownloadFileService;
 
+    getDashboardService: () => DashboardService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -175,6 +179,7 @@ export class CsvService extends BaseService {
         projectModel,
         pivotTableService,
         persistentDownloadFileService,
+        getDashboardService,
     }: CsvServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -190,6 +195,7 @@ export class CsvService extends BaseService {
         this.projectModel = projectModel;
         this.pivotTableService = pivotTableService;
         this.persistentDownloadFileService = persistentDownloadFileService;
+        this.getDashboardService = getDashboardService;
     }
 
     static convertRowToCsv(
@@ -583,8 +589,11 @@ export class CsvService extends BaseService {
         // JWT-scheduled job would fail at the worker. Embeds use the v2
         // dashboard exports endpoint instead.
         assertRegisteredAccount(account);
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.getDashboardService().assertViewAccess(
+            account,
+            dashboardUuid,
+            { includeDependencies: false },
+        );
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(

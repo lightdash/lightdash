@@ -989,6 +989,31 @@ describe('uploadGsheets — pivot routing', () => {
         const appendToSheet = vi.fn().mockResolvedValue(undefined);
         const appendCsvToSheet = vi.fn().mockResolvedValue(undefined);
         const logSchedulerJob = vi.fn().mockResolvedValue(undefined);
+        const getSessionByUserUuidAndOrg = vi.fn().mockResolvedValue({});
+        const getAccountByUserUuid = vi.fn().mockResolvedValue({
+            user: { email: 'demo@lightdash.com' },
+            organization: { organizationUuid: 'org-1' },
+        });
+        const getDashboard = vi.fn().mockResolvedValue({
+            uuid: source === 'dashboard' ? 'dashboard-1' : null,
+            projectUuid: 'project-1',
+            filters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
+            tiles: [
+                {
+                    uuid: 'tile-1',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: {
+                        title: 'Chart',
+                        savedChartUuid: 'chart-1',
+                    },
+                },
+            ],
+            displayTimezone: null,
+        });
         const chart = makeChart(hasPivotConfig);
         const dashboardUuid = source === 'dashboard' ? 'dashboard-1' : null;
         const scheduler = {
@@ -1026,11 +1051,8 @@ describe('uploadGsheets — pivot routing', () => {
                 logSchedulerJob,
             }),
             userService: asDep<'userService'>({
-                getSessionByUserUuid: vi.fn().mockResolvedValue({}),
-                getAccountByUserUuid: vi.fn().mockResolvedValue({
-                    user: { email: 'demo@lightdash.com' },
-                    organization: { organizationUuid: 'org-1' },
-                }),
+                getSessionByUserUuidAndOrg,
+                getAccountByUserUuid,
                 getRefreshToken: vi.fn().mockResolvedValue('refresh-token'),
             }),
             asyncQueryService: asDep<'asyncQueryService'>({
@@ -1050,26 +1072,7 @@ describe('uploadGsheets — pivot routing', () => {
                     }),
             }),
             dashboardService: asDep<'dashboardService'>({
-                getByIdOrSlug: vi.fn().mockResolvedValue({
-                    uuid: dashboardUuid,
-                    projectUuid: 'project-1',
-                    filters: {
-                        dimensions: [],
-                        metrics: [],
-                        tableCalculations: [],
-                    },
-                    tiles: [
-                        {
-                            uuid: 'tile-1',
-                            type: DashboardTileTypes.SAVED_CHART,
-                            properties: {
-                                title: 'Chart',
-                                savedChartUuid: chart.uuid,
-                            },
-                        },
-                    ],
-                    displayTimezone: null,
-                }),
+                getByIdOrSlug: getDashboard,
             }),
             analytics: asDep<'analytics'>({ track: vi.fn() }),
             lightdashConfig: asDep<'lightdashConfig'>({
@@ -1101,7 +1104,15 @@ describe('uploadGsheets — pivot routing', () => {
                 projectUuid: 'project-1',
             });
 
-        return { appendToSheet, appendCsvToSheet, logSchedulerJob, run };
+        return {
+            appendToSheet,
+            appendCsvToSheet,
+            getAccountByUserUuid,
+            getDashboard,
+            getSessionByUserUuidAndOrg,
+            logSchedulerJob,
+            run,
+        };
     };
 
     it.each(['saved-chart', 'dashboard'] as const)(
@@ -1115,6 +1126,19 @@ describe('uploadGsheets — pivot routing', () => {
 
             await result.run();
 
+            if (source === 'dashboard') {
+                expect(result.getSessionByUserUuidAndOrg).toHaveBeenCalledWith(
+                    'user-1',
+                    'org-1',
+                );
+                expect(result.getAccountByUserUuid).toHaveBeenCalledWith(
+                    'user-1',
+                );
+                expect(result.getDashboard).toHaveBeenCalledWith(
+                    expect.anything(),
+                    'dashboard-1',
+                );
+            }
             expect(result.appendToSheet).toHaveBeenCalledOnce();
             expect(result.appendCsvToSheet).not.toHaveBeenCalled();
         },
@@ -1135,6 +1159,22 @@ describe('uploadGsheets — pivot routing', () => {
             expect(result.appendToSheet).not.toHaveBeenCalled();
         },
     );
+
+    it('does not write a queued dashboard sync after access is revoked', async () => {
+        const result = setup({
+            source: 'dashboard',
+            hasPivotConfig: false,
+            pivotDetails: null,
+        });
+        result.getDashboard.mockRejectedValueOnce(
+            new ForbiddenError('Dashboard access revoked'),
+        );
+
+        await expect(result.run()).rejects.toThrow('Dashboard access revoked');
+
+        expect(result.appendToSheet).not.toHaveBeenCalled();
+        expect(result.appendCsvToSheet).not.toHaveBeenCalled();
+    });
 
     it('keeps non-pivoted saved-chart results on the flat writer', async () => {
         const result = setup({
@@ -2167,7 +2207,7 @@ describe('uploadGsheets — app branch', () => {
                 logSchedulerJob,
             }),
             userService: asDep<'userService'>({
-                getSessionByUserUuid: vi.fn().mockResolvedValue({}),
+                getSessionByUserUuidAndOrg: vi.fn().mockResolvedValue({}),
                 getAccountByUserUuid: vi.fn().mockResolvedValue({
                     user: { email: 'demo@lightdash.com' },
                     organization: { organizationUuid: 'org-1' },

@@ -13,6 +13,7 @@ import type { CommentModel } from '../../models/CommentModel/CommentModel';
 import type { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import type { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
 import type { UserModel } from '../../models/UserModel';
+import type { DashboardService } from '../DashboardService/DashboardService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { CommentService } from './CommentService';
 
@@ -136,6 +137,7 @@ const userModel = {
 const spacePermissionService = {
     can: vi.fn(async () => true),
 };
+const assertDashboardViewAccess = vi.fn(async () => dashboard);
 
 describe('CommentService', () => {
     let service: CommentService;
@@ -154,6 +156,10 @@ describe('CommentService', () => {
             userModel: userModel as unknown as UserModel,
             spacePermissionService:
                 spacePermissionService as unknown as SpacePermissionService,
+            getDashboardService: () =>
+                ({
+                    assertViewAccess: assertDashboardViewAccess,
+                }) as unknown as DashboardService,
         });
         logBypassEventSpy = vi.spyOn(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -162,6 +168,72 @@ describe('CommentService', () => {
         );
         analyticsTrackSpy = vi.spyOn(analyticsMock, 'track');
     });
+
+    it('checks direct dashboard access before listing comments', async () => {
+        await service.findCommentsForDashboard(adminUser, 'dashboard-slug');
+
+        expect(assertDashboardViewAccess).toHaveBeenCalledWith(
+            adminUser,
+            'dashboard-slug',
+            { projectUuid: undefined, includeDependencies: false },
+        );
+        expect(dashboardModel.getByIdOrSlug).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        [
+            'create',
+            (user: SessionUser) =>
+                service.createComment(
+                    user,
+                    'dashboard-uuid',
+                    'tile-uuid',
+                    'text',
+                    '<p>text</p>',
+                    null,
+                    [],
+                ),
+        ],
+        [
+            'list',
+            (user: SessionUser) =>
+                service.findCommentsForDashboard(user, 'dashboard-uuid'),
+        ],
+        [
+            'resolve',
+            (user: SessionUser) =>
+                service.resolveComment(
+                    user,
+                    'dashboard-uuid',
+                    'comment-uuid',
+                    true,
+                ),
+        ],
+        [
+            'delete',
+            (user: SessionUser) =>
+                service.deleteComment(user, 'dashboard-uuid', 'comment-uuid'),
+        ],
+    ])(
+        'does not %s comments after dashboard access is revoked',
+        async (_, run) => {
+            assertDashboardViewAccess.mockRejectedValueOnce(
+                new ForbiddenError('Dashboard access revoked'),
+            );
+
+            await expect(run(adminUser)).rejects.toThrow(ForbiddenError);
+
+            expect(commentModel.createComment).not.toHaveBeenCalled();
+            expect(
+                commentModel.findCommentsForDashboard,
+            ).not.toHaveBeenCalled();
+            expect(commentModel.resolveComment).not.toHaveBeenCalled();
+            expect(commentModel.deleteComment).not.toHaveBeenCalled();
+            expect(
+                notificationsModel.createDashboardCommentNotification,
+            ).not.toHaveBeenCalled();
+        },
+    );
 
     describe('resolveComment', () => {
         it.each([
@@ -279,8 +351,10 @@ describe('CommentService', () => {
             );
         });
 
-        it('throws ForbiddenError when user lacks space access', async () => {
-            spacePermissionService.can.mockResolvedValueOnce(false);
+        it('throws ForbiddenError when user lacks dashboard access', async () => {
+            assertDashboardViewAccess.mockRejectedValueOnce(
+                new ForbiddenError(),
+            );
 
             await expect(
                 service.deleteComment(

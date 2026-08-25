@@ -61,6 +61,7 @@ import {
     type DuplicateDashboardParams,
     type Explore,
     type ExploreError,
+    type Scheduler,
     type SpaceAccess,
     type UUID,
     type UuidOrSlug,
@@ -192,8 +193,11 @@ export class DashboardService
         dashboardUuidOrSlug: UuidOrSlug,
         data: ExportContentRequest,
     ) {
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
+        const dashboard = isJwtUser(account)
+            ? await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug)
+            : await this.assertViewAccess(account, dashboardUuidOrSlug, {
+                  includeDependencies: false,
+              });
 
         if (
             ![
@@ -210,20 +214,11 @@ export class DashboardService
             // Image export renders the dashboard in a headless browser using a
             // real session, so it is not available to embed/JWT callers.
             assertRegisteredAccount(account);
-            const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    account.user.userUuid,
-                    dashboard.spaceUuid,
-                );
-
             if (
                 auditedAbility.cannot(
                     'view',
                     subject('Dashboard', {
-                        organizationUuid: dashboard.organizationUuid,
-                        projectUuid: dashboard.projectUuid,
-                        inheritsFromOrgOrProject,
-                        access,
+                        ...dashboard,
                         metadata: {
                             dashboardUuid: dashboard.uuid,
                             dashboardName: dashboard.name,
@@ -454,8 +449,18 @@ export class DashboardService
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
     ): Promise<ContentVerificationInfo> {
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
+        const dashboard = await this.assertViewAccess(
+            user,
+            dashboardUuidOrSlug,
+            { includeDependencies: false },
+        );
+        return this.verifyDashboardWithAccess(user, dashboard);
+    }
+
+    private async verifyDashboardWithAccess(
+        user: SessionUser,
+        dashboard: DashboardDAO,
+    ): Promise<ContentVerificationInfo> {
         const { organizationUuid, projectUuid } = dashboard;
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -507,8 +512,18 @@ export class DashboardService
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
     ): Promise<void> {
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
+        const dashboard = await this.assertViewAccess(
+            user,
+            dashboardUuidOrSlug,
+            { includeDependencies: false },
+        );
+        await this.unverifyDashboardWithAccess(user, dashboard);
+    }
+
+    private async unverifyDashboardWithAccess(
+        user: SessionUser,
+        dashboard: DashboardDAO,
+    ): Promise<void> {
         const { organizationUuid, projectUuid } = dashboard;
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -2561,6 +2576,22 @@ export class DashboardService
             user,
             dashboardUuidOrSlug,
         );
+        return this.getSchedulersWithAccess(
+            user,
+            dashboard,
+            searchQuery,
+            paginateArgs,
+            includeLatestRun,
+        );
+    }
+
+    private async getSchedulersWithAccess(
+        user: SessionUser,
+        dashboard: DashboardDAO,
+        searchQuery?: string,
+        paginateArgs?: KnexPaginateArgs,
+        includeLatestRun?: boolean,
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         const auditedAbility = this.createAuditedAbility(user);
         const canManageAll = auditedAbility.can(
             'manage',
@@ -2602,9 +2633,37 @@ export class DashboardService
             destinations?: string[];
         },
     ): Promise<KnexPaginatedData<SchedulerRun[]>> {
+        const dashboard = await this.assertViewAccess(
+            user,
+            dashboardUuidOrSlug,
+            { includeDependencies: false },
+        );
         const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
+        return this.getSchedulerRunsWithAccess(
+            user,
+            dashboard,
+            scheduler,
+            schedulerUuid,
+            paginateArgs,
+            searchQuery,
+            sort,
+            filters,
+        );
+    }
+
+    private async getSchedulerRunsWithAccess(
+        user: SessionUser,
+        dashboard: DashboardDAO,
+        scheduler: Scheduler,
+        schedulerUuid: UUID,
+        paginateArgs?: KnexPaginateArgs,
+        searchQuery?: string,
+        sort?: { column: string; direction: 'asc' | 'desc' },
+        filters?: {
+            statuses?: SchedulerRunStatus[];
+            destinations?: string[];
+        },
+    ): Promise<KnexPaginatedData<SchedulerRun[]>> {
         const auditedAbility = this.createAuditedAbility(user);
         // Authorize before revealing whether the scheduler belongs to this
         // dashboard, so unauthorized callers can't distinguish 404 (wrong
@@ -2646,6 +2705,18 @@ export class DashboardService
         dashboardUuidOrSlug: UuidOrSlug,
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
     ): Promise<SchedulerAndTargets> {
+        DashboardService.validateCreateScheduler(user, newScheduler);
+        const dashboard = await this.checkCreateScheduledDeliveryAccess(
+            user,
+            dashboardUuidOrSlug,
+        );
+        return this.createSchedulerWithAccess(user, dashboard, newScheduler);
+    }
+
+    private static validateCreateScheduler(
+        user: SessionUser,
+        newScheduler: CreateSchedulerAndTargetsWithoutIds,
+    ): void {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -2665,11 +2736,13 @@ export class DashboardService
                 'Targets is required and must be an array',
             );
         }
+    }
 
-        const dashboard = await this.checkCreateScheduledDeliveryAccess(
-            user,
-            dashboardUuidOrSlug,
-        );
+    private async createSchedulerWithAccess(
+        user: SessionUser,
+        dashboard: DashboardDAO,
+        newScheduler: CreateSchedulerAndTargetsWithoutIds,
+    ): Promise<SchedulerAndTargets> {
         const { projectUuid, organizationUuid } = dashboard;
 
         if (newScheduler.format === SchedulerFormat.GSHEETS) {
@@ -2724,7 +2797,7 @@ export class DashboardService
         this.analytics.track(createSchedulerData);
 
         await this.slackClient.joinChannels(
-            user.organizationUuid,
+            organizationUuid,
             SchedulerModel.getSlackChannels(scheduler.targets),
         );
 
@@ -2747,18 +2820,18 @@ export class DashboardService
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
     ): Promise<Dashboard> {
-        const dashboardDao =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
-        const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboardDao.spaceUuid,
-            );
-        const dashboard = {
-            ...dashboardDao,
-            inheritsFromOrgOrProject,
-            access,
-        };
+        const dashboard = await this.assertViewAccess(
+            user,
+            dashboardUuidOrSlug,
+            { includeDependencies: false },
+        );
+        return this.assertCreateScheduledDeliveryAccess(user, dashboard);
+    }
+
+    private assertCreateScheduledDeliveryAccess(
+        user: SessionUser,
+        dashboard: Dashboard,
+    ): Dashboard {
         const { organizationUuid, projectUuid } = dashboard;
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -2792,9 +2865,7 @@ export class DashboardService
             );
         }
 
-        return {
-            ...dashboard,
-        };
+        return dashboard;
     }
 
     async hasAccess(

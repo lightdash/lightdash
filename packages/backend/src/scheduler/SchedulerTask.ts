@@ -4061,8 +4061,9 @@ export default class SchedulerTask {
                     createdByUserUuid: notification.userUuid,
                 },
             });
-            sessionUser = await this.userService.getSessionByUserUuid(
+            sessionUser = await this.userService.getSessionByUserUuidAndOrg(
                 scheduler.createdBy,
+                notification.organizationUuid,
             );
             account = await this.userService.getAccountByUserUuid(
                 scheduler.createdBy,

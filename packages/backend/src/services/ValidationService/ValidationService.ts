@@ -49,6 +49,7 @@ import {
     ValidationResponse,
     ValidationSourceType,
     ValidationTarget,
+    type DashboardDAO,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -62,6 +63,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
+import type { DashboardService } from '../DashboardService/DashboardService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 const VALIDATION_SUMMARY_AFFECTED_CONTENT_LIMIT = 20;
@@ -78,6 +80,7 @@ type ValidationServiceArguments = {
     schedulerClient: SchedulerClient;
     spacePermissionService: SpacePermissionService;
     featureFlagModel: FeatureFlagModel;
+    getDashboardService: () => DashboardService;
 };
 
 export class ValidationService extends BaseService {
@@ -214,6 +217,8 @@ export class ValidationService extends BaseService {
 
     featureFlagModel: FeatureFlagModel;
 
+    getDashboardService: () => DashboardService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -226,6 +231,7 @@ export class ValidationService extends BaseService {
         schedulerClient,
         spacePermissionService,
         featureFlagModel,
+        getDashboardService,
     }: ValidationServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -239,6 +245,7 @@ export class ValidationService extends BaseService {
         this.schedulerClient = schedulerClient;
         this.spacePermissionService = spacePermissionService;
         this.featureFlagModel = featureFlagModel;
+        this.getDashboardService = getDashboardService;
     }
 
     static getTableCalculationFieldIds(
@@ -2086,40 +2093,26 @@ export class ValidationService extends BaseService {
             throw new ForbiddenError();
         }
 
-        // Get the dashboard to check permissions
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
+        const dashboard = await this.getDashboardService().assertViewAccess(
+            user,
             dashboardUuid,
             {
                 projectUuid,
+                includeDependencies: false,
             },
         );
 
-        // Check user permissions
-        const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboard.spaceUuid,
-            );
+        return this.validateAndUpdateDashboardWithAccess(
+            projectUuid,
+            dashboard,
+        );
+    }
 
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('Dashboard', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid: dashboard.projectUuid,
-                    inheritsFromOrgOrProject,
-                    access,
-                    metadata: {
-                        dashboardUuid,
-                        dashboardName: dashboard.name,
-                    },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                "You don't have access to validate this dashboard",
-            );
-        }
+    private async validateAndUpdateDashboardWithAccess(
+        projectUuid: string,
+        dashboard: DashboardDAO,
+    ): Promise<CreateDashboardValidation[]> {
+        const dashboardUuid = dashboard.uuid;
 
         // Get all explores for dashboard validation
         const compiledExploresMap =

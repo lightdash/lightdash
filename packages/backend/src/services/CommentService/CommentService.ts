@@ -13,6 +13,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
+import type { DashboardService } from '../DashboardService/DashboardService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 type CommentServiceArguments = {
@@ -23,6 +24,7 @@ type CommentServiceArguments = {
     notificationsModel: NotificationsModel;
     userModel: UserModel;
     spacePermissionService: SpacePermissionService;
+    getDashboardService: () => DashboardService;
 };
 
 export class CommentService extends BaseService {
@@ -40,6 +42,8 @@ export class CommentService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    getDashboardService: () => DashboardService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -48,6 +52,7 @@ export class CommentService extends BaseService {
         notificationsModel,
         userModel,
         spacePermissionService,
+        getDashboardService,
     }: CommentServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -57,6 +62,7 @@ export class CommentService extends BaseService {
         this.notificationsModel = notificationsModel;
         this.userModel = userModel;
         this.spacePermissionService = spacePermissionService;
+        this.getDashboardService = getDashboardService;
     }
 
     async hasDashboardSpaceAccess(
@@ -144,8 +150,11 @@ export class CommentService extends BaseService {
     ): Promise<string> {
         this.throwIfDisabled();
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.getDashboardService().assertViewAccess(
+            user,
+            dashboardUuid,
+            { includeDependencies: false },
+        );
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -161,17 +170,31 @@ export class CommentService extends BaseService {
             throw new ForbiddenError();
         }
 
-        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
-            throw new ForbiddenError(
-                "You don't have access to the space this dashboard belongs to",
-            );
-        }
+        return this.createCommentWithAccess(
+            user,
+            dashboard,
+            dashboardTileUuid,
+            text,
+            unsafeTextHtml,
+            replyTo,
+            mentions,
+        );
+    }
 
+    private async createCommentWithAccess(
+        user: SessionUser,
+        dashboard: DashboardDAO,
+        dashboardTileUuid: string,
+        text: string,
+        unsafeTextHtml: string,
+        replyTo: string | null,
+        mentions: string[],
+    ): Promise<string> {
         this.analytics.track({
             event: 'comment.created',
             userId: user.userUuid,
             properties: {
-                dashboardUuid,
+                dashboardUuid: dashboard.uuid,
                 dashboardTileUuid,
                 isReply: !!replyTo,
                 hasMention: mentions.length > 0,
@@ -179,7 +202,7 @@ export class CommentService extends BaseService {
         });
 
         const comment = await this.commentModel.createComment(
-            dashboardUuid,
+            dashboard.uuid,
             dashboardTileUuid,
             text,
             unsafeTextHtml,
@@ -209,10 +232,12 @@ export class CommentService extends BaseService {
     ): Promise<Record<string, Comment[]>> {
         this.throwIfDisabled();
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
+        const dashboard = await this.getDashboardService().assertViewAccess(
+            user,
             dashboardUuidOrSlug,
             {
                 projectUuid: options?.projectUuid,
+                includeDependencies: false,
             },
         );
 
@@ -230,26 +255,32 @@ export class CommentService extends BaseService {
             throw new ForbiddenError();
         }
 
-        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
-            throw new ForbiddenError(
-                "You don't have access to the space this dashboard belongs to",
-            );
-        }
-
-        const canUserRemoveAnyComment = auditedAbility.can(
-            'manage',
-            subject('DashboardComments', {
-                organizationUuid: dashboard.organizationUuid,
-                projectUuid: dashboard.projectUuid,
-                metadata: { dashboardName: dashboard.name },
-            }),
+        return this.findCommentsWithAccess(
+            user,
+            dashboard,
+            auditedAbility.can(
+                'manage',
+                subject('DashboardComments', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                    metadata: { dashboardName: dashboard.name },
+                }),
+            ),
+            options?.resolved,
         );
+    }
 
+    private findCommentsWithAccess(
+        user: SessionUser,
+        dashboard: DashboardDAO,
+        canUserRemoveAnyComment: boolean,
+        resolved?: boolean,
+    ): Promise<Record<string, Comment[]>> {
         return this.commentModel.findCommentsForDashboard(
             dashboard.uuid,
             user.userUuid,
             canUserRemoveAnyComment,
-            options?.resolved ?? false,
+            resolved ?? false,
         );
     }
 
@@ -261,8 +292,11 @@ export class CommentService extends BaseService {
     ): Promise<void> {
         this.throwIfDisabled();
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.getDashboardService().assertViewAccess(
+            user,
+            dashboardUuid,
+            { includeDependencies: false },
+        );
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
@@ -277,12 +311,20 @@ export class CommentService extends BaseService {
             throw new ForbiddenError();
         }
 
-        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
-            throw new ForbiddenError(
-                "You don't have access to the space this dashboard belongs to",
-            );
-        }
+        await this.resolveCommentWithAccess(
+            user,
+            dashboard,
+            commentId,
+            resolved,
+        );
+    }
 
+    private async resolveCommentWithAccess(
+        user: SessionUser,
+        dashboard: DashboardDAO,
+        commentId: string,
+        resolved: boolean,
+    ): Promise<void> {
         const comment = await this.commentModel.getComment(
             dashboard.uuid,
             commentId,
@@ -294,7 +336,7 @@ export class CommentService extends BaseService {
             properties: {
                 isReply: !!comment.replyTo,
                 dashboardTileUuid: comment.dashboardTileUuid,
-                dashboardUuid,
+                dashboardUuid: dashboard.uuid,
                 isOwner: comment.userUuid === user.userUuid,
                 hasMention: comment.mentions.length > 0,
             },
@@ -312,15 +354,20 @@ export class CommentService extends BaseService {
     ): Promise<void> {
         this.throwIfDisabled();
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.getDashboardService().assertViewAccess(
+            user,
+            dashboardUuid,
+            { includeDependencies: false },
+        );
 
-        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
-            throw new ForbiddenError(
-                "You don't have access to the space this dashboard belongs to",
-            );
-        }
+        await this.deleteCommentWithAccess(user, dashboard, commentId);
+    }
 
+    private async deleteCommentWithAccess(
+        user: SessionUser,
+        dashboard: DashboardDAO,
+        commentId: string,
+    ): Promise<void> {
         const auditedAbility = this.createAuditedAbility(user);
         const canRemoveAnyComment = auditedAbility.can(
             'manage',
@@ -358,7 +405,7 @@ export class CommentService extends BaseService {
             properties: {
                 isReply: !!comment.replyTo,
                 dashboardTileUuid: comment.dashboardTileUuid,
-                dashboardUuid,
+                dashboardUuid: dashboard.uuid,
                 isOwner,
                 hasMention: comment.mentions.length > 0,
             },

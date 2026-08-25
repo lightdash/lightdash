@@ -391,6 +391,7 @@ export class ServiceRepository
                     notificationsModel: this.models.getNotificationsModel(),
                     userModel: this.models.getUserModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    getDashboardService: () => this.getDashboardService(),
                 }),
         );
     }
@@ -414,6 +415,7 @@ export class ServiceRepository
                     pivotTableService: this.getPivotTableService(),
                     persistentDownloadFileService:
                         this.getPersistentDownloadFileService(),
+                    getDashboardService: () => this.getDashboardService(),
                 }),
         );
     }
@@ -1076,6 +1078,7 @@ export class ServiceRepository
                     userService: this.getUserService(),
                     jobModel: this.models.getJobModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    getDashboardService: () => this.getDashboardService(),
                 }),
         );
     }
@@ -1194,6 +1197,8 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     headlessBrowserLoginGrantModel:
                         this.models.getHeadlessBrowserLoginGrantModel(),
+                    getDashboardService: () => this.getDashboardService(),
+                    userService: this.getUserService(),
                 }),
         );
     }
@@ -1265,6 +1270,7 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     spacePermissionService: this.getSpacePermissionService(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                    getDashboardService: () => this.getDashboardService(),
                 }),
         );
     }

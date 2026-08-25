@@ -35,6 +35,7 @@ import {
     snakeCaseName,
     UnexpectedServerError,
     validateSelectedTabs,
+    type DashboardDAO,
     type DashboardFilterRule,
     type DashboardFilters,
     type DeliveryCaptureManifest,
@@ -76,7 +77,9 @@ import { SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
 import { traceSpan } from '../../tracing/tracing';
 import { validatePublicHttpUrl } from '../../utils/ssrfProtection';
 import { BaseService } from '../BaseService';
+import type { DashboardService } from '../DashboardService/DashboardService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import type { UserService } from '../UserService';
 import { countPdfPages } from './countPdfPages';
 
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
@@ -342,6 +345,8 @@ type UnfurlServiceArguments = {
     slackAuthenticationModel: SlackAuthenticationModel;
     spacePermissionService: SpacePermissionService;
     headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
+    getDashboardService: () => DashboardService;
+    userService: Pick<UserService, 'getSessionByUserUuidAndOrg'>;
 };
 
 export class UnfurlService extends BaseService {
@@ -375,6 +380,10 @@ export class UnfurlService extends BaseService {
 
     headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
 
+    getDashboardService: () => DashboardService;
+
+    userService: Pick<UserService, 'getSessionByUserUuidAndOrg'>;
+
     private readonly screenshotTimeoutMs: number;
 
     constructor({
@@ -393,6 +402,8 @@ export class UnfurlService extends BaseService {
         slackAuthenticationModel,
         spacePermissionService,
         headlessBrowserLoginGrantModel,
+        getDashboardService,
+        userService,
     }: UnfurlServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -410,6 +421,8 @@ export class UnfurlService extends BaseService {
         this.slackAuthenticationModel = slackAuthenticationModel;
         this.spacePermissionService = spacePermissionService;
         this.headlessBrowserLoginGrantModel = headlessBrowserLoginGrantModel;
+        this.getDashboardService = getDashboardService;
+        this.userService = userService;
         this.screenshotTimeoutMs =
             lightdashConfig.headlessBrowser.screenshotTimeoutMs;
     }
@@ -466,6 +479,19 @@ export class UnfurlService extends BaseService {
     async getTitleAndDescription(
         parsedUrl: ParsedUrl,
         selectedTabs: string[] | null,
+        user?: SessionUser,
+    ) {
+        return this.getTitleAndDescriptionWithAccess(parsedUrl, selectedTabs, {
+            ...(user
+                ? { type: 'user' as const, user }
+                : { type: 'legacy' as const }),
+        });
+    }
+
+    private async getTitleAndDescriptionWithAccess(
+        parsedUrl: ParsedUrl,
+        selectedTabs: string[] | null,
+        authorization: { type: 'legacy' } | { type: 'user'; user: SessionUser },
     ): Promise<
         Pick<
             Unfurl,
@@ -483,9 +509,19 @@ export class UnfurlService extends BaseService {
                     throw new ParameterError(
                         `Missing dashboardUuid when unfurling Dashboard URL ${parsedUrl.url}`,
                     );
-                const dashboard = await this.dashboardModel.getByIdOrSlug(
-                    parsedUrl.dashboardUuid,
-                );
+                const dashboard =
+                    authorization.type === 'user'
+                        ? await this.getDashboardService().assertViewAccess(
+                              authorization.user,
+                              parsedUrl.dashboardUuid,
+                              {
+                                  projectUuid: parsedUrl.projectUuid,
+                                  includeDependencies: false,
+                              },
+                          )
+                        : await this.dashboardModel.getByIdOrSlug(
+                              parsedUrl.dashboardUuid,
+                          );
 
                 validateSelectedTabs(selectedTabs, dashboard.tiles);
 
@@ -588,6 +624,21 @@ export class UnfurlService extends BaseService {
         originUrl: string,
         selectedTabs: string[] | null,
         organizationUuidContext?: string,
+        user?: SessionUser,
+    ): Promise<Unfurl | undefined> {
+        return this.unfurlDetailsWithAccess(
+            originUrl,
+            selectedTabs,
+            organizationUuidContext,
+            user ? { type: 'user', user } : { type: 'legacy' },
+        );
+    }
+
+    private async unfurlDetailsWithAccess(
+        originUrl: string,
+        selectedTabs: string[] | null,
+        organizationUuidContext: string | undefined,
+        authorization: { type: 'legacy' } | { type: 'user'; user: SessionUser },
     ): Promise<Unfurl | undefined> {
         const parsedUrl = await this.parseUrl(
             originUrl,
@@ -609,7 +660,14 @@ export class UnfurlService extends BaseService {
             chartType,
             resourceUuid,
             ...rest
-        } = await this.getTitleAndDescription(parsedUrl, selectedTabs);
+        } =
+            authorization.type === 'user'
+                ? await this.getTitleAndDescription(
+                      parsedUrl,
+                      selectedTabs,
+                      authorization.user,
+                  )
+                : await this.getTitleAndDescription(parsedUrl, selectedTabs);
 
         return {
             title,
@@ -933,72 +991,57 @@ export class UnfurlService extends BaseService {
         user: SessionUser,
         selectedTabs: string[] | null,
     ): Promise<string> {
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboard.spaceUuid,
-            );
+        const dashboard = await this.getDashboardService().assertViewAccess(
+            user,
+            dashboardUuid,
+            { includeDependencies: false },
+        );
 
+        return this.exportDashboardWithAccess(
+            dashboard,
+            queryFilters,
+            gridWidth,
+            user.userUuid,
+            selectedTabs,
+        );
+    }
+
+    private async exportDashboardWithAccess(
+        dashboard: DashboardDAO,
+        queryFilters: string,
+        gridWidth: number | undefined,
+        authUserUuid: string,
+        selectedTabs: string[] | null,
+    ): Promise<string> {
+        const dashboardUuid = dashboard.uuid;
         validateSelectedTabs(selectedTabs, dashboard.tiles);
-
         const selectedTabsParams = new URLSearchParams();
         const selectedTabsList = expandSelectedTabs(
             selectedTabs,
             dashboard.tiles,
         );
 
-        if (selectedTabsList.length > 0)
+        if (selectedTabsList.length > 0) {
             selectedTabsParams.set(
                 'selectedTabs',
                 JSON.stringify(selectedTabsList),
             );
+        }
 
-        const urlBase = `/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}`;
-
-        // Normalize the query filters
         const suffix =
             queryFilters &&
             !(queryFilters.startsWith('?') || queryFilters.startsWith('&'))
                 ? `?${queryFilters}`
                 : (queryFilters ?? '');
-
         const url = new URL(
-            urlBase + suffix,
+            `/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}${suffix}`,
             this.lightdashConfig.headlessBrowser.internalLightdashHost,
         );
-
-        for (const [k, v] of selectedTabsParams.entries()) {
-            url.searchParams.set(k, v);
-        }
-
-        const { organizationUuid, projectUuid, name, minimalUrl, pageType } = {
-            organizationUuid: dashboard.organizationUuid,
-            projectUuid: dashboard.projectUuid,
-            name: dashboard.name,
-            minimalUrl: url.href,
-            pageType: LightdashPage.DASHBOARD,
-        };
-
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('Dashboard', {
-                    organizationUuid,
-                    projectUuid,
-                    inheritsFromOrgOrProject,
-                    access,
-                    metadata: {
-                        dashboardUuid: dashboard.uuid,
-                        dashboardName: name,
-                    },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        selectedTabsParams.forEach((value, key) => {
+            url.searchParams.set(key, value);
+        });
+        const { name } = dashboard;
+        const minimalUrl = url.href;
 
         this.logger.info(
             `Exporting dashboard ${name} with minimalUrl ${minimalUrl}${
@@ -1010,9 +1053,9 @@ export class UnfurlService extends BaseService {
 
         const unfurlImage = await this.unfurlImage({
             url: minimalUrl,
-            lightdashPage: pageType,
+            lightdashPage: LightdashPage.DASHBOARD,
             imageId: `slack-image_${snakeCaseName(name)}_${useNanoid()}`,
-            authUserUuid: user.userUuid,
+            authUserUuid,
             gridWidth,
             context: ScreenshotContext.EXPORT_DASHBOARD,
             selectedTabs,
@@ -2855,6 +2898,12 @@ export class UnfurlService extends BaseService {
             await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
                 teamId,
             );
+        const authUserUuid =
+            await this.slackAuthenticationModel.getUserUuid(teamId);
+        const user = await this.userService.getSessionByUserUuidAndOrg(
+            authUserUuid,
+            organizationUuid,
+        );
 
         void event.links.map(async (l) => {
             const eventUserId = context.botUserId;
@@ -2864,6 +2913,7 @@ export class UnfurlService extends BaseService {
                     l.url,
                     null,
                     organizationUuid,
+                    user,
                 );
 
                 if (details) {
@@ -2890,9 +2940,6 @@ export class UnfurlService extends BaseService {
                     }
 
                     const imageId = `slack-image-${useNanoid()}`;
-                    const authUserUuid =
-                        await this.slackAuthenticationModel.getUserUuid(teamId);
-
                     const installation =
                         await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                             details?.organizationUuid,

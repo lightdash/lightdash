@@ -165,6 +165,7 @@ const contentVerificationModel = {
     getByContent: vi.fn(
         async (): Promise<ContentVerificationInfo | null> => null,
     ),
+    verify: vi.fn(async () => undefined),
     unverify: vi.fn(async () => undefined),
 };
 
@@ -663,6 +664,43 @@ describe('DashboardService', () => {
         );
     });
 
+    test('should not schedule an export after dashboard access is revoked', async () => {
+        const account = fromSession(user);
+        vi.spyOn(service, 'assertViewAccess').mockRejectedValueOnce(
+            new ForbiddenError('Dashboard access revoked'),
+        );
+
+        await expect(
+            service.scheduleExportContent(account, dashboard.uuid, {
+                format: SchedulerFormat.IMAGE,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+
+        expect(schedulerClient.scheduleTask).not.toHaveBeenCalled();
+    });
+
+    test.each([
+        [
+            'verify',
+            (actor: SessionUser) =>
+                service.verifyDashboard(actor, dashboard.uuid),
+        ],
+        [
+            'unverify',
+            (actor: SessionUser) =>
+                service.unverifyDashboard(actor, dashboard.uuid),
+        ],
+    ])('should not %s after dashboard access is revoked', async (_, run) => {
+        vi.spyOn(service, 'assertViewAccess').mockRejectedValueOnce(
+            new ForbiddenError('Dashboard access revoked'),
+        );
+
+        await expect(run(user)).rejects.toThrow(ForbiddenError);
+
+        expect(contentVerificationModel.verify).not.toHaveBeenCalled();
+        expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+    });
+
     const embedExportAccount = () => {
         const sessionAccount = fromSession(user);
         return {
@@ -1106,16 +1144,21 @@ describe('DashboardService', () => {
     );
 
     test('should update dashboard details', async () => {
-        (dashboardModel.update as import('vitest').Mock).mockResolvedValueOnce({
-            ...dashboard,
-            filters: {
-                dimensions: [
-                    { lockedTabUuids: ['tab-uuid'] } as DashboardFilterRule,
-                ],
-                metrics: [{} as DashboardFilterRule],
-                tableCalculations: [],
-            },
-        });
+        dashboardModel.getByIdOrSlug.mockReset().mockResolvedValue(dashboard);
+        (dashboardModel.update as import('vitest').Mock)
+            .mockReset()
+            .mockResolvedValueOnce({
+                ...dashboard,
+                filters: {
+                    dimensions: [
+                        {
+                            lockedTabUuids: ['tab-uuid'],
+                        } as DashboardFilterRule,
+                    ],
+                    metrics: [{} as DashboardFilterRule],
+                    tableCalculations: [],
+                },
+            });
 
         const result = await service.update(
             user,
@@ -1671,6 +1714,35 @@ describe('DashboardService', () => {
             );
         });
 
+        test('returns runs through direct dashboard access', async () => {
+            const result = await service.getSchedulerRuns(
+                editorOwnUser,
+                dashboard.uuid,
+                schedulerUuid,
+            );
+
+            expect(result).toBe(runsPayload);
+        });
+
+        test('does not query runs after direct dashboard access is revoked', async () => {
+            vi.spyOn(service, 'assertViewAccess').mockRejectedValueOnce(
+                new ForbiddenError('Dashboard access revoked'),
+            );
+
+            await expect(
+                service.getSchedulerRuns(
+                    editorOwnUser,
+                    dashboard.uuid,
+                    schedulerUuid,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(schedulerModel.getScheduler).not.toHaveBeenCalled();
+            expect(
+                schedulerModel.getProjectSchedulerRuns,
+            ).not.toHaveBeenCalled();
+        });
+
         test('throws 403 when the user cannot manage scheduled deliveries', async () => {
             await expect(
                 service.getSchedulerRuns(
@@ -1808,6 +1880,24 @@ describe('DashboardService', () => {
             );
         });
 
+        test('lists schedulers through direct dashboard access', async () => {
+            await service.getSchedulers(editorUser, dashboard.uuid);
+
+            expect(schedulerModel.getSchedulers).toHaveBeenCalled();
+        });
+
+        test('does not list schedulers after direct dashboard access is revoked', async () => {
+            vi.spyOn(service, 'assertViewAccess').mockRejectedValueOnce(
+                new ForbiddenError('Dashboard access revoked'),
+            );
+
+            await expect(
+                service.getSchedulers(editorUser, dashboard.uuid),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(schedulerModel.getSchedulers).not.toHaveBeenCalled();
+        });
+
         test('resolves slug to uuid when filtering schedulers', async () => {
             await service.getSchedulers(adminUser, dashboard.slug);
 
@@ -1869,6 +1959,34 @@ describe('DashboardService', () => {
             expect(schedulerModel.createScheduler).toHaveBeenCalledWith(
                 expect.objectContaining({ dashboardUuid: dashboard.uuid }),
             );
+        });
+
+        test('creates a scheduler through direct dashboard access', async () => {
+            await service.createScheduler(
+                editorUser,
+                dashboard.uuid,
+                newScheduler,
+            );
+
+            expect(schedulerModel.createScheduler).toHaveBeenCalledWith(
+                expect.objectContaining({ dashboardUuid: dashboard.uuid }),
+            );
+        });
+
+        test('does not create a scheduler after direct dashboard access is revoked', async () => {
+            vi.spyOn(service, 'assertViewAccess').mockRejectedValueOnce(
+                new ForbiddenError('Dashboard access revoked'),
+            );
+
+            await expect(
+                service.createScheduler(
+                    editorUser,
+                    dashboard.uuid,
+                    newScheduler,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(schedulerModel.createScheduler).not.toHaveBeenCalled();
         });
     });
 });

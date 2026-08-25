@@ -2,6 +2,7 @@ import {
     DimensionType,
     FieldType,
     ItemsMap,
+    type Account,
     type Dimension,
 } from '@lightdash/common';
 import * as fs from 'fs/promises';
@@ -43,6 +44,7 @@ import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTa
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import type { DashboardService } from '../DashboardService/DashboardService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { ProjectService } from '../ProjectService/ProjectService';
@@ -52,6 +54,7 @@ import { itemMap, metricQuery } from './CsvService.mock';
 
 describe('Csv service', () => {
     const createDownloadFile = vi.fn();
+    const assertDashboardViewAccess = vi.fn();
     const csvService = new CsvService({
         lightdashConfig,
         analytics: analyticsMock,
@@ -126,6 +129,37 @@ describe('Csv service', () => {
             organizationSettingsModel: {} as OrganizationSettingsModel,
         }),
         persistentDownloadFileService: {} as PersistentDownloadFileService,
+        getDashboardService: () =>
+            ({
+                assertViewAccess: assertDashboardViewAccess,
+            }) as unknown as DashboardService,
+    });
+
+    it('checks current dashboard access before scheduling an export', async () => {
+        const accessError = new Error('dashboard access revoked');
+        assertDashboardViewAccess.mockRejectedValueOnce(accessError);
+        const account = {
+            user: { type: 'registered' },
+        } as unknown as Account;
+
+        await expect(
+            csvService.scheduleExportCsvDashboard(
+                account,
+                'dashboard-uuid',
+                {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                null,
+            ),
+        ).rejects.toBe(accessError);
+
+        expect(assertDashboardViewAccess).toHaveBeenCalledWith(
+            account,
+            'dashboard-uuid',
+            { includeDependencies: false },
+        );
     });
 
     it('persists the owning project for a local CSV download', async () => {

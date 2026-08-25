@@ -1,6 +1,7 @@
 import {
     DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
+    ForbiddenError,
     LightdashPage,
     LightdashRequestMethodHeader,
     NotFoundError,
@@ -8,6 +9,7 @@ import {
     SCREENSHOT_SELECTORS,
     UnexpectedServerError,
     type DeliveryCaptureManifest,
+    type SessionUser,
 } from '@lightdash/common';
 import type { Route, WebSocketRoute } from 'playwright';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -24,7 +26,9 @@ import { type SavedSqlModel } from '../../models/SavedSqlModel';
 import { type ShareModel } from '../../models/ShareModel';
 import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { type SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
+import type { DashboardService } from '../DashboardService/DashboardService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import type { UserService } from '../UserService';
 import { UnfurlService } from './UnfurlService';
 
 const playwrightMocks = vi.hoisted(() => ({
@@ -83,6 +87,8 @@ function createService(
         dashboardModel: Partial<DashboardModel>;
         projectModel: Partial<ProjectModel>;
         slackAuthenticationModel: Partial<SlackAuthenticationModel>;
+        dashboardService: Partial<DashboardService>;
+        userService: Partial<UserService>;
         headlessBrowser: Record<string, unknown>;
     }> = {},
 ) {
@@ -117,10 +123,60 @@ function createService(
         spacePermissionService: {} as unknown as SpacePermissionService,
         headlessBrowserLoginGrantModel:
             {} as unknown as HeadlessBrowserLoginGrantModel,
+        getDashboardService: () =>
+            (overrides.dashboardService ?? {}) as DashboardService,
+        userService: (overrides.userService ?? {}) as Pick<
+            UserService,
+            'getSessionByUserUuidAndOrg'
+        >,
     });
 }
 
 describe('UnfurlService', () => {
+    it('passes the organization-scoped user to Slack unfurls and suppresses revoked links', async () => {
+        const user = {} as SessionUser;
+        const getSessionByUserUuidAndOrg = vi.fn().mockResolvedValue(user);
+        const service = createService({
+            slackAuthenticationModel: {
+                getUnfurlsEnabled: vi.fn().mockResolvedValue(true),
+                getOrganizationUuidFromTeamId: vi
+                    .fn()
+                    .mockResolvedValue('organization-uuid'),
+                getUserUuid: vi.fn().mockResolvedValue('user-uuid'),
+            },
+            userService: { getSessionByUserUuidAndOrg },
+        });
+        const accessError = new ForbiddenError('Dashboard access revoked');
+        const unfurlDetails = vi
+            .spyOn(service, 'unfurlDetails')
+            .mockRejectedValue(accessError);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sendUnfurl = vi.spyOn(service as any, 'sendUnfurl');
+
+        await service.unfurlSlackUrls({
+            event: {
+                channel: 'channel',
+                message_ts: 'timestamp',
+                links: [{ url: 'https://app.lightdash.cloud/dashboard' }],
+            },
+            context: { teamId: 'team-uuid' },
+        } as never);
+
+        expect(getSessionByUserUuidAndOrg).toHaveBeenCalledWith(
+            'user-uuid',
+            'organization-uuid',
+        );
+        await vi.waitFor(() => {
+            expect(unfurlDetails).toHaveBeenCalledWith(
+                'https://app.lightdash.cloud/dashboard',
+                null,
+                'organization-uuid',
+                user,
+            );
+        });
+        expect(sendUnfurl).not.toHaveBeenCalled();
+    });
+
     afterEach(() => {
         vi.clearAllMocks();
     });
@@ -1102,6 +1158,97 @@ describe('UnfurlService', () => {
             expect(page.screenshot).not.toHaveBeenCalled();
             expect(page.close).toHaveBeenCalled();
             expect(browser.close).toHaveBeenCalled();
+        });
+    });
+
+    describe('getTitleAndDescription - DASHBOARD', () => {
+        it('uses current user access before returning dashboard metadata', async () => {
+            const user = {} as SessionUser;
+            const assertViewAccess = vi.fn().mockResolvedValue({
+                uuid: 'dashboard-uuid',
+                name: 'Direct dashboard',
+                description: 'Private metadata',
+                organizationUuid: 'organization-uuid',
+                tiles: [],
+            });
+            const getByIdOrSlug = vi.fn();
+            const service = createService({
+                dashboardModel: { getByIdOrSlug },
+                dashboardService: { assertViewAccess },
+            });
+
+            const result = await service.getTitleAndDescription(
+                {
+                    isValid: true,
+                    lightdashPage: LightdashPage.DASHBOARD,
+                    url: 'irrelevant',
+                    minimalUrl: 'irrelevant',
+                    projectUuid: 'project-uuid',
+                    dashboardUuid: 'dashboard-uuid',
+                },
+                null,
+                user,
+            );
+
+            expect(assertViewAccess).toHaveBeenCalledWith(
+                user,
+                'dashboard-uuid',
+                {
+                    projectUuid: 'project-uuid',
+                    includeDependencies: false,
+                },
+            );
+            expect(getByIdOrSlug).not.toHaveBeenCalled();
+            expect(result).toMatchObject({
+                title: 'Direct dashboard',
+                description: 'Private metadata',
+            });
+        });
+
+        it('does not return dashboard metadata after access is revoked', async () => {
+            const accessError = new ForbiddenError('Dashboard access revoked');
+            const service = createService({
+                dashboardService: {
+                    assertViewAccess: vi.fn().mockRejectedValue(accessError),
+                },
+            });
+
+            await expect(
+                service.getTitleAndDescription(
+                    {
+                        isValid: true,
+                        lightdashPage: LightdashPage.DASHBOARD,
+                        url: 'irrelevant',
+                        minimalUrl: 'irrelevant',
+                        projectUuid: 'project-uuid',
+                        dashboardUuid: 'dashboard-uuid',
+                    },
+                    null,
+                    {} as SessionUser,
+                ),
+            ).rejects.toBe(accessError);
+        });
+
+        it('does not render an export after access is revoked', async () => {
+            const accessError = new ForbiddenError('Dashboard access revoked');
+            const service = createService({
+                dashboardService: {
+                    assertViewAccess: vi.fn().mockRejectedValue(accessError),
+                },
+            });
+            const unfurlImage = vi.spyOn(service, 'unfurlImage');
+
+            await expect(
+                service.exportDashboard(
+                    'dashboard-uuid',
+                    '',
+                    undefined,
+                    {} as SessionUser,
+                    null,
+                ),
+            ).rejects.toBe(accessError);
+
+            expect(unfurlImage).not.toHaveBeenCalled();
         });
     });
 

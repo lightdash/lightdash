@@ -26,6 +26,7 @@ import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import type { DashboardService } from '../DashboardService/DashboardService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 import { SchedulerService } from './SchedulerService';
@@ -98,6 +99,8 @@ const chartSchedulerInPrivateSpace: ChartScheduler = {
 const dashboardScheduler = {
     schedulerUuid: 'schedulerUuid',
     name: 'scheduler name',
+    createdBy: 'userUuid',
+    format: SchedulerFormat.CSV,
     dashboardUuid: 'dashboardUuid',
     savedChartUuid: null,
     savedSqlUuid: null,
@@ -114,6 +117,10 @@ const dashboardSummary = {
 const schedulerModel = {
     getScheduler: vi.fn(async () => chartSchedulerInPrivateSpace),
     getSchedulerAndTargets: vi.fn(async () => dashboardScheduler),
+    updateScheduler: vi.fn(),
+    setSchedulerEnabled: vi.fn(),
+    deleteScheduler: vi.fn(),
+    deleteScheduledLogs: vi.fn(),
 };
 
 const savedChartModel = {
@@ -137,6 +144,8 @@ const spacePermissionService = {
 
 const schedulerClient = {
     addScheduledDeliveryJob: vi.fn(async () => ({})),
+    deleteScheduledJobs: vi.fn(),
+    generateDailyJobsForScheduler: vi.fn(),
 };
 
 const slackClient = {
@@ -153,9 +162,17 @@ const buildUser = (
         organizationCreatedAt: new Date(),
         role: OrganizationMemberRole.VIEWER,
         ability: new Ability<PossibleAbilities>(abilities),
+        abilityRules: abilities,
     }) as unknown as SessionUser;
 
-const buildService = () =>
+const dashboardService = {
+    assertViewAccess: vi.fn(async () => dashboardSummary),
+};
+
+const buildService = (
+    getDashboardService: () => DashboardService = () =>
+        dashboardService as unknown as DashboardService,
+) =>
     new SchedulerService({
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
@@ -174,6 +191,7 @@ const buildService = () =>
         jobModel: {} as JobModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
+        getDashboardService,
     });
 
 describe('SchedulerService', () => {
@@ -183,6 +201,93 @@ describe('SchedulerService', () => {
         vi.clearAllMocks();
     });
 
+    test('checks direct dashboard access when reading a dashboard scheduler', async () => {
+        const assertViewAccess = vi.fn().mockResolvedValue({});
+        const directAccessService = buildService(
+            () =>
+                ({
+                    assertViewAccess,
+                }) as unknown as DashboardService,
+        );
+        const user = buildUser([]);
+
+        await directAccessService.getScheduler(user, 'schedulerUuid');
+
+        expect(assertViewAccess).toHaveBeenCalledWith(user, 'dashboardUuid', {
+            includeDependencies: false,
+        });
+    });
+
+    test.each([
+        [
+            'read',
+            (schedulerService: SchedulerService, user: SessionUser) =>
+                schedulerService.getScheduler(user, 'schedulerUuid'),
+        ],
+        [
+            'update',
+            (schedulerService: SchedulerService, user: SessionUser) =>
+                schedulerService.updateScheduler(user, 'schedulerUuid', {
+                    name: 'scheduler',
+                    cron: '0 0 * * *',
+                    timezone: 'UTC',
+                    format: SchedulerFormat.CSV,
+                    options: { formatted: true, limit: 'table' },
+                    targets: [],
+                    includeLinks: true,
+                } as UpdateSchedulerAndTargetsWithoutId),
+        ],
+        [
+            'toggle',
+            (schedulerService: SchedulerService, user: SessionUser) =>
+                schedulerService.setSchedulerEnabled(
+                    user,
+                    'schedulerUuid',
+                    true,
+                ),
+        ],
+        [
+            'delete',
+            (schedulerService: SchedulerService, user: SessionUser) =>
+                schedulerService.deleteScheduler(user, 'schedulerUuid'),
+        ],
+    ])(
+        'does not %s a scheduler after dashboard access is revoked',
+        async (action, run) => {
+            const accessError = new ForbiddenError('Dashboard access revoked');
+            const assertViewAccess = vi.fn().mockRejectedValue(accessError);
+            const directAccessService = buildService(
+                () =>
+                    ({
+                        assertViewAccess,
+                    }) as unknown as DashboardService,
+            );
+            const user = buildUser([
+                { subject: 'ScheduledDeliveries', action: ['manage'] },
+            ]);
+            if (action === 'read') {
+                schedulerModel.getSchedulerAndTargets.mockResolvedValueOnce(
+                    dashboardScheduler as never,
+                );
+            } else {
+                schedulerModel.getScheduler.mockResolvedValueOnce(
+                    dashboardScheduler as never,
+                );
+            }
+
+            await expect(run(directAccessService, user)).rejects.toBe(
+                accessError,
+            );
+            expect(
+                schedulerClient.addScheduledDeliveryJob,
+            ).not.toHaveBeenCalled();
+            expect(schedulerModel.updateScheduler).not.toHaveBeenCalled();
+            expect(schedulerModel.setSchedulerEnabled).not.toHaveBeenCalled();
+            expect(schedulerModel.deleteScheduler).not.toHaveBeenCalled();
+            expect(schedulerClient.deleteScheduledJobs).not.toHaveBeenCalled();
+        },
+    );
+
     describe('sendSchedulerByUuid', () => {
         const userWhoCanSendPersistedScheduler = buildUser([
             { subject: 'ScheduledDeliveries', action: ['create'] },
@@ -190,6 +295,11 @@ describe('SchedulerService', () => {
         ]);
 
         test('should throw ForbiddenError when user cannot view the underlying resource', async () => {
+            spacePermissionService.getSpaceAccessContext.mockResolvedValueOnce({
+                inheritsFromOrgOrProject: false,
+                access: [],
+            });
+
             await expect(
                 service.sendSchedulerByUuid(
                     interactiveViewer,
@@ -219,6 +329,57 @@ describe('SchedulerService', () => {
                 }),
                 chartSchedulerInPrivateSpace.schedulerUuid,
             );
+        });
+
+        test('sends a dashboard scheduler through direct access', async () => {
+            const assertViewAccess = vi.fn().mockResolvedValue({});
+            const directAccessService = buildService(
+                () =>
+                    ({
+                        assertViewAccess,
+                    }) as unknown as DashboardService,
+            );
+            schedulerModel.getScheduler.mockResolvedValueOnce(
+                dashboardScheduler as never,
+            );
+
+            await directAccessService.sendSchedulerByUuid(
+                userWhoCanSendPersistedScheduler,
+                'schedulerUuid',
+            );
+
+            expect(assertViewAccess).toHaveBeenCalledWith(
+                userWhoCanSendPersistedScheduler,
+                'dashboardUuid',
+                { includeDependencies: false },
+            );
+            expect(schedulerClient.addScheduledDeliveryJob).toHaveBeenCalled();
+        });
+
+        test('does not send a dashboard scheduler after access is revoked', async () => {
+            const accessError = new ForbiddenError('Dashboard access revoked');
+            const directAccessService = buildService(
+                () =>
+                    ({
+                        assertViewAccess: vi
+                            .fn()
+                            .mockRejectedValue(accessError),
+                    }) as unknown as DashboardService,
+            );
+            schedulerModel.getScheduler.mockResolvedValueOnce(
+                dashboardScheduler as never,
+            );
+
+            await expect(
+                directAccessService.sendSchedulerByUuid(
+                    userWhoCanSendPersistedScheduler,
+                    'schedulerUuid',
+                ),
+            ).rejects.toBe(accessError);
+
+            expect(
+                schedulerClient.addScheduledDeliveryJob,
+            ).not.toHaveBeenCalled();
         });
     });
 
@@ -297,6 +458,52 @@ describe('SchedulerService', () => {
             );
         });
 
+        test('sends an unsaved dashboard delivery through direct access', async () => {
+            const assertViewAccess = vi.fn().mockResolvedValue({});
+            const directAccessService = buildService(
+                () =>
+                    ({
+                        assertViewAccess,
+                    }) as unknown as DashboardService,
+            );
+            await directAccessService.sendScheduler(userWhoCanSend, {
+                ...sendNowPayload,
+                savedChartUuid: null,
+                dashboardUuid: 'dashboardUuid',
+            });
+
+            expect(assertViewAccess).toHaveBeenCalledWith(
+                userWhoCanSend,
+                'dashboardUuid',
+                { includeDependencies: false },
+            );
+            expect(schedulerClient.addScheduledDeliveryJob).toHaveBeenCalled();
+        });
+
+        test('does not send an unsaved dashboard delivery after access is revoked', async () => {
+            const accessError = new ForbiddenError('Dashboard access revoked');
+            const directAccessService = buildService(
+                () =>
+                    ({
+                        assertViewAccess: vi
+                            .fn()
+                            .mockRejectedValue(accessError),
+                    }) as unknown as DashboardService,
+            );
+
+            await expect(
+                directAccessService.sendScheduler(userWhoCanSend, {
+                    ...sendNowPayload,
+                    savedChartUuid: null,
+                    dashboardUuid: 'dashboardUuid',
+                }),
+            ).rejects.toBe(accessError);
+
+            expect(
+                schedulerClient.addScheduledDeliveryJob,
+            ).not.toHaveBeenCalled();
+        });
+
         test.each([
             { webhook: 'https://169.254.169.254/latest/meta-data' },
             { googleChatWebhook: 'https://127.0.0.1/hook' },
@@ -355,6 +562,7 @@ describe('SchedulerService', () => {
                     jobModel: {} as JobModel,
                     spacePermissionService:
                         spacePermissionService as unknown as SpacePermissionService,
+                    getDashboardService: () => ({}) as DashboardService,
                 });
                 return { appSendService, appSendSchedulerClient };
             };
@@ -497,9 +705,17 @@ describe('SchedulerService', () => {
 
         test('throws ForbiddenError when the user cannot view the underlying resource', async () => {
             const user = buildUser([]);
+            const deniedService = buildService(
+                () =>
+                    ({
+                        assertViewAccess: vi
+                            .fn()
+                            .mockRejectedValue(new ForbiddenError()),
+                    }) as unknown as DashboardService,
+            );
 
             await expect(
-                service.getScheduler(user, 'schedulerUuid'),
+                deniedService.getScheduler(user, 'schedulerUuid'),
             ).rejects.toThrowError(ForbiddenError);
         });
 
@@ -565,6 +781,7 @@ describe('SchedulerService', () => {
                 jobModel: {} as JobModel,
                 spacePermissionService:
                     spacePermissionService as unknown as SpacePermissionService,
+                getDashboardService: () => ({}) as DashboardService,
             });
             return { appListService, appListSchedulerModel };
         };
@@ -706,6 +923,7 @@ describe('SchedulerService', () => {
                 jobModel: {} as JobModel,
                 spacePermissionService:
                     spacePermissionService as unknown as SpacePermissionService,
+                getDashboardService: () => ({}) as DashboardService,
             });
 
             return { reassignService, reassignSchedulerModel };
@@ -834,6 +1052,7 @@ describe('SchedulerService', () => {
                 jobModel: {} as JobModel,
                 spacePermissionService:
                     spacePermissionService as unknown as SpacePermissionService,
+                getDashboardService: () => ({}) as DashboardService,
             });
 
             return { updateService, updateSchedulerModel };
@@ -963,6 +1182,7 @@ describe('SchedulerService', () => {
                 jobModel: {} as JobModel,
                 spacePermissionService:
                     spacePermissionService as unknown as SpacePermissionService,
+                getDashboardService: () => ({}) as DashboardService,
             });
             return {
                 appService,
@@ -1375,6 +1595,7 @@ describe('SchedulerService', () => {
                 jobModel: {} as JobModel,
                 spacePermissionService:
                     spacePermissionService as unknown as SpacePermissionService,
+                getDashboardService: () => ({}) as DashboardService,
             });
             return { appUpdateService, appUpdateSchedulerModel };
         };

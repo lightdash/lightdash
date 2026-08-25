@@ -22,6 +22,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import type { DashboardService } from '../DashboardService/DashboardService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { ValidationService } from './ValidationService';
 import {
@@ -110,6 +111,14 @@ const spacePermissionService = {
     getSpacesAccessContext: vi.fn(async () => ({})),
     getAccessibleSpaceUuids: vi.fn(async () => []),
 };
+const dashboardForDirectAccess = {
+    ...dashboardForValidation,
+    uuid: dashboardForValidation.dashboardUuid,
+    spaceUuid: 'spaceUuid',
+    organizationUuid: 'orgUuid',
+    projectUuid: 'projectUuid',
+};
+const assertDashboardViewAccess = vi.fn(async () => dashboardForDirectAccess);
 describe('validation', () => {
     const validationService = new ValidationService({
         analytics: analyticsMock,
@@ -124,6 +133,10 @@ describe('validation', () => {
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
         featureFlagModel: {} as FeatureFlagModel,
+        getDashboardService: () =>
+            ({
+                assertViewAccess: assertDashboardViewAccess,
+            }) as unknown as DashboardService,
     });
     const allAccessUser = {
         ...user,
@@ -163,14 +176,49 @@ describe('validation', () => {
             'dashboardUuid',
         );
 
-        expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
+        expect(assertDashboardViewAccess).toHaveBeenCalledWith(
+            allAccessUser,
             'dashboardUuid',
-            { projectUuid: 'projectUuid' },
+            { projectUuid: 'projectUuid', includeDependencies: false },
         );
         expect(validationModel.deleteDashboardValidations).toHaveBeenCalledWith(
             'dashboardUuid',
             'projectUuid',
         );
+    });
+
+    it('checks direct dashboard access before dashboard validation', async () => {
+        await validationService.validateAndUpdateDashboard(
+            allAccessUser,
+            'projectUuid',
+            'dashboardUuid',
+        );
+
+        expect(assertDashboardViewAccess).toHaveBeenCalledWith(
+            allAccessUser,
+            'dashboardUuid',
+            { projectUuid: 'projectUuid', includeDependencies: false },
+        );
+        expect(dashboardModel.getByIdOrSlug).not.toHaveBeenCalled();
+    });
+
+    it('does not validate after direct dashboard access is revoked', async () => {
+        assertDashboardViewAccess.mockRejectedValueOnce(
+            new ForbiddenError('Dashboard access revoked'),
+        );
+
+        await expect(
+            validationService.validateAndUpdateDashboard(
+                allAccessUser,
+                'projectUuid',
+                'dashboardUuid',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+
+        expect(
+            validationModel.deleteDashboardValidations,
+        ).not.toHaveBeenCalled();
+        expect(validationModel.create).not.toHaveBeenCalled();
     });
 
     it('Should validate project without errors', async () => {
@@ -1440,6 +1488,7 @@ describe('ValidationService.getValidationSummary', () => {
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
         featureFlagModel: {} as FeatureFlagModel,
+        getDashboardService: () => ({}) as DashboardService,
     });
 
     afterEach(() => {
