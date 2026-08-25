@@ -44,9 +44,13 @@ const parsePullRequestNumber = (prUrl: string): number | null => {
 const buildCommitMessage = (
     slug: string | undefined,
     user: SessionUser,
-    siteUrl: string,
+    projectUrl: string,
 ): string => {
-    const lines = [`Update ${slug} from Lightdash`, '', `Instance: ${siteUrl}`];
+    const lines = [
+        `Update ${slug} from Lightdash`,
+        '',
+        `Project: ${projectUrl}`,
+    ];
     const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ');
     if (user.email) {
         lines.push(
@@ -219,7 +223,14 @@ export class ContentAsCodeWritebackService extends BaseService {
             filePath,
             content,
             existingSha,
-            buildCommitMessage(slug, user, this.lightdashConfig.siteUrl),
+            buildCommitMessage(
+                slug,
+                user,
+                new URL(
+                    `/projects/${projectUuid}`,
+                    this.lightdashConfig.siteUrl,
+                ).href,
+            ),
         );
 
         if (row.prUrl !== null && row.status === 'open') {
@@ -239,7 +250,7 @@ export class ContentAsCodeWritebackService extends BaseService {
                 [
                     `This chart was edited in Lightdash and is managed as code; this PR proposes the change back to the repo.`,
                     ``,
-                    `- Instance: ${this.lightdashConfig.siteUrl}`,
+                    `- Project: ${new URL(`/projects/${projectUuid}`, this.lightdashConfig.siteUrl).href}`,
                     `- Content: ${contentUrl}`,
                 ].join('\n'),
             );
