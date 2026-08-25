@@ -159,6 +159,7 @@ describe('OrganizationSsoModel', () => {
             const { sql } = tracker.history.select[0];
             const lowered = sql.toLowerCase();
             const selectList = lowered.slice(0, lowered.indexOf(' from '));
+            expect(selectList).toContain('distinct');
             expect(selectList).toContain('"provider"');
             expect(selectList).toContain('"enabled"');
             expect(selectList).not.toContain('"config"');

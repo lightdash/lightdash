@@ -185,7 +185,7 @@ export class OrganizationSsoModel {
     async findAllPolicySummaries(): Promise<OrganizationSsoPolicySummary[]> {
         const rows = await this.database(
             OrganizationSsoConfigurationsTableName,
-        ).select('provider', 'enabled');
+        ).distinct('provider', 'enabled');
 
         return rows.map((row) => ({
             provider: row.provider as OrganizationSsoProvider,
