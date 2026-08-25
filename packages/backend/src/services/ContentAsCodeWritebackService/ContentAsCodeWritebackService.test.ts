@@ -46,6 +46,22 @@ const buildService = (overrides: Overrides = {}) => {
     };
     const coderService = {
         getCurrentChartAsCode: vi.fn().mockResolvedValue(chartAsCode),
+        getCurrentDashboardAsCode: vi.fn().mockResolvedValue({
+            name: 'Weekly KPIs',
+            slug: 'weekly-kpis',
+            updatedAt: new Date('2026-08-25T10:00:00Z'),
+            tiles: [
+                {
+                    type: 'saved_chart',
+                    properties: { chartSlug: 'monthly-revenue' },
+                },
+                {
+                    type: 'saved_chart',
+                    properties: { chartSlug: 'chart-with-own-pr' },
+                },
+                { type: 'markdown', properties: { content: 'hello' } },
+            ],
+        }),
         getCurrentContentVersionBySlug: vi
             .fn()
             .mockResolvedValue({ contentUuid: 'chart-uuid' }),
@@ -108,7 +124,7 @@ describe('ContentAsCodeWritebackService', () => {
     it('first save creates the instance branch, commits the YAML, and opens one PR', async () => {
         const { service, gitIntegrationService, contentAsCodeWritebackModel } =
             buildService();
-        await service.proposeChart(user, 'project-uuid', 'monthly-revenue');
+        await service.propose(user, 'project-uuid', 'chart', 'monthly-revenue');
 
         expect(
             gitIntegrationService.createBranchFromSource,
@@ -150,7 +166,7 @@ describe('ContentAsCodeWritebackService', () => {
 
     it('every commit names the acting user and instance', async () => {
         const { service, gitIntegrationService } = buildService();
-        await service.proposeChart(user, 'project-uuid', 'monthly-revenue');
+        await service.propose(user, 'project-uuid', 'chart', 'monthly-revenue');
         const message = gitIntegrationService.saveFile.mock.calls[0][6];
         expect(message).toContain(
             'Project: https://app.lightdash.dev/projects/project-uuid',
@@ -175,7 +191,7 @@ describe('ContentAsCodeWritebackService', () => {
                 path: 'lightdash/charts/monthly-revenue.yml',
             },
         });
-        await service.proposeChart(user, 'project-uuid', 'monthly-revenue');
+        await service.propose(user, 'project-uuid', 'chart', 'monthly-revenue');
 
         const [, , , , , sha] = gitIntegrationService.saveFile.mock.calls[0];
         expect(sha).toBe('old-sha');
@@ -207,7 +223,7 @@ describe('ContentAsCodeWritebackService', () => {
                 path: 'lightdash/charts/monthly-revenue.yml',
             },
         });
-        await service.proposeChart(user, 'project-uuid', 'monthly-revenue');
+        await service.propose(user, 'project-uuid', 'chart', 'monthly-revenue');
         expect(gitIntegrationService.saveFile).not.toHaveBeenCalled();
     });
 
@@ -216,14 +232,14 @@ describe('ContentAsCodeWritebackService', () => {
             settings: undefined,
         });
         await expect(
-            service.proposeChart(user, 'project-uuid', 'monthly-revenue'),
+            service.propose(user, 'project-uuid', 'chart', 'monthly-revenue'),
         ).rejects.toThrow('content_as_code.sync');
     });
 
     it('propose rejects unmanaged content', async () => {
         const { service } = buildService({ snapshot: undefined });
         await expect(
-            service.proposeChart(user, 'project-uuid', 'monthly-revenue'),
+            service.propose(user, 'project-uuid', 'chart', 'monthly-revenue'),
         ).rejects.toThrow('not managed as code');
     });
 
@@ -234,7 +250,7 @@ describe('ContentAsCodeWritebackService', () => {
             new Error('github says no'),
         );
         await expect(
-            service.proposeChart(user, 'project-uuid', 'monthly-revenue'),
+            service.propose(user, 'project-uuid', 'chart', 'monthly-revenue'),
         ).rejects.toThrow('github says no');
         expect(contentAsCodeWritebackModel.update).toHaveBeenCalledWith(
             'row-uuid',

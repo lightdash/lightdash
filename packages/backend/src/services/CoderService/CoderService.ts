@@ -2813,7 +2813,7 @@ export class CoderService extends BaseService {
         );
     }
 
-    private async getCurrentDashboardAsCode(
+    async getCurrentDashboardAsCode(
         dashboardUuid: string,
     ): Promise<DashboardAsCode> {
         const dashboard =

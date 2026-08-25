@@ -110,6 +110,7 @@ describe('DashboardService - Content Verification', () => {
         } as unknown as ProjectModel,
         slackClient: {} as unknown as SlackClient,
         schedulerClient: {} as unknown as SchedulerClient,
+        contentAsCodeProjectSettingsModel: { get: vi.fn() } as never,
         catalogModel: {} as unknown as CatalogModel,
         organizationModel: {} as unknown as OrganizationModel,
         spacePermissionService: {} as unknown as SpacePermissionService,
