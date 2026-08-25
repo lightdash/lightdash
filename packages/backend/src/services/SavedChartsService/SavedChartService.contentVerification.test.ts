@@ -135,6 +135,7 @@ const spacePermissionService = {
 
 const projectModel = {
     getExploreFromCache: vi.fn(async () => null),
+    getUuidBySlug: vi.fn(async () => 'resolved-project-uuid'),
     getSummary: vi.fn(async () => ({
         organizationUuid: 'org-uuid',
         projectUuid: 'project-uuid',
@@ -176,6 +177,33 @@ describe('SavedChartService - Content Verification', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    it('resolves a project slug before loading a saved chart', async () => {
+        await service.get('orders', fromSession(adminUser, 'session-cookie'), {
+            projectUuid: 'my-project',
+        });
+
+        expect(projectModel.getUuidBySlug).toHaveBeenCalledWith(
+            'org-uuid',
+            'my-project',
+        );
+        expect(savedChartModel.get).toHaveBeenCalledWith('orders', undefined, {
+            projectUuid: 'resolved-project-uuid',
+        });
+    });
+
+    it('keeps a project uuid unchanged when loading a saved chart', async () => {
+        const projectUuid = '5b3c6f00-7d53-4f87-b43a-75d774b1651e';
+
+        await service.get('orders', fromSession(adminUser, 'session-cookie'), {
+            projectUuid,
+        });
+
+        expect(projectModel.getUuidBySlug).not.toHaveBeenCalled();
+        expect(savedChartModel.get).toHaveBeenCalledWith('orders', undefined, {
+            projectUuid,
+        });
     });
 
     it('returns split candidates when a saved chart uses an original explore name', async () => {
