@@ -16,6 +16,7 @@ import {
 } from 'react-router';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import SettingsEmbed from '../../ee/features/embed/SettingsEmbed';
+import ContentAsCodeSyncStatusPanel from '../../features/contentAsCodeSync/components/ContentAsCodeSyncStatusPanel';
 import { ExternalSourcesSettingsPanel } from '../../features/externalSources/components/ExternalSourcesSettingsPanel';
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
@@ -100,8 +101,13 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
         useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { data: resultsCacheFlag, isLoading: isResultsCacheFlagLoading } =
         useServerFeatureFlag(FeatureFlags.ResultsCacheEnabled);
+    const {
+        data: contentAsCodeSyncFlag,
+        isLoading: isContentAsCodeSyncFlagLoading,
+    } = useServerFeatureFlag(FeatureFlags.ContentAsCodeSync);
     const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
+    const isContentAsCodeSyncEnabled = contentAsCodeSyncFlag?.enabled ?? false;
     const canManageExternalConnections =
         isDataAppsEnabled &&
         !!project &&
@@ -120,6 +126,18 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
         (user.data?.ability.can(
             'manage',
             subject('ExternalSource', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        ) ??
+            false);
+
+    const canViewContentAsCode =
+        isContentAsCodeSyncEnabled &&
+        !!project &&
+        (user.data?.ability.can(
+            'view',
+            subject('ContentAsCode', {
                 organizationUuid: project.organizationUuid,
                 projectUuid: project.projectUuid,
             }),
@@ -246,6 +264,23 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
                     </ProjectSettingsPage>
                 ),
             },
+            ...(canViewContentAsCode
+                ? [
+                      {
+                          path: `/contentAsCode`,
+                          element: (
+                              <ProjectSettingsPage
+                                  title="Content as code"
+                                  description="Review when content as code was last applied to this project."
+                              >
+                                  <ContentAsCodeSyncStatusPanel
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/defaultUserSpaces`,
                 element: (
@@ -487,6 +522,7 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
         user.data?.ability,
         canManageExternalConnections,
         canManageExternalSources,
+        canViewContentAsCode,
         isAiCopilotEnabledOrTrial,
     ]);
     const routesElements = useRoutes(routes);
@@ -511,13 +547,20 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
             '/generalSettings/projectManagement/:projectUuid/caching',
             location.pathname,
         );
+    const isAwaitingContentAsCodeRoute =
+        isContentAsCodeSyncFlagLoading &&
+        !!matchPath(
+            '/generalSettings/projectManagement/:projectUuid/contentAsCode',
+            location.pathname,
+        );
 
     if (
         isInitialLoading ||
         !project ||
         !projectUuid ||
         isAwaitingDataAppConnectionsRoute ||
-        isAwaitingCachingRoute
+        isAwaitingCachingRoute ||
+        isAwaitingContentAsCodeRoute
     ) {
         return (
             <div style={{ marginTop: '20px' }}>

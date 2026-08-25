@@ -79,6 +79,11 @@ export const useSettingsContext = (): SettingsContext => {
     );
     const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
 
+    const { data: contentAsCodeSyncFlag } = useServerFeatureFlag(
+        FeatureFlags.ContentAsCodeSync,
+    );
+    const isContentAsCodeSyncEnabled = contentAsCodeSyncFlag?.enabled ?? false;
+
     const { data: proLimitsFlag } = useServerFeatureFlag(
         FeatureFlags.ProLimits,
     );
@@ -200,6 +205,7 @@ export const useSettingsContext = (): SettingsContext => {
         isDataAppsFlagLoading: dataAppsFlagQuery.isInitialLoading,
         externalSourcesFlag,
         isResultsCacheEnabled,
+        isContentAsCodeSyncEnabled,
         embeddingEnabled,
         allowPasswordAuthentication,
         hasSocialLogin,

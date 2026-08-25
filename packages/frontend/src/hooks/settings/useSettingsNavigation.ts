@@ -10,6 +10,7 @@ import {
     IconCalendarStats,
     IconChecklist,
     IconClock,
+    IconCode,
     IconBook2,
     IconDatabase,
     IconDatabaseCog,
@@ -90,6 +91,7 @@ export const useSettingsNavigation = (
         dataAppsFlag,
         externalSourcesFlag,
         isResultsCacheEnabled,
+        isContentAsCodeSyncEnabled,
         isGitProject,
     } = context;
 
@@ -967,6 +969,26 @@ export const useSettingsNavigation = (
             }
 
             if (
+                isContentAsCodeSyncEnabled &&
+                ability?.can(
+                    'view',
+                    subject('ContentAsCode', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+            ) {
+                projectItems.push({
+                    label: 'Content as code',
+                    to: `${base}/contentAsCode`,
+                    icon: IconCode,
+                    keywords: ['sync', 'upload', 'as code', 'git'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (
                 isGitProject &&
                 ability?.can(
                     'view',
@@ -1030,6 +1052,7 @@ export const useSettingsNavigation = (
         isDataAppsEnabled,
         isExternalSourcesEnabled,
         isResultsCacheEnabled,
+        isContentAsCodeSyncEnabled,
         isGitProject,
         track,
     ]);
