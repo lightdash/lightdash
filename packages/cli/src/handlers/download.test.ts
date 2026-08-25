@@ -1522,7 +1522,8 @@ describe('uploadHandler dry-run', () => {
         });
         vi.mocked(lightdashApi).mockReset(); // pragma: allowlist secret
         vi.mocked(getContentAsCodeUploadPermissions).mockReset();
-        vi.mocked(lightdashApi).mockImplementation(async ({ method, url }) => { // pragma: allowlist secret
+        vi.mocked(lightdashApi).mockImplementation(async ({ method, url }) => {
+            // pragma: allowlist secret
             if (url.includes('/health')) {
                 return { version: '0.0.0' } as never;
             }
