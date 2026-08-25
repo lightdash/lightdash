@@ -100,6 +100,16 @@ if (!mapleBin) {
 
 const frontendArgs = fePort ? `--port ${fePort}` : undefined;
 
+// Opt-in via LD_WATCHER_MEMORY_CAP (e.g. 1500M in .env.development.local):
+// bounce a tsc watcher whose RSS exceeds the cap. Watchers recompile the
+// world on branch switches and never release the memory; the post-restart
+// incremental rebuild is cheap. Unset = no cap, today's behavior.
+const watcherMemoryCap =
+    process.env.LD_WATCHER_MEMORY_CAP ?? env.LD_WATCHER_MEMORY_CAP;
+const watcherMemoryCapConfig = watcherMemoryCap
+    ? { max_memory_restart: watcherMemoryCap }
+    : {};
+
 module.exports = {
     apps: [
         // Backend API Server
@@ -191,6 +201,7 @@ module.exports = {
             cwd: path.join(__dirname, 'packages/common'),
             watch: false,
             autorestart: false,
+            ...watcherMemoryCapConfig,
             kill_timeout: 3000,
             merge_logs: true,
             time: true,
@@ -205,6 +216,7 @@ module.exports = {
             cwd: path.join(__dirname, 'packages/formula'),
             watch: false,
             autorestart: false,
+            ...watcherMemoryCapConfig,
             kill_timeout: 3000,
             merge_logs: true,
             time: true,
@@ -219,6 +231,7 @@ module.exports = {
             cwd: path.join(__dirname, 'packages/warehouses'),
             watch: false,
             autorestart: false,
+            ...watcherMemoryCapConfig,
             kill_timeout: 3000,
             merge_logs: true,
             time: true,

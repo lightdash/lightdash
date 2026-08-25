@@ -542,6 +542,11 @@ LDPAT=ldpat_deadbeefdeadbeefdeadbeefdeadbeef
 # Allow registering fresh users/orgs (signup flow testing). Always on by default
 # in dev — without it, POST /api/v1/user 403s once the seed org exists.
 ALLOW_MULTIPLE_ORGS=true
+
+# Restart PM2 tsc watchers above this memory cap — they hold memory after big
+# rebuilds (branch switches), and multiple instances can exhaust the machine.
+# See ecosystem.config.js. Uncomment on smaller (e.g. 16GB) machines:
+# LD_WATCHER_MEMORY_CAP=1500M
 EOF
 echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.local
 ```
