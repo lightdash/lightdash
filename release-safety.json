@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "1.257.2",
-  "previousVersion": "1.257.1",
-  "releaseDate": "2026-08-25T10:49:42.642Z",
+  "version": "1.258.0",
+  "previousVersion": "1.257.2",
+  "releaseDate": "2026-08-25T12:06:23.337Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,8 +11,8 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": false,
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
@@ -41,5 +41,11 @@
     "minPreviousVersion": "1.111.0",
     "requiredStops": []
   },
-  "declaredBreaks": []
+  "declaredBreaks": [
+    {
+      "id": "mcp-run-metric-query-formula-only-table-calcs",
+      "reason": "The MCP run_metric_query tool no longer accepts template table calculations (running_total, percent_of_previous_value, etc.) in queryConfig.tableCalculations; only formula table calculations are accepted. MCP clients that send template-shaped payloads (scripted callers or agents replaying stored arguments) get an input validation error after upgrading and must switch to equivalent formulas. Agent-generated payloads self-correct because clients re-read the advertised schema.",
+      "requiredStop": false
+    }
+  ]
 }
