@@ -1,3 +1,11 @@
+## [1.256.1](https://github.com/lightdash/lightdash/compare/1.256.0...1.256.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **filters:** suggest values for hidden joined dimensions ([#27988](https://github.com/lightdash/lightdash/issues/27988)) ([d10a8b2](https://github.com/lightdash/lightdash/commit/d10a8b25cf9f272c2cab9552de7e80033b236a5f))
+* **pgwire:** log pre-auth connection failures with peer address ([#27985](https://github.com/lightdash/lightdash/issues/27985)) ([1a1db3a](https://github.com/lightdash/lightdash/commit/1a1db3ae6a6bbdd7d75c086d6d79bfd66d48fc71))
+
 # [1.256.0](https://github.com/lightdash/lightdash/compare/1.255.0...1.256.0) (2026-08-25)
 
 
