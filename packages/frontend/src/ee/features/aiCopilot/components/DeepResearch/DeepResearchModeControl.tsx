@@ -1,5 +1,6 @@
 import { ActionIcon, Box, Button, Tooltip } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import styles from './DeepResearchModeControl.module.css';
 
@@ -73,9 +74,7 @@ export const DeepResearchModeControl = ({
             aria-pressed={isDeepResearch}
             data-active={isDeepResearch}
             disabled={disabled}
-            className={[styles.textControl, nudgeClassName]
-                .filter(Boolean)
-                .join(' ')}
+            className={clsx(styles.textControl, nudgeClassName)}
         >
             Deep research
         </Button>
