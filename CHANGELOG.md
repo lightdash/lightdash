@@ -1,3 +1,10 @@
+# [1.258.0](https://github.com/lightdash/lightdash/compare/1.257.2...1.258.0) (2026-08-25)
+
+
+### Features
+
+* **ai-agents:** restrict MCP table calculations to formula-only schema ([#27758](https://github.com/lightdash/lightdash/issues/27758)) ([cf385fd](https://github.com/lightdash/lightdash/commit/cf385fda8f2baee97522e1458e44dbc266f23e10)), closes [#27728](https://github.com/lightdash/lightdash/issues/27728)
+
 ## [1.257.2](https://github.com/lightdash/lightdash/compare/1.257.1...1.257.2) (2026-08-25)
 
 
