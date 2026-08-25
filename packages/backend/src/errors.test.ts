@@ -1,4 +1,8 @@
-import { ExpectedNotFoundError, NotFoundError } from '@lightdash/common';
+import {
+    ExpectedNotFoundError,
+    isExpectedError,
+    NotFoundError,
+} from '@lightdash/common';
 import { errorHandler } from './errors';
 
 describe('handled API error reporting', () => {
@@ -7,7 +11,7 @@ describe('handled API error reporting', () => {
         const errorResponse = errorHandler(error);
 
         expect(errorResponse).toBe(error);
-        expect(errorResponse.isExpected).toBe(true);
+        expect(isExpectedError(errorResponse)).toBe(true);
         expect(error).toBeInstanceOf(NotFoundError);
         expect(error).toMatchObject({
             name: 'NotFoundError',
@@ -19,8 +23,13 @@ describe('handled API error reporting', () => {
 
     it('continues reporting ordinary not-found errors', () => {
         expect(
-            errorHandler(new NotFoundError('Required resource not found'))
-                .isExpected,
+            isExpectedError(
+                errorHandler(new NotFoundError('Required resource not found')),
+            ),
         ).toBe(false);
+    });
+
+    it('requires expected errors to be Error instances', () => {
+        expect(isExpectedError({ isExpected: true })).toBe(false);
     });
 });

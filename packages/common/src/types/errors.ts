@@ -18,19 +18,22 @@ type LightdashErrorParams = {
     data: LightdashErrorData;
 };
 
-export interface ExpectedError {
+/** Routine domain outcomes that should not produce error-level API reporting. */
+export type ExpectedError = {
     readonly isExpected: true;
-}
+};
+
+export const isExpectedError = (
+    error: unknown,
+): error is Error & ExpectedError =>
+    error instanceof Error &&
+    'isExpected' in error &&
+    error.isExpected === true;
 
 export class LightdashError extends Error {
     statusCode: number;
 
     data: LightdashErrorData;
-
-    /** Routine domain outcomes that should not produce error-level API reporting. */
-    get isExpected(): boolean {
-        return false;
-    }
 
     constructor({ message, name, statusCode, data }: LightdashErrorParams) {
         super(message);
@@ -341,7 +344,7 @@ export class ExpectedNotFoundError
     extends NotFoundError
     implements ExpectedError
 {
-    override get isExpected(): true {
+    get isExpected(): true {
         return true;
     }
 }

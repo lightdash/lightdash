@@ -3,6 +3,7 @@ import {
     AnyType,
     ApiError,
     getErrorMessage,
+    isExpectedError,
     LightdashBuildHashHeader,
     LightdashError,
     LightdashMode,
@@ -932,7 +933,7 @@ export default class App {
                     // This intentionally uses console vs. winston because of problems from some error/JSON payloads.
                     console.error(error);
                 }
-                if (!errorResponse.isExpected) {
+                if (!isExpectedError(errorResponse)) {
                     Logger.error(
                         `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,
                         errorResponse,
