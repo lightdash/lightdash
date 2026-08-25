@@ -1,3 +1,10 @@
+## [1.257.1](https://github.com/lightdash/lightdash/compare/1.257.0...1.257.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **embedding:** allow filter values without dashboard ([#27989](https://github.com/lightdash/lightdash/issues/27989)) ([9749e80](https://github.com/lightdash/lightdash/commit/9749e801bc87cb973189d50d3a6f2ce8df81bed6))
+
 # [1.257.0](https://github.com/lightdash/lightdash/compare/1.256.1...1.257.0) (2026-08-25)
 
 
