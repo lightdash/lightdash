@@ -2785,7 +2785,7 @@ const UPLOAD_CHANGE_SUFFIXES = [
     'created',
     'updated',
     'deleted',
-    'skipped (instance ahead)',
+    'skipped (project ahead)',
     'skipped',
     'failed',
 ] as const;
@@ -2822,7 +2822,7 @@ const summarizeUploadChanges = (
         (label) =>
             label === 'with errors' ||
             label === 'failed' ||
-            label === 'skipped (instance ahead)',
+            label === 'skipped (project ahead)',
     );
     return { detail, variant: hasFailures ? 'warning' : undefined };
 };
@@ -2869,7 +2869,7 @@ const printSkipDiff = async (
         )?.[0];
         if (!current) return;
         const diff = renderContentDiff(current, item, {
-            current: 'instance (current)',
+            current: 'project (current)',
             incoming: 'git (this upload)',
         });
         if (diff) GlobalState.log(diff);
@@ -2938,8 +2938,8 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
                 GlobalState.log(styles.error(`  ✖ ${skip.message}`));
             });
             await printSkipDiff(item, type, projectId);
-            changes[`${type} skipped (instance ahead)`] =
-                (changes[`${type} skipped (instance ahead)`] ?? 0) +
+            changes[`${type} skipped (project ahead)`] =
+                (changes[`${type} skipped (project ahead)`] ?? 0) +
                 upsertData.skips.length;
             return;
         }
@@ -4479,12 +4479,12 @@ export const uploadHandler = async (
         });
 
         const skippedAhead = Object.entries(changes)
-            .filter(([key]) => key.endsWith('skipped (instance ahead)'))
+            .filter(([key]) => key.endsWith('skipped (project ahead)'))
             .reduce((acc, [, count]) => acc + count, 0);
         if (skippedAhead > 0) {
             GlobalState.log(
                 styles.error(
-                    `${skippedAhead} item(s) skipped because the instance is ahead of git — see messages above. Use --overwrite-drifted to make git win.`,
+                    `${skippedAhead} item(s) skipped because the Lightdash project is ahead of git — see messages above. Use --overwrite-drifted to make git win.`,
                 ),
             );
             process.exitCode = 1;
