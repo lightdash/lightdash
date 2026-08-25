@@ -1,3 +1,10 @@
+## [1.258.4](https://github.com/lightdash/lightdash/compare/1.258.3...1.258.4) (2026-08-25)
+
+
+### Bug Fixes
+
+* **apps:** exclude custom chart types from the project data apps listing ([#27857](https://github.com/lightdash/lightdash/issues/27857)) ([178c863](https://github.com/lightdash/lightdash/commit/178c863d0b7b387657c431bf71a036883e674dd4)), closes [#27855](https://github.com/lightdash/lightdash/issues/27855)
+
 ## [1.258.3](https://github.com/lightdash/lightdash/compare/1.258.2...1.258.3) (2026-08-25)
 
 
