@@ -161,15 +161,17 @@ describe('ContentAsCodeWriteBackService', () => {
     const gitIntegrationService = {
         writeBackContentAsCodeFiles: vi.fn(),
         hasOpenContentAsCodePullRequest: vi.fn(async () => false),
-        getContentAsCodePullRequestStatus: vi.fn(async (): Promise<{
-            prState: 'open' | 'merged' | 'none';
-            prUrl: string | null;
-            prTitle: string | null;
-        }> => ({
-            prState: 'none',
-            prUrl: null,
-            prTitle: null,
-        })),
+        getContentAsCodePullRequestStatus: vi.fn(
+            async (): Promise<{
+                prState: 'open' | 'merged' | 'none';
+                prUrl: string | null;
+                prTitle: string | null;
+            }> => ({
+                prState: 'none',
+                prUrl: null,
+                prTitle: null,
+            }),
+        ),
     };
 
     const service = new ContentAsCodeWriteBackService({

@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ChartSourceType,
+    ContentAsCodeType,
     ContentType,
     DashboardTileTypes,
     FeatureFlags,
@@ -967,7 +968,9 @@ const SavedChartsHeader: FC = () => {
                                                       }
                                                     : undefined
                                             }
-                                            contentType="chart"
+                                            contentType={
+                                                ContentAsCodeType.CHART
+                                            }
                                             slug={savedChart.slug}
                                         />
                                     </>

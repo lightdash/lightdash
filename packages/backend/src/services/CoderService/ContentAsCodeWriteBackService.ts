@@ -60,6 +60,35 @@ const chartSlugsFromDashboard = (dashboard: DashboardDAO): string[] =>
         ),
     ].sort((left, right) => left.localeCompare(right));
 
+const chartSlugsFromAppliedSnapshot = (
+    snapshot: Record<string, unknown>,
+): string[] => {
+    const { tiles } = snapshot;
+    if (!Array.isArray(tiles)) {
+        return [];
+    }
+    return [
+        ...new Set(
+            tiles
+                .map((tile) => {
+                    if (
+                        tile &&
+                        typeof tile === 'object' &&
+                        'properties' in tile &&
+                        tile.properties &&
+                        typeof tile.properties === 'object' &&
+                        'chartSlug' in tile.properties &&
+                        typeof tile.properties.chartSlug === 'string'
+                    ) {
+                        return tile.properties.chartSlug;
+                    }
+                    return null;
+                })
+                .filter((slug): slug is string => Boolean(slug)),
+        ),
+    ];
+};
+
 export class ContentAsCodeWriteBackService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -490,33 +519,47 @@ export class ContentAsCodeWriteBackService extends BaseService {
         const newChartSlugs = currentChartSlugs.filter(
             (slug) => !previous.has(slug),
         );
-        const notedChartSlugs: string[] = [];
 
-        for (const chartSlug of newChartSlugs) {
-            const hasOwnPr =
-                await this.gitIntegrationService.hasOpenContentAsCodePullRequest(
-                    user,
-                    projectUuid,
-                    chartSlug,
+        const chartPlans = await Promise.all(
+            newChartSlugs.map(async (chartSlug) => {
+                const hasOwnPr =
+                    await this.gitIntegrationService.hasOpenContentAsCodePullRequest(
+                        user,
+                        projectUuid,
+                        chartSlug,
+                    );
+                if (hasOwnPr) {
+                    return { noted: chartSlug };
+                }
+
+                const chart = await this.getChartBySlug(projectUuid, chartSlug);
+                if (await this.spaceModel.isDefaultUserSpace(chart.spaceUuid)) {
+                    return {};
+                }
+                const chartSpaces = await this.getSpaces([chart.spaceUuid]);
+                const chartAsCode = await this.buildChartAsCode(
+                    chart,
+                    chartSpaces,
                 );
-            if (hasOwnPr) {
-                notedChartSlugs.push(chartSlug);
-                continue;
-            }
+                return {
+                    file: {
+                        filePath: getContentAsCodeChartRelativePath(chartSlug),
+                        content: dumpCanonicalContentAsCodeYaml(
+                            toCanonicalContentAsCodeSnapshot(chartAsCode),
+                        ),
+                    },
+                };
+            }),
+        );
 
-            const chart = await this.getChartBySlug(projectUuid, chartSlug);
-            if (await this.spaceModel.isDefaultUserSpace(chart.spaceUuid)) {
-                continue;
-            }
-            const chartSpaces = await this.getSpaces([chart.spaceUuid]);
-            const chartAsCode = await this.buildChartAsCode(chart, chartSpaces);
-            files.push({
-                filePath: getContentAsCodeChartRelativePath(chartSlug),
-                content: dumpCanonicalContentAsCodeYaml(
-                    toCanonicalContentAsCodeSnapshot(chartAsCode),
-                ),
-            });
-        }
+        const notedChartSlugs = chartPlans.flatMap((plan) =>
+            plan.noted === undefined ? [] : [plan.noted],
+        );
+        files.push(
+            ...chartPlans.flatMap((plan) =>
+                plan.file === undefined ? [] : [plan.file],
+            ),
+        );
 
         return { files, notedChartSlugs };
     }
@@ -703,32 +746,3 @@ ${notedChartSlugs.map((chartSlug) => `- \`${chartSlug}\``).join('\n')}`;
         return `${this.contentDescription(projectUuid, 'dashboard', slug)}${notes}`;
     }
 }
-
-const chartSlugsFromAppliedSnapshot = (
-    snapshot: Record<string, unknown>,
-): string[] => {
-    const tiles = snapshot.tiles;
-    if (!Array.isArray(tiles)) {
-        return [];
-    }
-    return [
-        ...new Set(
-            tiles
-                .map((tile) => {
-                    if (
-                        tile &&
-                        typeof tile === 'object' &&
-                        'properties' in tile &&
-                        tile.properties &&
-                        typeof tile.properties === 'object' &&
-                        'chartSlug' in tile.properties &&
-                        typeof tile.properties.chartSlug === 'string'
-                    ) {
-                        return tile.properties.chartSlug;
-                    }
-                    return null;
-                })
-                .filter((slug): slug is string => Boolean(slug)),
-        ),
-    ];
-};

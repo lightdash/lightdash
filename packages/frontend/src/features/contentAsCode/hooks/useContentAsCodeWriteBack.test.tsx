@@ -5,6 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../../api';
 import { useContentAsCodeWriteBackStatus } from './useContentAsCodeWriteBack';
 
+type WriteBackStatusArgs = Parameters<typeof useContentAsCodeWriteBackStatus>;
+
 vi.mock('../../../api', () => ({
     lightdashApi: vi.fn(),
 }));
@@ -41,13 +43,13 @@ describe('useContentAsCodeWriteBackStatus', () => {
                 prUrl: 'https://example.com/pull/9',
                 prTitle: 'Update chart `orders`',
             },
-        });
+        } as never);
 
         const { result } = renderHook(
             () =>
                 useContentAsCodeWriteBackStatus(
                     'project-uuid',
-                    'chart',
+                    'chart' as WriteBackStatusArgs[1],
                     'orders',
                     true,
                 ),

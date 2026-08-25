@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ContentAsCodeType,
     ContentType,
     ResourceViewItemType,
     type Dashboard,
@@ -976,7 +977,9 @@ const DashboardHeader = memo(
                                                           }
                                                         : undefined
                                                 }
-                                                contentType="dashboard"
+                                                contentType={
+                                                    ContentAsCodeType.DASHBOARD
+                                                }
                                                 slug={dashboard.slug}
                                             />
                                         </>
