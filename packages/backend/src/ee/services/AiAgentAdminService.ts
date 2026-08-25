@@ -30,6 +30,7 @@ import {
     assertUnreachable,
     CreateAiAgentReviewItem,
     DbtProjectType,
+    ExpectedNotFoundError,
     extractPreviewProjectUuidFromUrl,
     extractPreviewUrlFromComments,
     FeatureFlags,
@@ -3163,7 +3164,9 @@ export class AiAgentAdminService extends BaseService {
                 },
             );
         if (!remediation) {
-            throw new NotFoundError('No review item is linked to this thread');
+            throw new ExpectedNotFoundError(
+                'No review item is linked to this thread',
+            );
         }
 
         return this.getReviewItem(user, remediation.fingerprint);

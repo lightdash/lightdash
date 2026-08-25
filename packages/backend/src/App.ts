@@ -932,28 +932,30 @@ export default class App {
                     // This intentionally uses console vs. winston because of problems from some error/JSON payloads.
                     console.error(error);
                 }
-                Logger.error(
-                    `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,
-                    errorResponse,
-                );
+                if (!errorResponse.isExpected) {
+                    Logger.error(
+                        `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,
+                        errorResponse,
+                    );
 
-                if (process.env.NODE_ENV === 'development') {
-                    Logger.error(error.stack);
+                    if (process.env.NODE_ENV === 'development') {
+                        Logger.error(error.stack);
+                    }
+
+                    this.analytics.track({
+                        event: 'api.error',
+                        userId: req.user?.userUuid,
+                        anonymousId: !req.user?.userUuid
+                            ? LightdashAnalytics.anonymousId
+                            : undefined,
+                        properties: {
+                            name: errorResponse.name,
+                            statusCode: errorResponse.statusCode,
+                            route: req.path,
+                            method: req.method,
+                        },
+                    });
                 }
-
-                this.analytics.track({
-                    event: 'api.error',
-                    userId: req.user?.userUuid,
-                    anonymousId: !req.user?.userUuid
-                        ? LightdashAnalytics.anonymousId
-                        : undefined,
-                    properties: {
-                        name: errorResponse.name,
-                        statusCode: errorResponse.statusCode,
-                        route: req.path,
-                        method: req.method,
-                    },
-                });
 
                 // Check if this is an OAuth endpoint and return OAuth2-compliant error response
                 if (error instanceof OauthAuthenticationError) {
