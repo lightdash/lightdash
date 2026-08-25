@@ -1800,6 +1800,58 @@ export class ProjectModel {
         return cachedExplores[tableName];
     }
 
+    private async findExploreCacheContainingTable(
+        projectUuid: string,
+        tableName: string,
+    ): Promise<
+        | {
+              explore: Explore | ExploreError;
+              baseMatch: boolean;
+          }
+        | undefined
+    > {
+        return this.database(CachedExploreTableName)
+            .columns({
+                explore: 'explore',
+                baseMatch: this.database.raw("? = explore->>'baseTable'", [
+                    tableName,
+                ]),
+            })
+            .select<{
+                explore: Explore | ExploreError;
+                baseMatch: boolean;
+            }>()
+            .whereRaw('? = ANY(table_names)', tableName)
+            .andWhere('project_uuid', projectUuid)
+            .orderBy('baseMatch', 'desc')
+            .first();
+    }
+
+    async findExploreContainingTable(
+        projectUuid: string,
+        tableName: string,
+    ): Promise<Explore | ExploreError | undefined> {
+        return wrapSentryTransaction(
+            'ProjectModel.findExploreContainingTable',
+            {},
+            async (span) => {
+                const exploreCache = await this.findExploreCacheContainingTable(
+                    projectUuid,
+                    tableName,
+                );
+                span.setAttribute(
+                    'foundExploreContainingTable',
+                    !!exploreCache,
+                );
+                return exploreCache
+                    ? ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                          exploreCache.explore,
+                      )
+                    : undefined;
+            },
+        );
+    }
+
     // Returns explore based on the join original name rather than the explore with the join.
     async findJoinAliasExplore(
         projectUuid: string,
@@ -1809,24 +1861,11 @@ export class ProjectModel {
             'ProjectModel.findExploreFromJoinAlias',
             {},
             async (span) => {
-                const exploreWithJoinAlias = await this.database(
-                    CachedExploreTableName,
-                )
-                    .columns({
-                        explore: 'explore',
-                        baseMatch: this.database.raw(
-                            "? = explore->>'baseTable'",
-                            [joinAliasName],
-                        ),
-                    })
-                    .select<{
-                        explore: Explore | ExploreError;
-                        baseMatch: boolean;
-                    }>()
-                    .whereRaw('? = ANY(table_names)', joinAliasName)
-                    .andWhere('project_uuid', projectUuid)
-                    .orderBy('baseMatch', 'desc')
-                    .first();
+                const exploreWithJoinAlias =
+                    await this.findExploreCacheContainingTable(
+                        projectUuid,
+                        joinAliasName,
+                    );
                 if (exploreWithJoinAlias) {
                     const originalTableName =
                         exploreWithJoinAlias.explore.tables?.[joinAliasName]
