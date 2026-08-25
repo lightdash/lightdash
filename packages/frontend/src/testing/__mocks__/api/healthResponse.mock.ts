@@ -12,6 +12,12 @@ export default function mockHealthResponse(
         },
         mode: LightdashMode.CLOUD_BETA,
         version: '0.0.0',
+        mobile: {
+            minimumSupportedVersion: {
+                android: null,
+                ios: null,
+            },
+        },
         localDbtEnabled: true,
         isAuthenticated: true,
         requiresOrgRegistration: false,
