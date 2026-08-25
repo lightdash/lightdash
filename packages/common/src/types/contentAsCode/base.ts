@@ -128,3 +128,42 @@ export type ApiContentAsCodeSettingsResponse = {
     status: 'ok';
     results: ContentAsCodeProjectSettings | null;
 };
+
+export type ContentAsCodeSyncedContentType = 'chart' | 'dashboard';
+
+export type ContentAsCodeConflictSummary = {
+    contentType: string;
+    slug: string;
+    incomingHash: string;
+    rejectedAt: Date;
+};
+
+/**
+ * Three-way view of a skipped slug: base is the last-applied snapshot
+ * (merge base), current is the instance content, incoming is the git
+ * document rejected at skip time.
+ */
+export type ContentAsCodeConflict = {
+    contentType: string;
+    slug: string;
+    base: object | null;
+    baseHash: string | null;
+    appliedAt: Date | null;
+    current: object;
+    currentHash: string;
+    incoming: object;
+    incomingHash: string;
+    rejectedAt: Date;
+};
+
+export type ContentAsCodeConflictResolution = 'take_git' | 'keep_mine';
+
+export type ApiContentAsCodeConflictsResponse = {
+    status: 'ok';
+    results: ContentAsCodeConflictSummary[];
+};
+
+export type ApiContentAsCodeConflictResponse = {
+    status: 'ok';
+    results: ContentAsCodeConflict;
+};

@@ -10,6 +10,8 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiContentAsCodeConflictResponse,
+    type ApiContentAsCodeConflictsResponse,
     type ApiContentAsCodeProposeResponse,
     type ApiContentAsCodeSettingsResponse,
     type ApiContentAsCodeWritebacksResponse,
@@ -31,6 +33,8 @@ import {
     type ApiVirtualViewAsCodeListResponse,
     type ApiVirtualViewAsCodeUpsertResponse,
     type ChartAsCode,
+    type ContentAsCodeConflictResolution,
+    type ContentAsCodeSyncedContentType,
     type ContentSlugRenameRequest,
     type DashboardAsCode,
     type ExternalConnectionAsCode,
@@ -229,6 +233,93 @@ export class ProjectCoderController extends BaseController {
                     projectUuid,
                 ),
         );
+    }
+
+    /**
+     * Skipped uploads stashed for later conflict resolution
+     * @summary List content-as-code conflicts
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/conflicts')
+    @OperationId('listContentAsCodeConflicts')
+    async listContentAsCodeConflicts(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentAsCodeConflictsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getCoderService()
+                .listContentAsCodeConflicts(
+                    toSessionUser(req.account),
+                    projectUuid,
+                ),
+        );
+    }
+
+    /**
+     * Three-way view of a skipped slug: base (last applied), current
+     * (instance), incoming (rejected from git at skip time)
+     * @summary Get content-as-code conflict
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/conflicts/{contentType}/{slug}')
+    @OperationId('getContentAsCodeConflict')
+    async getContentAsCodeConflict(
+        @Path() projectUuid: string,
+        @Path() contentType: ContentAsCodeSyncedContentType,
+        @Path() slug: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentAsCodeConflictResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getCoderService()
+                .getContentAsCodeConflict(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    contentType,
+                    slug,
+                ),
+        );
+    }
+
+    /**
+     * Resolve a stashed conflict: take_git applies the stashed incoming
+     * document and restamps; keep_mine clears the stash and leaves the slug
+     * ahead (propose-to-git remains the path back to the repo)
+     * @summary Resolve content-as-code conflict
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/conflicts/{contentType}/{slug}/resolve')
+    @OperationId('resolveContentAsCodeConflict')
+    async resolveContentAsCodeConflict(
+        @Path() projectUuid: string,
+        @Path() contentType: ContentAsCodeSyncedContentType,
+        @Path() slug: string,
+        @Request() req: express.Request,
+        @Body() body: { resolution: ContentAsCodeConflictResolution },
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.services
+            .getCoderService()
+            .resolveContentAsCodeConflict(
+                toSessionUser(req.account),
+                projectUuid,
+                contentType,
+                slug,
+                body.resolution,
+            );
+        return { status: 'ok', results: undefined };
     }
 
     /**

@@ -41,6 +41,10 @@ import {
     DashboardTileCommentsTableName,
 } from '../database/entities/comments';
 import {
+    ContentAsCodeIncomingStashTable,
+    ContentAsCodeIncomingStashTableName,
+} from '../database/entities/contentAsCodeIncomingStash';
+import {
     ContentAsCodeSnapshotsTableName,
     ContentAsCodeSnapshotTable,
 } from '../database/entities/contentAsCodeSnapshots';
@@ -785,6 +789,7 @@ declare module 'knex/types/tables' {
         [ManagedAgentProtectionsTableName]: ManagedAgentProtectionsTable;
         [UserFavoritesTableName]: UserFavoritesTable;
         [ContentAsCodeSnapshotsTableName]: ContentAsCodeSnapshotTable;
+        [ContentAsCodeIncomingStashTableName]: ContentAsCodeIncomingStashTable;
         [ContentAsCodeProjectSettingsTableName]: ContentAsCodeProjectSettingsTable;
         [ContentAsCodeWritebacksTableName]: ContentAsCodeWritebackTable;
         [ContentVerificationTableName]: ContentVerificationTable;

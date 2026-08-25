@@ -142,6 +142,8 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiContentAsCodeConflictResponse,
+    type ApiContentAsCodeConflictsResponse,
     type ApiContentAsCodeProposeResponse,
     type ApiContentAsCodeSettingsResponse,
     type ApiContentAsCodeWritebacksResponse,
@@ -1356,6 +1358,8 @@ type ApiResults =
     | ApiSpaceAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiContentAsCodeWritebacksResponse['results']
+    | ApiContentAsCodeConflictsResponse['results']
+    | ApiContentAsCodeConflictResponse['results']
     | ApiContentAsCodeProposeResponse['results']
     | ApiContentAsCodeSettingsResponse['results']
     | ApiGetMetricsTree['results']

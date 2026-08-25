@@ -25,6 +25,10 @@ import {
     ChartScheduledDeliveryAsCode,
     ChartSummary,
     ChartType,
+    ContentAsCodeConflict,
+    ContentAsCodeConflictResolution,
+    ContentAsCodeConflictSummary,
+    ContentAsCodeSyncedContentType,
     ContentAsCodeType,
     ContentSlugRenameRequest,
     ContentType,
@@ -2788,6 +2792,12 @@ export class CoderService extends BaseService {
             snapshotHash,
             appliedByUserUuid,
         });
+        // A successful apply supersedes any conflict stashed at skip time
+        await this.contentAsCodeSnapshotModel.clearIncomingStash(
+            projectUuid,
+            contentType,
+            content.slug,
+        );
     }
 
     // The instance content in its canonical as-code form — the same document
@@ -2858,6 +2868,176 @@ export class CoderService extends BaseService {
         return settings ?? null;
     }
 
+    private async assertProjectViewAccess(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+    }
+
+    async listContentAsCodeConflicts(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ContentAsCodeConflictSummary[]> {
+        await this.assertProjectViewAccess(user, projectUuid);
+        const rows =
+            await this.contentAsCodeSnapshotModel.listIncomingStash(
+                projectUuid,
+            );
+        return rows.map((row) => ({
+            contentType: row.contentType,
+            slug: row.slug,
+            incomingHash: row.incomingHash,
+            rejectedAt: row.rejectedAt,
+        }));
+    }
+
+    // Three-way view: base = last-applied snapshot (merge base), current =
+    // instance content, incoming = the git document rejected at skip time
+    async getContentAsCodeConflict(
+        user: SessionUser,
+        projectUuid: string,
+        contentType: ContentAsCodeSyncedContentType,
+        slug: string,
+    ): Promise<ContentAsCodeConflict> {
+        const snapshotType =
+            contentType === 'chart'
+                ? ContentAsCodeType.CHART
+                : ContentAsCodeType.DASHBOARD;
+        const stash = await this.contentAsCodeSnapshotModel.getIncomingStash(
+            projectUuid,
+            snapshotType,
+            slug,
+        );
+        if (stash === undefined) {
+            throw new NotFoundError(
+                `No skipped upload is stashed for ${contentType} "${slug}"`,
+            );
+        }
+        // Also carries the project view permission check
+        const { contentUuid } = await this.getCurrentContentVersionBySlug(
+            user,
+            projectUuid,
+            contentType,
+            slug,
+        );
+        const currentContent =
+            contentType === 'chart'
+                ? await this.getCurrentChartAsCode(contentUuid)
+                : await this.getCurrentDashboardAsCode(contentUuid);
+        const current = buildContentAsCodeSnapshot(currentContent);
+        const base = await this.contentAsCodeSnapshotModel.get(
+            projectUuid,
+            snapshotType,
+            slug,
+        );
+        return {
+            contentType,
+            slug,
+            base: base?.snapshot ?? null,
+            baseHash: base?.snapshotHash ?? null,
+            appliedAt: base?.appliedAt ?? null,
+            current: current.snapshot,
+            currentHash: current.snapshotHash,
+            incoming: stash.incomingSnapshot,
+            incomingHash: stash.incomingHash,
+            rejectedAt: stash.rejectedAt,
+        };
+    }
+
+    // "Take git" applies the stashed incoming doc and restamps (which also
+    // clears the stash); "keep mine" clears the stash and leaves the slug
+    // ahead — propose-to-git remains the path back to the repo.
+    async resolveContentAsCodeConflict(
+        user: SessionUser,
+        projectUuid: string,
+        contentType: ContentAsCodeSyncedContentType,
+        slug: string,
+        resolution: ContentAsCodeConflictResolution,
+    ): Promise<void> {
+        const snapshotType =
+            contentType === 'chart'
+                ? ContentAsCodeType.CHART
+                : ContentAsCodeType.DASHBOARD;
+        const stash = await this.contentAsCodeSnapshotModel.getIncomingStash(
+            projectUuid,
+            snapshotType,
+            slug,
+        );
+        if (stash === undefined) {
+            throw new NotFoundError(
+                `No skipped upload is stashed for ${contentType} "${slug}"`,
+            );
+        }
+        switch (resolution) {
+            case 'take_git': {
+                // The stash is the canonical as-code document rejected at
+                // skip time; apply it with git-wins semantics
+                if (contentType === 'chart') {
+                    await this.upsertChart(
+                        user,
+                        projectUuid,
+                        slug,
+                        stash.incomingSnapshot as ChartAsCode,
+                        { overwriteDrifted: true },
+                    );
+                } else {
+                    await this.upsertDashboard(
+                        user,
+                        projectUuid,
+                        slug,
+                        stash.incomingSnapshot as DashboardAsCode,
+                        { overwriteDrifted: true },
+                    );
+                }
+                return;
+            }
+            case 'keep_mine': {
+                // Clearing the stash mutates sync state: require the same
+                // full content-as-code access as settings stamping
+                const project = await this.projectModel.get(projectUuid);
+                const auditedAbility = this.createAuditedAbility(user);
+                if (
+                    auditedAbility.cannot(
+                        'manage',
+                        subject('ContentAsCode', {
+                            projectUuid: project.projectUuid,
+                            organizationUuid: project.organizationUuid,
+                            upstreamProjectUuid: project.upstreamProjectUuid,
+                            type: project.type,
+                            createdByUserUuid: project.createdByUserUuid,
+                            metadata: { slug },
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError(
+                        `You don't have permission to resolve content-as-code conflicts on this project`,
+                    );
+                }
+                await this.contentAsCodeSnapshotModel.clearIncomingStash(
+                    projectUuid,
+                    snapshotType,
+                    slug,
+                );
+                return;
+            }
+            default:
+                assertUnreachable(resolution, 'Unknown conflict resolution');
+        }
+    }
+
     // The repo's content_as_code flags travel with uploads; stamping them as
     // project-level state is how the instance (settings UI, write-back)
     // learns what the repo has opted into.
@@ -2889,6 +3069,32 @@ export class CoderService extends BaseService {
             projectUuid,
             syncEnabled: settings.sync,
         });
+    }
+
+    // Stashing what a skip rejected is what makes post-deploy conflict
+    // resolution possible; best-effort, a stash failure never fails the skip.
+    private async stashRejectedIncoming(
+        projectUuid: string,
+        contentType: ContentAsCodeSnapshotType,
+        slug: string,
+        incomingContent: SnapshotAsCodeContent,
+    ): Promise<void> {
+        try {
+            const { snapshot, snapshotHash } =
+                buildContentAsCodeSnapshot(incomingContent);
+            await this.contentAsCodeSnapshotModel.stashIncoming({
+                projectUuid,
+                contentType,
+                slug,
+                incomingSnapshot: snapshot,
+                incomingHash: snapshotHash,
+            });
+        } catch (error) {
+            this.logger.warn(
+                `Failed to stash rejected incoming ${contentType} ${slug} on project ${projectUuid}`,
+                error,
+            );
+        }
     }
 
     // Drift detection is best-effort: a failure here must not block uploads,
@@ -3353,6 +3559,12 @@ export class CoderService extends BaseService {
                   })
                 : undefined;
         if (driftGate?.outcome === 'skip') {
+            await this.stashRejectedIncoming(
+                projectUuid,
+                ContentAsCodeType.CHART,
+                chart.slug,
+                chartWithDefaults,
+            );
             return {
                 spaces: [],
                 charts: [],
@@ -4368,6 +4580,12 @@ export class CoderService extends BaseService {
                   })
                 : undefined;
         if (driftGate?.outcome === 'skip') {
+            await this.stashRejectedIncoming(
+                projectUuid,
+                ContentAsCodeType.DASHBOARD,
+                dashboard.slug,
+                dashboardWithDefaults,
+            );
             return {
                 spaces: [],
                 charts: [],
