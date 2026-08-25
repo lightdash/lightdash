@@ -561,6 +561,19 @@ describe('getRunQuery custom chart types', () => {
         expect(createOrUpdateArtifact).not.toHaveBeenCalled();
     });
 
+    it('does not call the image exporter for web prompts', async () => {
+        const exportCustomChartTypeImage =
+            vi.fn() as ExportCustomChartTypeImageFn;
+
+        const { output } = await executeCustom({
+            chartConfig: customChartConfig,
+            exportCustomChartTypeImage,
+        });
+
+        expect(exportCustomChartTypeImage).not.toHaveBeenCalled();
+        expect(output.metadata).toMatchObject({ status: 'success' });
+    });
+
     describe('in Slack', () => {
         beforeEach(() => {
             vi.mocked(renderEcharts).mockClear();
@@ -713,19 +726,6 @@ describe('getRunQuery custom chart types', () => {
             } finally {
                 vi.useRealTimers();
             }
-        });
-
-        it('does not call the exporter for web prompts', async () => {
-            const exportCustomChartTypeImage =
-                vi.fn() as ExportCustomChartTypeImageFn;
-
-            const { output } = await executeCustom({
-                chartConfig: customChartConfig,
-                exportCustomChartTypeImage,
-            });
-
-            expect(exportCustomChartTypeImage).not.toHaveBeenCalled();
-            expect(output.metadata).toMatchObject({ status: 'success' });
         });
     });
 });

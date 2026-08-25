@@ -9351,9 +9351,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     .then(() => undefined);
             });
 
-        // Headless-renders a custom chart type answer as the requesting user.
-        // The artifact was just persisted by this prompt run for this same
-        // user, so no access re-resolution is needed before rendering.
+        // Headless-renders a custom chart type answer as the requesting user,
+        // who just persisted the artifact — no access re-resolution needed.
         const exportCustomChartTypeImage: ExportCustomChartTypeImageFn = (
             artifact,
         ) =>
