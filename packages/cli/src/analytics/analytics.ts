@@ -287,6 +287,7 @@ export type ProjectContentAsCodeCounts = {
     virtualViewsNum?: number;
     agentsNum?: number;
     appsNum?: number;
+    chartTypesNum?: number;
     alertsNum?: number;
     scheduledDeliveriesNum?: number;
     googleSheetsNum?: number;

@@ -1103,6 +1103,20 @@ const uploadCommand = program
         false,
     )
     .option(
+        '--chart-types <chartTypeReferences...>',
+        'Upload only the specified custom chart types, by slug (the chart type folder name), URL, or UUID (enterprise). URL and UUID refs are resolved against the target project.',
+    )
+    .option(
+        '--include-chart-types',
+        'Upload all chart type folders on disk (enterprise).',
+        false,
+    )
+    .option(
+        '--chart-types-only',
+        'Upload only custom chart types, skipping charts, dashboards, and space reconciliation. Bare --chart-types-only uploads every chart type folder; pass --chart-types <chartTypeReferences...> to select.',
+        false,
+    )
+    .option(
         '--allow-custom-dependencies',
         'Approve uploading apps that declare custom dependencies without prompting. Required for non-interactive runs of such uploads.',
         false,
