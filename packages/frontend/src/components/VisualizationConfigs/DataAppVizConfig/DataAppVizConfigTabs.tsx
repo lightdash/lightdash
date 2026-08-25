@@ -43,7 +43,8 @@ export const ConfigTabs: FC = memo(() => {
         useVisualizationContext();
     const selectProjectChartType = useSelectProjectChartType();
     const dispatch = useExplorerDispatch();
-    const isAuthoring = useExplorerSelector(selectChartTypeAuthoring) !== null;
+    const authoring = useExplorerSelector(selectChartTypeAuthoring);
+    const isAuthoring = authoring !== null;
 
     const isDataAppViz = isDataAppVizVisualizationConfig(visualizationConfig);
     const dataAppVizUuid = isDataAppViz
@@ -51,11 +52,16 @@ export const ConfigTabs: FC = memo(() => {
         : '';
 
     // A chart renders the viz's latest ready version, so its options come from
-    // that version's declaration.
+    // that version's declaration — unless the builder is previewing an older
+    // version of this same viz, whose own declaration the panel then follows.
+    const authoringVersion =
+        authoring !== null && authoring.dataAppVizUuid === dataAppVizUuid
+            ? authoring.viewedVersion
+            : null;
     const { data: dataAppViz } = useDataAppVisualization(
         projectUuid,
         dataAppVizUuid || undefined,
-        null,
+        authoringVersion,
     );
 
     const configOptions = useMemo(
@@ -138,7 +144,7 @@ export const ConfigTabs: FC = memo(() => {
                 fieldMapping={effectiveMapping}
                 onFieldChange={handleFieldChange}
             />
-            {dataAppViz && (!isInsideChartGallery || isAuthoring) && (
+            {dataAppViz && !isInsideChartGallery && (
                 <Box className={classes.typeCard}>
                     <Text fz="xs" fw={500}>
                         {getAppDisplayName(

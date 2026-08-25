@@ -260,6 +260,8 @@ export type ChartSidebarStep = 'choose' | 'configure';
 export type ChartTypeAuthoringState = {
     /** The chart type being revised; null while a new one is authored. */
     dataAppVizUuid: string | null;
+    /** The older version the builder previews; null follows the current one. */
+    viewedVersion: number | null;
     /** The type was created by this session, so cancelling may discard it. */
     createdInSession: boolean;
     /** What the chart and the sidebar showed before, restored on cancel. */

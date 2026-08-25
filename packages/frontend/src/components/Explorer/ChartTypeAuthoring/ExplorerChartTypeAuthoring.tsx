@@ -1,6 +1,8 @@
 import {
     ChartType,
+    derivePivotConfigurationFromChart,
     FeatureFlags,
+    getFieldsFromMetricQuery,
     type DataAppVizOptionValues,
     type ItemsMap,
 } from '@lightdash/common';
@@ -14,17 +16,22 @@ import { buildExplorerVizContext } from '../../../features/chartTypes/utils/expl
 import {
     explorerActions,
     selectChartConfig,
+    selectUnsavedChartVersion,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import useHealth from '../../../hooks/health/useHealth';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useExplore } from '../../../hooks/useExplore';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { type ChartTypeAuthoringState } from '../../../providers/Explorer/types';
 import { CHART_GALLERY_SIDEBAR_TITLE_ID } from '../../common/ChartGallery/ChartGalleryContext';
+import { RefreshButton } from '../../RefreshButton';
 import { useSelectProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
 import { useExplorerChartColorPalette } from '../VisualizationCard/useExplorerChartColorPalette';
 import { useExplorerResultsData } from '../VisualizationCard/useExplorerResultsData';
+import VisualizationWarning from '../VisualizationCard/VisualizationWarning';
 import ExplorerChartTypeAuthoringView from './ExplorerChartTypeAuthoringView';
 
 // Stable identities, so the workspace does not rebind before results land.
@@ -45,12 +52,43 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
     const selectProjectChartType = useSelectProjectChartType();
     const { mutate: deleteApp } = useDeleteApp();
 
-    const { resultsData } = useExplorerResultsData();
+    const {
+        resultsData,
+        isLoadingQueryResults,
+        mergeResults,
+        suppressPrimaryResults,
+    } = useExplorerResultsData();
     // Every page, so the preview sees what the chart would.
     useEffect(() => {
         resultsData.setFetchAll(true);
     }, [resultsData]);
     const itemsMap = resultsData.fields ?? NO_ITEMS;
+
+    // The same staleness signal the chart card shows: results computed with
+    // pivot settings that no longer match the configuration.
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const { data: explore } = useExplore(unsavedChartVersion.tableName);
+    const health = useHealth();
+    const visualizationMetricQuery = suppressPrimaryResults
+        ? undefined
+        : (mergeResults?.metricQuery ?? unsavedChartVersion.metricQuery);
+    const dirtyPivotConfiguration = useMemo(() => {
+        const fields =
+            mergeResults?.fields ??
+            (explore
+                ? getFieldsFromMetricQuery(
+                      unsavedChartVersion.metricQuery,
+                      explore,
+                  )
+                : undefined);
+        return visualizationMetricQuery && fields
+            ? derivePivotConfigurationFromChart(
+                  unsavedChartVersion,
+                  visualizationMetricQuery,
+                  fields,
+              )
+            : undefined;
+    }, [unsavedChartVersion, visualizationMetricQuery, mergeResults, explore]);
 
     const workspace = useChartTypeBuilderWorkspace({
         projectUuid,
@@ -65,6 +103,16 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
             dispatch(explorerActions.claimChartTypeAuthoringViz(build.appUuid));
         }
     }, [authoring.dataAppVizUuid, build.appUuid, dispatch]);
+
+    // The sidebar lives outside this tree, so the pinned version reaches it
+    // through the store and its options follow the previewed version.
+    useEffect(() => {
+        dispatch(
+            explorerActions.viewChartTypeAuthoringVersion(
+                workspace.viewedVersion,
+            ),
+        );
+    }, [workspace.viewedVersion, dispatch]);
 
     const chartConfig = useExplorerSelector(selectChartConfig);
     const chartUsesThisType =
@@ -213,6 +261,18 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
             }
             workspace={workspace}
             previewContext={previewContext}
+            runQuery={
+                <>
+                    <VisualizationWarning
+                        dirtyPivotConfiguration={dirtyPivotConfiguration}
+                        chartConfig={unsavedChartVersion.chartConfig}
+                        resultsData={resultsData}
+                        isLoading={isLoadingQueryResults}
+                        maxColumnLimit={health.data?.pivotTable?.maxColumnLimit}
+                    />
+                    <RefreshButton size="xs" />
+                </>
+            }
             onDetailsSaved={handleDetailsSaved}
             onDone={handleDone}
         />

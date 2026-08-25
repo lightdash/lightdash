@@ -153,6 +153,7 @@ const dataAppViz = {
 const readyVersion = {
     version: 1,
     status: 'ready',
+    createdAt: new Date('2026-08-19T00:00:00Z'),
 } as ApiAppVersionSummary;
 
 const workspaceStub = (

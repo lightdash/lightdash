@@ -54,7 +54,10 @@ const {
     navigate: vi.fn(),
     pickerProps: [] as PickerProps[],
     authoringState: {
-        current: null as { dataAppVizUuid: string | null } | null,
+        current: null as {
+            dataAppVizUuid: string | null;
+            viewedVersion?: number | null;
+        } | null,
     },
 }));
 
@@ -584,6 +587,42 @@ describe('DataAppVizConfigTabs', () => {
 
         expect(screen.getByText('Radial gauge')).toBeInTheDocument();
         await expect(screen.findByText('Edit ↗')).rejects.toThrow();
+    });
+
+    it('fetches the schema of the version the builder previews while authoring', () => {
+        authoringState.current = {
+            dataAppVizUuid: 'data-app-viz-uuid',
+            viewedVersion: 2,
+        };
+        try {
+            renderWithProviders(<ConfigTabs />);
+
+            expect(useDataAppVisualization).toHaveBeenLastCalledWith(
+                'project-1',
+                'data-app-viz-uuid',
+                2,
+            );
+        } finally {
+            authoringState.current = null;
+        }
+    });
+
+    it('stays on the latest schema when authoring a different type', () => {
+        authoringState.current = {
+            dataAppVizUuid: 'another-viz-uuid',
+            viewedVersion: 2,
+        };
+        try {
+            renderWithProviders(<ConfigTabs />);
+
+            expect(useDataAppVisualization).toHaveBeenLastCalledWith(
+                'project-1',
+                'data-app-viz-uuid',
+                null,
+            );
+        } finally {
+            authoringState.current = null;
+        }
     });
 
     it('fires setOption when a control changes', async () => {
