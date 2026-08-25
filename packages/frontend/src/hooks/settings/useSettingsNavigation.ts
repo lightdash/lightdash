@@ -91,7 +91,7 @@ export const useSettingsNavigation = (
         dataAppsFlag,
         externalSourcesFlag,
         isResultsCacheEnabled,
-        isContentAsCodeSyncEnabled,
+        shouldShowContentAsCodeSync,
         isGitProject,
     } = context;
 
@@ -969,7 +969,7 @@ export const useSettingsNavigation = (
             }
 
             if (
-                isContentAsCodeSyncEnabled &&
+                shouldShowContentAsCodeSync &&
                 ability?.can(
                     'view',
                     subject('ContentAsCode', {
@@ -1052,7 +1052,7 @@ export const useSettingsNavigation = (
         isDataAppsEnabled,
         isExternalSourcesEnabled,
         isResultsCacheEnabled,
-        isContentAsCodeSyncEnabled,
+        shouldShowContentAsCodeSync,
         isGitProject,
         track,
     ]);

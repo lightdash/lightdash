@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { EMPTY_CONTENT_AS_CODE_SYNC_STATUS } from '../types';
 
 vi.mock('../../../api', () => ({
     lightdashApi: vi.fn(), // pragma: allowlist secret
@@ -11,15 +10,17 @@ import { getContentAsCodeSyncStatus } from './getContentAsCodeSyncStatus';
 const mockApi = api as unknown as Mock;
 
 const populatedStatus = {
+    syncEnabled: true,
     lastAppliedAt: new Date('2026-08-25T09:00:00.000Z'),
-    revisionCount: 1,
-    revisions: [
+    items: [
         {
             contentType: 'chart',
             slug: 'orders-over-time',
-            contentHash: 'abc123def456',
+            state: 'ahead',
             appliedAt: new Date('2026-08-25T09:00:00.000Z'),
-            appliedByUserUuid: null,
+            contentHash: 'abc123',
+            snapshot: { name: 'old' },
+            current: { name: 'new' },
         },
     ],
 };
@@ -34,7 +35,7 @@ describe('getContentAsCodeSyncStatus', () => {
 
         await expect(
             getContentAsCodeSyncStatus('project-uuid'),
-        ).resolves.toEqual(populatedStatus);
+        ).resolves.toEqual({ kind: 'ok', status: populatedStatus });
         expect(mockApi).toHaveBeenCalledWith({
             url: '/projects/project-uuid/code/sync-status',
             method: 'GET',
@@ -42,7 +43,7 @@ describe('getContentAsCodeSyncStatus', () => {
         });
     });
 
-    it('returns an empty status when the endpoint is not deployed yet', async () => {
+    it('returns unavailable when the endpoint is not deployed yet', async () => {
         mockApi.mockRejectedValueOnce({
             status: 'error',
             error: {
@@ -55,10 +56,10 @@ describe('getContentAsCodeSyncStatus', () => {
 
         await expect(
             getContentAsCodeSyncStatus('project-uuid'),
-        ).resolves.toEqual(EMPTY_CONTENT_AS_CODE_SYNC_STATUS);
+        ).resolves.toEqual({ kind: 'unavailable' });
     });
 
-    it('returns an empty status on a network miss', async () => {
+    it('returns unavailable on a network miss', async () => {
         mockApi.mockRejectedValueOnce({
             status: 'error',
             error: {
@@ -71,7 +72,7 @@ describe('getContentAsCodeSyncStatus', () => {
 
         await expect(
             getContentAsCodeSyncStatus('project-uuid'),
-        ).resolves.toEqual(EMPTY_CONTENT_AS_CODE_SYNC_STATUS);
+        ).resolves.toEqual({ kind: 'unavailable' });
     });
 
     it('rethrows unexpected API errors', async () => {

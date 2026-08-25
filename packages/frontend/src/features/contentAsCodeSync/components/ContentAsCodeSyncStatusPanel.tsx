@@ -1,89 +1,61 @@
-import { Badge, Group, Paper, Stack, Text, Tooltip } from '@mantine/core';
+import { subject } from '@casl/ability';
+import { Stack, Text } from '@mantine/core';
 import { IconCode } from '@tabler/icons-react';
 import { format } from 'date-fns';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import { SettingsEmptyState } from '../../../components/common/Settings/SettingsEmptyState';
-import TruncatedText from '../../../components/common/TruncatedText';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
+import useApp from '../../../providers/App/useApp';
 import { useContentAsCodeSyncStatus } from '../hooks/useContentAsCodeSyncStatus';
-import { type ContentAsCodeAppliedRevision } from '../types';
-import { getContentAsCodeTypeLabel } from '../utils/contentAsCodeTypeLabel';
+import { useRestampContentAsCodeRevision } from '../hooks/useRestampContentAsCodeRevision';
+import { type ContentAsCodeSyncItem } from '../types';
 import { toDate } from '../utils/toDate';
-import classes from './ContentAsCodeSyncStatusPanel.module.css';
+import ContentAsCodeSyncDiffModal from './ContentAsCodeSyncDiffModal';
+import ContentAsCodeSyncItemRow from './ContentAsCodeSyncItemRow';
 
 type ContentAsCodeSyncStatusPanelProps = {
     projectUuid: string;
 };
 
-const isEmptySyncStatus = (
-    lastAppliedAt: Date | string | null | undefined,
-    revisionCount: number,
-    revisions: ContentAsCodeAppliedRevision[],
-): boolean =>
-    lastAppliedAt == null && revisionCount === 0 && revisions.length === 0;
-
-const AppliedTime: FC<{ value: Date | string }> = ({ value }) => {
+const LastAppliedSummary: FC<{ value: Date | string }> = ({ value }) => {
     const timeAgo = useTimeAgo(value);
-    const absolute = format(toDate(value), 'MMM d, yyyy HH:mm');
 
     return (
-        <Stack gap={2} align="flex-end">
-            <Text fz="sm">{timeAgo}</Text>
-            <Text fz="xs" c="ldGray.6">
-                {absolute}
-            </Text>
-        </Stack>
-    );
-};
-
-const LastAppliedValue: FC<{ value: Date | string }> = ({ value }) => {
-    const timeAgo = useTimeAgo(value);
-    const absolute = format(toDate(value), 'MMM d, yyyy HH:mm');
-
-    return (
-        <Stack gap={2}>
-            <Text fw={500}>{timeAgo}</Text>
-            <Text fz="xs" c="ldGray.6">
-                {absolute}
-            </Text>
-        </Stack>
-    );
-};
-
-const ContentAsCodeRevisionRow: FC<{
-    revision: ContentAsCodeAppliedRevision;
-}> = ({ revision }) => {
-    const shortHash = revision.contentHash.slice(0, 8);
-
-    return (
-        <Paper withBorder p="md" radius="md">
-            <Group justify="space-between" wrap="nowrap" gap="md">
-                <Stack gap="xs" className={classes.revisionMeta}>
-                    <Badge variant="light" size="sm" tt="none">
-                        {getContentAsCodeTypeLabel(revision.contentType)}
-                    </Badge>
-                    <TruncatedText maxWidth="100%" fw={500}>
-                        {revision.slug}
-                    </TruncatedText>
-                    <Tooltip label={revision.contentHash}>
-                        <Text fz="xs" c="ldGray.5" ff="monospace">
-                            {shortHash}
-                        </Text>
-                    </Tooltip>
-                </Stack>
-                <AppliedTime value={revision.appliedAt} />
-            </Group>
-        </Paper>
+        <Text fz="sm" c="ldGray.6">
+            Last applied {timeAgo} ·{' '}
+            {format(toDate(value), 'MMM d, yyyy HH:mm')}
+        </Text>
     );
 };
 
 const ContentAsCodeSyncStatusPanel: FC<ContentAsCodeSyncStatusPanelProps> = ({
     projectUuid,
 }) => {
+    const { user } = useApp();
     const { data, isInitialLoading, isError, refetch } =
         useContentAsCodeSyncStatus(projectUuid);
+    const restampMutation = useRestampContentAsCodeRevision(projectUuid);
+    const [diffItem, setDiffItem] = useState<ContentAsCodeSyncItem | null>(
+        null,
+    );
+
+    const canRestamp =
+        user.data?.ability.can(
+            'create',
+            subject('ContentAsCode', {
+                organizationUuid: user.data.organizationUuid,
+                projectUuid,
+            }),
+        ) ?? false;
+
+    const isRestampAvailable =
+        data?.kind === 'ok' &&
+        !(
+            restampMutation.isError &&
+            restampMutation.error.error.statusCode === 404
+        );
 
     if (isInitialLoading) {
         return <EmptyStateLoader title="Loading sync status" />;
@@ -100,51 +72,70 @@ const ContentAsCodeSyncStatusPanel: FC<ContentAsCodeSyncStatusPanelProps> = ({
         );
     }
 
-    const revisions = data?.revisions ?? [];
-    const revisionCount = data?.revisionCount ?? 0;
-
-    if (isEmptySyncStatus(data?.lastAppliedAt, revisionCount, revisions)) {
+    if (!data || data.kind === 'unavailable' || !data.status.syncEnabled) {
         return (
             <SettingsEmptyState
                 icon={IconCode}
-                title="No sync history yet"
-                description="Applied revisions from content as code uploads will appear here."
+                title="Content as code sync is not available yet"
+                description="This project has not enabled content as code sync, or the status API is not deployed yet."
             />
         );
     }
 
+    const { status } = data;
+
+    if (status.items.length === 0) {
+        return (
+            <SettingsEmptyState
+                icon={IconCode}
+                title="No managed content"
+                description="Charts and dashboards managed as code will appear here with their sync state."
+            />
+        );
+    }
+
+    const restampingKey = restampMutation.isLoading
+        ? `${restampMutation.variables?.contentType}:${restampMutation.variables?.slug}`
+        : null;
+
     return (
-        <Stack gap="lg">
-            <div className={classes.summary}>
-                <Paper withBorder p="md" radius="md">
-                    <Stack gap="xs">
-                        <Text fz="sm" c="ldGray.6">
-                            Last applied
-                        </Text>
-                        {data?.lastAppliedAt ? (
-                            <LastAppliedValue value={data.lastAppliedAt} />
-                        ) : (
-                            <Text c="ldGray.5">—</Text>
-                        )}
-                    </Stack>
-                </Paper>
-                <Paper withBorder p="md" radius="md">
-                    <Stack gap="xs">
-                        <Text fz="sm" c="ldGray.6">
-                            Revisions
-                        </Text>
-                        <Text fw={500}>{revisionCount}</Text>
-                    </Stack>
-                </Paper>
-            </div>
-            <div className={classes.revisionList}>
-                {revisions.map((revision) => (
-                    <ContentAsCodeRevisionRow
-                        key={`${revision.contentType}:${revision.slug}:${revision.contentHash}`}
-                        revision={revision}
+        <Stack gap="md">
+            {status.lastAppliedAt ? (
+                <LastAppliedSummary value={status.lastAppliedAt} />
+            ) : (
+                <Text fz="sm" c="ldGray.6">
+                    No last-applied snapshot yet
+                </Text>
+            )}
+            <Stack gap="sm">
+                {status.items.map((item) => (
+                    <ContentAsCodeSyncItemRow
+                        key={`${item.contentType}:${item.slug}`}
+                        item={item}
+                        canRestamp={canRestamp}
+                        isRestampAvailable={isRestampAvailable}
+                        isRestamping={
+                            restampingKey === `${item.contentType}:${item.slug}`
+                        }
+                        onViewDiff={() => {
+                            setDiffItem(item);
+                        }}
+                        onRestamp={() => {
+                            restampMutation.mutate({
+                                contentType: item.contentType,
+                                slug: item.slug,
+                            });
+                        }}
                     />
                 ))}
-            </div>
+            </Stack>
+            <ContentAsCodeSyncDiffModal
+                item={diffItem}
+                opened={diffItem !== null}
+                onClose={() => {
+                    setDiffItem(null);
+                }}
+            />
         </Stack>
     );
 };

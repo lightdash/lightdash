@@ -17,6 +17,8 @@ import {
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import SettingsEmbed from '../../ee/features/embed/SettingsEmbed';
 import ContentAsCodeSyncStatusPanel from '../../features/contentAsCodeSync/components/ContentAsCodeSyncStatusPanel';
+import { useContentAsCodeSyncStatus } from '../../features/contentAsCodeSync/hooks/useContentAsCodeSyncStatus';
+import { shouldShowContentAsCodeSync } from '../../features/contentAsCodeSync/types';
 import { ExternalSourcesSettingsPanel } from '../../features/externalSources/components/ExternalSourcesSettingsPanel';
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
@@ -102,12 +104,11 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
     const { data: resultsCacheFlag, isLoading: isResultsCacheFlagLoading } =
         useServerFeatureFlag(FeatureFlags.ResultsCacheEnabled);
     const {
-        data: contentAsCodeSyncFlag,
-        isLoading: isContentAsCodeSyncFlagLoading,
-    } = useServerFeatureFlag(FeatureFlags.ContentAsCodeSync);
+        data: contentAsCodeSyncResult,
+        isInitialLoading: isContentAsCodeSyncStatusLoading,
+    } = useContentAsCodeSyncStatus(projectUuid);
     const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
-    const isContentAsCodeSyncEnabled = contentAsCodeSyncFlag?.enabled ?? false;
     const canManageExternalConnections =
         isDataAppsEnabled &&
         !!project &&
@@ -133,7 +134,6 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
             false);
 
     const canViewContentAsCode =
-        isContentAsCodeSyncEnabled &&
         !!project &&
         (user.data?.ability.can(
             'view',
@@ -143,6 +143,9 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
             }),
         ) ??
             false);
+    const canViewContentAsCodeSync =
+        canViewContentAsCode &&
+        shouldShowContentAsCodeSync(contentAsCodeSyncResult);
 
     const routes = useMemo<RouteObject[]>(() => {
         if (!projectUuid) {
@@ -264,14 +267,14 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
                     </ProjectSettingsPage>
                 ),
             },
-            ...(canViewContentAsCode
+            ...(canViewContentAsCodeSync
                 ? [
                       {
                           path: `/contentAsCode`,
                           element: (
                               <ProjectSettingsPage
                                   title="Content as code"
-                                  description="Review when content as code was last applied to this project."
+                                  description="See which managed slugs are in sync, ahead, or UI-only."
                               >
                                   <ContentAsCodeSyncStatusPanel
                                       projectUuid={projectUuid}
@@ -522,7 +525,7 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
         user.data?.ability,
         canManageExternalConnections,
         canManageExternalSources,
-        canViewContentAsCode,
+        canViewContentAsCodeSync,
         isAiCopilotEnabledOrTrial,
     ]);
     const routesElements = useRoutes(routes);
@@ -548,7 +551,7 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
             location.pathname,
         );
     const isAwaitingContentAsCodeRoute =
-        isContentAsCodeSyncFlagLoading &&
+        isContentAsCodeSyncStatusLoading &&
         !!matchPath(
             '/generalSettings/projectManagement/:projectUuid/contentAsCode',
             location.pathname,

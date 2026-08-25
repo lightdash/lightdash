@@ -2,6 +2,8 @@ import { subject } from '@casl/ability';
 import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
 import { useIsGitProject } from '../../components/Explorer/WriteBackModal/hooks';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import { useContentAsCodeSyncStatus } from '../../features/contentAsCodeSync/hooks/useContentAsCodeSyncStatus';
+import { shouldShowContentAsCodeSync } from '../../features/contentAsCodeSync/types';
 import useApp from '../../providers/App/useApp';
 import { useOrganization } from '../organization/useOrganization';
 import { useActiveProjectUuid } from '../useActiveProject';
@@ -79,11 +81,6 @@ export const useSettingsContext = (): SettingsContext => {
     );
     const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
 
-    const { data: contentAsCodeSyncFlag } = useServerFeatureFlag(
-        FeatureFlags.ContentAsCodeSync,
-    );
-    const isContentAsCodeSyncEnabled = contentAsCodeSyncFlag?.enabled ?? false;
-
     const { data: proLimitsFlag } = useServerFeatureFlag(
         FeatureFlags.ProLimits,
     );
@@ -125,6 +122,8 @@ export const useSettingsContext = (): SettingsContext => {
     } = useProject(activeProjectUuid);
 
     const isGitProject = useIsGitProject(activeProjectUuid ?? '');
+    const contentAsCodeSyncQuery =
+        useContentAsCodeSyncStatus(activeProjectUuid);
 
     // "Ask AI" settings are visible to org AI admins (all projects) and to
     // project-scoped AI admins (only the projects they can reach). These are
@@ -205,7 +204,11 @@ export const useSettingsContext = (): SettingsContext => {
         isDataAppsFlagLoading: dataAppsFlagQuery.isInitialLoading,
         externalSourcesFlag,
         isResultsCacheEnabled,
-        isContentAsCodeSyncEnabled,
+        shouldShowContentAsCodeSync: shouldShowContentAsCodeSync(
+            contentAsCodeSyncQuery.data,
+        ),
+        isContentAsCodeSyncStatusLoading:
+            contentAsCodeSyncQuery.isInitialLoading,
         embeddingEnabled,
         allowPasswordAuthentication,
         hasSocialLogin,

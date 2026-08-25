@@ -3,18 +3,24 @@
  * the shared types are published.
  */
 
-export type ContentAsCodeAppliedRevision = {
-    contentType: string;
+export type ContentAsCodeSyncContentType = 'chart' | 'dashboard';
+
+export type ContentAsCodeSyncItemState = 'in_sync' | 'ahead' | 'ui_only';
+
+export type ContentAsCodeSyncItem = {
+    contentType: ContentAsCodeSyncContentType;
     slug: string;
-    contentHash: string;
-    appliedAt: Date;
-    appliedByUserUuid: string | null;
+    state: ContentAsCodeSyncItemState;
+    appliedAt: Date | null;
+    contentHash: string | null;
+    snapshot: Record<string, unknown> | null;
+    current: Record<string, unknown> | null;
 };
 
 export type ContentAsCodeSyncStatus = {
+    syncEnabled: boolean;
     lastAppliedAt: Date | null;
-    revisionCount: number;
-    revisions: ContentAsCodeAppliedRevision[];
+    items: ContentAsCodeSyncItem[];
 };
 
 export type ApiContentAsCodeSyncStatusResponse = {
@@ -22,8 +28,23 @@ export type ApiContentAsCodeSyncStatusResponse = {
     results: ContentAsCodeSyncStatus;
 };
 
-export const EMPTY_CONTENT_AS_CODE_SYNC_STATUS: ContentAsCodeSyncStatus = {
-    lastAppliedAt: null,
-    revisionCount: 0,
-    revisions: [],
+export type ContentAsCodeSyncStatusResult =
+    | { kind: 'unavailable' }
+    | { kind: 'ok'; status: ContentAsCodeSyncStatus };
+
+export const CONTENT_AS_CODE_SYNC_STATUS_QUERY_KEY =
+    'content-as-code-sync-status';
+
+export const shouldShowContentAsCodeSync = (
+    result: ContentAsCodeSyncStatusResult | undefined,
+): boolean => {
+    if (!result) {
+        return false;
+    }
+
+    if (result.kind === 'unavailable') {
+        return true;
+    }
+
+    return result.status.syncEnabled;
 };
