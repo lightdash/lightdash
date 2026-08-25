@@ -2,6 +2,11 @@ import { CompiledField, CompiledTable } from '@lightdash/common';
 import { Knex } from 'knex';
 import { compact, escapeRegExp } from 'lodash';
 
+// Exact/prefix name boosts sit above typical ts_rank_cd values (0–1) so a
+// short exact title always outranks longer partial matches.
+const EXACT_NAME_RANK_BOOST = 100;
+const PREFIX_NAME_RANK_BOOST = 50;
+
 // To query multiple words with tsquery, we need to split the query and add `:*` to each word
 export function getFullTextSearchQuery(
     searchQuery: string,
@@ -25,14 +30,24 @@ export function getFullTextSearchQuery(
         .join(operator);
 }
 
+function getNameMatchBoostSql(): string {
+    return `CASE
+            WHEN lower(:nameColumn:) = lower(:rawSearchQuery) THEN ${EXACT_NAME_RANK_BOOST}
+            WHEN lower(:nameColumn:) LIKE lower(:rawSearchQuery) || '%' THEN ${PREFIX_NAME_RANK_BOOST}
+            ELSE 0
+        END`;
+}
+
 export function getFullTextSearchRankCalcSql({
     database,
     variables,
     fullTextSearchOperator = 'AND',
+    nameColumn,
 }: {
     database: Knex;
     variables: Record<string, string>;
     fullTextSearchOperator?: 'OR' | 'AND';
+    nameColumn?: string;
 }) {
     const updatedVariables = {
         ...variables,
@@ -40,17 +55,29 @@ export function getFullTextSearchRankCalcSql({
             variables.searchQuery,
             fullTextSearchOperator,
         ),
+        ...(nameColumn
+            ? {
+                  nameColumn,
+                  rawSearchQuery: variables.searchQuery,
+              }
+            : {}),
     };
 
-    return database.raw(
-        `ROUND(
+    const tsRankSql = `ROUND(
             ts_rank_cd(
                 :searchVectorColumn:,
                 to_tsquery('lightdash_english_config', :searchQuery),
                 32
             )::numeric,
             6
-        )::float`,
+        )::float`;
+
+    if (!nameColumn) {
+        return database.raw(tsRankSql, updatedVariables);
+    }
+
+    return database.raw(
+        `(${tsRankSql} + ${getNameMatchBoostSql()})`,
         updatedVariables,
     );
 }
@@ -113,25 +140,40 @@ function getWebSearchQuery(searchQuery: string): string {
 export function getWebSearchRankCalcSql({
     database,
     variables,
+    nameColumn,
 }: {
     database: Knex;
     variables: Record<string, string>;
+    nameColumn?: string;
 }) {
     const webSearchQuery = getWebSearchQuery(variables.searchQuery);
+    const bindings = {
+        ...variables,
+        searchQuery: webSearchQuery,
+        ...(nameColumn
+            ? {
+                  nameColumn,
+                  rawSearchQuery: variables.searchQuery,
+              }
+            : {}),
+    };
 
-    return database.raw(
-        `ROUND(
+    const tsRankSql = `ROUND(
             ts_rank_cd(
                 :searchVectorColumn:,
                 websearch_to_tsquery('lightdash_english_config', :searchQuery),
                 32
             )::numeric,
             6
-        )::float`,
-        {
-            ...variables,
-            searchQuery: webSearchQuery,
-        },
+        )::float`;
+
+    if (!nameColumn) {
+        return database.raw(tsRankSql, bindings);
+    }
+
+    return database.raw(
+        `(${tsRankSql} + ${getNameMatchBoostSql()})`,
+        bindings,
     );
 }
 
@@ -168,4 +210,61 @@ export function getTableOrFieldMatchCount(
     // remove duplicate matches
     return new Set([...labelMatches, ...nameMatches, ...descriptionMatches])
         .size;
+}
+
+/**
+ * Prefer exact and prefix label matches over partial word-count matches so a
+ * short exact title ranks above longer names that merely repeat the query words.
+ */
+export function getExactOrPrefixLabelScore(
+    query: string,
+    label: string,
+): number {
+    const normalizedQuery = query.trim().toLowerCase();
+    const normalizedLabel = label.trim().toLowerCase();
+    if (normalizedQuery.length === 0) {
+        return 0;
+    }
+    if (normalizedLabel === normalizedQuery) {
+        return 2;
+    }
+    if (normalizedLabel.startsWith(normalizedQuery)) {
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * Verified matches are fetched through a dedicated capped query so they are
+ * never crowded out of the per-type result caps by unverified matches.
+ * Combined results are re-sorted by search_rank when present.
+ */
+export async function searchReservingVerified<
+    T extends { uuid: string; search_rank?: number },
+>(
+    verifiedOnly: boolean,
+    search: (opts: { verifiedOnly: boolean }) => Promise<T[]>,
+): Promise<T[]> {
+    if (verifiedOnly) {
+        return search({ verifiedOnly: true });
+    }
+
+    const [allResults, verifiedResults] = await Promise.all([
+        search({ verifiedOnly: false }),
+        search({ verifiedOnly: true }),
+    ]);
+
+    const byUuid = new Map<string, T>();
+    for (const result of allResults) {
+        byUuid.set(result.uuid, result);
+    }
+    for (const result of verifiedResults) {
+        if (!byUuid.has(result.uuid)) {
+            byUuid.set(result.uuid, result);
+        }
+    }
+
+    return [...byUuid.values()].sort(
+        (a, b) => (b.search_rank ?? 0) - (a.search_rank ?? 0),
+    );
 }

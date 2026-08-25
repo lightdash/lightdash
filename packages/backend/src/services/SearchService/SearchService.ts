@@ -18,6 +18,7 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
+import { searchReservingVerified } from '../../models/SearchModel/utils/search';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { BaseService } from '../BaseService';
@@ -61,26 +62,6 @@ export class SearchService extends BaseService {
         this.appGenerateService = args.appGenerateService;
     }
 
-    // Verified matches are fetched through a dedicated capped query so they
-    // are never crowded out of the per-type result caps by unverified matches.
-    private static async searchReservingVerified<T extends { uuid: string }>(
-        verifiedOnly: boolean,
-        search: (opts: { verifiedOnly: boolean }) => Promise<T[]>,
-    ): Promise<T[]> {
-        if (verifiedOnly) {
-            return search({ verifiedOnly: true });
-        }
-        const [allResults, verifiedResults] = await Promise.all([
-            search({ verifiedOnly: false }),
-            search({ verifiedOnly: true }),
-        ]);
-        const seenUuids = new Set(allResults.map((result) => result.uuid));
-        return [
-            ...allResults,
-            ...verifiedResults.filter((result) => !seenUuids.has(result.uuid)),
-        ];
-    }
-
     async findContent(
         user: SessionUser,
         projectUuid: string,
@@ -107,7 +88,7 @@ export class SearchService extends BaseService {
         }
 
         const [dashboardSearchResults, chartSearchResults] = await Promise.all([
-            SearchService.searchReservingVerified(verifiedOnly, (opts) =>
+            searchReservingVerified(verifiedOnly, (opts) =>
                 this.searchModel.searchDashboards(
                     projectUuid,
                     query,
@@ -115,7 +96,7 @@ export class SearchService extends BaseService {
                     { fullTextSearchOperator: 'OR', ...opts },
                 ),
             ),
-            SearchService.searchReservingVerified(verifiedOnly, (opts) =>
+            searchReservingVerified(verifiedOnly, (opts) =>
                 this.searchModel.searchAllCharts(projectUuid, query, {
                     fullTextSearchOperator: 'OR',
                     ...opts,
