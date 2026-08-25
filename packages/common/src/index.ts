@@ -46,7 +46,6 @@ dayjs.extend(utc);
 export { getPermissionsFromAbilityRules } from './authorization/abilityPermissions';
 export * from './authorization/buildAccountHelpers';
 export { collapseAbilityRules } from './authorization/collapseAbilityRules';
-export * from './authorization/directAccessRole';
 export {
     defineUserAbility,
     getUserAbilityBuilder,

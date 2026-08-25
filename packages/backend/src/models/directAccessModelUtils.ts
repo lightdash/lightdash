@@ -1,8 +1,6 @@
 import {
-    canDelegateDirectAccessRole,
-    ForbiddenError,
     OrganizationMemberRole,
-    SpaceMemberRole,
+    type SpaceMemberRole,
     type UUID,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -45,106 +43,6 @@ export type DirectAccessMutationResult = DirectAccessMutationContext & {
 export type DirectAccessResetResult = DirectAccessMutationContext & {
     revokedUsers: number;
     revokedGroups: number;
-};
-
-/**
- * The resolver must return only after locking every authority source that
- * could lower the actor's role. Those locks must be held by `transaction`
- * until the direct access mutation completes. When authority depends on the
- * absence of a row, the resolver must lock a stable anchor or use an
- * equivalent serialization mechanism.
- */
-export type DirectAccessModelActorRoleResolver = (input: {
-    transaction: Knex.Transaction;
-    context: DirectAccessMutationContext;
-}) => Promise<SpaceMemberRole | undefined>;
-
-export type DirectAccessModel = {
-    getUserAccess(
-        resourceUuids: UUID[],
-        userUuid: UUID,
-        scope: { organizationUuid: UUID },
-    ): Promise<Record<string, DirectAccess>>;
-    upsertUserAccess(input: {
-        resourceUuid: UUID;
-        userUuid: UUID;
-        role: SpaceMemberRole;
-        actorRole: SpaceMemberRole | undefined;
-        actorRoleResolver: DirectAccessModelActorRoleResolver;
-        grantedByUserUuid: UUID;
-        organizationUuid: UUID;
-    }): Promise<DirectAccessMutationResult>;
-    upsertGroupAccess(input: {
-        resourceUuid: UUID;
-        groupUuid: UUID;
-        role: SpaceMemberRole;
-        actorRole: SpaceMemberRole | undefined;
-        actorRoleResolver: DirectAccessModelActorRoleResolver;
-        grantedByUserUuid: UUID;
-        organizationUuid: UUID;
-    }): Promise<DirectAccessMutationResult>;
-    revokeUserAccess(input: {
-        resourceUuid: UUID;
-        userUuid: UUID;
-        actorRole: SpaceMemberRole | undefined;
-        actorRoleResolver: DirectAccessModelActorRoleResolver;
-        actorUserUuid: UUID;
-        organizationUuid: UUID;
-    }): Promise<DirectAccessMutationResult>;
-    revokeGroupAccess(input: {
-        resourceUuid: UUID;
-        groupUuid: UUID;
-        actorRole: SpaceMemberRole | undefined;
-        actorRoleResolver: DirectAccessModelActorRoleResolver;
-        organizationUuid: UUID;
-    }): Promise<DirectAccessMutationResult>;
-    resetAccess(input: {
-        resourceUuid: UUID;
-        actorRole: SpaceMemberRole | undefined;
-        actorRoleResolver: DirectAccessModelActorRoleResolver;
-        organizationUuid: UUID;
-    }): Promise<DirectAccessResetResult>;
-};
-
-export const assertCanGrantDirectAccess = (
-    actorRole: SpaceMemberRole | undefined,
-    requestedRole: SpaceMemberRole,
-): void => {
-    if (!canDelegateDirectAccessRole(actorRole, requestedRole)) {
-        throw new ForbiddenError(
-            'You cannot grant the requested direct access role',
-        );
-    }
-};
-
-export const assertCanRevokeDirectAccess = ({
-    actorRole,
-    existingRole,
-    isSelfRevoke,
-}: {
-    actorRole: SpaceMemberRole | undefined;
-    existingRole?: SpaceMemberRole;
-    isSelfRevoke: boolean;
-}): void => {
-    if (isSelfRevoke) {
-        return;
-    }
-    if (
-        actorRole === undefined ||
-        actorRole === SpaceMemberRole.VIEWER ||
-        (existingRole !== undefined &&
-            !canDelegateDirectAccessRole(actorRole, existingRole))
-    ) {
-        throw new ForbiddenError('You cannot revoke this direct access role');
-    }
-};
-
-export const assertCanResetDirectAccess = (
-    actorRole: SpaceMemberRole | undefined,
-): void => {
-    if (actorRole !== SpaceMemberRole.ADMIN) {
-        throw new ForbiddenError('Only admins can reset direct access');
-    }
 };
 
 /**

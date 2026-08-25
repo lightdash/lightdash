@@ -34,6 +34,11 @@ export const auditDirectAccessMutation = ({
     result: DirectAccessMutationResult;
     auditLogger?: DirectAccessAuditLogger;
 }): void => {
+    // An idempotent revoke of a grant that never existed mutated nothing;
+    // auditing it would pollute the stream with phantom revokes.
+    if (result.beforeRole === null && result.afterRole === null) {
+        return;
+    }
     let action = 'direct_access.role_change';
     if (result.afterRole === null) {
         action = 'direct_access.revoke';
