@@ -4,6 +4,7 @@ import {
     type CreateSavedChartVersion,
     type LanguageMap,
     type SavedChart,
+    type UiStringKey,
     type UUID,
 } from '@lightdash/common';
 import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
@@ -46,8 +47,8 @@ export interface EmbedContext {
     languageMap?: LanguageMap;
     // The function to call when the user clicks "Explore from here"
     onExplore?: (options: EmbedExploreOptions) => void;
-    // Localization function
-    t: (input: string) => string | undefined;
+    // Returns the SDK uiOverrides value for a UI-string key, if any
+    t: (input: UiStringKey) => string | undefined;
     // The function to call when the user clicks "Back to dashboard" from an Explore
     onBackToDashboard?: () => void;
     // Called after a chart is created or updated from an embedded Explore. The

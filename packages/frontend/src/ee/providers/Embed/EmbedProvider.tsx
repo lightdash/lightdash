@@ -2,9 +2,10 @@ import {
     type CreateEmbedJwt,
     type LanguageMap,
     type SavedChart,
+    type SdkUiOverrides,
+    type UiStringKey,
     type UUID,
 } from '@lightdash/common';
-import get from 'lodash/get';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useAccount } from '../../../hooks/user/useAccount';
@@ -36,6 +37,7 @@ type Props = {
     projectUuid?: string;
     paletteUuid?: string;
     contentOverrides?: LanguageMap;
+    uiOverrides?: SdkUiOverrides;
     embedHeaders?: Record<string, string>;
     onExplore?: (options: EmbedExploreOptions) => void;
     onBackToDashboard?: () => void;
@@ -76,6 +78,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     projectUuid: projectUuidFromProps,
     paletteUuid,
     contentOverrides,
+    uiOverrides,
     onExplore,
     onBackToDashboard,
     onChartSaved,
@@ -173,7 +176,9 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         return {
             embedToken: tokenFromStorageOrProps,
             filters,
-            t: (input: string) => get(contentOverrides, input),
+            // Single resolution point for UI-string overrides; a future
+            // direct-embed transport adds its source here.
+            t: (input: UiStringKey) => uiOverrides?.[input],
             projectUuid: embed?.projectUuid || projectUuid,
             content: embedJwtPayload?.content,
             writeActions: embedJwtPayload?.writeActions,
@@ -202,6 +207,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         projectUuid,
         paletteUuid,
         contentOverrides,
+        uiOverrides,
         onExplore,
         handleChartSaved,
         savedChart,

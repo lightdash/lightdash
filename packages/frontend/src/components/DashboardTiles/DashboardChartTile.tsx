@@ -117,6 +117,7 @@ const getDashboardTileErrorMessage = (
 };
 
 import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { DashboardTileComments } from '../../features/comments';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
@@ -617,6 +618,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
     (props) => {
         const { showToastSuccess } = useToaster();
         const clipboard = useClipboard({ timeout: 200 });
+        const getUiString = useUiStrings();
         const { track } = useTracking();
         const ability = useAbilityContext();
         const { data: account } = useAccount();
@@ -1599,7 +1601,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                         }
                                                     >
                                                         <Group>
-                                                            Explore from here
+                                                            {getUiString(
+                                                                'tileMenu.exploreFromHere',
+                                                            )}
                                                             {cannotUseCustomDimensions && (
                                                                 <MantineIcon
                                                                     icon={
@@ -1630,7 +1634,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                         )
                                                     }
                                                 >
-                                                    Download data
+                                                    {getUiString(
+                                                        'tileMenu.downloadData',
+                                                    )}
                                                 </Menu.Item>
                                             </>
                                         )}
@@ -1879,6 +1885,7 @@ type DashboardChartTileMinimalProps = DashboardChartTileMainProps & {
 const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
     props,
 ) => {
+    const getUiString = useUiStrings();
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -2085,7 +2092,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                                     }
                                     onClick={handleExploreFromHere}
                                 >
-                                    Explore from here
+                                    {getUiString('tileMenu.exploreFromHere')}
                                 </Menu.Item>
                             )}
                             {canExportCsv && (
@@ -2097,7 +2104,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                                         setIsDataExportModalOpen(true)
                                     }
                                 >
-                                    Download data
+                                    {getUiString('tileMenu.downloadData')}
                                 </Menu.Item>
                             )}
                             {canExportImages &&
