@@ -292,7 +292,9 @@ describe('DashboardService', () => {
             directAccessService as unknown as DirectAccessService,
     });
     afterEach(() => {
-        vi.clearAllMocks();
+        // Restores vi.fn(impl) defaults and drops unconsumed once-queues so
+        // a test's leftover mockResolvedValueOnce cannot leak into the next.
+        vi.resetAllMocks();
     });
 
     test('duplicates dashboard charts from the original slug base', async () => {
