@@ -1065,6 +1065,11 @@ const uploadCommand = program
         false,
     )
     .option(
+        '--overwrite-drifted',
+        'Overwrite content that changed on the instance since the last upload (git wins). Only relevant with content_as_code.sync enabled in lightdash.config.yml',
+        false,
+    )
+    .option(
         '-p, --path <path>',
         'specify a custom path to upload content from',
         undefined,

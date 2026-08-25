@@ -1,9 +1,14 @@
 import {
     ChartType,
+    ContentAsCodeSkipReason,
     ContentAsCodeType,
     type ChartAsCode,
 } from '@lightdash/common';
-import { buildContentAsCodeSnapshot } from './contentAsCodeSnapshot';
+import {
+    buildContentAsCodeSnapshot,
+    resolveDriftGate,
+    resolveDriftVerdict,
+} from './contentAsCodeSnapshot';
 
 const chartAsCode = (overrides: Partial<ChartAsCode> = {}): ChartAsCode =>
     ({
@@ -112,5 +117,128 @@ describe('buildContentAsCodeSnapshot', () => {
         expect(buildContentAsCodeSnapshot(withSorts).snapshotHash).not.toEqual(
             buildContentAsCodeSnapshot(reversedSorts).snapshotHash,
         );
+    });
+});
+
+describe('resolveDriftVerdict', () => {
+    it('is fast_forward when instance already matches incoming, marker or not', () => {
+        expect(
+            resolveDriftVerdict({
+                currentHash: 'aaa',
+                incomingHash: 'aaa',
+                lastAppliedHash: 'bbb',
+            }),
+        ).toBe('fast_forward');
+        expect(
+            resolveDriftVerdict({
+                currentHash: 'aaa',
+                incomingHash: 'aaa',
+                lastAppliedHash: null,
+            }),
+        ).toBe('fast_forward');
+    });
+
+    it('is no_marker when content was never uploaded and differs from incoming', () => {
+        expect(
+            resolveDriftVerdict({
+                currentHash: 'aaa',
+                incomingHash: 'bbb',
+                lastAppliedHash: null,
+            }),
+        ).toBe('no_marker');
+    });
+
+    it('is in_sync when instance matches the last upload', () => {
+        expect(
+            resolveDriftVerdict({
+                currentHash: 'aaa',
+                incomingHash: 'bbb',
+                lastAppliedHash: 'aaa',
+            }),
+        ).toBe('in_sync');
+    });
+
+    it('is ahead when instance differs from both', () => {
+        expect(
+            resolveDriftVerdict({
+                currentHash: 'aaa',
+                incomingHash: 'bbb',
+                lastAppliedHash: 'ccc',
+            }),
+        ).toBe('ahead');
+    });
+});
+
+describe('resolveDriftGate', () => {
+    const base = { contentType: 'chart' as const, slug: 'monthly-revenue' };
+
+    it('proceeds silently when in sync', () => {
+        expect(resolveDriftGate({ ...base, verdict: 'in_sync' })).toEqual({
+            outcome: 'proceed',
+        });
+        expect(
+            resolveDriftGate({
+                ...base,
+                verdict: 'in_sync',
+                syncEnforced: true,
+            }),
+        ).toEqual({ outcome: 'proceed' });
+    });
+
+    it('fast-forwards when instance matches incoming, unless forced', () => {
+        expect(resolveDriftGate({ ...base, verdict: 'fast_forward' })).toEqual({
+            outcome: 'fast_forward',
+        });
+        expect(
+            resolveDriftGate({ ...base, verdict: 'fast_forward', force: true }),
+        ).toEqual({ outcome: 'proceed' });
+    });
+
+    it.each(['ahead', 'no_marker'] as const)(
+        'skips %s content when sync is enforced',
+        (verdict) => {
+            const gate = resolveDriftGate({
+                ...base,
+                verdict,
+                syncEnforced: true,
+            });
+            expect(gate.outcome).toBe('skip');
+            if (gate.outcome === 'skip') {
+                expect(gate.skip).toMatchObject({
+                    contentType: 'chart',
+                    slug: 'monthly-revenue',
+                    reason: ContentAsCodeSkipReason.SKIPPED_AHEAD,
+                });
+            }
+        },
+    );
+
+    it('force does not bypass the ahead skip; only --overwrite-drifted does', () => {
+        expect(
+            resolveDriftGate({
+                ...base,
+                verdict: 'ahead',
+                syncEnforced: true,
+                force: true,
+            }).outcome,
+        ).toBe('skip');
+        const gate = resolveDriftGate({
+            ...base,
+            verdict: 'ahead',
+            syncEnforced: true,
+            overwriteDrifted: true,
+        });
+        expect(gate.outcome).toBe('proceed');
+        if (gate.outcome === 'proceed') {
+            expect(gate.driftWarning).toContain('--overwrite-drifted');
+        }
+    });
+
+    it('proceeds with a warning when sync is not enforced', () => {
+        const gate = resolveDriftGate({ ...base, verdict: 'ahead' });
+        expect(gate.outcome).toBe('proceed');
+        if (gate.outcome === 'proceed') {
+            expect(gate.driftWarning).toContain('content_as_code.sync');
+        }
     });
 });

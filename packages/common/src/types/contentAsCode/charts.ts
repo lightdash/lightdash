@@ -19,6 +19,7 @@ import type {
     TreemapChartConfig,
 } from '../savedCharts';
 import type { SqlChart } from '../sqlRunner';
+import type { ContentAsCodeSyncStatus } from './base';
 import type { ContentAsCodeType, FiltersInput } from './core';
 import type { SpaceAsCode } from './spaces';
 
@@ -135,9 +136,12 @@ export type ApiChartAsCodeListResponse = {
     };
 };
 
+export type ChartAsCodeUpsertResult = PromotionChanges &
+    ContentAsCodeSyncStatus;
+
 export type ApiChartAsCodeUpsertResponse = {
     status: 'ok';
-    results: PromotionChanges;
+    results: ChartAsCodeUpsertResult;
 };
 
 export type ApiSqlChartAsCodeUpsertResponse = {
