@@ -266,7 +266,7 @@ import {
     toolRunQueryArgsSchemaV2RejectingMerge,
     toolRunQueryArgsSchemaV2Transformed,
     toolRunQueryOutputSchema,
-    type toolRunQueryArgsSchemaV2,
+    type toolRunQueryArgsSchemaV2FormulaOnly,
 } from './toolRunQueryArgs';
 import {
     TOOL_RUN_SAVED_CHART_DESCRIPTION,
@@ -537,8 +537,10 @@ export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
     title: 'Run query',
     description: TOOL_RUN_QUERY_DESCRIPTION,
     availability: ['agent', 'mcp'],
-    // Custom chart types are agent-only for the PoC — MCP keeps the
-    // builtin-only chart config contract.
+    // MCP contract: formula-only table calcs (template calls fail at the
+    // boundary with an error the model can correct) and builtin-only chart
+    // config (custom chart types are agent-only for the PoC). The
+    // transformed parse stays wide for persisted-args replay.
     inputSchema: toolRunQueryArgsSchemaV2Mcp,
     inputSchemaTransformed: toolRunQueryArgsSchemaV2Transformed,
     agent: { outputSchema: toolRunQueryOutputSchema },
@@ -554,7 +556,7 @@ export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
 // stripped to the primary query by Zod. Lazy, like `.for('agent')`.
 export const getRunQueryAgentViewRejectingMerge = (): AgentToolView<
     'runQuery',
-    typeof toolRunQueryArgsSchemaV2,
+    typeof toolRunQueryArgsSchemaV2FormulaOnly,
     typeof toolRunQueryOutputSchema
 > => ({
     ...runQueryToolDefinition.for('agent'),
