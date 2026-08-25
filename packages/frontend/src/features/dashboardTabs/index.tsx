@@ -72,6 +72,10 @@ const EMPTY_LAYOUTS: { lg: Layout[]; md: Layout[]; sm: Layout[] } = {
     sm: [],
 };
 
+const DASHBOARD_GRID_BOTTOM_PADDING = 60;
+const SCROLL_TO_TOP_BOTTOM = 24;
+const SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER = 52;
+
 type TabGridPanelProps = {
     tabUuid: string;
     tiles: DashboardTile[];
@@ -356,6 +360,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const [isHeaderStuck, setIsHeaderStuck] = useState<boolean>(false);
 
     const isLauncherMounted = useIsLauncherMounted(projectUuid);
+    const scrollToTopBottom = isLauncherMounted
+        ? SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER
+        : SCROLL_TO_TOP_BOTTOM;
+    const dashboardGridBottomPadding =
+        DASHBOARD_GRID_BOTTOM_PADDING +
+        scrollToTopBottom -
+        SCROLL_TO_TOP_BOTTOM;
 
     // tabs state
     const [isEditingTab, setEditingTab] = useState<boolean>(false);
@@ -1132,7 +1143,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     />
                                 )}
 
-                                <Group grow pb={60} px="xs">
+                                <Group
+                                    grow
+                                    pb={dashboardGridBottomPadding}
+                                    px="xs"
+                                >
                                     <div
                                         ref={gridWrapperRef}
                                         className={[
@@ -1378,10 +1393,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 )}
             </Droppable>
 
-            <ScrollToTop
-                show={isHeaderStuck}
-                bottom={isLauncherMounted ? 52 : 24}
-            />
+            <ScrollToTop show={isHeaderStuck} bottom={scrollToTopBottom} />
         </DragDropContext>
     );
 };
