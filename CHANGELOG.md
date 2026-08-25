@@ -1,3 +1,10 @@
+## [1.259.1](https://github.com/lightdash/lightdash/compare/1.259.0...1.259.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **backend:** treat migration-ledger supersets with nothing pending as database-ahead ([#28031](https://github.com/lightdash/lightdash/issues/28031)) ([f95ffb3](https://github.com/lightdash/lightdash/commit/f95ffb3c3f4a688707aa336824e202ee31d756cd))
+
 # [1.259.0](https://github.com/lightdash/lightdash/compare/1.258.5...1.259.0) (2026-08-25)
 
 
