@@ -1588,43 +1588,6 @@ export class DashboardService
         return this.update(user, dashboardUuidOrSlug, dashboard, options);
     }
 
-    // A UI save of a managed dashboard becomes a PR proposal instead of
-    // silent drift. Enqueued best-effort and invisible to the saving user:
-    // the save must succeed even when git fails.
-    private async maybeEnqueueContentAsCodeWriteback(args: {
-        userUuid: string;
-        organizationUuid: string;
-        projectUuid: string;
-        dashboardUuid: string;
-        slug: string;
-        inheritsFromOrgOrProject: boolean;
-    }): Promise<void> {
-        try {
-            // Personal/restricted spaces never write back
-            if (!args.inheritsFromOrgOrProject) return;
-            const settings = await this.contentAsCodeProjectSettingsModel.get(
-                args.projectUuid,
-            );
-            if (!settings?.writeBackEnabled) return;
-            await this.schedulerClient.scheduleTask(
-                SCHEDULER_TASKS.CONTENT_AS_CODE_WRITEBACK,
-                {
-                    userUuid: args.userUuid,
-                    organizationUuid: args.organizationUuid,
-                    projectUuid: args.projectUuid,
-                    contentType: 'dashboard',
-                    contentUuid: args.dashboardUuid,
-                    slug: args.slug,
-                },
-            );
-        } catch (error) {
-            this.logger.error(
-                `Error enqueueing content-as-code write-back for dashboard ${args.dashboardUuid}`,
-                error,
-            );
-        }
-    }
-
     async update(
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
@@ -1897,14 +1860,6 @@ export class DashboardService
                 },
             );
 
-        await this.maybeEnqueueContentAsCodeWriteback({
-            userUuid: user.userUuid,
-            organizationUuid: updatedNewDashboard.organizationUuid,
-            projectUuid: updatedNewDashboard.projectUuid,
-            dashboardUuid: updatedNewDashboard.uuid,
-            slug: updatedNewDashboard.slug,
-            inheritsFromOrgOrProject: updatedSpace.inheritsFromOrgOrProject,
-        });
 
         return {
             ...updatedNewDashboard,

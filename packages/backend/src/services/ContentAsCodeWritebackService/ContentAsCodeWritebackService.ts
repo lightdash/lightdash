@@ -426,21 +426,47 @@ export class ContentAsCodeWritebackService extends BaseService {
         const contentUrl = new URL(contentPath, this.lightdashConfig.siteUrl)
             .href;
         const label = contentType === 'chart' ? 'chart' : 'dashboard';
-        const pullRequest =
-            await this.gitIntegrationService.createPullRequestFromBranch(
-                user,
-                projectUuid,
-                row.branch,
-                `Update ${label} \`${slug}\` from Lightdash`,
-                [
-                    `This ${label} was edited in Lightdash and is managed as code; this PR proposes the change back to the repo.`,
-                    ``,
-                    `- Project: ${new URL(`/projects/${projectUuid}`, this.lightdashConfig.siteUrl).href}`,
-                    `- Content: ${contentUrl}`,
-                    ...(notes.length > 0 ? ['', ...notes] : []),
-                ].join('\n'),
-                PullRequestSource.CONTENT_AS_CODE,
-            );
+        let pullRequest;
+        try {
+            pullRequest =
+                await this.gitIntegrationService.createPullRequestFromBranch(
+                    user,
+                    projectUuid,
+                    row.branch,
+                    `Update ${label} \`${slug}\` from Lightdash`,
+                    [
+                        `This ${label} was edited in Lightdash and is managed as code; this PR proposes the change back to the repo.`,
+                        ``,
+                        `- Instance: ${this.lightdashConfig.siteUrl}`,
+                        `- Content: ${contentUrl}`,
+                        ...(notes.length > 0 ? ['', ...notes] : []),
+                    ].join('\n'),
+                    PullRequestSource.CONTENT_AS_CODE,
+                );
+        } catch (error) {
+            const message = error instanceof Error ? error.message : `${error}`;
+            if (!/pull request already exists/i.test(message)) {
+                throw error;
+            }
+            // The branch already has an open PR from a row we lost to an
+            // earlier error: adopt it instead of failing forever
+            const previous =
+                await this.contentAsCodeWritebackModel.findLatestForBranch(
+                    projectUuid,
+                    row.contentType,
+                    slug,
+                    row.branch,
+                );
+            if (previous?.prNumber == null || previous.prUrl === null) {
+                throw error;
+            }
+            await this.contentAsCodeWritebackModel.update(row.uuid, {
+                prNumber: previous.prNumber,
+                prUrl: previous.prUrl,
+                status: 'open',
+            });
+            return;
+        }
         await this.contentAsCodeWritebackModel.update(row.uuid, {
             prNumber: parsePullRequestNumber(pullRequest.prUrl),
             prUrl: pullRequest.prUrl,
@@ -555,22 +581,56 @@ export class ContentAsCodeWritebackService extends BaseService {
             .split('/')
             .pop()
             ?.replace(/\.yml$/, '');
-        await this.gitIntegrationService.saveFile(
-            user,
-            projectUuid,
-            branch,
-            file.path,
-            file.content,
-            existingSha,
-            buildCommitMessage(
-                slug,
+        try {
+            await this.gitIntegrationService.saveFile(
                 user,
-                new URL(
-                    `/projects/${projectUuid}`,
-                    this.lightdashConfig.siteUrl,
-                ).href,
-            ),
-        );
+                projectUuid,
+                branch,
+                file.path,
+                file.content,
+                existingSha,
+                buildCommitMessage(
+                    slug,
+                    user,
+                    new URL(
+                        `/projects/${projectUuid}`,
+                        this.lightdashConfig.siteUrl,
+                    ).href,
+                ),
+            );
+        } catch (error) {
+            const message = error instanceof Error ? error.message : `${error}`;
+            // Concurrent saves race on the file sha; re-read once and retry
+            if (!/but expected|does not match|409/i.test(message)) {
+                throw error;
+            }
+            const fresh = await this.gitIntegrationService.getFileOrDirectory(
+                user,
+                projectUuid,
+                branch,
+                file.path,
+            );
+            if (fresh.type === 'file' && fresh.content === file.content) {
+                // The racing save already landed this exact content
+                return false;
+            }
+            await this.gitIntegrationService.saveFile(
+                user,
+                projectUuid,
+                branch,
+                file.path,
+                file.content,
+                fresh.type === 'file' ? fresh.sha : undefined,
+                buildCommitMessage(
+                    slug,
+                    user,
+                    new URL(
+                        `/projects/${projectUuid}`,
+                        this.lightdashConfig.siteUrl,
+                    ).href,
+                ),
+            );
+        }
         return true;
     }
 }
