@@ -1,7 +1,4 @@
-import {
-    getAppDisplayName,
-    type ApiAppVersionSummary,
-} from '@lightdash/common';
+import { getAppDisplayName } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -24,9 +21,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
 import AppUpgradeModal from '../../apps/components/AppUpgradeModal';
 import { type SdkUpgradeOffer } from '../../apps/hooks/useSdkUpgradeStatus';
-import { getVersionAuthorName } from '../../apps/utils/versionsToChatMessages';
 import classes from './ChartTypeBuilderHeader.module.css';
-import VersionProvenance from './VersionProvenance';
 
 type Props = {
     projectUuid: string;
@@ -37,10 +32,6 @@ type Props = {
     /** Null while no app exists yet (create flow before the first build). */
     app: { appUuid: string; name: string; description: string } | null;
     latestReadyVersion: number | null;
-    /** The version the provenance line reports; null while history is empty. */
-    provenanceVersion: ApiAppVersionSummary | null;
-    /** Whether `provenanceVersion` really is the origin (v1 is loaded). */
-    hasOrigin: boolean;
     /** False while the visualization has no versions to look back through. */
     hasHistory: boolean;
     isHistoryOpen: boolean;
@@ -55,8 +46,6 @@ const ChartTypeBuilderHeader: FC<Props> = ({
     backLink,
     app,
     latestReadyVersion,
-    provenanceVersion,
-    hasOrigin,
     hasHistory,
     isHistoryOpen,
     upgrade,
@@ -134,14 +123,6 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                         >
                             Untitled chart type
                         </Text>
-                    )}
-                    {provenanceVersion && (
-                        <VersionProvenance
-                            className={classes.provenance}
-                            authorName={getVersionAuthorName(provenanceVersion)}
-                            at={new Date(provenanceVersion.createdAt)}
-                            isOrigin={hasOrigin}
-                        />
                     )}
                 </Box>
             </Box>

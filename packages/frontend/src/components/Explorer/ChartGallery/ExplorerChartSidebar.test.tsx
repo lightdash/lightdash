@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createExplorerStore,
     explorerActions,
@@ -22,15 +22,33 @@ vi.mock('./ChartTypeGallery', () => ({
     ),
     ChartTypeThumbnail: () => <span>Table thumbnail</span>,
 }));
+const { dataAppsFlagEnabled } = vi.hoisted(() => ({
+    dataAppsFlagEnabled: { current: true },
+}));
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: { enabled: dataAppsFlagEnabled.current },
+        isLoading: false,
+    }),
+}));
+const { selectedProjectType, vizConfig } = vi.hoisted(() => ({
+    selectedProjectType: { current: undefined as unknown },
+    vizConfig: {
+        current: {
+            chartType: 'table',
+            chartConfig: {},
+        } as unknown,
+    },
+}));
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualization', () => ({
-    useDataAppVisualization: () => ({ data: undefined }),
+    useDataAppVisualization: () => ({ data: selectedProjectType.current }),
+}));
+vi.mock('../../../features/apps/hooks/useCanEditDataApp', () => ({
+    useCanEditDataAppChecker: () => () => true,
 }));
 vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
     useVisualizationContext: () => ({
-        visualizationConfig: {
-            chartType: ChartType.TABLE,
-            chartConfig: {},
-        },
+        visualizationConfig: vizConfig.current,
     }),
 }));
 
@@ -71,6 +89,84 @@ const ReopenHarness = () => {
 };
 
 describe('ExplorerChartSidebar', () => {
+    beforeEach(() => {
+        selectedProjectType.current = undefined;
+        vizConfig.current = { chartType: ChartType.TABLE, chartConfig: {} };
+        dataAppsFlagEnabled.current = true;
+    });
+
+    it('hides the edit entry entirely while data-apps is disabled', () => {
+        dataAppsFlagEnabled.current = false;
+        vizConfig.current = {
+            chartType: ChartType.DATA_APP_VIZ,
+            chartConfig: { dataAppVizUuid: 'viz-1' },
+        };
+        selectedProjectType.current = {
+            dataAppVizUuid: 'viz-1',
+            name: 'Event pulse',
+            spaceUuid: null,
+            createdByUserUuid: 'user-1',
+        };
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.DATA_APP_VIZ}
+                onClose={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Edit chart type' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('offers editing the selected project chart type in place', async () => {
+        vizConfig.current = {
+            chartType: ChartType.DATA_APP_VIZ,
+            chartConfig: { dataAppVizUuid: 'viz-1' },
+        };
+        selectedProjectType.current = {
+            dataAppVizUuid: 'viz-1',
+            name: 'Event pulse',
+            spaceUuid: null,
+            createdByUserUuid: 'user-1',
+        };
+        const store = createExplorerStore();
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.DATA_APP_VIZ}
+                onClose={vi.fn()}
+            />,
+            store,
+        );
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Edit chart type' }),
+        );
+
+        expect(
+            store.getState().explorer.chartTypeAuthoring?.dataAppVizUuid,
+        ).toBe('viz-1');
+    });
+
+    it('retitles itself while a chart type is authored', () => {
+        const store = createExplorerStore();
+        store.dispatch(explorerActions.setIsEditMode(true));
+        store.dispatch(
+            explorerActions.startChartTypeAuthoring({ dataAppVizUuid: null }),
+        );
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.DATA_APP_VIZ}
+                onClose={vi.fn()}
+            />,
+            store,
+        );
+
+        expect(screen.getByText('Generated options')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Edit chart type' }),
+        ).not.toBeInTheDocument();
+    });
     it('moves from Configure to Choose and back after selection', async () => {
         renderSidebar(
             <ExplorerChartSidebar

@@ -1,6 +1,7 @@
 import {
     ChartType,
     deriveDataAppVizPivotConfig,
+    FeatureFlags,
     getAppDisplayName,
     getEffectiveOptionValues,
     type ItemsMap,
@@ -21,6 +22,7 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useIsInsideChartGallery } from '../../common/ChartGallery/ChartGalleryContext';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -78,6 +80,11 @@ export const ConfigTabs: FC = memo(() => {
     // The gallery sidebar already shows the picked type, so the picker and
     // the type card are redundant there.
     const isInsideChartGallery = useIsInsideChartGallery();
+    // In-place authoring needs data-apps; without it, fall back to the
+    // standalone builder link the panel always offered.
+    const dataAppsEnabled =
+        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
+        true;
     const canEditSelectedType = useCanEditDataApp(projectUuid, {
         spaceUuid: dataAppViz?.spaceUuid ?? null,
         createdByUserUuid: dataAppViz?.createdByUserUuid ?? null,
@@ -241,7 +248,7 @@ export const ConfigTabs: FC = memo(() => {
                         {canCreateApp ? (
                             <>
                                 , or create a new one in the{' '}
-                                {isInsideChartGallery ? (
+                                {isInsideChartGallery && dataAppsEnabled ? (
                                     <Anchor
                                         component="button"
                                         type="button"

@@ -191,6 +191,7 @@ const SaveChartButton: FC<{
 
     const showSaveAsMenu = !!savedChart;
     const isSaveAsDisabled =
+        disabled ||
         !unsavedChartVersion.tableName ||
         // Embeds may duplicate a chart as-is (there is no other way to copy
         // one there); the main app keeps requiring changes

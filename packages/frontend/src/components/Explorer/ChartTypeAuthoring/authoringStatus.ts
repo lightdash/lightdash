@@ -1,3 +1,4 @@
+import { assertUnreachable } from '@lightdash/common';
 import { type ChartTypeBuilderWorkspaceState } from '../../../features/chartTypes/builder/useChartTypeBuilderWorkspace';
 
 /** What the header says beside the title; null while nothing is happening. */
@@ -29,5 +30,7 @@ export const authoringStatusLabel = (status: AuthoringStatus): string => {
             return status.elapsed ? `Building ${status.elapsed}` : 'Building';
         case 'ready':
             return `v${status.version} ready`;
+        default:
+            return assertUnreachable(status, 'Unknown authoring status');
     }
 };

@@ -89,6 +89,12 @@ vi.mock('../CustomChartType/CustomChartTypePicker', () => ({
         return <div data-testid="viz-picker" />;
     },
 }));
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: { enabled: true },
+        isLoading: false,
+    }),
+}));
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualization', () => ({
     useDataAppVisualization: vi.fn(),
 }));

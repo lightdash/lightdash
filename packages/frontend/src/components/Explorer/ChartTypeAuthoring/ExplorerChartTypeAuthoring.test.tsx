@@ -8,7 +8,7 @@ import {
     type DataAppVizContext,
     type ItemsMap,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
@@ -29,14 +29,19 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import { useExplorerResultsData } from '../VisualizationCard/useExplorerResultsData';
 import ExplorerChartTypeAuthoring from './ExplorerChartTypeAuthoring';
 
-const { showToastError, setFetchAll, previewContexts, deleteApp } = vi.hoisted(
-    () => ({
-        showToastError: vi.fn(),
-        setFetchAll: vi.fn(),
-        previewContexts: [] as (DataAppVizContext | null)[],
-        deleteApp: vi.fn(),
-    }),
-);
+const {
+    showToastError,
+    showToastSuccess,
+    setFetchAll,
+    previewContexts,
+    deleteApp,
+} = vi.hoisted(() => ({
+    showToastError: vi.fn(),
+    showToastSuccess: vi.fn(),
+    setFetchAll: vi.fn(),
+    previewContexts: [] as (DataAppVizContext | null)[],
+    deleteApp: vi.fn(),
+}));
 
 vi.mock(
     '../../../features/chartTypes/builder/useChartTypeBuilderWorkspace',
@@ -69,7 +74,7 @@ vi.mock('../../../features/apps/hooks/useDeleteApp', () => ({
     useDeleteApp: () => ({ mutate: deleteApp }),
 }));
 vi.mock('../../../hooks/toaster/useToaster', () => ({
-    default: () => ({ showToastError }),
+    default: () => ({ showToastError, showToastSuccess }),
 }));
 vi.mock(
     '../../../features/chartTypes/builder/ChartTypeBuilderWorkspace',
@@ -305,6 +310,56 @@ describe('ExplorerChartTypeAuthoring', () => {
         expect(store.getState().explorer.chartSidebarStep).toBe('configure');
     });
 
+    it('waits for the query fields before binding the chart to the type', () => {
+        vi.mocked(useExplorerResultsData).mockReturnValue({
+            resultsData: {
+                rows: [],
+                fields: undefined,
+                pivotDetails: null,
+                setFetchAll,
+            },
+        } as unknown as ReturnType<typeof useExplorerResultsData>);
+        const store = renderAuthoring();
+
+        expect(
+            store.getState().explorer.unsavedChartVersion.chartConfig.type,
+        ).not.toBe(ChartType.DATA_APP_VIZ);
+
+        vi.mocked(useExplorerResultsData).mockReturnValue({
+            resultsData: {
+                rows,
+                fields: itemsMap,
+                pivotDetails: null,
+                setFetchAll,
+            },
+        } as unknown as ReturnType<typeof useExplorerResultsData>);
+        // The mocked results hook cannot re-render the component itself;
+        // re-dispatching the untouched chart config stands in for it.
+        const currentConfig =
+            store.getState().explorer.unsavedChartVersion.chartConfig;
+        act(() => {
+            store.dispatch(
+                explorerActions.setChartConfig({
+                    chartConfig: currentConfig as never,
+                }),
+            );
+        });
+
+        expect(
+            store.getState().explorer.unsavedChartVersion.chartConfig,
+        ).toEqual({
+            type: ChartType.DATA_APP_VIZ,
+            config: {
+                dataAppVizUuid: 'viz-1',
+                fieldMapping: {
+                    category: 'orders_status',
+                    value: 'orders_count',
+                },
+                optionValues: {},
+            },
+        });
+    });
+
     it('previews the chart binding against every Explorer row with the chart palette', () => {
         renderAuthoring();
 
@@ -342,7 +397,9 @@ describe('ExplorerChartTypeAuthoring', () => {
             store.getState().explorer.unsavedChartVersion.chartConfig.type,
         ).toBe(ChartType.DATA_APP_VIZ);
 
-        await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Back to chart' }),
+        );
 
         const { explorer } = store.getState();
         expect(explorer.chartTypeAuthoring).toBeNull();
@@ -372,15 +429,53 @@ describe('ExplorerChartTypeAuthoring', () => {
         );
         renderAuthoring({ dataAppVizUuid: null });
 
-        await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Back to chart' }),
+        );
+        expect(discard).not.toHaveBeenCalled();
+        expect(
+            screen.getByText(
+                'Leaving now discards the build that is still running.',
+            ),
+        ).toBeInTheDocument();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Discard and leave' }),
+        );
 
         expect(discard).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets a revision build keep running when leaving is confirmed', async () => {
+        vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
+            workspaceStub({
+                isBuilding: true,
+                build: buildStub({ isBuilding: true }),
+            }),
+        );
+        const store = renderAuthoring();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Back to chart' }),
+        );
+        expect(store.getState().explorer.chartTypeAuthoring).not.toBeNull();
+        expect(
+            screen.getByText(
+                'The build keeps running and lands in version history when it finishes.',
+            ),
+        ).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Leave' }));
+
+        expect(store.getState().explorer.chartTypeAuthoring).toBeNull();
     });
 
     it('finishes on Configure with the chart on the authored type', async () => {
         const store = renderAuthoring({ step: 'choose' });
 
-        await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Back to chart' }),
+        );
 
         const { explorer } = store.getState();
         expect(explorer.chartTypeAuthoring).toBeNull();
@@ -389,6 +484,9 @@ describe('ExplorerChartTypeAuthoring', () => {
         expect(explorer.unsavedChartVersion.chartConfig).toEqual(
             expect.objectContaining({ type: ChartType.DATA_APP_VIZ }),
         );
+        expect(showToastSuccess).toHaveBeenCalledWith({
+            title: 'Chart now uses Grouped bars v1',
+        });
     });
 
     it('leaves a new type on the empty custom config until it has a version', () => {
@@ -419,7 +517,9 @@ describe('ExplorerChartTypeAuthoring', () => {
         );
         renderAuthoring({ dataAppVizUuid: null, claimedUuid: 'viz-new' });
 
-        await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Back to chart' }),
+        );
 
         expect(deleteApp).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -432,7 +532,9 @@ describe('ExplorerChartTypeAuthoring', () => {
     it('keeps a revised type when done', async () => {
         renderAuthoring();
 
-        await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Back to chart' }),
+        );
 
         expect(deleteApp).not.toHaveBeenCalled();
     });
@@ -446,7 +548,9 @@ describe('ExplorerChartTypeAuthoring', () => {
             renderAuthoring();
             expect(screen.getByRole('heading', { level: 2 })).toHaveFocus();
 
-            await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Back to chart' }),
+            );
             await new Promise((resolve) => requestAnimationFrame(resolve));
 
             expect(sidebarTitle).toHaveFocus();

@@ -19,6 +19,7 @@ import {
     IconPlus,
     IconSearch,
 } from '@tabler/icons-react';
+import clsx from 'clsx';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
@@ -208,7 +209,7 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
                     revealing capped items and fetching the next page. */}
                 {section.onLoadMore !== null ? (
                     <UnstyledButton
-                        className={`${classes.card} ${classes.moreCard}`}
+                        className={clsx(classes.card, classes.moreCard)}
                         aria-label={`Show ${section.moreCount} more chart types`}
                         disabled={section.loadingMore}
                         onClick={() => {
@@ -236,7 +237,7 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
                     eye already is. */}
                 {section.onCreateNew !== null ? (
                     <UnstyledButton
-                        className={`${classes.card} ${classes.createCard}`}
+                        className={clsx(classes.card, classes.createCard)}
                         aria-label="Create new chart type"
                         onClick={section.onCreateNew}
                     >

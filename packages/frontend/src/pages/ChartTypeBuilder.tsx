@@ -188,10 +188,6 @@ const ChartTypeBuilder: FC = () => {
         }
     }
 
-    const provenanceVersion = history.hasOrigin
-        ? history.oldest
-        : history.latest;
-
     // Remounted per viz so the selected tab belongs to the declaration on screen.
     const configurePanel = workspace.dataAppViz?.schema ? (
         <ConfigurePanel
@@ -226,8 +222,6 @@ const ChartTypeBuilder: FC = () => {
                 backLink={backLink}
                 app={appMeta}
                 latestReadyVersion={history.latestReadyVersion}
-                provenanceVersion={provenanceVersion}
-                hasOrigin={history.hasOrigin}
                 hasHistory={workspace.hasHistory}
                 isHistoryOpen={isHistoryOpen}
                 upgrade={

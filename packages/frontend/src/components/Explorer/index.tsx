@@ -277,18 +277,19 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
             >
                 <Stack style={{ flexGrow: 1 }}>
                     <MergeAutoRun />
-                    {isAuthoring && chartTypeAuthoring && (
-                        <ExplorerChartTypeAuthoring
-                            authoring={chartTypeAuthoring}
-                        />
-                    )}
-                    {!isAuthoring &&
-                        !hideHeader &&
+                    {/* The query controls keep their usual spot while a chart
+                        type is authored; only the cards below make way. */}
+                    {!hideHeader &&
                         (isEditMode ? (
                             <ExplorerHeader />
                         ) : (
                             !savedChart && <RefreshDbtButton />
                         ))}
+                    {isAuthoring && chartTypeAuthoring && (
+                        <ExplorerChartTypeAuthoring
+                            authoring={chartTypeAuthoring}
+                        />
+                    )}
 
                     {!isAuthoring && !isFullscreen && showQueryBuilder && (
                         <MergeReadOnlyBar />
