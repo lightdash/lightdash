@@ -13,6 +13,11 @@ type ResourceAccessInput = {
     resourceUuid: string;
 };
 
+/**
+ * Revokes are idempotent for every implementation: revoking a grant that does
+ * not exist succeeds as a no-op (and emits no audit event). A missing or
+ * inaccessible resource still fails with a not-found error.
+ */
 export type ResourceAccessHandler = {
     listAccess(
         input: ResourceAccessInput & {

@@ -4,6 +4,7 @@ import {
     getHighestSpaceRole,
     NotFoundError,
     SpaceMemberRole,
+    type Dashboard,
     type DirectAccessGrant,
     type DirectAccessList,
     type DirectAccessListFilters,
@@ -27,32 +28,50 @@ type DashboardAccessInput = {
     resourceUuid: string;
 };
 
+// A list call without explicit pagination must not read every grant row.
+const DEFAULT_ACCESS_LIST_PAGE: KnexPaginateArgs = { page: 1, pageSize: 100 };
+
 export class DashboardAccessHandler
     extends BaseService
     implements ResourceAccessHandler
 {
-    constructor(
-        private readonly dashboardAccessModel: DashboardAccessModel,
-        private readonly dashboardService: DashboardService,
-        private readonly directAccessService: DirectAccessService,
-        private readonly spacePermissionService: SpacePermissionService,
-    ) {
+    private readonly dashboardAccessModel: DashboardAccessModel;
+
+    private readonly dashboardService: DashboardService;
+
+    private readonly directAccessService: DirectAccessService;
+
+    private readonly spacePermissionService: SpacePermissionService;
+
+    constructor({
+        dashboardAccessModel,
+        dashboardService,
+        directAccessService,
+        spacePermissionService,
+    }: {
+        dashboardAccessModel: DashboardAccessModel;
+        dashboardService: DashboardService;
+        directAccessService: DirectAccessService;
+        spacePermissionService: SpacePermissionService;
+    }) {
         super();
+        this.dashboardAccessModel = dashboardAccessModel;
+        this.dashboardService = dashboardService;
+        this.directAccessService = directAccessService;
+        this.spacePermissionService = spacePermissionService;
     }
 
     private async resolveDashboard({
         user,
         projectUuid,
         resourceUuid,
-    }: DashboardAccessInput) {
+    }: DashboardAccessInput): Promise<Dashboard> {
         await this.directAccessService.assertEnabled(user);
         if (!isValidUuid(resourceUuid)) {
             throw new NotFoundError('Access target not found');
         }
 
-        let dashboard: Awaited<
-            ReturnType<DashboardService['assertViewAccess']>
-        >;
+        let dashboard: Dashboard;
         try {
             dashboard = await this.dashboardService.assertViewAccess(
                 user,
@@ -76,21 +95,35 @@ export class DashboardAccessHandler
         return dashboard;
     }
 
-    private async assertAdmin(input: DashboardAccessInput) {
+    private async assertAdmin(input: DashboardAccessInput): Promise<Dashboard> {
         const dashboard = await this.resolveDashboard(input);
         const role = getHighestSpaceRole(
             (dashboard.access ?? [])
                 .filter(({ userUuid }) => userUuid === input.user.userUuid)
                 .map(({ role: accessRole }) => accessRole),
         );
-        if (role !== SpaceMemberRole.ADMIN) {
+        if (role === SpaceMemberRole.ADMIN) {
+            return dashboard;
+        }
+        // Org and project admins reach every space through CASL rather than
+        // space access rows, so merge their standing before denying — the
+        // same source resolveGrants merges for listed principals.
+        const spaceContext =
+            await this.spacePermissionService.getSpaceAccessContextForUsers(
+                [input.user.userUuid],
+                dashboard.spaceUuid,
+            );
+        const isOrgOrProjectAdmin = spaceContext.admins.some(
+            ({ userUuid }) => userUuid === input.user.userUuid,
+        );
+        if (!isOrgOrProjectAdmin) {
             throw new ForbiddenError('Admin access is required');
         }
         return dashboard;
     }
 
     private async getGrant(
-        dashboard: Awaited<ReturnType<DashboardService['assertViewAccess']>>,
+        dashboard: Dashboard,
         principal: { origin: DirectAccessOrigin; uuid: string },
     ): Promise<DirectAccessGrant> {
         const { data } = await this.dashboardAccessModel.getDirectAccessList(
@@ -111,7 +144,7 @@ export class DashboardAccessHandler
     }
 
     private async resolveGrants(
-        dashboard: Awaited<ReturnType<DashboardService['assertViewAccess']>>,
+        dashboard: Dashboard,
         rows: DashboardDirectAccessListRow[],
     ): Promise<DirectAccessGrant[]> {
         const userUuids = rows
@@ -141,8 +174,6 @@ export class DashboardAccessHandler
                     name: row.name,
                 },
                 directRole: row.directRole,
-                effectiveRole: row.directRole,
-                origin: DirectAccessOrigin.GROUP,
             }));
         }
 
@@ -175,8 +206,6 @@ export class DashboardAccessHandler
                         name: row.name,
                     },
                     directRole: row.directRole,
-                    effectiveRole: row.directRole,
-                    origin: row.origin,
                 };
             }
 
@@ -197,7 +226,6 @@ export class DashboardAccessHandler
                         ...(logicalRolesByUserUuid.get(row.principalUuid) ??
                             []),
                     ]) ?? row.directRole,
-                origin: row.origin,
             };
         });
     }
@@ -221,7 +249,10 @@ export class DashboardAccessHandler
             await this.dashboardAccessModel.getDirectAccessList(
                 dashboard.uuid,
                 dashboard.organizationUuid,
-                { paginateArgs, searchQuery: filters?.searchQuery },
+                {
+                    paginateArgs: paginateArgs ?? DEFAULT_ACCESS_LIST_PAGE,
+                    searchQuery: filters?.searchQuery,
+                },
             );
         return {
             data: await this.resolveGrants(dashboard, data),

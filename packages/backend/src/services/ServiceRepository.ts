@@ -457,12 +457,12 @@ export class ServiceRepository
         return this.getService(
             'dashboardAccessHandler',
             () =>
-                new DashboardAccessHandler(
-                    this.models.getDashboardAccessModel(),
-                    this.getDashboardService(),
-                    this.getDirectAccessService(),
-                    this.getSpacePermissionService(),
-                ),
+                new DashboardAccessHandler({
+                    dashboardAccessModel: this.models.getDashboardAccessModel(),
+                    dashboardService: this.getDashboardService(),
+                    directAccessService: this.getDirectAccessService(),
+                    spacePermissionService: this.getSpacePermissionService(),
+                }),
         );
     }
 
@@ -481,9 +481,10 @@ export class ServiceRepository
                         this.models.getFeatureFlagModel(),
                         this.getLicenseService(),
                     ),
-                    // Read paths are available before Stack 5 wires the
-                    // authoritative transactional mutation resolver. Returning
-                    // no actor role keeps every write fail-closed meanwhile.
+                    // Read paths ship in this stack; the routes stack that
+                    // mounts the handlers wires the authoritative transactional
+                    // mutation resolver. Returning no actor role keeps every
+                    // write except self-revoke fail-closed until then.
                     actorRoleResolver: async () => undefined,
                 }),
         );

@@ -222,7 +222,15 @@ export class AppAccessModel implements DirectAccessModel {
                 .first<{ space_role: SpaceMemberRole }>('space_role')
                 .forUpdate();
             if (existing === undefined) {
-                throw new NotFoundError('Direct access target not found');
+                assertCanRevokeDirectAccess({
+                    actorRole,
+                    isSelfRevoke,
+                });
+                return {
+                    ...context,
+                    beforeRole: null,
+                    afterRole: null,
+                };
             }
             assertCanRevokeDirectAccess({
                 actorRole,
@@ -272,7 +280,15 @@ export class AppAccessModel implements DirectAccessModel {
                 .first<{ space_role: SpaceMemberRole }>('space_role')
                 .forUpdate();
             if (existing === undefined) {
-                throw new NotFoundError('Direct access target not found');
+                assertCanRevokeDirectAccess({
+                    actorRole,
+                    isSelfRevoke: false,
+                });
+                return {
+                    ...context,
+                    beforeRole: null,
+                    afterRole: null,
+                };
             }
             assertCanRevokeDirectAccess({
                 actorRole,

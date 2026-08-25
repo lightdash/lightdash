@@ -27,18 +27,21 @@ export type DirectAccessPrincipal =
 
 export type DirectAccessGrant =
     | {
-          origin: DirectAccessOrigin.USER;
           principal: DirectAccessUserPrincipal;
           directRole: SpaceMemberRole;
-          /** Highest additive access role. Capability scopes are enforced separately. */
+          /**
+           * Highest additive access role before capability scopes, which are
+           * enforced separately at query time.
+           */
           effectiveRole: SpaceMemberRole;
       }
     | {
-          origin: DirectAccessOrigin.GROUP;
+          /**
+           * Group grants carry only their direct contribution: each member's
+           * effective role varies with their other access paths.
+           */
           principal: DirectAccessGroupPrincipal;
           directRole: SpaceMemberRole;
-          /** A group's member-effective roles vary; this is the group's direct contribution. */
-          effectiveRole: SpaceMemberRole;
       };
 
 export type DirectAccessListFilters = {

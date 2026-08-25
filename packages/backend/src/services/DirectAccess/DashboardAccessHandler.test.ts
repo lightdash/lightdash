@@ -93,6 +93,7 @@ const createMocks = () => {
                     role: SpaceMemberRole.VIEWER,
                 },
             ],
+            admins: [],
         }),
     } as unknown as SpacePermissionService;
 
@@ -101,12 +102,12 @@ const createMocks = () => {
         dashboardService,
         directAccessService,
         spacePermissionService,
-        handler: new DashboardAccessHandler(
+        handler: new DashboardAccessHandler({
             dashboardAccessModel,
             dashboardService,
             directAccessService,
             spacePermissionService,
-        ),
+        }),
     };
 };
 
@@ -208,7 +209,6 @@ describe('DashboardAccessHandler', () => {
                     },
                     directRole: SpaceMemberRole.VIEWER,
                     effectiveRole: SpaceMemberRole.EDITOR,
-                    origin: DirectAccessOrigin.USER,
                 },
                 {
                     principal: {
@@ -217,8 +217,6 @@ describe('DashboardAccessHandler', () => {
                         name: 'Analysts',
                     },
                     directRole: SpaceMemberRole.EDITOR,
-                    effectiveRole: SpaceMemberRole.EDITOR,
-                    origin: DirectAccessOrigin.GROUP,
                 },
             ],
             pagination: {
@@ -272,6 +270,7 @@ describe('DashboardAccessHandler', () => {
                     role: SpaceMemberRole.ADMIN,
                 },
             ],
+            admins: [],
         } as never);
 
         await expect(
@@ -297,7 +296,7 @@ describe('DashboardAccessHandler', () => {
                 resourceUuid: dashboardUuid,
             }),
         ).resolves.toMatchObject({
-            data: [{ origin: DirectAccessOrigin.GROUP }],
+            data: [{ principal: { type: DirectAccessOrigin.GROUP } }],
         });
         expect(
             mocks.dashboardAccessModel.getGroupRolesForUsers,
@@ -480,5 +479,56 @@ describe('DashboardAccessHandler', () => {
             mocks.directAccessService.revokeGroupAccess,
         ).not.toHaveBeenCalled();
         expect(mocks.directAccessService.resetAccess).not.toHaveBeenCalled();
+    });
+
+    it('grants administration to org and project admins without space access', async () => {
+        vi.mocked(mocks.dashboardService.assertViewAccess).mockResolvedValue({
+            ...dashboard,
+            access: [],
+        } as never);
+        vi.mocked(
+            mocks.spacePermissionService.getSpaceAccessContextForUsers,
+        ).mockResolvedValue({
+            access: [],
+            admins: [{ userUuid: actorUuid, source: 'organization' }],
+        } as never);
+
+        await expect(
+            mocks.handler.listAccess({
+                user,
+                projectUuid,
+                resourceUuid: dashboardUuid,
+            }),
+        ).resolves.toMatchObject({ data: expect.any(Array) });
+        expect(
+            mocks.spacePermissionService.getSpaceAccessContextForUsers,
+        ).toHaveBeenCalledWith([actorUuid], spaceUuid);
+        expect(
+            mocks.dashboardAccessModel.getDirectAccessList,
+        ).toHaveBeenCalledWith(dashboardUuid, organizationUuid, {
+            paginateArgs: { page: 1, pageSize: 100 },
+            searchQuery: undefined,
+        });
+    });
+
+    it('throws when the replaced grant cannot be read back', async () => {
+        vi.mocked(
+            mocks.dashboardAccessModel.getDirectAccessList,
+        ).mockResolvedValueOnce({ data: [] });
+
+        await expect(
+            mocks.handler.replaceUserRole({
+                user,
+                projectUuid,
+                resourceUuid: dashboardUuid,
+                userUuid: 'user-uuid',
+                role: SpaceMemberRole.EDITOR,
+            }),
+        ).rejects.toEqual(new NotFoundError('Direct access grant not found'));
+        expect(
+            mocks.dashboardAccessModel.getDirectAccessList,
+        ).toHaveBeenCalledWith(dashboardUuid, organizationUuid, {
+            principal: { origin: DirectAccessOrigin.USER, uuid: 'user-uuid' },
+        });
     });
 });

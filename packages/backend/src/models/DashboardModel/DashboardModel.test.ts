@@ -194,17 +194,25 @@ describe('DashboardModel', () => {
     });
 
     test('strict UUID lookup does not fall back to a matching slug', async () => {
+        const validUuid = '2a93d63d-ca81-421c-b88b-1124a2f02407';
         tracker.on.select(DashboardsTableName).response([]);
 
         await expect(
-            model.getByIdOrSlug(expectedDashboard.uuid, { strictUuid: true }),
+            model.getByIdOrSlug(validUuid, { strictUuid: true }),
         ).rejects.toThrowError(NotFoundError);
 
         const [query] = tracker.history.select;
         const whereClause = query.sql.slice(query.sql.indexOf(' where '));
         expect(whereClause).toContain('"dashboards"."dashboard_uuid" = $1');
         expect(whereClause).not.toContain('"dashboards"."slug"');
-        expect(query.bindings[0]).toBe(expectedDashboard.uuid);
+        expect(query.bindings[0]).toBe(validUuid);
+    });
+
+    test('strict UUID lookup rejects a non-uuid value without querying', async () => {
+        await expect(
+            model.getByIdOrSlug('my_dashboard_slug', { strictUuid: true }),
+        ).rejects.toThrowError(NotFoundError);
+        expect(tracker.history.select).toHaveLength(0);
     });
 
     test('should get all by project uuid', async () => {

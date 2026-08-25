@@ -903,6 +903,11 @@ export class DashboardModel {
         }
 
         if (options?.strictUuid) {
+            // A non-uuid value would make Postgres raise a cast error (500);
+            // under strictUuid it simply isn't a match.
+            if (!isValidUuid(dashboardUuidOrSlug)) {
+                throw new NotFoundError('Dashboard not found');
+            }
             void query.where(
                 `${DashboardsTableName}.dashboard_uuid`,
                 dashboardUuidOrSlug,

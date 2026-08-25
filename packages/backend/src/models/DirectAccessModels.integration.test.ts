@@ -372,6 +372,51 @@ describe('direct access read models PostgreSQL integration', () => {
         });
     });
 
+    it('filters dashboard grant lists to a single principal', async () => {
+        const userOnly = await model.getDirectAccessList(
+            dashboardUuid,
+            organizationUuid,
+            {
+                principal: {
+                    origin: DirectAccessOrigin.USER,
+                    uuid: SEED_ORG_1_ADMIN.user_uuid,
+                },
+            },
+        );
+        expect(userOnly.data).toEqual([
+            expect.objectContaining({
+                origin: DirectAccessOrigin.USER,
+                principalUuid: SEED_ORG_1_ADMIN.user_uuid,
+            }),
+        ]);
+
+        const groupOnly = await model.getDirectAccessList(
+            dashboardUuid,
+            organizationUuid,
+            {
+                principal: {
+                    origin: DirectAccessOrigin.GROUP,
+                    uuid: groupUuid,
+                },
+            },
+        );
+        expect(groupOnly.data).toEqual([
+            expect.objectContaining({
+                origin: DirectAccessOrigin.GROUP,
+                principalUuid: groupUuid,
+            }),
+        ]);
+
+        await expect(
+            model.getDirectAccessList(dashboardUuid, organizationUuid, {
+                principal: {
+                    origin: DirectAccessOrigin.USER,
+                    uuid: randomUUID(),
+                },
+            }),
+        ).resolves.toEqual({ data: [] });
+    });
+
     it('searches and scopes dashboard grant lists before pagination', async () => {
         const groupOnly = await model.getDirectAccessList(
             dashboardUuid,
@@ -1086,7 +1131,7 @@ describe('direct access read models PostgreSQL integration', () => {
         ).rejects.toMatchObject({ name: 'ForbiddenError' });
     });
 
-    it('makes dashboard self-revoke idempotent without changing other resources', async () => {
+    it('makes self-revoke of a missing grant idempotent for every model', async () => {
         const principalUuid = randomUUID();
         await expect(
             new DashboardAccessModel(transaction).revokeUserAccess({
@@ -1125,9 +1170,9 @@ describe('direct access read models PostgreSQL integration', () => {
                         actorRoleResolver: async () => SpaceMemberRole.VIEWER,
                         actorUserUuid: principalUuid,
                     }),
-                ).rejects.toMatchObject({
-                    name: 'NotFoundError',
-                    message: 'Direct access target not found',
+                ).resolves.toMatchObject({
+                    beforeRole: null,
+                    afterRole: null,
                 }),
             ),
         );
@@ -1146,7 +1191,7 @@ describe('direct access read models PostgreSQL integration', () => {
         });
     });
 
-    it('makes dashboard group revoke idempotent without changing other resources', async () => {
+    it('makes group revoke of a missing grant idempotent for every model', async () => {
         const missingGroupUuid = randomUUID();
         await expect(
             new DashboardAccessModel(transaction).revokeGroupAccess({
@@ -1183,9 +1228,9 @@ describe('direct access read models PostgreSQL integration', () => {
                         actorRoleResolver: async () => SpaceMemberRole.ADMIN,
                         organizationUuid,
                     }),
-                ).rejects.toMatchObject({
-                    name: 'NotFoundError',
-                    message: 'Direct access target not found',
+                ).resolves.toMatchObject({
+                    beforeRole: null,
+                    afterRole: null,
                 }),
             ),
         );
