@@ -89,11 +89,15 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     // screenshot/export/unfurl renders simply skip the drill-by event.
     const trackingContext = useTracking({ failSilently: true });
     const hasSignaledScreenshotReady = useRef(false);
+    // Latest callback in a ref so the signal helper stays identity-stable —
+    // the fallback timer must arm once, not reset on parent re-renders.
+    const onScreenshotReadyRef = useRef(onScreenshotReady);
+    onScreenshotReadyRef.current = onScreenshotReady;
     const signalScreenshotReady = useCallback(() => {
         if (hasSignaledScreenshotReady.current) return;
         hasSignaledScreenshotReady.current = true;
-        onScreenshotReady?.();
-    }, [onScreenshotReady]);
+        onScreenshotReadyRef.current?.();
+    }, []);
 
     // The iframe SDK posts `lightdash:sdk:screenshot-available` at bundle
     // boot — proof the sandbox is alive, not that the viz painted.
@@ -308,16 +312,13 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     ]);
 
     // Ready only once the sandbox has booted AND the viz context has been
-    // handed to the bridge — the closest renderer-side proxy for "the viz has
-    // what it needs to paint". The context push itself runs in the child's
-    // effect, which commits before this one.
+    // handed to the bridge (whose push effect commits before this one).
     useEffect(() => {
         if (screenshotAnnounced && dataAppVizContext) signalScreenshotReady();
     }, [screenshotAnnounced, dataAppVizContext, signalScreenshotReady]);
 
-    // Terminal placeholders render synchronously and never mount the iframe —
-    // their placeholder frame IS the final frame, so report it ready now
-    // instead of stalling the delivery until the fallback timeout.
+    // Terminal placeholders never mount the iframe — their frame is final,
+    // so report ready now instead of stalling until the fallback timeout.
     const terminalRequestErrorMessage = getTerminalRequestErrorMessage([
         renderMetadataError,
         getVisiblePreviewTokenError(previewTokenError, !!token),
@@ -333,14 +334,15 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         if (isTerminalPlaceholder) signalScreenshotReady();
     }, [isTerminalPlaceholder, signalScreenshotReady]);
 
+    // Armed once on mount — capture surfaces pass the callback from mount.
     useEffect(() => {
-        if (!onScreenshotReady) return;
+        if (!onScreenshotReadyRef.current) return;
         const timer = setTimeout(
             signalScreenshotReady,
             SCREENSHOT_READY_FALLBACK_MS,
         );
         return () => clearTimeout(timer);
-    }, [onScreenshotReady, signalScreenshotReady]);
+    }, [signalScreenshotReady]);
 
     if (!projectUuid || dataAppVizUuid === null) {
         return (

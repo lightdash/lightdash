@@ -474,14 +474,39 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         }
     });
 
-    // Terminal placeholders render synchronously and never mount the iframe —
-    // waiting on the announce (or the 8s fallback) would stall the delivery
-    // for tiles whose final frame is already painted.
+    it('re-renders with a new callback identity do not reset the fallback timeout', () => {
+        vi.useFakeTimers();
+        try {
+            const first = vi.fn();
+            const view = renderRenderer({ onScreenshotReady: first });
+
+            act(() => {
+                vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS - 1000);
+            });
+            const second = vi.fn();
+            view.rerender(
+                <MantineProvider env="test">
+                    <DataAppVizRenderer onScreenshotReady={second} />
+                </MantineProvider>,
+            );
+            act(() => {
+                vi.advanceTimersByTime(1000);
+            });
+
+            expect(second).toHaveBeenCalledTimes(1);
+            expect(first).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    // Terminal placeholders never mount the iframe — waiting on the announce
+    // or the fallback would stall delivery for an already-final frame.
     it.each([
         [
             'no viz selected',
             () => {
-                mocks.dataAppVizUuid.current = undefined;
+                mocks.dataAppVizUuid.current = null;
             },
         ],
         [
