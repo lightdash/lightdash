@@ -5,8 +5,16 @@ import {
 } from '@lightdash/common';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
-/** The chart's binding to a picked viz; null while it points at none. */
-export type SelectedDataAppViz = Required<DataAppVizChart>;
+/**
+ * The chart's binding to a picked viz; null while it points at none.
+ * Deliberately not Required<DataAppVizChart>: the as-code-only
+ * dataAppVizSlug never participates in runtime state.
+ */
+export type SelectedDataAppViz = Pick<
+    DataAppVizChart,
+    'dataAppVizUuid' | 'fieldMapping'
+> &
+    Required<Pick<DataAppVizChart, 'optionValues'>>;
 
 export interface DataAppVizVisualizationConfigAndData {
     validConfig: SelectedDataAppViz | null;

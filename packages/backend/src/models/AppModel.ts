@@ -505,26 +505,32 @@ export class AppModel {
     async findAppsBySlugs(
         projectUuid: string,
         slugs: string[],
+        options: { dataAppVizsFilter?: DataAppVizsFilter } = {},
     ): Promise<Pick<DbApp, 'app_id' | 'slug'>[]> {
         if (slugs.length === 0) return [];
-        return this.database(AppsTableName)
+        const query = this.database(AppsTableName)
             .select('app_id', 'slug')
             .where('project_uuid', projectUuid)
             .whereIn('slug', slugs)
             .whereNull('deleted_at');
+        AppModel.applyDataAppVizsFilter(query, options.dataAppVizsFilter);
+        return query;
     }
 
     /** Batch uuid filter, for legacy content-as-code tiles that predate app slugs. */
     async findAppsByUuids(
         projectUuid: string,
         appUuids: string[],
+        options: { dataAppVizsFilter?: DataAppVizsFilter } = {},
     ): Promise<Pick<DbApp, 'app_id' | 'slug'>[]> {
         if (appUuids.length === 0) return [];
-        return this.database(AppsTableName)
+        const query = this.database(AppsTableName)
             .select('app_id', 'slug')
             .where('project_uuid', projectUuid)
             .whereIn('app_id', appUuids)
             .whereNull('deleted_at');
+        AppModel.applyDataAppVizsFilter(query, options.dataAppVizsFilter);
+        return query;
     }
 
     /**
