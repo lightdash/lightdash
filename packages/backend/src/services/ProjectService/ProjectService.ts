@@ -7852,6 +7852,7 @@ export class ProjectService extends BaseService {
         limit,
         filters,
         organizationUuid: organizationUuidArg,
+        authorizeInitialExplore,
     }: {
         projectUuid: string;
         table: string;
@@ -7860,6 +7861,7 @@ export class ProjectService extends BaseService {
         limit: unknown;
         filters: AndFilterGroup | undefined;
         organizationUuid?: string;
+        authorizeInitialExplore?: (explore: Explore) => void;
     }) {
         const { organizationUuid } = organizationUuidArg
             ? { organizationUuid: organizationUuidArg }
@@ -7878,6 +7880,7 @@ export class ProjectService extends BaseService {
             maxLimit,
             filters,
             exploreResolver: this.projectModel,
+            authorizeInitialExplore,
         });
     }
 
