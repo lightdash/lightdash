@@ -14,7 +14,12 @@ const payload: ContentAsCodeWritebackPayload = {
     slug: 'monthly-revenue',
 };
 
-const user = { userUuid: 'user-uuid' } as SessionUser;
+const user = {
+    userUuid: 'user-uuid',
+    firstName: 'Demo',
+    lastName: 'User',
+    email: 'demo@lightdash.com',
+} as SessionUser;
 
 const chartAsCode = {
     name: 'Monthly revenue',
@@ -158,6 +163,16 @@ describe('ContentAsCodeWritebackService', () => {
         );
         expect(gitIntegrationService.recordPullRequest).toHaveBeenCalledTimes(
             1,
+        );
+    });
+
+    it('every commit names the acting user and instance', async () => {
+        const { service, gitIntegrationService } = buildService();
+        await service.runChartWriteback(user, payload);
+        const message = gitIntegrationService.saveFile.mock.calls[0][6];
+        expect(message).toContain('Instance: https://app.lightdash.dev');
+        expect(message).toContain(
+            'Co-authored-by: Demo User <demo@lightdash.com>',
         );
     });
 

@@ -38,6 +38,25 @@ const parsePullRequestNumber = (prUrl: string): number | null => {
     return match ? Number(match[1]) : null;
 };
 
+// Fleet template repos receive commits from many people on many instances:
+// every commit names both. Co-authored-by makes the acting user visible on
+// the commit itself even though the GitHub App is the committer.
+const buildCommitMessage = (
+    slug: string | undefined,
+    user: SessionUser,
+    siteUrl: string,
+): string => {
+    const lines = [`Update ${slug} from Lightdash`, '', `Instance: ${siteUrl}`];
+    const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ');
+    if (user.email) {
+        lines.push(
+            '',
+            `Co-authored-by: ${fullName || 'Lightdash user'} <${user.email}>`,
+        );
+    }
+    return lines.join('\n');
+};
+
 export class ContentAsCodeWritebackService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -200,7 +219,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             filePath,
             content,
             existingSha,
-            `Update ${slug} from Lightdash`,
+            buildCommitMessage(slug, user, this.lightdashConfig.siteUrl),
         );
 
         if (row.prUrl !== null && row.status === 'open') {
