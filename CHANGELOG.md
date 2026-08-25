@@ -1,3 +1,10 @@
+# [1.254.0](https://github.com/lightdash/lightdash/compare/1.253.1...1.254.0) (2026-08-25)
+
+
+### Features
+
+* **auth:** add direct access role resolver ([#27921](https://github.com/lightdash/lightdash/issues/27921)) ([e54a68e](https://github.com/lightdash/lightdash/commit/e54a68e2787728dd4fa365572ed004dbc9358940)), closes [houserx/lightdash-hrx#25](https://github.com/houserx/lightdash-hrx/issues/25)
+
 ## [1.253.1](https://github.com/lightdash/lightdash/compare/1.253.0...1.253.1) (2026-08-25)
 
 
