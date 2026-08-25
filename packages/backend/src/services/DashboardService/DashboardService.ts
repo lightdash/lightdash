@@ -422,7 +422,7 @@ export class DashboardService
         )[dashboard.uuid];
 
         const isSpaceAdmin = spaceContext.admins.some(
-            ({ userUuid }) => userUuid === user.userUuid,
+            (admin) => admin.userUuid === userUuid,
         );
 
         // `admins` stays internal: it is audit-display data on the space
@@ -809,7 +809,19 @@ export class DashboardService
             .map((tile) => tile.properties.appUuid);
         const [charts, savedSqlCharts, apps, projectSummary] =
             await Promise.all([
-                this.savedChartModel.getInfoForAvailableFilters(chartUuids),
+                // getInfoForAvailableFilters throws NotFoundError when it
+                // matches zero rows (chart-less dashboards, or every chart
+                // soft-deleted); here that simply means nothing is visible.
+                chartUuids.length > 0
+                    ? this.savedChartModel
+                          .getInfoForAvailableFilters(chartUuids)
+                          .catch((error) => {
+                              if (error instanceof NotFoundError) {
+                                  return [];
+                              }
+                              throw error;
+                          })
+                    : [],
                 this.savedSqlModel.getInfoForDashboardDependencies(
                     savedSqlUuids,
                 ),
@@ -2878,7 +2890,7 @@ export class DashboardService
         }
 
         // Construct a full dashboard object from the version
-        const fullDashboard: Dashboard = {
+        const versionedDashboard: Dashboard = {
             ...dashboardDao,
             tiles: dashboard.tiles,
             filters: dashboard.filters,
@@ -2890,6 +2902,14 @@ export class DashboardService
             ...accessContext,
             spaceName: isDirectOnly ? '' : dashboardDao.spaceName,
         };
+        // Historical tiles carry the same private dependency metadata as the
+        // live read, so direct-only readers get the same redaction.
+        const fullDashboard = isDirectOnly
+            ? await this.redactInaccessibleDependencies(
+                  user,
+                  versionedDashboard,
+              )
+            : versionedDashboard;
 
         // Check if this is the current version
         const isCurrentVersion = dashboardDao.versionUuid === versionUuid;

@@ -218,6 +218,13 @@ export const getDateZoomFromRequestParameters = (
 ): DateZoom | undefined =>
     params && 'dateZoom' in params ? params.dateZoom : undefined;
 
+// Recovers the dashboard context from a persisted request-parameters union
+// without duck-typing at call sites.
+export const getDashboardUuidFromRequestParameters = (
+    params: ExecuteAsyncQueryRequestParams | undefined,
+): string | undefined =>
+    params && 'dashboardUuid' in params ? params.dashboardUuid : undefined;
+
 /**
  * Kinds of totals derivable from an executed pivot query.
  */

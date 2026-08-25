@@ -1,5 +1,6 @@
 import {
     isDashboardChartTileType,
+    isDashboardDependencyDenied,
     isDashboardSqlChartTile,
     isTileInPagedExport,
     type CacheMetadata,
@@ -135,8 +136,9 @@ const DashboardTileStatusProvider: React.FC<
                 return dashboardTiles
                     .filter(
                         (tile) =>
-                            isDashboardChartTileType(tile) ||
-                            isDashboardSqlChartTile(tile),
+                            (isDashboardChartTileType(tile) ||
+                                isDashboardSqlChartTile(tile)) &&
+                            !isDashboardDependencyDenied(tile),
                     )
                     .filter((tile) =>
                         isTileInPagedExport(tile, resolvedTabUuids),
@@ -148,8 +150,11 @@ const DashboardTileStatusProvider: React.FC<
             return dashboardTiles
                 .filter(
                     (tile) =>
-                        isDashboardChartTileType(tile) ||
-                        isDashboardSqlChartTile(tile),
+                        (isDashboardChartTileType(tile) ||
+                            isDashboardSqlChartTile(tile)) &&
+                        // Denied tiles render a static placeholder and never
+                        // report screenshot readiness.
+                        !isDashboardDependencyDenied(tile),
                 )
                 .filter((tile) =>
                     schedulerTabsSelected.includes(tile.tabUuid ?? null),
@@ -162,8 +167,9 @@ const DashboardTileStatusProvider: React.FC<
         return dashboardTiles
             .filter(
                 (tile) =>
-                    isDashboardChartTileType(tile) ||
-                    isDashboardSqlChartTile(tile),
+                    (isDashboardChartTileType(tile) ||
+                        isDashboardSqlChartTile(tile)) &&
+                    !isDashboardDependencyDenied(tile),
             )
             .filter((tile) => {
                 if (!activeTab) return true;

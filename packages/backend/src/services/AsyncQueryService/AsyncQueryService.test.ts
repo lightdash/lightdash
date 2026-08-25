@@ -3082,12 +3082,14 @@ describe('AsyncQueryService', () => {
                 queryUuid: queryHistory.queryUuid,
             });
 
-            expect(
-                dashboardServiceMock.assertViewAccess,
-            ).toHaveBeenCalledWith(account, 'dashboard-uuid', {
-                projectUuid,
-                includeDependencies: false,
-            });
+            expect(dashboardServiceMock.assertViewAccess).toHaveBeenCalledWith(
+                account,
+                'dashboard-uuid',
+                {
+                    projectUuid,
+                    includeDependencies: false,
+                },
+            );
         });
 
         it('fails dashboard query-history reads after dashboard access is revoked', async () => {

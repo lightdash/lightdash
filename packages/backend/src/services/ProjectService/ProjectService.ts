@@ -448,7 +448,9 @@ export type ProjectServiceArguments = {
     // AppGenerateService depends on ProjectService, so eager injection would
     // create a construction cycle. Resolves undefined in core (non-EE) builds.
     getAppGenerateService?: () => AppGenerateService | undefined;
-    getDashboardService?: () => DashboardService;
+    // Lazy thunk for the same construction-cycle reason as above; always
+    // wired by both OSS and EE composition.
+    getDashboardService: () => DashboardService;
     getDataAppCustomSqlProvenance: (args: {
         account: Account;
         projectUuid: string;
@@ -591,7 +593,7 @@ export class ProjectService extends BaseService {
 
     getAppGenerateService: (() => AppGenerateService | undefined) | undefined;
 
-    getDashboardServiceResolver: (() => DashboardService) | undefined;
+    protected readonly getDashboardService: () => DashboardService;
 
     getDataAppCustomSqlProvenance: ProjectServiceArguments['getDataAppCustomSqlProvenance'];
 
@@ -693,7 +695,7 @@ export class ProjectService extends BaseService {
         this.projectContextModel = projectContextModel;
         this.isProjectContextEnabled = isProjectContextEnabled;
         this.getAppGenerateService = getAppGenerateService;
-        this.getDashboardServiceResolver = getDashboardService;
+        this.getDashboardService = getDashboardService;
         this.getDataAppCustomSqlProvenance = getDataAppCustomSqlProvenance;
         this.getAiAgentService = getAiAgentService;
         this.onProjectCreated = onProjectCreated;
@@ -6687,19 +6689,17 @@ export class ProjectService extends BaseService {
         const { organizationUuid, projectUuid } = savedChart;
 
         const dashboard =
-            tileUuid && this.getDashboardServiceResolver && !isJwtUser(account)
-                ? await this.getDashboardServiceResolver().assertTileViewAccess(
-                      {
-                          actor: account,
-                          projectUuid,
-                          dashboardUuid,
-                          tileUuid,
-                          dependency: {
-                              type: 'savedChart',
-                              uuid: savedChart.uuid,
-                          },
+            tileUuid && !isJwtUser(account)
+                ? await this.getDashboardService().assertTileViewAccess({
+                      actor: account,
+                      projectUuid,
+                      dashboardUuid,
+                      tileUuid,
+                      dependency: {
+                          type: 'savedChart',
+                          uuid: savedChart.uuid,
                       },
-                  )
+                  })
                 : undefined;
         const isDashboardOwnedChart =
             dashboard !== undefined &&
@@ -9821,10 +9821,8 @@ export class ProjectService extends BaseService {
                 }
 
                 const dashboard =
-                    dashboardUuid &&
-                    this.getDashboardServiceResolver &&
-                    !isJwtUser(account)
-                        ? await this.getDashboardServiceResolver().assertViewAccess(
+                    dashboardUuid && !isJwtUser(account)
+                        ? await this.getDashboardService().assertViewAccess(
                               account,
                               dashboardUuid,
                               {

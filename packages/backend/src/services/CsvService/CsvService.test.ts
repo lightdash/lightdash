@@ -59,6 +59,9 @@ describe('Csv service', () => {
         projectService: new ProjectService({
             lightdashConfig,
             analytics: analyticsMock,
+            getDashboardService: () => {
+                throw new Error('DashboardService is not wired in this test');
+            },
             analyticsModel: {} as AnalyticsModel,
             dashboardModel: {} as DashboardModel,
             emailClient: {} as EmailClient,

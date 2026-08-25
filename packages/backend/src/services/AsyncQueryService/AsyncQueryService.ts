@@ -45,6 +45,7 @@ import {
     getAvailableFilterFieldIds,
     getColumnTimezone,
     getDashboardFilterRulesForTables,
+    getDashboardUuidFromRequestParameters,
     getDateZoomFromRequestParameters,
     getDimensions,
     getDimensionsWithValidParameters,
@@ -396,7 +397,6 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     permissionsService: PermissionsService;
     persistentDownloadFileService: PersistentDownloadFileService;
     organizationAccessService: OrganizationAccessService;
-    getDashboardService: () => DashboardService;
     preAggregateStrategy?: PreAggregateStrategy;
     /** EE resolver for external tables; absent in OSS. */
     externalSourceTableResolver?: (
@@ -530,8 +530,6 @@ export class AsyncQueryService extends ProjectService {
 
     private readonly organizationAccessService: OrganizationAccessService;
 
-    private readonly getDashboardService: () => DashboardService;
-
     protected readonly preAggregateStrategy: PreAggregateStrategy;
 
     private readonly externalSourceTableResolver: AsyncQueryServiceArguments['externalSourceTableResolver'];
@@ -551,7 +549,6 @@ export class AsyncQueryService extends ProjectService {
         this.permissionsService = args.permissionsService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.organizationAccessService = args.organizationAccessService;
-        this.getDashboardService = args.getDashboardService;
         this.preAggregateStrategy =
             args.preAggregateStrategy ?? new NoOpPreAggregateStrategy();
         this.externalSourceTableResolver = args.externalSourceTableResolver;
@@ -883,13 +880,9 @@ export class AsyncQueryService extends ProjectService {
             return;
         }
 
-        const { requestParameters } = queryHistory;
-        const dashboardUuid =
-            requestParameters &&
-            'dashboardUuid' in requestParameters &&
-            typeof requestParameters.dashboardUuid === 'string'
-                ? requestParameters.dashboardUuid
-                : undefined;
+        const dashboardUuid = getDashboardUuidFromRequestParameters(
+            queryHistory.requestParameters,
+        );
         if (!dashboardUuid) {
             return;
         }
@@ -899,6 +892,28 @@ export class AsyncQueryService extends ProjectService {
             dashboardUuid,
             { projectUuid, includeDependencies: false },
         );
+    }
+
+    /**
+     * The sanctioned way to read query history in this service: fetches the
+     * entry and re-authorizes any dashboard context it was created under.
+     */
+    private async getAuthorizedQueryHistory(
+        queryUuid: string,
+        projectUuid: string,
+        account: Account,
+    ): Promise<QueryHistory> {
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+        await this.assertDashboardQueryHistoryAccess(
+            account,
+            projectUuid,
+            queryHistory,
+        );
+        return queryHistory;
     }
 
     private getPreAggregationRoutingDecision({
@@ -1130,15 +1145,10 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        const queryHistory = await this.queryHistoryModel.get(
+        const queryHistory = await this.getAuthorizedQueryHistory(
             queryUuid,
             projectUuid,
             account,
-        );
-        await this.assertDashboardQueryHistoryAccess(
-            account,
-            projectUuid,
-            queryHistory,
         );
 
         const previousStatus = queryHistory.status;
@@ -1602,15 +1612,10 @@ export class AsyncQueryService extends ProjectService {
             }),
         );
 
-        const queryHistory = await this.queryHistoryModel.get(
+        const queryHistory = await this.getAuthorizedQueryHistory(
             queryUuid,
             projectUuid,
             account,
-        );
-        await this.assertDashboardQueryHistoryAccess(
-            account,
-            projectUuid,
-            queryHistory,
         );
 
         if (canViewProject) {
@@ -1665,15 +1670,10 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        const queryHistory = await this.queryHistoryModel.get(
+        const queryHistory = await this.getAuthorizedQueryHistory(
             queryUuid,
             projectUuid,
             account,
-        );
-        await this.assertDashboardQueryHistoryAccess(
-            account,
-            projectUuid,
-            queryHistory,
         );
 
         const { status, resultsFileName } = queryHistory;
@@ -1976,15 +1976,10 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        const queryHistory = await this.queryHistoryModel.get(
+        const queryHistory = await this.getAuthorizedQueryHistory(
             queryUuid,
             projectUuid,
             account,
-        );
-        await this.assertDashboardQueryHistoryAccess(
-            account,
-            projectUuid,
-            queryHistory,
         );
 
         const displayTimezone = queryHistory.metricQuery.timezone ?? null;
@@ -4111,10 +4106,7 @@ export class AsyncQueryService extends ProjectService {
         } else if (params && 'savedSqlUuid' in params) {
             chartUuid = params.savedSqlUuid;
         }
-        const dashboardUuid =
-            params && 'dashboardUuid' in params
-                ? params.dashboardUuid
-                : undefined;
+        const dashboardUuid = getDashboardUuidFromRequestParameters(params);
 
         return {
             ...actorTags,
@@ -5371,14 +5363,9 @@ export class AsyncQueryService extends ProjectService {
         assertIsAccountWithOrg(account);
 
         const [source, { organizationUuid }] = await Promise.all([
-            this.queryHistoryModel.get(queryUuid, projectUuid, account),
+            this.getAuthorizedQueryHistory(queryUuid, projectUuid, account),
             this.projectModel.getSummary(projectUuid),
         ]);
-        await this.assertDashboardQueryHistoryAccess(
-            account,
-            projectUuid,
-            source,
-        );
 
         const { csvCellsLimit, maxLimit } =
             await resolveOrganizationExportLimits(
@@ -5449,14 +5436,9 @@ export class AsyncQueryService extends ProjectService {
         // this account — that ownership authorizes the totals query, so we skip
         // the explore-level CASL gate (which embed JWT callers can't pass).
         const [source, { organizationUuid }] = await Promise.all([
-            this.queryHistoryModel.get(queryUuid, projectUuid, account),
+            this.getAuthorizedQueryHistory(queryUuid, projectUuid, account),
             this.projectModel.getSummary(projectUuid),
         ]);
-        await this.assertDashboardQueryHistoryAccess(
-            account,
-            projectUuid,
-            source,
-        );
 
         // Reuse the source's parameter values so the totals query sees the
         // same parameter context as the original. The execution path
@@ -8327,15 +8309,10 @@ export class AsyncQueryService extends ProjectService {
         projectUuid: string,
         queryUuid: string,
     ): Promise<{ metricQuery: MetricQuery; fields: ItemsMap }> {
-        const queryHistory = await this.queryHistoryModel.get(
+        const queryHistory = await this.getAuthorizedQueryHistory(
             queryUuid,
             projectUuid,
             account,
-        );
-        await this.assertDashboardQueryHistoryAccess(
-            account,
-            projectUuid,
-            queryHistory,
         );
         if (queryHistory.status !== QueryHistoryStatus.READY) {
             throw new ParameterError(
@@ -9059,15 +9036,10 @@ export class AsyncQueryService extends ProjectService {
         queryUuid: string;
         expiresAt: Date;
     }): Promise<void> {
-        const queryHistory = await this.queryHistoryModel.get(
+        const queryHistory = await this.getAuthorizedQueryHistory(
             queryUuid,
             projectUuid,
             account,
-        );
-        await this.assertDashboardQueryHistoryAccess(
-            account,
-            projectUuid,
-            queryHistory,
         );
         if (
             !queryHistory.resultsFileName ||
@@ -9150,15 +9122,10 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
     }> {
-        const queryHistory = await this.queryHistoryModel.get(
+        const queryHistory = await this.getAuthorizedQueryHistory(
             queryUuid,
             projectUuid,
             account,
-        );
-        await this.assertDashboardQueryHistoryAccess(
-            account,
-            projectUuid,
-            queryHistory,
         );
 
         const resultsStream = await this.getResultsStorageClientForContext(

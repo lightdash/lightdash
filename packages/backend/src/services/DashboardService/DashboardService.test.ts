@@ -187,21 +187,30 @@ const spaceContexts = {
         projectUuid: publicSpace.projectUuid,
         inheritsFromOrgOrProject: space.inherit_parent_permissions,
         access: [],
-        admins: [],
+        admins: [] as {
+            userUuid: string;
+            source: 'organization' | 'project';
+        }[],
     },
     [privateSpace.uuid]: {
         organizationUuid: privateSpace.organizationUuid,
         projectUuid: privateSpace.projectUuid,
         inheritsFromOrgOrProject: privateSpace.inheritParentPermissions,
         access: [],
-        admins: [],
+        admins: [] as {
+            userUuid: string;
+            source: 'organization' | 'project';
+        }[],
     },
     [publicSpace.uuid]: {
         organizationUuid: publicSpace.organizationUuid,
         projectUuid: publicSpace.projectUuid,
         inheritsFromOrgOrProject: publicSpace.inheritParentPermissions,
         access: publicSpace.access,
-        admins: [],
+        admins: [] as {
+            userUuid: string;
+            source: 'organization' | 'project';
+        }[],
     },
 };
 
@@ -332,11 +341,9 @@ describe('DashboardService', () => {
             ],
         };
         dashboardModel.getByIdOrSlug.mockResolvedValueOnce(privateDashboard);
-        directAccessService.resolveUserAccessForUser.mockResolvedValueOnce(
-            {
-                [privateDashboard.uuid]: SpaceMemberRole.VIEWER,
-            },
-        );
+        directAccessService.resolveUserAccessForUser.mockResolvedValueOnce({
+            [privateDashboard.uuid]: SpaceMemberRole.VIEWER,
+        });
 
         const result = await service.getByIdOrSlug(
             directViewer,
@@ -402,13 +409,13 @@ describe('DashboardService', () => {
         dashboardModel.getByIdOrSlug.mockResolvedValueOnce(privateDashboard);
         spacePermissionService.getSpaceAccessContext.mockResolvedValueOnce({
             ...spaceContexts[privateSpace.uuid],
-            admins: [{ userUuid: user.userUuid, source: 'organization' }],
+            admins: [
+                { userUuid: user.userUuid, source: 'organization' as const },
+            ],
         });
-        directAccessService.resolveUserAccessForSessionUser.mockResolvedValueOnce(
-            {
-                [privateDashboard.uuid]: SpaceMemberRole.ADMIN,
-            },
-        );
+        directAccessService.resolveUserAccessForUser.mockResolvedValueOnce({
+            [privateDashboard.uuid]: SpaceMemberRole.ADMIN,
+        });
 
         const result = await service.getByIdOrSlug(user, privateDashboard.uuid);
 
@@ -463,6 +470,63 @@ describe('DashboardService', () => {
         expect(result.tiles).toEqual(privateDashboard.tiles);
     });
 
+    test('should load a chart-less dashboard through direct access', async () => {
+        const directViewer = {
+            ...user,
+            ability: defineUserAbility(
+                {
+                    ...user,
+                    organizationUuid: 'another-org-uuid',
+                },
+                [
+                    {
+                        projectUuid,
+                        role: ProjectMemberRole.VIEWER,
+                        userUuid: user.userUuid,
+                        roleUuid: undefined,
+                    },
+                ],
+            ),
+        };
+        const markdownOnlyDashboard = {
+            ...dashboard,
+            spaceUuid: privateSpace.uuid,
+            spaceName: 'Private finance',
+            tiles: [
+                {
+                    uuid: 'markdown-tile-uuid',
+                    type: DashboardTileTypes.MARKDOWN,
+                    properties: { title: 'Notes', content: 'Hello' },
+                    x: 0,
+                    y: 0,
+                    h: 2,
+                    w: 2,
+                    tabUuid: undefined,
+                },
+            ],
+        };
+        dashboardModel.getByIdOrSlug.mockResolvedValueOnce(
+            markdownOnlyDashboard,
+        );
+        directAccessService.resolveUserAccessForUser.mockResolvedValueOnce({
+            [markdownOnlyDashboard.uuid]: SpaceMemberRole.VIEWER,
+        });
+        // Mirror the real model contract: zero matching rows throws.
+        savedChartModel.getInfoForAvailableFilters.mockRejectedValueOnce(
+            new NotFoundError('Saved queries not found'),
+        );
+
+        const result = await service.getByIdOrSlug(
+            directViewer,
+            markdownOnlyDashboard.uuid,
+        );
+
+        expect(result.tiles).toEqual(markdownOnlyDashboard.tiles);
+        expect(
+            savedChartModel.getInfoForAvailableFilters,
+        ).not.toHaveBeenCalled();
+    });
+
     test('should deny the same private dashboard without effective direct access', async () => {
         const directViewer = {
             ...user,
@@ -487,11 +551,9 @@ describe('DashboardService', () => {
             spaceName: 'Private finance',
         };
         dashboardModel.getByIdOrSlug.mockResolvedValueOnce(privateDashboard);
-        directAccessService.resolveUserAccessForUser.mockResolvedValueOnce(
-            {
-                [privateDashboard.uuid]: undefined,
-            },
-        );
+        directAccessService.resolveUserAccessForUser.mockResolvedValueOnce({
+            [privateDashboard.uuid]: undefined,
+        });
 
         await expect(
             service.getByIdOrSlug(directViewer, privateDashboard.uuid),

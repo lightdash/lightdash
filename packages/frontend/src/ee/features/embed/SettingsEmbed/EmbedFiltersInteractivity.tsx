@@ -87,6 +87,9 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
 
     const { data: availableTileFilters } = useDashboardsAvailableFilters(
         savedChartUuidsAndTileUuids,
+        undefined,
+        undefined,
+        dashboard?.uuid,
     );
 
     const fieldsWithSuggestions = useMemo(() => {
