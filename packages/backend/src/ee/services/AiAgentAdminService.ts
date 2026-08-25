@@ -1039,6 +1039,12 @@ export class AiAgentAdminService extends BaseService {
         }
         this.checkOrganizationAdminAccess(user);
 
+        if (settings.linearEnabled && !settings.linearTeamId) {
+            throw new ParameterError(
+                'A Linear team is required to create review issues',
+            );
+        }
+
         const updated =
             await this.aiAgentReviewNotificationModel.upsertSettings({
                 organizationUuid,
@@ -1232,6 +1238,16 @@ export class AiAgentAdminService extends BaseService {
                 priority: item.priority,
             },
         });
+
+        if (item.projectUuid) {
+            await this.aiAgentReviewNotificationService.createLinearIssues({
+                organizationUuid,
+                projectUuid: item.projectUuid,
+                fingerprints: [item.fingerprint],
+                reviewRunUuid: null,
+                userUuid: user.userUuid,
+            });
+        }
 
         return item;
     }

@@ -26,6 +26,8 @@ import { type McpToolCallModel } from '../models/McpToolCallModel';
 import { AiAgentAdminService } from '../services/AiAgentAdminService';
 import { AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
 import { AiAgentReviewClassifierService } from '../services/AiAgentReviewClassifierService';
+import { type LinearAppService } from '../../services/LinearAppService/LinearAppService';
+import { createReviewLinearIssue } from './tasks/createReviewLinearIssue';
 import { type AiAgentReviewNotificationService } from '../services/AiAgentReviewNotificationService';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
 import { type AiDeepResearchService } from '../services/AiDeepResearchService/AiDeepResearchService';
@@ -112,6 +114,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
+    linearAppService: LinearAppService;
     aiAgentAdminService: AiAgentAdminService;
     embedService: EmbedService;
     managedAgentService: ManagedAgentService;
@@ -149,6 +152,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly aiAgentReviewNotificationService: AiAgentReviewNotificationService;
 
+    protected readonly linearAppService: LinearAppService;
+
     protected readonly aiAgentAdminService: AiAgentAdminService;
 
     protected readonly embedService: EmbedService;
@@ -185,6 +190,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             args.aiAgentReviewNotificationModel;
         this.aiAgentReviewNotificationService =
             args.aiAgentReviewNotificationService;
+        this.linearAppService = args.linearAppService;
         this.aiAgentAdminService = args.aiAgentAdminService;
         this.embedService = args.embedService;
         this.managedAgentService = args.managedAgentService;
@@ -951,6 +957,17 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     projectModel: this.projectModel,
                     openIdIdentityModel: this.openIdIdentityModel,
                     slackClient: this.slackClient,
+                    analytics: this.analytics,
+                })(payload);
+            },
+            [EE_SCHEDULER_TASKS.CREATE_REVIEW_LINEAR_ISSUE]: async (payload) => {
+                await createReviewLinearIssue({
+                    siteUrl: this.lightdashConfig.siteUrl, // pragma: allowlist secret
+                    model: this.aiAgentReviewNotificationModel,
+                    aiAgentReviewClassifierModel:
+                        this.aiAgentReviewClassifierModel,
+                    projectModel: this.projectModel,
+                    linearAppService: this.linearAppService,
                     analytics: this.analytics,
                 })(payload);
             },

@@ -13,6 +13,9 @@ export type DbAiReviewNotificationSettings = {
     organization_uuid: string;
     enabled: boolean;
     slack_channel_id: string | null;
+    linear_enabled: boolean;
+    linear_team_id: string | null;
+    linear_project_id: string | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -36,7 +39,12 @@ export type AiReviewNotificationSettingsTable = Knex.CompositeTableType<
     DbAiReviewNotificationSettings,
     Pick<
         DbAiReviewNotificationSettings,
-        'organization_uuid' | 'enabled' | 'slack_channel_id'
+        | 'organization_uuid'
+        | 'enabled'
+        | 'slack_channel_id'
+        | 'linear_enabled'
+        | 'linear_team_id'
+        | 'linear_project_id'
     > &
         Partial<
             Pick<DbAiReviewNotificationSettings, 'created_at' | 'updated_at'>
@@ -44,7 +52,12 @@ export type AiReviewNotificationSettingsTable = Knex.CompositeTableType<
     Partial<
         Pick<
             DbAiReviewNotificationSettings,
-            'enabled' | 'slack_channel_id' | 'updated_at'
+            | 'enabled'
+            | 'slack_channel_id'
+            | 'linear_enabled'
+            | 'linear_team_id'
+            | 'linear_project_id'
+            | 'updated_at'
         >
     >
 >;
