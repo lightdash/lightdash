@@ -1,3 +1,10 @@
+## [1.260.1](https://github.com/lightdash/lightdash/compare/1.260.0...1.260.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **dashboards:** scope metric filter chips to tabs ([#28041](https://github.com/lightdash/lightdash/issues/28041)) ([d721dac](https://github.com/lightdash/lightdash/commit/d721daca4008b20b74a6735cea5f1f633e245159))
+
 # [1.260.0](https://github.com/lightdash/lightdash/compare/1.259.1...1.260.0) (2026-08-25)
 
 
