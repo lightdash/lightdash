@@ -31,13 +31,14 @@ export interface DataAppVizVisualizationConfigAndData {
     ) => void;
 }
 
-// Charts saved while '' stood in for "no viz yet" still carry that value.
-const readDataAppVizUuid = (
+// Charts saved while '' stood in for "no viz yet" still carry that value,
+// and a config from a URL may carry no uuid at all.
+export const readDataAppVizUuid = (
     chartConfig: DataAppVizChart | undefined,
-): string | null =>
-    chartConfig === undefined || chartConfig.dataAppVizUuid === ''
-        ? null
-        : chartConfig.dataAppVizUuid;
+): string | null => {
+    const uuid = chartConfig?.dataAppVizUuid;
+    return typeof uuid === 'string' && uuid !== '' ? uuid : null;
+};
 
 const toSelected = (
     chartConfig: DataAppVizChart | undefined,

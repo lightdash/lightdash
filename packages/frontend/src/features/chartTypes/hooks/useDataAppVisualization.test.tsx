@@ -22,7 +22,7 @@ const createWrapper = () => {
     );
 };
 
-type Props = { dataAppVizUuid: string | undefined; version: number | null };
+type Props = { dataAppVizUuid: string | null; version: number | null };
 
 const renderViz = (initialProps: Props) =>
     renderHook(
@@ -62,7 +62,7 @@ describe('useDataAppVisualization', () => {
         });
         await waitFor(() => expect(result.current.data).toEqual(viz(1)));
 
-        rerender({ dataAppVizUuid: undefined, version: null });
+        rerender({ dataAppVizUuid: null, version: null });
 
         expect(result.current.data).toBeUndefined();
     });

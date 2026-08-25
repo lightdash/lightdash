@@ -65,7 +65,7 @@ export const ConfigTabs: FC = memo(() => {
             : null;
     const { data: dataAppViz } = useDataAppVisualization(
         projectUuid,
-        dataAppVizUuid ?? undefined,
+        dataAppVizUuid,
         authoringVersion,
     );
 

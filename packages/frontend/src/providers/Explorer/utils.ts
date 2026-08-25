@@ -21,7 +21,7 @@ const DEFAULTS = {
     [ChartType.MAP]: () => ({}),
     [ChartType.CUSTOM]: () => ({}),
     [ChartType.SANKEY]: () => ({}),
-    [ChartType.DATA_APP_VIZ]: () => ({}),
+    [ChartType.DATA_APP_VIZ]: () => undefined, // no viz until one is picked
 };
 
 // simple clone; reducer guarantees we’re not handing in drafts

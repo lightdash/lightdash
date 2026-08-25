@@ -273,6 +273,15 @@ describe('useDataAppVizVisualizationConfig', () => {
         expect(result.current.dataAppVizUuid).toBeNull();
     });
 
+    it('reads a config with no uuid as no viz', () => {
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig({} as DataAppVizChart),
+        );
+
+        expect(result.current.validConfig).toBeNull();
+        expect(result.current.dataAppVizUuid).toBeNull();
+    });
+
     it('clears the selection and pushes the absence up', () => {
         const onConfigChange = vi.fn();
         const { result } = renderHook(() =>

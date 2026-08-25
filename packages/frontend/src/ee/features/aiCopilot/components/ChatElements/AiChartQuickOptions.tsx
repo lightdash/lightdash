@@ -39,6 +39,7 @@ import {
     serializeMergeState,
 } from '../../../../../features/mergeQuery/context/mergeUrlState';
 import useToaster from '../../../../../hooks/toaster/useToaster';
+import { readDataAppVizUuid } from '../../../../../hooks/useDataAppVizVisualizationConfig';
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import { useCreateShareMutation } from '../../../../../hooks/useShare';
 import useApp from '../../../../../providers/App/useApp';
@@ -213,7 +214,7 @@ export const AiChartQuickOptions = ({
     );
     const { data: customChartTypeMetadata } = useDataAppVizRenderMetadata(
         projectUuid,
-        customChartTypeConfig?.dataAppVizUuid,
+        readDataAppVizUuid(customChartTypeConfig),
         customChartTypeRenderTarget,
     );
 

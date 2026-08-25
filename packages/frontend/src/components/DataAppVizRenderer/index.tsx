@@ -99,7 +99,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const config = isDataAppVizVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig.validConfig
         : null;
-    const dataAppVizUuid = config?.dataAppVizUuid;
+    const dataAppVizUuid = config?.dataAppVizUuid ?? null;
     const fieldMapping = config?.fieldMapping;
     const optionValues = config?.optionValues;
     const rows = resultsData?.rows;
@@ -292,7 +292,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         drillDownEnabled,
     ]);
 
-    if (!projectUuid || dataAppVizUuid === undefined) {
+    if (!projectUuid || dataAppVizUuid === null) {
         return (
             <DataAppVizPlaceholder message="Pick a custom chart type to render." />
         );
