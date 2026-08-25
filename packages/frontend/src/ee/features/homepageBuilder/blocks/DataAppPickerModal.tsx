@@ -99,6 +99,7 @@ const DataAppPicker: FC<{
         {
             projectUuids: [projectUuid],
             contentTypes: [ContentType.DATA_APP],
+            dataAppVizsFilter: 'exclude',
             pageSize: PAGE_SIZE,
             search: debouncedSearch || undefined,
         },

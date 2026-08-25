@@ -28,6 +28,10 @@ type ExploreResolver = {
         projectUuid: string,
         table: string,
     ): Promise<Explore | ExploreError | undefined>;
+    findExploreContainingTable(
+        projectUuid: string,
+        table: string,
+    ): Promise<Explore | ExploreError | undefined>;
 };
 
 const parseFieldValuesLimit = (limit: unknown, maxLimit: number): number => {
@@ -55,6 +59,7 @@ export async function getFieldValuesMetricQuery({
     maxLimit,
     filters,
     exploreResolver,
+    authorizeInitialExplore,
 }: {
     projectUuid: string;
     table: string;
@@ -64,10 +69,13 @@ export async function getFieldValuesMetricQuery({
     maxLimit: number;
     filters: AndFilterGroup | undefined;
     exploreResolver: ExploreResolver;
+    authorizeInitialExplore?: (explore: Explore) => void;
 }): Promise<{
     metricQuery: MetricQuery;
     explore: Explore;
     field: Dimension;
+    initialExplore: Explore;
+    initialField: Dimension;
     fieldId: string;
     labelFieldId: string | null;
     /** Non-null when the field's config turns warehouse fetching off: the
@@ -97,6 +105,12 @@ export async function getFieldValuesMetricQuery({
             fieldId = initialFieldId.replace(table, explore.baseTable);
         }
     }
+    if (!explore) {
+        explore = await exploreResolver.findExploreContainingTable(
+            projectUuid,
+            table,
+        );
+    }
 
     if (!explore) {
         throw new NotFoundError(`Explore ${table} does not exist`);
@@ -104,7 +118,9 @@ export async function getFieldValuesMetricQuery({
         throw new NotFoundError(`Explore ${table} has errors`);
     }
 
-    const initialField = findFieldByIdInExplore(explore, fieldId);
+    const initialExplore = explore;
+    authorizeInitialExplore?.(initialExplore);
+    const initialField = findFieldByIdInExplore(initialExplore, fieldId);
 
     if (!initialField) {
         throw new NotFoundError(`Can't dimension with id: ${fieldId}`);
@@ -286,6 +302,8 @@ export async function getFieldValuesMetricQuery({
         metricQuery,
         explore,
         field,
+        initialExplore,
+        initialField,
         fieldId,
         labelFieldId,
         staticResults,

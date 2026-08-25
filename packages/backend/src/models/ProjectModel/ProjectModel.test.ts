@@ -564,6 +564,30 @@ describe('ProjectModel', () => {
         });
     });
 
+    describe('findExploreContainingTable', () => {
+        test('returns an explore containing a joined-only table', async () => {
+            tracker.on
+                .select(
+                    queryMatcher(CachedExploreTableName, [
+                        'orders',
+                        'orders',
+                        projectUuid,
+                        1,
+                    ]),
+                )
+                .response([
+                    {
+                        explore: exploreWithMetricFilters,
+                        baseMatch: false,
+                    },
+                ]);
+
+            await expect(
+                model.findExploreContainingTable(projectUuid, 'orders'),
+            ).resolves.toEqual(exploreWithMetricFilters);
+        });
+    });
+
     describe('saveExploresToCache', () => {
         test('preserves cached explores when the payload is not explicitly complete', async () => {
             const cachedExplore = exploresWithSameName[0];

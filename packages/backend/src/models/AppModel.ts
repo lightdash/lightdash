@@ -12,6 +12,7 @@ import {
     type DataAppActivityFilters,
     type DataAppGenerationUsage,
     type DataAppVizSchema,
+    type DataAppVizsFilter,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type MyAppsSortBy,
@@ -903,14 +904,46 @@ export class AppModel {
     }
 
     /**
-     * List every non-deleted app in a project. Used by preview duplication to
-     * mirror the upstream project's apps into a freshly created preview.
+     * Narrows an apps query by template: 'exclude' drops custom chart types
+     * (data_app_viz), 'only' keeps just them. NULL templates ("Custom" and
+     * pre-template apps) count as data apps.
      */
-    async listAppsByProject(projectUuid: string): Promise<DbApp[]> {
-        return this.database(AppsTableName)
+    static applyDataAppVizsFilter(
+        query: Knex.QueryBuilder,
+        dataAppVizsFilter: DataAppVizsFilter | undefined,
+    ): void {
+        if (dataAppVizsFilter === 'exclude') {
+            void query.where((templateFilter) => {
+                void templateFilter
+                    .whereNot(
+                        `${AppsTableName}.template`,
+                        DATA_APP_VIZ_TEMPLATE,
+                    )
+                    .orWhereNull(`${AppsTableName}.template`);
+            });
+        } else if (dataAppVizsFilter === 'only') {
+            void query.where(
+                `${AppsTableName}.template`,
+                DATA_APP_VIZ_TEMPLATE,
+            );
+        }
+    }
+
+    /**
+     * List every non-deleted app in a project. Used by preview duplication to
+     * mirror the upstream project's apps into a freshly created preview
+     * (unfiltered), and by the project apps listing endpoint (filtered).
+     */
+    async listAppsByProject(
+        projectUuid: string,
+        options: { dataAppVizsFilter?: DataAppVizsFilter } = {},
+    ): Promise<DbApp[]> {
+        const query = this.database(AppsTableName)
             .where({ project_uuid: projectUuid })
             .whereNull('deleted_at')
             .select('*');
+        AppModel.applyDataAppVizsFilter(query, options.dataAppVizsFilter);
+        return query;
     }
 
     // Derived table of each app's latest ready version number, for joining the
@@ -1282,13 +1315,8 @@ export class AppModel {
             .where(`${AppsTableName}.created_by_user_uuid`, userUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
             // Vizs (custom chart types) are not offered on app surfaces.
-            .where((templateFilter) => {
-                void templateFilter
-                    .whereNot(
-                        `${AppsTableName}.template`,
-                        DATA_APP_VIZ_TEMPLATE,
-                    )
-                    .orWhereNull(`${AppsTableName}.template`);
+            .modify((queryBuilder) => {
+                AppModel.applyDataAppVizsFilter(queryBuilder, 'exclude');
             })
             .modify((queryBuilder) => {
                 if (options.excludePreviewProjects ?? true) {

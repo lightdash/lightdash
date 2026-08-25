@@ -32,7 +32,13 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { useCallback, useState, type FC, type ReactNode } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { lightdashApi } from '../../../../api';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -80,13 +86,22 @@ type FormValues = {
 const EmbedPreviewChartForm: FC<{
     projectUuid: string;
     siteUrl: string;
-    charts: Pick<SavedChart, 'uuid' | 'name'>[];
+    charts: Pick<SavedChart, 'uuid' | 'name' | 'spaceUuid'>[];
     writeActions?: CreateEmbedJwt['writeActions'];
     writeActionsPanel?: ReactNode;
-}> = ({ projectUuid, siteUrl, charts, writeActions, writeActionsPanel }) => {
+    onChartSpaceChange?: (spaceUuid: string | undefined) => void;
+}> = ({
+    projectUuid,
+    siteUrl,
+    charts,
+    writeActions,
+    writeActionsPanel,
+    onChartSpaceChange,
+}) => {
     const { mutateAsync: createEmbedUrl } =
         useEmbedUrlCreateMutation(projectUuid);
     const colorScheme = useComputedColorScheme();
+
     const { data: user } = useUser(true);
     const [embedMethod, setEmbedMethod] = useState<EmbedMethod>('iframe');
 
@@ -112,6 +127,13 @@ const EmbedPreviewChartForm: FC<{
         },
     });
     const { onSubmit, values: formValues } = form;
+
+    useEffect(() => {
+        onChartSpaceChange?.(
+            charts.find((chart) => chart.uuid === form.values.chartUuid)
+                ?.spaceUuid,
+        );
+    }, [charts, form.values.chartUuid, onChartSpaceChange]);
 
     const convertFormValuesToCreateEmbedJwt = useCallback(
         (
@@ -203,6 +225,13 @@ const EmbedPreviewChartForm: FC<{
                     placeholder="Select a chart..."
                     searchable
                     {...form.getInputProps('chartUuid')}
+                    onChange={(chartUuid) => {
+                        form.setFieldValue('chartUuid', chartUuid ?? undefined);
+                        onChartSpaceChange?.(
+                            charts.find((chart) => chart.uuid === chartUuid)
+                                ?.spaceUuid,
+                        );
+                    }}
                 />
 
                 <Stack gap="xs">

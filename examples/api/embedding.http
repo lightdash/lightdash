@@ -52,6 +52,10 @@ Content-Type: application/json
 
 ### Generate dashboard embed url
 #### use the dashboardUuid you want to embed
+#### writeActions enables dashboard editing when its actor can update the dashboard.
+#### With canExplore enabled, the embedded chart builder is available when the
+#### actor can also create saved charts in this space (for example via
+#### manage:Dashboard@space and manage:SavedChart@space custom-role scopes).
 
 POST http://localhost:8080/api/v1/embed/{{projectUuid}}/get-embed-url
 Content-Type: application/json
@@ -69,6 +73,10 @@ Content-Type: application/json
         "canDateZoom": true,
         "canExportPagePdf": true,
         "projectUuid": "{{projectUuid}}"
+    },
+    "writeActions": {
+        "serviceAccountUserUuid": "{{serviceAccountUserUuid}}",
+        "spaceUuid": "{{spaceUuid}}"
     }
 }
 

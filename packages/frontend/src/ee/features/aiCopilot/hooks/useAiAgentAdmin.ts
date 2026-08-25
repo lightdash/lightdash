@@ -1,4 +1,5 @@
 import {
+    isApiError,
     type AiAgentAdminEvalFilters,
     type AiAgentAdminFilters,
     type AiAgentAdminMemoryFilters,
@@ -677,7 +678,9 @@ export const useAiAgentReviewItemByPreviewThread = (
             try {
                 return await getAiAgentReviewItemByPreviewThread(threadUuid!);
             } catch (error) {
-                if ((error as ApiError).error?.statusCode === 404) return null;
+                if (isApiError(error) && error.error.statusCode === 404) {
+                    return null;
+                }
                 throw error;
             }
         },

@@ -187,11 +187,14 @@ const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
     savedChart,
     disabled,
 }) => {
+    const parameters = useDashboardContext((c) => c.parameterValues);
+
     const getGsheetLink = async () => {
         return uploadGsheet({
             projectUuid: savedChart.projectUuid,
             exploreId: savedChart.tableName,
             metricQuery: savedChart.metricQuery,
+            parameters,
             columnOrder: savedChart.tableConfig.columnOrder,
             showTableNames: isTableChartConfig(savedChart.chartConfig.config)
                 ? (savedChart.chartConfig.config.showTableNames ?? false)

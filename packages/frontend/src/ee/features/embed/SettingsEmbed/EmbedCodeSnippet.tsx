@@ -1516,7 +1516,7 @@ export const EmbeddedChart = ({ embedJwt }: EmbeddedChartProps) => (
         instanceUrl="${siteUrl}"
         token={embedJwt}
         id="${data.content.contentId || '<CHART_UUID>'}"
-        styles={{
+${data.writeActions ? '        isEditMode\n' : ''}        styles={{
             // Optional: customize supported SDK styles here:
             // backgroundColor: '#fff',
             // fontFamily: 'Inter, sans-serif',

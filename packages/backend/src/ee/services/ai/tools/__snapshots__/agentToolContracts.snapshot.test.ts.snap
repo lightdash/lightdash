@@ -8011,9 +8011,6 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "submitWorkerFindings",
   "findCharts",
   "findDashboards",
-  "generateBarVizConfig",
-  "generateTableVizConfig",
-  "generateTimeSeriesVizConfig",
   "listProjects",
   "getProjectInfo",
 ]

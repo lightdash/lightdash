@@ -2,6 +2,7 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     buildAbilityFromScopes,
     defineUserAbility,
+    ExpectedNotFoundError,
     ForbiddenError,
     OrganizationMemberRole,
     ProjectMemberRole,
@@ -239,6 +240,17 @@ describe('AiRouterService', () => {
         expect(result.enabled).toBe(true);
         expect(aiRouterModel.findByOrganization).toHaveBeenCalledWith(
             organizationUuid,
+        );
+    });
+
+    it('classifies missing router config as expected not found', async () => {
+        const { service } = makeService({
+            candidates: [],
+            routerEnabled: false,
+        });
+
+        await expect(service.getConfig(account)).rejects.toThrow(
+            ExpectedNotFoundError,
         );
     });
 

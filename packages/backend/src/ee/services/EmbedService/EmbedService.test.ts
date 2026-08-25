@@ -3,6 +3,7 @@ import {
     ForbiddenError,
     type AnonymousAccount,
     type CreateEmbedJwt,
+    type EmbedContent,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
@@ -338,6 +339,115 @@ describe('EmbedService', () => {
         });
     });
 
+    describe('getEmbedWriteContext', () => {
+        const chartUuid = 'chart-uuid';
+        const chartSpaceUuid = 'chart-space-uuid';
+        const content: EmbedContent = {
+            type: 'chart',
+            chartUuids: [chartUuid],
+            explores: ['orders'],
+        };
+        const token: CreateEmbedJwt = {
+            content: {
+                type: 'chart',
+                contentId: chartUuid,
+            },
+            writeActions: {
+                spaceUuid: chartSpaceUuid,
+                userUuid: mockUserUuid,
+            },
+        };
+        const spaceAccessContext = {
+            organizationUuid: mockOrganizationUuid,
+            projectUuid: mockProjectUuid,
+            inheritsFromOrgOrProject: true,
+            access: [],
+        };
+
+        const getContext = async ({
+            canUpdate,
+            savedChartSpaceUuid = chartSpaceUuid,
+        }: {
+            canUpdate: boolean;
+            savedChartSpaceUuid?: string;
+        }) => {
+            const embedWriteUser = {
+                ...mockAccountWithPermission.user,
+                organizationUuid: mockOrganizationUuid,
+                organizationName: 'Test Org',
+                organizationCreatedAt: new Date(),
+                ability: new Ability<PossibleAbilities>(
+                    canUpdate
+                        ? [{ action: 'update', subject: 'SavedChart' }]
+                        : [],
+                ),
+            } as unknown as SessionUser;
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                projectModel: {
+                    getSummary: vi.fn().mockResolvedValue({
+                        organizationUuid: mockOrganizationUuid,
+                    }),
+                },
+                savedChartModel: {
+                    get: vi.fn().mockResolvedValue({
+                        uuid: chartUuid,
+                        spaceUuid: savedChartSpaceUuid,
+                    }),
+                },
+                spacePermissionService: {
+                    getSpaceAccessContext: vi
+                        .fn()
+                        .mockResolvedValue(spaceAccessContext),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            const getEmbedWriteContext = (
+                scopedService as unknown as {
+                    getEmbedWriteContext: (
+                        decodedToken: CreateEmbedJwt,
+                        embedWriteUser: SessionUser,
+                        projectUuid: string,
+                        content: EmbedContent,
+                    ) => Promise<AnonymousAccount['embedWriteContext']>;
+                }
+            ).getEmbedWriteContext.bind(scopedService);
+
+            return getEmbedWriteContext(
+                token,
+                embedWriteUser,
+                mockProjectUuid,
+                content,
+            );
+        };
+
+        test('allows editing when the write actor can update the chart in the write space', async () => {
+            await expect(
+                getContext({ canUpdate: true }),
+            ).resolves.toMatchObject({
+                canUpdateSavedChart: true,
+            });
+        });
+
+        test('denies editing when the write actor cannot update saved charts', async () => {
+            await expect(
+                getContext({ canUpdate: false }),
+            ).resolves.toMatchObject({
+                canUpdateSavedChart: false,
+            });
+        });
+
+        test('denies editing when the chart is outside the write space', async () => {
+            await expect(
+                getContext({
+                    canUpdate: true,
+                    savedChartSpaceUuid: 'other-space-uuid',
+                }),
+            ).resolves.toMatchObject({
+                canUpdateSavedChart: false,
+            });
+        });
+    });
+
     describe('getEmbedUserAttributes', () => {
         const embedJwt = {
             content: { type: 'dashboard', dashboardUuid: 'dashboard-1' },
@@ -584,6 +694,342 @@ describe('EmbedService', () => {
     });
 
     describe('searchFilterValues', () => {
+        const buildChartEmbedAccount = (authorizedExplores: string[]) =>
+            ({
+                authentication: { type: 'jwt', source: 'embed-token' },
+                access: {
+                    content: {
+                        type: 'chart',
+                        chartUuids: ['chart-1'],
+                        explores: authorizedExplores,
+                    },
+                    controls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                },
+                user: {
+                    id: mockUserUuid,
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            subject: 'Explore',
+                            action: ['view'],
+                            conditions: {
+                                organizationUuid: mockOrganizationUuid,
+                                projectUuid: mockProjectUuid,
+                                exploreNames: { $all: authorizedExplores },
+                            },
+                        },
+                    ]),
+                },
+                organization: { organizationUuid: mockOrganizationUuid },
+                isAnonymousUser: vi.fn().mockReturnValue(true),
+            }) as unknown as AnonymousAccount;
+
+        test('searches values for an authorized embedded Explore without a dashboard', async () => {
+            const field = validExplore.tables.a.dimensions.dim1;
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                embedModel: {
+                    get: vi.fn().mockResolvedValue({
+                        dashboardUuids: [],
+                        allowAllDashboards: false,
+                        user: { userUuid: mockUserUuid },
+                    }),
+                },
+                projectModel: {
+                    getSummary: vi.fn().mockResolvedValue({
+                        projectUuid: mockProjectUuid,
+                        organizationUuid: mockOrganizationUuid,
+                    }),
+                },
+                projectService: {
+                    _getFieldValuesMetricQuery: vi
+                        .fn()
+                        .mockImplementation(({ authorizeInitialExplore }) => {
+                            authorizeInitialExplore?.(validExplore);
+                            return {
+                                metricQuery: {
+                                    exploreName: validExplore.name,
+                                    dimensions: ['a_dim1'],
+                                    metrics: [],
+                                    filters: {},
+                                    sorts: [],
+                                    limit: 50,
+                                    tableCalculations: [],
+                                },
+                                explore: validExplore,
+                                field,
+                                initialExplore: validExplore,
+                                initialField: field,
+                                labelFieldId: null,
+                                staticResults: [{ value: 'available value' }],
+                            };
+                        }),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            const account = buildChartEmbedAccount([validExplore.name]);
+
+            await expect(
+                scopedService.searchFilterValues({
+                    account,
+                    projectUuid: mockProjectUuid,
+                    filterUuid: 'filter-uuid',
+                    search: '',
+                    limit: 50,
+                    filters: undefined,
+                    forceRefresh: false,
+                    tableName: 'a',
+                    fieldId: 'a_dim1',
+                }),
+            ).resolves.toMatchObject({ results: ['available value'] });
+        });
+
+        test('authorizes an embedded Explore before resolving its requested field', async () => {
+            const resolveFieldValues = vi
+                .fn()
+                .mockImplementation(({ authorizeInitialExplore }) => {
+                    authorizeInitialExplore?.(validExplore);
+                    throw new Error('reached field resolution');
+                });
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                embedModel: {
+                    get: vi.fn().mockResolvedValue({
+                        dashboardUuids: [],
+                        allowAllDashboards: false,
+                        user: { userUuid: mockUserUuid },
+                    }),
+                },
+                projectModel: {
+                    getSummary: vi.fn().mockResolvedValue({
+                        projectUuid: mockProjectUuid,
+                        organizationUuid: mockOrganizationUuid,
+                    }),
+                },
+                projectService: {
+                    _getFieldValuesMetricQuery: resolveFieldValues,
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+
+            await expect(
+                scopedService.searchFilterValues({
+                    account: buildChartEmbedAccount(['another_explore']),
+                    projectUuid: mockProjectUuid,
+                    filterUuid: 'filter-uuid',
+                    search: '',
+                    limit: 50,
+                    filters: undefined,
+                    forceRefresh: false,
+                    tableName: 'a',
+                    fieldId: 'a_dim1',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(resolveFieldValues).toHaveBeenCalledOnce();
+        });
+
+        test('runs a warehouse value search for an embedded Explore without a dashboard', async () => {
+            const field = validExplore.tables.a.dimensions.dim1;
+            const combineParameters = vi.fn().mockResolvedValue({});
+            const runEmbedQuery = vi.fn().mockResolvedValue({
+                rows: [{ a_dim1: 'warehouse value' }],
+                cacheMetadata: { cacheHit: false },
+            });
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                embedModel: {
+                    get: vi.fn().mockResolvedValue({
+                        dashboardUuids: [],
+                        allowAllDashboards: false,
+                        user: { userUuid: mockUserUuid },
+                    }),
+                },
+                projectModel: {
+                    getSummary: vi.fn().mockResolvedValue({
+                        projectUuid: mockProjectUuid,
+                        organizationUuid: mockOrganizationUuid,
+                    }),
+                },
+                projectService: {
+                    _getFieldValuesMetricQuery: vi
+                        .fn()
+                        .mockImplementation(({ authorizeInitialExplore }) => {
+                            authorizeInitialExplore?.(validExplore);
+                            return {
+                                metricQuery: {
+                                    exploreName: validExplore.name,
+                                    dimensions: ['a_dim1'],
+                                    metrics: [],
+                                    filters: {},
+                                    sorts: [],
+                                    limit: 50,
+                                    tableCalculations: [],
+                                },
+                                explore: validExplore,
+                                field,
+                                initialExplore: validExplore,
+                                initialField: field,
+                                labelFieldId: null,
+                                staticResults: null,
+                            };
+                        }),
+                    combineParameters,
+                    isTimezoneSupportEnabled: vi.fn().mockResolvedValue(false),
+                    getQueryTimezoneForProject: vi
+                        .fn()
+                        .mockResolvedValue('UTC'),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            Object.assign(scopedService, { _runEmbedQuery: runEmbedQuery });
+
+            await expect(
+                scopedService.searchFilterValues({
+                    account: buildChartEmbedAccount([validExplore.name]),
+                    projectUuid: mockProjectUuid,
+                    filterUuid: 'filter-uuid',
+                    search: '',
+                    limit: 50,
+                    filters: undefined,
+                    forceRefresh: false,
+                    tableName: 'a',
+                    fieldId: 'a_dim1',
+                }),
+            ).resolves.toMatchObject({ results: ['warehouse value'] });
+
+            expect(combineParameters).toHaveBeenCalledWith(
+                mockProjectUuid,
+                validExplore,
+                {},
+                {},
+            );
+            expect(runEmbedQuery.mock.calls[0][0].queryTags).not.toHaveProperty(
+                'dashboard_uuid',
+            );
+        });
+
+        test('rejects autocomplete source fields hidden by embed user attributes', async () => {
+            const initialField = validExplore.tables.a.dimensions.dim1;
+            const field = validExplore.tables.b.dimensions.dim1;
+            const restrictedSourceExplore = {
+                ...validExplore,
+                name: 'autocomplete_source',
+                tables: {
+                    ...validExplore.tables,
+                    b: {
+                        ...validExplore.tables.b,
+                        requiredAttributes: { region: 'allowed' },
+                    },
+                },
+            };
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                embedModel: {
+                    get: vi.fn().mockResolvedValue({
+                        dashboardUuids: [],
+                        allowAllDashboards: false,
+                        user: { userUuid: mockUserUuid },
+                    }),
+                },
+                projectModel: {
+                    getSummary: vi.fn().mockResolvedValue({
+                        projectUuid: mockProjectUuid,
+                        organizationUuid: mockOrganizationUuid,
+                    }),
+                },
+                projectService: {
+                    _getFieldValuesMetricQuery: vi.fn().mockResolvedValue({
+                        metricQuery: {},
+                        explore: restrictedSourceExplore,
+                        field,
+                        initialExplore: validExplore,
+                        initialField,
+                        labelFieldId: null,
+                        staticResults: null,
+                    }),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            const account = buildChartEmbedAccount([validExplore.name]);
+
+            await expect(
+                scopedService.searchFilterValues({
+                    account,
+                    projectUuid: mockProjectUuid,
+                    filterUuid: 'filter-uuid',
+                    search: '',
+                    limit: 50,
+                    filters: undefined,
+                    forceRefresh: false,
+                    tableName: 'a',
+                    fieldId: 'a_dim1',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('rejects autocomplete label fields hidden by embed user attributes', async () => {
+            const initialField = validExplore.tables.a.dimensions.dim1;
+            const field = validExplore.tables.b.dimensions.dim1;
+            const restrictedSourceExplore = {
+                ...validExplore,
+                name: 'autocomplete_source',
+                tables: {
+                    ...validExplore.tables,
+                    b: {
+                        ...validExplore.tables.b,
+                        dimensions: {
+                            ...validExplore.tables.b.dimensions,
+                            label: {
+                                ...validExplore.tables.b.dimensions.dim1,
+                                name: 'label',
+                                requiredAttributes: { region: 'allowed' },
+                            },
+                        },
+                    },
+                },
+            };
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                embedModel: {
+                    get: vi.fn().mockResolvedValue({
+                        dashboardUuids: [],
+                        allowAllDashboards: false,
+                        user: { userUuid: mockUserUuid },
+                    }),
+                },
+                projectModel: {
+                    getSummary: vi.fn().mockResolvedValue({
+                        projectUuid: mockProjectUuid,
+                        organizationUuid: mockOrganizationUuid,
+                    }),
+                },
+                projectService: {
+                    _getFieldValuesMetricQuery: vi.fn().mockResolvedValue({
+                        metricQuery: {},
+                        explore: restrictedSourceExplore,
+                        field,
+                        initialExplore: validExplore,
+                        initialField,
+                        labelFieldId: 'b_label',
+                        staticResults: null,
+                    }),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+
+            await expect(
+                scopedService.searchFilterValues({
+                    account: buildChartEmbedAccount([validExplore.name]),
+                    projectUuid: mockProjectUuid,
+                    filterUuid: 'filter-uuid',
+                    search: '',
+                    limit: 50,
+                    filters: undefined,
+                    forceRefresh: false,
+                    tableName: 'a',
+                    fieldId: 'a_dim1',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
         test('scopes dashboard lookup to the requested project', async () => {
             const dashboardUuid = 'dashboard-1';
             const dashboardModel = {
@@ -714,6 +1160,9 @@ describe('EmbedService', () => {
                             },
                             explore: validExplore,
                             field,
+                            initialExplore: validExplore,
+                            initialField: field,
+                            labelFieldId: null,
                             staticResults: null,
                         }),
                         combineParameters,
@@ -732,6 +1181,10 @@ describe('EmbedService', () => {
                     access: {
                         content: { dashboardUuid },
                         parameters: { enabled: isInteractivityEnabled },
+                        controls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
                     },
                     user: { id: mockUserUuid },
                     organization: {

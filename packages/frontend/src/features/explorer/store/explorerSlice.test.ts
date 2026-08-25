@@ -1,3 +1,4 @@
+import { type TableCalculation } from '@lightdash/common';
 import { explorerActions, explorerReducer } from './explorerSlice';
 
 describe('explorerSlice pivot axis updates', () => {
@@ -50,5 +51,40 @@ describe('explorerSlice pivot axis updates', () => {
             columns: ['months_since_start'],
             rows: ['cohort_month', 'plan_name'],
         });
+    });
+});
+
+describe('explorerSlice table calculation updates', () => {
+    const tableCalculation: TableCalculation = {
+        name: 'revenue_growth',
+        displayName: 'Revenue growth',
+        sql: '${orders.revenue}',
+    };
+
+    it.each([
+        {
+            name: 'adding',
+            action: explorerActions.addTableCalculation(tableCalculation),
+        },
+        {
+            name: 'updating',
+            action: explorerActions.updateTableCalculation({
+                oldName: tableCalculation.name,
+                tableCalculation: {
+                    ...tableCalculation,
+                    sql: '${orders.net_revenue}',
+                },
+            }),
+        },
+        {
+            name: 'deleting',
+            action: explorerActions.deleteTableCalculation(
+                tableCalculation.name,
+            ),
+        },
+    ])('requests a query after $name a calculation', ({ action }) => {
+        const result = explorerReducer(undefined, action);
+
+        expect(result.queryExecution.pendingFetch).toBe(true);
     });
 });

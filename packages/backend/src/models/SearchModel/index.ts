@@ -45,6 +45,7 @@ import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
+import { AppModel } from '../AppModel';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import {
     filterByCreatedAt,
@@ -1158,6 +1159,10 @@ export class SearchModel {
             .whereRaw(hasReadyVersionSql)
             .whereRaw(searchFilterSql)
             .orderBy('search_rank', 'desc');
+
+        // Custom chart types are not data apps — they have their own gallery
+        // and must not surface as "Data app" search results.
+        AppModel.applyDataAppVizsFilter(subquery, 'exclude');
 
         subquery = filterByCreatedAt(AppsTableName, subquery, filters);
         subquery = filterByCreatedByUuid(

@@ -5,8 +5,8 @@ import {
     isCustomChartTypeSlugChartConfig,
     type ToolRunQueryArgsTransformed,
 } from '../../../schemas';
-import { getTableChartConfig } from '../generateTableVizConfigTool/getTableChartConfig';
 import { canRenderAsChart } from '../shared/canRenderAsChart';
+import { getTableChartConfig } from '../shared/getTableChartConfig';
 import { type AiAgentChartTypeOption } from '../types';
 import { getBarChartConfig } from './viz/bar';
 import { getFunnelChartConfig } from './viz/funnel';
