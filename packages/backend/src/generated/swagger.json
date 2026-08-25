@@ -17716,8 +17716,21 @@
                 "required": ["prompt"],
                 "type": "object"
             },
+            "Exclude_DataAppTemplate.custom_": {
+                "type": "string",
+                "enum": ["dashboard", "slideshow", "pdf", "data_app_viz"],
+                "description": "Exclude from T those types that are assignable to U"
+            },
             "EmbedProjectApp": {
                 "properties": {
+                    "template": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Exclude_DataAppTemplate.custom_"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "slug": {
                         "type": "string"
                     },
@@ -18065,11 +18078,6 @@
             },
             "ApiGetDataAppAuthoringContextResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DataAppContext_"
-            },
-            "Exclude_DataAppTemplate.custom_": {
-                "type": "string",
-                "enum": ["dashboard", "slideshow", "pdf", "data_app_viz"],
-                "description": "Exclude from T those types that are assignable to U"
             },
             "AppVersionStatus": {
                 "type": "string",
@@ -24062,9 +24070,6 @@
                     "generateVisualization",
                     "runSql",
                     "findContent",
-                    "generateBarVizConfig",
-                    "generateTableVizConfig",
-                    "generateTimeSeriesVizConfig",
                     "generateHashes",
                     "generateUuids",
                     "listContent",
@@ -48622,6 +48627,9 @@
             },
             "UploadMetricGsheet": {
                 "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
                     "pivotConfig": {
                         "$ref": "#/components/schemas/PivotConfig"
                     },
@@ -56138,7 +56146,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.252.1",
+        "version": "1.260.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
