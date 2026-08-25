@@ -54,6 +54,11 @@
                     "type": "boolean",
                     "default": false,
                     "description": "When true, uploads refuse to overwrite content that changed on the instance since the last upload (skipped, exit 1). When false, drift is reported as warnings only."
+                },
+                "write_back": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "When true, UI saves of managed content open a reviewable git PR. Requires sync and a GitHub/GitLab connection."
                 }
             },
             "additionalProperties": false

@@ -3229,6 +3229,11 @@ export class ProjectService extends BaseService {
                         newProjectUuid,
                         lightdashProjectConfig.content_as_code?.sync === true,
                     );
+                    await this.projectModel.setContentAsCodeWriteBackEnabled(
+                        newProjectUuid,
+                        lightdashProjectConfig.content_as_code?.write_back ===
+                            true,
+                    );
                     // Mirrors CLI deploy semantics: only overwrite stored
                     // defaults when the config file defines them
                     if (lightdashProjectConfig.defaults) {
@@ -3929,6 +3934,11 @@ export class ProjectService extends BaseService {
                                 projectUuid,
                                 lightdashProjectConfig.content_as_code?.sync ===
                                     true,
+                            );
+                            await this.projectModel.setContentAsCodeWriteBackEnabled(
+                                projectUuid,
+                                lightdashProjectConfig.content_as_code
+                                    ?.write_back === true,
                             );
                             // Mirrors CLI deploy semantics: only overwrite
                             // stored defaults when the config file defines them
@@ -8769,6 +8779,11 @@ export class ProjectService extends BaseService {
                             projectUuid,
                             lightdashProjectConfig.content_as_code?.sync ===
                                 true,
+                        );
+                        await this.projectModel.setContentAsCodeWriteBackEnabled(
+                            projectUuid,
+                            lightdashProjectConfig.content_as_code
+                                ?.write_back === true,
                         );
                         // Mirrors CLI deploy semantics: only overwrite stored
                         // defaults when the config file defines them

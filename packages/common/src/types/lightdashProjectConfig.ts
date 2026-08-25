@@ -108,6 +108,11 @@ export type ContentAsCodeConfig = {
      * settings panel is shown. When false or omitted, sync is off.
      */
     sync?: boolean;
+    /**
+     * When true, UI saves of managed content open a reviewable git PR.
+     * Requires `sync` and a GitHub/GitLab project connection.
+     */
+    write_back?: boolean;
 };
 
 export type LightdashProjectConfig = {

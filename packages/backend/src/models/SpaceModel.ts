@@ -1091,6 +1091,14 @@ export class SpaceModel {
         return rows.map((r: { space_uuid: string }) => r.space_uuid);
     }
 
+    async isDefaultUserSpace(spaceUuid: string): Promise<boolean> {
+        const [row] = await this.database(SpaceTableName)
+            .select('is_default_user_space')
+            .where('space_uuid', spaceUuid)
+            .whereNull('deleted_at');
+        return row?.is_default_user_space === true;
+    }
+
     async find(
         filters: {
             projectUuid?: string;

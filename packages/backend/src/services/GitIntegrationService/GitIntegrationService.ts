@@ -48,6 +48,10 @@ import { PullRequestsModel } from '../../models/PullRequestsModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
+import {
+    getContentAsCodeWriteBackBranchName,
+    getContentAsCodeWriteBackInstanceId,
+} from '../CoderService/contentAsCodeWriteBack';
 import type { GithubAppService } from '../GithubAppService/GithubAppService';
 
 type GitIntegrationServiceArguments = {
@@ -1150,19 +1154,21 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
     }
 
     /**
-     * Create a feature-branch pull request that writes a content-as-code YAML
-     * file into the project's git-backed dbt repo. Updates the file when it
-     * already exists on the project's configured branch; otherwise creates it.
+     * Write a content-as-code YAML file onto an instance-scoped branch and
+     * open (or append to) one PR per slug. Uses saveFile / createBranchFromSource
+     * / createPullRequestFromBranch. Never force-pushes.
      */
     async writeBackContentAsCodeFile(
         user: SessionUser,
         projectUuid: string,
         {
+            slug,
             filePath,
             content,
             title,
             description,
         }: {
+            slug: string;
             filePath: string;
             content: string;
             title: string;
@@ -1177,7 +1183,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch: false,
-                    metadata: { filePath },
+                    metadata: { filePath, slug },
                 }),
             )
         ) {
@@ -1188,6 +1194,10 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         const fileName = GitIntegrationService.removeExtraSlashes(
             `${gitProps.path}/${filePath}`,
         );
+        const branchName = getContentAsCodeWriteBackBranchName(
+            getContentAsCodeWriteBackInstanceId(this.lightdashConfig.siteUrl),
+            slug,
+        );
         const eventProperties: WriteBackEvent['properties'] = {
             name: fileName,
             projectId: projectUuid,
@@ -1195,121 +1205,60 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             context: QueryExecutionContext.CHART,
         };
 
-        await GitIntegrationService.createBranch(gitProps);
-
-        const getFileContent =
-            gitProps.type === DbtProjectType.GITHUB
-                ? GithubClient.getFileContent
-                : GitlabClient.getFileContent;
+        try {
+            await this.createBranchFromSource(
+                user,
+                projectUuid,
+                branchName,
+                gitProps.mainBranch,
+            );
+        } catch {
+            // Branch already exists from a previous save — append a commit.
+        }
 
         let existingSha: string | undefined;
         try {
-            ({ sha: existingSha } = await getFileContent({
+            const file = await this.getFileOrDirectory(
+                user,
+                projectUuid,
+                branchName,
                 fileName,
-                owner: gitProps.owner,
-                repo: gitProps.repo,
-                branch: gitProps.branch,
-                installationId: gitProps.installationId,
-                token: gitProps.token,
-                hostDomain: gitProps.hostDomain,
-            }));
-        } catch (error) {
-            if (!(error instanceof NotFoundError)) {
-                throw error;
+            );
+            if (file.type === 'file') {
+                existingSha = file.sha;
             }
+        } catch {
+            existingSha = undefined;
         }
 
-        const commitMessage = existingSha
-            ? `Update ${fileName}`
-            : `Create ${fileName}`;
+        await this.saveFile(
+            user,
+            projectUuid,
+            branchName,
+            fileName,
+            content,
+            existingSha,
+            existingSha ? `Update ${fileName}` : `Create ${fileName}`,
+        );
 
-        if (existingSha) {
-            const updateFile =
-                gitProps.type === DbtProjectType.GITHUB
-                    ? GithubClient.updateFile
-                    : GitlabClient.updateFile;
-            await updateFile({
-                owner: gitProps.owner,
-                repo: gitProps.repo,
-                fileName,
-                content,
-                fileSha: existingSha,
-                branch: gitProps.branch,
-                installationId: gitProps.installationId,
-                token: gitProps.token,
-                hostDomain: gitProps.hostDomain,
-                message: commitMessage,
-            });
-        } else {
-            const createFile =
-                gitProps.type === DbtProjectType.GITHUB
-                    ? GithubClient.createFile
-                    : GitlabClient.createFile;
-            await createFile({
-                owner: gitProps.owner,
-                repo: gitProps.repo,
-                fileName,
-                content,
-                branch: gitProps.branch,
-                installationId: gitProps.installationId,
-                token: gitProps.token,
-                hostDomain: gitProps.hostDomain,
-                message: commitMessage,
-            });
+        const openPullRequest = await this.findOpenPullRequestForHead(
+            user,
+            projectUuid,
+            branchName,
+        );
+        if (openPullRequest) {
+            return openPullRequest;
         }
 
         try {
-            const createPullRequest =
-                gitProps.type === DbtProjectType.GITHUB
-                    ? GithubClient.createPullRequest
-                    : GitlabClient.createPullRequest;
-
-            const fullDescription = `${description}
-
-Triggered by user ${user.firstName} ${user.lastName} (${user.email})
-
-🤖 Created with Lightdash`; // pragma: allowlist secret
-
-            const pullRequest = await createPullRequest({
-                ...gitProps,
-                title,
-                body: fullDescription,
-                head: gitProps.branch,
-                base: gitProps.mainBranch,
-            });
-
-            this.analytics.track({
-                event: 'write_back.created',
-                userId: user.userUuid,
-                properties: eventProperties,
-            });
-            this.analytics.track({
-                event: 'source_code.pull_request_created',
-                userId: user.userUuid,
-                properties: {
-                    organizationId: user.organizationUuid!,
-                    projectId: projectUuid,
-                    filePath: fileName,
-                    fileSize: content.length,
-                    gitProvider: gitProps.type,
-                },
-            });
-
-            await this.recordPullRequest({
+            return await this.createPullRequestFromBranch(
                 user,
                 projectUuid,
-                type: gitProps.type,
-                owner: gitProps.owner,
-                repo: gitProps.repo,
-                prNumber: pullRequest.number,
-                prUrl: pullRequest.html_url,
-                source: PullRequestSource.CONTENT_AS_CODE,
-            });
-
-            return {
-                prTitle: pullRequest.title,
-                prUrl: pullRequest.html_url,
-            };
+                branchName,
+                title,
+                description,
+                PullRequestSource.CONTENT_AS_CODE,
+            );
         } catch (error) {
             this.analytics.track({
                 event: 'write_back.error',
@@ -1321,6 +1270,39 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             });
             throw error;
         }
+    }
+
+    private async findOpenPullRequestForHead(
+        user: SessionUser,
+        projectUuid: string,
+        head: string,
+    ): Promise<PullRequestCreated | null> {
+        const creds = await this.getGitCredentials(user, projectUuid, {
+            preferUserToken: true,
+        });
+        const openPullRequest =
+            creds.type === DbtProjectType.GITHUB
+                ? await GithubClient.findOpenPullRequestByHead({
+                      owner: creds.owner,
+                      repo: creds.repo,
+                      head,
+                      installationId: creds.installationId,
+                      token: creds.token,
+                  })
+                : await GitlabClient.findOpenMergeRequestBySourceBranch({
+                      owner: creds.owner,
+                      repo: creds.repo,
+                      sourceBranch: head,
+                      token: creds.token,
+                      hostDomain: creds.hostDomain,
+                  });
+        if (!openPullRequest) {
+            return null;
+        }
+        return {
+            prTitle: openPullRequest.title,
+            prUrl: openPullRequest.html_url,
+        };
     }
 
     /**
@@ -1915,6 +1897,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         branch: string,
         title: string,
         description: string,
+        source: PullRequestSource = PullRequestSource.SOURCE_EDITOR,
     ): Promise<PullRequestCreated> {
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -1986,7 +1969,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             repo: creds.repo,
             prNumber: pullRequest.number,
             prUrl: pullRequest.html_url,
-            source: PullRequestSource.SOURCE_EDITOR,
+            source,
         });
 
         return {

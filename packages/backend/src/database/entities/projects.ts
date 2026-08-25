@@ -49,6 +49,7 @@ export type DbProject = {
     provisioning_source: string | null;
     agent_sql_scope: AgentSqlScope | null;
     content_as_code_sync_enabled: boolean | null;
+    content_as_code_write_back_enabled: boolean | null;
 };
 
 type CreateDbProject = Pick<
@@ -98,6 +99,7 @@ type UpdateDbProject = Partial<
         | 'provisioning_source'
         | 'agent_sql_scope'
         | 'content_as_code_sync_enabled'
+        | 'content_as_code_write_back_enabled'
     >
 >;
 

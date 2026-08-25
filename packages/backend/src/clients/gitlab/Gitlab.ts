@@ -339,6 +339,40 @@ export const createPullRequest = async ({
     };
 };
 
+export const findOpenMergeRequestBySourceBranch = async ({
+    owner,
+    repo,
+    sourceBranch,
+    token,
+    hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
+}: GitlabApiParams & { sourceBranch: string }): Promise<{
+    number: number;
+    html_url: string;
+    title: string;
+} | null> => {
+    const projectId = getProjectId(owner, repo);
+    const url = getApiUrl(
+        hostDomain,
+        `/projects/${projectId}/merge_requests?state=opened&source_branch=${encodeURIComponent(
+            sourceBranch,
+        )}&per_page=1`,
+    );
+    const mergeRequests = (await makeGitlabRequest(url, token)) as Array<{
+        iid: number;
+        web_url: string;
+        title: string;
+    }>;
+    const mergeRequest = mergeRequests[0];
+    if (!mergeRequest) {
+        return null;
+    }
+    return {
+        number: mergeRequest.iid,
+        html_url: mergeRequest.web_url,
+        title: mergeRequest.title,
+    };
+};
+
 const GITLAB_MR_BATCH_SIZE = 100;
 
 const mapGitlabMrState = (state: string): PullRequestState => {

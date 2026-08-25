@@ -1100,6 +1100,44 @@ export const createPullRequest = async ({
     }
 };
 
+export const findOpenPullRequestByHead = async ({
+    owner,
+    repo,
+    head,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    head: string;
+    installationId?: string;
+    token?: string;
+}): Promise<{ number: number; html_url: string; title: string } | null> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const response = await octokit.rest.pulls.list({
+            owner,
+            repo,
+            state: 'open',
+            head: `${owner}:${head}`,
+            per_page: 1,
+            headers,
+        });
+        const pullRequest = response.data[0];
+        if (!pullRequest) {
+            return null;
+        }
+        return {
+            number: pullRequest.number,
+            html_url: pullRequest.html_url,
+            title: pullRequest.title,
+        };
+    } catch (e) {
+        throw toGitWriteError(e);
+    }
+};
+
 export const updatePullRequest = async ({
     owner,
     repo,

@@ -853,6 +853,26 @@ export class ProjectModel {
             .where('project_uuid', projectUuid);
     }
 
+    async getContentAsCodeWriteBackEnabled(
+        projectUuid: string,
+    ): Promise<boolean> {
+        const [row] = await this.database(ProjectTableName)
+            .select('content_as_code_write_back_enabled')
+            .where('project_uuid', projectUuid);
+        return row?.content_as_code_write_back_enabled === true;
+    }
+
+    async setContentAsCodeWriteBackEnabled(
+        projectUuid: string,
+        enabled: boolean,
+    ): Promise<void> {
+        await this.database(ProjectTableName)
+            .update({
+                content_as_code_write_back_enabled: enabled,
+            })
+            .where('project_uuid', projectUuid);
+    }
+
     async getPreviewExpirationSettings(projectUuid: string): Promise<{
         defaultPreviewExpirationHours: number;
         maxPreviewExpirationHours: number;

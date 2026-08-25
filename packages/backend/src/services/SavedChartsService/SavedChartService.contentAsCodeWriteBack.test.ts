@@ -166,10 +166,13 @@ describe('SavedChartService - content-as-code write-back', () => {
             organizationUuid: 'org-uuid',
             projectUuid: 'project-uuid',
         })),
+        getContentAsCodeSyncEnabled: vi.fn(async () => true),
+        getContentAsCodeWriteBackEnabled: vi.fn(async () => true),
     };
     const spaceModel = {
         find: vi.fn(async () => spaces),
         getSpaceSummary: vi.fn(async () => ({ uuid: 'space-uuid' })),
+        isDefaultUserSpace: vi.fn(async () => false),
     };
     const dashboardModel = {
         getSlugsForUuids: vi.fn(async () => ({})),
@@ -182,6 +185,8 @@ describe('SavedChartService - content-as-code write-back', () => {
     };
 
     const writeBackService = new ContentAsCodeWriteBackService({
+        lightdashConfig: lightdashConfigMock,
+        projectModel: projectModel as unknown as ProjectModel,
         contentAsCodeAppliedRevisionModel:
             appliedRevisionModel as unknown as ContentAsCodeAppliedRevisionModel,
         contentVerificationModel:
@@ -222,6 +227,9 @@ describe('SavedChartService - content-as-code write-back', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         appliedRevisionModel.findBySlug.mockResolvedValue(undefined);
+        projectModel.getContentAsCodeSyncEnabled.mockResolvedValue(true);
+        projectModel.getContentAsCodeWriteBackEnabled.mockResolvedValue(true);
+        spaceModel.isDefaultUserSpace.mockResolvedValue(false);
         gitIntegrationService.writeBackContentAsCodeFile.mockResolvedValue({
             prTitle: 'Update chart `orders`',
             prUrl: 'https://example.com/pull/1',
@@ -252,8 +260,12 @@ describe('SavedChartService - content-as-code write-back', () => {
             expect.objectContaining({ userUuid: 'user-uuid' }),
             'project-uuid',
             expect.objectContaining({
-                filePath: 'lightdash/charts/orders.yml', // pragma: allowlist secret
+                slug: 'orders',
+                filePath: 'lightdash/charts/orders.yml',
                 title: 'Update chart `orders`',
+                description: expect.stringContaining(
+                    '/projects/project-uuid/saved/orders',
+                ),
             }),
         );
         const [{ content }] =
@@ -264,6 +276,36 @@ describe('SavedChartService - content-as-code write-back', () => {
         expect(content).toContain('slug: orders');
         expect(content).not.toContain('updatedAt');
         expect(content).not.toContain('downloadedAt');
+    });
+
+    it('does not write back when write_back is not enabled', async () => {
+        appliedRevisionModel.findBySlug.mockResolvedValue(appliedRevision);
+        projectModel.getContentAsCodeWriteBackEnabled.mockResolvedValue(false);
+
+        await service.createVersion(
+            fromSession(developerUser, 'session-cookie'),
+            'chart-uuid',
+            versionPayload,
+        );
+
+        expect(
+            gitIntegrationService.writeBackContentAsCodeFile,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('does not write back charts in personal spaces', async () => {
+        appliedRevisionModel.findBySlug.mockResolvedValue(appliedRevision);
+        spaceModel.isDefaultUserSpace.mockResolvedValue(true);
+
+        await service.createVersion(
+            fromSession(developerUser, 'session-cookie'),
+            'chart-uuid',
+            versionPayload,
+        );
+
+        expect(
+            gitIntegrationService.writeBackContentAsCodeFile,
+        ).not.toHaveBeenCalled();
     });
 
     it('does not write unmanaged charts back to git', async () => {

@@ -1024,6 +1024,8 @@ export class ServiceRepository
                     organizationModel: this.models.getOrganizationModel(),
                     contentAsCodeWriteBackService:
                         new ContentAsCodeWriteBackService({
+                            lightdashConfig: this.context.lightdashConfig,
+                            projectModel: this.models.getProjectModel(),
                             contentAsCodeAppliedRevisionModel:
                                 this.models.getContentAsCodeAppliedRevisionModel(),
                             contentVerificationModel:
