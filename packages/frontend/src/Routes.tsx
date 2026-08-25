@@ -230,6 +230,22 @@ const MINIMAL_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: '/minimal/projects/:projectUuid/ai-agents/:agentUuid/artifacts/:artifactUuid/versions/:versionUuid',
+                lazy: async () => {
+                    const MinimalAiAgentArtifact = await loadLazyRouteDefault(
+                        './ee/pages/MinimalAiAgentArtifact',
+                        () => import('./ee/pages/MinimalAiAgentArtifact'),
+                    );
+                    return {
+                        Component: () => (
+                            <Stack p="lg" h="100vh">
+                                <MinimalAiAgentArtifact />
+                            </Stack>
+                        ),
+                    };
+                },
+            },
+            {
                 path: '/minimal/projects/:projectUuid/apps/:appUuid',
                 lazy: async () => {
                     const MinimalApp = await loadLazyRouteDefault(
