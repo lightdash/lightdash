@@ -1,6 +1,7 @@
 import {
     ForbiddenError,
     type RegisteredAccount,
+    type SessionUser,
     type SpaceMemberRole,
     type UUID,
 } from '@lightdash/common';
@@ -242,6 +243,34 @@ export class DirectAccessService extends BaseService {
         const directAccess = await this.getModel(resourceType).getUserAccess(
             Object.keys(resources),
             account.user.userUuid,
+            { organizationUuid },
+        );
+        return resolveDirectAccessBatch({
+            resources,
+            directAccess,
+            organizationUuid,
+        });
+    }
+
+    async resolveUserAccessForSessionUser({
+        user,
+        resourceType,
+        resources,
+    }: {
+        user: SessionUser;
+        resourceType: DirectAccessResourceType;
+        resources: DirectAccessResources;
+    }): Promise<Record<string, SpaceMemberRole | undefined>> {
+        const { organizationUuid } = user;
+        if (
+            organizationUuid === undefined ||
+            !(await this.featureGate.isEnabledForSessionUser(user))
+        ) {
+            return getLogicalAccessBatch(resources);
+        }
+        const directAccess = await this.getModel(resourceType).getUserAccess(
+            Object.keys(resources),
+            user.userUuid,
             { organizationUuid },
         );
         return resolveDirectAccessBatch({

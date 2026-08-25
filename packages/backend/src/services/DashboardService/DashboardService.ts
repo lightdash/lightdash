@@ -18,6 +18,7 @@ import {
     ExportContentRequest,
     ForbiddenError,
     generateSlug,
+    getHighestSpaceRole,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
     isDashboardChartTileType,
@@ -41,6 +42,7 @@ import {
     SchedulerRun,
     SchedulerRunStatus,
     SessionUser,
+    SpaceMemberRole,
     TogglePinnedItemInfo,
     UpdateDashboard,
     UpdateMultipleDashboards,
@@ -57,6 +59,7 @@ import {
     type DuplicateDashboardParams,
     type Explore,
     type ExploreError,
+    type SpaceAccess,
     type UUID,
     type UuidOrSlug,
 } from '@lightdash/common';
@@ -90,6 +93,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { createTwoColumnTiles } from '../../utils/dashboardTileUtils';
 import { BaseService } from '../BaseService';
+import { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -119,6 +123,7 @@ type DashboardServiceArguments = {
     organizationModel: OrganizationModel;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
+    directAccessService: DirectAccessService;
 };
 
 export class DashboardService
@@ -162,6 +167,8 @@ export class DashboardService
     spacePermissionService: SpacePermissionService;
 
     contentVerificationModel: ContentVerificationModel;
+
+    directAccessService: DirectAccessService;
 
     async scheduleExportContent(
         account: Account,
@@ -277,6 +284,7 @@ export class DashboardService
         organizationModel,
         spacePermissionService,
         contentVerificationModel,
+        directAccessService,
     }: DashboardServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -298,6 +306,109 @@ export class DashboardService
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
+        this.directAccessService = directAccessService;
+    }
+
+    private static getAccessForRole(
+        user: SessionUser,
+        logicalAccess: SpaceAccess | undefined,
+        role: SpaceMemberRole,
+    ): SpaceAccess[] {
+        return [
+            {
+                userUuid: user.userUuid,
+                role,
+                hasDirectAccess: false,
+                projectRole: logicalAccess?.projectRole,
+                inheritedRole: logicalAccess?.inheritedRole,
+                inheritedFrom: logicalAccess?.inheritedFrom,
+            },
+        ];
+    }
+
+    private getDashboardCapabilityCeiling(
+        user: SessionUser,
+        dashboard: DashboardDAO,
+        spaceContext: Awaited<
+            ReturnType<SpacePermissionService['getSpaceAccessContext']>
+        >,
+        logicalAccess: SpaceAccess | undefined,
+    ): SpaceMemberRole | null {
+        const auditedAbility = this.createAuditedAbility(user);
+        const can = (action: AbilityAction, role: SpaceMemberRole) =>
+            auditedAbility.can(
+                action,
+                subject('Dashboard', {
+                    ...dashboard,
+                    ...spaceContext,
+                    access: DashboardService.getAccessForRole(
+                        user,
+                        logicalAccess,
+                        role,
+                    ),
+                }),
+            );
+
+        if (can('manage', SpaceMemberRole.ADMIN)) {
+            return SpaceMemberRole.ADMIN;
+        }
+        if (can('manage', SpaceMemberRole.EDITOR)) {
+            return SpaceMemberRole.EDITOR;
+        }
+        if (can('view', SpaceMemberRole.VIEWER)) {
+            return SpaceMemberRole.VIEWER;
+        }
+        return null;
+    }
+
+    private async getDashboardReadContext(
+        user: SessionUser,
+        dashboard: DashboardDAO,
+    ) {
+        const spaceContext =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboard.spaceUuid,
+            );
+        const logicalAccess = spaceContext.access.find(
+            ({ userUuid }) => userUuid === user.userUuid,
+        );
+        const logicalRole = getHighestSpaceRole(
+            spaceContext.access
+                .filter(({ userUuid }) => userUuid === user.userUuid)
+                .map(({ role }) => role),
+        );
+        const capabilityCeiling = this.getDashboardCapabilityCeiling(
+            user,
+            dashboard,
+            spaceContext,
+            logicalAccess,
+        );
+        const effectiveRole = (
+            await this.directAccessService.resolveUserAccessForSessionUser({
+                user,
+                resourceType: 'dashboard',
+                resources: {
+                    [dashboard.uuid]: {
+                        logicalRole,
+                        capabilityCeiling,
+                    },
+                },
+            })
+        )[dashboard.uuid];
+
+        return {
+            ...spaceContext,
+            access: effectiveRole
+                ? DashboardService.getAccessForRole(
+                      user,
+                      logicalAccess,
+                      effectiveRole,
+                  )
+                : [],
+            isDirectOnly:
+                logicalRole === undefined && effectiveRole !== undefined,
+        };
     }
 
     async verifyDashboard(
@@ -603,15 +714,12 @@ export class DashboardService
             },
         );
 
-        const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboardDao.spaceUuid,
-            );
+        const { isDirectOnly, ...accessContext } =
+            await this.getDashboardReadContext(user, dashboardDao);
         const dashboard = {
             ...dashboardDao,
-            inheritsFromOrgOrProject,
-            access,
+            ...accessContext,
+            spaceName: isDirectOnly ? '' : dashboardDao.spaceName,
         };
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -633,8 +741,14 @@ export class DashboardService
             );
         }
 
+        this.recordDashboardView(user.userUuid, dashboard);
+
+        return dashboard;
+    }
+
+    private recordDashboardView(userUuid: UUID, dashboard: Dashboard): void {
         void this.analyticsModel
-            .addDashboardViewEvent(dashboard.uuid, user.userUuid)
+            .addDashboardViewEvent(dashboard.uuid, userUuid)
             .catch((err) => {
                 this.logger.warn('dashboard view event failed', {
                     dashboardUuid: dashboard.uuid,
@@ -644,7 +758,7 @@ export class DashboardService
 
         this.analytics.track({
             event: 'dashboard.view',
-            userId: user.userUuid,
+            userId: userUuid,
             properties: {
                 dashboardId: dashboard.uuid,
                 organizationId: dashboard.organizationUuid,
@@ -661,8 +775,6 @@ export class DashboardService
                 err: err instanceof Error ? err.message : String(err),
             });
         });
-
-        return dashboard;
     }
 
     async getDashboardCharts(
@@ -2461,19 +2573,15 @@ export class DashboardService
     ): Promise<DashboardHistory> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
-        const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboardDao.spaceUuid,
-            );
+        const { isDirectOnly: _isDirectOnly, ...accessContext } =
+            await this.getDashboardReadContext(user, dashboardDao);
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
                 'manage',
                 subject('Dashboard', {
                     ...dashboardDao,
-                    inheritsFromOrgOrProject,
-                    access,
+                    ...accessContext,
                     metadata: {
                         dashboardUuid: dashboardDao.uuid,
                         dashboardName: dashboardDao.name,
@@ -2510,19 +2618,15 @@ export class DashboardService
     ): Promise<DashboardVersion> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
-        const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboardDao.spaceUuid,
-            );
+        const { isDirectOnly, ...accessContext } =
+            await this.getDashboardReadContext(user, dashboardDao);
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
                 'view',
                 subject('Dashboard', {
                     ...dashboardDao,
-                    inheritsFromOrgOrProject,
-                    access,
+                    ...accessContext,
                     metadata: {
                         dashboardUuid: dashboardDao.uuid,
                         dashboardName: dashboardDao.name,
@@ -2560,8 +2664,8 @@ export class DashboardService
             config: dashboard.config,
             updatedAt: dashboard.updatedAt,
             updatedByUser: dashboard.updatedByUser,
-            inheritsFromOrgOrProject,
-            access,
+            ...accessContext,
+            spaceName: isDirectOnly ? '' : dashboardDao.spaceName,
         };
 
         // Check if this is the current version

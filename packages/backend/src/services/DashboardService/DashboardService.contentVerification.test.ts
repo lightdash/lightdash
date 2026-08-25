@@ -21,6 +21,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SchedulerService } from '../SchedulerService/SchedulerService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -115,6 +116,7 @@ describe('DashboardService - Content Verification', () => {
         spacePermissionService: {} as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
+        directAccessService: {} as unknown as DirectAccessService,
     });
 
     afterEach(() => {

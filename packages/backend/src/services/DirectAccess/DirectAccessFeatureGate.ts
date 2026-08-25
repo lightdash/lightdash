@@ -3,6 +3,7 @@ import {
     ForbiddenError,
     getErrorMessage,
     type RegisteredAccount,
+    type SessionUser,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -33,6 +34,32 @@ export class DirectAccessFeatureGate {
         } catch (error) {
             // Fail closed, but keep fault-denials distinguishable from
             // policy denials in the logs.
+            Logger.warn(
+                `Direct access flag resolution failed; failing closed: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            return false;
+        }
+    }
+
+    async isEnabledForSessionUser(user: SessionUser): Promise<boolean> {
+        if (
+            user.organizationUuid === undefined ||
+            !this.licenseService.getLicenseStatus().valid
+        ) {
+            return false;
+        }
+        try {
+            const featureFlag = await this.featureFlagModel.get({
+                featureFlagId: CommercialFeatureFlags.DirectAccess,
+                user: {
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                },
+            });
+            return featureFlag.enabled;
+        } catch (error) {
             Logger.warn(
                 `Direct access flag resolution failed; failing closed: ${getErrorMessage(
                     error,

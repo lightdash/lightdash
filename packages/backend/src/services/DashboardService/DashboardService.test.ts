@@ -12,6 +12,7 @@ import {
     SCHEDULER_TASKS,
     SchedulerFormat,
     SessionUser,
+    SpaceMemberRole,
     type Account,
     type ContentVerificationInfo,
     type Dashboard,
@@ -36,6 +37,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -140,6 +142,25 @@ const contentVerificationModel = {
     unverify: vi.fn(async () => undefined),
 };
 
+const directAccessService = {
+    resolveUserAccessForSessionUser: vi.fn(
+        async ({
+            resources,
+        }: {
+            resources: Record<
+                string,
+                { logicalRole: SpaceMemberRole | undefined }
+            >;
+        }) =>
+            Object.fromEntries(
+                Object.entries(resources).map(([resourceUuid, resource]) => [
+                    resourceUuid,
+                    resource.logicalRole,
+                ]),
+            ),
+    ),
+};
+
 const spaceContexts = {
     [space.space_uuid]: {
         organizationUuid: space.organization_uuid,
@@ -207,6 +228,8 @@ describe('DashboardService', () => {
             spacePermissionService as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
+        directAccessService:
+            directAccessService as unknown as DirectAccessService,
     });
     afterEach(() => {
         vi.clearAllMocks();
@@ -243,6 +266,134 @@ describe('DashboardService', () => {
             dashboard.uuid,
             { projectUuid: undefined },
         );
+    });
+
+    test('should load a private dashboard through direct access without exposing its space name', async () => {
+        const directViewer = {
+            ...user,
+            ability: defineUserAbility(
+                {
+                    ...user,
+                    organizationUuid: 'another-org-uuid',
+                },
+                [
+                    {
+                        projectUuid,
+                        role: ProjectMemberRole.VIEWER,
+                        userUuid: user.userUuid,
+                        roleUuid: undefined,
+                    },
+                ],
+            ),
+        };
+        const privateDashboard = {
+            ...dashboard,
+            spaceUuid: privateSpace.uuid,
+            spaceName: 'Private finance',
+        };
+        dashboardModel.getByIdOrSlug.mockResolvedValueOnce(privateDashboard);
+        directAccessService.resolveUserAccessForSessionUser.mockResolvedValueOnce(
+            {
+                [privateDashboard.uuid]: SpaceMemberRole.VIEWER,
+            },
+        );
+
+        const result = await service.getByIdOrSlug(
+            directViewer,
+            privateDashboard.uuid,
+        );
+
+        expect(result).toMatchObject({
+            uuid: privateDashboard.uuid,
+            spaceUuid: privateSpace.uuid,
+            spaceName: '',
+            access: [
+                {
+                    userUuid: user.userUuid,
+                    role: SpaceMemberRole.VIEWER,
+                    hasDirectAccess: false,
+                },
+            ],
+        });
+        expect(
+            directAccessService.resolveUserAccessForSessionUser,
+        ).toHaveBeenCalledWith({
+            user: expect.objectContaining({ userUuid: user.userUuid }),
+            resourceType: 'dashboard',
+            resources: {
+                [privateDashboard.uuid]: {
+                    logicalRole: undefined,
+                    capabilityCeiling: SpaceMemberRole.VIEWER,
+                },
+            },
+        });
+    });
+
+    test('should deny the same private dashboard without effective direct access', async () => {
+        const directViewer = {
+            ...user,
+            ability: defineUserAbility(
+                {
+                    ...user,
+                    organizationUuid: 'another-org-uuid',
+                },
+                [
+                    {
+                        projectUuid,
+                        role: ProjectMemberRole.VIEWER,
+                        userUuid: user.userUuid,
+                        roleUuid: undefined,
+                    },
+                ],
+            ),
+        };
+        const privateDashboard = {
+            ...dashboard,
+            spaceUuid: privateSpace.uuid,
+            spaceName: 'Private finance',
+        };
+        dashboardModel.getByIdOrSlug.mockResolvedValueOnce(privateDashboard);
+        directAccessService.resolveUserAccessForSessionUser.mockResolvedValueOnce(
+            {
+                [privateDashboard.uuid]: undefined,
+            },
+        );
+
+        await expect(
+            service.getByIdOrSlug(directViewer, privateDashboard.uuid),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    test('should keep the space name when dashboard access is inherited', async () => {
+        const inheritedAccess = {
+            userUuid: user.userUuid,
+            role: SpaceMemberRole.VIEWER,
+            hasDirectAccess: false,
+            projectRole: ProjectMemberRole.VIEWER,
+            inheritedRole: ProjectMemberRole.VIEWER,
+            inheritedFrom: 'project' as const,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email!,
+            isInternal: false,
+            avatarUrl: null,
+            avatarGradient: null,
+        };
+        spacePermissionService.getSpaceAccessContext.mockResolvedValueOnce({
+            ...spaceContexts[publicSpace.uuid],
+            access: [inheritedAccess],
+        });
+
+        const result = await service.getByIdOrSlug(user, dashboard.uuid);
+
+        expect(result.spaceName).toBe(dashboard.spaceName);
+        expect(result.access).toEqual([
+            expect.objectContaining({
+                userUuid: inheritedAccess.userUuid,
+                role: inheritedAccess.role,
+                inheritedFrom: inheritedAccess.inheritedFrom,
+            }),
+        ]);
     });
 
     test('should forward the applied parameter values when exporting content', async () => {

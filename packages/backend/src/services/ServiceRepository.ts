@@ -30,6 +30,8 @@ import { ContentVerificationService } from './ContentVerificationService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DeployService } from './DeployService';
+import { DirectAccessFeatureGate } from './DirectAccess/DirectAccessFeatureGate';
+import { DirectAccessService } from './DirectAccess/DirectAccessService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
 import { EmailWhitelabelService } from './EmailWhitelabelService/EmailWhitelabelService';
 import { FavoritesService } from './FavoritesService/FavoritesService';
@@ -97,6 +99,7 @@ interface ServiceManifest {
     commentService: CommentService;
     csvService: CsvService;
     dashboardService: DashboardService;
+    directAccessService: DirectAccessService;
     deployService: DeployService;
     downloadFileService: DownloadFileService;
     favoritesService: FavoritesService;
@@ -440,6 +443,30 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
+                    directAccessService: this.getDirectAccessService(),
+                }),
+        );
+    }
+
+    public getDirectAccessService(): DirectAccessService {
+        return this.getService(
+            'directAccessService',
+            () =>
+                new DirectAccessService({
+                    models: {
+                        dashboard: this.models.getDashboardAccessModel(),
+                        savedChart: this.models.getSavedChartAccessModel(),
+                        savedSql: this.models.getSavedSqlAccessModel(),
+                        app: this.models.getAppAccessModel(),
+                    },
+                    featureGate: new DirectAccessFeatureGate(
+                        this.models.getFeatureFlagModel(),
+                        this.getLicenseService(),
+                    ),
+                    // Read paths are available before Stack 5 wires the
+                    // authoritative transactional mutation resolver. Returning
+                    // no actor role keeps every write fail-closed meanwhile.
+                    actorRoleResolver: async () => undefined,
                 }),
         );
     }
