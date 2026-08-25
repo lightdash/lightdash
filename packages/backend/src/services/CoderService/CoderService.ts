@@ -22,6 +22,7 @@ import {
     ChartScheduledDeliveryAsCode,
     ChartSummary,
     ContentAsCodeAppliedRevisionInput,
+    ContentAsCodeSnapshotType,
     ContentAsCodeSyncStatus,
     ContentAsCodeType,
     ContentSlugRenameRequest,
@@ -52,8 +53,8 @@ import {
     getContentAsCodePathFromLtreePath,
     getLtreePathFromContentAsCodePath,
     getParameterReferences,
-    isAccount,
     isChartScheduler,
+    isContentAsCodeSnapshotType,
     isDashboardScheduler,
     isEmailTarget,
     isExploreError,
@@ -141,7 +142,7 @@ import {
 import { normalizeFilterIds, stripFilterIds } from './filterIds';
 import {
     hashContentAsCodeDocument,
-    isContentAsCodeContentHash,
+    toCanonicalContentAsCodeSnapshot,
 } from './contentAsCodeHash';
 import { ScheduledContentCoder } from './handlers/ScheduledContentCoder';
 import { VirtualViewCoder } from './handlers/VirtualViewCoder';
@@ -324,23 +325,13 @@ export class CoderService extends BaseService {
         virtualView: VirtualViewAsCode,
         force = false,
     ): Promise<ApiVirtualViewAsCodeUpsertResponse['results']> {
-        const result = await this.virtualViewCoder.upsert(
+        return this.virtualViewCoder.upsert(
             account,
             projectUuid,
             slug,
             virtualView,
             force,
         );
-        await this.recordAppliedRevision({
-            userUuid: isAccount(account)
-                ? account.user.userUuid
-                : (account as unknown as SessionUser).userUuid,
-            projectUuid,
-            contentType: ContentAsCodeType.VIRTUAL_VIEW,
-            slug,
-            document: virtualView,
-        });
-        return result;
     }
 
     private static handleContentAsCodeSqlPermissionChecks({
@@ -1196,13 +1187,6 @@ export class CoderService extends BaseService {
                     `You don't have permission to view space "${desiredSpace.slug}"`,
                 );
             }
-            await this.recordAppliedRevision({
-                userUuid: user.userUuid,
-                projectUuid,
-                contentType: ContentAsCodeType.SPACE,
-                slug: desiredSpace.slug,
-                document: desiredSpace,
-            });
             return { action: SpaceAsCodeAction.NO_CHANGES };
         }
 
@@ -1302,13 +1286,6 @@ export class CoderService extends BaseService {
             accessChanged = !isEqual(currentAccess, desiredSpace.access);
         }
         if (existingSpace && !metadataChanged && !accessChanged) {
-            await this.recordAppliedRevision({
-                userUuid: user.userUuid,
-                projectUuid,
-                contentType: ContentAsCodeType.SPACE,
-                slug: desiredSpace.slug,
-                document: desiredSpace,
-            });
             return { action: SpaceAsCodeAction.NO_CHANGES };
         }
 
@@ -1422,13 +1399,6 @@ export class CoderService extends BaseService {
             },
         });
 
-        await this.recordAppliedRevision({
-            userUuid: user.userUuid,
-            projectUuid,
-            contentType: ContentAsCodeType.SPACE,
-            slug: desiredSpace.slug,
-            document: desiredSpace,
-        });
         return {
             action: existingSpace
                 ? SpaceAsCodeAction.UPDATE
@@ -2583,22 +2553,13 @@ export class CoderService extends BaseService {
         | ApiAlertAsCodeUpsertResponse['results']
         | ApiGoogleSheetsSyncAsCodeUpsertResponse['results']
     > {
-        const result =
-            await this.scheduledContentCoder.upsertScheduledDelivery(
-                user,
-                projectUuid,
-                slug,
-                delivery,
-                force,
-            );
-        await this.recordAppliedRevision({
-            userUuid: user.userUuid,
+        return this.scheduledContentCoder.upsertScheduledDelivery(
+            user,
             projectUuid,
-            contentType: delivery.contentType,
             slug,
-            document: delivery,
-        });
-        return result;
+            delivery,
+            force,
+        );
     }
 
     async getContentAsCodeSyncStatus(
@@ -2637,11 +2598,10 @@ export class CoderService extends BaseService {
             slug: 'applied-revisions',
         });
 
-        const uniqueTypes = new Set(Object.values(ContentAsCodeType));
         const normalized = revisions.map((revision, index) => {
-            if (!uniqueTypes.has(revision.contentType)) {
+            if (!isContentAsCodeSnapshotType(revision.contentType)) {
                 throw new ParameterError(
-                    `revisions[${index}].contentType is not a valid content-as-code type`,
+                    `revisions[${index}].contentType must be chart or dashboard`,
                 );
             }
             if (!revision.slug || revision.slug.trim().length === 0) {
@@ -2649,15 +2609,21 @@ export class CoderService extends BaseService {
                     `revisions[${index}].slug must not be empty`,
                 );
             }
-            if (!isContentAsCodeContentHash(revision.contentHash)) {
+            if (
+                revision.snapshot === null ||
+                typeof revision.snapshot !== 'object' ||
+                Array.isArray(revision.snapshot)
+            ) {
                 throw new ParameterError(
-                    `revisions[${index}].contentHash must be a sha256 hex digest`,
+                    `revisions[${index}].snapshot must be an object`,
                 );
             }
+            const snapshot = toCanonicalContentAsCodeSnapshot(revision.snapshot);
             return {
                 contentType: revision.contentType,
                 slug: revision.slug,
-                contentHash: revision.contentHash,
+                snapshot,
+                contentHash: hashContentAsCodeDocument(snapshot),
             };
         });
 
@@ -3337,13 +3303,6 @@ export class CoderService extends BaseService {
                     : [],
                 dashboards: [],
             };
-            await this.recordAppliedRevision({
-                userUuid: user.userUuid,
-                projectUuid,
-                contentType: ContentAsCodeType.SQL_CHART,
-                slug,
-                document: sqlChartAsCode,
-            });
             return promotionChanges;
         }
 
@@ -3390,13 +3349,6 @@ export class CoderService extends BaseService {
                 : [],
             dashboards: [],
         };
-        await this.recordAppliedRevision({
-            userUuid: user.userUuid,
-            projectUuid,
-            contentType: ContentAsCodeType.SQL_CHART,
-            slug,
-            document: sqlChartAsCode,
-        });
         return promotionChanges;
     }
 
@@ -3497,13 +3449,14 @@ export class CoderService extends BaseService {
     }: {
         userUuid: string;
         projectUuid: string;
-        contentType: ContentAsCodeType;
+        contentType: ContentAsCodeSnapshotType;
         slug: string;
         document: unknown;
     }): Promise<void> {
         if (!this.contentAsCodeAppliedRevisionModel) {
             return;
         }
+        const snapshot = toCanonicalContentAsCodeSnapshot(document);
         await this.contentAsCodeAppliedRevisionModel.upsertMany(
             projectUuid,
             userUuid,
@@ -3511,7 +3464,8 @@ export class CoderService extends BaseService {
                 {
                     contentType,
                     slug,
-                    contentHash: hashContentAsCodeDocument(document),
+                    snapshot,
+                    contentHash: hashContentAsCodeDocument(snapshot),
                 },
             ],
         );

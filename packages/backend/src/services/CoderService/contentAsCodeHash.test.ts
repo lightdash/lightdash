@@ -2,6 +2,7 @@ import {
     hashContentAsCodeDocument,
     isContentAsCodeContentHash,
     stableStringifyContentAsCode,
+    toCanonicalContentAsCodeSnapshot,
 } from './contentAsCodeHash';
 
 describe('contentAsCodeHash', () => {
@@ -11,7 +12,7 @@ describe('contentAsCodeHash', () => {
         );
     });
 
-    it('omits instance-local fields so download and upload hashes can match', () => {
+    it('strips downloadedAt and updatedAt the same way CLI download does', () => {
         const uploaded = {
             slug: 'orders',
             name: 'Orders',
@@ -21,10 +22,9 @@ describe('contentAsCodeHash', () => {
             ...uploaded,
             downloadedAt: new Date('2026-08-25T00:00:00.000Z'),
             updatedAt: new Date('2026-08-24T00:00:00.000Z'),
-            verification: { verified: true },
-            uuid: 'chart-uuid',
         };
 
+        expect(toCanonicalContentAsCodeSnapshot(downloaded)).toEqual(uploaded);
         expect(hashContentAsCodeDocument(uploaded)).toBe(
             hashContentAsCodeDocument(downloaded),
         );

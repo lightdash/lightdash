@@ -1,17 +1,28 @@
-import type { ContentAsCodeType } from './core';
+import { ContentAsCodeType } from './core';
+
+export const CONTENT_AS_CODE_SNAPSHOT_TYPES = [
+    ContentAsCodeType.CHART,
+    ContentAsCodeType.DASHBOARD,
+] as const;
+
+export type ContentAsCodeSnapshotType =
+    (typeof CONTENT_AS_CODE_SNAPSHOT_TYPES)[number];
+
+export type ContentAsCodeSnapshot = Record<string, unknown>;
 
 export type ContentAsCodeAppliedRevision = {
-    contentType: ContentAsCodeType;
+    contentType: ContentAsCodeSnapshotType;
     slug: string;
     contentHash: string;
+    snapshot: ContentAsCodeSnapshot;
     appliedAt: Date;
     appliedByUserUuid: string | null;
 };
 
 export type ContentAsCodeAppliedRevisionInput = {
-    contentType: ContentAsCodeType;
+    contentType: ContentAsCodeSnapshotType;
     slug: string;
-    contentHash: string;
+    snapshot: ContentAsCodeSnapshot;
 };
 
 export type UpsertContentAsCodeAppliedRevisionsRequest = {
@@ -33,3 +44,8 @@ export type ApiUpsertContentAsCodeAppliedRevisionsResponse = {
     status: 'ok';
     results: ContentAsCodeSyncStatus;
 };
+
+export const isContentAsCodeSnapshotType = (
+    value: string,
+): value is ContentAsCodeSnapshotType =>
+    (CONTENT_AS_CODE_SNAPSHOT_TYPES as readonly string[]).includes(value);

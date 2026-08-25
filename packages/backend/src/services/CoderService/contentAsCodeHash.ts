@@ -1,48 +1,53 @@
 import { createHash } from 'crypto';
 
-const CONTENT_AS_CODE_VOLATILE_KEYS = new Set([
-    'downloadedAt',
-    'updatedAt',
-    'verification',
-    'uuid',
-]);
+const CONTENT_AS_CODE_TIMESTAMP_KEYS = new Set(['downloadedAt', 'updatedAt']);
 
 const CONTENT_AS_CODE_HASH_PATTERN = /^[a-f0-9]{64}$/;
 
 export const isContentAsCodeContentHash = (value: string): boolean =>
     CONTENT_AS_CODE_HASH_PATTERN.test(value);
 
-export const stableStringifyContentAsCode = (value: unknown): string => {
+const toCanonicalValue = (value: unknown): unknown => {
     if (value instanceof Date) {
-        return JSON.stringify(value.toISOString());
+        return value.toISOString();
     }
     if (value === null || typeof value !== 'object') {
-        return JSON.stringify(value);
+        return value;
     }
     if (Array.isArray(value)) {
-        return `[${value
-            .map((item) => stableStringifyContentAsCode(item))
-            .join(',')}]`;
+        return value.map((item) => toCanonicalValue(item));
     }
 
     const record = value as Record<string, unknown>;
-    const keys = Object.keys(record)
+    const canonical: Record<string, unknown> = {};
+    for (const key of Object.keys(record)
         .filter(
             (key) =>
-                !CONTENT_AS_CODE_VOLATILE_KEYS.has(key) &&
+                !CONTENT_AS_CODE_TIMESTAMP_KEYS.has(key) &&
                 record[key] !== undefined,
         )
-        .sort();
-
-    return `{${keys
-        .map(
-            (key) =>
-                `${JSON.stringify(key)}:${stableStringifyContentAsCode(
-                    record[key],
-                )}`,
-        )
-        .join(',')}}`;
+        .sort()) {
+        canonical[key] = toCanonicalValue(record[key]);
+    }
+    return canonical;
 };
+
+export const toCanonicalContentAsCodeSnapshot = (
+    document: unknown,
+): Record<string, unknown> => {
+    const canonical = toCanonicalValue(document);
+    if (
+        canonical === null ||
+        typeof canonical !== 'object' ||
+        Array.isArray(canonical)
+    ) {
+        throw new Error('Content-as-code snapshot must be an object');
+    }
+    return canonical as Record<string, unknown>;
+};
+
+export const stableStringifyContentAsCode = (value: unknown): string =>
+    JSON.stringify(toCanonicalValue(value));
 
 export const hashContentAsCodeDocument = (document: unknown): string =>
     createHash('sha256')

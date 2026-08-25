@@ -112,12 +112,14 @@ describe('CoderService applied revisions', () => {
         expect(appliedRevisionModel.listByProject).not.toHaveBeenCalled();
     });
 
-    it('stores valid revisions and returns the latest applied timestamp', async () => {
+    it('stores the canonical snapshot and hash, then returns the latest applied timestamp', async () => {
         const appliedAt = new Date('2026-08-25T12:00:00.000Z');
+        const snapshot = { slug: 'orders', name: 'Orders' };
         const revision = {
             contentType: ContentAsCodeType.CHART,
             slug: 'orders',
-            contentHash: hashContentAsCodeDocument({ slug: 'orders' }),
+            contentHash: hashContentAsCodeDocument(snapshot),
+            snapshot,
             appliedAt,
             appliedByUserUuid: USER_UUID,
         };
@@ -135,7 +137,10 @@ describe('CoderService applied revisions', () => {
                     {
                         contentType: ContentAsCodeType.CHART,
                         slug: 'orders',
-                        contentHash: revision.contentHash,
+                        snapshot: {
+                            ...snapshot,
+                            updatedAt: new Date('2026-08-24T00:00:00.000Z'),
+                        },
                     },
                 ],
             ),
@@ -151,13 +156,14 @@ describe('CoderService applied revisions', () => {
                 {
                     contentType: ContentAsCodeType.CHART,
                     slug: 'orders',
+                    snapshot,
                     contentHash: revision.contentHash,
                 },
             ],
         );
     });
 
-    it('rejects invalid content hashes on write', async () => {
+    it('rejects snapshots that are not charts or dashboards', async () => {
         const appliedRevisionModel = {
             upsertMany: vi.fn(),
             listByProject: vi.fn(),
@@ -170,10 +176,10 @@ describe('CoderService applied revisions', () => {
                 PROJECT_UUID,
                 [
                     {
-                        contentType: ContentAsCodeType.CHART,
-                        slug: 'orders',
-                        contentHash: 'not-a-hash',
-                    },
+                        contentType: ContentAsCodeType.SPACE,
+                        slug: 'finance',
+                        snapshot: { slug: 'finance' },
+                    } as never,
                 ],
             ),
         ).rejects.toBeInstanceOf(ParameterError);

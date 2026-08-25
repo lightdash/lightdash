@@ -27,7 +27,8 @@ export async function up(knex: Knex): Promise<void> {
                 .index();
             table.text('content_type').notNullable();
             table.text('slug').notNullable();
-            table.text('content_hash').notNullable();
+            table.jsonb('snapshot').notNullable();
+            table.text('snapshot_hash').notNullable();
             table
                 .timestamp('applied_at', { useTz: true })
                 .notNullable()

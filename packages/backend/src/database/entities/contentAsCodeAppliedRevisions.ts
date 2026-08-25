@@ -8,7 +8,8 @@ export type DbContentAsCodeAppliedRevision = {
     project_uuid: string;
     content_type: string;
     slug: string;
-    content_hash: string;
+    snapshot: Record<string, unknown>;
+    snapshot_hash: string;
     applied_at: Date;
     applied_by_user_uuid: string | null;
 };
@@ -20,7 +21,8 @@ export type ContentAsCodeAppliedRevisionsTable = Knex.CompositeTableType<
         | 'project_uuid'
         | 'content_type'
         | 'slug'
-        | 'content_hash'
+        | 'snapshot'
+        | 'snapshot_hash'
         | 'applied_at'
         | 'applied_by_user_uuid'
     >
