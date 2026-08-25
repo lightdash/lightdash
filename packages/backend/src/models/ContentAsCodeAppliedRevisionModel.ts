@@ -88,4 +88,21 @@ export class ContentAsCodeAppliedRevisionModel {
 
         return rows.map(mapDbRevision);
     }
+
+    async findBySlug(
+        projectUuid: string,
+        contentType: ContentAsCodeSnapshotType,
+        slug: string,
+    ): Promise<ContentAsCodeAppliedRevision | undefined> {
+        const row = await this.database(ContentAsCodeAppliedRevisionsTableName)
+            .select('*')
+            .where({
+                project_uuid: projectUuid,
+                content_type: contentType,
+                slug,
+            })
+            .first();
+
+        return row ? mapDbRevision(row) : undefined;
+    }
 }

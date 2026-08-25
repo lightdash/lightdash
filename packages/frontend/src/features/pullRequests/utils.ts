@@ -26,6 +26,8 @@ export const getSourceLabel = (source: PullRequestSource): string => {
             return 'Source editor';
         case PullRequestSource.AI_AGENT:
             return 'AI agent';
+        case PullRequestSource.CONTENT_AS_CODE:
+            return 'Content as code';
         default:
             return assertUnreachable(source, `Unknown source ${source}`);
     }
@@ -62,6 +64,8 @@ export const getSourceColor = (source: PullRequestSource): string => {
             return 'orange';
         case PullRequestSource.AI_AGENT:
             return 'indigo';
+        case PullRequestSource.CONTENT_AS_CODE:
+            return 'teal';
         default:
             return assertUnreachable(source, `Unknown source ${source}`);
     }

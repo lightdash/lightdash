@@ -24,6 +24,7 @@ import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
 import { CiService } from './CiService/CiService';
 import { CoderService } from './CoderService/CoderService';
+import { ContentAsCodeWriteBackService } from './CoderService/ContentAsCodeWriteBackService';
 import { CommentService } from './CommentService/CommentService';
 import { ContentService } from './ContentService/ContentService';
 import { ContentVerificationService } from './ContentVerificationService';
@@ -1021,6 +1022,17 @@ export class ServiceRepository
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                     organizationModel: this.models.getOrganizationModel(),
+                    contentAsCodeWriteBackService:
+                        new ContentAsCodeWriteBackService({
+                            contentAsCodeAppliedRevisionModel:
+                                this.models.getContentAsCodeAppliedRevisionModel(),
+                            contentVerificationModel:
+                                this.models.getContentVerificationModel(),
+                            dashboardModel: this.models.getDashboardModel(),
+                            spaceModel: this.models.getSpaceModel(),
+                            gitIntegrationService:
+                                this.getGitIntegrationService(),
+                        }),
                 }),
         );
     }

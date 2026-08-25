@@ -20,6 +20,7 @@ import {
     ExploreType,
     ForbiddenError,
     generateSlug,
+    getErrorMessage,
     getSchedulerResourceTypeAndId,
     getTimezoneLabel,
     GoogleSheetsTransientError,
@@ -86,6 +87,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
+import type { ContentAsCodeWriteBackService } from '../CoderService/ContentAsCodeWriteBackService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -115,6 +117,7 @@ type SavedChartServiceArguments = {
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
     organizationModel: OrganizationModel;
+    contentAsCodeWriteBackService?: ContentAsCodeWriteBackService;
 };
 
 type GoogleSheetValidationOptions = {
@@ -174,6 +177,10 @@ export class SavedChartService
 
     private readonly organizationModel: OrganizationModel;
 
+    private readonly contentAsCodeWriteBackService:
+        | ContentAsCodeWriteBackService
+        | undefined;
+
     constructor(args: SavedChartServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -195,6 +202,34 @@ export class SavedChartService
         this.spacePermissionService = args.spacePermissionService;
         this.contentVerificationModel = args.contentVerificationModel;
         this.organizationModel = args.organizationModel;
+        this.contentAsCodeWriteBackService = args.contentAsCodeWriteBackService;
+    }
+
+    private async writeBackManagedChartAfterSave(
+        user: SessionUser,
+        savedChart: SavedChartDAO,
+    ): Promise<void> {
+        if (!this.contentAsCodeWriteBackService) {
+            return;
+        }
+
+        try {
+            await this.contentAsCodeWriteBackService.writeBackManagedChartIfNeeded(
+                user,
+                savedChart,
+            );
+        } catch (error) {
+            this.logger.warn(
+                'Content-as-code write-back failed after chart save',
+                {
+                    userUuid: user.userUuid,
+                    chartUuid: savedChart.uuid,
+                    projectUuid: savedChart.projectUuid,
+                    slug: savedChart.slug,
+                    error: getErrorMessage(error),
+                },
+            );
+        }
     }
 
     private async checkUpdateAccess(
@@ -818,6 +853,8 @@ export class SavedChartService
             );
         }
 
+        await this.writeBackManagedChartAfterSave(user, savedChart);
+
         return {
             ...savedChart,
             verification: verificationAfterUpdate,
@@ -927,6 +964,9 @@ export class SavedChartService
                 },
             });
         }
+
+        await this.writeBackManagedChartAfterSave(user, savedChart);
+
         return {
             ...savedChart,
             verification: verificationAfterUpdate,

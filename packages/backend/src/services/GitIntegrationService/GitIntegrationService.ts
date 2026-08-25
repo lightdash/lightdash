@@ -1150,6 +1150,180 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
     }
 
     /**
+     * Create a feature-branch pull request that writes a content-as-code YAML
+     * file into the project's git-backed dbt repo. Updates the file when it
+     * already exists on the project's configured branch; otherwise creates it.
+     */
+    async writeBackContentAsCodeFile(
+        user: SessionUser,
+        projectUuid: string,
+        {
+            filePath,
+            content,
+            title,
+            description,
+        }: {
+            filePath: string;
+            content: string;
+            title: string;
+            description: string;
+        },
+    ): Promise<PullRequestCreated> {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('SourceCode', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                    isProtectedBranch: false,
+                    metadata: { filePath },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const gitProps = await this.getGitProps(user, projectUuid, '"');
+        const fileName = GitIntegrationService.removeExtraSlashes(
+            `${gitProps.path}/${filePath}`,
+        );
+        const eventProperties: WriteBackEvent['properties'] = {
+            name: fileName,
+            projectId: projectUuid,
+            organizationId: user.organizationUuid!,
+            context: QueryExecutionContext.CHART,
+        };
+
+        await GitIntegrationService.createBranch(gitProps);
+
+        const getFileContent =
+            gitProps.type === DbtProjectType.GITHUB
+                ? GithubClient.getFileContent
+                : GitlabClient.getFileContent;
+
+        let existingSha: string | undefined;
+        try {
+            ({ sha: existingSha } = await getFileContent({
+                fileName,
+                owner: gitProps.owner,
+                repo: gitProps.repo,
+                branch: gitProps.branch,
+                installationId: gitProps.installationId,
+                token: gitProps.token,
+                hostDomain: gitProps.hostDomain,
+            }));
+        } catch (error) {
+            if (!(error instanceof NotFoundError)) {
+                throw error;
+            }
+        }
+
+        const commitMessage = existingSha
+            ? `Update ${fileName}`
+            : `Create ${fileName}`;
+
+        if (existingSha) {
+            const updateFile =
+                gitProps.type === DbtProjectType.GITHUB
+                    ? GithubClient.updateFile
+                    : GitlabClient.updateFile;
+            await updateFile({
+                owner: gitProps.owner,
+                repo: gitProps.repo,
+                fileName,
+                content,
+                fileSha: existingSha,
+                branch: gitProps.branch,
+                installationId: gitProps.installationId,
+                token: gitProps.token,
+                hostDomain: gitProps.hostDomain,
+                message: commitMessage,
+            });
+        } else {
+            const createFile =
+                gitProps.type === DbtProjectType.GITHUB
+                    ? GithubClient.createFile
+                    : GitlabClient.createFile;
+            await createFile({
+                owner: gitProps.owner,
+                repo: gitProps.repo,
+                fileName,
+                content,
+                branch: gitProps.branch,
+                installationId: gitProps.installationId,
+                token: gitProps.token,
+                hostDomain: gitProps.hostDomain,
+                message: commitMessage,
+            });
+        }
+
+        try {
+            const createPullRequest =
+                gitProps.type === DbtProjectType.GITHUB
+                    ? GithubClient.createPullRequest
+                    : GitlabClient.createPullRequest;
+
+            const fullDescription = `${description}
+
+Triggered by user ${user.firstName} ${user.lastName} (${user.email})
+
+🤖 Created with Lightdash`; // pragma: allowlist secret
+
+            const pullRequest = await createPullRequest({
+                ...gitProps,
+                title,
+                body: fullDescription,
+                head: gitProps.branch,
+                base: gitProps.mainBranch,
+            });
+
+            this.analytics.track({
+                event: 'write_back.created',
+                userId: user.userUuid,
+                properties: eventProperties,
+            });
+            this.analytics.track({
+                event: 'source_code.pull_request_created',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: user.organizationUuid!,
+                    projectId: projectUuid,
+                    filePath: fileName,
+                    fileSize: content.length,
+                    gitProvider: gitProps.type,
+                },
+            });
+
+            await this.recordPullRequest({
+                user,
+                projectUuid,
+                type: gitProps.type,
+                owner: gitProps.owner,
+                repo: gitProps.repo,
+                prNumber: pullRequest.number,
+                prUrl: pullRequest.html_url,
+                source: PullRequestSource.CONTENT_AS_CODE,
+            });
+
+            return {
+                prTitle: pullRequest.title,
+                prUrl: pullRequest.html_url,
+            };
+        } catch (error) {
+            this.analytics.track({
+                event: 'write_back.error',
+                userId: user.userUuid,
+                properties: {
+                    ...eventProperties,
+                    error: getErrorMessage(error),
+                },
+            });
+            throw error;
+        }
+    }
+
+    /**
      * Create a pull request with arbitrary file changes
      * @deprecated Only used by the deprecated file-change PR endpoint; use createPullRequestFromBranch instead.
      */
