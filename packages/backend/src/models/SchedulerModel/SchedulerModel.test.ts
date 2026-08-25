@@ -278,6 +278,42 @@ describe('Scheduler model test', () => {
         });
     });
 
+    describe('attachLatestRunToSchedulerList', () => {
+        it('attaches each scheduler latest run and marks missing runs as null', async () => {
+            const model = new SchedulerModel({ database: {} as AnyType });
+            const schedulers = [
+                { schedulerUuid: 'scheduler-1' },
+                { schedulerUuid: 'scheduler-2' },
+            ] as SchedulerAndTargets[];
+            const latestRun = {
+                schedulerUuid: 'scheduler-1',
+                runId: 'run-1',
+            } as AnyType;
+            const getRunsSpy = vi
+                .spyOn(model, 'getRunsForSchedulers')
+                .mockResolvedValue({
+                    pagination: {
+                        page: 1,
+                        pageSize: 1,
+                        totalPageCount: 1,
+                        totalResults: 1,
+                    },
+                    data: [latestRun],
+                });
+
+            await expect(
+                model.attachLatestRunToSchedulerList(schedulers),
+            ).resolves.toEqual([
+                { ...schedulers[0], latestRun },
+                { ...schedulers[1], latestRun: null },
+            ]);
+            expect(getRunsSpy).toHaveBeenCalledWith({
+                schedulers,
+                latestOnly: true,
+            });
+        });
+    });
+
     describe('getSchedulerRuns scheduler filtering', () => {
         const createModel = () =>
             new SchedulerModel({ database: {} as AnyType });

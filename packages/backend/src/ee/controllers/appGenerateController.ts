@@ -985,6 +985,7 @@ export class AppGenerateController extends BaseController {
     /**
      * List schedulers for a data app
      * @summary List app schedulers
+     * @param includeLatestRun include the most recent run for each scheduler
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -994,6 +995,7 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
+        @Query() includeLatestRun?: boolean,
     ): Promise<ApiAppSchedulersResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -1001,7 +1003,11 @@ export class AppGenerateController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getSchedulerService()
-                .getAppSchedulers(toSessionUser(req.account), appUuid),
+                .getAppSchedulers(
+                    toSessionUser(req.account),
+                    appUuid,
+                    includeLatestRun,
+                ),
         };
     }
 
