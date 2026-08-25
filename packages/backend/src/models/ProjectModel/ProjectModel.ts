@@ -16,9 +16,11 @@ import {
     DuckdbConnectionType,
     Explore,
     ExploreError,
+    ExploreSplitError,
     ExploreType,
     ExternalSourceScope,
     generateSlug,
+    getExploreSplitCandidates,
     getLtreePathFromSlug,
     GroupType,
     IdContentMapping,
@@ -101,6 +103,7 @@ import {
     DbProjectMembership,
     ProjectMembershipsTableName,
 } from '../../database/entities/projectMemberships';
+import { ProjectMergedManifestsTable } from '../../database/entities/projectMergedManifests';
 import {
     CachedExploresTableName,
     CachedExploreTableName,
@@ -236,6 +239,42 @@ export class ProjectModel {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.encryptionUtil = args.encryptionUtil;
+    }
+
+    async upsertMergedManifest(
+        projectUuid: string,
+        manifest: Buffer,
+    ): Promise<void> {
+        await ProjectMergedManifestsTable(this.database)
+            .insert({
+                project_uuid: projectUuid,
+                manifest,
+                created_at: this.database.fn.now() as unknown as Date,
+            })
+            .onConflict('project_uuid')
+            .merge({
+                manifest,
+                created_at: this.database.fn.now() as unknown as Date,
+            });
+    }
+
+    async getMergedManifest(projectUuid: string): Promise<Buffer> {
+        const artifact = await ProjectMergedManifestsTable(this.database)
+            .select('manifest')
+            .where('project_uuid', projectUuid)
+            .first();
+        if (!artifact) {
+            throw new NotFoundError(
+                'No merged dbt manifest has been persisted for this project',
+            );
+        }
+        return artifact.manifest;
+    }
+
+    async deleteMergedManifest(projectUuid: string): Promise<void> {
+        await ProjectMergedManifestsTable(this.database)
+            .where('project_uuid', projectUuid)
+            .delete();
     }
 
     static mergeMissingDbtConfigSecrets(
@@ -388,6 +427,40 @@ export class ProjectModel {
             );
         }
         return projects[0].project_uuid;
+    }
+
+    async getDbtSourceIdentity(projectUuid: string): Promise<{
+        dbtSourceUuid: string;
+        dbtSourceName: string;
+    }> {
+        const [project] = await this.database(ProjectTableName)
+            .select('project_uuid', 'dbt_source_uuid', 'dbt_source_name')
+            .where('project_uuid', projectUuid);
+
+        if (!project) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+
+        return {
+            dbtSourceUuid: project.dbt_source_uuid ?? project.project_uuid,
+            dbtSourceName: project.dbt_source_name,
+        };
+    }
+
+    async updateDbtSourceName(
+        projectUuid: string,
+        dbtSourceName: string,
+    ): Promise<void> {
+        const updatedProjects = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .update({ dbt_source_name: dbtSourceName })
+            .returning('project_uuid');
+
+        if (updatedProjects.length === 0) {
+            throw new NotFoundError('Project not found');
+        }
     }
 
     async getAllByOrganizationUuid(
@@ -1689,9 +1762,30 @@ export class ProjectModel {
         );
         const cachedExplore = cachedExplores[exploreName];
         if (cachedExplore === undefined) {
+            const candidateExploreNames = await this.findExploreSplitCandidates(
+                projectUuid,
+                exploreName,
+            );
+            if (candidateExploreNames.length >= 2) {
+                throw new ExploreSplitError(exploreName, candidateExploreNames);
+            }
             throw new NotFoundError(`Explore "${exploreName}" does not exist.`);
         }
         return cachedExplore;
+    }
+
+    async findExploreSplitCandidates(
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<string[]> {
+        const allCachedExplores = await this.findExploresFromCache(
+            projectUuid,
+            'name',
+        );
+        return getExploreSplitCandidates(
+            exploreName,
+            Object.values(allCachedExplores),
+        );
     }
 
     async findExploreByTableName(
@@ -1706,6 +1800,58 @@ export class ProjectModel {
         return cachedExplores[tableName];
     }
 
+    private async findExploreCacheContainingTable(
+        projectUuid: string,
+        tableName: string,
+    ): Promise<
+        | {
+              explore: Explore | ExploreError;
+              baseMatch: boolean;
+          }
+        | undefined
+    > {
+        return this.database(CachedExploreTableName)
+            .columns({
+                explore: 'explore',
+                baseMatch: this.database.raw("? = explore->>'baseTable'", [
+                    tableName,
+                ]),
+            })
+            .select<{
+                explore: Explore | ExploreError;
+                baseMatch: boolean;
+            }>()
+            .whereRaw('? = ANY(table_names)', tableName)
+            .andWhere('project_uuid', projectUuid)
+            .orderBy('baseMatch', 'desc')
+            .first();
+    }
+
+    async findExploreContainingTable(
+        projectUuid: string,
+        tableName: string,
+    ): Promise<Explore | ExploreError | undefined> {
+        return wrapSentryTransaction(
+            'ProjectModel.findExploreContainingTable',
+            {},
+            async (span) => {
+                const exploreCache = await this.findExploreCacheContainingTable(
+                    projectUuid,
+                    tableName,
+                );
+                span.setAttribute(
+                    'foundExploreContainingTable',
+                    !!exploreCache,
+                );
+                return exploreCache
+                    ? ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                          exploreCache.explore,
+                      )
+                    : undefined;
+            },
+        );
+    }
+
     // Returns explore based on the join original name rather than the explore with the join.
     async findJoinAliasExplore(
         projectUuid: string,
@@ -1715,24 +1861,11 @@ export class ProjectModel {
             'ProjectModel.findExploreFromJoinAlias',
             {},
             async (span) => {
-                const exploreWithJoinAlias = await this.database(
-                    CachedExploreTableName,
-                )
-                    .columns({
-                        explore: 'explore',
-                        baseMatch: this.database.raw(
-                            "? = explore->>'baseTable'",
-                            [joinAliasName],
-                        ),
-                    })
-                    .select<{
-                        explore: Explore | ExploreError;
-                        baseMatch: boolean;
-                    }>()
-                    .whereRaw('? = ANY(table_names)', joinAliasName)
-                    .andWhere('project_uuid', projectUuid)
-                    .orderBy('baseMatch', 'desc')
-                    .first();
+                const exploreWithJoinAlias =
+                    await this.findExploreCacheContainingTable(
+                        projectUuid,
+                        joinAliasName,
+                    );
                 if (exploreWithJoinAlias) {
                     const originalTableName =
                         exploreWithJoinAlias.explore.tables?.[joinAliasName]

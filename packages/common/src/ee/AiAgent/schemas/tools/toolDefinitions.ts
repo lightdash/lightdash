@@ -18,7 +18,6 @@ import {
     defineTool,
     type AgentToolView,
     type McpToolAnnotations,
-    type ToolDefinition,
     type ToolDefinitionInstance,
     type ToolDefinitionWithMcpOutput,
     type ToolDefinitionWithoutMcpOutput,
@@ -63,11 +62,6 @@ import {
     toolCreateScheduledDeliveryArgsSchema,
     toolCreateScheduledDeliveryOutputSchema,
 } from './toolCreateScheduledDeliveryArgs';
-import {
-    TOOL_DASHBOARD_DESCRIPTION,
-    toolDashboardArgsSchema,
-    toolDashboardOutputSchema,
-} from './toolDashboardArgs';
 import {
     TOOL_DASHBOARD_V2_DESCRIPTION,
     toolDashboardV2ArgsSchema,
@@ -307,28 +301,10 @@ import {
     toolSyncDbtProjectOutputSchema,
 } from './toolSyncDbtProjectArgs';
 import {
-    TOOL_TABLE_VIZ_DESCRIPTION,
-    toolTableVizArgsSchema,
-    toolTableVizArgsSchemaTransformed,
-    toolTableVizOutputSchema,
-} from './toolTableVizArgs';
-import {
-    TOOL_TIME_SERIES_VIZ_DESCRIPTION,
-    toolTimeSeriesArgsSchema,
-    toolTimeSeriesArgsSchemaTransformed,
-    toolTimeSeriesOutputSchema,
-} from './toolTimeSeriesArgs';
-import {
     TOOL_UPDATE_USER_NAME_DESCRIPTION,
     toolUpdateUserNameArgsSchema,
     toolUpdateUserNameOutputSchema,
 } from './toolUpdateUserNameArgs';
-import {
-    TOOL_VERTICAL_BAR_VIZ_DESCRIPTION,
-    toolVerticalBarArgsSchema,
-    toolVerticalBarArgsSchemaTransformed,
-    toolVerticalBarOutputSchema,
-} from './toolVerticalBarArgs';
 
 const readOnlyAnnotations: McpToolAnnotations = {
     readOnlyHint: true,
@@ -745,21 +721,6 @@ export const generateDashboardToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolDashboardV2ArgsSchema,
     agent: { outputSchema: toolDashboardV2OutputSchema },
-});
-
-/** @deprecated Legacy v1 dashboard tool schema kept for historical tool calls and artifacts. */
-export const generateDashboardV1ToolDefinition: ToolDefinition<
-    'generateDashboard',
-    typeof toolDashboardArgsSchema,
-    typeof toolDashboardArgsSchema,
-    typeof toolDashboardOutputSchema
-> = defineTool({
-    name: 'generateDashboard',
-    title: 'Generate dashboard',
-    description: TOOL_DASHBOARD_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolDashboardArgsSchema,
-    agent: { outputSchema: toolDashboardOutputSchema },
 });
 
 export const generateUuidsToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1331,54 +1292,6 @@ export const findDashboardsToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolFindDashboardsOutputSchema },
 });
 
-/** @deprecated Legacy agent tool kept for historical tool calls. */
-export const generateBarVizConfigToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'generateBarVizConfig',
-    typeof toolVerticalBarArgsSchema,
-    typeof toolVerticalBarArgsSchemaTransformed,
-    typeof toolVerticalBarOutputSchema
-> = defineTool({
-    name: 'generateBarVizConfig',
-    title: 'Generate bar visualization config',
-    description: TOOL_VERTICAL_BAR_VIZ_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolVerticalBarArgsSchema,
-    inputSchemaTransformed: toolVerticalBarArgsSchemaTransformed,
-    agent: { outputSchema: toolVerticalBarOutputSchema },
-});
-
-/** @deprecated Legacy agent tool kept for historical tool calls. */
-export const generateTableVizConfigToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'generateTableVizConfig',
-    typeof toolTableVizArgsSchema,
-    typeof toolTableVizArgsSchemaTransformed,
-    typeof toolTableVizOutputSchema
-> = defineTool({
-    name: 'generateTableVizConfig',
-    title: 'Generate table visualization config',
-    description: TOOL_TABLE_VIZ_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolTableVizArgsSchema,
-    inputSchemaTransformed: toolTableVizArgsSchemaTransformed,
-    agent: { outputSchema: toolTableVizOutputSchema },
-});
-
-/** @deprecated Legacy agent tool kept for historical tool calls. */
-export const generateTimeSeriesVizConfigToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'generateTimeSeriesVizConfig',
-    typeof toolTimeSeriesArgsSchema,
-    typeof toolTimeSeriesArgsSchemaTransformed,
-    typeof toolTimeSeriesOutputSchema
-> = defineTool({
-    name: 'generateTimeSeriesVizConfig',
-    title: 'Generate time series visualization config',
-    description: TOOL_TIME_SERIES_VIZ_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolTimeSeriesArgsSchema,
-    inputSchemaTransformed: toolTimeSeriesArgsSchemaTransformed,
-    agent: { outputSchema: toolTimeSeriesOutputSchema },
-});
-
 export const getLightdashVersionToolDefinition: ToolDefinitionWithoutMcpOutput<
     'getLightdashVersion',
     typeof emptyInputSchema,
@@ -1703,9 +1616,6 @@ type AgentToolDefinitionsByName = {
     submitWorkerFindings: typeof submitWorkerFindingsToolDefinition;
     findCharts: typeof findChartsToolDefinition;
     findDashboards: typeof findDashboardsToolDefinition;
-    generateBarVizConfig: typeof generateBarVizConfigToolDefinition;
-    generateTableVizConfig: typeof generateTableVizConfigToolDefinition;
-    generateTimeSeriesVizConfig: typeof generateTimeSeriesVizConfigToolDefinition;
     listProjects: typeof listProjectsToolDefinition;
     getProjectInfo: typeof getProjectInfoToolDefinition;
 };
@@ -1761,9 +1671,6 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     submitWorkerFindings: submitWorkerFindingsToolDefinition,
     findCharts: findChartsToolDefinition,
     findDashboards: findDashboardsToolDefinition,
-    generateBarVizConfig: generateBarVizConfigToolDefinition,
-    generateTableVizConfig: generateTableVizConfigToolDefinition,
-    generateTimeSeriesVizConfig: generateTimeSeriesVizConfigToolDefinition,
     listProjects: listProjectsToolDefinition,
     getProjectInfo: getProjectInfoToolDefinition,
 };
@@ -1826,9 +1733,6 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     submitWorkerFindingsToolDefinition,
     findChartsToolDefinition,
     findDashboardsToolDefinition,
-    generateBarVizConfigToolDefinition,
-    generateTableVizConfigToolDefinition,
-    generateTimeSeriesVizConfigToolDefinition,
     getLightdashVersionToolDefinition,
     listExploresToolDefinition,
     listSkillsToolDefinition,

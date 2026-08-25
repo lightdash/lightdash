@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     AiAgentReviewRemediation,
     DbtProjectType,
+    ExpectedNotFoundError,
     ForbiddenError,
     JobStatusType,
     OrganizationMemberRole,
@@ -1668,6 +1669,30 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
             provider: null,
             strategy: null,
             reason: 'source_thread_writeback_exists',
+        });
+    });
+});
+
+describe('AiAgentAdminService.getReviewItemByPreviewThread', () => {
+    it('classifies an unlinked thread as expected not found', async () => {
+        const findReviewRemediationByPreviewThread = vi
+            .fn()
+            .mockResolvedValue(null);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                findReviewRemediationByPreviewThread,
+            },
+        });
+
+        await expect(
+            service.getReviewItemByPreviewThread(
+                makeAdminUser(),
+                PREVIEW_THREAD_UUID,
+            ),
+        ).rejects.toThrow(ExpectedNotFoundError);
+        expect(findReviewRemediationByPreviewThread).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            previewThreadUuid: PREVIEW_THREAD_UUID,
         });
     });
 });

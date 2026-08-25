@@ -1501,7 +1501,7 @@ export type ApiErrorDetail = {
     name: string;
     statusCode: number;
     message: string;
-    data: { [key: string]: string };
+    data: { [key: string]: AnyType };
     sentryTraceId?: string;
     sentryEventId?: string;
 };

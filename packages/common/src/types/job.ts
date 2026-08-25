@@ -55,6 +55,8 @@ type CompileJob = BaseJob & {
     jobType: JobType.COMPILE_PROJECT;
     jobResults?: {
         indexCatalogJobUuid: string;
+        errorCount?: number;
+        total?: number;
     };
 };
 

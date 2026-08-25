@@ -9,13 +9,10 @@ import type {
     ItemsMap,
     KnexPaginatedData,
     MetricSourcedMergeQuery,
-    ToolDashboardArgs,
+    ToolDashboardV2Args,
     ToolName,
     ToolRunQueryArgs,
     ToolRunQueryArgsV3,
-    ToolTableVizArgs,
-    ToolTimeSeriesArgs,
-    ToolVerticalBarArgs,
 } from '../..';
 import {
     MAX_RETENTION_WINDOW_HOURS,
@@ -1020,11 +1017,7 @@ export type AiSqlChartArtifactConfig = {
     limit: number;
 };
 
-export type AiLegacySemanticChartArtifactConfig =
-    | ToolTableVizArgs
-    | ToolTimeSeriesArgs
-    | ToolVerticalBarArgs
-    | ToolRunQueryArgs;
+export type AiLegacySemanticChartArtifactConfig = ToolRunQueryArgs;
 
 export type AiSemanticChartArtifactConfig = {
     source: 'semantic';
@@ -1068,7 +1061,7 @@ export type AiArtifact = {
     title: string | null;
     description: string | null;
     chartConfig: AiChartArtifactConfig | null;
-    dashboardConfig: ToolDashboardArgs | null;
+    dashboardConfig: ToolDashboardV2Args | null;
     versionCreatedAt: Date;
     verifiedByUserUuid: string | null;
     verifiedAt: Date | null;

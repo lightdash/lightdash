@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AlreadyExistsError,
     ApiCreateProjectDbtSource,
     ApiUpdateProjectDbtSource,
     DbtProjectConfig,
@@ -15,6 +16,8 @@ import {
     ProjectDbtSourceWithConnection,
     sensitiveDbtCredentialsFieldNames,
     UnexpectedServerError,
+    validateGithubToken,
+    validateProjectDbtSourceName,
     validateWarehouseLocation,
     type Account,
     type WarehouseLocation,
@@ -31,6 +34,11 @@ type ProjectDbtSourcesServiceArguments = {
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
+};
+
+const assertProjectDbtSourceName = (name: string): void => {
+    const validationError = validateProjectDbtSourceName(name);
+    if (validationError) throw new ParameterError(validationError);
 };
 
 /**
@@ -148,6 +156,23 @@ export class ProjectDbtSourcesService extends BaseService {
         return location;
     }
 
+    private static validateGithubPersonalAccessToken(
+        dbtConnection: DbtProjectConfig,
+    ): void {
+        if (
+            dbtConnection.type !== DbtProjectType.GITHUB ||
+            !dbtConnection.personal_access_token
+        ) {
+            return;
+        }
+        const [isValid, error] = validateGithubToken(
+            dbtConnection.personal_access_token,
+        );
+        if (!isValid) {
+            throw new ParameterError(error);
+        }
+    }
+
     private async checkProjectAccess(
         account: Account,
         projectUuid: string,
@@ -176,14 +201,16 @@ export class ProjectDbtSourcesService extends BaseService {
         projectUuid: string,
     ): Promise<ProjectDbtSourceSummary[]> {
         await this.checkProjectAccess(account, projectUuid, 'view');
-        const project = await this.projectModel.get(projectUuid);
-        const sources =
-            await this.projectDbtSourcesModel.getSources(projectUuid);
+        const [project, identity, sources] = await Promise.all([
+            this.projectModel.get(projectUuid),
+            this.projectModel.getDbtSourceIdentity(projectUuid),
+            this.projectDbtSourcesModel.getSources(projectUuid),
+        ]);
         // The primary source is the project's own dbt_connection (precedence 0),
         // synthesised here rather than stored as a row.
         const primary: ProjectDbtSourceSummary = {
-            projectDbtSourceUuid: project.projectUuid,
-            name: 'Project dbt connection',
+            projectDbtSourceUuid: identity.dbtSourceUuid,
+            name: identity.dbtSourceName,
             isPrimary: true,
             precedence: 0,
             type: project.dbtConnection.type,
@@ -206,6 +233,7 @@ export class ProjectDbtSourcesService extends BaseService {
             projectUuid,
             'manage',
         );
+        assertProjectDbtSourceName(data.name);
         // GitHub-only for now: additional sources are restricted to GitHub
         // connections until the other git providers are validated end-to-end.
         if (data.dbtConnection.type !== DbtProjectType.GITHUB) {
@@ -213,6 +241,9 @@ export class ProjectDbtSourcesService extends BaseService {
                 'Additional dbt sources currently support GitHub connections only',
             );
         }
+        ProjectDbtSourcesService.validateGithubPersonalAccessToken(
+            data.dbtConnection,
+        );
         ProjectDbtSourcesService.validateDbtEnvironmentVariables(
             data.dbtConnection,
         );
@@ -220,6 +251,13 @@ export class ProjectDbtSourcesService extends BaseService {
             projectUuid,
             data.warehouseLocation,
         );
+        const identity =
+            await this.projectModel.getDbtSourceIdentity(projectUuid);
+        if (data.name === identity.dbtSourceName) {
+            throw new AlreadyExistsError(
+                `A dbt source named "${identity.dbtSourceName}" already exists on this project`,
+            );
+        }
         const existing =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         // Append after the highest existing precedence (primary is 0).
@@ -300,12 +338,52 @@ export class ProjectDbtSourcesService extends BaseService {
         data: ApiUpdateProjectDbtSource,
     ): Promise<ProjectDbtSourceSummary> {
         await this.checkProjectAccess(account, projectUuid, 'manage');
+        const identity =
+            await this.projectModel.getDbtSourceIdentity(projectUuid);
+        if (projectDbtSourceUuid === identity.dbtSourceUuid) {
+            if (data.name === undefined || data.dbtConnection !== undefined) {
+                throw new ParameterError(
+                    'Only the primary dbt source name can be updated here',
+                );
+            }
+            assertProjectDbtSourceName(data.name);
+            const [project, additionalSources] = await Promise.all([
+                this.projectModel.get(projectUuid),
+                this.projectDbtSourcesModel.getSources(projectUuid),
+            ]);
+            if (additionalSources.some((source) => source.name === data.name)) {
+                throw new AlreadyExistsError(
+                    `A dbt source named "${data.name}" already exists on this project`,
+                );
+            }
+            await this.projectModel.updateDbtSourceName(projectUuid, data.name);
+            return {
+                projectDbtSourceUuid: identity.dbtSourceUuid,
+                name: data.name,
+                isPrimary: true,
+                precedence: 0,
+                type: project.dbtConnection.type,
+                warehouseLocation: project.warehouseConnection
+                    ? getWarehouseLocation(project.warehouseConnection)
+                    : EMPTY_WAREHOUSE_LOCATION,
+                hasCredentialError: false,
+                ...ProjectDbtSourcesService.gitIdentity(project.dbtConnection),
+            };
+        }
         const existing =
             await this.projectDbtSourcesModel.getSource(projectDbtSourceUuid);
         if (existing.projectUuid !== projectUuid) {
             throw new ForbiddenError(
                 'This dbt source does not belong to the project',
             );
+        }
+        if (data.name !== undefined) {
+            assertProjectDbtSourceName(data.name);
+            if (data.name === identity.dbtSourceName) {
+                throw new AlreadyExistsError(
+                    `A dbt source named "${identity.dbtSourceName}" already exists on this project`,
+                );
+            }
         }
         // GitHub-only for now, matching createProjectDbtSource.
         if (
@@ -317,6 +395,9 @@ export class ProjectDbtSourcesService extends BaseService {
             );
         }
         if (data.dbtConnection) {
+            ProjectDbtSourcesService.validateGithubPersonalAccessToken(
+                data.dbtConnection,
+            );
             ProjectDbtSourcesService.validateDbtEnvironmentVariables(
                 data.dbtConnection,
             );

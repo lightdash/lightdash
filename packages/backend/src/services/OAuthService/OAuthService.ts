@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     getClientName,
+    isSafeRedirectScheme,
     NotFoundError,
     ParameterError,
     UserWithOrganizationUuid,
@@ -129,10 +130,7 @@ export class OAuthService extends BaseService {
         scopes?: string[];
     }) {
         for (const uri of redirectUris) {
-            try {
-                // eslint-disable-next-line no-new
-                new URL(uri);
-            } catch {
+            if (!isSafeRedirectScheme(uri)) {
                 throw new ParameterError(`Invalid redirect URI ${uri}`);
             }
         }
@@ -192,10 +190,7 @@ export class OAuthService extends BaseService {
         }
         // Validate redirect URIs
         for (const uri of redirectUris) {
-            try {
-                // eslint-disable-next-line no-new
-                new URL(uri);
-            } catch {
+            if (!isSafeRedirectScheme(uri)) {
                 throw new ParameterError(`Invalid redirect URI ${uri}`);
             }
         }
@@ -236,10 +231,7 @@ export class OAuthService extends BaseService {
         }
         // Validate redirect URIs
         for (const uri of redirectUris) {
-            try {
-                // eslint-disable-next-line no-new
-                new URL(uri);
-            } catch {
+            if (!isSafeRedirectScheme(uri)) {
                 throw new ParameterError(`Invalid redirect URI ${uri}`);
             }
         }

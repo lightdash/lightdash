@@ -60,6 +60,7 @@ import {
     DateZoom,
     DbtExposure,
     DbtExposureType,
+    DbtManifest,
     DbtManifestVersion,
     DbtProjectConfig,
     DbtProjectEnvironmentVariable,
@@ -75,6 +76,7 @@ import {
     EnsurePlaygroundProjectResults,
     Explore,
     ExploreError,
+    ExploreSplitError,
     ExploreType,
     FeatureFlags,
     Field,
@@ -264,8 +266,10 @@ import { uniq } from 'lodash';
 import fetch from 'node-fetch';
 import { Readable } from 'stream';
 import { URL } from 'url';
+import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
+import { gzip } from 'zlib';
 import {
     LightdashAnalytics,
     MetricQueryExecutionProperties,
@@ -349,7 +353,33 @@ import {
 import { UserService } from '../UserService';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
+import { projectMergedManifest } from './projectMergedManifest';
 import { applyCurrentGithubInstallationId } from './resolveGithubInstallationId';
+
+const manifestWithCompilationSelection = (
+    manifest: DbtManifest,
+    selectedModelIds?: string[],
+): DbtManifest => {
+    const compiledModelIds = new Set(
+        getCompiledModels(getModelsFromManifest(manifest), selectedModelIds)
+            .filter((node) => node.resource_type === 'model')
+            .map((node) => node.unique_id),
+    );
+
+    return {
+        ...manifest,
+        nodes: Object.fromEntries(
+            Object.entries(manifest.nodes).map(([uniqueId, node]) => [
+                uniqueId,
+                node.resource_type === 'model'
+                    ? { ...node, compiled: compiledModelIds.has(uniqueId) }
+                    : node,
+            ]),
+        ) as DbtManifest['nodes'],
+    };
+};
+
+const gzipAsync = promisify(gzip);
 
 type RefreshTokenRotationSource =
     | { kind: 'project'; projectUuid: string }
@@ -457,11 +487,10 @@ const isValidDbtCloudWebhookSignature = (
 
 const WINDOW_CLAUSE_PATTERN = /\bover\s*\(/i;
 
-type CrossSourceModelNameCollision = {
-    modelName: string;
-    sourceNames: string[];
+type ResolvedCompileAdapter = {
+    adapter: ProjectAdapter;
+    stagedMergedManifest?: Buffer;
 };
-
 export class ProjectService extends BaseService {
     static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
 
@@ -2499,6 +2528,35 @@ export class ProjectService extends BaseService {
         return project;
     }
 
+    async getMergedManifest(
+        account: Account,
+        projectUuid: string,
+    ): Promise<Buffer> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('DeployProject', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
+                    metadata: {
+                        projectUuid,
+                        projectName: project.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User does not have permission to deploy to this project',
+            );
+        }
+        return this.projectModel.getMergedManifest(projectUuid);
+    }
+
     private async getUpstreamProjectUuid(
         projectUuid: string,
         account: Account,
@@ -3788,7 +3846,7 @@ export class ProjectService extends BaseService {
             // Source git clones built only to read manifests for the merge.
             const manifestFetchAdapters: ProjectAdapter[] = [];
             if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
-                await this.jobModel.tryJobStep(
+                const compileResult = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
@@ -3796,19 +3854,21 @@ export class ProjectService extends BaseService {
                         // short-circuit) so "Test & deploy" yields the same
                         // combined explore set as "Refresh dbt".
                         let compileAdapter = primaryAdapter;
+                        let stagedMergedManifest: Buffer | undefined;
                         try {
-                            compileAdapter = await this.resolveCompileAdapter({
-                                projectUuid,
-                                organizationUuid: user.organizationUuid,
-                                userUuid: user.userUuid,
-                                primary: {
-                                    adapter: primaryAdapter,
-                                    warehouseCredentials,
-                                    cachedWarehouse,
-                                    dbtVersionOption,
-                                },
-                                manifestFetchAdapters,
-                            });
+                            ({ adapter: compileAdapter, stagedMergedManifest } =
+                                await this.resolveCompileAdapter({
+                                    projectUuid,
+                                    organizationUuid: user.organizationUuid,
+                                    userUuid: user.userUuid,
+                                    primary: {
+                                        adapter: primaryAdapter,
+                                        warehouseCredentials,
+                                        cachedWarehouse,
+                                        dbtVersionOption,
+                                    },
+                                    manifestFetchAdapters,
+                                }));
                             const trackingParams = {
                                 projectUuid,
                                 organizationUuid: user.organizationUuid,
@@ -3875,18 +3935,30 @@ export class ProjectService extends BaseService {
                             );
                             timings.parameters.end = performance.now();
                             timings.cacheExplores.start = performance.now();
-                            await this.saveExploresToCacheAndIndexCatalog({
-                                userUuid: user.userUuid,
+                            const indexCatalogJobUuid =
+                                await this.saveExploresToCacheAndIndexCatalog({
+                                    userUuid: user.userUuid,
+                                    projectUuid,
+                                    explores,
+                                    compilationSource,
+                                    jobUuid: job.jobUuid,
+                                    requestMethod: method,
+                                    projectConfigDefaults:
+                                        lightdashProjectConfig.defaults,
+                                    complete: true,
+                                });
+                            await this.persistMergedManifest(
                                 projectUuid,
-                                explores,
-                                compilationSource,
-                                jobUuid: job.jobUuid,
-                                requestMethod: method,
-                                projectConfigDefaults:
-                                    lightdashProjectConfig.defaults,
-                                complete: true,
-                            });
+                                stagedMergedManifest,
+                            );
                             timings.cacheExplores.end = performance.now();
+
+                            return {
+                                indexCatalogJobUuid,
+                                errorCount:
+                                    explores.filter(isExploreError).length,
+                                total: explores.length,
+                            };
                         } finally {
                             await compileAdapter.destroy();
                             await sshTunnel.disconnect();
@@ -3907,14 +3979,18 @@ export class ProjectService extends BaseService {
                         }
                     },
                 );
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.DONE,
+                    jobResults: compileResult,
+                });
+            } else {
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.DONE,
+                    jobResults: {
+                        projectUuid,
+                    },
+                });
             }
-
-            await this.jobModel.update(job.jobUuid, {
-                jobStatus: JobStatusType.DONE,
-                jobResults: {
-                    projectUuid,
-                },
-            });
             const projectWithWarehouse = {
                 ...updatedProject,
                 warehouseConnection: updatedProject.warehouseConnection,
@@ -4520,10 +4596,8 @@ export class ProjectService extends BaseService {
     }
 
     /**
-     * Formats a `ParameterError` message naming every colliding key so the user
-     * can tell exactly what to rename or remove — capped so a near-duplicate
-     * source pair (which can produce thousands of collisions) doesn't blow up
-     * the error message.
+     * Formats collisions where two sources use the same manifest unique_id,
+     * identifying shared dbt project names when model ids reveal them.
      */
     private static formatManifestCollisionsError(
         collisions: ManifestCollision[],
@@ -4534,9 +4608,59 @@ export class ProjectService extends BaseService {
         const details = shown
             .map(
                 (c) =>
-                    `${c.section} "${c.key}" is defined in both "${c.winningSource}" and "${c.supersededSource}"`,
+                    `${c.section === 'nodes' ? 'Model' : 'Entry'} "${
+                        c.key
+                    }" is defined in both "${c.winningSource}" and "${
+                        c.supersededSource
+                    }"`,
             )
             .join('; ');
+        const packageNames = collisions.map(
+            (collision) => collision.key.match(/^[^.]+\.([^.]+)\./)?.[1],
+        );
+        const sharedPackageNames = [
+            ...new Set(packageNames.filter((name) => name !== undefined)),
+        ].sort();
+        const allCollisionsIdentifyPackages =
+            packageNames.length > 0 &&
+            packageNames.every((name) => name !== undefined);
+
+        if (allCollisionsIdentifyPackages) {
+            const formatQuotedList = (values: string[]) => {
+                const shownValues = values.slice(0, MAX_COLLISIONS_IN_ERROR);
+                const quotedValues = shownValues.map((value) => `"${value}"`);
+                const formattedValues =
+                    quotedValues.length <= 2
+                        ? quotedValues.join(' and ')
+                        : `${quotedValues.slice(0, -1).join(', ')}, and ${
+                              quotedValues.at(-1) ?? ''
+                          }`;
+                const omittedValues = values.length - shownValues.length;
+                return omittedValues > 0
+                    ? `${formattedValues} and ${omittedValues} more`
+                    : formattedValues;
+            };
+            const sourceNames = [
+                ...new Set(
+                    collisions.flatMap((collision) => [
+                        collision.winningSource,
+                        collision.supersededSource,
+                    ]),
+                ),
+            ].sort();
+
+            return (
+                `The dbt sources ${formatQuotedList(
+                    sourceNames,
+                )} use the same dbt project name${
+                    sharedPackageNames.length === 1 ? '' : 's'
+                } ${formatQuotedList(
+                    sharedPackageNames,
+                )}. Change the name: value in one repository's dbt_project.yml and deploy again. ` +
+                `${details}${remainder > 0 ? `; and ${remainder} more` : ''}.`
+            );
+        }
+
         return (
             `Merging dbt sources found ${collisions.length} naming collision${
                 collisions.length === 1 ? '' : 's'
@@ -4545,38 +4669,61 @@ export class ProjectService extends BaseService {
         );
     }
 
-    private static formatCrossSourceModelNameCollisionsError(
-        collisions: CrossSourceModelNameCollision[],
-    ): string {
-        const MAX_COLLISIONS_IN_ERROR = 10;
-        const shown = collisions.slice(0, MAX_COLLISIONS_IN_ERROR);
-        const remainder = collisions.length - shown.length;
-        const details = shown
-            .map(
-                ({ modelName, sourceNames }) =>
-                    `model "${modelName}" is defined in sources ${sourceNames
-                        .map((sourceName) => `"${sourceName}"`)
-                        .join(' and ')}`,
-            )
-            .join('; ');
-        return (
-            `Merging dbt sources found ${collisions.length} model name collision${
-                collisions.length === 1 ? '' : 's'
-            }: ${details}${remainder > 0 ? `; and ${remainder} more` : ''}. ` +
-            `Rename or remove the duplicate(s) before deploying.`
-        );
+    private async stageMergedManifest(
+        projectUuid: string,
+        manifest: DbtManifest,
+    ): Promise<Buffer | undefined> {
+        try {
+            return await gzipAsync(
+                JSON.stringify(projectMergedManifest(manifest)),
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Failed to serialize merged dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+            return undefined;
+        }
+    }
+
+    private async persistMergedManifest(
+        projectUuid: string,
+        stagedMergedManifest: Buffer | undefined,
+    ): Promise<void> {
+        if (!stagedMergedManifest) {
+            return;
+        }
+        try {
+            await this.projectModel.upsertMergedManifest(
+                projectUuid,
+                stagedMergedManifest,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Failed to persist merged dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    private async deleteMergedManifestBestEffort(
+        projectUuid: string,
+    ): Promise<void> {
+        try {
+            await this.projectModel.deleteMergedManifest(projectUuid);
+        } catch (error) {
+            this.logger.warn(
+                `Failed to delete merged dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+        }
     }
 
     /**
      * Merge the primary source's manifest with every additional source's manifest
      * into one combined manifest, then return a MANIFEST adapter over it so a single
      * compile produces the union of all sources' explores with cross-source refs
-     * resolved. Source adapters (git clones) are pushed onto `manifestFetchAdapters`
-     * for the caller to destroy. A name collision fails the whole deploy by name,
-     * matching every other per-source failure above (broken clone, broken
-     * manifest, broken credentials) — silently letting one source's definition
-     * win would otherwise produce a green deploy that is quietly missing a
-     * sibling's model.
+     * resolved. Bare model-name collisions are qualified during compilation.
+     * Identical manifest unique_ids still fail because qualification happens after
+     * merging, when one of those entries has already been dropped. Source adapters
+     * are pushed onto `manifestFetchAdapters` for the caller to destroy.
      */
     private async buildMergedManifestAdapter({
         projectUuid,
@@ -4595,7 +4742,7 @@ export class ProjectService extends BaseService {
         };
         sources: ProjectDbtSource[];
         manifestFetchAdapters: ProjectAdapter[];
-    }): Promise<ProjectAdapter> {
+    }): Promise<ResolvedCompileAdapter> {
         const shared = {
             warehouseCredentials: primary.warehouseCredentials,
             cachedWarehouse: primary.cachedWarehouse,
@@ -4605,10 +4752,20 @@ export class ProjectService extends BaseService {
         // The primary git adapter is only read for its manifest here; the merged
         // MANIFEST adapter is what compiles, so destroy the primary clone in finally.
         manifestFetchAdapters.push(primary.adapter);
-        const {
-            manifest: primaryManifest,
-            selectedModelIds: primarySelectedModelIds,
-        } = await primary.adapter.getDbtManifest();
+        const [
+            {
+                manifest: rawPrimaryManifest,
+                selectedModelIds: primarySelectedModelIds,
+            },
+            identity,
+        ] = await Promise.all([
+            primary.adapter.getDbtManifest(),
+            this.projectModel.getDbtSourceIdentity(projectUuid),
+        ]);
+        const primaryManifest = manifestWithCompilationSelection(
+            rawPrimaryManifest,
+            primarySelectedModelIds,
+        );
 
         // A credential error fails the whole deploy by name, matching every
         // other per-source failure below (broken clone, broken manifest) — a
@@ -4667,13 +4824,18 @@ export class ProjectService extends BaseService {
                 // destroys this clone even if the fetch below throws.
                 manifestFetchAdapters.push(sourceAdapter);
                 try {
-                    const { manifest, selectedModelIds } =
-                        await sourceAdapter.getDbtManifest();
+                    const {
+                        manifest,
+                        selectedModelIds: sourceSelectedModelIds,
+                    } = await sourceAdapter.getDbtManifest();
                     return {
                         name: source.name,
                         precedence: source.precedence,
-                        manifest,
-                        selectedModelIds,
+                        manifest: manifestWithCompilationSelection(
+                            manifest,
+                            sourceSelectedModelIds,
+                        ),
+                        selectedModelIds: sourceSelectedModelIds,
                     };
                 } catch (e) {
                     throw new ParameterError(
@@ -4686,7 +4848,11 @@ export class ProjectService extends BaseService {
         );
 
         const manifestSources: ManifestSource[] = [
-            { name: 'primary', precedence: 0, manifest: primaryManifest },
+            {
+                name: identity.dbtSourceName,
+                precedence: 0,
+                manifest: primaryManifest,
+            },
             ...built.map((b) => ({
                 name: b.name,
                 precedence: b.precedence,
@@ -4703,32 +4869,6 @@ export class ProjectService extends BaseService {
             );
             throw new ParameterError(
                 ProjectService.formatManifestCollisionsError(collisions),
-            );
-        }
-
-        const sourceNamesByModelName = new Map<string, string[]>();
-        manifestSources.forEach(({ name: sourceName, manifest }) => {
-            const modelNames = new Set(
-                getModelsFromManifest(manifest).map((model) => model.name),
-            );
-            modelNames.forEach((modelName) => {
-                const sourceNames = sourceNamesByModelName.get(modelName) ?? [];
-                sourceNames.push(sourceName);
-                sourceNamesByModelName.set(modelName, sourceNames);
-            });
-        });
-        const modelNameCollisions = Array.from(sourceNamesByModelName)
-            .filter(([, sourceNames]) => sourceNames.length > 1)
-            .map(([modelName, sourceNames]) => ({ modelName, sourceNames }));
-        if (modelNameCollisions.length > 0) {
-            this.logger.warn(
-                `Merged ${manifestSources.length} dbt sources for project ${projectUuid} with ${modelNameCollisions.length} model name collision(s)`,
-                { projectUuid, modelNameCollisions },
-            );
-            throw new ParameterError(
-                ProjectService.formatCrossSourceModelNameCollisionsError(
-                    modelNameCollisions,
-                ),
             );
         }
 
@@ -4753,32 +4893,45 @@ export class ProjectService extends BaseService {
                           source.selectedModelIds === undefined
                               ? getCompiledModels(
                                     getModelsFromManifest(source.manifest),
-                                ).map((model) => model.unique_id)
+                                )
+                                    .filter(
+                                        (model) =>
+                                            model.resource_type === 'model',
+                                    )
+                                    .map((model) => model.unique_id)
                               : source.selectedModelIds,
                       ),
                   ),
               );
 
-        return projectAdapterFromConfig(
-            {
-                type: DbtProjectType.MANIFEST,
-                manifest: JSON.stringify(mergedManifest),
-                hideRefreshButton: true,
-            },
-            shared.warehouseCredentials,
-            shared.cachedWarehouse,
-            shared.dbtVersionOption,
-            this.lightdashConfig.dbt.environmentVariableAllowlist,
-            this.analytics,
-            // Keep the primary source's lightdash.config.yml / project_context.yml
-            // (spotlight categories, table_groups, parameters, AI context). The
-            // primary clone is alive until the caller destroys manifestFetchAdapters
-            // after compile, so the merged adapter can read these during compile.
-            {
-                projectDir: primary.adapter.dbtProjectDir,
-                selectedModelIds,
-            },
+        const stagedMergedManifest = await this.stageMergedManifest(
+            projectUuid,
+            mergedManifest,
         );
+
+        return {
+            adapter: await projectAdapterFromConfig(
+                {
+                    type: DbtProjectType.MANIFEST,
+                    manifest: JSON.stringify(mergedManifest),
+                    hideRefreshButton: true,
+                },
+                shared.warehouseCredentials,
+                shared.cachedWarehouse,
+                shared.dbtVersionOption,
+                this.lightdashConfig.dbt.environmentVariableAllowlist,
+                this.analytics,
+                // Keep the primary source's lightdash.config.yml / project_context.yml
+                // (spotlight categories, table_groups, parameters, AI context). The
+                // primary clone is alive until the caller destroys manifestFetchAdapters
+                // after compile, so the merged adapter can read these during compile.
+                {
+                    projectDir: primary.adapter.dbtProjectDir,
+                    selectedModelIds,
+                },
+            ),
+            stagedMergedManifest,
+        };
     }
 
     /**
@@ -4809,21 +4962,23 @@ export class ProjectService extends BaseService {
         };
         manifestFetchAdapters: ProjectAdapter[];
         onDbtSourceCount?: (dbtSourceCount: number) => void;
-    }): Promise<ProjectAdapter> {
+    }): Promise<ResolvedCompileAdapter> {
         const { enabled: multiDbtSourcesEnabled } =
             await this.featureFlagModel.get({
                 featureFlagId: FeatureFlags.MultiDbtSources,
                 user: { userUuid, organizationUuid },
             });
         if (!multiDbtSourcesEnabled) {
+            await this.deleteMergedManifestBestEffort(projectUuid);
             onDbtSourceCount?.(1);
-            return primary.adapter;
+            return { adapter: primary.adapter };
         }
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         if (sources.length === 0) {
+            await this.deleteMergedManifestBestEffort(projectUuid);
             onDbtSourceCount?.(1);
-            return primary.adapter;
+            return { adapter: primary.adapter };
         }
         onDbtSourceCount?.(sources.length + 1);
         return this.buildMergedManifestAdapter({
@@ -7998,6 +8153,7 @@ export class ProjectService extends BaseService {
         explores: (Explore | ExploreError)[];
         lightdashProjectConfig: LightdashProjectConfig;
         projectContext: ProjectContextEntry[] | undefined;
+        stagedMergedManifest?: Buffer;
     }> {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
@@ -8051,16 +8207,18 @@ export class ProjectService extends BaseService {
             // the union of all sources. A project with zero registered sources runs
             // the unchanged single-source path (N=0 short-circuit / regression firewall).
             let dbtSourceCount = 1;
-            adapter = await this.resolveCompileAdapter({
-                projectUuid,
-                organizationUuid: project.organizationUuid,
-                userUuid: user.userUuid,
-                primary: buildResult,
-                manifestFetchAdapters,
-                onDbtSourceCount: (count) => {
-                    dbtSourceCount = count;
-                },
-            });
+            let stagedMergedManifest: Buffer | undefined;
+            ({ adapter, stagedMergedManifest } =
+                await this.resolveCompileAdapter({
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                    userUuid: user.userUuid,
+                    primary: buildResult,
+                    manifestFetchAdapters,
+                    onDbtSourceCount: (count) => {
+                        dbtSourceCount = count;
+                    },
+                }));
             const packages = await adapter.getDbtPackages();
             const trackingParams = {
                 projectUuid,
@@ -8209,7 +8367,12 @@ export class ProjectService extends BaseService {
                 organizationUuid: project.organizationUuid,
             });
 
-            return { explores, lightdashProjectConfig, projectContext };
+            return {
+                explores,
+                lightdashProjectConfig,
+                projectContext,
+                stagedMergedManifest,
+            };
         } catch (e) {
             if (!(e instanceof LightdashError)) {
                 Sentry.captureException(e);
@@ -8552,7 +8715,7 @@ export class ProjectService extends BaseService {
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.RUNNING,
                 });
-                const indexCatalogJobUuid = await this.jobModel.tryJobStep(
+                const compileResult = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
@@ -8560,6 +8723,7 @@ export class ProjectService extends BaseService {
                             explores,
                             lightdashProjectConfig,
                             projectContext,
+                            stagedMergedManifest,
                         } = await this.refreshTablesAndProjectConfig(
                             user,
                             projectUuid,
@@ -8606,28 +8770,35 @@ export class ProjectService extends BaseService {
                         );
                         timings.parameters.end = performance.now();
                         timings.cacheExplores.start = performance.now();
-                        const result = this.saveExploresToCacheAndIndexCatalog({
-                            userUuid: user.userUuid,
+                        const indexCatalogJobUuid =
+                            await this.saveExploresToCacheAndIndexCatalog({
+                                userUuid: user.userUuid,
+                                projectUuid,
+                                explores,
+                                compilationSource: 'refresh_dbt',
+                                jobUuid: job.jobUuid,
+                                requestMethod,
+                                projectConfigDefaults:
+                                    lightdashProjectConfig.defaults,
+                                complete: true,
+                            });
+                        await this.persistMergedManifest(
                             projectUuid,
-                            explores,
-                            compilationSource: 'refresh_dbt',
-                            jobUuid: job.jobUuid,
-                            requestMethod,
-                            projectConfigDefaults:
-                                lightdashProjectConfig.defaults,
-                            complete: true,
-                        });
+                            stagedMergedManifest,
+                        );
                         timings.cacheExplores.end = performance.now();
 
-                        return result;
+                        return {
+                            indexCatalogJobUuid,
+                            errorCount: explores.filter(isExploreError).length,
+                            total: explores.length,
+                        };
                     },
                 );
 
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,
-                    jobResults: {
-                        indexCatalogJobUuid,
-                    },
+                    jobResults: compileResult,
                 });
             } catch (e) {
                 await this.jobModel.update(job.jobUuid, {
@@ -8832,6 +9003,17 @@ export class ProjectService extends BaseService {
                 const explore = exploresMap[exploreName];
 
                 if (!explore) {
+                    const candidateExploreNames =
+                        await this.projectModel.findExploreSplitCandidates(
+                            projectUuid,
+                            exploreName,
+                        );
+                    if (candidateExploreNames.length >= 2) {
+                        throw new ExploreSplitError(
+                            exploreName,
+                            candidateExploreNames,
+                        );
+                    }
                     throw new NotFoundError(
                         `Explore "${exploreName}" does not exist.`,
                     );

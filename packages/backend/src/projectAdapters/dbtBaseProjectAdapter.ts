@@ -432,16 +432,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                         ...(metaGroups && metaGroups.length > 0
                             ? { groups: metaGroups }
                             : {}),
-                        errors: [
-                            error.type === InlineErrorType.METADATA_PARSE_ERROR
-                                ? {
-                                      ...error,
-                                      message: `${
-                                          model.name ? `${model.name}: ` : ''
-                                      }${error.message}`,
-                                  }
-                                : error,
-                        ],
+                        errors: [error],
                     };
                     return [validModels, [...invalidModels, exploreError]];
                 }

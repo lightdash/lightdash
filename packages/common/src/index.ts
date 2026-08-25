@@ -46,6 +46,7 @@ dayjs.extend(utc);
 export { getPermissionsFromAbilityRules } from './authorization/abilityPermissions';
 export * from './authorization/buildAccountHelpers';
 export { collapseAbilityRules } from './authorization/collapseAbilityRules';
+export * from './authorization/directAccessRole';
 export {
     defineUserAbility,
     getUserAbilityBuilder,
@@ -79,6 +80,7 @@ export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
 export * from './dbt/manifest';
 export * from './dbt/metricFlow';
+export * from './dbt/projectMergedManifest';
 export * from './dbt/validation';
 export * from './ee';
 export * from './preAggregates';
@@ -183,6 +185,7 @@ export {
     buildSafeDbtEnvironmentVariables,
     DatabricksAuthenticationType,
     DBT_VERSION_SUPPORTED_WAREHOUSES,
+    DEFAULT_PROJECT_DBT_SOURCE_NAME,
     DbtProjectType,
     DbtVersionOptionLatest,
     DefaultSupportedDbtVersion,
@@ -195,6 +198,9 @@ export {
     getInvalidDbtEnvironmentVariableKeys,
     getLatestSupportDbtVersion,
     isDbtVersion110OrHigher,
+    PROJECT_DBT_SOURCE_NAME_MAX_LENGTH,
+    PROJECT_DBT_SOURCE_NAME_PATTERN,
+    validateProjectDbtSourceName,
     isGitProjectType,
     isSafeDbtEnvironmentVariableKey,
     isWarehouseSupportedByDbtVersion,

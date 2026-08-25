@@ -63,7 +63,9 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             host: githubHost,
             token: githubPersonalAccessToken,
         });
-        const remoteRepositoryUrl = `https://lightdash:${githubPersonalAccessToken}@${githubHost}/${githubRepository}.git`;
+        const remoteRepositoryUrl = githubPersonalAccessToken
+            ? `https://lightdash:${githubPersonalAccessToken}@${githubHost}/${githubRepository}.git`
+            : `https://${githubHost}/${githubRepository}.git`;
         super({
             warehouseClient,
             remoteRepositoryUrl,

@@ -28,6 +28,10 @@ type ExploreResolver = {
         projectUuid: string,
         table: string,
     ): Promise<Explore | ExploreError | undefined>;
+    findExploreContainingTable(
+        projectUuid: string,
+        table: string,
+    ): Promise<Explore | ExploreError | undefined>;
 };
 
 const parseFieldValuesLimit = (limit: unknown, maxLimit: number): number => {
@@ -96,6 +100,12 @@ export async function getFieldValuesMetricQuery({
         if (explore && !isExploreError(explore)) {
             fieldId = initialFieldId.replace(table, explore.baseTable);
         }
+    }
+    if (!explore) {
+        explore = await exploreResolver.findExploreContainingTable(
+            projectUuid,
+            table,
+        );
     }
 
     if (!explore) {

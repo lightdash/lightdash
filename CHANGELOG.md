@@ -1,3 +1,154 @@
+## [1.256.1](https://github.com/lightdash/lightdash/compare/1.256.0...1.256.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **filters:** suggest values for hidden joined dimensions ([#27988](https://github.com/lightdash/lightdash/issues/27988)) ([d10a8b2](https://github.com/lightdash/lightdash/commit/d10a8b25cf9f272c2cab9552de7e80033b236a5f))
+* **pgwire:** log pre-auth connection failures with peer address ([#27985](https://github.com/lightdash/lightdash/issues/27985)) ([1a1db3a](https://github.com/lightdash/lightdash/commit/1a1db3ae6a6bbdd7d75c086d6d79bfd66d48fc71))
+
+# [1.256.0](https://github.com/lightdash/lightdash/compare/1.255.0...1.256.0) (2026-08-25)
+
+
+### Bug Fixes
+
+* **api:** quiet expected not-found errors ([#27977](https://github.com/lightdash/lightdash/issues/27977)) ([e816e3c](https://github.com/lightdash/lightdash/commit/e816e3cdfcc593d463f45e08d740a9f843ee4e25))
+
+
+### Features
+
+* **auth:** add batched direct access reads ([#27923](https://github.com/lightdash/lightdash/issues/27923)) ([99ec07c](https://github.com/lightdash/lightdash/commit/99ec07c58bee5cdc4b23255379ac4860d5073fb0)), closes [#27922](https://github.com/lightdash/lightdash/issues/27922)
+* **auth:** add transactional direct access writes ([#27924](https://github.com/lightdash/lightdash/issues/27924)) ([501ec4e](https://github.com/lightdash/lightdash/commit/501ec4e2fb076b326cdbd9cb50e639df06c3353d)), closes [#27923](https://github.com/lightdash/lightdash/issues/27923)
+* **auth:** gate direct access service ([#27925](https://github.com/lightdash/lightdash/issues/27925)) ([7e8089e](https://github.com/lightdash/lightdash/commit/7e8089e5a2dec4ced21a3b18c41ba1aa6be876a2)), closes [#27924](https://github.com/lightdash/lightdash/issues/27924)
+
+# [1.255.0](https://github.com/lightdash/lightdash/compare/1.254.0...1.255.0) (2026-08-25)
+
+
+### Features
+
+* **auth:** add direct access grant schema ([#27922](https://github.com/lightdash/lightdash/issues/27922)) ([12b83f4](https://github.com/lightdash/lightdash/commit/12b83f460f3a3e7e1e0e7a32ca6b97e1b494d5aa)), closes [#27921](https://github.com/lightdash/lightdash/issues/27921)
+
+# [1.254.0](https://github.com/lightdash/lightdash/compare/1.253.1...1.254.0) (2026-08-25)
+
+
+### Features
+
+* **auth:** add direct access role resolver ([#27921](https://github.com/lightdash/lightdash/issues/27921)) ([e54a68e](https://github.com/lightdash/lightdash/commit/e54a68e2787728dd4fa365572ed004dbc9358940)), closes [houserx/lightdash-hrx#25](https://github.com/houserx/lightdash-hrx/issues/25)
+
+## [1.253.1](https://github.com/lightdash/lightdash/compare/1.253.0...1.253.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **sdk:** sync dashboard filter prop changes ([#27973](https://github.com/lightdash/lightdash/issues/27973)) ([3c01aef](https://github.com/lightdash/lightdash/commit/3c01aef65deccaeb54d1cc981ed1d8e56e4d2d04))
+* **table-calculations:** rerun query after changes ([#27978](https://github.com/lightdash/lightdash/issues/27978)) ([741b419](https://github.com/lightdash/lightdash/commit/741b419d85cd9a4d6c082ba941127429e9cb319c))
+
+# [1.253.0](https://github.com/lightdash/lightdash/compare/1.252.1...1.253.0) (2026-08-25)
+
+
+### Features
+
+* finalize embedded chart builder access ([#27926](https://github.com/lightdash/lightdash/issues/27926)) ([a4ad514](https://github.com/lightdash/lightdash/commit/a4ad5147e1a52747e2458ce979370e17af61ff8d))
+
+## [1.252.1](https://github.com/lightdash/lightdash/compare/1.252.0...1.252.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* add a continue link to the OAuth redirect page ([#27967](https://github.com/lightdash/lightdash/issues/27967)) ([aad85ac](https://github.com/lightdash/lightdash/commit/aad85ac33bea791fb1c9f057b05ffc3182382680))
+
+# [1.252.0](https://github.com/lightdash/lightdash/compare/1.251.7...1.252.0) (2026-08-24)
+
+
+### Bug Fixes
+
+* **cli:** preserve source overrides in previews ([#27457](https://github.com/lightdash/lightdash/issues/27457)) ([40ca9f0](https://github.com/lightdash/lightdash/commit/40ca9f01b42e7b628d8238c3b2d1f547d440f97a))
+
+
+### Features
+
+* **cli:** default to batched deploy with old-server fallback ([#27499](https://github.com/lightdash/lightdash/issues/27499)) ([8e422c0](https://github.com/lightdash/lightdash/commit/8e422c06229bb9adba17aa7b4b787cce03662235))
+* persist and serve the merged dbt manifest ([#27447](https://github.com/lightdash/lightdash/issues/27447)) ([7149cf4](https://github.com/lightdash/lightdash/commit/7149cf41226f47f3e044ab26fd3772525969a6b9))
+* the CLI fetches the served merged manifest for previews ([#27451](https://github.com/lightdash/lightdash/issues/27451)) ([1ce0c82](https://github.com/lightdash/lightdash/commit/1ce0c829b51a0b751e339d4d8ede5e204b61b6be))
+
+## [1.251.7](https://github.com/lightdash/lightdash/compare/1.251.6...1.251.7) (2026-08-24)
+
+
+### Bug Fixes
+
+* restore dbt source contracts ([#27964](https://github.com/lightdash/lightdash/issues/27964)) ([a6b6762](https://github.com/lightdash/lightdash/commit/a6b6762e8caaede895ec0b756b595137c9b0a513))
+
+## [1.251.6](https://github.com/lightdash/lightdash/compare/1.251.5...1.251.6) (2026-08-24)
+
+
+### Bug Fixes
+
+* **frontend:** close the update mutation call in the dbt sources panel ([#27963](https://github.com/lightdash/lightdash/issues/27963)) ([9f9a029](https://github.com/lightdash/lightdash/commit/9f9a029cef906970acde3b618ed0b16ecdb462f9))
+* **frontend:** update step progress test expectations ([#27951](https://github.com/lightdash/lightdash/issues/27951)) ([86face9](https://github.com/lightdash/lightdash/commit/86face9ffae6a082a4b2776805c79ec407fba3f2))
+
+## [1.251.5](https://github.com/lightdash/lightdash/compare/1.251.4...1.251.5) (2026-08-24)
+
+
+### Bug Fixes
+
+* rename the primary dbt source ([#27456](https://github.com/lightdash/lightdash/issues/27456)) ([a25af07](https://github.com/lightdash/lightdash/commit/a25af07947efade9b8cec21f76ad9d52bd22e417))
+
+## [1.251.4](https://github.com/lightdash/lightdash/compare/1.251.3...1.251.4) (2026-08-24)
+
+
+### Bug Fixes
+
+* warn when synced tables have errors ([#27455](https://github.com/lightdash/lightdash/issues/27455)) ([b6579ef](https://github.com/lightdash/lightdash/commit/b6579efcde86e213b867d586f0ba4e54f78b5922))
+
+## [1.251.3](https://github.com/lightdash/lightdash/compare/1.251.2...1.251.3) (2026-08-24)
+
+
+### Bug Fixes
+
+* **backend:** restore the getModelsFromManifest import ([#27959](https://github.com/lightdash/lightdash/issues/27959)) ([23c2c65](https://github.com/lightdash/lightdash/commit/23c2c65740924b99fc1416636e8a4a6ea4a345c5))
+* humanize metadata parse errors ([#27454](https://github.com/lightdash/lightdash/issues/27454)) ([49f8f52](https://github.com/lightdash/lightdash/commit/49f8f52aa0c92f3398e06de59ed346d3cc1c83db))
+
+## [1.251.2](https://github.com/lightdash/lightdash/compare/1.251.1...1.251.2) (2026-08-24)
+
+
+### Bug Fixes
+
+* validate dbt source access tokens ([#27453](https://github.com/lightdash/lightdash/issues/27453)) ([0b6a25c](https://github.com/lightdash/lightdash/commit/0b6a25ca077e8c6c87c61aeadca5e615f06aa107))
+
+## [1.251.1](https://github.com/lightdash/lightdash/compare/1.251.0...1.251.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* close add source modal after creation ([#27452](https://github.com/lightdash/lightdash/issues/27452)) ([7ed55ee](https://github.com/lightdash/lightdash/commit/7ed55eef3a7470a0ff03ec8aad626b1671a995a9))
+* show the candidate explores when a saved chart points at a split name ([#27448](https://github.com/lightdash/lightdash/issues/27448)) ([c42f4e8](https://github.com/lightdash/lightdash/commit/c42f4e85c5ddd1c2d31de7390c90167b2337d67e)), closes [#27444](https://github.com/lightdash/lightdash/issues/27444)
+
+# [1.251.0](https://github.com/lightdash/lightdash/compare/1.250.0...1.251.0) (2026-08-24)
+
+
+### Features
+
+* rename model and metric names that collide across dbt sources ([#27444](https://github.com/lightdash/lightdash/issues/27444)) ([aa707fa](https://github.com/lightdash/lightdash/commit/aa707fabc365b19058abda9e9e0fe1c799411ef7)), closes [#27439](https://github.com/lightdash/lightdash/issues/27439)
+
+# [1.250.0](https://github.com/lightdash/lightdash/compare/1.249.0...1.250.0) (2026-08-24)
+
+
+### Features
+
+* give the primary dbt source a stable persistent identity ([#27443](https://github.com/lightdash/lightdash/issues/27443)) ([fa3a6e6](https://github.com/lightdash/lightdash/commit/fa3a6e61fe7e610f3a634cbd8e75a136d6632a50))
+
+# [1.249.0](https://github.com/lightdash/lightdash/compare/1.248.2...1.249.0) (2026-08-24)
+
+
+### Bug Fixes
+
+* slide the page sidebar open in step with the content ([#27936](https://github.com/lightdash/lightdash/issues/27936)) ([2801e90](https://github.com/lightdash/lightdash/commit/2801e9087b40501e1730a58dda8c1117992b900d))
+
+
+### Features
+
+* **data-app-viz:** host-side drill-down intent handling ([#27904](https://github.com/lightdash/lightdash/issues/27904)) ([6e0dd60](https://github.com/lightdash/lightdash/commit/6e0dd60f53f97b7997399fc42b368d61a627da42))
+* **query-sdk:** viz drill-down capability ([#27903](https://github.com/lightdash/lightdash/issues/27903)) ([b92b8da](https://github.com/lightdash/lightdash/commit/b92b8da4cea151f90cff69efc0c5dde51244e7c4))
+
 ## [1.248.2](https://github.com/lightdash/lightdash/compare/1.248.1...1.248.2) (2026-08-24)
 
 

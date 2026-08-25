@@ -1,7 +1,7 @@
 import {
     type AiAgentMessageAssistant,
     type AiArtifact,
-    type ToolDashboardArgs,
+    type ToolDashboardV2Args,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -27,7 +27,7 @@ type Props = {
     artifactData: AiArtifact;
     projectUuid: string;
     agentUuid: string;
-    dashboardConfig: ToolDashboardArgs;
+    dashboardConfig: ToolDashboardV2Args;
     message: AiAgentMessageAssistant;
     showCloseButton?: boolean;
 };

@@ -33,6 +33,11 @@ import dbtManifestSchemaV20 from './schemas/manifestV20.json';
 // so deferring construction keeps the SDK bundle from compiling validators at
 // load time. See issue #21276.
 let ajvInstance: Ajv2020 | undefined;
+type AjvErrorContext = {
+    modelName?: string;
+    sourceName?: string;
+};
+
 const getAjv = (): Ajv2020 => {
     if (ajvInstance === undefined) {
         const ajv = new Ajv2020();
@@ -70,17 +75,45 @@ export class ManifestValidator {
     static isValid = (
         validator: ValidateFunction<AnyType>,
         data: AnyType,
+        context?: AjvErrorContext,
     ): [true, undefined] | [false, string] => {
         const isValid = validator(data);
         if (!isValid) {
-            return [false, ManifestValidator.formatAjvErrors(validator)];
+            return [
+                false,
+                ManifestValidator.formatAjvErrors(validator, context),
+            ];
         }
         return [true, undefined];
     };
 
-    static formatAjvErrors = (validator: AnyValidateFunction): string =>
+    static formatAjvErrors = (
+        validator: AnyValidateFunction,
+        context?: AjvErrorContext,
+    ): string =>
         (validator.errors || [])
-            .map((err) => `Field at "${err.instancePath}" ${err.message}`)
+            .map((error) => {
+                const location = error.instancePath || 'model root';
+                const modelContext = context?.modelName
+                    ? `Model "${context.modelName}"${
+                          context.sourceName
+                              ? ` from dbt source "${context.sourceName}"`
+                              : ''
+                      }: `
+                    : '';
+
+                if (
+                    error.keyword === 'additionalProperties' &&
+                    typeof error.params.additionalProperty === 'string'
+                ) {
+                    return `${modelContext}Property "${error.params.additionalProperty}" at ${location} is not allowed. Remove or update it in your dbt model, then deploy again.`;
+                }
+
+                const action = context?.modelName
+                    ? 'Update this field in your dbt model, then deploy again.'
+                    : 'Update this field and try again.';
+                return `${modelContext}Field at ${location} ${error.message}. ${action}`;
+            })
             .join('\n');
 
     static getValidator = <T>(schemaRef: string) => {
@@ -105,6 +138,11 @@ export class ManifestValidator {
         const validator = ManifestValidator.getValidator<DbtModelNode>(
             `${this.lightdashSchemaId}#/definitions/LightdashCompiledModelNode`,
         );
-        return ManifestValidator.isValid(validator, model);
+        const modelToValidate = { ...model };
+        delete modelToValidate.lightdash_source_name;
+        return ManifestValidator.isValid(validator, modelToValidate, {
+            modelName: model.name,
+            sourceName: model.lightdash_source_name,
+        });
     };
 }

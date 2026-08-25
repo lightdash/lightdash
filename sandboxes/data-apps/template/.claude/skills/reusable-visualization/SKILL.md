@@ -35,6 +35,7 @@ const {
   pivotDetails,
   ready,
   underlyingData,
+  drillDown,
 } = useVizContext();
 ```
 
@@ -51,6 +52,8 @@ const {
 - `ready` — false until the first context arrives.
 - `underlyingData` — host-mediated access to the raw rows behind a clicked data point.
   See "Data-point actions" below.
+- `drillDown` — host-mediated drill on a clicked data point. See "Data-point
+  actions" below.
 
 Read all of them. Ignoring `options` and `colorPalette` is the most common way to build a
 viz nobody can configure.
@@ -153,9 +156,14 @@ declared series fields builds its label from each matching `pivotValues` entry i
 field order. Backend-pivoted rows do not have safe one-source-row provenance, so the host
 sets `underlyingData.enabled` to false for them.
 
-## Data-point actions: underlying data
+## Data-point actions: underlying data and drill-down
 
-When `underlyingData.enabled` is true, viewers expect the standard Lightdash action on
+Every chart whose marks satisfy the provenance rule below MUST wire the data-point
+action menu. This is part of the component contract, not an optional nicety — a
+"keep it minimal" prompt does not waive it. The flags decide at RUNTIME whether each
+item shows; you always write the wiring, and it costs nothing visually when disabled.
+
+When `underlyingData.enabled` is true, viewers get the standard Lightdash action on
 chart marks: click a data point → small action menu → "View underlying data" → a dialog
 listing the raw rows behind that point, with a Download button. When it is false (host
 too old, viewer lacks permission, embed), render no menu item — never a disabled one.
@@ -202,6 +210,46 @@ max-content`). A wrapper that sizes to the table's intrinsic width makes the
 overflow container's horizontal scroll dead — the table looks clipped and viewers
 cannot reach the right-hand columns. Verify by scrolling right in the rendered
 dialog with more columns than fit.
+
+### Drill into a data point
+
+When `drillDown.enabled` is true, the same data-point action menu also offers
+"Drill into *{formatted metric value}*" (e.g. "Drill into $1,234"). On
+selection, fire the intent and render nothing else — Lightdash opens its own
+drill dialog outside the viz:
+
+```tsx
+drillDown.open({ row: datum.sourceRow, metric: 'value' }).catch(() => {});
+```
+
+`metric` is the declared field NAME, exactly as for `underlyingData`. The same
+provenance contract applies: the item appears only where one mark maps to
+exactly ONE source row and ONE metric-slot field, and only when
+`drillDown.enabled` — never a disabled item. The two flags are independent:
+show each action on its own flag (a viewer may have one permission but not
+the other).
+
+### Interaction hygiene
+
+One floating surface at a time, and no leftover emphasis — native Lightdash
+charts show a menu OR a tooltip, never both, and clicking leaves no mark
+highlighted:
+
+- **Opening the action menu closes the tooltip.** Drive tooltip visibility
+  from your own state (recharts: gate `<Tooltip>` via controlled props or a
+  wrapper's visibility; echarts: `dispatchAction({ type: 'hideTip' })` on
+  click). While the menu is open the tooltip stays hidden, and it must not
+  reappear until the pointer moves again after the menu closes.
+- **No persistent focus or active styling on a clicked mark.** Disable click
+  emphasis (recharts: no `activeShape` on click state; echarts: turn off
+  lingering `emphasis`/`select`) and blur any focused SVG node after opening
+  the menu. Only hover may emphasise, and only while hovering.
+- **Subtle hover, no cursor band.** The library-default full-height band
+  behind the hovered mark (recharts `<Tooltip cursor>`) is not native
+  behaviour — use `cursor={false}` or a faint theme-token fill.
+- **Tooltips are themed and deduplicated.** Background, text and border come
+  from the theme tokens (never library-default white), and each value appears
+  once: one line per series actually under the pointer.
 
 ## The declaration
 
@@ -334,5 +382,10 @@ Then check both directions: every key you read from `options` is declared, and e
 you declared is read somewhere. `colorPalette` is declared when you colour from
 `colorPalette` — it is never read from `options`.
 
-Finally, if the chart has clickable marks: each interactive datum carries `sourceRow`,
-and the data-point action menu is gated on `underlyingData.enabled`.
+Finally, if any mark maps to exactly one source row, the data-point action
+menu is wired: each interactive datum carries `sourceRow`, the underlying-data
+action is gated on `underlyingData.enabled`, and the drill action is gated on
+`drillDown.enabled`. Omitting the menu on a chart whose marks satisfy
+provenance is a defect, not a simplification. Then click a mark mentally:
+the tooltip closes, nothing stays highlighted, and only the menu remains —
+one floating surface at a time.

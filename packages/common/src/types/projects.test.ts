@@ -11,8 +11,11 @@ import {
     LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX,
     mergeWarehouseCredentials,
     normalizeWarehouseCredentials,
+    PROJECT_DBT_SOURCE_NAME_MAX_LENGTH,
+    PROJECT_DBT_SOURCE_NAME_PATTERN,
     resolveDbtVersion,
     SupportedDbtVersions,
+    validateProjectDbtSourceName,
     WarehouseTypes,
     type CreateAthenaCredentials,
     type CreatePostgresCredentials,
@@ -20,6 +23,30 @@ import {
     type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
 } from './projects';
+
+describe('project dbt source name validation', () => {
+    test.each([
+        ['', 'Name is required'],
+        ['my source!', 'Use only letters, numbers, and underscores'],
+        [
+            'a'.repeat(PROJECT_DBT_SOURCE_NAME_MAX_LENGTH + 1),
+            `Name must be ${PROJECT_DBT_SOURCE_NAME_MAX_LENGTH} characters or fewer`,
+        ],
+        ['sales__orders', 'Name cannot contain "__"'],
+        ['sales_orders', null],
+    ])('validates %j', (name, error) => {
+        expect(validateProjectDbtSourceName(name)).toBe(error);
+    });
+
+    test('exports the accepted name pattern', () => {
+        expect(PROJECT_DBT_SOURCE_NAME_PATTERN.test('sales_orders_2')).toBe(
+            true,
+        );
+        expect(PROJECT_DBT_SOURCE_NAME_PATTERN.test('sales-orders')).toBe(
+            false,
+        );
+    });
+});
 
 describe('dbt environment variable validation', () => {
     test('allows customer-defined environment variables', () => {

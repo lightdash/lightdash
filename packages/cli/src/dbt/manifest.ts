@@ -1,4 +1,9 @@
-import { DbtManifest, getErrorMessage, ParseError } from '@lightdash/common';
+import {
+    DbtManifest,
+    getErrorMessage,
+    isApiError,
+    ParseError,
+} from '@lightdash/common';
 import { promises as fs } from 'fs';
 import fetch from 'node-fetch';
 import * as path from 'path';
@@ -48,14 +53,65 @@ export const isHttpUrl = (value: string): boolean => {
     }
 };
 
+const isGenericUnexpectedServerError = (responseText: string): boolean => {
+    try {
+        const response = JSON.parse(responseText) as unknown;
+        if (!isApiError(response)) return false;
+        const { error } = response;
+        return (
+            error.statusCode === 500 &&
+            error.name === 'UnexpectedServerError' &&
+            error.message === 'Something went wrong.'
+        );
+    } catch {
+        return false;
+    }
+};
+
+const isLightdashFrontendFallback = (
+    url: string,
+    response: Awaited<ReturnType<typeof fetch>>,
+    responseText: string,
+): boolean => {
+    const { pathname } = new URL(url);
+    const isFrontendPath = pathname !== '/api' && !pathname.startsWith('/api/');
+    const isLightdashResponse =
+        response.headers.get('lightdash-version') !== null;
+    const isHtmlResponse =
+        response.headers.get('content-type')?.includes('text/html') === true ||
+        /^\s*(?:<!doctype html|<html)/i.test(responseText);
+
+    return (
+        isFrontendPath &&
+        isLightdashResponse &&
+        (isHtmlResponse || isGenericUnexpectedServerError(responseText))
+    );
+};
+
 const loadManifestFromUrl = async (url: string): Promise<DbtManifest> => {
     globalState.debug(`> Loading dbt manifest from ${url}`);
     try {
         const response = await fetch(url);
+        const responseText = await response.text();
+        const isFrontendFallback = isLightdashFrontendFallback(
+            url,
+            response,
+            responseText,
+        );
         if (!response.ok) {
+            if (isFrontendFallback) {
+                throw new Error(
+                    'Manifest not found: the URL resolves to a Lightdash app route instead of a dbt manifest',
+                );
+            }
             throw new Error(`${response.status} ${response.statusText}`);
         }
-        const manifest = JSON.parse(await response.text()) as DbtManifest;
+        if (isFrontendFallback) {
+            throw new Error(
+                'Manifest not found: the URL resolves to a Lightdash app route instead of a dbt manifest',
+            );
+        }
+        const manifest = JSON.parse(responseText) as DbtManifest;
         return manifest;
     } catch (err: unknown) {
         const msg = getErrorMessage(err);

@@ -6,7 +6,6 @@ import {
 import {
     IconChartDots3,
     IconChartHistogram,
-    IconChartLine,
     IconDatabase,
     IconFileCode,
     IconFileDiff,
@@ -48,9 +47,6 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             grepFields: IconTerminal2,
             getMetadata: IconListDetails,
             searchFieldValues: IconSelector,
-            generateBarVizConfig: IconChartHistogram,
-            generateTimeSeriesVizConfig: IconChartLine,
-            generateTableVizConfig: IconTable,
             generateDashboard: IconLayoutDashboard,
             generateHashes: IconSelector,
             generateUuids: IconSelector,
