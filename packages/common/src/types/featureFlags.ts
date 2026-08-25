@@ -114,14 +114,6 @@ export enum FeatureFlags {
     ExplorerChartGallery = 'explorer-chart-gallery',
 
     /**
-     * Let embedded dashboard builders create and edit charts in place ("New
-     * chart" in the add-tile menu and "Edit chart" on tiles). Resolved with
-     * the embed write actor and organization, surfaced via embedWriteContext.
-     * Disabled by default.
-     */
-    EmbedChartBuilder = 'embed-chart-builder',
-
-    /**
      * Per-organization gate for declaring custom npm dependencies in data
      * apps. Disabled by default; self-hosted instances can enable it globally
      * via LIGHTDASH_ENABLE_FEATURE_FLAGS.

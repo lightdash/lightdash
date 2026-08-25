@@ -1,7 +1,6 @@
 import {
     ChartType,
     DashboardTileTypes,
-    FeatureFlags,
     QueryExecutionContext,
     assertUnreachable,
     getDefaultChartTileSize,
@@ -38,12 +37,12 @@ import {
     appendNewTilesToBottom,
     useUpdateDashboard,
 } from '../../../../../hooks/dashboard/useDashboard';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import { type EmbedExploreChart } from '../../../../providers/Embed/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 import { embedContractClass } from '../../styles/embedClassContract';
 import { useEmbedDashboard } from '../hooks';
+import { canUseEmbeddedChartBuilder } from '../utils';
 import EmbedDashboardChartEditorModal from './EmbedDashboardChartEditorModal';
 import EmbedDashboardChartTile from './EmbedDashboardChartTile';
 import EmbedDashboardHeader from './EmbedDashboardHeader';
@@ -465,20 +464,17 @@ const EmbedDashboard: FC<{
     );
 
     const canWriteDashboard =
-        !!writeActions && dashboard?.spaceUuid === writeActions.spaceUuid;
-    // Creating/editing charts in the builder is flag-gated and needs the
-    // token to allow ad-hoc exploring (canExplore) plus a write actor that
-    // can create charts in the write space.
-    const chartBuilderFlag = useServerFeatureFlag(
-        FeatureFlags.EmbedChartBuilder,
-    );
-    const canAddNewChart =
-        chartBuilderFlag.data?.enabled === true &&
-        canWriteDashboard &&
-        embedWriteContext?.canCreateSavedChart === true &&
-        content !== undefined &&
-        isDashboardContent(content) &&
-        content.canExplore === true;
+        !!writeActions &&
+        dashboard?.spaceUuid === writeActions.spaceUuid &&
+        embedWriteContext?.canUpdateDashboard === true;
+    const canUseChartBuilder = canUseEmbeddedChartBuilder({
+        canWriteDashboard,
+        canCreateSavedChart: embedWriteContext?.canCreateSavedChart === true,
+        canExplore:
+            content !== undefined &&
+            isDashboardContent(content) &&
+            content.canExplore === true,
+    });
     const [isNewChartOpen, setIsNewChartOpen] = useState(false);
     const [chartToEdit, setChartToEdit] = useState<SavedChart>();
     const hasDashboardNameChanged =
@@ -755,7 +751,7 @@ const EmbedDashboard: FC<{
                     maxSelectedValues={1}
                     disabled={isSaving}
                     onNewChart={
-                        canAddNewChart
+                        canUseChartBuilder
                             ? () => setIsNewChartOpen(true)
                             : undefined
                     }
@@ -836,7 +832,7 @@ const EmbedDashboard: FC<{
                 onBreakpointChange={setCurrentCols}
                 onDeleteTile={handleDeleteTile}
                 onEditTile={handleEditTile}
-                onEditChart={canAddNewChart ? setChartToEdit : undefined}
+                onEditChart={canUseChartBuilder ? setChartToEdit : undefined}
                 onExplore={onExplore}
                 useDashboardEditorTileQueries={canWriteDashboard}
             />
@@ -912,7 +908,7 @@ const EmbedDashboard: FC<{
                     {renderGridWithGuidedSetup()}
                 </>
             )}
-            {canAddNewChart && (
+            {canUseChartBuilder && (
                 <EmbedDashboardChartEditorModal
                     opened={isNewChartOpen || chartToEdit !== undefined}
                     onClose={() => {

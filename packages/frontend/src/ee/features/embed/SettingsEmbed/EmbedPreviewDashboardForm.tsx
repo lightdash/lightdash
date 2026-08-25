@@ -98,12 +98,14 @@ const EmbedPreviewDashboardForm: FC<{
     dashboards: DashboardBasicDetails[];
     writeActions?: CreateEmbedJwt['writeActions'];
     writeActionsPanel?: ReactNode;
+    onDashboardSpaceChange?: (spaceUuid: string | undefined) => void;
 }> = ({
     projectUuid,
     siteUrl,
     dashboards,
     writeActions,
     writeActionsPanel,
+    onDashboardSpaceChange,
 }) => {
     const { mutateAsync: createEmbedUrl } =
         useEmbedUrlCreateMutation(projectUuid);
@@ -257,6 +259,17 @@ const EmbedPreviewDashboardForm: FC<{
                     placeholder="Select a dashboard..."
                     searchable
                     {...form.getInputProps('dashboardUuid')}
+                    onChange={(dashboardUuid) => {
+                        form.setFieldValue(
+                            'dashboardUuid',
+                            dashboardUuid ?? undefined,
+                        );
+                        onDashboardSpaceChange?.(
+                            dashboards.find(
+                                (dashboard) => dashboard.uuid === dashboardUuid,
+                            )?.spaceUuid,
+                        );
+                    }}
                 />
 
                 <Stack gap="xs">
