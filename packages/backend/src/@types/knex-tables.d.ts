@@ -41,6 +41,10 @@ import {
     DashboardTileCommentsTableName,
 } from '../database/entities/comments';
 import {
+    ContentAsCodeSnapshotsTableName,
+    ContentAsCodeSnapshotTable,
+} from '../database/entities/contentAsCodeSnapshots';
+import {
     ContentVerificationTable,
     ContentVerificationTableName,
 } from '../database/entities/contentVerification';
@@ -774,6 +778,7 @@ declare module 'knex/types/tables' {
         [ManagedAgentRunsTableName]: ManagedAgentRunsTable;
         [ManagedAgentProtectionsTableName]: ManagedAgentProtectionsTable;
         [UserFavoritesTableName]: UserFavoritesTable;
+        [ContentAsCodeSnapshotsTableName]: ContentAsCodeSnapshotTable;
         [ContentVerificationTableName]: ContentVerificationTable;
         [AppsTableName]: AppsTable;
         [AppUserAccessTableName]: AppUserAccessTable;

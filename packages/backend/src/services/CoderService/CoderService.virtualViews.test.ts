@@ -108,6 +108,7 @@ const buildService = (existing: Explore | null = virtualView) => {
         schedulerClient: {} as never,
         promoteService: {} as never,
         spacePermissionService: {} as never,
+        contentAsCodeSnapshotModel: { upsert: vi.fn() } as never,
         contentVerificationModel: {} as never,
         projectService: projectService as never,
         groupsModel: {} as never,
