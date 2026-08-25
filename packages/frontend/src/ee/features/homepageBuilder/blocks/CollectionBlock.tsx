@@ -293,6 +293,7 @@ const SearchContentList: FC<{
             {
                 projectUuids: [projectUuid],
                 contentTypes: [contentType],
+                dataAppVizsFilter: 'exclude',
                 pageSize: PAGE_SIZE,
                 search: debouncedSearch || undefined,
             },
