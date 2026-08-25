@@ -5,7 +5,7 @@ import {
     type DataAppVizOptionValues,
     type ItemsMap,
 } from '@lightdash/common';
-import { Button, Group, Text } from '@mantine/core';
+import { Button, Group } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
@@ -24,6 +24,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { type ChartTypeAuthoringState } from '../../../providers/Explorer/types';
+import Callout from '../../common/Callout';
 import { CHART_GALLERY_SIDEBAR_TITLE_ID } from '../../common/ChartGallery/ChartGalleryContext';
 import MantineModal from '../../common/MantineModal';
 import { useSelectProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
@@ -277,11 +278,14 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
                     onClose={() => setIsExitConfirmOpen(false)}
                     title="Build in progress"
                 >
-                    <Text mb="md">
+                    <Callout
+                        variant={exitDiscardsBuild ? 'danger' : 'info'}
+                        mb="md"
+                    >
                         {exitDiscardsBuild
                             ? 'Leaving now discards the build that is still running.'
                             : 'The build keeps running and lands in version history when it finishes.'}
-                    </Text>
+                    </Callout>
                     <Group justify="flex-end">
                         <Button
                             variant="default"
