@@ -1,4 +1,4 @@
-import { type ChartType } from '@lightdash/common';
+import { FeatureFlags, type ChartType } from '@lightdash/common';
 import { ActionIcon, Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
     IconArrowLeft,
@@ -17,6 +17,7 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     CHART_GALLERY_SIDEBAR_TITLE_ID,
     ChartGalleryContext,
@@ -62,7 +63,11 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
         null,
     );
     const canEditChartType = useCanEditDataAppChecker(projectUuid);
+    const dataAppsEnabled =
+        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
+        true;
     const canEditSelectedType =
+        dataAppsEnabled &&
         selectedProjectType !== undefined &&
         canEditChartType(selectedProjectType);
 

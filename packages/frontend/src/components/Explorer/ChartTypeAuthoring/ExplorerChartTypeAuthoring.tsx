@@ -101,6 +101,9 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
     const boundUuid = useRef<string | null>(null);
     useEffect(() => {
         if (!dataAppViz?.schema || dataAppVizUuid === null) return;
+        // Binding before the query's fields land would commit an empty
+        // field mapping for the whole session; wait for them.
+        if (itemsMap === NO_ITEMS) return;
         if (chartUsesThisType || boundUuid.current === dataAppVizUuid) return;
         boundUuid.current = dataAppVizUuid;
         selectProjectChartType(dataAppViz, itemsMap);

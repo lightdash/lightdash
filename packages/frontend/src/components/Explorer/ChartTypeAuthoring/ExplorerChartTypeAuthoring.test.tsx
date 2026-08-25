@@ -8,7 +8,7 @@ import {
     type DataAppVizContext,
     type ItemsMap,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
@@ -308,6 +308,56 @@ describe('ExplorerChartTypeAuthoring', () => {
             },
         });
         expect(store.getState().explorer.chartSidebarStep).toBe('configure');
+    });
+
+    it('waits for the query fields before binding the chart to the type', () => {
+        vi.mocked(useExplorerResultsData).mockReturnValue({
+            resultsData: {
+                rows: [],
+                fields: undefined,
+                pivotDetails: null,
+                setFetchAll,
+            },
+        } as unknown as ReturnType<typeof useExplorerResultsData>);
+        const store = renderAuthoring();
+
+        expect(
+            store.getState().explorer.unsavedChartVersion.chartConfig.type,
+        ).not.toBe(ChartType.DATA_APP_VIZ);
+
+        vi.mocked(useExplorerResultsData).mockReturnValue({
+            resultsData: {
+                rows,
+                fields: itemsMap,
+                pivotDetails: null,
+                setFetchAll,
+            },
+        } as unknown as ReturnType<typeof useExplorerResultsData>);
+        // The mocked results hook cannot re-render the component itself;
+        // re-dispatching the untouched chart config stands in for it.
+        const currentConfig =
+            store.getState().explorer.unsavedChartVersion.chartConfig;
+        act(() => {
+            store.dispatch(
+                explorerActions.setChartConfig({
+                    chartConfig: currentConfig as never,
+                }),
+            );
+        });
+
+        expect(
+            store.getState().explorer.unsavedChartVersion.chartConfig,
+        ).toEqual({
+            type: ChartType.DATA_APP_VIZ,
+            config: {
+                dataAppVizUuid: 'viz-1',
+                fieldMapping: {
+                    category: 'orders_status',
+                    value: 'orders_count',
+                },
+                optionValues: {},
+            },
+        });
     });
 
     it('previews the chart binding against every Explorer row with the chart palette', () => {

@@ -22,6 +22,15 @@ vi.mock('./ChartTypeGallery', () => ({
     ),
     ChartTypeThumbnail: () => <span>Table thumbnail</span>,
 }));
+const { dataAppsFlagEnabled } = vi.hoisted(() => ({
+    dataAppsFlagEnabled: { current: true },
+}));
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: { enabled: dataAppsFlagEnabled.current },
+        isLoading: false,
+    }),
+}));
 const { selectedProjectType, vizConfig } = vi.hoisted(() => ({
     selectedProjectType: { current: undefined as unknown },
     vizConfig: {
@@ -83,6 +92,31 @@ describe('ExplorerChartSidebar', () => {
     beforeEach(() => {
         selectedProjectType.current = undefined;
         vizConfig.current = { chartType: ChartType.TABLE, chartConfig: {} };
+        dataAppsFlagEnabled.current = true;
+    });
+
+    it('hides the edit entry entirely while data-apps is disabled', () => {
+        dataAppsFlagEnabled.current = false;
+        vizConfig.current = {
+            chartType: ChartType.DATA_APP_VIZ,
+            chartConfig: { dataAppVizUuid: 'viz-1' },
+        };
+        selectedProjectType.current = {
+            dataAppVizUuid: 'viz-1',
+            name: 'Event pulse',
+            spaceUuid: null,
+            createdByUserUuid: 'user-1',
+        };
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.DATA_APP_VIZ}
+                onClose={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Edit chart type' }),
+        ).not.toBeInTheDocument();
     });
 
     it('offers editing the selected project chart type in place', async () => {
