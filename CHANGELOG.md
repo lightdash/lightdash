@@ -1,3 +1,10 @@
+## [1.258.1](https://github.com/lightdash/lightdash/compare/1.258.0...1.258.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **dashboards:** clear chart dirty state after save ([#28008](https://github.com/lightdash/lightdash/issues/28008)) ([ee5acf0](https://github.com/lightdash/lightdash/commit/ee5acf0a3cdd42b08879191e9a97f927243b1d7e))
+
 # [1.258.0](https://github.com/lightdash/lightdash/compare/1.257.2...1.258.0) (2026-08-25)
 
 

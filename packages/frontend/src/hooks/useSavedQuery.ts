@@ -506,6 +506,7 @@ export const useAddVersionMutation = (options?: {
     const redirectOnSuccess = options?.redirectOnSuccess ?? true;
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const params = useParams();
     const dashboardUuid = useSearchParams('fromDashboard');
 
     const { showToastSuccess, showToastError, showToastApiError } =
@@ -530,6 +531,10 @@ export const useAddVersionMutation = (options?: {
 
             queryClient.setQueryData(
                 ['saved_query', data.uuid, data.projectUuid],
+                data,
+            );
+            queryClient.setQueryData(
+                ['saved_query', params.savedQueryUuid, data.projectUuid],
                 data,
             );
             await queryClient.resetQueries(['savedChartResults', data.uuid]);
