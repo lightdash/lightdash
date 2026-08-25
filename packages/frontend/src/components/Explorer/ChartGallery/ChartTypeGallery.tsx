@@ -19,11 +19,13 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
-import { useLocation, useNavigate } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
-import { chartTypeBuilderPath } from '../../../features/chartTypes/utils/chartTypeBuilderPath';
+import {
+    explorerActions,
+    useExplorerDispatch,
+} from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
@@ -278,21 +280,29 @@ const RowsSectionActions: FC<{ section: ChartTypeGalleryRowsSection }> = ({
                 Load more
             </Button>
         ) : null}
+    </>
+);
 
-        {/* An action, not a chart type; wanted even when the section is empty. */}
-        {section.onCreateNew !== null ? (
+/* An action, not a chart type; beside the label so it is never below the fold. */
+const SectionHeader: FC<{ section: ChartTypeGallerySection }> = ({
+    section,
+}) => (
+    <Group justify="space-between" wrap="nowrap" gap="xs">
+        <Text fz="xs" fw={600} c="dimmed">
+            {section.label}
+        </Text>
+        {section.layout === 'rows' && section.onCreateNew !== null ? (
             <Button
                 variant="subtle"
-                size="xs"
-                px="xs"
+                size="compact-xs"
                 leftSection={<MantineIcon icon={IconPlus} />}
+                aria-label="Create new chart type"
                 onClick={section.onCreateNew}
-                justify="flex-start"
             >
-                Create new chart type
+                New
             </Button>
         ) : null}
-    </>
+    </Group>
 );
 
 type GalleryProps = {
@@ -327,9 +337,7 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
             <Stack gap="lg" pb="xs">
                 {sections.map((section) => (
                     <Stack key={section.label} gap="xs">
-                        <Text fz="xs" fw={600} c="dimmed">
-                            {section.label}
-                        </Text>
+                        <SectionHeader section={section} />
 
                         <SectionBody section={section} />
 
@@ -351,8 +359,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     onSelected,
 }) => {
     const projectUuid = useProjectUuid();
-    const location = useLocation();
-    const navigate = useNavigate();
+    const dispatch = useExplorerDispatch();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [showAllProjectTypes, setShowAllProjectTypes] = useState(false);
@@ -420,13 +427,11 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                 },
                 onEdit: canEditChartType(dataAppViz)
                     ? () =>
-                          void navigate({
-                              pathname: chartTypeBuilderPath(
-                                  projectUuid ?? '',
-                                  dataAppViz.dataAppVizUuid,
-                              ),
-                              search: location.search,
-                          })
+                          dispatch(
+                              explorerActions.startChartTypeAuthoring({
+                                  dataAppVizUuid: dataAppViz.dataAppVizUuid,
+                              }),
+                          )
                     : null,
             };
         },
@@ -467,12 +472,11 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                       loadingMore: isFetchingNextPage,
                       onCreateNew: canCreateChartType
                           ? () =>
-                                void navigate({
-                                    pathname: chartTypeBuilderPath(
-                                        projectUuid ?? '',
-                                    ),
-                                    search: location.search,
-                                })
+                                dispatch(
+                                    explorerActions.startChartTypeAuthoring({
+                                        dataAppVizUuid: null,
+                                    }),
+                                )
                           : null,
                   },
               ]

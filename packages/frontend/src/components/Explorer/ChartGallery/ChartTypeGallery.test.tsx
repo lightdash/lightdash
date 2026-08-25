@@ -20,6 +20,7 @@ const { mocks } = vi.hoisted(() => ({
         refetch: vi.fn(),
         fetchNextPage: vi.fn(),
         navigate: vi.fn(),
+        dispatch: vi.fn(),
         canCreateDataApp: vi.fn(() => true),
     },
 }));
@@ -64,6 +65,15 @@ vi.mock(
 );
 vi.mock('../../../features/apps/hooks/useCanCreateDataApp', () => ({
     useCanCreateDataApp: () => mocks.canCreateDataApp(),
+}));
+vi.mock('../../../features/explorer/store', () => ({
+    useExplorerDispatch: () => mocks.dispatch,
+    explorerActions: {
+        startChartTypeAuthoring: (payload: unknown) => ({
+            type: 'startChartTypeAuthoring',
+            payload,
+        }),
+    },
 }));
 vi.mock('react-router', async (importOriginal) => ({
     ...(await importOriginal<typeof ReactRouter>()),
@@ -314,17 +324,18 @@ describe('ExplorerChartTypeGallery', () => {
         expect(onSelected).toHaveBeenCalledTimes(1);
     });
 
-    it('opens the chart type builder from the project section', async () => {
+    it('starts authoring a new chart type in place from the project section', async () => {
         renderGallery();
 
         await userEvent.click(
             screen.getByRole('button', { name: /Create new chart type/ }),
         );
 
-        expect(mocks.navigate).toHaveBeenCalledWith({
-            pathname: '/projects/project-uuid/chart-types/new',
-            search: '?tableName=orders',
+        expect(mocks.dispatch).toHaveBeenCalledWith({
+            type: 'startChartTypeAuthoring',
+            payload: { dataAppVizUuid: null },
         });
+        expect(mocks.navigate).not.toHaveBeenCalled();
     });
 
     it('hides the create action without permission to author chart types', () => {

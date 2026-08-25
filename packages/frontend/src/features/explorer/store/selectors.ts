@@ -91,6 +91,11 @@ export const selectChartSidebarStep = createSelector(
     (explorer) => explorer.chartSidebarStep,
 );
 
+export const selectChartTypeAuthoring = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.chartTypeAuthoring,
+);
+
 // Authoring only takes over the Explorer in edit mode.
 export const selectIsChartTypeAuthoring = createSelector(
     [selectExplorerState],

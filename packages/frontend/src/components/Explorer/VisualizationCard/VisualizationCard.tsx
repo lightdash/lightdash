@@ -72,6 +72,10 @@ export type EchartsClickEvent = {
 
 type Props = {
     projectUuid?: string;
+    /** False keeps the card, its provider and the config sidebar alive
+     *  without drawing the chart, so nothing renders twice while a chart
+     *  type is authored in its place. */
+    renderVisualization: boolean;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
     minimal?: boolean;
@@ -80,6 +84,7 @@ type Props = {
 const VisualizationCard: FC<Props> = memo((props) => {
     const {
         projectUuid: fallBackUUid,
+        renderVisualization,
         onScreenshotReady,
         onScreenshotError,
         minimal = false,
@@ -469,19 +474,25 @@ const VisualizationCard: FC<Props> = memo((props) => {
                         )
                     }
                 >
-                    <LightdashVisualization
-                        ref={measureRef}
-                        className="sentry-block ph-no-capture"
-                        data-testid="visualization"
-                        onScreenshotReady={onScreenshotReady}
-                        onScreenshotError={onScreenshotError}
-                    />
-                    <SeriesContextMenu
-                        echartsSeriesClickEvent={echartsClickEvent?.event}
-                        dimensions={echartsClickEvent?.dimensions}
-                        series={echartsClickEvent?.series}
-                        explore={explore}
-                    />
+                    {renderVisualization && (
+                        <>
+                            <LightdashVisualization
+                                ref={measureRef}
+                                className="sentry-block ph-no-capture"
+                                data-testid="visualization"
+                                onScreenshotReady={onScreenshotReady}
+                                onScreenshotError={onScreenshotError}
+                            />
+                            <SeriesContextMenu
+                                echartsSeriesClickEvent={
+                                    echartsClickEvent?.event
+                                }
+                                dimensions={echartsClickEvent?.dimensions}
+                                series={echartsClickEvent?.series}
+                                explore={explore}
+                            />
+                        </>
+                    )}
                 </CollapsableCard>
             </VisualizationProvider>
         </ErrorBoundary>
