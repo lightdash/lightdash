@@ -106,6 +106,7 @@ describe('useDataAppVizBuild', () => {
         const rendered = renderHookWithProviders(
             ({ dataAppVizUuid }: { dataAppVizUuid: string | null }) =>
                 useDataAppVizBuild({
+                    creationExperience: 'chart_type_builder',
                     projectUuid: 'project-1',
                     itemsMap,
                     dataAppVizUuid,

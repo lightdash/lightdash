@@ -67,6 +67,9 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
     const workspace = useChartTypeBuilderWorkspace({
         projectUuid,
         dataAppVizUuid: authoring.dataAppVizUuid,
+        // The pre-builder explorer surface reported this source; the
+        // embedded builder is its successor.
+        creationExperience: 'explorer_chart_config',
         itemsMap,
     });
     const { build, dataAppViz, dataAppVizUuid, history } = workspace;

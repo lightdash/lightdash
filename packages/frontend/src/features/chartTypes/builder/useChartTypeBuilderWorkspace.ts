@@ -2,6 +2,7 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     isAppVersionInProgress,
     type AppClarification,
+    type DataAppCreationExperience,
     type DataAppViz,
     type ItemsMap,
 } from '@lightdash/common';
@@ -60,6 +61,8 @@ export type ChartTypeBuilderWorkspaceArgs = {
      *  adopts the uuid a first build claims passes it back here without
      *  resetting the session. */
     dataAppVizUuid: string | null;
+    /** The surface builds are reported from in analytics. */
+    creationExperience: DataAppCreationExperience;
     /** Result columns the build binds fields against; {} when no query
      *  backs the session. */
     itemsMap: ItemsMap;
@@ -105,10 +108,12 @@ export type ChartTypeBuilderWorkspaceState = {
 export const useChartTypeBuilderWorkspace = ({
     projectUuid,
     dataAppVizUuid,
+    creationExperience,
     itemsMap,
 }: ChartTypeBuilderWorkspaceArgs): ChartTypeBuilderWorkspaceState => {
     const build = useDataAppVizBuild({
         projectUuid,
+        creationExperience,
         itemsMap,
         dataAppVizUuid,
         // Selection is the host's explicit act; nothing binds on landing.

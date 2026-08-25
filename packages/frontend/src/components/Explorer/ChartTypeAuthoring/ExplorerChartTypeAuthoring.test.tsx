@@ -294,6 +294,13 @@ describe('ExplorerChartTypeAuthoring', () => {
     it('binds the chart to the type once its schema is known', () => {
         const store = renderAuthoring();
 
+        // Builds from this host carry the explorer's analytics source.
+        expect(useChartTypeBuilderWorkspace).toHaveBeenCalledWith(
+            expect.objectContaining({
+                creationExperience: 'explorer_chart_config',
+            }),
+        );
+
         expect(
             store.getState().explorer.unsavedChartVersion.chartConfig,
         ).toEqual({
