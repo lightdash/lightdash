@@ -2,6 +2,7 @@ import { Button, Group, Text, Tooltip } from '@mantine/core';
 import { IconChevronDown, IconFilter } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import FilterGroupSeparator from './FilterGroupSeparator';
 
 type Props = {
@@ -17,6 +18,7 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
     dateZoomLabel,
     onExpand,
 }) => {
+    const getUiString = useUiStrings();
     const hasFilters = filtersCount > 0;
     const hasParameters = parametersCount > 0;
     const hasDateZoom = dateZoomLabel !== null;
@@ -40,7 +42,11 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
                             <Text span fw={600}>
                                 {filtersCount}{' '}
                             </Text>
-                            {filtersCount === 1 ? 'filter' : 'filters'}
+                            {getUiString(
+                                filtersCount === 1
+                                    ? 'filters.summary.filterSingular'
+                                    : 'filters.summary.filterPlural',
+                            )}
                         </>
                     )}
                     {hasFilters && hasParameters && ' · '}
@@ -49,21 +55,25 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
                             <Text span fw={600}>
                                 {parametersCount}{' '}
                             </Text>
-                            {parametersCount === 1 ? 'parameter' : 'parameters'}
+                            {getUiString(
+                                parametersCount === 1
+                                    ? 'filters.summary.parameterSingular'
+                                    : 'filters.summary.parameterPlural',
+                            )}
                         </>
                     )}
                     {(hasFilters || hasParameters) && hasDateZoom && ' · '}
                     {hasDateZoom && (
                         <>
                             <Text span fw={600}>
-                                Date Zoom:
+                                {getUiString('filters.summary.dateZoomLabel')}
                             </Text>{' '}
                             {dateZoomLabel}
                         </>
                     )}
                 </Text>
             </Group>
-            <Tooltip label="Show filters">
+            <Tooltip label={getUiString('filters.summary.showFilters')}>
                 <Button
                     size="compact-xs"
                     variant="subtle"
@@ -71,7 +81,7 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
                     rightSection={<MantineIcon icon={IconChevronDown} />}
                     onClick={onExpand}
                 >
-                    Show filters
+                    {getUiString('filters.summary.showFilters')}
                 </Button>
             </Tooltip>
         </Group>

@@ -33,6 +33,7 @@ import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
 import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
 import { useIsLauncherMounted } from '../../ee/features/aiCopilot/components/Launcher/useIsLauncherMounted';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useActiveTabParameters } from '../../hooks/dashboard/useActiveTabParameters';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
@@ -41,12 +42,13 @@ import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
-import { SectionName } from '../../types/Events';
 import '../../styles/droppable.css';
+import { SectionName } from '../../types/Events';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
 import GuidedFilterSetupOverlay from '../dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
+import { getDateZoomSummaryLabel } from '../dateZoom/utils';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import { AddTabModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
@@ -346,6 +348,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         (c) => c.filterableFieldsByTileUuid,
     );
     const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
+    const getUiString = useUiStrings();
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
@@ -1063,8 +1066,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                     dateZoomLabel={
                                                         isDateZoomDisabled
                                                             ? null
-                                                            : dateZoomGranularity ||
-                                                              'Default'
+                                                            : getDateZoomSummaryLabel(
+                                                                  dateZoomGranularity,
+                                                                  getUiString,
+                                                              )
                                                     }
                                                     onExpand={() =>
                                                         setIsFiltersCollapsed(
