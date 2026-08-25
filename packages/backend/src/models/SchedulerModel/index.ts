@@ -2203,9 +2203,19 @@ export class SchedulerModel {
         const schedulerUuids = filteredSchedulers.map((s) => s.schedulerUuid);
 
         // Query parent jobs (where job_id = job_group) with aggregated child counts
+        const now: Date = new Date();
         const sevenDaysAgo: Date = new Date(
-            Date.now() - 7 * 24 * 60 * 60 * 1000,
+            now.getTime() - 7 * 24 * 60 * 60 * 1000,
         );
+
+        // Parent job ids in scope. Used to restrict the child count subquery so
+        // it doesn't rank every child row in scheduler_log.
+        const parentJobIdsSubquery = this.database(SchedulerLogTableName)
+            .distinct('job_id')
+            .whereRaw('job_id = job_group')
+            .whereIn('scheduler_uuid', schedulerUuids)
+            .where('scheduled_time', '>', sevenDaysAgo)
+            .where('scheduled_time', '<', now);
 
         // Build subquery for child job counts - only count most recent status per child
         // First, get the most recent entry for each child job
@@ -2220,6 +2230,7 @@ export class SchedulerModel {
                 ),
             )
             .whereRaw('job_id != job_group') // Only child jobs
+            .whereIn('job_group', parentJobIdsSubquery)
             .as('ranked_children');
 
         // Then count only the most recent status of each child (rn = 1)
@@ -2279,7 +2290,7 @@ export class SchedulerModel {
             .whereRaw('job_id = job_group') // Only parent jobs
             .whereIn('scheduler_uuid', schedulerUuids)
             .where('scheduled_time', '>', sevenDaysAgo)
-            .where('scheduled_time', '<', new Date())
+            .where('scheduled_time', '<', now)
             .as('ranked_runs');
 
         const distinctRunsSubquery = this.database
