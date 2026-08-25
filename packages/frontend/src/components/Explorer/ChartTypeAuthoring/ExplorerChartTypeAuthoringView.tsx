@@ -1,6 +1,6 @@
 import { type DataAppVizContext } from '@lightdash/common';
 import { Box } from '@mantine/core';
-import { useId, type FC } from 'react';
+import { useId, type FC, type ReactNode } from 'react';
 import { type SdkUpgradeOffer } from '../../../features/apps/hooks/useSdkUpgradeStatus';
 import ChartTypeBuilderWorkspace from '../../../features/chartTypes/builder/ChartTypeBuilderWorkspace';
 import { type ChartTypeBuilderWorkspaceState } from '../../../features/chartTypes/builder/useChartTypeBuilderWorkspace';
@@ -14,6 +14,8 @@ type Props = {
     upgrade: (SdkUpgradeOffer & { disabled: boolean }) | null;
     workspace: ChartTypeBuilderWorkspaceState;
     previewContext: DataAppVizContext | null;
+    /** The host's run-query control; null when no query backs the session. */
+    runQuery: ReactNode;
     onDetailsSaved: () => void;
     onDone: () => void;
 };
@@ -25,10 +27,14 @@ const ExplorerChartTypeAuthoringView: FC<Props> = ({
     upgrade,
     workspace,
     previewContext,
+    runQuery,
     onDetailsSaved,
     onDone,
 }) => {
     const titleId = useId();
+    const provenanceVersion = workspace.history.hasOrigin
+        ? workspace.history.oldest
+        : workspace.history.latest;
     return (
         <Box
             component="section"
@@ -41,9 +47,12 @@ const ExplorerChartTypeAuthoringView: FC<Props> = ({
                 titleId={titleId}
                 app={app}
                 status={deriveAuthoringStatus(workspace)}
+                provenanceVersion={provenanceVersion}
+                hasOrigin={workspace.history.hasOrigin}
                 upgrade={upgrade}
                 hasHistory={workspace.hasHistory}
                 isHistoryOpen={workspace.isHistoryOpen}
+                runQuery={runQuery}
                 onToggleHistory={workspace.toggleHistory}
                 onUpgradeStarted={workspace.openHistory}
                 onDetailsSaved={onDetailsSaved}

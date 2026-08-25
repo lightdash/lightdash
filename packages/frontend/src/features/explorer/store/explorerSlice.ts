@@ -361,6 +361,7 @@ const explorerSlice = createSlice({
             const beforePivotConfig = state.unsavedChartVersion.pivotConfig;
             state.chartTypeAuthoring = {
                 dataAppVizUuid: action.payload.dataAppVizUuid,
+                viewedVersion: null,
                 createdInSession: false,
                 previous: {
                     chartSidebarStep: state.chartSidebarStep,
@@ -395,6 +396,15 @@ const explorerSlice = createSlice({
                 };
                 state.unsavedChartVersion.pivotConfig = undefined;
             }
+        },
+        // The builder pinned an older version (or returned to the current
+        // one), so the sidebar configures what the preview renders.
+        viewChartTypeAuthoringVersion: (
+            state,
+            action: PayloadAction<number | null>,
+        ) => {
+            if (state.chartTypeAuthoring === null) return;
+            state.chartTypeAuthoring.viewedVersion = action.payload;
         },
         // A first build claimed an app; the session keeps going under it.
         claimChartTypeAuthoringViz: (state, action: PayloadAction<string>) => {

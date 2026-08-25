@@ -6,9 +6,23 @@
     background: var(--mantine-color-background-0);
 }
 
-/* The one element allowed to give way, so the actions never do. */
+/* The title and its byline share a text baseline; the icons between them
+   have none, so they center against the taller title instead. */
+.nameCluster {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+}
+
+.nameCluster > button {
+    align-self: center;
+}
+
+/* Sits by its neighbours and only gives way under pressure, so the gap
+   after it stays the row gap rather than a fixed slot. */
 .title {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-width: 0;
     max-width: 280px;
     overflow: hidden;
@@ -16,11 +30,10 @@
     text-overflow: ellipsis;
 }
 
-.status {
-    flex: 0 0 auto;
-    text-transform: none;
-    letter-spacing: 0;
-    font-weight: 500;
+/* Yields after the title, so the actions never do. */
+.provenance {
+    flex: 0 1 auto;
+    min-width: 0;
 }
 
 .actions {

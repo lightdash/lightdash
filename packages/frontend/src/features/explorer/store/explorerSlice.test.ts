@@ -103,6 +103,7 @@ describe('explorerSlice chart type authoring', () => {
     it('moves a new type onto the empty custom config and shows Configure', () => {
         expect(authoringNew.chartTypeAuthoring).toEqual({
             dataAppVizUuid: null,
+            viewedVersion: null,
             createdInSession: false,
             previous: {
                 chartSidebarStep: 'choose',
@@ -151,6 +152,27 @@ describe('explorerSlice chart type authoring', () => {
             explorerReducer(
                 undefined,
                 explorerActions.claimChartTypeAuthoringViz('viz-1'),
+            ).chartTypeAuthoring,
+        ).toBeNull();
+    });
+
+    it('tracks the version the builder previews, only while authoring', () => {
+        const pinned = explorerReducer(
+            authoringNew,
+            explorerActions.viewChartTypeAuthoringVersion(2),
+        );
+        expect(pinned.chartTypeAuthoring?.viewedVersion).toBe(2);
+
+        const unpinned = explorerReducer(
+            pinned,
+            explorerActions.viewChartTypeAuthoringVersion(null),
+        );
+        expect(unpinned.chartTypeAuthoring?.viewedVersion).toBeNull();
+
+        expect(
+            explorerReducer(
+                undefined,
+                explorerActions.viewChartTypeAuthoringVersion(2),
             ).chartTypeAuthoring,
         ).toBeNull();
     });

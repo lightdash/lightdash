@@ -84,59 +84,66 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                     {backLink.label}
                 </Button>
                 <Box className={classes.divider} />
-                {app ? (
-                    <>
-                        <Title
-                            className={classes.name}
-                            order={6}
-                            c="ldDark.9"
-                            fw={600}
-                            lineClamp={1}
-                        >
-                            {getAppDisplayName(app.name, app.appUuid)}
-                        </Title>
-                        {app.description && (
-                            <Tooltip
-                                withArrow
-                                multiline
-                                w={280}
-                                label={app.description}
+                <Box className={classes.nameCluster}>
+                    {app ? (
+                        <>
+                            <Title
+                                className={classes.name}
+                                order={6}
+                                c="ldDark.9"
+                                fw={600}
+                                lineClamp={1}
                             >
+                                {getAppDisplayName(app.name, app.appUuid)}
+                            </Title>
+                            {app.description && (
+                                <Tooltip
+                                    withArrow
+                                    multiline
+                                    w={280}
+                                    label={app.description}
+                                >
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        size="sm"
+                                        aria-label="Chart type description"
+                                    >
+                                        <MantineIcon icon={IconInfoCircle} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                            <Tooltip withArrow label="Edit details">
                                 <ActionIcon
                                     variant="subtle"
                                     color="gray"
                                     size="sm"
-                                    aria-label="Chart type description"
+                                    aria-label="Edit chart type details"
+                                    onClick={() => setIsEditingDetails(true)}
                                 >
-                                    <MantineIcon icon={IconInfoCircle} />
+                                    <MantineIcon icon={IconPencil} />
                                 </ActionIcon>
                             </Tooltip>
-                        )}
-                        <Tooltip withArrow label="Edit details">
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                size="sm"
-                                aria-label="Edit chart type details"
-                                onClick={() => setIsEditingDetails(true)}
-                            >
-                                <MantineIcon icon={IconPencil} />
-                            </ActionIcon>
-                        </Tooltip>
-                    </>
-                ) : (
-                    <Text className={classes.name} fz="sm" fw={600} c="dimmed">
-                        Untitled chart type
-                    </Text>
-                )}
-                {provenanceVersion && (
-                    <VersionProvenance
-                        className={classes.provenance}
-                        authorName={getVersionAuthorName(provenanceVersion)}
-                        at={new Date(provenanceVersion.createdAt)}
-                        isOrigin={hasOrigin}
-                    />
-                )}
+                        </>
+                    ) : (
+                        <Text
+                            className={classes.name}
+                            fz="sm"
+                            fw={600}
+                            c="dimmed"
+                        >
+                            Untitled chart type
+                        </Text>
+                    )}
+                    {provenanceVersion && (
+                        <VersionProvenance
+                            className={classes.provenance}
+                            authorName={getVersionAuthorName(provenanceVersion)}
+                            at={new Date(provenanceVersion.createdAt)}
+                            isOrigin={hasOrigin}
+                        />
+                    )}
+                </Box>
             </Box>
             <Group gap="xs" wrap="nowrap">
                 {upgradeAvailable && (

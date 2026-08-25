@@ -29,9 +29,12 @@ const renderHeader = (
         titleId: 'title',
         app,
         status: null,
+        provenanceVersion: null,
+        hasOrigin: false,
         upgrade: null,
         hasHistory: true,
         isHistoryOpen: false,
+        runQuery: null,
         onToggleHistory: vi.fn(),
         onUpgradeStarted: vi.fn(),
         onDetailsSaved: vi.fn(),
@@ -101,6 +104,35 @@ describe('ExplorerChartTypeAuthoringHeader', () => {
             screen.getByRole('button', { name: 'Upgrade available' }),
         );
         expect(screen.getByRole('dialog')).toHaveTextContent('Upgrade');
+    });
+
+    it('shows where the type came from and explains it on demand', () => {
+        renderHeader({
+            provenanceVersion: {
+                version: 1,
+                createdAt: new Date().toISOString(),
+                createdByUser: {
+                    userUuid: 'user-1',
+                    firstName: 'David',
+                    lastName: 'Attenborough',
+                },
+            } as never,
+            hasOrigin: true,
+        });
+
+        expect(
+            screen.getByText(/Built by David Attenborough/),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Chart type description' }),
+        ).toBeInTheDocument();
+    });
+
+    it('hosts the run-query control it is given', () => {
+        renderHeader({ runQuery: <button type="button">Run query</button> });
+        expect(
+            screen.getByRole('button', { name: 'Run query' }),
+        ).toBeInTheDocument();
     });
 
     it('always offers Done and reports whether history is open', async () => {

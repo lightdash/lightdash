@@ -26,10 +26,25 @@
     flex-shrink: 0;
 }
 
+/* The name and its byline share a text baseline; the icons between them
+   have none, so they center against the taller name instead. */
+.nameCluster {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+}
+
+.nameCluster > button {
+    align-self: center;
+}
+
 .name {
     max-width: 280px;
 }
 
+/* Truncates only under real pressure, not at a fixed width. */
 .provenance {
-    max-width: 260px;
+    flex: 0 1 auto;
+    min-width: 0;
 }
