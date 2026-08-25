@@ -2458,6 +2458,7 @@ export class EmbedService extends BaseService {
             field,
             initialExplore,
             initialField,
+            labelFieldId,
             staticResults,
         } = await this.projectService._getFieldValuesMetricQuery({
             projectUuid,
@@ -2467,16 +2468,18 @@ export class EmbedService extends BaseService {
             limit,
             filters,
             organizationUuid,
+            authorizeInitialExplore: dashboard
+                ? undefined
+                : (initialExploreForAuthorization) =>
+                      this.assertCanQueryExplore(
+                          account,
+                          organizationUuid,
+                          projectUuid,
+                          initialExploreForAuthorization.name,
+                      ),
         });
 
         if (!dashboard) {
-            this.assertCanQueryExplore(
-                account,
-                organizationUuid,
-                projectUuid,
-                initialExplore.name,
-            );
-
             const { userAttributes } = this.getAccessControls(account);
             const filteredInitialExplore = getFilteredExplore(
                 initialExplore,
@@ -2488,6 +2491,9 @@ export class EmbedService extends BaseService {
             );
             const initialFieldId = getItemId(initialField);
             const sourceFieldId = getItemId(field);
+            const sourceDimensions = getDimensionMapFromTables(
+                filteredSourceExplore.tables,
+            );
             if (
                 !(initialField.table in filteredInitialExplore.tables) ||
                 !(
@@ -2495,10 +2501,8 @@ export class EmbedService extends BaseService {
                     getDimensionMapFromTables(filteredInitialExplore.tables)
                 ) ||
                 !(field.table in filteredSourceExplore.tables) ||
-                !(
-                    sourceFieldId in
-                    getDimensionMapFromTables(filteredSourceExplore.tables)
-                )
+                !(sourceFieldId in sourceDimensions) ||
+                (labelFieldId !== null && !(labelFieldId in sourceDimensions))
             ) {
                 throw new ForbiddenError(
                     'You do not have permission to search values for this field',

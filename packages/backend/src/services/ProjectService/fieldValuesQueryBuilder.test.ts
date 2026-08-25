@@ -143,6 +143,28 @@ describe('getFieldValuesMetricQuery', () => {
         });
     });
 
+    test('authorizes the resolved Explore before resolving the requested field', async () => {
+        const authorizeInitialExplore = vi.fn(() => {
+            throw new Error('not authorized');
+        });
+
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: 'a',
+                initialFieldId: 'a_missing',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+                authorizeInitialExplore,
+            }),
+        ).rejects.toThrow('not authorized');
+
+        expect(authorizeInitialExplore).toHaveBeenCalledWith(validExplore);
+    });
+
     test('returns null staticResults when warehouse fetching is on', async () => {
         const { staticResults } = await getFieldValuesMetricQuery({
             projectUuid: 'project-uuid',

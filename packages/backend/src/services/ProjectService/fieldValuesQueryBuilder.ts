@@ -59,6 +59,7 @@ export async function getFieldValuesMetricQuery({
     maxLimit,
     filters,
     exploreResolver,
+    authorizeInitialExplore,
 }: {
     projectUuid: string;
     table: string;
@@ -68,6 +69,7 @@ export async function getFieldValuesMetricQuery({
     maxLimit: number;
     filters: AndFilterGroup | undefined;
     exploreResolver: ExploreResolver;
+    authorizeInitialExplore?: (explore: Explore) => void;
 }): Promise<{
     metricQuery: MetricQuery;
     explore: Explore;
@@ -117,6 +119,7 @@ export async function getFieldValuesMetricQuery({
     }
 
     const initialExplore = explore;
+    authorizeInitialExplore?.(initialExplore);
     const initialField = findFieldByIdInExplore(initialExplore, fieldId);
 
     if (!initialField) {
