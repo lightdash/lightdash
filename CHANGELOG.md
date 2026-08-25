@@ -1,3 +1,10 @@
+## [1.258.2](https://github.com/lightdash/lightdash/compare/1.258.1...1.258.2) (2026-08-25)
+
+
+### Bug Fixes
+
+* **common:** normalize blank snowflake timeouts ([#27956](https://github.com/lightdash/lightdash/issues/27956)) ([96249bb](https://github.com/lightdash/lightdash/commit/96249bb6a5e1108769b9eb6ba869663630bff3f1))
+
 ## [1.258.1](https://github.com/lightdash/lightdash/compare/1.258.0...1.258.1) (2026-08-25)
 
 
