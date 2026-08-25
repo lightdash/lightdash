@@ -1,3 +1,10 @@
+## [1.262.1](https://github.com/lightdash/lightdash/compare/1.262.0...1.262.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **previews:** remap chart viz bindings when duplicating chart types into previews ([#27866](https://github.com/lightdash/lightdash/issues/27866)) ([f1d9243](https://github.com/lightdash/lightdash/commit/f1d9243b168ebdcbc94a14150007c5f7d94efbdf)), closes [#27856](https://github.com/lightdash/lightdash/issues/27856)
+
 # [1.262.0](https://github.com/lightdash/lightdash/compare/1.261.0...1.262.0) (2026-08-25)
 
 
