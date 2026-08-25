@@ -228,6 +228,10 @@ export class HealthService extends BaseService {
                         !!this.lightdashConfig.auth.databricks.clientId &&
                         this.isEnterpriseEnabled(),
                 },
+                mobileLogin: {
+                    loginExperienceVersion: 1,
+                    available: this.lightdashConfig.auth.mobileLogin.enabled,
+                },
             },
             hasEmailClient: !!this.lightdashConfig.smtp,
             // Deliberately not isEnterpriseEnabled(): that check is `!==

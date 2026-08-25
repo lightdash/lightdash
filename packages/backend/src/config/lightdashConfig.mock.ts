@@ -8,6 +8,9 @@ import { LightdashConfig } from './parseConfig';
 export const lightdashConfigMock: LightdashConfig = {
     allowMultiOrgs: false,
     auth: {
+        mobileLogin: {
+            enabled: true,
+        },
         pat: {
             enabled: false,
             allowedOrgRoles: Object.values(OrganizationMemberRole),

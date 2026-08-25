@@ -88,6 +88,31 @@ describe('health', () => {
         });
     });
 
+    it('can disable the mobile login capability without changing its version', async () => {
+        const service = new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    mobileLogin: { enabled: false },
+                },
+            },
+            licenseService,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+        });
+
+        expect(
+            (await service.getHealthState(undefined)).auth.mobileLogin,
+        ).toEqual({
+            loginExperienceVersion: 1,
+            available: false,
+        });
+    });
+
     it('advertises playground projects only when a license key is configured', async () => {
         expect(
             (await healthService.getHealthState(undefined))
