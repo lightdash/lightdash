@@ -1,3 +1,11 @@
+## [1.258.5](https://github.com/lightdash/lightdash/compare/1.258.4...1.258.5) (2026-08-25)
+
+
+### Bug Fixes
+
+* align custom chart input sizes ([#28029](https://github.com/lightdash/lightdash/issues/28029)) ([cce7b4a](https://github.com/lightdash/lightdash/commit/cce7b4a9051714b21993bafb6956b874a898e232))
+* **embed:** never authorize custom chart types as standalone data app embeds ([#27858](https://github.com/lightdash/lightdash/issues/27858)) ([037bd6d](https://github.com/lightdash/lightdash/commit/037bd6d1c8b7aae145d686fe4c1d1209d52f56e6)), closes [#27855](https://github.com/lightdash/lightdash/issues/27855)
+
 ## [1.258.4](https://github.com/lightdash/lightdash/compare/1.258.3...1.258.4) (2026-08-25)
 
 
