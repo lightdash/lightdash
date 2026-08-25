@@ -1,11 +1,13 @@
 import {
     ChartType,
     FeatureFlags,
+    getAppDisplayName,
     type DataAppVizOptionValues,
     type ItemsMap,
 } from '@lightdash/common';
+import { Button, Group, Text } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, type FC } from 'react';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDeleteApp } from '../../../features/apps/hooks/useDeleteApp';
@@ -23,6 +25,7 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { type ChartTypeAuthoringState } from '../../../providers/Explorer/types';
 import { CHART_GALLERY_SIDEBAR_TITLE_ID } from '../../common/ChartGallery/ChartGalleryContext';
+import MantineModal from '../../common/MantineModal';
 import { useSelectProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
 import { useDirtyPivotConfiguration } from '../VisualizationCard/useDirtyPivotConfiguration';
 import { useExplorerChartColorPalette } from '../VisualizationCard/useExplorerChartColorPalette';
@@ -44,7 +47,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
     const projectUuid = useProjectUuid();
     const dispatch = useExplorerDispatch();
     const queryClient = useQueryClient();
-    const { showToastError } = useToaster();
+    const { showToastError, showToastSuccess } = useToaster();
     const selectProjectChartType = useSelectProjectChartType();
     const { mutate: deleteApp } = useDeleteApp();
 
@@ -162,7 +165,10 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
 
     // One exit: keep the type the chart now uses, or, with nothing usable
     // built, put the chart back the way it was.
-    const handleDone = () => {
+    const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
+    // A running first build dies with the exit; a revision build survives it.
+    const exitDiscardsBuild = build.isBuilding && build.draft !== null;
+    const performExit = () => {
         if (chartUsesThisType && dataAppVizUuid !== null) {
             // The chart renders through metadata that may still hold the
             // version before this build; the gallery list may not know the
@@ -175,9 +181,19 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
                 ],
             });
             void queryClient.invalidateQueries({ queryKey: ['data-app-vizs'] });
+            const typeName = dataAppViz
+                ? getAppDisplayName(dataAppViz.name, dataAppViz.dataAppVizUuid)
+                : 'this chart type';
+            showToastSuccess({
+                title: `Chart now uses ${typeName}${
+                    history.latestReadyVersion !== null
+                        ? ` v${history.latestReadyVersion}`
+                        : ''
+                }`,
+            });
             dispatch(explorerActions.finishChartTypeAuthoring());
         } else {
-            if (build.isBuilding && build.draft !== null && build.discard) {
+            if (exitDiscardsBuild && build.discard) {
                 // A first build still running would leave an orphan behind.
                 build.discard();
             } else if (
@@ -197,6 +213,13 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
         }
         focusSidebar();
     };
+    const handleDone = () => {
+        if (build.isBuilding) {
+            setIsExitConfirmOpen(true);
+            return;
+        }
+        performExit();
+    };
 
     // A rename lands in the app row; the type the header and rail read
     // comes from the viz queries.
@@ -210,39 +233,72 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
     if (!projectUuid) return null;
 
     return (
-        <ExplorerChartTypeAuthoringView
-            projectUuid={projectUuid}
-            app={
-                dataAppViz
-                    ? {
-                          appUuid: dataAppViz.dataAppVizUuid,
-                          name: dataAppViz.name,
-                          description: dataAppViz.description,
-                      }
-                    : null
-            }
-            upgrade={
-                dataAppVizUuid !== null && history.latestReadyVersion !== null
-                    ? {
-                          ...workspace.sdkUpgradeOffer,
-                          disabled: workspace.isBuilding,
-                      }
-                    : null
-            }
-            workspace={workspace}
-            previewContext={previewContext}
-            warning={
-                <VisualizationWarning
-                    dirtyPivotConfiguration={dirtyPivotConfiguration}
-                    chartConfig={chartConfig}
-                    resultsData={resultsData}
-                    isLoading={isLoadingQueryResults}
-                    maxColumnLimit={health.data?.pivotTable?.maxColumnLimit}
-                />
-            }
-            onDetailsSaved={handleDetailsSaved}
-            onDone={handleDone}
-        />
+        <>
+            <ExplorerChartTypeAuthoringView
+                projectUuid={projectUuid}
+                app={
+                    dataAppViz
+                        ? {
+                              appUuid: dataAppViz.dataAppVizUuid,
+                              name: dataAppViz.name,
+                              description: dataAppViz.description,
+                          }
+                        : null
+                }
+                upgrade={
+                    dataAppVizUuid !== null &&
+                    history.latestReadyVersion !== null
+                        ? {
+                              ...workspace.sdkUpgradeOffer,
+                              disabled: workspace.isBuilding,
+                          }
+                        : null
+                }
+                workspace={workspace}
+                previewContext={previewContext}
+                warning={
+                    <VisualizationWarning
+                        dirtyPivotConfiguration={dirtyPivotConfiguration}
+                        chartConfig={chartConfig}
+                        resultsData={resultsData}
+                        isLoading={isLoadingQueryResults}
+                        maxColumnLimit={health.data?.pivotTable?.maxColumnLimit}
+                    />
+                }
+                onDetailsSaved={handleDetailsSaved}
+                onDone={handleDone}
+            />
+            {isExitConfirmOpen && (
+                <MantineModal
+                    opened
+                    onClose={() => setIsExitConfirmOpen(false)}
+                    title="Build in progress"
+                >
+                    <Text mb="md">
+                        {exitDiscardsBuild
+                            ? 'Leaving now discards the build that is still running.'
+                            : 'The build keeps running and lands in version history when it finishes.'}
+                    </Text>
+                    <Group justify="flex-end">
+                        <Button
+                            variant="default"
+                            onClick={() => setIsExitConfirmOpen(false)}
+                        >
+                            Keep building
+                        </Button>
+                        <Button
+                            color={exitDiscardsBuild ? 'red' : undefined}
+                            onClick={() => {
+                                setIsExitConfirmOpen(false);
+                                performExit();
+                            }}
+                        >
+                            {exitDiscardsBuild ? 'Discard and leave' : 'Leave'}
+                        </Button>
+                    </Group>
+                </MantineModal>
+            )}
+        </>
     );
 };
 

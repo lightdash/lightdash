@@ -28,20 +28,19 @@
     min-width: 0;
 }
 
-/* Edit fades in on hover/focus so resting cards stay clean. */
+/* Always visible: hover-only editing hides the affordance from discovery
+   and from touch entirely. Rest is quiet; hover/focus lifts it to full ink. */
 .cardEdit {
     position: absolute;
     top: 4px;
     right: 4px;
-    opacity: 0;
-    pointer-events: none;
+    opacity: 0.7;
     transition: opacity 100ms ease-out;
 }
 
 .cardWrapper:hover .cardEdit,
 .cardWrapper:focus-within .cardEdit {
     opacity: 1;
-    pointer-events: auto;
 }
 
 .card {

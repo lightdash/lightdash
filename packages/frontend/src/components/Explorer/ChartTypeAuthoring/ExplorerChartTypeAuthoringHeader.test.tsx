@@ -118,9 +118,10 @@ describe('ExplorerChartTypeAuthoringHeader', () => {
     it('always offers a way back and reports whether history is open', async () => {
         const props = renderHeader({ isHistoryOpen: true });
 
-        expect(
-            screen.getByRole('button', { name: 'Version history' }),
-        ).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByRole('button', { name: 'History' })).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
         await userEvent.click(
             screen.getByRole('button', { name: 'Back to chart' }),
         );

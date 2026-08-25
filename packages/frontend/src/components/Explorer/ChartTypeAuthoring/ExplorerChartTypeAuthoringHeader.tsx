@@ -148,18 +148,18 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                     </Button>
                 )}
                 {hasHistory && (
-                    <Tooltip label="Version history" position="bottom">
-                        <ActionIcon
-                            variant={isHistoryOpen ? 'light' : 'subtle'}
-                            color="gray"
-                            size="md"
-                            aria-label="Version history"
-                            aria-pressed={isHistoryOpen}
-                            onClick={onToggleHistory}
-                        >
-                            <MantineIcon icon={IconHistory} />
-                        </ActionIcon>
-                    </Tooltip>
+                    <Button
+                        size="xs"
+                        variant={isHistoryOpen ? 'light' : 'default'}
+                        color="gray"
+                        leftSection={
+                            <MantineIcon icon={IconHistory} size={15} />
+                        }
+                        aria-pressed={isHistoryOpen}
+                        onClick={onToggleHistory}
+                    >
+                        History
+                    </Button>
                 )}
             </Group>
             {app && isEditingDetails && (

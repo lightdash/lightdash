@@ -1,7 +1,13 @@
 import { type ChartType } from '@lightdash/common';
 import { ActionIcon, Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { IconArrowLeft, IconSettings, IconX } from '@tabler/icons-react';
+import {
+    IconArrowLeft,
+    IconFilePencil,
+    IconSettings,
+    IconX,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import {
     explorerActions,
@@ -55,6 +61,10 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
         dataAppVizUuid,
         null,
     );
+    const canEditChartType = useCanEditDataAppChecker(projectUuid);
+    const canEditSelectedType =
+        selectedProjectType !== undefined &&
+        canEditChartType(selectedProjectType);
 
     const selectedItem = getSelectedChartTypeItem(
         chartType,
@@ -81,7 +91,12 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                             fw={600}
                             tabIndex={-1}
                         >
-                            Configure chart
+                            {/* While authoring, the panel holds the type's
+                                generated options, titled as the gallery
+                                builder titles them. */}
+                            {isAuthoring
+                                ? 'Generated options'
+                                : 'Configure chart'}
                         </Text>
                     </Group>
                     {!isAuthoring && (
@@ -134,6 +149,31 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                 <Text fw={600} fz="sm" truncate flex={1}>
                                     {selectedLabel}
                                 </Text>
+                                {!isAuthoring && canEditSelectedType && (
+                                    <Tooltip
+                                        label="Edit chart type"
+                                        position="bottom"
+                                    >
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="gray"
+                                            size="sm"
+                                            aria-label="Edit chart type"
+                                            onClick={() =>
+                                                dataAppVizUuid &&
+                                                dispatch(
+                                                    explorerActions.startChartTypeAuthoring(
+                                                        { dataAppVizUuid },
+                                                    ),
+                                                )
+                                            }
+                                        >
+                                            <MantineIcon
+                                                icon={IconFilePencil}
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                )}
                                 {!isAuthoring && (
                                     <Anchor
                                         component="button"

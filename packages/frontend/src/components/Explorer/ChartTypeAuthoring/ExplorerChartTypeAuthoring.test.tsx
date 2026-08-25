@@ -29,14 +29,19 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import { useExplorerResultsData } from '../VisualizationCard/useExplorerResultsData';
 import ExplorerChartTypeAuthoring from './ExplorerChartTypeAuthoring';
 
-const { showToastError, setFetchAll, previewContexts, deleteApp } = vi.hoisted(
-    () => ({
-        showToastError: vi.fn(),
-        setFetchAll: vi.fn(),
-        previewContexts: [] as (DataAppVizContext | null)[],
-        deleteApp: vi.fn(),
-    }),
-);
+const {
+    showToastError,
+    showToastSuccess,
+    setFetchAll,
+    previewContexts,
+    deleteApp,
+} = vi.hoisted(() => ({
+    showToastError: vi.fn(),
+    showToastSuccess: vi.fn(),
+    setFetchAll: vi.fn(),
+    previewContexts: [] as (DataAppVizContext | null)[],
+    deleteApp: vi.fn(),
+}));
 
 vi.mock(
     '../../../features/chartTypes/builder/useChartTypeBuilderWorkspace',
@@ -69,7 +74,7 @@ vi.mock('../../../features/apps/hooks/useDeleteApp', () => ({
     useDeleteApp: () => ({ mutate: deleteApp }),
 }));
 vi.mock('../../../hooks/toaster/useToaster', () => ({
-    default: () => ({ showToastError }),
+    default: () => ({ showToastError, showToastSuccess }),
 }));
 vi.mock(
     '../../../features/chartTypes/builder/ChartTypeBuilderWorkspace',
@@ -377,8 +382,42 @@ describe('ExplorerChartTypeAuthoring', () => {
         await userEvent.click(
             screen.getByRole('button', { name: 'Back to chart' }),
         );
+        expect(discard).not.toHaveBeenCalled();
+        expect(
+            screen.getByText(
+                'Leaving now discards the build that is still running.',
+            ),
+        ).toBeInTheDocument();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Discard and leave' }),
+        );
 
         expect(discard).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets a revision build keep running when leaving is confirmed', async () => {
+        vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
+            workspaceStub({
+                isBuilding: true,
+                build: buildStub({ isBuilding: true }),
+            }),
+        );
+        const store = renderAuthoring();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Back to chart' }),
+        );
+        expect(store.getState().explorer.chartTypeAuthoring).not.toBeNull();
+        expect(
+            screen.getByText(
+                'The build keeps running and lands in version history when it finishes.',
+            ),
+        ).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Leave' }));
+
+        expect(store.getState().explorer.chartTypeAuthoring).toBeNull();
     });
 
     it('finishes on Configure with the chart on the authored type', async () => {
@@ -395,6 +434,9 @@ describe('ExplorerChartTypeAuthoring', () => {
         expect(explorer.unsavedChartVersion.chartConfig).toEqual(
             expect.objectContaining({ type: ChartType.DATA_APP_VIZ }),
         );
+        expect(showToastSuccess).toHaveBeenCalledWith({
+            title: 'Chart now uses Grouped bars v1',
+        });
     });
 
     it('leaves a new type on the empty custom config until it has a version', () => {
