@@ -193,10 +193,7 @@ export const SeriesContextMenu: FC<{
                     )}
                 </Can>
 
-                <Can
-                    I={isEmbedded ? 'view' : 'manage'}
-                    this={drillDownPermission}
-                >
+                <Can I="view" this={drillDownPermission}>
                     <DrillDownMenuItem
                         {...underlyingData}
                         trackingData={{
