@@ -181,6 +181,9 @@ const projectModel = {
 };
 
 const organizationSsoModel = {
+    findAllPolicySummaries: vi.fn<
+        OrganizationSsoModel['findAllPolicySummaries']
+    >(async () => []),
     findEnabledMethodsForEmailDomain: vi.fn<
         OrganizationSsoModel['findEnabledMethodsForEmailDomain']
     >(async () => []),
@@ -1876,6 +1879,329 @@ describe('UserService', () => {
                 redirectUri:
                     'https://test.lightdash.cloud/api/v1/login/okta?login_hint=email',
                 showOptions: ['okta'],
+            });
+        });
+    });
+
+    describe('getMobileLoginPresentation', () => {
+        const configForProvider = (provider: OpenIdIdentityIssuerType) => ({
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                google: {
+                    ...lightdashConfigMock.auth.google,
+                    loginPath: '/login/google',
+                    enabled: provider === OpenIdIdentityIssuerType.GOOGLE,
+                },
+                okta: {
+                    ...lightdashConfigMock.auth.okta,
+                    loginPath: '/login/okta',
+                    oauth2ClientId:
+                        provider === OpenIdIdentityIssuerType.OKTA
+                            ? 'client-id'
+                            : undefined,
+                },
+                oneLogin: {
+                    ...lightdashConfigMock.auth.oneLogin,
+                    loginPath: '/login/oneLogin',
+                    oauth2ClientId:
+                        provider === OpenIdIdentityIssuerType.ONELOGIN
+                            ? 'client-id'
+                            : undefined,
+                },
+                azuread: {
+                    ...lightdashConfigMock.auth.azuread,
+                    loginPath: '/login/azuread',
+                    oauth2ClientId:
+                        provider === OpenIdIdentityIssuerType.AZUREAD
+                            ? 'client-id'
+                            : undefined,
+                },
+                oidc: {
+                    ...lightdashConfigMock.auth.oidc,
+                    loginPath: '/login/oidc',
+                    clientId:
+                        provider === OpenIdIdentityIssuerType.GENERIC_OIDC
+                            ? 'client-id'
+                            : undefined,
+                },
+            },
+        });
+
+        it.each([
+            OpenIdIdentityIssuerType.GOOGLE,
+            OpenIdIdentityIssuerType.OKTA,
+            OpenIdIdentityIssuerType.ONELOGIN,
+            OpenIdIdentityIssuerType.AZUREAD,
+            OpenIdIdentityIssuerType.GENERIC_OIDC,
+        ])('brands the sole invariant %s provider', async (provider) => {
+            const service = createUserService(configForProvider(provider));
+
+            await expect(service.getMobileLoginPresentation()).resolves.toEqual(
+                {
+                    ssoPresentation: { kind: 'branded', provider },
+                    localEmailAvailable: true,
+                },
+            );
+        });
+
+        it('returns neutral for several instance providers', async () => {
+            const service = createUserService({
+                ...configForProvider(OpenIdIdentityIssuerType.GOOGLE),
+                auth: {
+                    ...configForProvider(OpenIdIdentityIssuerType.GOOGLE).auth,
+                    okta: {
+                        ...lightdashConfigMock.auth.okta,
+                        oauth2ClientId: 'client-id',
+                    },
+                },
+            });
+
+            await expect(service.getMobileLoginPresentation()).resolves.toEqual(
+                {
+                    ssoPresentation: { kind: 'neutral' },
+                    localEmailAvailable: true,
+                },
+            );
+        });
+
+        it('returns neutral when per-organization routing can replace the provider', async () => {
+            organizationSsoModel.findAllPolicySummaries.mockResolvedValueOnce([
+                {
+                    provider: OrganizationSsoProvider.AZUREAD,
+                    enabled: true,
+                },
+            ]);
+            const service = createUserService(
+                configForProvider(OpenIdIdentityIssuerType.GOOGLE),
+            );
+
+            await expect(service.getMobileLoginPresentation()).resolves.toEqual(
+                {
+                    ssoPresentation: { kind: 'neutral' },
+                    localEmailAvailable: true,
+                },
+            );
+        });
+
+        it('returns neutral when a disabled per-organization Google policy can suppress Google', async () => {
+            organizationSsoModel.findAllPolicySummaries.mockResolvedValueOnce([
+                {
+                    provider: OrganizationSsoProvider.GOOGLE,
+                    enabled: false,
+                },
+            ]);
+            const service = createUserService(
+                configForProvider(OpenIdIdentityIssuerType.GOOGLE),
+            );
+
+            await expect(service.getMobileLoginPresentation()).resolves.toEqual(
+                {
+                    ssoPresentation: { kind: 'neutral' },
+                    localEmailAvailable: true,
+                },
+            );
+        });
+
+        it('returns neutral for an unknown enabled provider', async () => {
+            organizationSsoModel.findAllPolicySummaries.mockResolvedValueOnce([
+                {
+                    provider: 'future-provider' as OrganizationSsoProvider,
+                    enabled: true,
+                },
+            ]);
+            const service = createUserService(lightdashConfigMock);
+
+            await expect(service.getMobileLoginPresentation()).resolves.toEqual(
+                {
+                    ssoPresentation: { kind: 'neutral' },
+                    localEmailAvailable: true,
+                },
+            );
+        });
+
+        it('reports local email without SSO for a local-only instance', async () => {
+            const service = createUserService(lightdashConfigMock);
+
+            await expect(service.getMobileLoginPresentation()).resolves.toEqual(
+                {
+                    ssoPresentation: { kind: 'none' },
+                    localEmailAvailable: true,
+                },
+            );
+        });
+
+        it('reports no methods when local and SSO methods are disabled', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    disablePasswordAuthentication: true,
+                },
+            });
+
+            await expect(service.getMobileLoginPresentation()).resolves.toEqual(
+                {
+                    ssoPresentation: { kind: 'none' },
+                    localEmailAvailable: false,
+                },
+            );
+        });
+
+        it('fails closed to neutral when the authority query fails', async () => {
+            organizationSsoModel.findAllPolicySummaries.mockRejectedValueOnce(
+                new Error('query failed'),
+            );
+            const service = createUserService(
+                configForProvider(OpenIdIdentityIssuerType.OKTA),
+            );
+
+            await expect(service.getMobileLoginPresentation()).resolves.toEqual(
+                {
+                    ssoPresentation: { kind: 'neutral' },
+                    localEmailAvailable: true,
+                },
+            );
+        });
+    });
+
+    it('suppresses an SSO-only auto-redirect for the local browser intent', async () => {
+        const service = createUserService(
+            {
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    disablePasswordAuthentication: true,
+                    okta: {
+                        ...lightdashConfigMock.auth.okta,
+                        oauth2ClientId: 'client-id',
+                    },
+                },
+            },
+            {},
+        );
+        userModel.getOpenIdIssuers.mockResolvedValueOnce([
+            OpenIdIdentityIssuerType.OKTA,
+        ]);
+
+        await expect(
+            service.getLoginOptions('user@example.com', 'local'),
+        ).resolves.toEqual({
+            forceRedirect: false,
+            redirectUri: undefined,
+            showOptions: [],
+        });
+    });
+
+    describe('mobile login intent filtering', () => {
+        const mixedConfig = {
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                google: {
+                    ...lightdashConfigMock.auth.google,
+                    loginPath: '/login/google',
+                    enabled: true,
+                },
+            },
+        };
+
+        it('filters no-email instance defaults for both intents', async () => {
+            const service = createUserService(mixedConfig);
+
+            await expect(
+                service.getLoginOptions(undefined, 'sso'),
+            ).resolves.toEqual({
+                showOptions: [OpenIdIdentityIssuerType.GOOGLE],
+                forceRedirect: false,
+                redirectUri: undefined,
+            });
+            await expect(
+                service.getLoginOptions(undefined, 'local'),
+            ).resolves.toEqual({
+                showOptions: [LocalIssuerTypes.EMAIL],
+                forceRedirect: false,
+                redirectUri: undefined,
+            });
+        });
+
+        it('filters normal email options and redirects only the SSO intent', async () => {
+            userModel.getOpenIdIssuers
+                .mockResolvedValueOnce([OpenIdIdentityIssuerType.GOOGLE])
+                .mockResolvedValueOnce([OpenIdIdentityIssuerType.GOOGLE]);
+            userModel.hasPasswordByEmail
+                .mockResolvedValueOnce(true)
+                .mockResolvedValueOnce(true);
+            const service = createUserService(mixedConfig);
+
+            await expect(
+                service.getLoginOptions('user@example.com', 'sso'),
+            ).resolves.toEqual({
+                showOptions: [OpenIdIdentityIssuerType.GOOGLE],
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/google?login_hint=user%40example.com',
+            });
+            await expect(
+                service.getLoginOptions('user@example.com', 'local'),
+            ).resolves.toEqual({
+                showOptions: [LocalIssuerTypes.EMAIL],
+                forceRedirect: false,
+                redirectUri: undefined,
+            });
+        });
+
+        it('filters the empty-result instance fallback for both intents', async () => {
+            const service = createUserService(mixedConfig);
+
+            await expect(
+                service.getLoginOptions('new@example.com', 'sso'),
+            ).resolves.toEqual({
+                showOptions: [OpenIdIdentityIssuerType.GOOGLE],
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/google?login_hint=new%40example.com',
+            });
+            await expect(
+                service.getLoginOptions('new@example.com', 'local'),
+            ).resolves.toEqual({
+                showOptions: [LocalIssuerTypes.EMAIL],
+                forceRedirect: false,
+                redirectUri: undefined,
+            });
+        });
+
+        it('preserves and suppresses a sole-provider force redirect by intent', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    disablePasswordAuthentication: true,
+                    okta: {
+                        ...lightdashConfigMock.auth.okta,
+                        oauth2ClientId: 'client-id',
+                        loginPath: '/login/okta',
+                    },
+                },
+            });
+            userModel.getOpenIdIssuers
+                .mockResolvedValueOnce([OpenIdIdentityIssuerType.OKTA])
+                .mockResolvedValueOnce([OpenIdIdentityIssuerType.OKTA]);
+
+            await expect(
+                service.getLoginOptions('user@example.com', 'sso'),
+            ).resolves.toEqual({
+                showOptions: [OpenIdIdentityIssuerType.OKTA],
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/okta?login_hint=user%40example.com',
+            });
+            await expect(
+                service.getLoginOptions('user@example.com', 'local'),
+            ).resolves.toEqual({
+                showOptions: [],
+                forceRedirect: false,
+                redirectUri: undefined,
             });
         });
     });

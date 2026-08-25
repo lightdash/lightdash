@@ -99,7 +99,65 @@ const requestAuthorize = async ({
     }
 };
 
+const requestAuthorizationLoginRedirect = async (path: string) => {
+    const app = express();
+    app.use((request, _response, next) => {
+        request.user = undefined;
+        next();
+    });
+    app.use('/api/v1/oauth', oauthRouter);
+
+    const server = app.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+
+    try {
+        return await new Promise<{
+            headers: IncomingHttpHeaders;
+            status: number;
+        }>((resolve, reject) => {
+            const request = httpRequest(
+                {
+                    hostname: '127.0.0.1',
+                    method: 'GET',
+                    path,
+                    port: (server.address() as AddressInfo).port,
+                },
+                (response) => {
+                    response.resume();
+                    response.on('end', () =>
+                        resolve({
+                            headers: response.headers,
+                            status: response.statusCode ?? 0,
+                        }),
+                    );
+                },
+            );
+            request.on('error', reject);
+            request.end();
+        });
+    } finally {
+        await new Promise<void>((resolve, reject) => {
+            server.close((error) => (error ? reject(error) : resolve()));
+        });
+    }
+};
+
 describe('OAuth authorize redirects', () => {
+    it.each(['sso', 'local'])(
+        'preserves the %s mobile login intent in the outer authorization request',
+        async (intent) => {
+            const authorizePath = `/api/v1/oauth/authorize?client_id=mobile-client&redirect_uri=lightdash%3A%2F%2Foauth%2Fcallback&state=request-state&mobile_login_intent=${intent}`;
+
+            const response =
+                await requestAuthorizationLoginRedirect(authorizePath);
+
+            expect(response.status).toBe(302);
+            expect(response.headers.location).toBe(
+                `/login?redirect=${encodeURIComponent(authorizePath)}`,
+            );
+        },
+    );
+
     it.each([
         'https://unregistered.example/callback',
         'urn:example:unregistered-callback',

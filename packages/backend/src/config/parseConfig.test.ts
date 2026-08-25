@@ -39,6 +39,18 @@ beforeEach(() => {
     };
 });
 
+describe('mobile login config', () => {
+    it('is available by default', () => {
+        expect(parseConfig().auth.mobileLogin).toEqual({ enabled: true });
+    });
+
+    it('supports the rollback switch', () => {
+        process.env.AUTH_MOBILE_LOGIN_ENABLED = 'false';
+
+        expect(parseConfig().auth.mobileLogin).toEqual({ enabled: false });
+    });
+});
+
 describe('Query phase metrics config', () => {
     it('defaults to an empty project allowlist', () => {
         expect(parseConfig().queryPhaseMetrics).toEqual({ projectUuids: [] });

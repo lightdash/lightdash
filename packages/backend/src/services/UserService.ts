@@ -32,6 +32,7 @@ import {
     InviteLink,
     InviteLinkPurpose,
     isEmailOnlyUser,
+    isMobileLoginSsoProvider,
     isOpenIdIdentityIssuerType,
     isOpenIdUser,
     isUserAvatarColorValue,
@@ -40,15 +41,17 @@ import {
     LightdashMode,
     LightdashUser,
     LocalIssuerTypes,
-    LoginOptions,
     LoginOptionTypes,
     MissingConfigError,
+    MobileLoginIntent,
+    MobileLoginSsoPresentation,
     NotFoundError,
     NotImplementedError,
     OpenIdIdentityIssuerType,
     OpenIdIdentitySummary,
     OpenIdUser,
     OrganizationMemberRole,
+    OrganizationSsoProvider,
     ParameterError,
     PasswordReset,
     ProjectMemberRole,
@@ -67,6 +70,7 @@ import {
     UpsertUserWarehouseCredentials,
     USER_ONBOARDING_TOURS,
     UserAllowedOrganization,
+    UserLoginOptions,
     UserOnboarding,
     UserOnboardingTour,
     validateEmail,
@@ -3772,7 +3776,115 @@ export class UserService extends BaseService {
         return options;
     }
 
-    async getLoginOptions(email?: string): Promise<LoginOptions> {
+    async getMobileLoginPresentation(): Promise<{
+        ssoPresentation: MobileLoginSsoPresentation;
+        localEmailAvailable: boolean;
+    }> {
+        const instanceOptions = this.getInstanceLoginOptions();
+        const localEmailAvailable = instanceOptions.has(LocalIssuerTypes.EMAIL);
+        const instanceSsoProviders = Array.from(instanceOptions).filter(
+            isOpenIdIdentityIssuerType,
+        );
+
+        try {
+            const policySummaries =
+                await this.organizationSsoModel.findAllPolicySummaries();
+            const routingPolicies = policySummaries.filter(
+                ({ provider, enabled }) =>
+                    enabled || provider === OrganizationSsoProvider.GOOGLE,
+            );
+            const possibleProviders = new Set<string>(instanceSsoProviders);
+
+            for (const policy of routingPolicies) {
+                if (policy.enabled) {
+                    possibleProviders.add(policy.provider);
+                }
+            }
+
+            if (possibleProviders.size === 0) {
+                return {
+                    ssoPresentation: { kind: 'none' },
+                    localEmailAvailable,
+                };
+            }
+
+            if (routingPolicies.length > 0 || possibleProviders.size !== 1) {
+                return {
+                    ssoPresentation: { kind: 'neutral' },
+                    localEmailAvailable,
+                };
+            }
+
+            const [provider] = possibleProviders;
+            if (!isMobileLoginSsoProvider(provider)) {
+                return {
+                    ssoPresentation: { kind: 'neutral' },
+                    localEmailAvailable,
+                };
+            }
+
+            return {
+                ssoPresentation: { kind: 'branded', provider },
+                localEmailAvailable,
+            };
+        } catch (error) {
+            Logger.warn('Failed to resolve mobile login presentation', {
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return {
+                ssoPresentation: { kind: 'neutral' },
+                localEmailAvailable,
+            };
+        }
+    }
+
+    private applyMobileLoginIntent(
+        loginOptions: UserLoginOptions,
+        email: string | undefined,
+        mobileLoginIntent: MobileLoginIntent | undefined,
+    ): UserLoginOptions {
+        if (mobileLoginIntent === 'local') {
+            return {
+                showOptions: loginOptions.showOptions.filter(
+                    (option) =>
+                        option === LocalIssuerTypes.EMAIL ||
+                        option === LocalIssuerTypes.EMAIL_OTP,
+                ),
+                forceRedirect: false,
+                redirectUri: undefined,
+            };
+        }
+
+        if (mobileLoginIntent === 'sso') {
+            const showOptions = loginOptions.showOptions.filter(
+                isOpenIdIdentityIssuerType,
+            );
+            if (email && showOptions.length === 1) {
+                return {
+                    showOptions,
+                    forceRedirect: true,
+                    redirectUri: new URL(
+                        `/api/v1${this.getRedirectUri(
+                            showOptions[0],
+                        )}?login_hint=${encodeURIComponent(email)}`,
+                        this.lightdashConfig.siteUrl,
+                    ).href,
+                };
+            }
+
+            return {
+                showOptions,
+                forceRedirect: false,
+                redirectUri: undefined,
+            };
+        }
+
+        return loginOptions;
+    }
+
+    private async getUnfilteredLoginOptions(
+        email?: string,
+    ): Promise<UserLoginOptions> {
         const instancesOptions = this.getInstanceLoginOptions();
         if (!email) {
             return {
@@ -3936,6 +4048,18 @@ export class UserService extends BaseService {
             forceRedirect: false,
             redirectUri: undefined,
         };
+    }
+
+    async getLoginOptions(
+        email?: string,
+        mobileLoginIntent?: MobileLoginIntent,
+    ): Promise<UserLoginOptions> {
+        const loginOptions = await this.getUnfilteredLoginOptions(email);
+        return this.applyMobileLoginIntent(
+            loginOptions,
+            email,
+            mobileLoginIntent,
+        );
     }
 
     /**

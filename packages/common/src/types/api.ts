@@ -623,6 +623,10 @@ export type HealthState = {
         databricks: {
             enabled: boolean;
         };
+        mobileLogin?: {
+            loginExperienceVersion: 1;
+            available: boolean;
+        };
     };
     siteUrl: string;
     intercom: {

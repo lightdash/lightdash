@@ -1,7 +1,7 @@
 import { type AbilityBuilder } from '@casl/ability';
 import { type MemberAbility } from '../authorization/types';
 import { type AnyType } from './any';
-import { type OpenIdIdentityIssuerType } from './openIdIdentity';
+import { OpenIdIdentityIssuerType } from './openIdIdentity';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
 import { type PromotionAction } from './promotion';
 import { type UserAvatarColorValue } from './userAvatars';
@@ -262,11 +262,51 @@ export enum LocalIssuerTypes {
 
 export type LoginOptionTypes = OpenIdIdentityIssuerType | LocalIssuerTypes;
 
+export type MobileLoginIntent = 'sso' | 'local';
+
+export const isMobileLoginIntent = (
+    value: unknown,
+): value is MobileLoginIntent => value === 'sso' || value === 'local';
+
+export type MobileLoginSsoProvider =
+    | OpenIdIdentityIssuerType.GOOGLE
+    | OpenIdIdentityIssuerType.OKTA
+    | OpenIdIdentityIssuerType.ONELOGIN
+    | OpenIdIdentityIssuerType.AZUREAD
+    | OpenIdIdentityIssuerType.GENERIC_OIDC;
+
+export const isMobileLoginSsoProvider = (
+    value: unknown,
+): value is MobileLoginSsoProvider =>
+    value === OpenIdIdentityIssuerType.GOOGLE ||
+    value === OpenIdIdentityIssuerType.OKTA ||
+    value === OpenIdIdentityIssuerType.ONELOGIN ||
+    value === OpenIdIdentityIssuerType.AZUREAD ||
+    value === OpenIdIdentityIssuerType.GENERIC_OIDC;
+
+export type MobileLoginSsoPresentation =
+    | { kind: 'none' }
+    | { kind: 'neutral' }
+    | {
+          kind: 'branded';
+          provider: MobileLoginSsoProvider;
+      };
+
 export type LoginOptions = {
     showOptions: LoginOptionTypes[];
     forceRedirect?: boolean;
     redirectUri?: string;
+    ssoPresentation?: MobileLoginSsoPresentation;
+    localEmailAvailable?: boolean;
 };
+
+export type UserLoginOptions = Pick<
+    LoginOptions,
+    'showOptions' | 'forceRedirect' | 'redirectUri'
+>;
+
+export type MobileLoginOptions = UserLoginOptions &
+    Required<Pick<LoginOptions, 'ssoPresentation' | 'localEmailAvailable'>>;
 
 export type ApiGetLoginOptionsResponse = {
     status: 'ok';

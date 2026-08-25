@@ -133,6 +133,39 @@ describe('OrganizationSsoModel', () => {
         });
     });
 
+    describe('findAllPolicySummaries', () => {
+        it('returns only provider and enabled authority fields', async () => {
+            tracker.on
+                .select(OrganizationSsoConfigurationsTableName)
+                .responseOnce([
+                    dbRow(),
+                    dbRow({
+                        provider: OrganizationSsoProvider.GOOGLE,
+                        enabled: false,
+                    }),
+                ]);
+
+            await expect(model.findAllPolicySummaries()).resolves.toEqual([
+                {
+                    provider: OrganizationSsoProvider.AZUREAD,
+                    enabled: true,
+                },
+                {
+                    provider: OrganizationSsoProvider.GOOGLE,
+                    enabled: false,
+                },
+            ]);
+
+            const { sql } = tracker.history.select[0];
+            const lowered = sql.toLowerCase();
+            const selectList = lowered.slice(0, lowered.indexOf(' from '));
+            expect(selectList).toContain('"provider"');
+            expect(selectList).toContain('"enabled"');
+            expect(selectList).not.toContain('"config"');
+            expect(encryptionUtil.decrypt).not.toHaveBeenCalled();
+        });
+    });
+
     describe('findGoogleMethodsForEmailDomain', () => {
         it('matches the verified domain but does NOT filter on enabled, so a disabled policy row is returned', async () => {
             tracker.on

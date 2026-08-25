@@ -64,6 +64,10 @@ export const BaseResponse: HealthState = {
         databricks: {
             enabled: false,
         },
+        mobileLogin: {
+            loginExperienceVersion: 1,
+            available: true,
+        },
     },
     intercom: {
         apiBase: '',

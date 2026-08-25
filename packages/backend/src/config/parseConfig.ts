@@ -2199,6 +2199,9 @@ type AuthDatabricksConfig = {
 
 export type AuthConfig = {
     disablePasswordAuthentication: boolean;
+    mobileLogin: {
+        enabled: boolean;
+    };
     /**
      * @deprecated Group Sync is deprecated. https://github.com/lightdash/lightdash/issues/12430
      */
@@ -2826,6 +2829,9 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.ALLOW_MISSING_MIGRATIONS === 'true',
         },
         auth: {
+            mobileLogin: {
+                enabled: process.env.AUTH_MOBILE_LOGIN_ENABLED !== 'false',
+            },
             pat: {
                 enabled: process.env.DISABLE_PAT !== 'true',
                 allowedOrgRoles:
