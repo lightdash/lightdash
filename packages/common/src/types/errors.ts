@@ -18,6 +18,18 @@ type LightdashErrorParams = {
     data: LightdashErrorData;
 };
 
+/** Routine domain outcomes that should not produce error-level API reporting. */
+export type ExpectedError = {
+    readonly isExpected: true;
+};
+
+export const isExpectedError = (
+    error: unknown,
+): error is Error & ExpectedError =>
+    error instanceof Error &&
+    'isExpected' in error &&
+    error.isExpected === true;
+
 export class LightdashError extends Error {
     statusCode: number;
 
@@ -325,6 +337,15 @@ export class ExploreSplitError extends NotFoundError {
             `Explore "${exploreName}" was split into ${candidateList}. Pick one.`,
             { exploreName, candidateExploreNames },
         );
+    }
+}
+
+export class ExpectedNotFoundError
+    extends NotFoundError
+    implements ExpectedError
+{
+    get isExpected(): true {
+        return true;
     }
 }
 
