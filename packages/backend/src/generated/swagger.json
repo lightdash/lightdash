@@ -1857,6 +1857,10 @@
                     "fieldMapping": {
                         "$ref": "#/components/schemas/DataAppVizFieldMapping"
                     },
+                    "dataAppVizSlug": {
+                        "type": "string",
+                        "description": "Content-as-code only: the viz's project-scoped slug, emitted on chart\ndownload and resolved back to dataAppVizUuid (then stripped) on upload\nso chart YAML stays portable across projects. Never persisted and\nnever used at render time — dataAppVizUuid is the runtime identity."
+                    },
                     "dataAppVizUuid": {
                         "type": "string",
                         "description": "The reusable data app viz this chart renders with (by reference)."
@@ -56146,7 +56150,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.261.0",
+        "version": "1.262.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

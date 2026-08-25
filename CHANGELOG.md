@@ -1,3 +1,10 @@
+# [1.262.0](https://github.com/lightdash/lightdash/compare/1.261.0...1.262.0) (2026-08-25)
+
+
+### Features
+
+* **coder:** portable chart-type slug in charts-as-code viz bindings ([#27865](https://github.com/lightdash/lightdash/issues/27865)) ([244ce24](https://github.com/lightdash/lightdash/commit/244ce246336d4e411834f4ead0f2ac76342eb4d9)), closes [#27856](https://github.com/lightdash/lightdash/issues/27856)
+
 # [1.261.0](https://github.com/lightdash/lightdash/compare/1.260.1...1.261.0) (2026-08-25)
 
 

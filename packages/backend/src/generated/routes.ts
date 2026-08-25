@@ -1791,6 +1791,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 optionValues: { ref: 'DataAppVizOptionValues' },
                 fieldMapping: { ref: 'DataAppVizFieldMapping', required: true },
+                dataAppVizSlug: { dataType: 'string' },
                 dataAppVizUuid: { dataType: 'string', required: true },
             },
             validators: {},
