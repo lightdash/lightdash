@@ -48,6 +48,7 @@ import {
     SqlChartAsCode,
     validateDataAppDependencies,
     VirtualViewAsCode,
+    type AnyType,
     type DashboardAsCodeUpsertResult,
     type DataAppCodeDownload,
     type SpaceAsCode,
@@ -124,6 +125,7 @@ import {
     type CodeResourceDefinition,
 } from './contentAsCode/resource';
 import { getDownloadFolder } from './contentAsCodePaths';
+import { renderContentDiff } from './contentDiff';
 import {
     checkLightdashVersion,
     getContentAsCodeUploadPermissions,
@@ -2847,6 +2849,35 @@ const runUploadChangesPhase = async ({
     return updatedChanges;
 };
 
+// Decorates a SKIPPED_AHEAD message with what actually differs: the
+// instance's current document vs what this upload wanted to apply.
+const printSkipDiff = async (
+    item: ChartAsCode | DashboardAsCode,
+    type: 'charts' | 'dashboards',
+    projectId: string,
+): Promise<void> => {
+    try {
+        const listData = await lightdashApi<AnyType>({
+            method: 'GET',
+            url: `/api/v1/projects/${projectId}/code/${type}?ids=${encodeURIComponent(
+                item.slug,
+            )}`,
+            body: undefined,
+        });
+        const current = (
+            type === 'charts' ? listData?.charts : listData?.dashboards
+        )?.[0];
+        if (!current) return;
+        const diff = renderContentDiff(current, item, {
+            current: 'instance (current)',
+            incoming: 'git (this upload)',
+        });
+        if (diff) GlobalState.log(diff);
+    } catch {
+        // The diff is best-effort decoration on the skip message
+    }
+};
+
 type UploadSyncOptions = {
     syncEnforced?: boolean;
     overwriteDrifted?: boolean;
@@ -2906,6 +2937,7 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
             upsertData.skips.forEach((skip) => {
                 GlobalState.log(styles.error(`  ✖ ${skip.message}`));
             });
+            await printSkipDiff(item, type, projectId);
             changes[`${type} skipped (instance ahead)`] =
                 (changes[`${type} skipped (instance ahead)`] ?? 0) +
                 upsertData.skips.length;
