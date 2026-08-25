@@ -154,14 +154,18 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
     const itemCount = section.items.length;
 
     // The "+N more" tile can unmount on reveal; move focus to the first new
-    // card so keyboard users are not dropped back to the body.
+    // card so keyboard users are not dropped back to the body. The pending
+    // index is consumed by whatever count change answers the click, so a
+    // failed or shorter load cannot leave it armed for a later, unrelated
+    // change.
     useEffect(() => {
         const index = pendingFocusIndex.current;
-        if (index === null || itemCount <= index) return;
+        if (index === null) return;
         pendingFocusIndex.current = null;
+        if (itemCount === 0) return;
         gridRef.current
             ?.querySelectorAll<HTMLButtonElement>(`.${classes.card}`)
-            [index]?.focus();
+            [Math.min(index, itemCount - 1)]?.focus();
     }, [itemCount]);
 
     if (section.loading) {
@@ -174,7 +178,8 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
             </Group>
         );
     }
-    if (section.errorMessage !== null) {
+    // A transient refetch failure must not hide types already on screen.
+    if (section.errorMessage !== null && section.items.length === 0) {
         return (
             <Group justify="space-between" wrap="nowrap">
                 <Text fz="xs" c="red">
@@ -375,7 +380,11 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                 selected: selectedProjectUuid === dataAppViz.dataAppVizUuid,
                 disabled,
                 select: () => {
-                    selectProjectChartType(dataAppViz, itemsMap ?? {});
+                    // Re-selecting the active type must not overwrite the
+                    // chart's local bindings with a fresh automap.
+                    if (selectedProjectUuid !== dataAppViz.dataAppVizUuid) {
+                        selectProjectChartType(dataAppViz, itemsMap ?? {});
+                    }
                     onSelected();
                 },
                 onEdit: canEditChartType(dataAppViz)

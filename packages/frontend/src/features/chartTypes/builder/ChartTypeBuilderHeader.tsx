@@ -21,6 +21,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
 import AppUpgradeModal from '../../apps/components/AppUpgradeModal';
 import { type SdkUpgradeOffer } from '../../apps/hooks/useSdkUpgradeStatus';
+import { type ChartTypeAppMeta } from './appMeta';
 import classes from './ChartTypeBuilderHeader.module.css';
 
 type Props = {
@@ -30,7 +31,7 @@ type Props = {
         to: To;
     };
     /** Null while no app exists yet (create flow before the first build). */
-    app: { appUuid: string; name: string; description: string } | null;
+    app: ChartTypeAppMeta | null;
     latestReadyVersion: number | null;
     /** False while the visualization has no versions to look back through. */
     hasHistory: boolean;

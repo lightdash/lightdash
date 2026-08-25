@@ -121,10 +121,13 @@ describe('Explorer while a chart type is authored', () => {
         expect(cardProps.at(-1)?.renderVisualization).toBe(true);
     });
 
-    it('puts the builder in the chart’s place and keeps the card alive without drawing it', () => {
+    it('puts the builder in the chart’s place and keeps the card alive without drawing it', async () => {
         renderExplorer({ authoring: true });
 
-        expect(screen.getByTestId('chart-type-authoring')).toBeInTheDocument();
+        // The builder chunk is lazy-loaded, so its mount is a tick away.
+        expect(
+            await screen.findByTestId('chart-type-authoring'),
+        ).toBeInTheDocument();
         // The query controls stay where they always are.
         expect(screen.getByTestId('explorer-header')).toBeInTheDocument();
         expect(screen.queryByTestId('results-card')).not.toBeInTheDocument();
