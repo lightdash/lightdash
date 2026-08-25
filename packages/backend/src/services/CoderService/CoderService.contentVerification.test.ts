@@ -8,6 +8,7 @@ import {
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AppModel } from '../../models/AppModel';
+import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -90,6 +91,9 @@ const buildService = () =>
         schedulerClient: {} as unknown as SchedulerClient,
         promoteService: {} as unknown as PromoteService,
         spacePermissionService: {} as unknown as SpacePermissionService,
+        contentAsCodeSnapshotModel: {
+            upsert: vi.fn(),
+        } as unknown as ContentAsCodeSnapshotModel,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
         groupsModel: {} as never,

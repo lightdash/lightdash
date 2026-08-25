@@ -11,6 +11,7 @@ import {
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AppModel } from '../../models/AppModel';
+import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -102,6 +103,9 @@ const buildService = (
             getSpacesAccessContext,
             can: vi.fn(async () => true),
         } as unknown as SpacePermissionService,
+        contentAsCodeSnapshotModel: {
+            upsert: vi.fn(),
+        } as unknown as ContentAsCodeSnapshotModel,
         contentVerificationModel: {} as unknown as ContentVerificationModel,
         groupsModel: {} as never,
         organizationMemberProfileModel: {} as never,

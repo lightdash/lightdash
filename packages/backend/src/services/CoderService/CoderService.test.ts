@@ -984,6 +984,9 @@ describe('CoderService', () => {
         it('should allow chart tiles with null chartSlug', async () => {
             const service = new CoderService({
                 analytics: {} as AnyType,
+                contentAsCodeSnapshotModel: {
+                    upsert: vi.fn(),
+                } as AnyType,
                 contentVerificationModel: {} as AnyType,
                 dashboardModel: {} as AnyType,
                 lightdashConfig: {} as AnyType,
@@ -1067,6 +1070,9 @@ describe('CoderService', () => {
         it('resolves portable tab slugs and still accepts legacy tab UUIDs', async () => {
             const service = new CoderService({
                 analytics: {} as AnyType,
+                contentAsCodeSnapshotModel: {
+                    upsert: vi.fn(),
+                } as AnyType,
                 contentVerificationModel: {} as AnyType,
                 dashboardModel: {} as AnyType,
                 lightdashConfig: {} as AnyType,
@@ -1124,6 +1130,9 @@ describe('CoderService', () => {
             appModelMock = buildAppModelMock(apps);
             return new CoderService({
                 analytics: {} as AnyType,
+                contentAsCodeSnapshotModel: {
+                    upsert: vi.fn(),
+                } as AnyType,
                 contentVerificationModel: {} as AnyType,
                 dashboardModel: {} as AnyType,
                 lightdashConfig: {} as AnyType,
@@ -1241,6 +1250,9 @@ describe('CoderService', () => {
         it('resolves a chart tile and a data app tile together (main return path)', async () => {
             const service = new CoderService({
                 analytics: {} as AnyType,
+                contentAsCodeSnapshotModel: {
+                    upsert: vi.fn(),
+                } as AnyType,
                 contentVerificationModel: {} as AnyType,
                 dashboardModel: {} as AnyType,
                 lightdashConfig: {} as AnyType,
@@ -1308,6 +1320,9 @@ describe('CoderService', () => {
         it('resolves a historical chart slug to the existing chart UUID', async () => {
             const service = new CoderService({
                 analytics: {} as AnyType,
+                contentAsCodeSnapshotModel: {
+                    upsert: vi.fn(),
+                } as AnyType,
                 contentVerificationModel: {} as AnyType,
                 dashboardModel: {} as AnyType,
                 lightdashConfig: {} as AnyType,
