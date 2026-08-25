@@ -75,6 +75,7 @@ const renderWorkspace = (args: Partial<ChartTypeBuilderWorkspaceArgs> = {}) =>
             initialProps: {
                 projectUuid: 'project-1',
                 dataAppVizUuid: 'viz-1',
+                creationExperience: 'chart_type_builder' as const,
                 itemsMap: {},
                 ...args,
             },
@@ -114,6 +115,7 @@ describe('useChartTypeBuilderWorkspace', () => {
         rerender({
             projectUuid: 'project-1',
             dataAppVizUuid: 'viz-1',
+            creationExperience: 'chart_type_builder',
             itemsMap: {},
         });
         expect(mockedClarificationRound).toHaveBeenLastCalledWith(
@@ -134,6 +136,7 @@ describe('useChartTypeBuilderWorkspace', () => {
         rerender({
             projectUuid: 'project-1',
             dataAppVizUuid: 'viz-2',
+            creationExperience: 'chart_type_builder',
             itemsMap: {},
         });
 
@@ -154,6 +157,7 @@ describe('useChartTypeBuilderWorkspace', () => {
         rerender({
             projectUuid: 'project-1',
             dataAppVizUuid: 'viz-1',
+            creationExperience: 'chart_type_builder',
             itemsMap: {},
         });
 
@@ -187,6 +191,7 @@ describe('useChartTypeBuilderWorkspace', () => {
         rerender({
             projectUuid: 'project-1',
             dataAppVizUuid: 'viz-1',
+            creationExperience: 'chart_type_builder',
             itemsMap: {},
         });
 
@@ -252,6 +257,7 @@ describe('useChartTypeBuilderWorkspace', () => {
         rerender({
             projectUuid: 'project-1',
             dataAppVizUuid: 'viz-1',
+            creationExperience: 'chart_type_builder',
             itemsMap: {},
         });
         expect(result.current.failureMessage).toBeNull();
@@ -282,6 +288,7 @@ describe('useChartTypeBuilderWorkspace', () => {
         rerender({
             projectUuid: 'project-1',
             dataAppVizUuid: 'viz-1',
+            creationExperience: 'chart_type_builder',
             itemsMap: {},
         });
         expect(result.current.onCancelBuild).toBe(cancel);
@@ -297,6 +304,7 @@ describe('useChartTypeBuilderWorkspace', () => {
         rerender({
             projectUuid: 'project-1',
             dataAppVizUuid: null,
+            creationExperience: 'chart_type_builder',
             itemsMap: {},
         });
         expect(result.current.composerAppUuid).toBe('viz-claimed');
@@ -308,6 +316,7 @@ describe('useChartTypeBuilderWorkspace', () => {
         rerender({
             projectUuid: 'project-1',
             dataAppVizUuid: 'viz-1',
+            creationExperience: 'chart_type_builder',
             itemsMap: {},
         });
         expect(result.current.composerAppUuid).toBe('viz-1');

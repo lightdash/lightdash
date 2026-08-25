@@ -71,6 +71,7 @@ const ChartTypeBuilder: FC = () => {
     const workspace = useChartTypeBuilderWorkspace({
         projectUuid,
         dataAppVizUuid: activeVizUuid ?? null,
+        creationExperience: 'chart_type_builder',
         itemsMap: NO_ITEMS,
     });
     const { build, history, isBuilding, isHistoryOpen } = workspace;

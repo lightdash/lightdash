@@ -1,5 +1,6 @@
 import {
     DATA_APP_VIZ_TEMPLATE,
+    type DataAppCreationExperience,
     getErrorMessage,
     type ApiAppVersionSummary,
     type AppClarification,
@@ -22,6 +23,8 @@ type Args = {
     itemsMap: ItemsMap;
     /** The visualization being revised; null while authoring a new one. */
     dataAppVizUuid: string | null;
+    /** The surface the build is reported from in analytics. */
+    creationExperience: DataAppCreationExperience;
     /** Called once a new visualization lands ready with the chart still
      *  pointing at nothing, with its contract bound. */
     onCreated: (
@@ -103,6 +106,7 @@ export const useDataAppVizBuild = ({
     projectUuid,
     itemsMap,
     dataAppVizUuid,
+    creationExperience,
     onCreated,
 }: Args): DataAppVizBuildState => {
     // The request in flight, and the app it is building — both null when idle.
@@ -178,7 +182,7 @@ export const useDataAppVizBuild = ({
                         projectUuid,
                         prompt,
                         template: DATA_APP_VIZ_TEMPLATE,
-                        creationExperience: 'chart_type_builder',
+                        creationExperience,
                         appUuid: draftAppUuid,
                         fileIds: files,
                         ...(request.codexModel
@@ -209,7 +213,7 @@ export const useDataAppVizBuild = ({
                     projectUuid,
                     appUuid: dataAppVizUuid,
                     prompt,
-                    creationExperience: 'chart_type_builder',
+                    creationExperience,
                     fileIds: files,
                     ...(request.codexModel
                         ? { codexModel: request.codexModel }
@@ -230,6 +234,7 @@ export const useDataAppVizBuild = ({
         [
             projectUuid,
             dataAppVizUuid,
+            creationExperience,
             building,
             draftAppUuid,
             generateApp,

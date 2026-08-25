@@ -105,6 +105,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                     />
                     <Panel
                         id="chart-type-builder-history"
+                        className={classes.historyPanel}
                         order={2}
                         defaultSize={20}
                         minSize={15}

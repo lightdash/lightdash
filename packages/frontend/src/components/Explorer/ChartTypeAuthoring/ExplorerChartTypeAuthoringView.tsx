@@ -2,6 +2,7 @@ import { type DataAppVizContext } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { useId, type FC, type ReactNode } from 'react';
 import { type SdkUpgradeOffer } from '../../../features/apps/hooks/useSdkUpgradeStatus';
+import { type ChartTypeAppMeta } from '../../../features/chartTypes/builder/appMeta';
 import ChartTypeBuilderWorkspace from '../../../features/chartTypes/builder/ChartTypeBuilderWorkspace';
 import { type ChartTypeBuilderWorkspaceState } from '../../../features/chartTypes/builder/useChartTypeBuilderWorkspace';
 import { deriveAuthoringStatus } from './authoringStatus';
@@ -10,7 +11,7 @@ import classes from './ExplorerChartTypeAuthoringView.module.css';
 
 type Props = {
     projectUuid: string;
-    app: { appUuid: string; name: string; description: string } | null;
+    app: ChartTypeAppMeta | null;
     upgrade: (SdkUpgradeOffer & { disabled: boolean }) | null;
     workspace: ChartTypeBuilderWorkspaceState;
     previewContext: DataAppVizContext | null;

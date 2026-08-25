@@ -20,6 +20,7 @@ import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
 import AppUpgradeModal from '../../../features/apps/components/AppUpgradeModal';
 import { type SdkUpgradeOffer } from '../../../features/apps/hooks/useSdkUpgradeStatus';
+import { type ChartTypeAppMeta } from '../../../features/chartTypes/builder/appMeta';
 import MantineIcon from '../../common/MantineIcon';
 import { authoringStatusLabel, type AuthoringStatus } from './authoringStatus';
 import classes from './ExplorerChartTypeAuthoringHeader.module.css';
@@ -28,7 +29,7 @@ type Props = {
     projectUuid: string;
     titleId: string;
     /** Null while no app exists yet (a new type before its first build). */
-    app: { appUuid: string; name: string; description: string } | null;
+    app: ChartTypeAppMeta | null;
     status: AuthoringStatus | null;
     upgrade: (SdkUpgradeOffer & { disabled: boolean }) | null;
     hasHistory: boolean;

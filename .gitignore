@@ -170,3 +170,6 @@ scripts/playground-bundle/.venv/
 scripts/k8s-dev/terraform/.terraform/
 examples/metricflow-demo/.fusion/
 .claude/worktrees/
+
+# Impeccable design-skill artifacts
+.impeccable/

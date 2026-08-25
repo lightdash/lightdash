@@ -67,6 +67,9 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
     const workspace = useChartTypeBuilderWorkspace({
         projectUuid,
         dataAppVizUuid: authoring.dataAppVizUuid,
+        // The pre-builder explorer surface reported this source; the
+        // embedded builder is its successor.
+        creationExperience: 'explorer_chart_config',
         itemsMap,
     });
     const { build, dataAppViz, dataAppVizUuid, history } = workspace;
@@ -116,6 +119,9 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
         selectProjectChartType,
     ]);
 
+    // Ref so the forbidden-exit effect can call cleanup without stale closures.
+    const cleanupAbandonedTypeRef = useRef<() => void>(() => {});
+
     // The entry points gate already; this closes a door opened by hand.
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const canCreate = useCanCreateDataApp(projectUuid);
@@ -130,6 +136,8 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
     useEffect(() => {
         if (!isForbidden) return;
         showToastError({ title: 'You cannot author this chart type' });
+        // Run the same cleanup as a manual cancel to avoid orphaned drafts.
+        cleanupAbandonedTypeRef.current();
         dispatch(explorerActions.cancelChartTypeAuthoring());
     }, [isForbidden, showToastError, dispatch]);
 
@@ -172,6 +180,25 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
     const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
     // A running first build dies with the exit; a revision build survives it.
     const exitDiscardsBuild = build.isBuilding && build.draft !== null;
+    const cleanupAbandonedType = () => {
+        if (exitDiscardsBuild && build.discard) {
+            // A first build still running would leave an orphan behind.
+            build.discard();
+        } else if (
+            projectUuid &&
+            authoring.createdInSession &&
+            dataAppVizUuid !== null &&
+            history.latestReadyVersion === null
+        ) {
+            // Created here and never got a usable version: nothing to keep.
+            deleteApp({
+                projectUuid,
+                appUuid: dataAppVizUuid,
+                successTitle: 'Chart type discarded',
+            });
+        }
+    };
+    cleanupAbandonedTypeRef.current = cleanupAbandonedType;
     const performExit = () => {
         if (chartUsesThisType && dataAppVizUuid !== null) {
             // The chart renders through metadata that may still hold the
@@ -197,22 +224,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
             });
             dispatch(explorerActions.finishChartTypeAuthoring());
         } else {
-            if (exitDiscardsBuild && build.discard) {
-                // A first build still running would leave an orphan behind.
-                build.discard();
-            } else if (
-                projectUuid &&
-                authoring.createdInSession &&
-                dataAppVizUuid !== null &&
-                history.latestReadyVersion === null
-            ) {
-                // Created here and never got a usable version: nothing to keep.
-                deleteApp({
-                    projectUuid,
-                    appUuid: dataAppVizUuid,
-                    successTitle: 'Chart type discarded',
-                });
-            }
+            cleanupAbandonedType();
             dispatch(explorerActions.cancelChartTypeAuthoring());
         }
         focusSidebar();

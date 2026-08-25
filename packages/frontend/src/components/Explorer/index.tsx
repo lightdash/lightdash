@@ -5,7 +5,9 @@ import {
 } from '@lightdash/common';
 import { Box, Stack } from '@mantine/core';
 import {
+    lazy,
     memo,
+    Suspense,
     useCallback,
     useEffect,
     useMemo,
@@ -51,7 +53,6 @@ import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import RefreshDbtButton from '../RefreshDbtButton';
-import ExplorerChartTypeAuthoring from './ChartTypeAuthoring/ExplorerChartTypeAuthoring';
 import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
 import ExplorerHeader from './ExplorerHeader';
@@ -65,6 +66,11 @@ import VisualizationCard from './VisualizationCard/VisualizationCard';
 import { WriteBackModal } from './WriteBackModal';
 
 const EMPTY_PARAMETER_REFERENCES: string[] = [];
+
+// Lazy-load to keep the flag-off Explorer bundle small.
+const ExplorerChartTypeAuthoring = lazy(
+    () => import('./ChartTypeAuthoring/ExplorerChartTypeAuthoring'),
+);
 
 const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
     ({ hideHeader = false, chartView = false }) => {
@@ -286,9 +292,11 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
                             !savedChart && <RefreshDbtButton />
                         ))}
                     {isAuthoring && chartTypeAuthoring && (
-                        <ExplorerChartTypeAuthoring
-                            authoring={chartTypeAuthoring}
-                        />
+                        <Suspense fallback={null}>
+                            <ExplorerChartTypeAuthoring
+                                authoring={chartTypeAuthoring}
+                            />
+                        </Suspense>
                     )}
 
                     {!isAuthoring && !isFullscreen && showQueryBuilder && (
