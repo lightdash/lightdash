@@ -1,14 +1,79 @@
 {
   "schemaVersion": "2",
-  "version": "1.254.0",
-  "previousVersion": "1.253.1",
-  "releaseDate": "2026-08-25T08:47:08.935Z",
+  "version": "1.255.0",
+  "previousVersion": "1.254.0",
+  "releaseDate": "2026-08-25T08:55:38.909Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 4,
+    "coreCount": 4,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260824120000_create_dashboard_access_tables.ts",
+        "edition": "core",
+        "tables": [
+          "dashboard_group_access",
+          "dashboard_user_access",
+          "dashboards",
+          "groups",
+          "users"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      },
+      {
+        "name": "20260824120100_create_saved_chart_access_tables.ts",
+        "edition": "core",
+        "tables": [
+          "groups",
+          "saved_chart_group_access",
+          "saved_chart_user_access",
+          "saved_queries",
+          "users"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      },
+      {
+        "name": "20260824120200_create_saved_sql_access_tables.ts",
+        "edition": "core",
+        "tables": [
+          "groups",
+          "saved_sql",
+          "saved_sql_group_access",
+          "saved_sql_user_access",
+          "users"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      },
+      {
+        "name": "20260824120300_create_app_access_tables.ts",
+        "edition": "core",
+        "tables": [
+          "app_group_access",
+          "app_user_access",
+          "apps",
+          "groups",
+          "users"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

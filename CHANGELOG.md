@@ -1,3 +1,10 @@
+# [1.255.0](https://github.com/lightdash/lightdash/compare/1.254.0...1.255.0) (2026-08-25)
+
+
+### Features
+
+* **auth:** add direct access grant schema ([#27922](https://github.com/lightdash/lightdash/issues/27922)) ([12b83f4](https://github.com/lightdash/lightdash/commit/12b83f460f3a3e7e1e0e7a32ca6b97e1b494d5aa)), closes [#27921](https://github.com/lightdash/lightdash/issues/27921)
+
 # [1.254.0](https://github.com/lightdash/lightdash/compare/1.253.1...1.254.0) (2026-08-25)
 
 
