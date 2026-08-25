@@ -3,7 +3,6 @@ import { captureException } from '@sentry/react';
 import {
     DefaultChatTransport,
     readUIMessageStream,
-    type UIMessageChunk,
     type ReasoningUIPart,
     type UIMessage,
 } from 'ai';
@@ -13,7 +12,6 @@ import { getAiAgentApiBase } from '../hooks/aiAgentRouting';
 import {
     addReasoning,
     addToolCall,
-    appendStepProgress,
     markStreamRecovering,
     markToolCallDecided,
     setError,
@@ -58,20 +56,6 @@ type StreamToolPart = {
     output?: unknown;
     preliminary?: boolean;
     state: string;
-};
-
-type StepProgressChunk = UIMessageChunk & {
-    type: 'data-step-progress';
-    data: {
-        message: string;
-        // The tool the event belongs to, or null/absent when unattributed.
-        toolName?: string | null;
-        // Correlates repeated events about the same unit of work (e.g. a
-        // composer pipeline node, keyed `${toolCallId}:${nodeId}`).
-        progressId?: string | null;
-        progressStatus?: 'in_progress' | 'complete' | 'error' | null;
-    };
-    transient?: boolean;
 };
 
 const getAgentThreadReadableStream = async (
@@ -239,45 +223,6 @@ export const readStreamResult = async <T>(
     }
 };
 
-const isStepProgressStatus = (
-    value: unknown,
-): value is 'in_progress' | 'complete' | 'error' =>
-    value === 'in_progress' || value === 'complete' || value === 'error';
-
-export const getStepProgressFromChunk = (
-    chunk: UIMessageChunk,
-): {
-    message: string;
-    toolName: string | null;
-    progressId: string | null;
-    progressStatus: 'in_progress' | 'complete' | 'error' | null;
-} | null => {
-    if (
-        chunk.type === 'data-step-progress' &&
-        'data' in chunk &&
-        chunk.data &&
-        typeof chunk.data === 'object'
-    ) {
-        const data = chunk.data as StepProgressChunk['data'];
-        if (typeof data.message === 'string' && data.message.length > 0) {
-            return {
-                message: data.message,
-                toolName:
-                    typeof data.toolName === 'string' ? data.toolName : null,
-                progressId:
-                    typeof data.progressId === 'string'
-                        ? data.progressId
-                        : null,
-                progressStatus: isStepProgressStatus(data.progressStatus)
-                    ? data.progressStatus
-                    : null,
-            };
-        }
-    }
-
-    return null;
-};
-
 export function useAiAgentThreadStreamMutation() {
     const dispatch = useAiAgentStoreDispatch();
     const { setAbortController, abort } =
@@ -374,20 +319,6 @@ export function useAiAgentThreadStreamMutation() {
                         inactivityMonitor.reset();
                         if (value.type === 'finish') {
                             receivedTerminalChunk = true;
-                        }
-
-                        const stepProgress = getStepProgressFromChunk(value);
-                        if (stepProgress) {
-                            dispatch(
-                                appendStepProgress({
-                                    threadUuid,
-                                    message: stepProgress.message,
-                                    toolName: stepProgress.toolName,
-                                    progressId: stepProgress.progressId,
-                                    progressStatus: stepProgress.progressStatus,
-                                }),
-                            );
-                            continue;
                         }
                     }
                 })();

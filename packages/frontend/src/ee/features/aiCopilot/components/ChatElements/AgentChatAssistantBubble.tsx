@@ -750,10 +750,6 @@ const AssistantBubbleContent: FC<{
                                     toolCalls={message.toolCalls}
                                     mcpServers={mcpServers}
                                     pendingContent={pendingApprovalContent}
-                                    stepProgressMessages={
-                                        streamingState?.stepProgressMessages ??
-                                        []
-                                    }
                                 />
                             )}
                             {latestTextSeg ? (
@@ -761,14 +757,6 @@ const AssistantBubbleContent: FC<{
                                     {finalAnswerMd}
                                 </Box>
                             ) : null}
-                            {/* Progress events ("Starting sandbox", "Cloning
-                                project", …) render inside the
-                                LiveActivityCard above as nested steps under
-                                the active tool — see renderInlineLiveStepProgress
-                                in that component. Here we just keep the
-                                "Finishing up" pulse for the brief gap
-                                between an artifact landing and the closing
-                                text. */}
                             {showFinishingUp && (
                                 <Box className={styles.streamPart} pl={7}>
                                     <TypingDots label="Finishing up" />

@@ -22,13 +22,10 @@ import {
 import { useEffect, useState, type FC } from 'react';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
 import { AgentStepGroups } from './AgentStepGroups';
-import { type ComposerQueryNodeStatus } from './descriptions/ComposerQueriesToolCallDescription';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
 import styles from './LiveActivityCard.module.css';
-import { parseAgentStep } from './parseAgentStep';
 import { ToolCallChip } from './ToolCallChip';
 import { ToolCallIcon } from './ToolCallIcon';
 import { ToolCallRow } from './ToolCallRow';
@@ -71,16 +68,6 @@ type Props = {
      * of as a separate floating card.
      */
     pendingContent?: React.ReactNode;
-    /**
-     * In-flight status events emitted across the stream (e.g. "Starting
-     * sandbox", "Cloning project", "Committing changes" for editDbtProject).
-     * Each carries the tool it belongs to so the inline row can be scoped to
-     * the active tool — a concurrently running tool's progress (e.g. a
-     * `findFields` query fired alongside the writeback) must not surface under
-     * the writeback header. Latest matching entry is shown as a single
-     * replacing row. Empty when no tool has fired a progress event yet.
-     */
-    stepProgressMessages?: StepProgressMessage[];
 };
 
 const REASONING_PREVIEW_LENGTH = 140;
@@ -105,11 +92,6 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'setupPreviewDeploy',
     'runSavedChart',
 ]);
-
-// Tools that stream coarse step progress rendered as a single replacing row.
-// editDbtProject is intentionally absent: its actions are surfaced as grouped
-// step rows (AgentStepGroups) under the tool call instead of a transient line.
-const TOOLS_WITH_STEP_PROGRESS = new Set<string>(['setupPreviewDeploy']);
 
 const MCP_SUMMARY_ICON_LIMIT = 4;
 
@@ -479,137 +461,6 @@ const getDiscoverFieldsTraceFromCall = (
 };
 
 /**
- * Render the latest tool's progress as a single inline row under the
- * card header — the label gets replaced (rather than stacked) as the tool
- * advances. Matches the Slack experience where one pinned line is
- * overwritten with each new stage, without losing the visual anchor of a
- * pulsing dot.
- *
- * Returns null when there's nothing to render (the tool hasn't fired any
- * progress events, an SQL approval is pending, or we're not actively
- * streaming). Today only editDbtProject emits progress strings that
- * warrant this treatment; other tools either run instantly or share the
- * single "Running your query…" string that the parent bubble shows via
- * TypingDots instead.
- *
- * Crucially, the row shows only the latest event belonging to the active
- * tool (`toolName === latest.toolName`). A writeback often runs alongside
- * other tools (e.g. a `findFields` query the agent fired in the same turn),
- * and all of their progress lands in one flat list — without this scoping a
- * concurrent tool's "Searching for fields…" would briefly surface under the
- * "Opening a pull request" header.
- */
-const renderInlineLiveStepProgress = (params: {
-    latest: LiveActivityToolGroup | null;
-    isLive: boolean;
-    hasPending: boolean;
-    stepProgressMessages: StepProgressMessage[];
-}): React.ReactNode => {
-    const { latest, isLive, hasPending, stepProgressMessages } = params;
-    if (!isLive || !latest || hasPending) return null;
-    if (!TOOLS_WITH_STEP_PROGRESS.has(latest.toolName)) return null;
-
-    const currentMessage = stepProgressMessages
-        .filter((m) => m.toolName === latest.toolName)
-        .at(-1)?.message;
-    if (!currentMessage) return null;
-
-    return (
-        <Box className={styles.liveStepProgress}>
-            <Group
-                gap={6}
-                align="center"
-                wrap="nowrap"
-                className={styles.liveStepProgressRow}
-                // Key on the message so React swaps the node (replays the
-                // fade-in animation) each time a new progress event lands,
-                // rather than just rewriting the text in place. Reads as a
-                // deliberate "next step" rather than a silent label change.
-                key={currentMessage}
-                data-active="true"
-            >
-                <Box
-                    className={styles.liveStepProgressDot}
-                    data-active="true"
-                />
-                <Text
-                    size="xs"
-                    className={styles.liveStepProgressLabel}
-                    data-active="true"
-                >
-                    {currentMessage}
-                </Text>
-            </Group>
-        </Box>
-    );
-};
-
-/**
- * Derive per-node execution statuses for a live composer pipeline from the
- * transient step-progress events the runComposerQueries tool emits
- * (progressId = `${toolCallId}:${nodeId}`). Nodes without an event yet show
- * as pending while the call is in flight, and flip to success wholesale when
- * the tool's final output lands successfully. Returns undefined for other
- * tools so persisted pipelines render without indicators.
- */
-const getComposerNodeStatuses = (
-    call: ToolCallSummary,
-    stepProgressMessages: StepProgressMessage[],
-): Record<string, ComposerQueryNodeStatus> | undefined => {
-    if (call.toolName !== 'runComposerQueries') return undefined;
-    const args = call.toolArgs as
-        | { queries?: { nodeId?: unknown }[] }
-        | undefined;
-    const nodeIds = (args?.queries ?? [])
-        .map((query) => query?.nodeId)
-        .filter((nodeId): nodeId is string => typeof nodeId === 'string');
-    if (nodeIds.length === 0) return undefined;
-
-    const progressIdPrefix = `${call.toolCallId}:`;
-    const eventStatuses = new Map<string, ComposerQueryNodeStatus>();
-    for (const event of stepProgressMessages) {
-        if (event.toolName !== 'runComposerQueries') continue;
-        if (
-            !event.progressId?.startsWith(progressIdPrefix) ||
-            !event.progressStatus
-        )
-            continue;
-        const nodeId = event.progressId.slice(progressIdPrefix.length);
-        if (event.progressStatus === 'in_progress') {
-            eventStatuses.set(nodeId, { status: 'running' });
-        } else if (event.progressStatus === 'complete') {
-            eventStatuses.set(nodeId, { status: 'success' });
-        } else {
-            const failurePrefix = `Query "${nodeId}" failed: `;
-            eventStatuses.set(nodeId, {
-                status: 'error',
-                errorMessage: event.message.startsWith(failurePrefix)
-                    ? event.message.slice(failurePrefix.length)
-                    : null,
-            });
-        }
-    }
-
-    const output = call.toolOutput as
-        | { metadata?: { status?: string } }
-        | undefined;
-    const outputStatus = output?.metadata?.status;
-
-    return Object.fromEntries(
-        nodeIds.flatMap((nodeId): [string, ComposerQueryNodeStatus][] => {
-            const fromEvent = eventStatuses.get(nodeId);
-            if (fromEvent) return [[nodeId, fromEvent]];
-            if (outputStatus === 'success')
-                return [[nodeId, { status: 'success' }]];
-            if (output === undefined) return [[nodeId, { status: 'pending' }]];
-            // Rejected/timed-out/unattributed failure: nothing truthful to
-            // claim about this node, so show no indicator.
-            return [];
-        }),
-    );
-};
-
-/**
  * Render the subagent's live trace outside the activity card's collapse
  * so users see findExplores / findFields rows appear under the
  * "Discovering fields" header without having to expand the card.
@@ -646,7 +497,6 @@ export const LiveActivityCard: FC<Props> = ({
     toolCalls,
     mcpServers,
     pendingContent,
-    stepProgressMessages = [],
 }) => {
     const [userExpanded, setUserExpanded] = useState(false);
 
@@ -802,30 +652,6 @@ export const LiveActivityCard: FC<Props> = ({
                 </Group>
             </UnstyledButton>
             {renderInlineLiveTrace({ latest, isLive, hasPending })}
-            {renderInlineLiveStepProgress({
-                latest,
-                isLive,
-                hasPending,
-                stepProgressMessages,
-            })}
-            {isLive &&
-                !hasPending &&
-                latest?.toolName === 'editDbtProject' &&
-                (() => {
-                    // Live grouped step rows for the writeback tool: parse the
-                    // streamed progress strings back into structured steps so
-                    // they render (and group) the same way as the persisted
-                    // steps once the run completes.
-                    const liveSteps = stepProgressMessages
-                        .filter((m) => m.toolName === 'editDbtProject')
-                        .map((m) => parseAgentStep(m.message));
-                    if (liveSteps.length === 0) return null;
-                    return (
-                        <Box className={styles.liveStepProgress}>
-                            <AgentStepGroups steps={liveSteps} />
-                        </Box>
-                    );
-                })()}
             <Collapse
                 in={showBody}
                 transitionDuration={260}
@@ -886,14 +712,6 @@ export const LiveActivityCard: FC<Props> = ({
                                                         result.toolCallId ===
                                                         tc.toolCallId,
                                                 )}
-                                                composerNodeStatuses={
-                                                    isLive
-                                                        ? getComposerNodeStatuses(
-                                                              tc,
-                                                              stepProgressMessages,
-                                                          )
-                                                        : undefined
-                                                }
                                             />
                                         )}
                                         {trace && (

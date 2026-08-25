@@ -15,20 +15,6 @@ type Reasoning = {
     parts: string[];
 };
 
-export type StepProgressMessage = {
-    message: string;
-    // The tool the event belongs to, or null when the emitting tool didn't
-    // attribute it. Used to scope the inline progress row to the active tool.
-    toolName: string | null;
-    // Correlates repeated events about the same unit of work (composer
-    // pipeline nodes use `${toolCallId}:${nodeId}`), or null for one-off
-    // progress strings.
-    progressId: string | null;
-    // Lifecycle of the unit identified by progressId, or null when the event
-    // is a plain progress string.
-    progressStatus: 'in_progress' | 'complete' | 'error' | null;
-};
-
 export type StreamPart =
     | { type: 'text'; text: string }
     | (ToolCall & { type: 'toolCall' });
@@ -98,20 +84,6 @@ export interface AiAgentThreadStreamingState {
     toolCalls: ToolCall[];
     reasoning: Reasoning[];
     decidedToolCallIds: string[];
-    /**
-     * Ordered history of step-progress events emitted by the agent's
-     * tools (e.g. "Starting sandbox…", "Cloning project…", "Editing
-     * models…"). Each `data-step-progress` SSE chunk is appended here
-     * (with adjacent-duplicate dedup). `toolName` is the tool the event
-     * belongs to (null for tools that don't attribute their progress);
-     * the bubble uses it to scope the inline progress row to the active
-     * tool, so a concurrently running tool (e.g. a `findFields` query
-     * fired alongside a writeback) can't surface its message under the
-     * writeback header. Keeping the full history — across tools — in
-     * state means we can revisit the presentation (timeline, summary on
-     * hover, etc.) without changing the wire protocol.
-     */
-    stepProgressMessages: StepProgressMessage[];
 }
 
 type State = Record<string, AiAgentThreadStreamingState>;
@@ -127,7 +99,6 @@ const initialThread: Omit<
     toolCalls: [],
     reasoning: [],
     decidedToolCallIds: [],
-    stepProgressMessages: [],
 };
 
 export const aiAgentThreadStreamSlice = createSlice({
@@ -319,65 +290,6 @@ export const aiAgentThreadStreamSlice = createSlice({
                 text: string;
             }>(),
         },
-        appendStepProgress: {
-            reducer: (
-                state,
-                action: PayloadAction<{
-                    threadUuid: string;
-                    message: string;
-                    toolName: string | null;
-                    progressId?: string | null;
-                    progressStatus?:
-                        | 'in_progress'
-                        | 'complete'
-                        | 'error'
-                        | null;
-                }>,
-            ) => {
-                const {
-                    threadUuid,
-                    message,
-                    toolName,
-                    progressId = null,
-                    progressStatus = null,
-                } = action.payload;
-                const streamingThread = state[threadUuid];
-                if (!streamingThread) return;
-                // Drop adjacent-duplicate step events — `runQuery` fires
-                // the same "Running your query…" string per-call and we
-                // don't want a stuttering list. Non-adjacent repeats are
-                // fine (different cycle, different context) so we only
-                // check the most recent entry. A repeat from a different
-                // tool is kept (different toolName → not a true duplicate),
-                // as is a repeat about a different unit of work or a status
-                // transition (different progressId/progressStatus).
-                const last =
-                    streamingThread.stepProgressMessages[
-                        streamingThread.stepProgressMessages.length - 1
-                    ];
-                if (
-                    last &&
-                    last.message === message &&
-                    last.toolName === toolName &&
-                    last.progressId === progressId &&
-                    last.progressStatus === progressStatus
-                )
-                    return;
-                streamingThread.stepProgressMessages.push({
-                    message,
-                    toolName,
-                    progressId,
-                    progressStatus,
-                });
-            },
-            prepare: prepareAutoBatched<{
-                threadUuid: string;
-                message: string;
-                toolName: string | null;
-                progressId?: string | null;
-                progressStatus?: 'in_progress' | 'complete' | 'error' | null;
-            }>(),
-        },
     },
 });
 
@@ -392,5 +304,4 @@ export const {
     setError,
     addToolCall,
     addReasoning,
-    appendStepProgress,
 } = aiAgentThreadStreamSlice.actions;
