@@ -136,6 +136,11 @@ export type DashboardTileDependency =
     | { type: 'savedChart'; uuid: string }
     | { type: 'savedSql'; uuid: string };
 
+type DashboardAccessContext = Pick<
+    Dashboard,
+    'organizationUuid' | 'projectUuid' | 'inheritsFromOrgOrProject' | 'access'
+>;
+
 export class DashboardService
     extends BaseService
     implements BulkActionable<Knex>, SoftDeletableService
@@ -981,6 +986,69 @@ export class DashboardService
         return dashboard;
     }
 
+    private async assertAction(
+        actor: DashboardAccessActor,
+        action: AbilityAction,
+        dashboardUuidOrSlug: UuidOrSlug,
+        options?: { projectUuid?: string },
+    ): Promise<Dashboard> {
+        const dashboard = await this.assertViewAccess(
+            actor,
+            dashboardUuidOrSlug,
+            { ...options, includeDependencies: false },
+        );
+        const auditedAbility = this.createAuditedAbility(actor);
+        if (
+            auditedAbility.cannot(
+                action,
+                subject('Dashboard', {
+                    ...dashboard,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `You don't have access to ${action} this dashboard`,
+            );
+        }
+        return dashboard;
+    }
+
+    private static restoreDeniedDependencyProperties(
+        update: UpdateDashboard,
+        existingDashboard: DashboardDAO,
+    ): UpdateDashboard {
+        if (!isDashboardVersionedFields(update)) {
+            return update;
+        }
+        const existingTiles = new Map(
+            existingDashboard.tiles.map((tile) => [tile.uuid, tile]),
+        );
+        return {
+            ...update,
+            tiles: update.tiles.map((tile) => {
+                if (!('dependencyAccess' in tile.properties)) {
+                    return tile;
+                }
+                const existingTile = tile.uuid
+                    ? existingTiles.get(tile.uuid)
+                    : undefined;
+                if (!existingTile || existingTile.type !== tile.type) {
+                    throw new ForbiddenError(
+                        'Denied dashboard dependencies cannot be changed',
+                    );
+                }
+                return {
+                    ...tile,
+                    properties: existingTile.properties,
+                } as typeof tile;
+            }),
+        };
+    }
+
     private recordDashboardView(userUuid: UUID, dashboard: Dashboard): void {
         void this.analyticsModel
             .addDashboardViewEvent(dashboard.uuid, userUuid)
@@ -1771,19 +1839,35 @@ export class DashboardService
         dashboard: UpdateDashboard,
         options?: { projectUuid?: string },
     ): Promise<Dashboard> {
-        const existingDashboardDao = await this.dashboardModel.getByIdOrSlug(
+        const existingDashboard = await this.assertAction(
+            user,
+            'update',
             dashboardUuidOrSlug,
-            {
-                projectUuid: options?.projectUuid,
-            },
+            options,
         );
-        const { preserveVerification, ...dashboardFields } = dashboard;
+        return this.updateWithAccessContext({
+            user,
+            dashboard: DashboardService.restoreDeniedDependencyProperties(
+                dashboard,
+                existingDashboard,
+            ),
+            existingDashboard,
+            currentSpace: existingDashboard,
+        });
+    }
 
-        const currentSpace =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                existingDashboardDao.spaceUuid,
-            );
+    private async updateWithAccessContext({
+        user,
+        dashboard,
+        existingDashboard: existingDashboardDao,
+        currentSpace,
+    }: {
+        user: SessionUser;
+        dashboard: UpdateDashboard;
+        existingDashboard: DashboardDAO;
+        currentSpace: DashboardAccessContext;
+    }): Promise<Dashboard> {
+        const { preserveVerification, ...dashboardFields } = dashboard;
         const auditedAbility = this.createAuditedAbility(user);
         const canUpdateDashboardInCurrentSpace = auditedAbility.can(
             'update',
@@ -1809,7 +1893,10 @@ export class DashboardService
             });
 
         if (isDashboardUnversionedFields(dashboardFields)) {
-            if (dashboardFields.spaceUuid) {
+            if (
+                dashboardFields.spaceUuid &&
+                dashboardFields.spaceUuid !== existingDashboardDao.spaceUuid
+            ) {
                 const newSpace =
                     await this.spacePermissionService.getSpaceAccessContext(
                         user.userUuid,
@@ -2237,39 +2324,14 @@ export class DashboardService
         dashboardUuidOrSlug: UuidOrSlug,
         options?: SoftDeleteOptions & { projectUuid?: string },
     ): Promise<void> {
-        const dashboardToDelete = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuidOrSlug,
-            {
-                projectUuid: options?.projectUuid,
-            },
-        );
-        const { organizationUuid, projectUuid, spaceUuid, tiles } =
-            dashboardToDelete;
-
-        if (!options?.bypassPermissions) {
-            const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
-                    spaceUuid,
-                );
-            const auditedAbility = this.createAuditedAbility(user);
-            if (
-                auditedAbility.cannot(
-                    'delete',
-                    subject('Dashboard', {
-                        organizationUuid,
-                        projectUuid,
-                        inheritsFromOrgOrProject,
-                        access,
-                        metadata: { dashboardUuid: dashboardToDelete.uuid },
-                    }),
-                )
-            ) {
-                throw new ForbiddenError(
-                    "You don't have access to the space this dashboard belongs to",
-                );
-            }
-        }
+        const dashboardToDelete = options?.bypassPermissions
+            ? await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug, {
+                  projectUuid: options?.projectUuid,
+              })
+            : await this.assertAction(user, 'delete', dashboardUuidOrSlug, {
+                  projectUuid: options?.projectUuid,
+              });
+        const { projectUuid, tiles } = dashboardToDelete;
 
         if (hasChartsInDashboard(dashboardToDelete)) {
             try {
@@ -2995,40 +3057,25 @@ export class DashboardService
         dashboardUuidOrSlug: UuidOrSlug,
         versionUuid: UUID,
     ): Promise<void> {
-        const dashboardDao =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
+        const dashboardDao = await this.assertAction(
+            user,
+            'manage',
+            dashboardUuidOrSlug,
+        );
 
-        // Check if trying to rollback to current version
+        await this.rollbackWithAccess(user, dashboardDao, versionUuid);
+    }
+
+    private async rollbackWithAccess(
+        user: SessionUser,
+        dashboardDao: DashboardDAO,
+        versionUuid: UUID,
+    ): Promise<void> {
         if (dashboardDao.versionUuid === versionUuid) {
             this.logger.info(
                 `Ignoring rollback request - version ${versionUuid} is already the current version for dashboard ${dashboardDao.uuid}`,
             );
             return;
-        }
-
-        const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboardDao.spaceUuid,
-            );
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('Dashboard', {
-                    ...dashboardDao,
-                    inheritsFromOrgOrProject,
-                    access,
-                    metadata: {
-                        dashboardUuid: dashboardDao.uuid,
-                        dashboardName: dashboardDao.name,
-                    },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                "You don't have access to rollback this dashboard",
-            );
         }
 
         const targetVersion = await this.dashboardModel.getVersionByUuid(

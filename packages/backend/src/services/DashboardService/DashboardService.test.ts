@@ -74,6 +74,8 @@ const dashboardModel = {
 
     addVersion: vi.fn(async () => dashboard),
 
+    getVersionByUuid: vi.fn(async () => dashboard),
+
     getOrphanedCharts: vi.fn(async () => []),
 };
 
@@ -94,6 +96,10 @@ const savedChartModel = {
         uuid: 'chart_uuid',
         projectUuid: 'project_uuid',
     })),
+    transaction: vi.fn(
+        async (callback: (transaction: unknown) => Promise<unknown>) =>
+            callback({}),
+    ),
     getInfoForAvailableFilters: vi.fn(
         async (): ReturnType<
             SavedChartModel['getInfoForAvailableFilters']
@@ -179,6 +185,27 @@ const directAccessService = {
                 ]),
             ),
     ),
+};
+
+const createDirectUser = (role: ProjectMemberRole) => ({
+    ...user,
+    ability: defineUserAbility(
+        { ...user, organizationUuid: 'another-org-uuid' },
+        [
+            {
+                projectUuid: 'projectUuid',
+                role,
+                userUuid: user.userUuid,
+                roleUuid: undefined,
+            },
+        ],
+    ),
+});
+
+const directPrivateDashboard: Dashboard = {
+    ...dashboard,
+    spaceUuid: privateSpace.uuid,
+    spaceName: 'Private finance',
 };
 
 const spaceContexts = {
@@ -865,6 +892,217 @@ describe('DashboardService', () => {
             }),
         );
     });
+    test('should update a private dashboard through direct Editor access', async () => {
+        const directEditor = createDirectUser(ProjectMemberRole.EDITOR);
+        dashboardModel.getByIdOrSlug
+            .mockResolvedValueOnce(directPrivateDashboard)
+            .mockResolvedValueOnce(directPrivateDashboard)
+            .mockResolvedValueOnce(directPrivateDashboard);
+        directAccessService.resolveUserAccessForUser
+            .mockResolvedValueOnce({
+                [directPrivateDashboard.uuid]: SpaceMemberRole.EDITOR,
+            })
+            .mockResolvedValueOnce({
+                [directPrivateDashboard.uuid]: SpaceMemberRole.EDITOR,
+            });
+
+        const update = {
+            ...updateDashboard,
+            spaceUuid: directPrivateDashboard.spaceUuid,
+        };
+        await service.update(
+            directEditor,
+            directPrivateDashboard.uuid,
+            update,
+            { projectUuid },
+        );
+
+        expect(dashboardModel.update).toHaveBeenCalledWith(
+            directPrivateDashboard.uuid,
+            update,
+        );
+    });
+
+    test('should preserve opaque denied dependency properties while updating layout', async () => {
+        const directEditor = createDirectUser(ProjectMemberRole.EDITOR);
+        dashboardModel.getByIdOrSlug
+            .mockResolvedValueOnce(directPrivateDashboard)
+            .mockResolvedValueOnce(directPrivateDashboard)
+            .mockResolvedValueOnce(directPrivateDashboard);
+        directAccessService.resolveUserAccessForUser
+            .mockResolvedValueOnce({
+                [directPrivateDashboard.uuid]: SpaceMemberRole.EDITOR,
+            })
+            .mockResolvedValueOnce({
+                [directPrivateDashboard.uuid]: SpaceMemberRole.EDITOR,
+            });
+        const deniedTileUpdate: UpdateDashboard = {
+            tiles: [
+                {
+                    ...directPrivateDashboard.tiles[0],
+                    x: 10,
+                    properties: {
+                        savedChartUuid: null,
+                        dependencyAccess: 'denied',
+                    },
+                } as DashboardChartTile,
+            ],
+            filters: directPrivateDashboard.filters,
+            tabs: directPrivateDashboard.tabs,
+        };
+
+        await service.update(
+            directEditor,
+            directPrivateDashboard.uuid,
+            deniedTileUpdate,
+            { projectUuid },
+        );
+
+        expect(dashboardModel.addVersion).toHaveBeenCalledWith(
+            directPrivateDashboard.uuid,
+            expect.objectContaining({
+                tiles: [
+                    expect.objectContaining({
+                        x: 10,
+                        properties: directPrivateDashboard.tiles[0].properties,
+                    }),
+                ],
+            }),
+            expect.objectContaining({ userUuid: directEditor.userUuid }),
+            projectUuid,
+        );
+    });
+
+    test.each([
+        ['missing', 'missing-tile'],
+        ['type-mismatched', directPrivateDashboard.tiles[0].uuid],
+    ])('should reject a %s opaque denied dependency tile', async (_, uuid) => {
+        dashboardModel.getByIdOrSlug.mockResolvedValueOnce(
+            directPrivateDashboard,
+        );
+        directAccessService.resolveUserAccessForUser.mockResolvedValueOnce({
+            [directPrivateDashboard.uuid]: SpaceMemberRole.EDITOR,
+        });
+        const deniedTile = {
+            ...directPrivateDashboard.tiles[0],
+            uuid,
+            type:
+                uuid === 'missing-tile'
+                    ? directPrivateDashboard.tiles[0].type
+                    : DashboardTileTypes.MARKDOWN,
+            properties: { dependencyAccess: 'denied' },
+        } as unknown as DashboardChartTile;
+
+        await expect(
+            service.update(
+                createDirectUser(ProjectMemberRole.EDITOR),
+                directPrivateDashboard.uuid,
+                {
+                    tiles: [deniedTile],
+                    filters: directPrivateDashboard.filters,
+                    tabs: directPrivateDashboard.tabs,
+                },
+                { projectUuid },
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+    });
+
+    test('should deny dashboard updates above the direct capability ceiling', async () => {
+        const directViewer = createDirectUser(ProjectMemberRole.VIEWER);
+        dashboardModel.getByIdOrSlug.mockResolvedValueOnce({
+            ...dashboard,
+            spaceUuid: privateSpace.uuid,
+        });
+        directAccessService.resolveUserAccessForUser.mockResolvedValueOnce({
+            [dashboard.uuid]: SpaceMemberRole.VIEWER,
+        });
+
+        await expect(
+            service.update(directViewer, dashboard.uuid, updateDashboard, {
+                projectUuid,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    test('should delete a private dashboard through direct Admin access', async () => {
+        dashboardModel.getByIdOrSlug
+            .mockResolvedValueOnce(directPrivateDashboard)
+            .mockResolvedValueOnce(directPrivateDashboard)
+            .mockResolvedValueOnce(directPrivateDashboard);
+        directAccessService.resolveUserAccessForUser.mockResolvedValueOnce({
+            [directPrivateDashboard.uuid]: SpaceMemberRole.ADMIN,
+        });
+
+        await service.delete(
+            createDirectUser(ProjectMemberRole.ADMIN),
+            directPrivateDashboard.uuid,
+            { projectUuid },
+        );
+
+        expect(dashboardModel.permanentDelete).toHaveBeenCalledWith(
+            directPrivateDashboard.uuid,
+        );
+    });
+
+    test('should rollback through direct Admin access', async () => {
+        dashboardModel.getByIdOrSlug.mockResolvedValueOnce(
+            directPrivateDashboard,
+        );
+        dashboardModel.getVersionByUuid.mockResolvedValueOnce({
+            ...directPrivateDashboard,
+            versionUuid: 'previous-version',
+            tiles: [],
+        });
+        directAccessService.resolveUserAccessForUser.mockResolvedValueOnce({
+            [directPrivateDashboard.uuid]: SpaceMemberRole.ADMIN,
+        });
+
+        await service.rollback(
+            createDirectUser(ProjectMemberRole.ADMIN),
+            directPrivateDashboard.uuid,
+            'previous-version',
+        );
+
+        expect(dashboardModel.addVersion).toHaveBeenCalledWith(
+            directPrivateDashboard.uuid,
+            expect.objectContaining({ tiles: [] }),
+            expect.objectContaining({ userUuid: user.userUuid }),
+            directPrivateDashboard.projectUuid,
+            expect.anything(),
+        );
+    });
+
+    test.each(['delete', 'rollback'])(
+        'should deny direct %s above the capability ceiling',
+        async (action) => {
+            dashboardModel.getByIdOrSlug.mockResolvedValueOnce(
+                directPrivateDashboard,
+            );
+            directAccessService.resolveUserAccessForUser.mockResolvedValueOnce({
+                [directPrivateDashboard.uuid]: SpaceMemberRole.ADMIN,
+            });
+            const directViewer = createDirectUser(ProjectMemberRole.VIEWER);
+
+            const operation =
+                action === 'delete'
+                    ? service.delete(
+                          directViewer,
+                          directPrivateDashboard.uuid,
+                          { projectUuid },
+                      )
+                    : service.rollback(
+                          directViewer,
+                          directPrivateDashboard.uuid,
+                          'previous-version',
+                      );
+
+            await expect(operation).rejects.toThrow(ForbiddenError);
+            expect(dashboardModel.permanentDelete).not.toHaveBeenCalled();
+            expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+        },
+    );
+
     test('should update dashboard details', async () => {
         (dashboardModel.update as import('vitest').Mock).mockResolvedValueOnce({
             ...dashboard,
