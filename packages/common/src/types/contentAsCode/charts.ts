@@ -3,10 +3,61 @@ import type { ChartAsCodeLanguageMap } from '../../utils/i18n/chartAsCode';
 import type { ContentVerificationInfo } from '../contentVerification';
 import type { MetricQuery } from '../metricQuery';
 import type { PromotionChanges } from '../promotion';
-import type { SavedChart } from '../savedCharts';
+import type {
+    BigNumberConfig,
+    CartesianChartConfig,
+    ChartType,
+    CustomVisConfig,
+    DataAppVizChart,
+    FunnelChartConfig,
+    GaugeChartConfig,
+    MapChartConfig,
+    PieChartConfig,
+    SankeyChartConfig,
+    SavedChart,
+    TableChartConfig,
+    TreemapChartConfig,
+} from '../savedCharts';
 import type { SqlChart } from '../sqlRunner';
 import type { ContentAsCodeType, FiltersInput } from './core';
 import type { SpaceAsCode } from './spaces';
+
+/**
+ * The as-code shape of a custom chart type binding. Files carry the viz's
+ * project-scoped slug — portable across projects/instances — and upload
+ * resolves it to the target project's viz uuid. Exactly one identity is
+ * present: `dataAppVizSlug` in every file written today; `dataAppVizUuid`
+ * only in legacy files that predate slugs (accepted on upload, never
+ * emitted).
+ */
+export type DataAppVizChartAsCode = Omit<DataAppVizChart, 'dataAppVizUuid'> & {
+    dataAppVizSlug?: string;
+    dataAppVizUuid?: string;
+};
+
+export type DataAppVizChartConfigAsCode = {
+    type: ChartType.DATA_APP_VIZ;
+    config?: DataAppVizChartAsCode;
+};
+
+/**
+ * ChartConfig as serialized in chart YAML: viz bindings are slug-based.
+ * Enumerated rather than Exclude<ChartConfig, DataAppVizChartConfig> —
+ * TSOA cannot resolve Exclude over object unions, which corrupts the
+ * generated chart-as-code JSON schema. Keep in sync with ChartConfig.
+ */
+export type ChartAsCodeConfig =
+    | BigNumberConfig
+    | CartesianChartConfig
+    | CustomVisConfig
+    | PieChartConfig
+    | FunnelChartConfig
+    | TableChartConfig
+    | TreemapChartConfig
+    | GaugeChartConfig
+    | MapChartConfig
+    | SankeyChartConfig
+    | DataAppVizChartConfigAsCode;
 
 // We want to only use properties that can be modified by the user
 // We'll be using slug to access these charts, so uuids are not included
@@ -23,9 +74,10 @@ export type ChartAsCode = Omit<
         | 'slug'
         | 'parameters'
     >,
-    'metricQuery'
+    'metricQuery' | 'chartConfig'
 > & {
     metricQuery: Omit<MetricQuery, 'filters'> & { filters: FiltersInput };
+    chartConfig: ChartAsCodeConfig;
     /** Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted. */
     updatedAt?: Date;
     /** Table configuration. Defaults to empty column order if omitted. */

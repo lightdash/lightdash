@@ -1653,7 +1653,7 @@ describe('CoderService', () => {
             ) => AnyType[];
         };
 
-        it('stamps the viz slug into DATA_APP_VIZ chart configs', () => {
+        it('swaps the viz uuid for its slug in DATA_APP_VIZ chart configs', () => {
             const charts = [
                 {
                     slug: 'viz-chart',
@@ -1674,9 +1674,10 @@ describe('CoderService', () => {
                 charts,
                 new Map([['viz-uuid', 'my-chart-type']]),
             );
-            expect(result[0].chartConfig.config.dataAppVizSlug).toBe(
-                'my-chart-type',
-            );
+            expect(result[0].chartConfig.config).toEqual({
+                dataAppVizSlug: 'my-chart-type',
+                fieldMapping: {},
+            });
             expect(result[1]).toBe(charts[1]);
         });
 
@@ -1760,7 +1761,7 @@ describe('CoderService', () => {
             expect(warn).toHaveBeenCalled();
         });
 
-        it('passes non-viz and slug-less configs through untouched', async () => {
+        it('passes non-viz configs through and accepts legacy uuid-only files', async () => {
             const findAppsBySlugs = vi.fn();
             const { service } = buildResolver(findAppsBySlugs);
             const cartesian = {
@@ -1776,8 +1777,23 @@ describe('CoderService', () => {
             };
             expect(
                 await service.resolveDataAppVizBinding('proj', legacyViz),
-            ).toBe(legacyViz);
+            ).toEqual(legacyViz);
             expect(findAppsBySlugs).not.toHaveBeenCalled();
+        });
+
+        it('fails loudly when the slug is missing and there is no legacy uuid', async () => {
+            const { service } = buildResolver(vi.fn().mockResolvedValue([]));
+            await expect(
+                service.resolveDataAppVizBinding('proj', {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizSlug: 'gone-chart-type',
+                        fieldMapping: {},
+                    },
+                }),
+            ).rejects.toThrow(
+                'Custom chart type "gone-chart-type" was not found',
+            );
         });
     });
 });
