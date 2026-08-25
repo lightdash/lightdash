@@ -221,8 +221,9 @@ const AgentsRouterPage = () => {
                 context: mergedContext,
                 message,
                 optimisticContext: mergedOptimisticContext,
+                payload: undefined,
                 toolHints,
-            });
+            }).catch(() => undefined);
         },
         [
             contextInput,
