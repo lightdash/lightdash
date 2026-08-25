@@ -69,7 +69,7 @@ const ChartTypeIcon: FC<ChartTypeIconProps> = ({
         icon={icon}
         size={small ? 'md' : 'xl'}
         stroke={1.5}
-        color="blue"
+        color="ldGray.7"
     />
 );
 
