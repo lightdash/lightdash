@@ -18,6 +18,7 @@ import {
     type PropsWithChildren,
 } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
+import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
 import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
@@ -25,10 +26,10 @@ import EmbedExplore from '../src/ee/pages/EmbedExplore';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
 import { type EmbedExploreChart } from '../src/ee/providers/Embed/types';
 import useEmbed from '../src/ee/providers/Embed/useEmbed';
-import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import ErrorBoundary from '../src/features/errorBoundary/ErrorBoundary';
-import ChartColorMappingContextProvider from '../src/hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import { useCreateMutation } from '../src/hooks/dashboard/useDashboard';
+import ChartColorMappingContextProvider from '../src/hooks/useChartColorConfig/ChartColorMappingContextProvider';
+import { useAccount } from '../src/hooks/user/useAccount';
 import MetricsCatalogPage from '../src/pages/MetricsCatalog';
 import AbilityProvider from '../src/providers/Ability/AbilityProvider';
 import ActiveJobProvider from '../src/providers/ActiveJob/ActiveJobProvider';
@@ -76,6 +77,11 @@ type DashboardProps = BaseProps & {
 
 type DashboardBuilderProps = DashboardProps & {
     onDashboardReady?: (dashboard: EmbedDashboardType) => void;
+};
+
+type ChartProps = Omit<BaseProps, 'filters' | 'onExplore'> & {
+    id: string;
+    isEditMode?: boolean;
 };
 
 type AiAgentProps = Omit<
@@ -416,7 +422,9 @@ const DashboardBuilderContent: FC<{
                 spaceUuid: writeActions.spaceUuid,
                 tiles: [],
                 tabs: [],
-            }).then((createdDashboard) => createdDashboard as EmbedDashboardType);
+            }).then(
+                (createdDashboard) => createdDashboard as EmbedDashboardType,
+            );
 
         dashboardBuilderCreatePromises.set(createKey, createPromise);
 
@@ -512,7 +520,9 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
     );
 };
 
-const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = ({
+const Explore: FC<
+    BaseProps & { exploreId: string; savedChart: SavedChart }
+> = ({
     token: tokenOrTokenPromise,
     instanceUrl,
     styles,
@@ -581,9 +591,7 @@ const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = (
                         overflow: 'auto',
                         backgroundColor:
                             styles?.backgroundColor ??
-                            (theme
-                                ? 'var(--mantine-color-body)'
-                                : undefined),
+                            (theme ? 'var(--mantine-color-body)' : undefined),
                     }}
                 />
             </EmbedProvider>
@@ -591,13 +599,66 @@ const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = (
     );
 };
 
-const Chart: FC<Omit<BaseProps, 'filters' | 'onExplore'> & { id: string }> = ({
+const EditableChartContent: FC<{
+    containerStyles: React.CSSProperties;
+    isEditMode: boolean;
+}> = ({ containerStyles, isEditMode }) => {
+    const { embedWriteContext } = useEmbed();
+    const account = useAccount();
+
+    if (account.isLoading) {
+        return null;
+    }
+
+    if (embedWriteContext?.canUpdateSavedChart === true) {
+        return (
+            <EmbedExplore
+                containerStyles={containerStyles}
+                allowChartUpdate
+                isEditMode={isEditMode}
+                chartView
+            />
+        );
+    }
+
+    if (isEditMode) {
+        return (
+            <SuboptimalState
+                title="Unable to edit chart"
+                description="The embed write actor does not have permission to update this chart in the configured write space."
+            />
+        );
+    }
+
+    return <EmbedChart containerStyles={containerStyles} />;
+};
+
+const ChartContent: FC<{
+    containerStyles: React.CSSProperties;
+    isEditMode?: boolean;
+}> = ({ containerStyles, isEditMode }) => {
+    // Omitting isEditMode preserves the legacy Chart renderer exactly. Passing
+    // an explicit boolean opts into the mounted view/edit explorer surface.
+    if (isEditMode === undefined) {
+        return <EmbedChart containerStyles={containerStyles} />;
+    }
+
+    return (
+        <EditableChartContent
+            containerStyles={containerStyles}
+            isEditMode={isEditMode}
+        />
+    );
+};
+
+const Chart: FC<ChartProps> = ({
     token: tokenOrTokenPromise,
     instanceUrl,
     styles,
     theme,
     contentOverrides,
     id,
+    isEditMode,
 }) => {
     const [token, setToken] = useState<string | null>(null);
     const [projectUuid, setProjectUuid] = useState<string | null>(null);
@@ -638,6 +699,16 @@ const Chart: FC<Omit<BaseProps, 'filters' | 'onExplore'> & { id: string }> = ({
         return null;
     }
 
+    const containerStyles = {
+        width: '100%',
+        height: '100%',
+        position: 'relative' as const,
+        overflow: 'auto',
+        backgroundColor:
+            styles?.backgroundColor ??
+            (theme ? 'var(--mantine-color-body)' : undefined),
+    };
+
     return (
         <SdkProviders projectUuid={projectUuid} styles={styles} theme={theme}>
             <EmbedProvider
@@ -646,18 +717,9 @@ const Chart: FC<Omit<BaseProps, 'filters' | 'onExplore'> & { id: string }> = ({
                 contentOverrides={contentOverrides}
                 savedQueryUuid={id}
             >
-                <EmbedChart
-                    containerStyles={{
-                        width: '100%',
-                        height: '100%',
-                        position: 'relative',
-                        overflow: 'auto',
-                        backgroundColor:
-                            styles?.backgroundColor ??
-                            (theme
-                                ? 'var(--mantine-color-body)'
-                                : undefined),
-                    }}
+                <ChartContent
+                    containerStyles={containerStyles}
+                    isEditMode={isEditMode}
                 />
             </EmbedProvider>
         </SdkProviders>

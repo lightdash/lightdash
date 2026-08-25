@@ -12,6 +12,7 @@ import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
+import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { Can } from '../../providers/Ability';
@@ -27,7 +28,7 @@ import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
-    const { openUnderlyingDataModal, metricQuery } =
+    const { openUnderlyingDataModal, metricQuery, tableName } =
         useMetricQueryDataContext();
     const { isEditMode, hasExplorerStore } = useVisualizationContext();
     const { showToastSuccess } = useToaster();
@@ -45,7 +46,10 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
 
     const { track } = useTracking();
     const { user } = useApp();
+    const { data: organization } = useOrganization();
     const projectUuid = useProjectUuid();
+    const organizationUuid =
+        user.data?.organizationUuid ?? organization?.organizationUuid;
     const clipboard = useClipboard({ timeout: 200 });
 
     const handleCopyToClipboard = useCallback(() => {
@@ -62,7 +66,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
         track({
             name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
             properties: {
-                organizationId: user?.data?.organizationUuid,
+                organizationId: organizationUuid,
                 userId: user?.data?.userUuid,
                 projectId: projectUuid,
             },
@@ -73,7 +77,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
         openUnderlyingDataModal,
         projectUuid,
         track,
-        user?.data?.organizationUuid,
+        organizationUuid,
         user?.data?.userUuid,
         value,
     ]);
@@ -105,7 +109,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                     <Can
                         I="view"
                         this={subject('UnderlyingData', {
-                            organizationUuid: user.data?.organizationUuid,
+                            organizationUuid,
                             projectUuid: projectUuid,
                         })}
                     >
@@ -123,8 +127,9 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
             <Can
                 I="manage"
                 this={subject('Explore', {
-                    organizationUuid: user.data?.organizationUuid,
+                    organizationUuid,
                     projectUuid: projectUuid,
+                    exploreNames: [tableName],
                 })}
             >
                 {isEditMode &&
@@ -133,13 +138,21 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                     isFilterableField(item) && (
                         <QuickFilterMenuItems item={item} value={value} />
                     )}
-
+            </Can>
+            <Can
+                I="view"
+                this={subject('Explore', {
+                    organizationUuid,
+                    projectUuid: projectUuid,
+                    exploreNames: [tableName],
+                })}
+            >
                 <DrillDownMenuItem
                     item={item}
                     fieldValues={fieldValues}
                     pivotReference={meta?.pivotReference}
                     trackingData={{
-                        organizationId: user?.data?.organizationUuid,
+                        organizationId: organizationUuid,
                         userId: user?.data?.userUuid,
                         projectId: projectUuid,
                     }}

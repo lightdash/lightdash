@@ -63,8 +63,8 @@ import { WriteBackModal } from './WriteBackModal';
 
 const EMPTY_PARAMETER_REFERENCES: string[] = [];
 
-const Explorer: FC<{ hideHeader?: boolean }> = memo(
-    ({ hideHeader = false }) => {
+const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
+    ({ hideHeader = false, chartView = false }) => {
         const tableName = useExplorerSelector(selectTableName);
         const dimensions = useExplorerSelector(selectDimensions);
         const metrics = useExplorerSelector(selectMetrics);
@@ -72,6 +72,8 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const sorts = useExplorerSelector(selectSorts);
         const metricQuery = useExplorerSelector(selectMetricQuery);
         const isEditMode = useExplorerSelector(selectIsEditMode);
+        const showQueryBuilder = isEditMode || !chartView;
+        const showMinimalChart = chartView && !isEditMode;
         const parameterReferencesFromRedux = useExplorerSelector(
             selectParameterReferences,
         );
@@ -273,11 +275,14 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                         ))}
 
                     <MergeAutoRun />
-                    {!isFullscreen && <MergeReadOnlyBar />}
+                    {!isFullscreen && showQueryBuilder && <MergeReadOnlyBar />}
 
-                    {!isFullscreen && <MergeRelationshipCard />}
+                    {!isFullscreen && showQueryBuilder && (
+                        <MergeRelationshipCard />
+                    )}
 
                     {!isFullscreen &&
+                        showQueryBuilder &&
                         !!tableName &&
                         hasReferencedUserParameters && (
                             <ParametersCard
@@ -287,15 +292,16 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                             />
                         )}
 
-                    {!isFullscreen && <FiltersCard />}
+                    {!isFullscreen && showQueryBuilder && <FiltersCard />}
 
                     <VisualizationCard
                         projectUuid={projectUuid}
                         onScreenshotReady={handleScreenshotReady}
                         onScreenshotError={handleScreenshotError}
+                        minimal={showMinimalChart}
                     />
 
-                    {!isFullscreen && (
+                    {!isFullscreen && showQueryBuilder && (
                         <>
                             <ResultsCard />
 

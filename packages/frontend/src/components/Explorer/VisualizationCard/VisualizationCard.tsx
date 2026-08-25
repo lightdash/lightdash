@@ -1,4 +1,3 @@
-import { subject } from '@casl/ability';
 import {
     derivePivotConfigurationFromChart,
     ECHARTS_DEFAULT_COLORS,
@@ -46,10 +45,8 @@ import { resolveMergeColumnOrder } from '../../../features/mergeQuery/utils/reso
 import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
 import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
-import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
-import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useFullscreen from '../../../providers/Fullscreen/useFullscreen';
@@ -80,6 +77,7 @@ type Props = {
     projectUuid?: string;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
+    minimal?: boolean;
 };
 
 const VisualizationCard: FC<Props> = memo((props) => {
@@ -87,9 +85,9 @@ const VisualizationCard: FC<Props> = memo((props) => {
         projectUuid: fallBackUUid,
         onScreenshotReady,
         onScreenshotError,
+        minimal = false,
     } = props;
     const { health } = useApp();
-    const { data: org } = useOrganization();
     const colorScheme = useComputedColorScheme();
     const dispatch = useExplorerDispatch();
     // In fullscreen the chart card header is hidden so the chart owns the viewport
@@ -255,7 +253,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
         selectIsVisualizationExpanded,
     );
     // Without the heading there is no way to expand the card, so force it open
-    const isOpen = isVisualizationExpanded || isFullscreen;
+    const isOpen = minimal || isVisualizationExpanded || isFullscreen;
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const isVisualizationConfigOpen = useExplorerSelector(
         selectIsVisualizationConfigOpen,
@@ -417,6 +415,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
         <ErrorBoundary>
             <VisualizationProvider
                 key={savedChart?.uuid}
+                minimal={minimal}
                 chartConfig={unsavedChartVersion.chartConfig}
                 initialPivotDimensions={
                     unsavedChartVersion.pivotConfig?.columns
@@ -449,7 +448,8 @@ const VisualizationCard: FC<Props> = memo((props) => {
                     title="Chart"
                     isOpen={isOpen}
                     isVisualizationCard
-                    hideHeading={isFullscreen}
+                    hideHeading={isFullscreen || minimal}
+                    minimal={minimal}
                     onToggle={toggleSection}
                     headerElement={
                         isOpen && (
@@ -541,30 +541,22 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                         portalTarget,
                                     )}
 
-                                <Can
-                                    I="manage"
-                                    this={subject('Explore', {
-                                        organizationUuid: org?.organizationUuid,
-                                        projectUuid,
-                                    })}
-                                >
-                                    {!!projectUuid && (
-                                        <ChartDownloadMenu
-                                            getDownloadQueryUuid={
-                                                mergeResults && merge
-                                                    ? merge.getDownloadQueryUuid
-                                                    : getDownloadQueryUuid
-                                            }
-                                            projectUuid={projectUuid}
-                                            chartName={savedChart?.name}
-                                            getGsheetLink={
-                                                mergeResults
-                                                    ? undefined
-                                                    : getGsheetLink
-                                            }
-                                        />
-                                    )}
-                                </Can>
+                                {!!projectUuid && (
+                                    <ChartDownloadMenu
+                                        getDownloadQueryUuid={
+                                            mergeResults && merge
+                                                ? merge.getDownloadQueryUuid
+                                                : getDownloadQueryUuid
+                                        }
+                                        projectUuid={projectUuid}
+                                        chartName={savedChart?.name}
+                                        getGsheetLink={
+                                            mergeResults
+                                                ? undefined
+                                                : getGsheetLink
+                                        }
+                                    />
+                                )}
 
                                 {import.meta.env.DEV && (
                                     <DevCopyChartDebugData />

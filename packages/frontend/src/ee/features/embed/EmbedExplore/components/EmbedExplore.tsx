@@ -4,7 +4,7 @@ import {
     type SavedChart,
 } from '@lightdash/common';
 import { IconUnlink } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useEffect, useLayoutEffect, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import Page from '../../../../../components/common/Page/Page';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
@@ -13,6 +13,7 @@ import ExploreSideBar from '../../../../../components/Explorer/ExploreSideBar';
 import {
     buildInitialExplorerState,
     createExplorerStore,
+    explorerActions,
 } from '../../../../../features/explorer/store';
 import { MergeProvider } from '../../../../../features/mergeQuery/context/MergeContext';
 import { useExplore } from '../../../../../hooks/useExplore';
@@ -25,7 +26,16 @@ const EmbedExploreView: FC<{
     onExploreSelect?: (exploreName: string) => void;
     onBackToTables?: () => void;
     fitContainerHeight?: boolean;
-}> = ({ exploreId, onExploreSelect, onBackToTables, fitContainerHeight }) => {
+    isEditMode: boolean;
+    chartView?: boolean;
+}> = ({
+    exploreId,
+    onExploreSelect,
+    onBackToTables,
+    fitContainerHeight,
+    isEditMode,
+    chartView,
+}) => {
     const { data } = useExplore(exploreId);
 
     // Run the query effects hook
@@ -45,11 +55,13 @@ const EmbedExploreView: FC<{
                     onBackToTables={onBackToTables}
                 />
             }
+            isSidebarOpen={isEditMode}
             withFullHeight
-            withPaddedContent
+            withPaddedContent={!chartView || isEditMode}
+            noContentPadding={chartView && !isEditMode}
         >
-            <MergeProvider>
-                <Explorer />
+            <MergeProvider readOnly={!isEditMode}>
+                <Explorer chartView={chartView} />
             </MergeProvider>
         </Page>
     );
@@ -62,6 +74,8 @@ const EmbedExploreContent: FC<{
     onBackToTables?: () => void;
     fitContainerHeight?: boolean;
     allowChartUpdate?: boolean;
+    isEditMode: boolean;
+    chartView?: boolean;
 }> = ({
     exploreId,
     savedChart,
@@ -69,17 +83,22 @@ const EmbedExploreContent: FC<{
     onBackToTables,
     fitContainerHeight,
     allowChartUpdate,
+    isEditMode,
+    chartView,
 }) => {
     // The store initializes once; the parent key remounts it when inputs change.
     const [store] = useState(() => {
+        const expandedSections = isEditMode
+            ? [
+                  ExplorerSection.FILTERS,
+                  ExplorerSection.VISUALIZATION,
+                  ExplorerSection.RESULTS,
+              ]
+            : [ExplorerSection.VISUALIZATION];
         const initialState = buildInitialExplorerState({
-            isEditMode: true,
-            expandedSections: [
-                ExplorerSection.FILTERS,
-                ExplorerSection.VISUALIZATION,
-                ExplorerSection.RESULTS,
-            ],
+            isEditMode,
             initialState: {
+                expandedSections,
                 // With a full SavedChart in the store the save flow becomes
                 // "Save changes" (new version) instead of create
                 savedChart:
@@ -125,6 +144,30 @@ const EmbedExploreContent: FC<{
         return createExplorerStore({ explorer: initialState });
     });
 
+    useLayoutEffect(() => {
+        store.dispatch(explorerActions.setIsEditMode(isEditMode));
+        if (isEditMode) {
+            const expandedSections = store.getState().explorer.expandedSections;
+            [
+                ExplorerSection.FILTERS,
+                ExplorerSection.VISUALIZATION,
+                ExplorerSection.RESULTS,
+            ].forEach((section) => {
+                if (!expandedSections.includes(section)) {
+                    store.dispatch(
+                        explorerActions.toggleExpandedSection(section),
+                    );
+                }
+            });
+        }
+    }, [isEditMode, store]);
+
+    useEffect(() => {
+        if (savedChart && 'uuid' in savedChart) {
+            store.dispatch(explorerActions.setSavedChart(savedChart));
+        }
+    }, [savedChart, store]);
+
     return (
         <Provider store={store}>
             <EmbedExploreView
@@ -132,6 +175,8 @@ const EmbedExploreContent: FC<{
                 onExploreSelect={onExploreSelect}
                 onBackToTables={onBackToTables}
                 fitContainerHeight={fitContainerHeight}
+                isEditMode={isEditMode}
+                chartView={chartView}
             />
         </Provider>
     );
@@ -149,6 +194,10 @@ type Props = {
     // Treat a full SavedChart as editable: saving creates a new version of it
     // instead of a new chart
     allowChartUpdate?: boolean;
+    // Keep the same explorer mounted while the authoring sidebar transitions.
+    isEditMode?: boolean;
+    // Render the saved-chart surface without read-only query-builder cards.
+    chartView?: boolean;
 };
 
 const EmbedExplore: FC<Props> = ({
@@ -159,6 +208,8 @@ const EmbedExplore: FC<Props> = ({
     onBackToTables,
     fitContainerHeight,
     allowChartUpdate,
+    isEditMode = true,
+    chartView,
 }) => {
     const { projectUuid } = useEmbed();
     const { error: exploreError } = useExplore(exploreId);
@@ -199,6 +250,8 @@ const EmbedExplore: FC<Props> = ({
                 onBackToTables={onBackToTables}
                 fitContainerHeight={fitContainerHeight}
                 allowChartUpdate={allowChartUpdate}
+                isEditMode={isEditMode}
+                chartView={chartView}
             />
         </div>
     );

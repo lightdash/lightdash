@@ -10,7 +10,8 @@ import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback } from 'react';
 import useEchartsCartesianConfig from '../../../hooks/echarts/useEchartsCartesianConfig';
-import { Can } from '../../../providers/Ability';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
 import { type Limit } from '../../ExportResults/types';
 import ExportSelector from '../../ExportSelector';
@@ -61,6 +62,40 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 !eChartsOptions);
 
         const { user } = useApp();
+        const { data: organization } = useOrganization();
+        const ability = useAbilityContext();
+        const organizationUuid =
+            user.data?.organizationUuid ?? organization?.organizationUuid;
+        const canExportCsv =
+            ability.can(
+                'manage',
+                subject('ExportCsv', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            ) ||
+            ability.can(
+                'export',
+                subject('SavedChart', {
+                    organizationUuid,
+                    type: 'csv',
+                }),
+            );
+        const canExportImages =
+            ability.can(
+                'manage',
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            ) ||
+            ability.can(
+                'export',
+                subject('SavedChart', {
+                    organizationUuid,
+                    type: 'images',
+                }),
+            );
 
         const getChartInstance = useCallback(
             () => chartRef.current?.getEchartsInstance(),
@@ -115,13 +150,7 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
         }
         return isTableVisualizationConfig(visualizationConfig) &&
             getChartDownloadQueryUuid ? (
-            <Can
-                I="manage"
-                this={subject('ExportCsv', {
-                    organizationUuid: user.data?.organizationUuid,
-                    projectUuid,
-                })}
-            >
+            canExportCsv ? (
                 <Popover
                     {...COLLAPSABLE_CARD_POPOVER_PROPS}
                     disabled={disabled}
@@ -186,9 +215,9 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                         />
                     </Popover.Dropdown>
                 </Popover>
-            </Can>
+            ) : null
         ) : isTableVisualizationConfig(visualizationConfig) &&
-          !getDownloadQueryUuid ? null : (
+          !getDownloadQueryUuid ? null : canExportImages ? (
             <Popover
                 {...COLLAPSABLE_CARD_POPOVER_PROPS}
                 disabled={disabled}
@@ -214,7 +243,7 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                     ) : null}
                 </Popover.Dropdown>
             </Popover>
-        );
+        ) : null;
     },
 );
 

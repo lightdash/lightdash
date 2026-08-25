@@ -16,6 +16,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
@@ -39,12 +40,15 @@ export const SeriesContextMenu: FC<{
     const clipboard = useClipboard({ timeout: 200 });
     const { track } = useTracking();
     const { user } = useApp();
+    const { data: organization } = useOrganization();
+    const organizationUuid =
+        user.data?.organizationUuid ?? organization?.organizationUuid;
 
     const context = useVisualizationContext();
     const { resultsData: { metricQuery } = {} } = context;
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
-    const { openUnderlyingDataModal } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal, tableName } = useMetricQueryDataContext();
 
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -95,7 +99,7 @@ export const SeriesContextMenu: FC<{
         track({
             name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
             properties: {
-                organizationId: user?.data?.organizationUuid,
+                organizationId: organizationUuid,
                 userId: user?.data?.userUuid,
                 projectId: projectUuid,
             },
@@ -110,7 +114,7 @@ export const SeriesContextMenu: FC<{
         dimensions,
         openUnderlyingDataModal,
         track,
-        user?.data?.organizationUuid,
+        organizationUuid,
         user?.data?.userUuid,
         projectUuid,
     ]);
@@ -162,7 +166,7 @@ export const SeriesContextMenu: FC<{
                 <Can
                     I="view"
                     this={subject('UnderlyingData', {
-                        organizationUuid: user.data?.organizationUuid,
+                        organizationUuid,
                         projectUuid: projectUuid,
                     })}
                 >
@@ -179,14 +183,15 @@ export const SeriesContextMenu: FC<{
                 <Can
                     I="view"
                     this={subject('Explore', {
-                        organizationUuid: user.data?.organizationUuid,
+                        organizationUuid,
                         projectUuid: projectUuid,
+                        exploreNames: [tableName],
                     })}
                 >
                     <DrillDownMenuItem
                         {...underlyingData}
                         trackingData={{
-                            organizationId: user?.data?.organizationUuid,
+                            organizationId: organizationUuid,
                             userId: user?.data?.userUuid,
                             projectId: projectUuid,
                         }}

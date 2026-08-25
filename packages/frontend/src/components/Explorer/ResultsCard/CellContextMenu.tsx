@@ -17,6 +17,7 @@ import { useCallback, useMemo, type FC } from 'react';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useMergeQuickFilter } from '../../../features/mergeQuery/hooks/useMergeQuickFilter';
 import { useMergeSourceCell } from '../../../features/mergeQuery/hooks/useMergeSourceCell';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
@@ -44,7 +45,7 @@ const CellContextMenu: FC<
     const merge = useMergeSafe();
     const isMerged = !!merge?.mergeResults;
     const mergeQuickFilter = useMergeQuickFilter();
-    const { openUnderlyingDataModal, metricQuery } =
+    const { openUnderlyingDataModal, metricQuery, tableName } =
         useMetricQueryDataContext();
     const { track } = useTracking();
     const { showToastError, showToastSuccess } = useToaster();
@@ -52,7 +53,10 @@ const CellContextMenu: FC<
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
     const { user } = useApp();
+    const { data: organization } = useOrganization();
     const projectUuid = useProjectUuid();
+    const organizationUuid =
+        user.data?.organizationUuid ?? organization?.organizationUuid;
 
     const value: ResultValue = useMemo(
         () => cell.getValue()?.value || {},
@@ -160,7 +164,7 @@ const CellContextMenu: FC<
                     <Can
                         I="view"
                         this={subject('UnderlyingData', {
-                            organizationUuid: user.data?.organizationUuid,
+                            organizationUuid,
                             projectUuid: projectUuid,
                         })}
                     >
@@ -175,8 +179,9 @@ const CellContextMenu: FC<
             <Can
                 I="manage"
                 this={subject('Explore', {
-                    organizationUuid: user.data?.organizationUuid,
+                    organizationUuid,
                     projectUuid: projectUuid,
+                    exploreNames: [tableName],
                 })}
             >
                 {isEditMode &&
@@ -193,7 +198,15 @@ const CellContextMenu: FC<
                             }
                         />
                     )}
-
+            </Can>
+            <Can
+                I="view"
+                this={subject('Explore', {
+                    organizationUuid,
+                    projectUuid: projectUuid,
+                    exploreNames: [tableName],
+                })}
+            >
                 {(!isMerged || resolvedSourceCell) && (
                     <DrillDownMenuItem
                         item={resolvedSourceCell?.item ?? item}
@@ -202,7 +215,7 @@ const CellContextMenu: FC<
                         }
                         source={resolvedSourceCell?.source}
                         trackingData={{
-                            organizationId: user.data?.organizationUuid,
+                            organizationId: organizationUuid,
                             userId: user.data?.userUuid,
                             projectId: projectUuid,
                         }}
