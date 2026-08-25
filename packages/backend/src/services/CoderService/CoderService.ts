@@ -18,6 +18,7 @@ import {
     assertUnreachable,
     ChartAsCode,
     ChartAsCodeInternalization,
+    ChartAsCodeUpsertResult,
     ChartGoogleSheetsSyncAsCode,
     ChartScheduledDeliveryAsCode,
     ChartSummary,
@@ -134,6 +135,10 @@ import {
     hashContentAsCodeDocument,
     toCanonicalContentAsCodeSnapshot,
 } from './contentAsCodeHash';
+import {
+    getInstanceAheadSkipWarning,
+    shouldSkipInstanceAheadUpload,
+} from './contentAsCodeSkip';
 import {
     getConfigWithDateZoomTileSlugs,
     getConfigWithDateZoomTileUuids,
@@ -2723,7 +2728,7 @@ export class CoderService extends BaseService {
         slug: string,
         chartAsCode: ChartAsCode,
         options: UpsertContentAsCodeOptions = {},
-    ) {
+    ): Promise<ChartAsCodeUpsertResult> {
         const {
             skipSpaceCreate,
             publicSpaceCreate,
@@ -3006,6 +3011,36 @@ export class CoderService extends BaseService {
                 project,
                 slug,
             });
+        }
+
+        const chartSkipWarning = await this.getInstanceAheadSkipWarning({
+            force,
+            projectUuid,
+            contentType: ContentAsCodeType.CHART,
+            slug,
+            incomingDocument: chartAsCode,
+            loadInstanceDocument: () =>
+                this.getChartAsCodeSnapshot(chart.uuid, chart.spaceUuid),
+        });
+        if (chartSkipWarning) {
+            return {
+                charts: [
+                    {
+                        action: PromotionAction.NO_CHANGES,
+                        data: {
+                            ...(await this.savedChartModel.get(chart.uuid)),
+                            spaceSlug: chartWithDefaults.spaceSlug,
+                            spacePath: getContentAsCodePathFromLtreePath(
+                                chartWithDefaults.spaceSlug,
+                            ),
+                            oldUuid: chart.uuid,
+                        },
+                    },
+                ],
+                spaces: [],
+                dashboards: [],
+                warnings: [chartSkipWarning],
+            };
         }
 
         const { space } = await this.getOrCreateSpace(
@@ -3440,6 +3475,96 @@ export class CoderService extends BaseService {
                 }),
             );
         return { canUploadAnyContent, allowSpaceCreate };
+    }
+
+    private async getChartAsCodeSnapshot(
+        chartUuid: string,
+        fallbackSpaceUuid: string | undefined,
+    ): Promise<ChartAsCode> {
+        const chart = await this.savedChartModel.get(chartUuid);
+        const resolvedSpaceUuid = chart.spaceUuid ?? fallbackSpaceUuid;
+        if (!resolvedSpaceUuid) {
+            throw new NotFoundError(`Space for chart ${chart.slug} not found`);
+        }
+        const spaces = await this.spaceModel.find({
+            spaceUuids: [resolvedSpaceUuid],
+        });
+        const dashboardSlugs = chart.dashboardUuid
+            ? await this.dashboardModel.getSlugsForUuids([chart.dashboardUuid])
+            : {};
+        const verificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.CHART,
+                [chart.uuid],
+            );
+        return CoderService.transformChart(
+            { ...chart, spaceUuid: resolvedSpaceUuid },
+            spaces,
+            dashboardSlugs,
+            verificationMap,
+        );
+    }
+
+    private async getDashboardAsCodeSnapshot(
+        dashboard: DashboardDAO,
+    ): Promise<DashboardAsCode> {
+        const spaces = await this.spaceModel.find({
+            spaceUuids: [dashboard.spaceUuid],
+        });
+        const verificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.DASHBOARD,
+                [dashboard.uuid],
+            );
+        return CoderService.transformDashboard(
+            dashboard,
+            spaces,
+            verificationMap,
+        );
+    }
+
+    private async getInstanceAheadSkipWarning({
+        force,
+        projectUuid,
+        contentType,
+        slug,
+        incomingDocument,
+        loadInstanceDocument,
+    }: {
+        force: boolean | undefined;
+        projectUuid: string;
+        contentType: ContentAsCodeSnapshotType;
+        slug: string;
+        incomingDocument: unknown;
+        loadInstanceDocument: () => Promise<unknown>;
+    }): Promise<string | undefined> {
+        if (force || !this.contentAsCodeAppliedRevisionModel) {
+            return undefined;
+        }
+        const lastApplied =
+            await this.contentAsCodeAppliedRevisionModel.findBySlug(
+                projectUuid,
+                contentType,
+                slug,
+            );
+        if (!lastApplied) {
+            return undefined;
+        }
+
+        const instanceDocument = await loadInstanceDocument();
+        if (
+            !shouldSkipInstanceAheadUpload({
+                lastAppliedHash: lastApplied.contentHash,
+                incomingHash: hashContentAsCodeDocument(incomingDocument),
+                instanceHash: hashContentAsCodeDocument(instanceDocument),
+            })
+        ) {
+            return undefined;
+        }
+
+        const warning = getInstanceAheadSkipWarning(contentType, slug);
+        this.logger.warn(warning, { projectUuid, slug, contentType });
+        return warning;
     }
 
     private async recordAppliedRevision({
@@ -4026,6 +4151,37 @@ export class CoderService extends BaseService {
                 dashboard,
                 additionalSpaceUuids: targetSpace ? [targetSpace.uuid] : [],
             });
+        }
+
+        const dashboardSkipWarning = await this.getInstanceAheadSkipWarning({
+            force,
+            projectUuid,
+            contentType: ContentAsCodeType.DASHBOARD,
+            slug,
+            incomingDocument: dashboardAsCode,
+            loadInstanceDocument: () =>
+                this.getDashboardAsCodeSnapshot(dashboard),
+        });
+        if (dashboardSkipWarning) {
+            return withTileWarnings(
+                {
+                    dashboards: [
+                        {
+                            action: PromotionAction.NO_CHANGES,
+                            data: {
+                                ...dashboard,
+                                spaceSlug: dashboardWithDefaults.spaceSlug,
+                                spacePath: getContentAsCodePathFromLtreePath(
+                                    dashboardWithDefaults.spaceSlug,
+                                ),
+                            },
+                        },
+                    ],
+                    charts: [],
+                    spaces: [],
+                },
+                [dashboardSkipWarning],
+            );
         }
 
         const dashboardWithUuids = {

@@ -83,9 +83,14 @@ export type ApiChartAsCodeListResponse = {
     };
 };
 
+export type ChartAsCodeUpsertResult = PromotionChanges & {
+    /** Non-fatal issues, e.g. a slug skipped because the instance is ahead of git. */
+    warnings?: string[];
+};
+
 export type ApiChartAsCodeUpsertResponse = {
     status: 'ok';
-    results: PromotionChanges;
+    results: ChartAsCodeUpsertResult;
 };
 
 export type ApiSqlChartAsCodeUpsertResponse = {
