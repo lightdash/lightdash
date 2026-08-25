@@ -74,5 +74,11 @@
                 }
             ]
         }
+    },
+    "uiOverrides": {
+        "tileMenu.exploreFromHere": "Explorar desde aquí",
+        "tileMenu.downloadData": "Descargar datos",
+        "tileMenu.exportImage": "Exportar imagen",
+        "tileMenu.viewUnderlyingData": "Ver datos subyacentes"
     }
 }
