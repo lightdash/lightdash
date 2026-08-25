@@ -15,6 +15,7 @@ import {
     selectIsEditMode,
     selectIsResultsExpanded,
     selectMetricQuery,
+    selectParameters,
     selectSavedChart,
     selectSorts,
     selectTableName,
@@ -56,6 +57,7 @@ const ResultsCard: FC = memo(() => {
     const tableName = useExplorerSelector(selectTableName);
     const sorts = useExplorerSelector(selectSorts);
     const metricQuery = useExplorerSelector(selectMetricQuery);
+    const parameters = useExplorerSelector(selectParameters);
     const columnOrder = useExplorerSelector(selectColumnOrder);
 
     // Check if grouped view is available
@@ -106,6 +108,7 @@ const ResultsCard: FC = memo(() => {
                 metricQuery,
                 columnOrder,
                 showTableNames: true,
+                parameters,
                 // No pivotConfig - ResultsCard only shows raw table data
             });
         } else {

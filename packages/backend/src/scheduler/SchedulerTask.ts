@@ -3401,6 +3401,7 @@ export default class SchedulerTask {
                 metricQuery,
                 context: QueryExecutionContext.GSHEETS,
                 pivotConfiguration,
+                parameters: payload.parameters,
             },
             SCHEDULER_POLLING_OPTIONS,
         );
