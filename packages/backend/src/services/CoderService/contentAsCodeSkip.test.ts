@@ -71,9 +71,9 @@ describe('shouldSkipInstanceAheadUpload', () => {
 
 describe('getInstanceAheadSkipWarning', () => {
     it('names the skipped slug and tells the operator about --force', () => {
-        expect(
-            getInstanceAheadSkipWarning('chart', 'orders'),
-        ).toContain('chart "orders"');
+        expect(getInstanceAheadSkipWarning('chart', 'orders')).toContain(
+            'chart "orders"',
+        );
         expect(getInstanceAheadSkipWarning('dashboard', 'overview')).toContain(
             '--force',
         );

@@ -171,7 +171,10 @@ const buildService = (appliedRevisionModel: AppliedRevisionModel) => {
         getSlugsForUuids: vi.fn(async () => ({})),
     };
     const promoteService = {
-        getPromoteCharts: vi.fn(),
+        getPromoteCharts: vi.fn(async () => ({
+            promotedChart: { chart: { uuid: CHART_UUID } },
+            upstreamChart: { chart: { uuid: CHART_UUID } },
+        })),
         getPromotedDashboard: vi.fn(),
         getPromotionDashboardChanges: vi.fn(),
         getOrCreateDashboard: vi.fn(async (_user, changes) => changes),
@@ -411,9 +414,8 @@ describe('CoderService instance-ahead upload skip', () => {
                 lastAppliedRevision('old-snapshot-hash'),
             ),
         };
-        const { service, savedChartModel, promoteService } = buildService(
-            appliedRevisionModel,
-        );
+        const { service, savedChartModel, promoteService } =
+            buildService(appliedRevisionModel);
         savedChartModel.find.mockResolvedValue([]);
 
         await expect(
