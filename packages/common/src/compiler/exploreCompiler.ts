@@ -12,6 +12,7 @@ import {
 import {
     DimensionType,
     friendlyName,
+    isCompiledDimension,
     isCustomBinDimension,
     isNonAggregateMetric,
     isPostCalculationMetric,
@@ -1647,6 +1648,18 @@ export class ExploreCompiler {
                 {},
             );
         }
+        // Already-compiled dimensions (e.g. pre-aggregate explores rewritten to
+        // materialized columns) are authoritative: reuse instead of recompiling.
+        if (
+            isCompiledDimension(referencedDimension) &&
+            referencedDimension.tablesReferences
+        ) {
+            return {
+                sql: `(${referencedDimension.compiledSql})`,
+                tablesReferences: new Set(referencedDimension.tablesReferences),
+            };
+        }
+
         const compiledDimension = this.compileDimensionSql(
             referencedDimension,
             tables,

@@ -890,6 +890,10 @@ export const isDimension = (
 ): field is Dimension =>
     isField(field) && field.fieldType === FieldType.DIMENSION;
 
+export const isCompiledDimension = (
+    field: ItemsMap[string] | AdditionalMetric | undefined,
+): field is CompiledDimension => isDimension(field) && 'compiledSql' in field;
+
 export const isTimeBasedDimension = (
     item: ItemsMap[string] | AdditionalMetric | undefined,
 ): item is Dimension =>
