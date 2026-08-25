@@ -19,10 +19,16 @@ const EmbedExplorePage: FC<{
     containerStyles?: React.CSSProperties;
     exploreId?: string;
     savedChart?: EmbedExploreChart;
+    allowChartUpdate?: boolean;
+    isEditMode?: boolean;
+    chartView?: boolean;
 }> = ({
     containerStyles,
     exploreId: exploreIdProps,
     savedChart: savedChartProps,
+    allowChartUpdate,
+    isEditMode,
+    chartView,
 }) => {
     const {
         content,
@@ -92,6 +98,9 @@ const EmbedExplorePage: FC<{
             containerStyles={containerStyles}
             exploreId={exploreId}
             savedChart={savedChart}
+            allowChartUpdate={allowChartUpdate}
+            isEditMode={isEditMode}
+            chartView={chartView}
         />
     );
 };

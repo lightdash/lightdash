@@ -2727,6 +2727,7 @@ export class EmbedService extends BaseService {
             if (spaceAccessContext.projectUuid !== projectUuid) {
                 return {
                     canUpdateDashboard: false,
+                    canUpdateSavedChart: false,
                     canCreateSavedChart: false,
                     canUseAiAgent: false,
                     aiAgentErrorMessage:
@@ -2745,6 +2746,25 @@ export class EmbedService extends BaseService {
                         metadata: {
                             dashboardUuid: content.dashboardUuid,
                         },
+                    }),
+                );
+            const savedChartUuid =
+                content.type === 'chart' ? content.chartUuids[0] : undefined;
+            const savedChart = savedChartUuid
+                ? await this.savedChartModel.get(savedChartUuid)
+                : undefined;
+            const canUpdateSavedChart =
+                savedChart !== undefined &&
+                savedChart.spaceUuid === writeActions.spaceUuid &&
+                auditedAbility.can(
+                    'update',
+                    subject('SavedChart', {
+                        organizationUuid,
+                        projectUuid,
+                        inheritsFromOrgOrProject:
+                            spaceAccessContext.inheritsFromOrgOrProject,
+                        access: spaceAccessContext.access,
+                        metadata: { savedChartUuid },
                     }),
                 );
             const canCreateSavedChart = auditedAbility.can(
@@ -2775,6 +2795,7 @@ export class EmbedService extends BaseService {
 
             return {
                 canUpdateDashboard,
+                canUpdateSavedChart,
                 canCreateSavedChart,
                 canUseAiAgent,
                 aiAgentErrorMessage: canUseAiAgent
@@ -2793,6 +2814,7 @@ export class EmbedService extends BaseService {
             ) {
                 return {
                     canUpdateDashboard: false,
+                    canUpdateSavedChart: false,
                     canCreateSavedChart: false,
                     canUseAiAgent: false,
                     aiAgentErrorMessage:

@@ -3,6 +3,7 @@ import {
     ForbiddenError,
     type AnonymousAccount,
     type CreateEmbedJwt,
+    type EmbedContent,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
@@ -335,6 +336,115 @@ describe('EmbedService', () => {
                     },
                 }),
             );
+        });
+    });
+
+    describe('getEmbedWriteContext', () => {
+        const chartUuid = 'chart-uuid';
+        const chartSpaceUuid = 'chart-space-uuid';
+        const content: EmbedContent = {
+            type: 'chart',
+            chartUuids: [chartUuid],
+            explores: ['orders'],
+        };
+        const token: CreateEmbedJwt = {
+            content: {
+                type: 'chart',
+                contentId: chartUuid,
+            },
+            writeActions: {
+                spaceUuid: chartSpaceUuid,
+                userUuid: mockUserUuid,
+            },
+        };
+        const spaceAccessContext = {
+            organizationUuid: mockOrganizationUuid,
+            projectUuid: mockProjectUuid,
+            inheritsFromOrgOrProject: true,
+            access: [],
+        };
+
+        const getContext = async ({
+            canUpdate,
+            savedChartSpaceUuid = chartSpaceUuid,
+        }: {
+            canUpdate: boolean;
+            savedChartSpaceUuid?: string;
+        }) => {
+            const embedWriteUser = {
+                ...mockAccountWithPermission.user,
+                organizationUuid: mockOrganizationUuid,
+                organizationName: 'Test Org',
+                organizationCreatedAt: new Date(),
+                ability: new Ability<PossibleAbilities>(
+                    canUpdate
+                        ? [{ action: 'update', subject: 'SavedChart' }]
+                        : [],
+                ),
+            } as unknown as SessionUser;
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                projectModel: {
+                    getSummary: vi.fn().mockResolvedValue({
+                        organizationUuid: mockOrganizationUuid,
+                    }),
+                },
+                savedChartModel: {
+                    get: vi.fn().mockResolvedValue({
+                        uuid: chartUuid,
+                        spaceUuid: savedChartSpaceUuid,
+                    }),
+                },
+                spacePermissionService: {
+                    getSpaceAccessContext: vi
+                        .fn()
+                        .mockResolvedValue(spaceAccessContext),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            const getEmbedWriteContext = (
+                scopedService as unknown as {
+                    getEmbedWriteContext: (
+                        decodedToken: CreateEmbedJwt,
+                        embedWriteUser: SessionUser,
+                        projectUuid: string,
+                        content: EmbedContent,
+                    ) => Promise<AnonymousAccount['embedWriteContext']>;
+                }
+            ).getEmbedWriteContext.bind(scopedService);
+
+            return getEmbedWriteContext(
+                token,
+                embedWriteUser,
+                mockProjectUuid,
+                content,
+            );
+        };
+
+        test('allows editing when the write actor can update the chart in the write space', async () => {
+            await expect(
+                getContext({ canUpdate: true }),
+            ).resolves.toMatchObject({
+                canUpdateSavedChart: true,
+            });
+        });
+
+        test('denies editing when the write actor cannot update saved charts', async () => {
+            await expect(
+                getContext({ canUpdate: false }),
+            ).resolves.toMatchObject({
+                canUpdateSavedChart: false,
+            });
+        });
+
+        test('denies editing when the chart is outside the write space', async () => {
+            await expect(
+                getContext({
+                    canUpdate: true,
+                    savedChartSpaceUuid: 'other-space-uuid',
+                }),
+            ).resolves.toMatchObject({
+                canUpdateSavedChart: false,
+            });
         });
     });
 
