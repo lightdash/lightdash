@@ -97,6 +97,68 @@ describe('HTTP server config', () => {
     });
 });
 
+describe('mobile minimum supported versions', () => {
+    it('defaults both platforms to null', () => {
+        expect(parseConfig().mobile).toEqual({
+            minimumSupportedVersion: {
+                android: null,
+                ios: null,
+            },
+        });
+    });
+
+    it.each([
+        {
+            environmentVariable: 'LIGHTDASH_MOBILE_MINIMUM_ANDROID_VERSION',
+            platform: 'android' as const,
+            otherPlatform: 'ios' as const,
+        },
+        {
+            environmentVariable: 'LIGHTDASH_MOBILE_MINIMUM_IOS_VERSION',
+            platform: 'ios' as const,
+            otherPlatform: 'android' as const,
+        },
+    ])(
+        'configures $platform independently',
+        ({ environmentVariable, platform, otherPlatform }) => {
+            process.env[environmentVariable] = '2.3.4';
+
+            expect(parseConfig().mobile.minimumSupportedVersion).toMatchObject({
+                [platform]: '2.3.4',
+                [otherPlatform]: null,
+            });
+        },
+    );
+
+    it('keeps 1.10 as a string', () => {
+        process.env.LIGHTDASH_MOBILE_MINIMUM_ANDROID_VERSION = '1.10';
+
+        expect(parseConfig().mobile.minimumSupportedVersion.android).toBe(
+            '1.10',
+        );
+    });
+
+    it.each([
+        '',
+        ' ',
+        '-1',
+        '+1',
+        '.1',
+        '1.',
+        '1..2',
+        '1. 2',
+        '1e2',
+        '1.2-beta',
+    ])('rejects invalid version %j', (value) => {
+        process.env.LIGHTDASH_MOBILE_MINIMUM_ANDROID_VERSION = value;
+
+        expect(() => parseConfig()).toThrowError(ParseError);
+        expect(() => parseConfig()).toThrow(
+            'LIGHTDASH_MOBILE_MINIMUM_ANDROID_VERSION',
+        );
+    });
+});
+
 describe('MotherDuck instance cache config', () => {
     afterEach(() => {
         vi.restoreAllMocks();

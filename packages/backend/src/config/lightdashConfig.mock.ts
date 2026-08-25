@@ -230,6 +230,12 @@ export const lightdashConfigMock: LightdashConfig = {
     helpMenuUrl: undefined,
     trustProxy: false,
     mode: LightdashMode.DEFAULT,
+    mobile: {
+        minimumSupportedVersion: {
+            android: null,
+            ios: null,
+        },
+    },
     license: {
         licenseKey: null,
     },

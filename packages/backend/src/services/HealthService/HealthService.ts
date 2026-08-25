@@ -130,6 +130,7 @@ export class HealthService extends BaseService {
             license: this.licenseService.getLicenseStatus(),
             mode: this.lightdashConfig.mode,
             version: VERSION,
+            mobile: this.lightdashConfig.mobile,
             localDbtEnabled,
             defaultProject: undefined,
             isAuthenticated,

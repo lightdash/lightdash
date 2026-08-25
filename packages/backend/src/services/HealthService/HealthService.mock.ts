@@ -14,6 +14,12 @@ export const BaseResponse: HealthState = {
     },
     version: '0.1.0',
     mode: LightdashMode.DEFAULT,
+    mobile: {
+        minimumSupportedVersion: {
+            android: null,
+            ios: null,
+        },
+    },
     isAuthenticated: false,
     requiresOrgRegistration: false,
     localDbtEnabled: true,
