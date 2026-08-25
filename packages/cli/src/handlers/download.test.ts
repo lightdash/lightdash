@@ -72,6 +72,7 @@ const {
     downloadLinkedVirtualViews,
     downloadSpaces,
     extractChartTableNames,
+    extractChartTypeRefsFromCharts,
     getDashboardAppSlugs,
     getDashboardChartSlugs,
     getFlatSpaceFileNames,
@@ -495,6 +496,35 @@ describe('extractChartTableNames', () => {
         expect(
             extractChartTableNames([chart(undefined), chart(''), chart('one')]),
         ).toEqual(['one']);
+    });
+});
+
+describe('extractChartTypeRefsFromCharts', () => {
+    const vizChart = (config: AnyType): AnyType => ({
+        slug: 'a-chart',
+        chartConfig: { type: 'data_app_viz', config },
+    });
+
+    it('collects slugs from viz charts, deduped, ignoring other chart types', () => {
+        expect(
+            extractChartTypeRefsFromCharts([
+                vizChart({ dataAppVizSlug: 'heatmap', fieldMapping: {} }),
+                vizChart({ dataAppVizSlug: 'heatmap', fieldMapping: {} }),
+                {
+                    slug: 'bar-chart',
+                    chartConfig: { type: 'cartesian', config: {} },
+                } as AnyType,
+            ]),
+        ).toEqual(['heatmap']);
+    });
+
+    it('falls back to the legacy uuid and skips configless charts', () => {
+        expect(
+            extractChartTypeRefsFromCharts([
+                vizChart({ dataAppVizUuid: 'viz-uuid', fieldMapping: {} }),
+                vizChart(undefined),
+            ]),
+        ).toEqual(['viz-uuid']);
     });
 });
 
