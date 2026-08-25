@@ -61,7 +61,9 @@ const populatedItems = {
 
 const createAbility = {
     user: {
-        abilityRules: [{ action: 'create', subject: 'ContentAsCode' }],
+        abilityRules: [
+            { action: 'create' as const, subject: 'ContentAsCode' as const },
+        ],
     },
 };
 
