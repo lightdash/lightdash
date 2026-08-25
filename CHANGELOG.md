@@ -1,3 +1,10 @@
+# [1.253.0](https://github.com/lightdash/lightdash/compare/1.252.1...1.253.0) (2026-08-25)
+
+
+### Features
+
+* finalize embedded chart builder access ([#27926](https://github.com/lightdash/lightdash/issues/27926)) ([a4ad514](https://github.com/lightdash/lightdash/commit/a4ad5147e1a52747e2458ce979370e17af61ff8d))
+
 ## [1.252.1](https://github.com/lightdash/lightdash/compare/1.252.0...1.252.1) (2026-08-24)
 
 
