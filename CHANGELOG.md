@@ -1,3 +1,10 @@
+## [1.257.2](https://github.com/lightdash/lightdash/compare/1.257.1...1.257.2) (2026-08-25)
+
+
+### Bug Fixes
+
+* **frontend:** reset connection form on project switch ([#28003](https://github.com/lightdash/lightdash/issues/28003)) ([15f5a85](https://github.com/lightdash/lightdash/commit/15f5a85a5cd875863d7c4c32db8e88e9ff5c23ac))
+
 ## [1.257.1](https://github.com/lightdash/lightdash/compare/1.257.0...1.257.1) (2026-08-25)
 
 
