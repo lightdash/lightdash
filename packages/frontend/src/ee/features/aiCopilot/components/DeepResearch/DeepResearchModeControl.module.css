@@ -1,3 +1,24 @@
+.textControl {
+    height: rem(30px);
+    font-family: var(--mantine-font-family);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 600;
+}
+
+.textControl[data-active='false'] {
+    color: var(--mantine-color-ldGray-8);
+}
+
+.textControl[data-active='false']:hover,
+.textControl[data-active='false']:focus-visible {
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldGray-2);
+    }
+}
+
 /* Soft expanding ring drawing attention to the Deep Research toggle while
    the composer draft looks investigative. Runs until the nudge resolves
    (toggle clicked, draft sent, or draft no longer qualifies). */

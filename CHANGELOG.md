@@ -1,3 +1,24 @@
+## [1.257.2](https://github.com/lightdash/lightdash/compare/1.257.1...1.257.2) (2026-08-25)
+
+
+### Bug Fixes
+
+* **frontend:** reset connection form on project switch ([#28003](https://github.com/lightdash/lightdash/issues/28003)) ([15f5a85](https://github.com/lightdash/lightdash/commit/15f5a85a5cd875863d7c4c32db8e88e9ff5c23ac))
+
+## [1.257.1](https://github.com/lightdash/lightdash/compare/1.257.0...1.257.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **embedding:** allow filter values without dashboard ([#27989](https://github.com/lightdash/lightdash/issues/27989)) ([9749e80](https://github.com/lightdash/lightdash/commit/9749e801bc87cb973189d50d3a6f2ce8df81bed6))
+
+# [1.257.0](https://github.com/lightdash/lightdash/compare/1.256.1...1.257.0) (2026-08-25)
+
+
+### Features
+
+* **ai:** enable Deep Research with Auto Router ([#27987](https://github.com/lightdash/lightdash/issues/27987)) ([93e0791](https://github.com/lightdash/lightdash/commit/93e0791c7b891ac910dae640ab21e98d0813b1b0))
+
 ## [1.256.1](https://github.com/lightdash/lightdash/compare/1.256.0...1.256.1) (2026-08-25)
 
 

@@ -38,11 +38,18 @@ import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatEleme
 import { MyMemoriesModal } from '../../features/aiCopilot/components/MyMemories/MyMemoriesModal';
 import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
+import { type StartDeepResearchArgs } from '../../features/aiCopilot/deepResearch/types';
 import { useAiAgentModelSelection } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
-import { useAiAgentRouterFlow } from '../../features/aiCopilot/hooks/useAiAgentRouterFlow';
+import {
+    useAiAgentRouterFlow,
+    type AiAgentRouterErrorArgs,
+    type CreateThreadForAgent,
+} from '../../features/aiCopilot/hooks/useAiAgentRouterFlow';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useAiAgentMemoryEnabled } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
+import { useStartDeepResearchForThreadMutation } from '../../features/aiCopilot/hooks/useDeepResearch';
+import { useDeepResearchAccess } from '../../features/aiCopilot/hooks/useDeepResearchAccess';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
 import {
     useCreateAgentThreadMutation,
@@ -75,6 +82,7 @@ const AgentsRouterPage = () => {
     const memoryEnabled = useAiAgentMemoryEnabled();
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
+    const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
 
@@ -108,6 +116,9 @@ const AgentsRouterPage = () => {
     const consumedAutoSubmitKeyRef = useRef<string | undefined>(undefined);
 
     const { mutateAsync: createThread } = useCreateAgentThreadMutation(
+        projectUuid!,
+    );
+    const startDeepResearch = useStartDeepResearchForThreadMutation(
         projectUuid!,
     );
 
@@ -151,23 +162,39 @@ const AgentsRouterPage = () => {
         ],
     );
 
+    const createDeepResearchForAgent = useCallback<CreateThreadForAgent>(
+        async (args) => {
+            const thread = await createThread({
+                agentUuid: args.agentUuid,
+                context: args.context,
+                modelConfig,
+                optimisticContext: args.optimisticContext,
+                prompt: args.message,
+                skipAgentResponse: true,
+            });
+            await startDeepResearch.mutateAsync({
+                agentUuid: args.agentUuid,
+                promptUuid: thread.firstMessage.uuid,
+                question: args.message,
+                threadUuid: thread.uuid,
+            });
+            return thread;
+        },
+        [createThread, modelConfig, startDeepResearch],
+    );
+
     const handleRouteError = useCallback(
         ({
             fallbackAgent,
             context,
+            createThreadForAgent: createThreadForAgentOverride,
             message,
             optimisticContext,
             toolHints,
-        }: {
-            fallbackAgent?: { uuid: string };
-            context?: AiPromptContextInput;
-            message: string;
-            optimisticContext?: AiPromptContext;
-            toolHints: string[];
-        }) => {
+        }: AiAgentRouterErrorArgs) => {
             setPendingPrompt(message);
             if (fallbackAgent && projectUuid) {
-                void createThreadForAgent({
+                void (createThreadForAgentOverride ?? createThreadForAgent)({
                     agentUuid: fallbackAgent.uuid,
                     context,
                     message,
@@ -226,6 +253,32 @@ const AgentsRouterPage = () => {
         },
         [
             contextInput,
+            handleRouterSubmit,
+            isPinnedContextReady,
+            previewItems,
+            setPendingPrompt,
+        ],
+    );
+
+    const handleStartDeepResearch = useCallback(
+        async ({ question }: StartDeepResearchArgs) => {
+            if (!isPinnedContextReady || !canStartDeepResearch) {
+                return;
+            }
+
+            setPendingPrompt('');
+            await handleRouterSubmit({
+                context: contextInput,
+                createThreadForAgent: createDeepResearchForAgent,
+                message: question,
+                optimisticContext: previewItems,
+                toolHints: [],
+            });
+        },
+        [
+            canStartDeepResearch,
+            contextInput,
+            createDeepResearchForAgent,
             handleRouterSubmit,
             isPinnedContextReady,
             previewItems,
@@ -369,6 +422,11 @@ const AgentsRouterPage = () => {
                             loading={isLocked}
                             disabled={!isPinnedContextReady}
                             onSubmit={handleSubmit}
+                            onStartDeepResearch={
+                                canStartDeepResearch
+                                    ? handleStartDeepResearch
+                                    : undefined
+                            }
                             defaultValue={pendingPrompt}
                             onValueChange={setPendingPrompt}
                             models={modelOptions}
