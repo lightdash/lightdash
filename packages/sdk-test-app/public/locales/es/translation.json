@@ -128,6 +128,24 @@
         "filters.unitsOfTime.years.singular": "año",
         "filters.unitsOfTime.years.plural": "años",
         "filters.unitsOfTime.years.completedSingular": "año completo",
-        "filters.unitsOfTime.years.completedPlural": "años completos"
+        "filters.unitsOfTime.years.completedPlural": "años completos",
+        "filters.addFilter": "Añadir filtro",
+        "filters.apply": "Aplicar",
+        "filters.isAnyValue": "es cualquier valor",
+        "filters.requiredFilterTooltip": "Este filtro es obligatorio, definido en la configuración del modelo, y no se puede eliminar.",
+        "filters.placeholders.anyValue": "cualquier valor",
+        "filters.placeholders.enterValue": "Introducir valor",
+        "filters.placeholders.enterValues": "Introducir valor(es)",
+        "filters.placeholders.startTyping": "Escribe para filtrar resultados",
+        "filters.placeholders.selectDate": "Seleccionar una fecha",
+        "filters.placeholders.selectDates": "Seleccionar fecha(s)",
+        "filters.placeholders.selectValue": "Seleccionar un valor",
+        "filters.autocomplete.loading": "Cargando...",
+        "filters.autocomplete.noResults": "Sin resultados",
+        "filters.autocomplete.addValue": "Añadir \"{value}\"",
+        "filters.autocomplete.maxResultsContinue": "Mostrando los primeros {n} resultados. Sigue escribiendo...",
+        "filters.autocomplete.maxResultsStart": "Mostrando los primeros {n} resultados. Empieza a escribir...",
+        "filters.autocomplete.editValuesTooltip": "Editar valores del filtro",
+        "filters.autocomplete.filterNotAvailable": "Filtro no disponible"
     }
 }

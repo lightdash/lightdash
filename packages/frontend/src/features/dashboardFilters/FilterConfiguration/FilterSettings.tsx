@@ -270,6 +270,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         disabled
                         size="xs"
                         placeholder={getPlaceholderByFilterTypeAndOperator({
+                            getUiString,
                             type: filterType,
                             operator: filterRule.operator,
                             disabled: true,

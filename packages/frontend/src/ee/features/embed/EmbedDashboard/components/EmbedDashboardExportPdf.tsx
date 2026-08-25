@@ -5,6 +5,7 @@ import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type EventData } from '../../../../../providers/Tracking/types';
 import useTracking from '../../../../../providers/Tracking/useTracking';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import '../styles/print.css';
 
 type Props = {
@@ -14,12 +15,17 @@ type Props = {
 
 const EmbedDashboardExportPdf: FC<Props> = ({ projectUuid, dashboard }) => {
     const { track } = useTracking();
+    const getUiString = useUiStrings();
 
     if (!dashboard.canExportPagePdf) {
         return null;
     }
     return (
-        <Tooltip label="Print this page" withinPortal position="bottom">
+        <Tooltip
+            label={getUiString('dashboard.printPage')}
+            withinPortal
+            position="bottom"
+        >
             <ActionIcon
                 variant="default"
                 onClick={() => {

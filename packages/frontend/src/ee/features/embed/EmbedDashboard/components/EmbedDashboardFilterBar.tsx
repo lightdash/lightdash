@@ -138,7 +138,10 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                 {isCollapsible && (
                     <>
                         <Divider orientation="vertical" />
-                        <Tooltip label="Hide filters" withinPortal>
+                        <Tooltip
+                            label={getUiString('filters.summary.hideFilters')}
+                            withinPortal
+                        >
                             <Button
                                 size="xs"
                                 variant="subtle"
@@ -148,7 +151,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                                 }
                                 onClick={() => setIsCollapsed(true)}
                             >
-                                Hide
+                                {getUiString('filters.summary.hide')}
                             </Button>
                         </Tooltip>
                     </>

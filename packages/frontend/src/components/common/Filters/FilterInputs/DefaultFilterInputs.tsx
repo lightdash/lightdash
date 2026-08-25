@@ -9,6 +9,7 @@ import {
 import { TagsInput } from '@mantine/core';
 import isString from 'lodash/isString';
 import { type FilterInputsProps } from '.';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import useFiltersContext from '../useFiltersContext';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import FilterMultiNumberInput from './FilterMultiNumberInput';
@@ -26,6 +27,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
     popoverProps,
 }: FilterInputsProps<T>) => {
     const { getField } = useFiltersContext();
+    const getUiString = useUiStrings();
     const suggestions = isFilterRule(rule)
         ? getField(rule)?.suggestions
         : undefined;
@@ -41,6 +43,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
         operator: rule.operator,
         disabled: isFilterRuleDisabled,
         singleValue: isSingleValue,
+        getUiString,
     });
 
     switch (rule.operator) {

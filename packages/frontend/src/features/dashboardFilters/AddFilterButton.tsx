@@ -4,6 +4,7 @@ import { useDisclosure, useId } from '@mantine/hooks';
 import { IconEye, IconEyeOff, IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
@@ -40,6 +41,7 @@ const AddFilterButton: FC<Props> = ({
     unsavedFiltersTooltip,
 }) => {
     const popoverId = useId();
+    const getUiString = useUiStrings();
     const isAddFilterDisabled = useDashboardContext(
         (c) => c.isAddFilterDisabled,
     );
@@ -211,7 +213,7 @@ const AddFilterButton: FC<Props> = ({
                                     : onPopoverOpen(popoverId)
                             }
                         >
-                            Add filter
+                            {getUiString('filters.addFilter')}
                         </Button>
                     </Tooltip>
                 </Popover.Target>

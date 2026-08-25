@@ -478,7 +478,7 @@ const Filter: FC<Props> = ({
                                             filterRule,
                                         )) ? (
                                         <Text span c="ldGray.6" truncate>
-                                            is any value
+                                            {getUiString('filters.isAnyValue')}
                                         </Text>
                                     ) : (
                                         <>

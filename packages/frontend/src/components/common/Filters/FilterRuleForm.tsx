@@ -103,7 +103,7 @@ const FilterRuleForm: FC<Props> = memo(
         );
         const isRequired = filterRule.required;
         const isRequiredLabel = isRequired
-            ? 'This is a required filter defined in the model configuration and cannot be removed.'
+            ? getUiString('filters.requiredFilterTooltip')
             : '';
         const isActiveFieldHidden = activeField
             ? isHiddenField(activeField)

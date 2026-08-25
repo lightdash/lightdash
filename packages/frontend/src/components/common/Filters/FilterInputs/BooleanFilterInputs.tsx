@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Select } from '@mantine/core';
 import { type FilterInputsProps } from '.';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import DefaultFilterInputs from './DefaultFilterInputs';
 
@@ -12,6 +13,7 @@ const BooleanFilterInputs = <T extends BaseFilterRule>(
     props: FilterInputsProps<T>,
 ) => {
     const { rule, onChange, disabled, filterType, popoverProps } = props;
+    const getUiString = useUiStrings();
 
     const isFilterRuleDisabled = isFilterRule(rule) && rule.disabled;
 
@@ -19,6 +21,7 @@ const BooleanFilterInputs = <T extends BaseFilterRule>(
         type: filterType,
         operator: rule.operator,
         disabled: isFilterRuleDisabled,
+        getUiString,
     });
 
     switch (rule.operator) {

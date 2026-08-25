@@ -1,4 +1,5 @@
 import {
+    interpolateUiString,
     isDimension,
     isFilterAutocompleteManualOnly,
     type FilterableItem,
@@ -32,6 +33,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import useHealth from '../../../../hooks/health/useHealth';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
@@ -134,6 +136,7 @@ const FilterStringAutoComplete: FC<Props> = ({
     comboboxProps,
     ...rest
 }) => {
+    const getUiString = useUiStrings();
     // The "(null)" option is only meaningful for multi-value filters.
     const showNull = !!showNullOption && !singleValue;
     const multiSelectRef = useRef<HTMLInputElement>(null);
@@ -428,7 +431,12 @@ const FilterStringAutoComplete: FC<Props> = ({
                                         size="sm"
                                     />
                                     <Text c="blue.7" fz="sm" fw={500}>
-                                        Add "{search.trim()}"
+                                        {interpolateUiString(
+                                            getUiString(
+                                                'filters.autocomplete.addValue',
+                                            ),
+                                            { value: search.trim() },
+                                        )}
                                     </Text>
                                 </Group>
                             }
@@ -443,8 +451,12 @@ const FilterStringAutoComplete: FC<Props> = ({
                             withDropdown={!manualEntryOnly}
                             nothingFoundMessage={
                                 isInitialLoading
-                                    ? 'Loading...'
-                                    : 'No results found'
+                                    ? getUiString(
+                                          'filters.autocomplete.loading',
+                                      )
+                                    : getUiString(
+                                          'filters.autocomplete.noResults',
+                                      )
                             }
                             rightSectionWidth={30}
                             rightSectionPointerEvents="all"
@@ -464,7 +476,9 @@ const FilterStringAutoComplete: FC<Props> = ({
                                         <Tooltip
                                             label={
                                                 error?.error?.message ||
-                                                'Filter not available'
+                                                getUiString(
+                                                    'filters.autocomplete.filterNotAvailable',
+                                                )
                                             }
                                             withinPortal
                                         >
@@ -477,7 +491,9 @@ const FilterStringAutoComplete: FC<Props> = ({
 
                                     <Tooltip
                                         withinPortal
-                                        label="Edit filter values"
+                                        label={getUiString(
+                                            'filters.autocomplete.editValuesTooltip',
+                                        )}
                                     >
                                         <ActionIcon
                                             variant="subtle"
@@ -506,9 +522,14 @@ const FilterStringAutoComplete: FC<Props> = ({
                                         pt="xs"
                                         pb="xxs"
                                     >
-                                        Showing first {MAX_AUTOCOMPLETE_RESULTS}{' '}
-                                        results. {search ? 'Continue' : 'Start'}{' '}
-                                        typing...
+                                        {interpolateUiString(
+                                            getUiString(
+                                                search
+                                                    ? 'filters.autocomplete.maxResultsContinue'
+                                                    : 'filters.autocomplete.maxResultsStart',
+                                            ),
+                                            { n: MAX_AUTOCOMPLETE_RESULTS },
+                                        )}
                                     </Text>
                                 ) : null
                             }

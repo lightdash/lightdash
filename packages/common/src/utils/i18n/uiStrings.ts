@@ -110,6 +110,33 @@ export const DEFAULT_UI_STRINGS = {
     'filters.unitsOfTime.years.plural': 'years',
     'filters.unitsOfTime.years.completedSingular': 'completed year',
     'filters.unitsOfTime.years.completedPlural': 'completed years',
+    'filters.addFilter': 'Add filter',
+    'filters.apply': 'Apply',
+    'filters.isAnyValue': 'is any value',
+    'filters.requiredFilterTooltip':
+        'This is a required filter defined in the model configuration and cannot be removed.',
+    'filters.placeholders.anyValue': 'any value',
+    'filters.placeholders.enterValue': 'Enter value',
+    'filters.placeholders.enterValues': 'Enter value(s)',
+    'filters.placeholders.startTyping': 'Start typing to filter results',
+    'filters.placeholders.selectDate': 'Select a date',
+    'filters.placeholders.selectDates': 'Select date(s)',
+    'filters.placeholders.selectValue': 'Select a value',
+    'filters.autocomplete.loading': 'Loading...',
+    'filters.autocomplete.noResults': 'No results found',
+    'filters.autocomplete.addValue': 'Add "{value}"',
+    'filters.autocomplete.maxResultsContinue':
+        'Showing first {n} results. Continue typing...',
+    'filters.autocomplete.maxResultsStart':
+        'Showing first {n} results. Start typing...',
+    'filters.autocomplete.editValuesTooltip': 'Edit filter values',
+    'filters.autocomplete.filterNotAvailable': 'Filter not available',
+    'filters.resetAll': 'Reset all filters',
+    'filters.unsavedFiltersTooltip': 'Filters you add are not saved',
+    'filters.summary.hideFilters': 'Hide filters',
+    'filters.summary.hide': 'Hide',
+    'dashboard.exportAllTiles': 'Export all tiles',
+    'dashboard.printPage': 'Print this page',
 } as const satisfies Record<string, string>;
 
 export type UiStringKey = keyof typeof DEFAULT_UI_STRINGS;
