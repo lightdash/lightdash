@@ -1,3 +1,18 @@
+# [1.259.0](https://github.com/lightdash/lightdash/compare/1.258.5...1.259.0) (2026-08-25)
+
+
+### Bug Fixes
+
+* **apps:** keep custom chart types spaceless on as-code upload ([#27859](https://github.com/lightdash/lightdash/issues/27859)) ([da77360](https://github.com/lightdash/lightdash/commit/da77360fd805e8287e29ac1eeb696a7ace662325)), closes [#27855](https://github.com/lightdash/lightdash/issues/27855)
+* **backend:** scope scheduled delivery run lookup ([#27976](https://github.com/lightdash/lightdash/issues/27976)) ([521c4a2](https://github.com/lightdash/lightdash/commit/521c4a2c29eb4df80a8267e29eda48bd3859ca40))
+* **frontend:** explicitly exclude custom chart types in data app pickers ([#27861](https://github.com/lightdash/lightdash/issues/27861)) ([c3a1eb9](https://github.com/lightdash/lightdash/commit/c3a1eb90354f63bcb0c3df2a7b2a261ca336d432)), closes [#27859](https://github.com/lightdash/lightdash/issues/27859) [#27855](https://github.com/lightdash/lightdash/issues/27855)
+* **search:** exclude custom chart types from data app search results ([#27860](https://github.com/lightdash/lightdash/issues/27860)) ([2f7ddb4](https://github.com/lightdash/lightdash/commit/2f7ddb4b728fe7ecf9330c30c13b56f69d58e842)), closes [#27855](https://github.com/lightdash/lightdash/issues/27855)
+
+
+### Features
+
+* add embedded chart edit mode ([#27979](https://github.com/lightdash/lightdash/issues/27979)) ([fc78a04](https://github.com/lightdash/lightdash/commit/fc78a04ecee9721d822ef17492d70edf3be8bbfb))
+
 ## [1.258.5](https://github.com/lightdash/lightdash/compare/1.258.4...1.258.5) (2026-08-25)
 
 
