@@ -10631,6 +10631,7 @@ export class AppGenerateService extends BaseService {
                 organizationUuid,
                 manifestLinks,
             );
+        const warnings = [...linkWarnings];
 
         // Validate the round-tripped viz schema up front and fail loud: the
         // build-from-source pipeline has no generation run to re-emit it, so
@@ -10926,7 +10927,7 @@ export class AppGenerateService extends BaseService {
                     version: latestVersion.version,
                     action: 'unchanged',
                     slug: existingApp.slug,
-                    warnings: linkWarnings,
+                    warnings,
                 };
             }
         }
@@ -10954,34 +10955,46 @@ export class AppGenerateService extends BaseService {
                 code.manifest,
                 projectUuid,
             );
-            // spaceSlug present → reconcile placement; absent → untouched
-            // (mirrors the externalConnections manifest semantics).
-            const manifestSpaceUuid = await this.resolveManifestSpace(
-                user,
-                projectUuid,
-                code.manifest.spaceSlug,
-            );
-            if (
-                manifestSpaceUuid !== undefined &&
-                manifestSpaceUuid !== existingApp.space_uuid
-            ) {
-                const spaceContext =
-                    await this.spacePermissionService.getSpaceAccessContext(
-                        user.userUuid,
-                        manifestSpaceUuid,
+            // Vizs are project-global chart content — space semantics don't
+            // apply, and a spaced viz would leak into every space-scoped
+            // data-app surface. Skip placement (guarded before
+            // resolveManifestSpace so a viz upload can't create the space).
+            if (existingApp.template === DATA_APP_VIZ_TEMPLATE) {
+                if (code.manifest.spaceSlug !== undefined) {
+                    warnings.push(
+                        'Custom chart types cannot be placed in spaces — the manifest spaceSlug was ignored.',
                     );
-                await this.assertDataAppAbility(
+                }
+            } else {
+                // spaceSlug present → reconcile placement; absent → untouched
+                // (mirrors the externalConnections manifest semantics).
+                const manifestSpaceUuid = await this.resolveManifestSpace(
                     user,
-                    'manage',
                     projectUuid,
-                    'Insufficient permissions to move this data app into the manifest space',
-                    spaceContext,
+                    code.manifest.spaceSlug,
                 );
-                await this.appModel.moveToSpace({
-                    appId: existingApp.app_id,
-                    projectUuid,
-                    targetSpaceUuid: manifestSpaceUuid,
-                });
+                if (
+                    manifestSpaceUuid !== undefined &&
+                    manifestSpaceUuid !== existingApp.space_uuid
+                ) {
+                    const spaceContext =
+                        await this.spacePermissionService.getSpaceAccessContext(
+                            user.userUuid,
+                            manifestSpaceUuid,
+                        );
+                    await this.assertDataAppAbility(
+                        user,
+                        'manage',
+                        projectUuid,
+                        'Insufficient permissions to move this data app into the manifest space',
+                        spaceContext,
+                    );
+                    await this.appModel.moveToSpace({
+                        appId: existingApp.app_id,
+                        projectUuid,
+                        targetSpaceUuid: manifestSpaceUuid,
+                    });
+                }
             }
             newAppUuid = existingApp.app_id;
             newAppSlug = existingApp.slug;
@@ -11008,16 +11021,31 @@ export class AppGenerateService extends BaseService {
                 projectUuid,
                 'Insufficient permissions to create data apps',
             );
-            // Explicit --app-space wins over the manifest's spaceSlug; both
-            // absent → personal app.
-            const targetSpaceUuid =
-                body.spaceUuid ??
-                (await this.resolveManifestSpace(
-                    user,
-                    projectUuid,
-                    code.manifest.spaceSlug,
-                )) ??
-                null;
+            // Vizs are project-global chart content — created spaceless
+            // regardless of --app-space or manifest spaceSlug (a spaced viz
+            // would leak into every space-scoped data-app surface).
+            let targetSpaceUuid: string | null = null;
+            if (code.manifest.template === DATA_APP_VIZ_TEMPLATE) {
+                if (
+                    body.spaceUuid !== undefined ||
+                    code.manifest.spaceSlug !== undefined
+                ) {
+                    warnings.push(
+                        'Custom chart types cannot be placed in spaces — created without a space.',
+                    );
+                }
+            } else {
+                // Explicit --app-space wins over the manifest's spaceSlug;
+                // both absent → personal app.
+                targetSpaceUuid =
+                    body.spaceUuid ??
+                    (await this.resolveManifestSpace(
+                        user,
+                        projectUuid,
+                        code.manifest.spaceSlug,
+                    )) ??
+                    null;
+            }
             if (targetSpaceUuid) {
                 const spaceContext =
                     await this.spacePermissionService.getSpaceAccessContext(
@@ -11182,7 +11210,7 @@ export class AppGenerateService extends BaseService {
             version: newVersion,
             action,
             slug: newAppSlug,
-            warnings: linkWarnings,
+            warnings,
         };
     }
 
