@@ -80,6 +80,15 @@ type GitProps = {
     dbtVersion?: SupportedDbtVersions;
 };
 
+type GitOperationOptions = {
+    /**
+     * Content-as-code write-back is a project-configured side effect of a
+     * permitted UI save. Editors must not need SourceCode, and they must not
+     * need a linked GitHub account — use the project installation / PAT.
+     */
+    asSystemWriteBack?: boolean;
+};
+
 // Keep backward compatibility
 type GithubProps = GitProps;
 
@@ -1157,6 +1166,10 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
      * Write a content-as-code YAML file onto an instance-scoped branch and
      * open (or append to) one PR per slug. Uses saveFile / createBranchFromSource
      * / createPullRequestFromBranch. Never force-pushes.
+     *
+     * This is a silent system write after a permitted UI save. The saver does
+     * not need SourceCode or a linked git account; power users review the PR
+     * in the repo or Project settings → Pull requests.
      */
     async writeBackContentAsCodeFile(
         user: SessionUser,
@@ -1175,24 +1188,11 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             description: string;
         },
     ): Promise<PullRequestCreated> {
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
-                    projectUuid,
-                    isProtectedBranch: false,
-                    metadata: { filePath, slug },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        await this.assertSameOrganizationAsProject(user, projectUuid);
 
-        const gitProps = await this.getGitProps(user, projectUuid, '"');
+        const repo = await this.getProjectRepo(projectUuid);
         const fileName = GitIntegrationService.removeExtraSlashes(
-            `${gitProps.path}/${filePath}`,
+            `${repo.path}/${filePath}`,
         );
         const branchName = getContentAsCodeWriteBackBranchName(
             getContentAsCodeWriteBackInstanceId(this.lightdashConfig.siteUrl),
@@ -1204,13 +1204,15 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             organizationId: user.organizationUuid!,
             context: QueryExecutionContext.CHART,
         };
+        const systemWrite: GitOperationOptions = { asSystemWriteBack: true };
 
         try {
             await this.createBranchFromSource(
                 user,
                 projectUuid,
                 branchName,
-                gitProps.mainBranch,
+                repo.branch,
+                systemWrite,
             );
         } catch {
             // Branch already exists from a previous save — append a commit.
@@ -1223,6 +1225,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 projectUuid,
                 branchName,
                 fileName,
+                systemWrite,
             );
             if (file.type === 'file') {
                 existingSha = file.sha;
@@ -1239,12 +1242,14 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             content,
             existingSha,
             existingSha ? `Update ${fileName}` : `Create ${fileName}`,
+            systemWrite,
         );
 
         const openPullRequest = await this.findOpenPullRequestForHead(
             user,
             projectUuid,
             branchName,
+            systemWrite,
         );
         if (openPullRequest) {
             return openPullRequest;
@@ -1258,6 +1263,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 title,
                 description,
                 PullRequestSource.CONTENT_AS_CODE,
+                systemWrite,
             );
         } catch (error) {
             this.analytics.track({
@@ -1272,13 +1278,24 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         }
     }
 
+    private async assertSameOrganizationAsProject(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (project.organizationUuid !== user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+    }
+
     private async findOpenPullRequestForHead(
         user: SessionUser,
         projectUuid: string,
         head: string,
+        options?: GitOperationOptions,
     ): Promise<PullRequestCreated | null> {
         const creds = await this.getGitCredentials(user, projectUuid, {
-            preferUserToken: true,
+            preferUserToken: options?.asSystemWriteBack !== true,
         });
         const openPullRequest =
             creds.type === DbtProjectType.GITHUB
@@ -1576,22 +1593,29 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         projectUuid: string,
         branch: string,
         path?: string,
+        options?: GitOperationOptions,
     ): Promise<GitFileOrDirectory> {
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
-                    projectUuid,
-                    metadata: { branch, path },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+        if (options?.asSystemWriteBack === true) {
+            await this.assertSameOrganizationAsProject(user, projectUuid);
+        } else {
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'view',
+                    subject('SourceCode', {
+                        organizationUuid: user.organizationUuid!,
+                        projectUuid,
+                        metadata: { branch, path },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
         }
 
-        const creds = await this.getGitCredentials(user, projectUuid);
+        const creds = await this.getGitCredentials(user, projectUuid, {
+            preferUserToken: options?.asSystemWriteBack !== true,
+        });
         const targetPath = path || '';
 
         // Try to get file content first
@@ -1664,30 +1688,35 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         content: string,
         sha?: string,
         message?: string,
+        options?: GitOperationOptions,
     ): Promise<{ sha: string; path: string }> {
-        const auditedAbility = this.createAuditedAbility(user);
         const protectedBranch = await this.getProtectedBranch(projectUuid);
         const isProtectedBranch = branch === protectedBranch;
 
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
-                    projectUuid,
-                    isProtectedBranch,
-                    metadata: { branch, path, sha },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                `Cannot write to protected branch "${protectedBranch}". ` +
-                    `Please use a feature branch and submit changes via pull request.`,
-            );
+        if (options?.asSystemWriteBack === true) {
+            await this.assertSameOrganizationAsProject(user, projectUuid);
+        } else {
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'manage',
+                    subject('SourceCode', {
+                        organizationUuid: user.organizationUuid!,
+                        projectUuid,
+                        isProtectedBranch,
+                        metadata: { branch, path, sha },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    `Cannot write to protected branch "${protectedBranch}". ` +
+                        `Please use a feature branch and submit changes via pull request.`,
+                );
+            }
         }
 
         const creds = await this.getGitCredentials(user, projectUuid, {
-            preferUserToken: true,
+            preferUserToken: options?.asSystemWriteBack !== true,
         });
         const commitMessage =
             message || (sha ? `Update ${path}` : `Create ${path}`);
@@ -1823,24 +1852,29 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         projectUuid: string,
         branchName: string,
         sourceBranch: string,
+        options?: GitOperationOptions,
     ): Promise<GitBranch> {
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
-                    projectUuid,
-                    isProtectedBranch: false,
-                    metadata: { branchName, sourceBranch },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+        if (options?.asSystemWriteBack === true) {
+            await this.assertSameOrganizationAsProject(user, projectUuid);
+        } else {
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'manage',
+                    subject('SourceCode', {
+                        organizationUuid: user.organizationUuid!,
+                        projectUuid,
+                        isProtectedBranch: false,
+                        metadata: { branchName, sourceBranch },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
         }
 
         const creds = await this.getGitCredentials(user, projectUuid, {
-            preferUserToken: true,
+            preferUserToken: options?.asSystemWriteBack !== true,
         });
 
         // Get the latest commit from the source branch
@@ -1898,24 +1932,29 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         title: string,
         description: string,
         source: PullRequestSource = PullRequestSource.SOURCE_EDITOR,
+        options?: GitOperationOptions,
     ): Promise<PullRequestCreated> {
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
-                    projectUuid,
-                    isProtectedBranch: false,
-                    metadata: { branch },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+        if (options?.asSystemWriteBack === true) {
+            await this.assertSameOrganizationAsProject(user, projectUuid);
+        } else {
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'manage',
+                    subject('SourceCode', {
+                        organizationUuid: user.organizationUuid!,
+                        projectUuid,
+                        isProtectedBranch: false,
+                        metadata: { branch },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
         }
 
         const creds = await this.getGitCredentials(user, projectUuid, {
-            preferUserToken: true,
+            preferUserToken: options?.asSystemWriteBack !== true,
         });
         const protectedBranch = await this.getProtectedBranch(projectUuid);
 

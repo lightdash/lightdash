@@ -1,4 +1,3 @@
-import { subject } from '@casl/ability';
 import {
     ContentAsCodeType,
     ContentType,
@@ -59,11 +58,16 @@ export class ContentAsCodeWriteBackService extends BaseService {
         this.gitIntegrationService = args.gitIntegrationService;
     }
 
+    /**
+     * Propose a managed-chart UI save as a git PR. The instance save already
+     * succeeded; git failures are logged and never returned to the saver.
+     * Editors do not need SourceCode — power users review the PR in git.
+     */
     async writeBackManagedChartIfNeeded(
         user: SessionUser,
         chart: SavedChartDAO,
     ): Promise<void> {
-        const { projectUuid, slug, organizationUuid } = chart;
+        const { projectUuid, slug } = chart;
         if (!projectUuid || !slug) {
             return;
         }
@@ -95,29 +99,6 @@ export class ContentAsCodeWriteBackService extends BaseService {
                     slug,
                 );
             if (!revision) {
-                return;
-            }
-
-            const ability = this.createAuditedAbility(user);
-            if (
-                ability.cannot(
-                    'manage',
-                    subject('SourceCode', {
-                        organizationUuid,
-                        projectUuid,
-                        isProtectedBranch: false,
-                        metadata: { slug, chartUuid: chart.uuid },
-                    }),
-                )
-            ) {
-                this.logger.warn(
-                    'Skipping content-as-code write-back; user cannot manage SourceCode',
-                    {
-                        userUuid: user.userUuid,
-                        projectUuid,
-                        slug,
-                    },
-                );
                 return;
             }
 

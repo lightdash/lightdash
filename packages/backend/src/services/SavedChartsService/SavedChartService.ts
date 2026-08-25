@@ -205,6 +205,11 @@ export class SavedChartService
         this.contentAsCodeWriteBackService = args.contentAsCodeWriteBackService;
     }
 
+    /**
+     * Fire-and-forget git proposal after a successful chart save. Never attach
+     * PR details to the save response — business users should only see the
+     * usual "chart saved" confirmation.
+     */
     private async writeBackManagedChartAfterSave(
         user: SessionUser,
         savedChart: SavedChartDAO,

@@ -117,6 +117,21 @@ const developerUser = {
     updatedAt: new Date(),
 };
 
+const editorUser = {
+    ...developerUser,
+    userUuid: 'editor-uuid',
+    email: 'editor@test.com',
+    firstName: 'Biz',
+    lastName: 'User',
+    role: OrganizationMemberRole.EDITOR,
+    ability: new Ability<PossibleAbilities>([
+        {
+            subject: 'SavedChart',
+            action: ['view', 'update', 'delete', 'create'],
+        },
+    ]),
+};
+
 const appliedRevision = {
     contentType: ContentAsCodeType.CHART,
     slug: 'orders',
@@ -324,6 +339,29 @@ describe('SavedChartService - content-as-code write-back', () => {
         expect(
             gitIntegrationService.writeBackContentAsCodeFile,
         ).not.toHaveBeenCalled();
+    });
+
+    it('writes back editor saves without requiring SourceCode', async () => {
+        appliedRevisionModel.findBySlug.mockResolvedValue(appliedRevision);
+
+        const result = await service.createVersion(
+            fromSession(editorUser, 'session-cookie'),
+            'chart-uuid',
+            versionPayload,
+        );
+
+        expect(result.uuid).toBe('chart-uuid');
+        expect(result).not.toHaveProperty('prUrl');
+        expect(
+            gitIntegrationService.writeBackContentAsCodeFile,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+            gitIntegrationService.writeBackContentAsCodeFile,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid: 'editor-uuid' }),
+            'project-uuid',
+            expect.objectContaining({ slug: 'orders' }),
+        );
     });
 
     it('does not fail the UI save when write-back fails', async () => {
