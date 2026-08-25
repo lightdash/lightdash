@@ -65,6 +65,28 @@ export class ContentAsCodeWritebackModel {
         return row ? parseRow(row) : undefined;
     }
 
+    // Recovery lookup: the newest row that ever carried a PR for this
+    // branch, live or not — used to adopt an existing PR after a row was
+    // lost to an error
+    async findLatestForBranch(
+        projectUuid: string,
+        contentType: string,
+        slug: string,
+        branch: string,
+    ): Promise<ContentAsCodeWriteback | undefined> {
+        const row = await this.database(ContentAsCodeWritebacksTableName)
+            .where({
+                project_uuid: projectUuid,
+                content_type: contentType,
+                slug,
+                branch,
+            })
+            .whereNotNull('pr_number')
+            .orderBy('updated_at', 'desc')
+            .first();
+        return row ? parseRow(row) : undefined;
+    }
+
     async listByProject(
         projectUuid: string,
     ): Promise<ContentAsCodeWriteback[]> {

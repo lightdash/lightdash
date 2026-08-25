@@ -90,6 +90,7 @@ const buildService = (overrides: Overrides = {}) => {
             .mockResolvedValue(
                 'liveRow' in overrides ? overrides.liveRow : undefined,
             ),
+        findLatestForBranch: vi.fn().mockResolvedValue(undefined),
         create: vi.fn().mockResolvedValue({
             uuid: 'row-uuid',
             branch: 'lightdash/write-back/app.lightdash.dev/monthly-revenue',
