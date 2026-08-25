@@ -1,7 +1,10 @@
 .root {
     container: authoring / inline-size;
-    flex: 1 1 auto;
-    min-height: 0;
+    /* Basis 0 sizes the builder to the viewport's share, not its content,
+       so history and canvas scroll internally; the floor keeps it usable
+       on short windows, where the page scrolls instead. */
+    flex: 1 1 0;
+    min-height: 380px;
     display: flex;
     flex-direction: column;
     border: 1px solid var(--mantine-color-ldGray-2);
