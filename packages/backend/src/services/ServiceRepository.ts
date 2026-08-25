@@ -428,6 +428,7 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     spaceModel: this.models.getSpaceModel(),
                     analyticsModel: this.models.getAnalyticsModel(),
+                    appModel: this.models.getAppModel(),
                     pinnedListModel: this.models.getPinnedListModel(),
                     schedulerModel: this.models.getSchedulerModel(),
                     searchModel: this.models.getSearchModel(),
@@ -914,6 +915,7 @@ export class ServiceRepository
                         this.providers.appGenerateService
                             ? this.getAppGenerateService<AppGenerateService>()
                             : undefined,
+                    getDashboardService: () => this.getDashboardService(),
                     // Core has no data apps. EE replaces this provider with a
                     // capability resolver backed by AppGenerateService.
                     getDataAppCustomSqlProvenance: async () => ({
@@ -991,6 +993,7 @@ export class ServiceRepository
                         this.getPersistentDownloadFileService(),
                     organizationAccessService:
                         this.getOrganizationAccessService(),
+                    getDashboardService: () => this.getDashboardService(),
                     projectCompileLogModel:
                         this.models.getProjectCompileLogModel(),
                     adminNotificationService:

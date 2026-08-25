@@ -907,6 +907,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     // silent no-op in EE builds.
                     getAppGenerateService: () =>
                         repository.getAppGenerateService<AppGenerateService>(),
+                    getDashboardService: () => repository.getDashboardService(),
                     getDataAppCustomSqlProvenance: (args) =>
                         repository
                             .getAppGenerateService<AppGenerateService>()
@@ -1040,6 +1041,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getPersistentDownloadFileService(),
                     organizationAccessService:
                         repository.getOrganizationAccessService(),
+                    getDashboardService: () => repository.getDashboardService(),
                     externalSourceTableResolver: (
                         projectUuid,
                         tableUuidOrName,

@@ -82,6 +82,7 @@ import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
+import type { DashboardService } from '../DashboardService/DashboardService';
 import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
@@ -246,6 +247,11 @@ const spaceModel = {
     getAllSpaces: vi.fn(async () => spacesWithSavedCharts),
 };
 
+const dashboardServiceMock = {
+    assertViewAccess: vi.fn(),
+    assertTileViewAccess: vi.fn(),
+};
+
 const userAttributesModel = {
     getAttributeValuesForOrgMember: vi.fn(async () => ({})),
 };
@@ -376,6 +382,8 @@ const getMockedAsyncQueryService = (
                 status: OrganizationAccessStatus.ACTIVE,
             })),
         } as unknown as OrganizationAccessService,
+        getDashboardService: () =>
+            dashboardServiceMock as unknown as DashboardService,
         preAggregateStrategy: new NoOpPreAggregateStrategy(),
         projectCompileLogModel: {} as ProjectCompileLogModel,
         adminNotificationService: {} as AdminNotificationService,
@@ -3047,6 +3055,65 @@ describe('AsyncQueryService', () => {
                     account,
                     projectUuid,
                     queryUuid: 'test-query-uuid',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('reauthorizes dashboard query history against current dashboard access', async () => {
+            dashboardServiceMock.assertViewAccess.mockClear();
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const account = buildAccount();
+            account.user.ability = new Ability<PossibleAbilities>([
+                { action: 'view', subject: 'Project' },
+            ]);
+            const queryHistory = {
+                ...createQueryHistory(),
+                requestParameters: {
+                    dashboardUuid: 'dashboard-uuid',
+                },
+            } as QueryHistory;
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue(queryHistory);
+
+            await service.getAsyncQueryHistory({
+                account,
+                projectUuid,
+                queryUuid: queryHistory.queryUuid,
+            });
+
+            expect(
+                dashboardServiceMock.assertViewAccess,
+            ).toHaveBeenCalledWith(account, 'dashboard-uuid', {
+                projectUuid,
+                includeDependencies: false,
+            });
+        });
+
+        it('fails dashboard query-history reads after dashboard access is revoked', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const account = buildAccount();
+            account.user.ability = new Ability<PossibleAbilities>([
+                { action: 'view', subject: 'Project' },
+            ]);
+            const queryHistory = {
+                ...createQueryHistory(),
+                requestParameters: {
+                    dashboardUuid: 'dashboard-uuid',
+                },
+            } as QueryHistory;
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue(queryHistory);
+            dashboardServiceMock.assertViewAccess.mockRejectedValueOnce(
+                new ForbiddenError(),
+            );
+
+            await expect(
+                service.getAsyncQueryHistory({
+                    account,
+                    projectUuid,
+                    queryUuid: queryHistory.queryUuid,
                 }),
             ).rejects.toThrow(ForbiddenError);
         });

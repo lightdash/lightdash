@@ -15,6 +15,7 @@ import {
     type ExportContentFormat,
     type ParametersValuesMap,
     type SavedChartsInfoForDashboardAvailableFilters,
+    type DashboardAvailableFiltersRequest,
     type SchedulerCsvOptions,
     type SchedulerImageOptions,
     type UpdateDashboard,
@@ -95,12 +96,12 @@ const deleteDashboard = async (id: string, projectUuid: string) =>
     });
 
 const postDashboardsAvailableFilters = async (
-    savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+    request: DashboardAvailableFiltersRequest,
 ) =>
     lightdashApi<DashboardAvailableFilters>({
         url: `/dashboards/availableFilters`,
         method: 'POST',
-        body: JSON.stringify(savedChartUuidsAndTileUuids),
+        body: JSON.stringify(request),
     });
 
 const postEmbedDashboardsAvailableFilters = async (
@@ -117,18 +118,29 @@ export const useDashboardsAvailableFilters = (
     savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
     projectUuid?: string,
     embedToken?: string,
+    dashboardUuid?: string,
 ) =>
     useQuery<DashboardAvailableFilters, ApiError>(
-        ['dashboards', 'availableFilters', ...savedChartUuidsAndTileUuids],
+        [
+            'dashboards',
+            'availableFilters',
+            dashboardUuid,
+            ...savedChartUuidsAndTileUuids,
+        ],
         () =>
             embedToken && projectUuid
                 ? postEmbedDashboardsAvailableFilters(
                       projectUuid,
                       savedChartUuidsAndTileUuids,
                   )
-                : postDashboardsAvailableFilters(savedChartUuidsAndTileUuids),
+                : postDashboardsAvailableFilters({
+                      dashboardUuid: dashboardUuid!,
+                      charts: savedChartUuidsAndTileUuids,
+                  }),
         {
-            enabled: savedChartUuidsAndTileUuids.length > 0,
+            enabled:
+                savedChartUuidsAndTileUuids.length > 0 &&
+                (!!embedToken || !!dashboardUuid),
         },
     );
 

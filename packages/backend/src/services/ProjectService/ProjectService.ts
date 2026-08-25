@@ -53,6 +53,7 @@ import {
     CustomFormatType,
     CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
+    DashboardAvailableFiltersRequest,
     DashboardBasicDetails,
     DashboardFilters,
     DatabricksAuthenticationType,
@@ -116,6 +117,7 @@ import {
     isCartesianChartConfig,
     isCustomDimension,
     isCustomSqlDimension,
+    isDashboardChartTileType,
     isDateItem,
     isDimension,
     isExploreError,
@@ -343,6 +345,7 @@ import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
+import type { DashboardService } from '../DashboardService/DashboardService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
@@ -445,6 +448,7 @@ export type ProjectServiceArguments = {
     // AppGenerateService depends on ProjectService, so eager injection would
     // create a construction cycle. Resolves undefined in core (non-EE) builds.
     getAppGenerateService?: () => AppGenerateService | undefined;
+    getDashboardService?: () => DashboardService;
     getDataAppCustomSqlProvenance: (args: {
         account: Account;
         projectUuid: string;
@@ -587,6 +591,8 @@ export class ProjectService extends BaseService {
 
     getAppGenerateService: (() => AppGenerateService | undefined) | undefined;
 
+    getDashboardServiceResolver: (() => DashboardService) | undefined;
+
     getDataAppCustomSqlProvenance: ProjectServiceArguments['getDataAppCustomSqlProvenance'];
 
     getAiAgentService: (() => AiAgentService | undefined) | undefined;
@@ -637,6 +643,7 @@ export class ProjectService extends BaseService {
         projectContextModel,
         isProjectContextEnabled,
         getAppGenerateService,
+        getDashboardService,
         getDataAppCustomSqlProvenance,
         getAiAgentService,
         onProjectCreated,
@@ -686,6 +693,7 @@ export class ProjectService extends BaseService {
         this.projectContextModel = projectContextModel;
         this.isProjectContextEnabled = isProjectContextEnabled;
         this.getAppGenerateService = getAppGenerateService;
+        this.getDashboardServiceResolver = getDashboardService;
         this.getDataAppCustomSqlProvenance = getDataAppCustomSqlProvenance;
         this.getAiAgentService = getAiAgentService;
         this.onProjectCreated = onProjectCreated;
@@ -6658,12 +6666,14 @@ export class ProjectService extends BaseService {
         dashboardSorts,
         dateZoom,
         dashboardUuid,
+        tileUuid,
         autoRefresh,
         context = QueryExecutionContext.DASHBOARD,
     }: {
         account: Account;
         chartUuid: string;
         dashboardUuid: string;
+        tileUuid?: string;
         dashboardFilters: DashboardFilters;
         invalidateCache?: boolean;
         dashboardSorts: SortField[];
@@ -6676,11 +6686,32 @@ export class ProjectService extends BaseService {
         const savedChart = await this.savedChartModel.get(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
 
+        const dashboard =
+            tileUuid && this.getDashboardServiceResolver && !isJwtUser(account)
+                ? await this.getDashboardServiceResolver().assertTileViewAccess(
+                      {
+                          actor: account,
+                          projectUuid,
+                          dashboardUuid,
+                          tileUuid,
+                          dependency: {
+                              type: 'savedChart',
+                              uuid: savedChart.uuid,
+                          },
+                      },
+                  )
+                : undefined;
+        const isDashboardOwnedChart =
+            dashboard !== undefined &&
+            savedChart.dashboardUuid === dashboard.uuid;
+
         const [spaceCtx, explore] = await Promise.all([
-            this.spacePermissionService.getSpaceAccessContext(
-                account.user.id,
-                savedChart.spaceUuid,
-            ),
+            isDashboardOwnedChart
+                ? undefined
+                : this.spacePermissionService.getSpaceAccessContext(
+                      account.user.id,
+                      savedChart.spaceUuid,
+                  ),
             this.getExplore(
                 account,
                 projectUuid,
@@ -6691,20 +6722,23 @@ export class ProjectService extends BaseService {
 
         const auditedAbility = this.createAuditedAbility(account);
         if (
-            auditedAbility.cannot(
-                'view',
-                subject('SavedChart', {
-                    organizationUuid: spaceCtx.organizationUuid,
-                    projectUuid: spaceCtx.projectUuid,
-                    inheritsFromOrgOrProject: spaceCtx.inheritsFromOrgOrProject,
-                    access: spaceCtx.access,
-                    metadata: {
-                        savedChartUuid: chartUuid,
-                        savedChartName: savedChart.name,
-                        dashboardUuid,
-                    },
-                }),
-            ) ||
+            (!isDashboardOwnedChart &&
+                (!spaceCtx ||
+                    auditedAbility.cannot(
+                        'view',
+                        subject('SavedChart', {
+                            organizationUuid: spaceCtx.organizationUuid,
+                            projectUuid: spaceCtx.projectUuid,
+                            inheritsFromOrgOrProject:
+                                spaceCtx.inheritsFromOrgOrProject,
+                            access: spaceCtx.access,
+                            metadata: {
+                                savedChartUuid: chartUuid,
+                                savedChartName: savedChart.name,
+                                dashboardUuid,
+                            },
+                        }),
+                    ))) ||
             auditedAbility.cannot(
                 'view',
                 subject('Project', {
@@ -6714,6 +6748,10 @@ export class ProjectService extends BaseService {
                 }),
             )
         ) {
+            throw new ForbiddenError();
+        }
+        const chartAccessContext = dashboard ?? spaceCtx;
+        if (!chartAccessContext) {
             throw new ForbiddenError();
         }
 
@@ -6812,8 +6850,9 @@ export class ProjectService extends BaseService {
         return {
             chart: {
                 ...savedChart,
-                inheritsFromOrgOrProject: spaceCtx.inheritsFromOrgOrProject,
-                access: spaceCtx.access,
+                inheritsFromOrgOrProject:
+                    chartAccessContext.inheritsFromOrgOrProject,
+                access: chartAccessContext.access ?? [],
             },
             explore,
             metricQuery: metricQueryWithDashboardOverrides,
@@ -9741,7 +9780,9 @@ export class ProjectService extends BaseService {
 
     async getAvailableFiltersForSavedQueries(
         account: Account,
-        savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+        request:
+            | SavedChartsInfoForDashboardAvailableFilters
+            | DashboardAvailableFiltersRequest,
     ): Promise<DashboardAvailableFilters> {
         type ChartFilters = {
             uuid: string;
@@ -9750,6 +9791,12 @@ export class ProjectService extends BaseService {
         };
 
         let allFilters: ChartFilters[] = [];
+        const dashboardUuid = Array.isArray(request)
+            ? undefined
+            : request.dashboardUuid;
+        const savedChartUuidsAndTileUuids = Array.isArray(request)
+            ? request
+            : request.charts;
 
         allFilters = await traceSpan(
             {
@@ -9772,6 +9819,39 @@ export class ProjectService extends BaseService {
                 if (savedCharts.length === 0) {
                     return [];
                 }
+
+                const dashboard =
+                    dashboardUuid &&
+                    this.getDashboardServiceResolver &&
+                    !isJwtUser(account)
+                        ? await this.getDashboardServiceResolver().assertViewAccess(
+                              account,
+                              dashboardUuid,
+                              {
+                                  projectUuid: savedCharts[0].projectUuid,
+                                  includeDependencies: false,
+                              },
+                          )
+                        : undefined;
+                const requestedChartByTileUuid = new Map(
+                    savedChartUuidsAndTileUuids.map(
+                        ({ tileUuid, savedChartUuid }) => [
+                            tileUuid,
+                            savedChartUuid,
+                        ],
+                    ),
+                );
+                const dashboardOwnedChartUuids = new Set(
+                    dashboard?.tiles
+                        .filter(isDashboardChartTileType)
+                        .filter(
+                            (tile) =>
+                                requestedChartByTileUuid.get(tile.uuid) ===
+                                tile.properties.savedChartUuid,
+                        )
+                        .map((tile) => tile.properties.savedChartUuid)
+                        .filter((uuid): uuid is string => uuid !== null),
+                );
 
                 const [spacesCtx, exploresMap] = await Promise.all([
                     this.spacePermissionService.getSpacesAccessContext(
@@ -9819,7 +9899,13 @@ export class ProjectService extends BaseService {
                 );
 
                 return savedCharts.map((savedChart) => {
-                    if (!chartAccess.get(savedChart.uuid)) {
+                    const inheritsDashboardAccess =
+                        savedChart.dashboardUuid === dashboard?.uuid &&
+                        dashboardOwnedChartUuids.has(savedChart.uuid);
+                    if (
+                        !inheritsDashboardAccess &&
+                        !chartAccess.get(savedChart.uuid)
+                    ) {
                         return {
                             uuid: savedChart.uuid,
                             filters: [],

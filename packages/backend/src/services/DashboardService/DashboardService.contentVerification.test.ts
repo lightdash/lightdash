@@ -9,6 +9,7 @@ import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
+import type { AppModel } from '../../models/AppModel';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -97,6 +98,7 @@ describe('DashboardService - Content Verification', () => {
         dashboardModel: dashboardModel as unknown as DashboardModel,
         spaceModel: {} as unknown as SpaceModel,
         analyticsModel: {} as unknown as AnalyticsModel,
+        appModel: {} as AppModel,
         pinnedListModel: {} as unknown as PinnedListModel,
         schedulerModel: {} as unknown as SchedulerModel,
         searchModel: {} as unknown as SearchModel,

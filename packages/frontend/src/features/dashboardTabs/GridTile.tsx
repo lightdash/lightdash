@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     DashboardTileTypes,
+    isDashboardDependencyDenied,
     type DashboardTab,
     type Dashboard as IDashboard,
 } from '@lightdash/common';
@@ -8,6 +9,7 @@ import { Box } from '@mantine/core';
 import { memo, type FC } from 'react';
 import ChartTile from '../../components/DashboardTiles/DashboardChartTile';
 import DataAppTile from '../../components/DashboardTiles/DashboardDataAppTile';
+import DashboardDependencyDeniedTile from '../../components/DashboardTiles/DashboardDependencyDeniedTile';
 import HeadingTile from '../../components/DashboardTiles/DashboardHeadingTile';
 import LoomTile from '../../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../../components/DashboardTiles/DashboardMarkdownTile';
@@ -32,6 +34,10 @@ type GridTileProps = Pick<
 
 const GridTileInner: FC<GridTileProps> = memo((props) => {
     const { tile } = props;
+
+    if (isDashboardDependencyDenied(tile)) {
+        return <DashboardDependencyDeniedTile {...props} tile={tile} />;
+    }
 
     if (props.locked) {
         // Allow non-filterable tiles to show even when locked.

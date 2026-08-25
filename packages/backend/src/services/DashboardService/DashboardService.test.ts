@@ -9,6 +9,7 @@ import {
     OrganizationMemberRole,
     PossibleAbilities,
     ProjectMemberRole,
+    ProjectType,
     SCHEDULER_TASKS,
     SchedulerFormat,
     SessionUser,
@@ -25,6 +26,7 @@ import { fromSession } from '../../auth/account/account';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
+import type { AppModel } from '../../models/AppModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -82,6 +84,9 @@ const spaceModel = {
 const analyticsModel = {
     addDashboardViewEvent: vi.fn(async () => null),
 };
+const appModel = {
+    findAppsByUuids: vi.fn(async () => []),
+};
 const savedChartModel = {
     get: vi.fn(async () => chart),
     create: vi.fn(async () => ({ ...chart, uuid: 'duplicated-chart-uuid' })),
@@ -89,9 +94,18 @@ const savedChartModel = {
         uuid: 'chart_uuid',
         projectUuid: 'project_uuid',
     })),
-    getInfoForAvailableFilters: vi.fn(async () => []),
+    getInfoForAvailableFilters: vi.fn(
+        async (): ReturnType<
+            SavedChartModel['getInfoForAvailableFilters']
+        > => [],
+    ),
 };
 const savedSqlModel = {
+    getInfoForDashboardDependencies: vi.fn(
+        async (): ReturnType<
+            SavedSqlModel['getInfoForDashboardDependencies']
+        > => [],
+    ),
     getByUuid: vi.fn(async () => ({
         space: {
             uuid: publicSpace.uuid,
@@ -102,6 +116,12 @@ const savedSqlModel = {
 const projectModel = {
     getCachedExploreNames: vi.fn(async () => []),
     get: vi.fn(async () => ({ schedulerTimezone: 'UTC' })),
+    getSummary: vi.fn(async () => ({
+        organizationUuid: dashboard.organizationUuid,
+        type: ProjectType.DEFAULT,
+        createdByUserUuid: user.userUuid,
+        upstreamProjectUuid: null,
+    })),
 };
 
 const schedulerModel = {
@@ -143,7 +163,7 @@ const contentVerificationModel = {
 };
 
 const directAccessService = {
-    resolveUserAccessForSessionUser: vi.fn(
+    resolveUserAccessForUser: vi.fn(
         async ({
             resources,
         }: {
@@ -213,6 +233,7 @@ describe('DashboardService', () => {
         dashboardModel: dashboardModel as unknown as DashboardModel,
         spaceModel: spaceModel as unknown as SpaceModel,
         analyticsModel: analyticsModel as unknown as AnalyticsModel,
+        appModel: appModel as unknown as AppModel,
         pinnedListModel: {} as PinnedListModel,
         schedulerModel: schedulerModel as unknown as SchedulerModel,
         searchModel: searchModel as unknown as SearchModel,
@@ -289,13 +310,29 @@ describe('DashboardService', () => {
                 ],
             ),
         };
-        const privateDashboard = {
+        const privateDashboard: Dashboard = {
             ...dashboard,
             spaceUuid: privateSpace.uuid,
             spaceName: 'Private finance',
+            tiles: [
+                ...dashboard.tiles,
+                {
+                    uuid: 'data-app-tile',
+                    type: DashboardTileTypes.DATA_APP,
+                    x: 0,
+                    y: 0,
+                    h: 2,
+                    w: 2,
+                    tabUuid: undefined,
+                    properties: {
+                        title: 'Private forecast app',
+                        appUuid: 'private-app-uuid',
+                    },
+                },
+            ],
         };
         dashboardModel.getByIdOrSlug.mockResolvedValueOnce(privateDashboard);
-        directAccessService.resolveUserAccessForSessionUser.mockResolvedValueOnce(
+        directAccessService.resolveUserAccessForUser.mockResolvedValueOnce(
             {
                 [privateDashboard.uuid]: SpaceMemberRole.VIEWER,
             },
@@ -317,11 +354,34 @@ describe('DashboardService', () => {
                     hasDirectAccess: false,
                 },
             ],
+            tiles: [
+                {
+                    uuid: 'my-tile',
+                    properties: {
+                        savedChartUuid: null,
+                        dependencyAccess: 'denied',
+                    },
+                },
+                {
+                    uuid: 'data-app-tile',
+                    properties: {
+                        title: '',
+                        appUuid: '',
+                        dependencyAccess: 'denied',
+                    },
+                },
+            ],
         });
+        expect(JSON.stringify(result.tiles)).not.toContain('savedChartName');
+        expect(JSON.stringify(result.tiles)).not.toContain(
+            'Private forecast app',
+        );
+        expect(JSON.stringify(result.tiles)).not.toContain('private-app-uuid');
         expect(
-            directAccessService.resolveUserAccessForSessionUser,
+            directAccessService.resolveUserAccessForUser,
         ).toHaveBeenCalledWith({
-            user: expect.objectContaining({ userUuid: user.userUuid }),
+            userUuid: user.userUuid,
+            organizationUuid: directViewer.organizationUuid,
             resourceType: 'dashboard',
             resources: {
                 [privateDashboard.uuid]: {
@@ -356,6 +416,53 @@ describe('DashboardService', () => {
         expect(result).not.toHaveProperty('admins');
     });
 
+    test('should preserve a dashboard-owned chart for a direct viewer', async () => {
+        const directViewer = {
+            ...user,
+            ability: defineUserAbility(
+                {
+                    ...user,
+                    organizationUuid: 'another-org-uuid',
+                },
+                [
+                    {
+                        projectUuid,
+                        role: ProjectMemberRole.VIEWER,
+                        userUuid: user.userUuid,
+                        roleUuid: undefined,
+                    },
+                ],
+            ),
+        };
+        const privateDashboard = {
+            ...dashboard,
+            spaceUuid: privateSpace.uuid,
+            spaceName: 'Private finance',
+        };
+        dashboardModel.getByIdOrSlug.mockResolvedValueOnce(privateDashboard);
+        directAccessService.resolveUserAccessForUser.mockResolvedValueOnce({
+            [privateDashboard.uuid]: SpaceMemberRole.VIEWER,
+        });
+        savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce([
+            {
+                uuid: 'savedChartUuid',
+                name: 'Dashboard-owned chart',
+                tableName: 'orders',
+                spaceUuid: privateSpace.uuid,
+                projectUuid,
+                organizationUuid: privateSpace.organizationUuid,
+                dashboardUuid: privateDashboard.uuid,
+            },
+        ]);
+
+        const result = await service.getByIdOrSlug(
+            directViewer,
+            privateDashboard.uuid,
+        );
+
+        expect(result.tiles).toEqual(privateDashboard.tiles);
+    });
+
     test('should deny the same private dashboard without effective direct access', async () => {
         const directViewer = {
             ...user,
@@ -380,7 +487,7 @@ describe('DashboardService', () => {
             spaceName: 'Private finance',
         };
         dashboardModel.getByIdOrSlug.mockResolvedValueOnce(privateDashboard);
-        directAccessService.resolveUserAccessForSessionUser.mockResolvedValueOnce(
+        directAccessService.resolveUserAccessForUser.mockResolvedValueOnce(
             {
                 [privateDashboard.uuid]: undefined,
             },
@@ -421,6 +528,36 @@ describe('DashboardService', () => {
                 inheritedFrom: inheritedAccess.inheritedFrom,
             }),
         ]);
+    });
+
+    test('should authorize the exact chart dependency for a dashboard tile', async () => {
+        await expect(
+            service.assertTileViewAccess({
+                actor: user,
+                projectUuid: dashboard.projectUuid,
+                dashboardUuid: dashboard.uuid,
+                tileUuid: 'my-tile',
+                dependency: {
+                    type: 'savedChart',
+                    uuid: 'savedChartUuid',
+                },
+            }),
+        ).resolves.toMatchObject({ uuid: dashboard.uuid });
+    });
+
+    test('should reject a dependency that does not belong to the requested tile', async () => {
+        await expect(
+            service.assertTileViewAccess({
+                actor: user,
+                projectUuid: dashboard.projectUuid,
+                dashboardUuid: dashboard.uuid,
+                tileUuid: 'my-tile',
+                dependency: {
+                    type: 'savedChart',
+                    uuid: 'another-saved-chart-uuid',
+                },
+            }),
+        ).rejects.toThrow(ForbiddenError);
     });
 
     test('should forward the applied parameter values when exporting content', async () => {

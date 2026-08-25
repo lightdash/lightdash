@@ -22,7 +22,9 @@ import {
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
     isDashboardChartTileType,
+    isDashboardDataAppTileType,
     isDashboardScheduler,
+    isDashboardSqlChartTile,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     isJwtUser,
@@ -78,6 +80,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
 // CaslAuditWrapper is now used via this.createAuditedAbility() from BaseService
 import { AnalyticsModel } from '../../models/AnalyticsModel';
+import type { AppModel } from '../../models/AppModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
@@ -109,6 +112,7 @@ type DashboardServiceArguments = {
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
     analyticsModel: AnalyticsModel;
+    appModel: AppModel;
     pinnedListModel: PinnedListModel;
     schedulerModel: SchedulerModel;
     searchModel: SearchModel;
@@ -126,6 +130,12 @@ type DashboardServiceArguments = {
     directAccessService: DirectAccessService;
 };
 
+type DashboardAccessActor = Account | SessionUser;
+
+export type DashboardTileDependency =
+    | { type: 'savedChart'; uuid: string }
+    | { type: 'savedSql'; uuid: string };
+
 export class DashboardService
     extends BaseService
     implements BulkActionable<Knex>, SoftDeletableService
@@ -139,6 +149,8 @@ export class DashboardService
     spaceModel: SpaceModel;
 
     analyticsModel: AnalyticsModel;
+
+    appModel: AppModel;
 
     pinnedListModel: PinnedListModel;
 
@@ -270,6 +282,7 @@ export class DashboardService
         dashboardModel,
         spaceModel,
         analyticsModel,
+        appModel,
         pinnedListModel,
         schedulerModel,
         searchModel,
@@ -292,6 +305,7 @@ export class DashboardService
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
         this.analyticsModel = analyticsModel;
+        this.appModel = appModel;
         this.pinnedListModel = pinnedListModel;
         this.schedulerModel = schedulerModel;
         this.searchModel = searchModel;
@@ -310,13 +324,13 @@ export class DashboardService
     }
 
     private static getAccessForRole(
-        user: SessionUser,
+        actor: DashboardAccessActor,
         logicalAccess: SpaceAccess | undefined,
         role: SpaceMemberRole,
     ): SpaceAccess[] {
         return [
             {
-                userUuid: user.userUuid,
+                userUuid: DashboardService.getActorUserUuid(actor),
                 role,
                 hasDirectAccess: false,
                 projectRole: logicalAccess?.projectRole,
@@ -326,15 +340,19 @@ export class DashboardService
         ];
     }
 
+    private static getActorUserUuid(actor: DashboardAccessActor): string {
+        return 'user' in actor ? actor.user.id : actor.userUuid;
+    }
+
     private getDashboardCapabilityCeiling(
-        user: SessionUser,
+        actor: DashboardAccessActor,
         dashboard: DashboardDAO,
         spaceContext: Awaited<
             ReturnType<SpacePermissionService['getSpaceAccessContext']>
         >,
         logicalAccess: SpaceAccess | undefined,
     ): SpaceMemberRole | null {
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(actor);
         const can = (action: AbilityAction, role: SpaceMemberRole) =>
             auditedAbility.can(
                 action,
@@ -342,7 +360,7 @@ export class DashboardService
                     ...dashboard,
                     ...spaceContext,
                     access: DashboardService.getAccessForRole(
-                        user,
+                        actor,
                         logicalAccess,
                         role,
                     ),
@@ -362,31 +380,37 @@ export class DashboardService
     }
 
     private async getDashboardReadContext(
-        user: SessionUser,
+        actor: DashboardAccessActor,
         dashboard: DashboardDAO,
     ) {
+        const userUuid = DashboardService.getActorUserUuid(actor);
+        const organizationUuid =
+            'user' in actor
+                ? actor.organization.organizationUuid
+                : actor.organizationUuid;
         const spaceContext =
             await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
+                userUuid,
                 dashboard.spaceUuid,
             );
         const logicalAccess = spaceContext.access.find(
-            ({ userUuid }) => userUuid === user.userUuid,
+            (access) => access.userUuid === userUuid,
         );
         const logicalRole = getHighestSpaceRole(
             spaceContext.access
-                .filter(({ userUuid }) => userUuid === user.userUuid)
+                .filter((access) => access.userUuid === userUuid)
                 .map(({ role }) => role),
         );
         const capabilityCeiling = this.getDashboardCapabilityCeiling(
-            user,
+            actor,
             dashboard,
             spaceContext,
             logicalAccess,
         );
         const effectiveRole = (
-            await this.directAccessService.resolveUserAccessForSessionUser({
-                user,
+            await this.directAccessService.resolveUserAccessForUser({
+                userUuid,
+                organizationUuid,
                 resourceType: 'dashboard',
                 resources: {
                     [dashboard.uuid]: {
@@ -409,7 +433,7 @@ export class DashboardService
             inheritsFromOrgOrProject: spaceContext.inheritsFromOrgOrProject,
             access: effectiveRole
                 ? DashboardService.getAccessForRole(
-                      user,
+                      actor,
                       logicalAccess,
                       effectiveRole,
                   )
@@ -715,7 +739,21 @@ export class DashboardService
     async getByIdOrSlug(
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
-        options?: { projectUuid?: string },
+        options?: { projectUuid?: string; includeDependencies?: boolean },
+    ): Promise<Dashboard> {
+        const dashboard = await this.assertViewAccess(
+            user,
+            dashboardUuidOrSlug,
+            options,
+        );
+        this.recordDashboardView(user.userUuid, dashboard);
+        return dashboard;
+    }
+
+    async assertViewAccess(
+        actor: DashboardAccessActor,
+        dashboardUuidOrSlug: UuidOrSlug,
+        options?: { projectUuid?: string; includeDependencies?: boolean },
     ): Promise<Dashboard> {
         const dashboardDao = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
@@ -723,16 +761,14 @@ export class DashboardService
                 projectUuid: options?.projectUuid,
             },
         );
-
         const { isDirectOnly, ...accessContext } =
-            await this.getDashboardReadContext(user, dashboardDao);
+            await this.getDashboardReadContext(actor, dashboardDao);
         const dashboard = {
             ...dashboardDao,
             ...accessContext,
             spaceName: isDirectOnly ? '' : dashboardDao.spaceName,
         };
-
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(actor);
 
         if (
             auditedAbility.cannot(
@@ -751,7 +787,184 @@ export class DashboardService
             );
         }
 
-        this.recordDashboardView(user.userUuid, dashboard);
+        return isDirectOnly && options?.includeDependencies !== false
+            ? this.redactInaccessibleDependencies(actor, dashboard)
+            : dashboard;
+    }
+
+    private async redactInaccessibleDependencies(
+        actor: DashboardAccessActor,
+        dashboard: Dashboard,
+    ): Promise<Dashboard> {
+        const chartUuids = dashboard.tiles
+            .filter(isDashboardChartTileType)
+            .map((tile) => tile.properties.savedChartUuid)
+            .filter((uuid): uuid is string => uuid !== null);
+        const savedSqlUuids = dashboard.tiles
+            .filter(isDashboardSqlChartTile)
+            .map((tile) => tile.properties.savedSqlUuid)
+            .filter((uuid): uuid is string => uuid !== null);
+        const appUuids = dashboard.tiles
+            .filter(isDashboardDataAppTileType)
+            .map((tile) => tile.properties.appUuid);
+        const [charts, savedSqlCharts, apps, projectSummary] =
+            await Promise.all([
+                this.savedChartModel.getInfoForAvailableFilters(chartUuids),
+                this.savedSqlModel.getInfoForDashboardDependencies(
+                    savedSqlUuids,
+                ),
+                this.appModel.findAppsByUuids(dashboard.projectUuid, appUuids),
+                this.projectModel.getSummary(dashboard.projectUuid),
+            ]);
+        const chartByUuid = new Map(charts.map((chart) => [chart.uuid, chart]));
+        const savedSqlByUuid = new Map(
+            savedSqlCharts.map((savedSql) => [savedSql.savedSqlUuid, savedSql]),
+        );
+        const appByUuid = new Map(apps.map((app) => [app.app_id, app]));
+        const dependencySpaceUuids = [
+            ...charts
+                .filter((chart) => chart.dashboardUuid !== dashboard.uuid)
+                .map((chart) => chart.spaceUuid),
+            ...savedSqlCharts.map((savedSql) => savedSql.spaceUuid),
+            ...apps
+                .map((app) => app.space_uuid)
+                .filter((uuid): uuid is string => uuid !== null),
+        ];
+        const spaceContexts =
+            dependencySpaceUuids.length > 0
+                ? await this.spacePermissionService.getSpacesAccessContext(
+                      DashboardService.getActorUserUuid(actor),
+                      [...new Set(dependencySpaceUuids)],
+                  )
+                : {};
+        const auditedAbility = this.createAuditedAbility(actor);
+        const canViewInSpace = (
+            spaceUuid: string,
+            metadata: Record<string, string>,
+        ) => {
+            const spaceContext = spaceContexts[spaceUuid];
+            return (
+                spaceContext !== undefined &&
+                auditedAbility.can(
+                    'view',
+                    subject('SavedChart', { ...spaceContext, metadata }),
+                )
+            );
+        };
+
+        return {
+            ...dashboard,
+            tiles: dashboard.tiles.map((tile) => {
+                if (isDashboardChartTileType(tile)) {
+                    const { savedChartUuid } = tile.properties;
+                    const chart = savedChartUuid
+                        ? chartByUuid.get(savedChartUuid)
+                        : undefined;
+                    const canView =
+                        chart?.dashboardUuid === dashboard.uuid ||
+                        (chart !== undefined &&
+                            canViewInSpace(chart.spaceUuid, {
+                                savedChartUuid: chart.uuid,
+                            }));
+                    return canView
+                        ? tile
+                        : {
+                              ...tile,
+                              properties: {
+                                  savedChartUuid: null,
+                                  dependencyAccess: 'denied' as const,
+                              },
+                          };
+                }
+                if (isDashboardSqlChartTile(tile)) {
+                    const { savedSqlUuid } = tile.properties;
+                    const savedSql = savedSqlUuid
+                        ? savedSqlByUuid.get(savedSqlUuid)
+                        : undefined;
+                    const canView =
+                        savedSql !== undefined &&
+                        canViewInSpace(savedSql.spaceUuid, {
+                            savedSqlUuid: savedSql.savedSqlUuid,
+                        });
+                    return canView
+                        ? tile
+                        : {
+                              ...tile,
+                              properties: {
+                                  savedSqlUuid: null,
+                                  chartName: '',
+                                  dependencyAccess: 'denied' as const,
+                              },
+                          };
+                }
+                if (isDashboardDataAppTileType(tile)) {
+                    const app = appByUuid.get(tile.properties.appUuid);
+                    const spaceContext = app?.space_uuid
+                        ? spaceContexts[app.space_uuid]
+                        : {};
+                    const canView =
+                        app !== undefined &&
+                        auditedAbility.can(
+                            'view',
+                            subject('DataApp', {
+                                organizationUuid:
+                                    projectSummary.organizationUuid,
+                                projectUuid: dashboard.projectUuid,
+                                projectType: projectSummary.type,
+                                projectCreatedByUserUuid:
+                                    projectSummary.createdByUserUuid,
+                                upstreamProjectUuid:
+                                    projectSummary.upstreamProjectUuid ?? null,
+                                ...spaceContext,
+                                createdByUserUuid:
+                                    app.created_by_user_uuid ?? undefined,
+                            }),
+                        );
+                    return canView
+                        ? tile
+                        : {
+                              ...tile,
+                              properties: {
+                                  title: '',
+                                  appUuid: '',
+                                  dependencyAccess: 'denied' as const,
+                              },
+                          };
+                }
+                return tile;
+            }),
+        };
+    }
+
+    async assertTileViewAccess({
+        actor,
+        projectUuid,
+        dashboardUuid,
+        tileUuid,
+        dependency,
+    }: {
+        actor: DashboardAccessActor;
+        projectUuid: string;
+        dashboardUuid: string;
+        tileUuid: string;
+        dependency: DashboardTileDependency;
+    }): Promise<Dashboard> {
+        const dashboard = await this.assertViewAccess(actor, dashboardUuid, {
+            projectUuid,
+            includeDependencies: false,
+        });
+        const tile = dashboard.tiles.find(({ uuid }) => uuid === tileUuid);
+        const matchesDependency =
+            tile !== undefined &&
+            (dependency.type === 'savedChart'
+                ? isDashboardChartTileType(tile) &&
+                  tile.properties.savedChartUuid === dependency.uuid
+                : isDashboardSqlChartTile(tile) &&
+                  tile.properties.savedSqlUuid === dependency.uuid);
+
+        if (!matchesDependency) {
+            throw new ForbiddenError('Dashboard tile is not accessible');
+        }
 
         return dashboard;
     }

@@ -11,6 +11,7 @@ import {
     DashboardTileTypes,
     EXPORT_TAB_PAGE_CLASS,
     getPagedExportOrphanHomeTabUuid,
+    isDashboardDependencyDenied,
     isDashboardScheduler,
     isTileInSelectedTabs,
     SessionStorageKeys,
@@ -33,6 +34,7 @@ import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndica
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import DataAppTile from '../components/DashboardTiles/DashboardDataAppTile';
+import DashboardDependencyDeniedTile from '../components/DashboardTiles/DashboardDependencyDeniedTile';
 import HeadingTile from '../components/DashboardTiles/DashboardHeadingTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
@@ -81,6 +83,18 @@ type MinimalDashboardContentProps = {
 };
 
 const renderDashboardTile = (tile: Dashboard['tiles'][number]) => {
+    if (isDashboardDependencyDenied(tile)) {
+        return (
+            <DashboardDependencyDeniedTile
+                key={tile.uuid}
+                tile={tile}
+                isEditMode={false}
+                onDelete={() => {}}
+                onEdit={() => {}}
+            />
+        );
+    }
+
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
             return (

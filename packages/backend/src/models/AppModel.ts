@@ -517,10 +517,12 @@ export class AppModel {
     async findAppsByUuids(
         projectUuid: string,
         appUuids: string[],
-    ): Promise<Pick<DbApp, 'app_id' | 'slug'>[]> {
+    ): Promise<
+        Pick<DbApp, 'app_id' | 'slug' | 'space_uuid' | 'created_by_user_uuid'>[]
+    > {
         if (appUuids.length === 0) return [];
         return this.database(AppsTableName)
-            .select('app_id', 'slug')
+            .select('app_id', 'slug', 'space_uuid', 'created_by_user_uuid')
             .where('project_uuid', projectUuid)
             .whereIn('app_id', appUuids)
             .whereNull('deleted_at');

@@ -3,7 +3,6 @@ import {
     ForbiddenError,
     getErrorMessage,
     type RegisteredAccount,
-    type SessionUser,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -43,7 +42,10 @@ export class DirectAccessFeatureGate {
         }
     }
 
-    async isEnabledForSessionUser(user: SessionUser): Promise<boolean> {
+    async isEnabledForUser(user: {
+        userUuid: string;
+        organizationUuid: string | undefined;
+    }): Promise<boolean> {
         if (
             user.organizationUuid === undefined ||
             !this.licenseService.getLicenseStatus().valid

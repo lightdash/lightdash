@@ -24,6 +24,8 @@ export enum DashboardTileTypes {
     DATA_APP = 'data_app',
 }
 
+export type DashboardDependencyAccess = 'denied';
+
 type CreateDashboardTileBase = {
     uuid?: string;
     type: DashboardTileTypes;
@@ -64,6 +66,7 @@ export type DashboardChartTileProperties = {
         chartName?: string | null;
         lastVersionChartKind?: ChartKind | null;
         chartSlug?: string | null;
+        dependencyAccess?: DashboardDependencyAccess;
     };
 };
 
@@ -75,6 +78,7 @@ export type DashboardSqlChartTileProperties = {
         chartName: string;
         hideTitle?: boolean;
         chartSlug?: string | null;
+        dependencyAccess?: DashboardDependencyAccess;
     };
 };
 
@@ -100,6 +104,7 @@ export type DashboardDataAppTileProperties = {
         // so the frontend can render a placeholder instead of trying to load
         // a missing iframe.
         appDeletedAt?: string | null;
+        dependencyAccess?: DashboardDependencyAccess;
     };
 };
 
@@ -184,6 +189,10 @@ export const isDashboardHeadingTileType = (
 export const isDashboardDataAppTileType = (
     tile: DashboardTile,
 ): tile is DashboardDataAppTile => tile.type === DashboardTileTypes.DATA_APP;
+
+export const isDashboardDependencyDenied = (tile: DashboardTile): boolean =>
+    'dependencyAccess' in tile.properties &&
+    tile.properties.dependencyAccess === 'denied';
 
 export type DashboardTab = {
     uuid: string;
@@ -346,6 +355,11 @@ export type SavedChartsInfoForDashboardAvailableFilters = {
     tileUuid: string;
     savedChartUuid: string;
 }[];
+
+export type DashboardAvailableFiltersRequest = {
+    dashboardUuid: string;
+    charts: SavedChartsInfoForDashboardAvailableFilters;
+};
 
 export const isDashboardUnversionedFields = (
     data: UpdateDashboard,

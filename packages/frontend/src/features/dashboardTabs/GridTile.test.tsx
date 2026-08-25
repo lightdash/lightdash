@@ -105,4 +105,27 @@ describe('GridTile (locked)', () => {
             screen.queryByTestId('unmet-requirements-placeholder'),
         ).toBeNull();
     });
+
+    it('renders a generic denied state without dependency metadata', () => {
+        renderWithProviders(
+            <GridTile
+                tile={{
+                    ...chartTile,
+                    properties: {
+                        savedChartUuid: null,
+                        dependencyAccess: 'denied',
+                    },
+                }}
+                index={0}
+                isEditMode={false}
+                locked={false}
+                onEdit={vi.fn()}
+                onDelete={vi.fn()}
+                onAddTiles={vi.fn(async () => {})}
+            />,
+        );
+
+        expect(screen.getByText('Content unavailable')).toBeInTheDocument();
+        expect(screen.queryByText('Sales')).toBeNull();
+    });
 });

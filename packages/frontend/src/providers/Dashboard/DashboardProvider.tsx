@@ -885,6 +885,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         savedChartUuidsAndTileUuids ?? [],
         projectUuid,
         embedToken,
+        dashboardUuid,
     );
 
     const filterableFieldsByTileUuid = useMemo(() => {

@@ -222,6 +222,7 @@ import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
+import type { DashboardService } from '../DashboardService/DashboardService';
 import { ExcelService } from '../ExcelService/ExcelService';
 import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
@@ -395,6 +396,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     permissionsService: PermissionsService;
     persistentDownloadFileService: PersistentDownloadFileService;
     organizationAccessService: OrganizationAccessService;
+    getDashboardService: () => DashboardService;
     preAggregateStrategy?: PreAggregateStrategy;
     /** EE resolver for external tables; absent in OSS. */
     externalSourceTableResolver?: (
@@ -528,6 +530,8 @@ export class AsyncQueryService extends ProjectService {
 
     private readonly organizationAccessService: OrganizationAccessService;
 
+    private readonly getDashboardService: () => DashboardService;
+
     protected readonly preAggregateStrategy: PreAggregateStrategy;
 
     private readonly externalSourceTableResolver: AsyncQueryServiceArguments['externalSourceTableResolver'];
@@ -547,6 +551,7 @@ export class AsyncQueryService extends ProjectService {
         this.permissionsService = args.permissionsService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.organizationAccessService = args.organizationAccessService;
+        this.getDashboardService = args.getDashboardService;
         this.preAggregateStrategy =
             args.preAggregateStrategy ?? new NoOpPreAggregateStrategy();
         this.externalSourceTableResolver = args.externalSourceTableResolver;
@@ -841,6 +846,61 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    private async assertDashboardQueryAccess({
+        account,
+        projectUuid,
+        dashboardUuid,
+        tileUuid,
+        dependency,
+    }: {
+        account: Account;
+        projectUuid: string;
+        dashboardUuid: string;
+        tileUuid: string;
+        dependency:
+            | { type: 'savedChart'; uuid: string }
+            | { type: 'savedSql'; uuid: string };
+    }) {
+        if (isJwtUser(account)) {
+            return undefined;
+        }
+
+        return this.getDashboardService().assertTileViewAccess({
+            actor: account,
+            projectUuid,
+            dashboardUuid,
+            tileUuid,
+            dependency,
+        });
+    }
+
+    private async assertDashboardQueryHistoryAccess(
+        account: Account,
+        projectUuid: string,
+        queryHistory: QueryHistory,
+    ): Promise<void> {
+        if (isJwtUser(account)) {
+            return;
+        }
+
+        const { requestParameters } = queryHistory;
+        const dashboardUuid =
+            requestParameters &&
+            'dashboardUuid' in requestParameters &&
+            typeof requestParameters.dashboardUuid === 'string'
+                ? requestParameters.dashboardUuid
+                : undefined;
+        if (!dashboardUuid) {
+            return;
+        }
+
+        await this.getDashboardService().assertViewAccess(
+            account,
+            dashboardUuid,
+            { projectUuid, includeDependencies: false },
+        );
+    }
+
     private getPreAggregationRoutingDecision({
         metricQuery,
         explore,
@@ -1074,6 +1134,11 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             projectUuid,
             account,
+        );
+        await this.assertDashboardQueryHistoryAccess(
+            account,
+            projectUuid,
+            queryHistory,
         );
 
         const previousStatus = queryHistory.status;
@@ -1315,6 +1380,11 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             queryHistory,
         );
+        await this.assertDashboardQueryHistoryAccess(
+            account,
+            projectUuid,
+            queryHistory,
+        );
 
         const {
             context,
@@ -1532,15 +1602,20 @@ export class AsyncQueryService extends ProjectService {
             }),
         );
 
-        if (canViewProject) {
-            return this.queryHistoryModel.get(queryUuid, projectUuid, account);
-        }
-
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
             projectUuid,
             account,
         );
+        await this.assertDashboardQueryHistoryAccess(
+            account,
+            projectUuid,
+            queryHistory,
+        );
+
+        if (canViewProject) {
+            return queryHistory;
+        }
 
         if (
             auditedAbility.cannot(
@@ -1594,6 +1669,11 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             projectUuid,
             account,
+        );
+        await this.assertDashboardQueryHistoryAccess(
+            account,
+            projectUuid,
+            queryHistory,
         );
 
         const { status, resultsFileName } = queryHistory;
@@ -1900,6 +1980,11 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             projectUuid,
             account,
+        );
+        await this.assertDashboardQueryHistoryAccess(
+            account,
+            projectUuid,
+            queryHistory,
         );
 
         const displayTimezone = queryHistory.metricQuery.timezone ?? null;
@@ -5289,6 +5374,11 @@ export class AsyncQueryService extends ProjectService {
             this.queryHistoryModel.get(queryUuid, projectUuid, account),
             this.projectModel.getSummary(projectUuid),
         ]);
+        await this.assertDashboardQueryHistoryAccess(
+            account,
+            projectUuid,
+            source,
+        );
 
         const { csvCellsLimit, maxLimit } =
             await resolveOrganizationExportLimits(
@@ -5362,6 +5452,11 @@ export class AsyncQueryService extends ProjectService {
             this.queryHistoryModel.get(queryUuid, projectUuid, account),
             this.projectModel.getSummary(projectUuid),
         ]);
+        await this.assertDashboardQueryHistoryAccess(
+            account,
+            projectUuid,
+            source,
+        );
 
         // Reuse the source's parameter values so the totals query sees the
         // same parameter context as the original. The execution path
@@ -6174,12 +6269,25 @@ export class AsyncQueryService extends ProjectService {
         }
         const resolvedDashboardUuid = effectiveDashboardUuid;
 
-        await this.checkDashboardChartQueryPermissions(
+        const dashboard = await this.assertDashboardQueryAccess({
             account,
             projectUuid,
-            savedChart.uuid,
-            space,
-        );
+            dashboardUuid: resolvedDashboardUuid,
+            tileUuid,
+            dependency: { type: 'savedChart', uuid: savedChart.uuid },
+        });
+        const isDashboardOwnedChart =
+            dashboard !== undefined &&
+            savedChart.dashboardUuid === dashboard.uuid;
+
+        if (!isDashboardOwnedChart) {
+            await this.checkDashboardChartQueryPermissions(
+                account,
+                projectUuid,
+                savedChart.uuid,
+                space,
+            );
+        }
 
         // Fire-and-forget: analytics tracking is non-critical and shouldn't block query execution
         void this.analyticsModel
@@ -8224,6 +8332,11 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             account,
         );
+        await this.assertDashboardQueryHistoryAccess(
+            account,
+            projectUuid,
+            queryHistory,
+        );
         if (queryHistory.status !== QueryHistoryStatus.READY) {
             throw new ParameterError(
                 `its results are not ready (status: ${queryHistory.status}).`,
@@ -8702,6 +8815,14 @@ export class AsyncQueryService extends ProjectService {
         }
         const resolvedDashboardUuid = dashboardUuid;
 
+        await this.assertDashboardQueryAccess({
+            account,
+            projectUuid,
+            dashboardUuid: resolvedDashboardUuid,
+            tileUuid,
+            dependency: { type: 'savedSql', uuid: savedChart.savedSqlUuid },
+        });
+
         if (isJwtUser(account)) {
             const { embedWriteUser } = account;
             const embedWriteActions = account.authentication.data.writeActions;
@@ -8943,6 +9064,11 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             account,
         );
+        await this.assertDashboardQueryHistoryAccess(
+            account,
+            projectUuid,
+            queryHistory,
+        );
         if (
             !queryHistory.resultsFileName ||
             (queryHistory.resultsExpiresAt &&
@@ -9028,6 +9154,11 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             projectUuid,
             account,
+        );
+        await this.assertDashboardQueryHistoryAccess(
+            account,
+            projectUuid,
+            queryHistory,
         );
 
         const resultsStream = await this.getResultsStorageClientForContext(

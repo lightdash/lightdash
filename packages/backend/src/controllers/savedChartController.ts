@@ -155,6 +155,7 @@ Migrate to the v2 async query flow: [Execute dashboard chart](https://docs.light
             invalidateCache?: boolean;
             dashboardSorts: SortField[];
             dashboardUuid: string;
+            tileUuid?: string;
             dateZoom?: DateZoom;
             autoRefresh?: boolean;
         },
@@ -174,6 +175,7 @@ Migrate to the v2 async query flow: [Execute dashboard chart](https://docs.light
                     dashboardSorts: body.dashboardSorts,
                     dateZoom: body.dateZoom,
                     dashboardUuid: body.dashboardUuid,
+                    tileUuid: body.tileUuid,
                     autoRefresh: body.autoRefresh,
                     context: getContextFromQueryOrHeader(req),
                 }),

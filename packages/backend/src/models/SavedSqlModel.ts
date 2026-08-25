@@ -305,6 +305,24 @@ export class SavedSqlModel {
         return SavedSqlModel.convertSelectSavedSql(result);
     }
 
+    async getInfoForDashboardDependencies(uuids: string[]): Promise<
+        {
+            savedSqlUuid: string;
+            spaceUuid: string;
+        }[]
+    > {
+        if (uuids.length === 0) {
+            return [];
+        }
+        return this.database(SavedSqlTableName)
+            .select({
+                savedSqlUuid: `${SavedSqlTableName}.saved_sql_uuid`,
+                spaceUuid: `${SavedSqlTableName}.space_uuid`,
+            })
+            .whereIn(`${SavedSqlTableName}.saved_sql_uuid`, uuids)
+            .whereNull(`${SavedSqlTableName}.deleted_at`);
+    }
+
     static async createVersion(
         trx: Knex,
         data: {
