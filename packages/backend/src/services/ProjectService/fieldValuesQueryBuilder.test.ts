@@ -92,6 +92,7 @@ const lookupExplore: Explore = {
 const mockExploreResolver = {
     findExploreByTableName: vi.fn(),
     findJoinAliasExplore: vi.fn(),
+    findExploreContainingTable: vi.fn(),
 };
 
 describe('getFieldValuesMetricQuery', () => {
@@ -101,6 +102,9 @@ describe('getFieldValuesMetricQuery', () => {
             validExplore,
         );
         mockExploreResolver.findJoinAliasExplore.mockResolvedValue(undefined);
+        mockExploreResolver.findExploreContainingTable.mockResolvedValue(
+            undefined,
+        );
     });
 
     test('builds a MetricQuery with correct structure', async () => {
@@ -137,6 +141,28 @@ describe('getFieldValuesMetricQuery', () => {
             values: [],
             target: { fieldId: 'a_dim1' },
         });
+    });
+
+    test('authorizes the resolved Explore before resolving the requested field', async () => {
+        const authorizeInitialExplore = vi.fn(() => {
+            throw new Error('not authorized');
+        });
+
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: 'a',
+                initialFieldId: 'a_missing',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+                authorizeInitialExplore,
+            }),
+        ).rejects.toThrow('not authorized');
+
+        expect(authorizeInitialExplore).toHaveBeenCalledWith(validExplore);
     });
 
     test('returns null staticResults when warehouse fetching is on', async () => {
@@ -494,6 +520,33 @@ describe('getFieldValuesMetricQuery', () => {
         );
         // fieldId should be remapped from alias_table to base table
         expect(result.fieldId).toBe('a_dim1');
+    });
+
+    test('falls back to an explore containing a joined-only table', async () => {
+        mockExploreResolver.findExploreByTableName.mockResolvedValue(undefined);
+        mockExploreResolver.findJoinAliasExplore.mockResolvedValue(undefined);
+        mockExploreResolver.findExploreContainingTable.mockResolvedValue(
+            validExplore,
+        );
+
+        const result = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'b',
+            initialFieldId: 'b_dim1',
+            search: '',
+            limit: 10,
+            maxLimit: 5000,
+            filters: undefined,
+            exploreResolver: mockExploreResolver,
+        });
+
+        expect(
+            mockExploreResolver.findExploreContainingTable,
+        ).toHaveBeenCalledWith('project-uuid', 'b');
+        expect(result.explore).toBe(validExplore);
+        expect(result.fieldId).toBe('b_dim1');
+        expect(result.metricQuery.exploreName).toBe(validExplore.name);
+        expect(result.metricQuery.dimensions).toEqual(['b_dim1']);
     });
 
     test('throws NotFoundError when explore not found', async () => {

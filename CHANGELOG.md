@@ -1,3 +1,103 @@
+## [1.258.3](https://github.com/lightdash/lightdash/compare/1.258.2...1.258.3) (2026-08-25)
+
+
+### Bug Fixes
+
+* **exports:** preserve parameters in google sheets exports ([#27751](https://github.com/lightdash/lightdash/issues/27751)) ([d4bbfb3](https://github.com/lightdash/lightdash/commit/d4bbfb3592d0b91182d066363187b0808fa1e6cc))
+
+## [1.258.2](https://github.com/lightdash/lightdash/compare/1.258.1...1.258.2) (2026-08-25)
+
+
+### Bug Fixes
+
+* **common:** normalize blank snowflake timeouts ([#27956](https://github.com/lightdash/lightdash/issues/27956)) ([96249bb](https://github.com/lightdash/lightdash/commit/96249bb6a5e1108769b9eb6ba869663630bff3f1))
+
+## [1.258.1](https://github.com/lightdash/lightdash/compare/1.258.0...1.258.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **dashboards:** clear chart dirty state after save ([#28008](https://github.com/lightdash/lightdash/issues/28008)) ([ee5acf0](https://github.com/lightdash/lightdash/commit/ee5acf0a3cdd42b08879191e9a97f927243b1d7e))
+
+# [1.258.0](https://github.com/lightdash/lightdash/compare/1.257.2...1.258.0) (2026-08-25)
+
+
+### Features
+
+* **ai-agents:** restrict MCP table calculations to formula-only schema ([#27758](https://github.com/lightdash/lightdash/issues/27758)) ([cf385fd](https://github.com/lightdash/lightdash/commit/cf385fda8f2baee97522e1458e44dbc266f23e10)), closes [#27728](https://github.com/lightdash/lightdash/issues/27728)
+
+## [1.257.2](https://github.com/lightdash/lightdash/compare/1.257.1...1.257.2) (2026-08-25)
+
+
+### Bug Fixes
+
+* **frontend:** reset connection form on project switch ([#28003](https://github.com/lightdash/lightdash/issues/28003)) ([15f5a85](https://github.com/lightdash/lightdash/commit/15f5a85a5cd875863d7c4c32db8e88e9ff5c23ac))
+
+## [1.257.1](https://github.com/lightdash/lightdash/compare/1.257.0...1.257.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **embedding:** allow filter values without dashboard ([#27989](https://github.com/lightdash/lightdash/issues/27989)) ([9749e80](https://github.com/lightdash/lightdash/commit/9749e801bc87cb973189d50d3a6f2ce8df81bed6))
+
+# [1.257.0](https://github.com/lightdash/lightdash/compare/1.256.1...1.257.0) (2026-08-25)
+
+
+### Features
+
+* **ai:** enable Deep Research with Auto Router ([#27987](https://github.com/lightdash/lightdash/issues/27987)) ([93e0791](https://github.com/lightdash/lightdash/commit/93e0791c7b891ac910dae640ab21e98d0813b1b0))
+
+## [1.256.1](https://github.com/lightdash/lightdash/compare/1.256.0...1.256.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **filters:** suggest values for hidden joined dimensions ([#27988](https://github.com/lightdash/lightdash/issues/27988)) ([d10a8b2](https://github.com/lightdash/lightdash/commit/d10a8b25cf9f272c2cab9552de7e80033b236a5f))
+* **pgwire:** log pre-auth connection failures with peer address ([#27985](https://github.com/lightdash/lightdash/issues/27985)) ([1a1db3a](https://github.com/lightdash/lightdash/commit/1a1db3ae6a6bbdd7d75c086d6d79bfd66d48fc71))
+
+# [1.256.0](https://github.com/lightdash/lightdash/compare/1.255.0...1.256.0) (2026-08-25)
+
+
+### Bug Fixes
+
+* **api:** quiet expected not-found errors ([#27977](https://github.com/lightdash/lightdash/issues/27977)) ([e816e3c](https://github.com/lightdash/lightdash/commit/e816e3cdfcc593d463f45e08d740a9f843ee4e25))
+
+
+### Features
+
+* **auth:** add batched direct access reads ([#27923](https://github.com/lightdash/lightdash/issues/27923)) ([99ec07c](https://github.com/lightdash/lightdash/commit/99ec07c58bee5cdc4b23255379ac4860d5073fb0)), closes [#27922](https://github.com/lightdash/lightdash/issues/27922)
+* **auth:** add transactional direct access writes ([#27924](https://github.com/lightdash/lightdash/issues/27924)) ([501ec4e](https://github.com/lightdash/lightdash/commit/501ec4e2fb076b326cdbd9cb50e639df06c3353d)), closes [#27923](https://github.com/lightdash/lightdash/issues/27923)
+* **auth:** gate direct access service ([#27925](https://github.com/lightdash/lightdash/issues/27925)) ([7e8089e](https://github.com/lightdash/lightdash/commit/7e8089e5a2dec4ced21a3b18c41ba1aa6be876a2)), closes [#27924](https://github.com/lightdash/lightdash/issues/27924)
+
+# [1.255.0](https://github.com/lightdash/lightdash/compare/1.254.0...1.255.0) (2026-08-25)
+
+
+### Features
+
+* **auth:** add direct access grant schema ([#27922](https://github.com/lightdash/lightdash/issues/27922)) ([12b83f4](https://github.com/lightdash/lightdash/commit/12b83f460f3a3e7e1e0e7a32ca6b97e1b494d5aa)), closes [#27921](https://github.com/lightdash/lightdash/issues/27921)
+
+# [1.254.0](https://github.com/lightdash/lightdash/compare/1.253.1...1.254.0) (2026-08-25)
+
+
+### Features
+
+* **auth:** add direct access role resolver ([#27921](https://github.com/lightdash/lightdash/issues/27921)) ([e54a68e](https://github.com/lightdash/lightdash/commit/e54a68e2787728dd4fa365572ed004dbc9358940)), closes [houserx/lightdash-hrx#25](https://github.com/houserx/lightdash-hrx/issues/25)
+
+## [1.253.1](https://github.com/lightdash/lightdash/compare/1.253.0...1.253.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **sdk:** sync dashboard filter prop changes ([#27973](https://github.com/lightdash/lightdash/issues/27973)) ([3c01aef](https://github.com/lightdash/lightdash/commit/3c01aef65deccaeb54d1cc981ed1d8e56e4d2d04))
+* **table-calculations:** rerun query after changes ([#27978](https://github.com/lightdash/lightdash/issues/27978)) ([741b419](https://github.com/lightdash/lightdash/commit/741b419d85cd9a4d6c082ba941127429e9cb319c))
+
+# [1.253.0](https://github.com/lightdash/lightdash/compare/1.252.1...1.253.0) (2026-08-25)
+
+
+### Features
+
+* finalize embedded chart builder access ([#27926](https://github.com/lightdash/lightdash/issues/27926)) ([a4ad514](https://github.com/lightdash/lightdash/commit/a4ad5147e1a52747e2458ce979370e17af61ff8d))
+
 ## [1.252.1](https://github.com/lightdash/lightdash/compare/1.252.0...1.252.1) (2026-08-24)
 
 

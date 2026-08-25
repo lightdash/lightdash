@@ -1,7 +1,7 @@
 import {
     type ToolAnalyzeFieldImpactOutput,
     type ToolComposerQueriesOutput,
-    type ToolDashboardOutput,
+    type ToolDashboardV2Output,
     type ToolDescribeWarehouseTableOutput,
     type ToolDiscoverFieldsOutput,
     type ToolEditContentOutput,
@@ -24,9 +24,6 @@ import {
     type ToolSearchFieldValuesOutput,
     type ToolSearchSemanticLayerOutput,
     type ToolSyncDbtProjectOutput,
-    type ToolTableVizOutput,
-    type ToolTimeSeriesOutput,
-    type ToolVerticalBarOutput,
 } from './tools';
 
 export * from './customMetrics';
@@ -41,7 +38,7 @@ export * from './tools';
 export * from './visualizations';
 
 export type AgentToolOutput =
-    | ToolDashboardOutput
+    | ToolDashboardV2Output
     | ToolFindContentOutput
     | ToolFindChartsOutput
     | ToolFindDashboardsOutput
@@ -65,7 +62,4 @@ export type AgentToolOutput =
     | ToolComposerQueriesOutput
     | ToolSearchFieldValuesOutput
     | ToolSearchSemanticLayerOutput
-    | ToolAnalyzeFieldImpactOutput
-    | ToolTableVizOutput
-    | ToolTimeSeriesOutput
-    | ToolVerticalBarOutput;
+    | ToolAnalyzeFieldImpactOutput;

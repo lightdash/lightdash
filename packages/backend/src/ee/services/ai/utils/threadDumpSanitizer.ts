@@ -31,9 +31,6 @@ const DUMP_TOOL_RESULT_POLICIES = {
     createScheduledDelivery: 'keep',
     updateUserName: 'keep',
     listKnowledgeDocuments: 'keep',
-    generateBarVizConfig: 'keep',
-    generateTableVizConfig: 'keep',
-    generateTimeSeriesVizConfig: 'keep',
     generateHashes: 'keep',
     generateUuids: 'keep',
     loadMcpTools: 'keep',
@@ -78,6 +75,9 @@ const LEGACY_DUMP_TOOL_RESULT_POLICIES: Partial<
     runMetricQuery: 'strip_rows',
     improveContext: 'omit',
     submitDiscoverFieldsResult: 'keep',
+    generateBarVizConfig: 'keep',
+    generateTableVizConfig: 'keep',
+    generateTimeSeriesVizConfig: 'keep',
 };
 
 export const DUMP_UNCLASSIFIED_RESULT_OMITTED = 'unclassified tool result';

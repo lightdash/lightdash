@@ -546,11 +546,13 @@ const explorerSlice = createSlice({
             );
         },
 
-        // Table calculations
+        // Table calculation changes must run even when auto-fetch is disabled,
+        // so a broken calculation can recover as soon as it is fixed or removed.
         addTableCalculation: (
             state,
             action: PayloadAction<TableCalculation>,
         ) => {
+            state.queryExecution.pendingFetch = true;
             state.unsavedChartVersion.metricQuery.tableCalculations.push(
                 action.payload,
             );
@@ -578,6 +580,8 @@ const explorerSlice = createSlice({
         ) => {
             const { oldName, tableCalculation } = action.payload;
             const newName = tableCalculation.name;
+
+            state.queryExecution.pendingFetch = true;
 
             // Update metadata to track the name change, this is used
             // by consuming visualizations to translate old field names
@@ -628,6 +632,8 @@ const explorerSlice = createSlice({
         },
         deleteTableCalculation: (state, action: PayloadAction<string>) => {
             const nameToRemove = action.payload;
+
+            state.queryExecution.pendingFetch = true;
 
             // Remove from metadata if it exists
             if (state.metadata?.tableCalculations) {

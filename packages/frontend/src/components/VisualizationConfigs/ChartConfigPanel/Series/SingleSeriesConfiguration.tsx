@@ -202,6 +202,18 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 });
                             }}
                         />
+                        {type === CartesianSeriesType.LINE && (
+                            <LineStyleSelect
+                                label={isGrouped ? undefined : 'Line style'}
+                                value={series.lineStyle}
+                                onChange={(lineStyle) => {
+                                    updateSingleSeries({
+                                        ...series,
+                                        lineStyle,
+                                    });
+                                }}
+                            />
+                        )}
 
                         <Select
                             allowDeselect={false}
@@ -366,19 +378,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     </Group>
                     {(type === CartesianSeriesType.LINE ||
                         type === CartesianSeriesType.AREA) && (
-                        <Group gap="xs" align="end">
-                            {type === CartesianSeriesType.LINE && (
-                                <LineStyleSelect
-                                    label={isGrouped ? undefined : 'Line style'}
-                                    value={series.lineStyle}
-                                    onChange={(lineStyle) => {
-                                        updateSingleSeries({
-                                            ...series,
-                                            lineStyle,
-                                        });
-                                    }}
-                                />
-                            )}
+                        <Group gap="xs" wrap="nowrap">
                             <Checkbox
                                 size="xs"
                                 classNames={{

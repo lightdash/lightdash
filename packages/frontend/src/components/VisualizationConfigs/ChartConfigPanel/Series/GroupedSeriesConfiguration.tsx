@@ -202,6 +202,17 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                 });
                             }}
                         />
+                        {chartValue === CartesianSeriesType.LINE && (
+                            <LineStyleSelect
+                                label="Line style"
+                                value={groupedLineStyle}
+                                onChange={(lineStyle) => {
+                                    updateAllGroupedSeries(fieldKey, {
+                                        lineStyle,
+                                    });
+                                }}
+                            />
+                        )}
 
                         <Select
                             allowDeselect={false}
@@ -293,18 +304,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     </Group>
                     {(chartValue === CartesianSeriesType.LINE ||
                         chartValue === CartesianSeriesType.AREA) && (
-                        <Group gap="xs" align="end">
-                            {chartValue === CartesianSeriesType.LINE && (
-                                <LineStyleSelect
-                                    label="Line style"
-                                    value={groupedLineStyle}
-                                    onChange={(lineStyle) => {
-                                        updateAllGroupedSeries(fieldKey, {
-                                            lineStyle,
-                                        });
-                                    }}
-                                />
-                            )}
+                        <Group gap="xs" wrap="nowrap">
                             <Checkbox
                                 size="xs"
                                 classNames={{

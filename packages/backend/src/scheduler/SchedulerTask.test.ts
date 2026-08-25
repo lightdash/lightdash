@@ -796,7 +796,7 @@ describe('dedupeArtifactFilename', () => {
     });
 });
 
-describe('uploadGsheetFromQuery — rows branch', () => {
+describe('uploadGsheetFromQuery', () => {
     // SchedulerTask has 20+ constructor dependencies. We create minimal mocks
     // for only the services touched by the rows branch.
 
@@ -901,6 +901,73 @@ describe('uploadGsheetFromQuery — rows branch', () => {
         expect(mockAppendToSheet).toHaveBeenCalledTimes(1);
         expect(mockAppendToSheet.mock.calls[0][2]).toEqual(payload.rows);
         expect(mockExecuteMetricQueryAndGetResults).not.toHaveBeenCalled();
+    });
+
+    it('passes selected parameter values to the exported metric query', async () => {
+        const queryError = new Error('query failed');
+        const mockExecuteMetricQueryAndGetResults = vi
+            .fn()
+            .mockRejectedValue(queryError);
+        const task = makeTask({
+            googleDriveClient: {
+                isEnabled: true,
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['googleDriveClient'],
+            userService: {
+                getAccountByUserUuid: vi.fn().mockResolvedValue({
+                    user: { id: 'user-1' },
+                }),
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['userService'],
+            schedulerService: {
+                logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['schedulerService'],
+            analytics: {
+                trackAccount: vi.fn(),
+                track: vi.fn(),
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['analytics'],
+            asyncQueryService: {
+                executeMetricQueryAndGetResults:
+                    mockExecuteMetricQueryAndGetResults,
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['asyncQueryService'],
+        });
+        const parameters = { currency: 'EUR' };
+        const payload = {
+            source: 'metricQuery',
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            exploreId: 'orders',
+            metricQuery: {} as MetricQuery,
+            showTableNames: true,
+            columnOrder: [],
+            parameters,
+        } as UploadGsheetPayload;
+
+        await expect(
+            (
+                task as unknown as {
+                    uploadGsheetFromQuery(
+                        jobId: string,
+                        scheduledTime: Date,
+                        jobPayload: UploadGsheetPayload,
+                    ): Promise<void>;
+                }
+            ).uploadGsheetFromQuery('job-1', new Date(), payload),
+        ).rejects.toThrow(queryError);
+
+        expect(mockExecuteMetricQueryAndGetResults).toHaveBeenCalledWith(
+            expect.objectContaining({ parameters }),
+            expect.anything(),
+        );
     });
 });
 

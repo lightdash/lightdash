@@ -92,6 +92,7 @@ type Props = {
     value: CreateEmbedJwt['writeActions'] | undefined;
     onChange: (value: CreateEmbedJwt['writeActions'] | undefined) => void;
     required?: boolean;
+    fixedSpaceUuid?: string;
 };
 
 const EmbedWriteActionsForm: FC<Props> = ({
@@ -99,6 +100,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
     value,
     onChange,
     required = false,
+    fixedSpaceUuid,
 }) => {
     const { listAccounts, createAccount } = useServiceAccounts();
     const { listRoles } = useCustomRoles();
@@ -225,12 +227,21 @@ const EmbedWriteActionsForm: FC<Props> = ({
 
     useEffect(() => {
         const nextSpaceUuid =
-            value?.spaceUuid &&
-            spaces.some((space) => space.uuid === value.spaceUuid)
-                ? value.spaceUuid
-                : spaces[0]?.uuid;
+            fixedSpaceUuid &&
+            spaces.some((space) => space.uuid === fixedSpaceUuid)
+                ? fixedSpaceUuid
+                : value?.spaceUuid &&
+                    spaces.some((space) => space.uuid === value.spaceUuid)
+                  ? value.spaceUuid
+                  : spaces[0]?.uuid;
 
         setSelectedSpaceUuid((currentUuid) => {
+            if (
+                fixedSpaceUuid &&
+                spaces.some((space) => space.uuid === fixedSpaceUuid)
+            ) {
+                return fixedSpaceUuid;
+            }
             if (
                 currentUuid &&
                 spaces.some((space) => space.uuid === currentUuid)
@@ -239,7 +250,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
             }
             return nextSpaceUuid;
         });
-    }, [spaces, value?.spaceUuid]);
+    }, [fixedSpaceUuid, spaces, value?.spaceUuid]);
 
     useEffect(() => {
         if (!isEnabled || !selectedServiceAccount || !selectedSpace) {
@@ -446,6 +457,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
                                     fullWidth
                                     justify="space-between"
                                     loading={isLoadingSpaces}
+                                    disabled={fixedSpaceUuid !== undefined}
                                     rightSection={
                                         <MantineIcon icon={IconChevronDown} />
                                     }
@@ -494,8 +506,9 @@ const EmbedWriteActionsForm: FC<Props> = ({
                             </Menu.Dropdown>
                         </Menu>
                         <Text c="dimmed" fz="xs">
-                            Charts and other created content from this embed
-                            token are written to this space.
+                            {fixedSpaceUuid
+                                ? "This is the selected dashboard's space. Embedded dashboard editing requires created content to use the same space."
+                                : 'Charts and other created content from this embed token are written to this space.'}
                         </Text>
                     </Stack>
 

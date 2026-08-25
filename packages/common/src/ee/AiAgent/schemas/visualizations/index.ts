@@ -1,18 +1,7 @@
 import { z } from 'zod';
 
-export * from './tableViz';
-export * from './timeSeriesViz';
-export * from './verticalBarViz';
-
-const VisualizationTools = [
-    'generateBarVizConfig',
-    'generateTableVizConfig',
-    'generateTimeSeriesVizConfig',
-] as const;
-
 // define tool names
 export const ToolNameSchema = z.enum([
-    ...VisualizationTools,
     'generateDashboard',
     'generateHashes',
     'generateUuids',
@@ -88,9 +77,6 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     grepFields: 'Searching fields',
     getMetadata: 'Reading metadata',
     searchFieldValues: 'Searching field values',
-    generateBarVizConfig: 'Generating a bar chart',
-    generateTableVizConfig: 'Generating a table',
-    generateTimeSeriesVizConfig: 'Generating a line chart',
     generateDashboard: 'Generating a dashboard',
     generateHashes: 'Generating hashes',
     generateUuids: 'Generating UUIDs',
@@ -145,9 +131,6 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         findContent: 'Found relevant content',
         listContent: 'Listed content',
         searchFieldValues: 'Found field values',
-        generateBarVizConfig: 'Generated a bar chart',
-        generateTableVizConfig: 'Generated a table',
-        generateTimeSeriesVizConfig: 'Generated a line chart',
         generateDashboard: 'Generated a dashboard',
         generateHashes: 'Generated hashes',
         generateUuids: 'Generated UUIDs',
@@ -190,5 +173,3 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         delegateResearchTask: 'Delegated a research task',
         submitWorkerFindings: 'Saved task findings',
     });
-
-export const AVAILABLE_VISUALIZATION_TYPES = VisualizationTools;

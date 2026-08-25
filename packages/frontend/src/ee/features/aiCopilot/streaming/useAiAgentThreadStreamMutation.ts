@@ -482,9 +482,6 @@ export function useAiAgentThreadStreamMutation() {
                         switch (part.type) {
                             // TODO: this is a temporary solution
                             // there should be a way of leveraging ToolUIPart based on the tools available
-                            case 'tool-generateBarVizConfig':
-                            case 'tool-generateTableVizConfig':
-                            case 'tool-generateTimeSeriesVizConfig':
                             case 'tool-findExplores':
                             case 'tool-findCustomChartTypes':
                             case 'tool-findFields':

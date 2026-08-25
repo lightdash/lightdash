@@ -5,5 +5,6 @@ export enum CommercialFeatureFlags {
     ServiceAccounts = 'service-accounts',
     OrganizationWarehouseCredentials = 'organization-warehouse-credentials',
     CustomRoles = 'custom-roles',
+    DirectAccess = 'direct-access',
     HomepageBuilder = 'homepage-builder',
 }
