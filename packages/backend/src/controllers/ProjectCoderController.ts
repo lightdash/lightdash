@@ -10,6 +10,7 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiContentAsCodeSyncStatusResponse,
     type ApiDashboardAsCodeListResponse,
     type ApiDashboardAsCodeUpsertResponse,
     type ApiErrorPayload,
@@ -25,20 +26,20 @@ import {
     type ApiSqlChartAsCodeListResponse,
     type ApiSqlChartAsCodeUpsertResponse,
     type ApiSuccessEmpty,
+    type ApiUpsertContentAsCodeAppliedRevisionsResponse,
     type ApiVirtualViewAsCodeListResponse,
     type ApiVirtualViewAsCodeUpsertResponse,
-    type ApiContentAsCodeSyncStatusResponse,
-    type ApiUpsertContentAsCodeAppliedRevisionsResponse,
     type ChartAsCode,
-    type UpsertContentAsCodeAppliedRevisionsRequest,
     type ContentSlugRenameRequest,
     type DashboardAsCode,
     type ExternalConnectionAsCode,
     type GoogleSheetsSyncAsCode,
     type RegisteredAccount,
+    type RestampContentAsCodeRevisionRequest,
     type ScheduledDeliveryAsCode,
     type SpaceAsCode,
     type SqlChartAsCode,
+    type UpsertContentAsCodeAppliedRevisionsRequest,
     type VirtualViewAsCode,
 } from '@lightdash/common';
 import {
@@ -143,6 +144,33 @@ export class ProjectCoderController extends BaseController {
                 .getContentAsCodeSyncStatus(
                     toSessionUser(req.account),
                     projectUuid,
+                ),
+        );
+    }
+
+    /**
+     * Restamp last-applied snapshot to the current instance document so the next upload applies git
+     * @summary Restamp content-as-code applied revision
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/applied-revisions/restamp')
+    @OperationId('restampContentAsCodeAppliedRevision')
+    async restampContentAsCodeAppliedRevision(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: RestampContentAsCodeRevisionRequest,
+    ): Promise<ApiContentAsCodeSyncStatusResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getCoderService()
+                .restampContentAsCodeAppliedRevision(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    body,
                 ),
         );
     }

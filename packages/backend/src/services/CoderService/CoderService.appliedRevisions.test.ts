@@ -2,6 +2,7 @@ import { Ability, type RawRuleOf } from '@casl/ability';
 import {
     ContentAsCodeType,
     ForbiddenError,
+    NotFoundError,
     OrganizationMemberRole,
     ParameterError,
     PossibleAbilities,
@@ -47,6 +48,31 @@ const makeSessionUser = (
         abilityRules: [],
     }) as unknown as SessionUser;
 
+const emptyListPage = {
+    missingIds: [],
+    spaces: [],
+    languageMap: undefined,
+};
+
+const mockCurrentContent = (
+    service: CoderService,
+    charts: Array<{ slug: string; name: string }> = [],
+    dashboards: Array<{ slug: string; name: string }> = [],
+) => {
+    vi.spyOn(service, 'getCharts').mockResolvedValue({
+        ...emptyListPage,
+        charts: charts as never,
+        total: charts.length,
+        offset: 0,
+    });
+    vi.spyOn(service, 'getDashboards').mockResolvedValue({
+        ...emptyListPage,
+        dashboards: dashboards as never,
+        total: dashboards.length,
+        offset: 0,
+    });
+};
+
 const buildService = (appliedRevisionModel: {
     upsertMany: ReturnType<typeof vi.fn>;
     listByProject: ReturnType<typeof vi.fn>;
@@ -78,19 +104,89 @@ const buildService = (appliedRevisionModel: {
     });
 
 describe('CoderService applied revisions', () => {
-    it('returns an empty sync status when no revisions exist', async () => {
+    it('returns an empty sync status when no revisions or instance content exist', async () => {
         const appliedRevisionModel = {
             upsertMany: vi.fn(),
             listByProject: vi.fn(async () => []),
         };
         const service = buildService(appliedRevisionModel);
+        mockCurrentContent(service);
 
         await expect(
             service.getContentAsCodeSyncStatus(makeSessionUser(), PROJECT_UUID),
         ).resolves.toEqual({
+            syncEnabled: true,
             lastAppliedAt: null,
-            revisionCount: 0,
-            revisions: [],
+            items: [],
+        });
+    });
+
+    it('classifies instance charts as ui_only, in_sync, or ahead', async () => {
+        const appliedAt = new Date('2026-08-25T12:00:00.000Z');
+        const inSyncSnapshot = { slug: 'orders', name: 'Orders' };
+        const driftedSnapshot = { slug: 'revenue', name: 'Revenue yesterday' };
+        const appliedRevisionModel = {
+            upsertMany: vi.fn(),
+            listByProject: vi.fn(async () => [
+                {
+                    contentType: ContentAsCodeType.CHART,
+                    slug: 'orders',
+                    contentHash: hashContentAsCodeDocument(inSyncSnapshot),
+                    snapshot: inSyncSnapshot,
+                    appliedAt,
+                    appliedByUserUuid: USER_UUID,
+                },
+                {
+                    contentType: ContentAsCodeType.CHART,
+                    slug: 'revenue',
+                    contentHash: hashContentAsCodeDocument(driftedSnapshot),
+                    snapshot: driftedSnapshot,
+                    appliedAt,
+                    appliedByUserUuid: USER_UUID,
+                },
+            ]),
+        };
+        const service = buildService(appliedRevisionModel);
+        mockCurrentContent(service, [
+            { slug: 'new-from-ui', name: 'New from UI' },
+            { slug: 'orders', name: 'Orders' },
+            { slug: 'revenue', name: 'Revenue today' },
+        ]);
+
+        await expect(
+            service.getContentAsCodeSyncStatus(makeSessionUser(), PROJECT_UUID),
+        ).resolves.toEqual({
+            syncEnabled: true,
+            lastAppliedAt: appliedAt,
+            items: [
+                {
+                    contentType: ContentAsCodeType.CHART,
+                    slug: 'new-from-ui',
+                    state: 'ui_only',
+                    appliedAt: null,
+                    contentHash: null,
+                    snapshot: null,
+                    current: { slug: 'new-from-ui', name: 'New from UI' },
+                },
+                {
+                    contentType: ContentAsCodeType.CHART,
+                    slug: 'orders',
+                    state: 'in_sync',
+                    appliedAt,
+                    contentHash: hashContentAsCodeDocument(inSyncSnapshot),
+                    snapshot: inSyncSnapshot,
+                    current: { slug: 'orders', name: 'Orders' },
+                },
+                {
+                    contentType: ContentAsCodeType.CHART,
+                    slug: 'revenue',
+                    state: 'ahead',
+                    appliedAt,
+                    contentHash: hashContentAsCodeDocument(driftedSnapshot),
+                    snapshot: driftedSnapshot,
+                    current: { slug: 'revenue', name: 'Revenue today' },
+                },
+            ],
         });
     });
 
@@ -126,6 +222,7 @@ describe('CoderService applied revisions', () => {
             listByProject: vi.fn(async () => [revision]),
         };
         const service = buildService(appliedRevisionModel);
+        mockCurrentContent(service, [{ slug: 'orders', name: 'Orders' }]);
 
         await expect(
             service.upsertContentAsCodeAppliedRevisions(
@@ -143,9 +240,19 @@ describe('CoderService applied revisions', () => {
                 ],
             ),
         ).resolves.toEqual({
+            syncEnabled: true,
             lastAppliedAt: appliedAt,
-            revisionCount: 1,
-            revisions: [revision],
+            items: [
+                {
+                    contentType: ContentAsCodeType.CHART,
+                    slug: 'orders',
+                    state: 'in_sync',
+                    appliedAt,
+                    contentHash: revision.contentHash,
+                    snapshot,
+                    current: { slug: 'orders', name: 'Orders' },
+                },
+            ],
         });
         expect(appliedRevisionModel.upsertMany).toHaveBeenCalledWith(
             PROJECT_UUID,
@@ -181,6 +288,85 @@ describe('CoderService applied revisions', () => {
                 ],
             ),
         ).rejects.toBeInstanceOf(ParameterError);
+        expect(appliedRevisionModel.upsertMany).not.toHaveBeenCalled();
+    });
+
+    it('restamps last-applied to the current instance document', async () => {
+        const appliedAt = new Date('2026-08-25T13:00:00.000Z');
+        const current = { slug: 'orders', name: 'Orders edited in UI' };
+        const revision = {
+            contentType: ContentAsCodeType.CHART,
+            slug: 'orders',
+            contentHash: hashContentAsCodeDocument(current),
+            snapshot: current,
+            appliedAt,
+            appliedByUserUuid: USER_UUID,
+        };
+        const appliedRevisionModel = {
+            upsertMany: vi.fn(async () => undefined),
+            listByProject: vi.fn(async () => [revision]),
+        };
+        const service = buildService(appliedRevisionModel);
+        mockCurrentContent(service, [
+            { slug: 'orders', name: 'Orders edited in UI' },
+        ]);
+
+        await expect(
+            service.restampContentAsCodeAppliedRevision(
+                makeSessionUser(),
+                PROJECT_UUID,
+                {
+                    contentType: ContentAsCodeType.CHART,
+                    slug: 'orders',
+                },
+            ),
+        ).resolves.toEqual({
+            syncEnabled: true,
+            lastAppliedAt: appliedAt,
+            items: [
+                {
+                    contentType: ContentAsCodeType.CHART,
+                    slug: 'orders',
+                    state: 'in_sync',
+                    appliedAt,
+                    contentHash: revision.contentHash,
+                    snapshot: current,
+                    current,
+                },
+            ],
+        });
+        expect(appliedRevisionModel.upsertMany).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            USER_UUID,
+            [
+                {
+                    contentType: ContentAsCodeType.CHART,
+                    slug: 'orders',
+                    snapshot: current,
+                    contentHash: revision.contentHash,
+                },
+            ],
+        );
+    });
+
+    it('rejects restamp when the chart does not exist', async () => {
+        const appliedRevisionModel = {
+            upsertMany: vi.fn(),
+            listByProject: vi.fn(),
+        };
+        const service = buildService(appliedRevisionModel);
+        mockCurrentContent(service);
+
+        await expect(
+            service.restampContentAsCodeAppliedRevision(
+                makeSessionUser(),
+                PROJECT_UUID,
+                {
+                    contentType: ContentAsCodeType.CHART,
+                    slug: 'missing',
+                },
+            ),
+        ).rejects.toBeInstanceOf(NotFoundError);
         expect(appliedRevisionModel.upsertMany).not.toHaveBeenCalled();
     });
 });

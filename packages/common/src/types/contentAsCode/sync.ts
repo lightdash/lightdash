@@ -10,6 +10,8 @@ export type ContentAsCodeSnapshotType =
 
 export type ContentAsCodeSnapshot = Record<string, unknown>;
 
+export type ContentAsCodeSyncItemState = 'in_sync' | 'ahead' | 'ui_only';
+
 export type ContentAsCodeAppliedRevision = {
     contentType: ContentAsCodeSnapshotType;
     slug: string;
@@ -29,10 +31,25 @@ export type UpsertContentAsCodeAppliedRevisionsRequest = {
     revisions: ContentAsCodeAppliedRevisionInput[];
 };
 
+export type RestampContentAsCodeRevisionRequest = {
+    contentType: ContentAsCodeSnapshotType;
+    slug: string;
+};
+
+export type ContentAsCodeSyncItem = {
+    contentType: ContentAsCodeSnapshotType;
+    slug: string;
+    state: ContentAsCodeSyncItemState;
+    appliedAt: Date | null;
+    contentHash: string | null;
+    snapshot: ContentAsCodeSnapshot | null;
+    current: ContentAsCodeSnapshot | null;
+};
+
 export type ContentAsCodeSyncStatus = {
+    syncEnabled: boolean;
     lastAppliedAt: Date | null;
-    revisionCount: number;
-    revisions: ContentAsCodeAppliedRevision[];
+    items: ContentAsCodeSyncItem[];
 };
 
 export type ApiContentAsCodeSyncStatusResponse = {

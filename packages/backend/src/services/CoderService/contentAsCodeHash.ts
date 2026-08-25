@@ -20,14 +20,14 @@ const toCanonicalValue = (value: unknown): unknown => {
 
     const record = value as Record<string, unknown>;
     const canonical: Record<string, unknown> = {};
-    for (const key of Object.keys(record)
+    for (const fieldName of Object.keys(record)
         .filter(
-            (key) =>
-                !CONTENT_AS_CODE_TIMESTAMP_KEYS.has(key) &&
-                record[key] !== undefined,
+            (candidate) =>
+                !CONTENT_AS_CODE_TIMESTAMP_KEYS.has(candidate) &&
+                record[candidate] !== undefined,
         )
         .sort()) {
-        canonical[key] = toCanonicalValue(record[key]);
+        canonical[fieldName] = toCanonicalValue(record[fieldName]);
     }
     return canonical;
 };

@@ -22,7 +22,9 @@ import {
     ChartScheduledDeliveryAsCode,
     ChartSummary,
     ContentAsCodeAppliedRevisionInput,
+    ContentAsCodeSnapshot,
     ContentAsCodeSnapshotType,
+    ContentAsCodeSyncItem,
     ContentAsCodeSyncStatus,
     ContentAsCodeType,
     ContentSlugRenameRequest,
@@ -73,6 +75,7 @@ import {
     ProjectType,
     PromotionAction,
     PromotionChanges,
+    RestampContentAsCodeRevisionRequest,
     SavedChartDAO,
     ScheduledDeliveryAsCode,
     ScheduledDeliveryFormatAsCode,
@@ -2582,7 +2585,49 @@ export class CoderService extends BaseService {
             );
         }
 
-        return this.buildContentAsCodeSyncStatus(projectUuid);
+        return this.buildContentAsCodeSyncStatus(user, projectUuid);
+    }
+
+    async restampContentAsCodeAppliedRevision(
+        user: SessionUser,
+        projectUuid: string,
+        request: RestampContentAsCodeRevisionRequest,
+    ): Promise<ContentAsCodeSyncStatus> {
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        CoderService.checkContentAsCodeWriteAccess({
+            auditedAbility,
+            project,
+            slug: request.slug,
+        });
+        if (!isContentAsCodeSnapshotType(request.contentType)) {
+            throw new ParameterError('contentType must be chart or dashboard');
+        }
+        if (!request.slug || request.slug.trim().length === 0) {
+            throw new ParameterError('slug must not be empty');
+        }
+
+        const current = await this.getCurrentAsCodeDocument(
+            user,
+            projectUuid,
+            request.contentType,
+            request.slug,
+        );
+        if (!current) {
+            throw new NotFoundError(
+                `No ${request.contentType} with slug "${request.slug}" in this project`,
+            );
+        }
+
+        await this.recordAppliedRevision({
+            userUuid: user.userUuid,
+            projectUuid,
+            contentType: request.contentType,
+            slug: request.slug,
+            document: current,
+        });
+
+        return this.buildContentAsCodeSyncStatus(user, projectUuid);
     }
 
     async upsertContentAsCodeAppliedRevisions(
@@ -2635,7 +2680,7 @@ export class CoderService extends BaseService {
             normalized,
         );
 
-        return this.buildContentAsCodeSyncStatus(projectUuid);
+        return this.buildContentAsCodeSyncStatus(user, projectUuid);
     }
 
     private async syncVerification({
@@ -3473,17 +3518,165 @@ export class CoderService extends BaseService {
         );
     }
 
+    private async getCurrentAsCodeDocument(
+        user: SessionUser,
+        projectUuid: string,
+        contentType: ContentAsCodeSnapshotType,
+        slug: string,
+    ): Promise<ContentAsCodeSnapshot | null> {
+        if (contentType === ContentAsCodeType.CHART) {
+            const page = await this.getCharts(user, projectUuid, [slug]);
+            const chart = page.charts.find(
+                (candidate) => candidate.slug === slug,
+            );
+            return chart ? toCanonicalContentAsCodeSnapshot(chart) : null;
+        }
+
+        const page = await this.getDashboards(user, projectUuid, [slug]);
+        const dashboard = page.dashboards.find(
+            (candidate) => candidate.slug === slug,
+        );
+        return dashboard ? toCanonicalContentAsCodeSnapshot(dashboard) : null;
+    }
+
+    private async listCurrentAsCodeDocuments(
+        user: SessionUser,
+        projectUuid: string,
+        contentType: ContentAsCodeSnapshotType,
+        offset = 0,
+        documents = new Map<string, ContentAsCodeSnapshot>(),
+    ): Promise<Map<string, ContentAsCodeSnapshot>> {
+        if (contentType === ContentAsCodeType.CHART) {
+            const page = await this.getCharts(
+                user,
+                projectUuid,
+                undefined,
+                offset,
+            );
+            if (page.charts.length === 0) {
+                return documents;
+            }
+            for (const chart of page.charts) {
+                documents.set(
+                    chart.slug,
+                    toCanonicalContentAsCodeSnapshot(chart),
+                );
+            }
+            if (documents.size >= page.total) {
+                return documents;
+            }
+            return this.listCurrentAsCodeDocuments(
+                user,
+                projectUuid,
+                contentType,
+                page.offset + page.charts.length,
+                documents,
+            );
+        }
+
+        const page = await this.getDashboards(
+            user,
+            projectUuid,
+            undefined,
+            offset,
+        );
+        if (page.dashboards.length === 0) {
+            return documents;
+        }
+        for (const dashboard of page.dashboards) {
+            documents.set(
+                dashboard.slug,
+                toCanonicalContentAsCodeSnapshot(dashboard),
+            );
+        }
+        if (documents.size >= page.total) {
+            return documents;
+        }
+        return this.listCurrentAsCodeDocuments(
+            user,
+            projectUuid,
+            contentType,
+            page.offset + page.dashboards.length,
+            documents,
+        );
+    }
+
     private async buildContentAsCodeSyncStatus(
+        user: SessionUser,
         projectUuid: string,
     ): Promise<ContentAsCodeSyncStatus> {
         const revisions =
             (await this.contentAsCodeAppliedRevisionModel?.listByProject(
                 projectUuid,
             )) ?? [];
+        const [charts, dashboards] = await Promise.all([
+            this.listCurrentAsCodeDocuments(
+                user,
+                projectUuid,
+                ContentAsCodeType.CHART,
+            ),
+            this.listCurrentAsCodeDocuments(
+                user,
+                projectUuid,
+                ContentAsCodeType.DASHBOARD,
+            ),
+        ]);
+        const currentByKey = new Map<string, ContentAsCodeSnapshot>();
+        for (const [slug, document] of charts) {
+            currentByKey.set(`${ContentAsCodeType.CHART}:${slug}`, document);
+        }
+        for (const [slug, document] of dashboards) {
+            currentByKey.set(
+                `${ContentAsCodeType.DASHBOARD}:${slug}`,
+                document,
+            );
+        }
+
+        const revisionByKey = new Map(
+            revisions.map((revision) => [
+                `${revision.contentType}:${revision.slug}`,
+                revision,
+            ]),
+        );
+
+        const items: ContentAsCodeSyncItem[] = [...currentByKey.entries()]
+            .map(([contentKey, current]) => {
+                const separatorIndex = contentKey.indexOf(':');
+                const contentType = contentKey.slice(
+                    0,
+                    separatorIndex,
+                ) as ContentAsCodeSnapshotType;
+                const slug = contentKey.slice(separatorIndex + 1);
+                const revision = revisionByKey.get(contentKey);
+                const currentHash = hashContentAsCodeDocument(current);
+                let state: ContentAsCodeSyncItem['state'] = 'ui_only';
+                if (revision) {
+                    state =
+                        revision.contentHash === currentHash
+                            ? 'in_sync'
+                            : 'ahead';
+                }
+                return {
+                    contentType,
+                    slug,
+                    state,
+                    appliedAt: revision?.appliedAt ?? null,
+                    contentHash: revision?.contentHash ?? null,
+                    snapshot: revision?.snapshot ?? null,
+                    current,
+                };
+            })
+            .sort((left, right) => {
+                if (left.contentType === right.contentType) {
+                    return left.slug.localeCompare(right.slug);
+                }
+                return left.contentType.localeCompare(right.contentType);
+            });
+
         return {
+            syncEnabled: true,
             lastAppliedAt: revisions[0]?.appliedAt ?? null,
-            revisionCount: revisions.length,
-            revisions,
+            items,
         };
     }
 
