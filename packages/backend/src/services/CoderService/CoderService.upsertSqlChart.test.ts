@@ -106,6 +106,7 @@ const buildService = (
         contentAsCodeSnapshotModel: {
             upsert: vi.fn(),
         } as unknown as ContentAsCodeSnapshotModel,
+        contentAsCodeProjectSettingsModel: { upsert: vi.fn() } as never,
         contentVerificationModel: {} as unknown as ContentVerificationModel,
         groupsModel: {} as never,
         organizationMemberProfileModel: {} as never,

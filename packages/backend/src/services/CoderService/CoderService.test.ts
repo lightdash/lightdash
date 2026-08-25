@@ -987,6 +987,9 @@ describe('CoderService', () => {
                 contentAsCodeSnapshotModel: {
                     upsert: vi.fn(),
                 } as AnyType,
+                contentAsCodeProjectSettingsModel: {
+                    upsert: vi.fn(),
+                } as AnyType,
                 contentVerificationModel: {} as AnyType,
                 dashboardModel: {} as AnyType,
                 lightdashConfig: {} as AnyType,
@@ -1073,6 +1076,9 @@ describe('CoderService', () => {
                 contentAsCodeSnapshotModel: {
                     upsert: vi.fn(),
                 } as AnyType,
+                contentAsCodeProjectSettingsModel: {
+                    upsert: vi.fn(),
+                } as AnyType,
                 contentVerificationModel: {} as AnyType,
                 dashboardModel: {} as AnyType,
                 lightdashConfig: {} as AnyType,
@@ -1131,6 +1137,9 @@ describe('CoderService', () => {
             return new CoderService({
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
+                    upsert: vi.fn(),
+                } as AnyType,
+                contentAsCodeProjectSettingsModel: {
                     upsert: vi.fn(),
                 } as AnyType,
                 contentVerificationModel: {} as AnyType,
@@ -1253,6 +1262,9 @@ describe('CoderService', () => {
                 contentAsCodeSnapshotModel: {
                     upsert: vi.fn(),
                 } as AnyType,
+                contentAsCodeProjectSettingsModel: {
+                    upsert: vi.fn(),
+                } as AnyType,
                 contentVerificationModel: {} as AnyType,
                 dashboardModel: {} as AnyType,
                 lightdashConfig: {} as AnyType,
@@ -1321,6 +1333,9 @@ describe('CoderService', () => {
             const service = new CoderService({
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
+                    upsert: vi.fn(),
+                } as AnyType,
+                contentAsCodeProjectSettingsModel: {
                     upsert: vi.fn(),
                 } as AnyType,
                 contentVerificationModel: {} as AnyType,

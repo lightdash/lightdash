@@ -142,6 +142,7 @@ const buildService = () =>
             })),
         } as AnyType,
         contentAsCodeSnapshotModel: { upsert: vi.fn() } as AnyType,
+        contentAsCodeProjectSettingsModel: { upsert: vi.fn() } as AnyType,
         contentVerificationModel: {} as AnyType,
         groupsModel: {} as AnyType,
         organizationMemberProfileModel: {} as AnyType,

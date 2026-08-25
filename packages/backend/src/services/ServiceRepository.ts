@@ -25,6 +25,7 @@ import { CatalogService } from './CatalogService/CatalogService';
 import { CiService } from './CiService/CiService';
 import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
+import { ContentAsCodeWritebackService } from './ContentAsCodeWritebackService/ContentAsCodeWritebackService';
 import { ContentService } from './ContentService/ContentService';
 import { ContentVerificationService } from './ContentVerificationService';
 import { CsvService } from './CsvService/CsvService';
@@ -147,6 +148,7 @@ interface ServiceManifest {
     contentService: ContentService;
     contentVerificationService: ContentVerificationService;
     coderService: CoderService;
+    contentAsCodeWritebackService: ContentAsCodeWritebackService;
     featureFlagService: FeatureFlagService;
     funnelService: FunnelService;
     spotlightService: SpotlightService;
@@ -1004,6 +1006,8 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     lightdashConfig: this.context.lightdashConfig,
                     projectModel: this.models.getProjectModel(),
+                    contentAsCodeProjectSettingsModel:
+                        this.models.getContentAsCodeProjectSettingsModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),
                     analyticsModel: this.models.getAnalyticsModel(),
@@ -1252,6 +1256,24 @@ export class ServiceRepository
         );
     }
 
+    public getContentAsCodeWritebackService(): ContentAsCodeWritebackService {
+        return this.getService(
+            'contentAsCodeWritebackService',
+            () =>
+                new ContentAsCodeWritebackService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    gitIntegrationService: this.getGitIntegrationService(),
+                    coderService: this.getCoderService(),
+                    contentAsCodeProjectSettingsModel:
+                        this.models.getContentAsCodeProjectSettingsModel(),
+                    contentAsCodeSnapshotModel:
+                        this.models.getContentAsCodeSnapshotModel(),
+                    contentAsCodeWritebackModel:
+                        this.models.getContentAsCodeWritebackModel(),
+                }),
+        );
+    }
+
     public getCoderService(): CoderService {
         return this.getService(
             'coderService',
@@ -1274,6 +1296,8 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     contentAsCodeSnapshotModel:
                         this.models.getContentAsCodeSnapshotModel(),
+                    contentAsCodeProjectSettingsModel:
+                        this.models.getContentAsCodeProjectSettingsModel(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                     projectService: this.getProjectService(),

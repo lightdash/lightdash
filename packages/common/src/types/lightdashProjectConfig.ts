@@ -108,6 +108,11 @@ export type ContentAsCodeConfig = {
      * exit 1). When false or omitted, drift is only reported as warnings.
      */
     sync?: boolean;
+    /**
+     * When true (requires sync), UI saves of managed content open or update
+     * a pull request against the connected repo instead of drifting.
+     */
+    write_back?: boolean;
 };
 
 export type LightdashProjectConfig = {

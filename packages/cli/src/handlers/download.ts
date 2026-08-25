@@ -3489,6 +3489,23 @@ export const uploadHandler = async (
         syncEnforced: projectConfig.content_as_code?.sync === true,
         overwriteDrifted: options.overwriteDrifted === true,
     };
+    try {
+        await lightdashApi({
+            method: 'POST',
+            url: `/api/v1/projects/${projectId}/code/sync-settings`,
+            body: JSON.stringify({
+                sync: projectConfig.content_as_code?.sync === true,
+                writeBack: projectConfig.content_as_code?.write_back === true,
+            }),
+        });
+    } catch (error) {
+        // Older servers don't have this endpoint; settings stamping is advisory
+        GlobalState.debug(
+            `Could not stamp content-as-code settings: ${getErrorMessage(
+                error,
+            )}`,
+        );
+    }
 
     let changes: Record<string, number> = {};
     const counts: ProjectContentAsCodeCounts = {};

@@ -12,6 +12,11 @@
                     "type": "boolean",
                     "default": false,
                     "description": "When true, uploads refuse to overwrite content that changed on the instance since the last upload (skipped, exit 1). When false, drift is reported as warnings only."
+                },
+                "write_back": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "When true (requires sync), UI saves of managed content open or update a pull request against the connected repo instead of drifting."
                 }
             },
             "additionalProperties": false

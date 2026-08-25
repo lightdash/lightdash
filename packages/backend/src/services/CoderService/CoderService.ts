@@ -102,6 +102,7 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { getAccountApiAccessContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AppModel } from '../../models/AppModel';
+import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
 import {
     ContentAsCodeSnapshotModel,
     type ContentAsCodeSnapshotType,
@@ -186,6 +187,7 @@ type CoderServiceArguments = {
     promoteService: PromoteService;
     spacePermissionService: SpacePermissionService;
     contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
     contentVerificationModel: ContentVerificationModel;
     projectService?: ProjectService;
     groupsModel: GroupsModel;
@@ -236,6 +238,7 @@ export class CoderService extends BaseService {
     spacePermissionService: SpacePermissionService;
 
     contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
 
     contentVerificationModel: ContentVerificationModel;
 
@@ -275,6 +278,7 @@ export class CoderService extends BaseService {
         promoteService,
         spacePermissionService,
         contentAsCodeSnapshotModel,
+        contentAsCodeProjectSettingsModel,
         contentVerificationModel,
         projectService,
         groupsModel,
@@ -298,6 +302,8 @@ export class CoderService extends BaseService {
         this.promoteService = promoteService;
         this.spacePermissionService = spacePermissionService;
         this.contentAsCodeSnapshotModel = contentAsCodeSnapshotModel;
+        this.contentAsCodeProjectSettingsModel =
+            contentAsCodeProjectSettingsModel;
         this.contentVerificationModel = contentVerificationModel;
         this.projectService = projectService;
         this.groupsModel = groupsModel;
@@ -2786,9 +2792,7 @@ export class CoderService extends BaseService {
 
     // The instance content in its canonical as-code form — the same document
     // an upload of the current state would have applied.
-    private async getCurrentChartAsCode(
-        chartUuid: string,
-    ): Promise<ChartAsCode> {
+    async getCurrentChartAsCode(chartUuid: string): Promise<ChartAsCode> {
         const chart = await this.savedChartModel.get(chartUuid);
         const spaces = await this.spaceModel.find({
             spaceUuids: chart.spaceUuid ? [chart.spaceUuid] : [],
@@ -2827,6 +2831,40 @@ export class CoderService extends BaseService {
             spaces,
             verificationMap,
         );
+    }
+
+    // The repo's content_as_code flags travel with uploads; stamping them as
+    // project-level state is how the instance (settings UI, write-back)
+    // learns what the repo has opted into.
+    async stampContentAsCodeSettings(
+        user: SessionUser,
+        projectUuid: string,
+        settings: { sync: boolean; writeBack: boolean },
+    ): Promise<void> {
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ContentAsCode', {
+                    projectUuid: project.projectUuid,
+                    organizationUuid: project.organizationUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
+                    metadata: { slug: '' },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `You don't have permission to update content-as-code settings on this project`,
+            );
+        }
+        await this.contentAsCodeProjectSettingsModel.upsert({
+            projectUuid,
+            syncEnabled: settings.sync,
+            writeBackEnabled: settings.sync && settings.writeBack,
+        });
     }
 
     // Drift detection is best-effort: a failure here must not block uploads,

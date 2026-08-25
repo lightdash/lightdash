@@ -117,7 +117,7 @@ export class GitIntegrationService extends BaseService {
      * provider, so a failure to persist the record must never surface to the
      * caller or undo the write-back.
      */
-    private async recordPullRequest({
+    async recordPullRequest({
         user,
         projectUuid,
         type,
