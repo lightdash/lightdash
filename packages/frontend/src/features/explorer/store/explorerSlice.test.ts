@@ -135,6 +135,20 @@ describe('explorerSlice chart type authoring', () => {
         ).toBeUndefined();
     });
 
+    it('comes back to no viz after visiting another type', () => {
+        const back = explorerReducer(
+            explorerReducer(
+                authoringNew,
+                explorerActions.setChartType({ chartType: ChartType.TABLE }),
+            ),
+            explorerActions.setChartType({ chartType: ChartType.DATA_APP_VIZ }),
+        );
+
+        expect(back.unsavedChartVersion.chartConfig).toStrictEqual({
+            type: ChartType.DATA_APP_VIZ,
+        });
+    });
+
     it('starts a new type again from a chart with no viz', () => {
         const again = explorerReducer(
             authoringNew,

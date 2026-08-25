@@ -59,7 +59,7 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
         : null;
     const { data: selectedProjectType } = useDataAppVisualization(
         projectUuid,
-        dataAppVizUuid ?? undefined,
+        dataAppVizUuid,
         null,
     );
     const canEditChartType = useCanEditDataAppChecker(projectUuid);

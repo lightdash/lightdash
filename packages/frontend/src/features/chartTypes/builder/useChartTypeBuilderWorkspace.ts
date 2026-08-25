@@ -247,11 +247,7 @@ export const useChartTypeBuilderWorkspace = ({
     // The schema follows the preview: the options beside a version are the
     // ones that version declares.
     const { data: dataAppViz, isFetching: isFetchingSchema } =
-        useDataAppVisualization(
-            projectUuid,
-            dataAppVizUuid ?? undefined,
-            previewVersion,
-        );
+        useDataAppVisualization(projectUuid, dataAppVizUuid, previewVersion);
 
     const onViewVersion = useCallback(
         (version: number | null) => {

@@ -31,9 +31,8 @@ describe('getValidChartConfig', () => {
         expect(
             getValidChartConfig(ChartType.DATA_APP_VIZ, cached).config,
         ).toEqual(cached[ChartType.DATA_APP_VIZ].chartConfig);
-        expect(getValidChartConfig(ChartType.DATA_APP_VIZ, {})).toEqual({
+        expect(getValidChartConfig(ChartType.DATA_APP_VIZ, {})).toStrictEqual({
             type: ChartType.DATA_APP_VIZ,
-            config: {},
         });
     });
 });
