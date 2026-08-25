@@ -496,7 +496,7 @@ describe('ExplorerChartTypeAuthoring', () => {
         });
     });
 
-    it('leaves a new type on the empty custom config until it has a version', () => {
+    it('leaves a new type without a viz until it has a version', () => {
         vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
             newTypeWorkspace(),
         );
@@ -504,14 +504,7 @@ describe('ExplorerChartTypeAuthoring', () => {
 
         expect(
             store.getState().explorer.unsavedChartVersion.chartConfig,
-        ).toEqual({
-            type: ChartType.DATA_APP_VIZ,
-            config: {
-                dataAppVizUuid: '',
-                fieldMapping: {},
-                optionValues: {},
-            },
-        });
+        ).toStrictEqual({ type: ChartType.DATA_APP_VIZ });
         expect(previewContexts.at(-1)).toBeNull();
     });
 

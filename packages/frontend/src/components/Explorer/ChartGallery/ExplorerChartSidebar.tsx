@@ -56,10 +56,10 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
     const { getSelectedChartTypeItem } = useChartTypeOptions();
     const dataAppVizUuid = isDataAppVizVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig.dataAppVizUuid
-        : undefined;
+        : null;
     const { data: selectedProjectType } = useDataAppVisualization(
         projectUuid,
-        dataAppVizUuid,
+        dataAppVizUuid ?? undefined,
         null,
     );
     const canEditChartType = useCanEditDataAppChecker(projectUuid);
@@ -165,7 +165,7 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                             size="sm"
                                             aria-label="Edit chart type"
                                             onClick={() =>
-                                                dataAppVizUuid &&
+                                                dataAppVizUuid !== null &&
                                                 dispatch(
                                                     explorerActions.startChartTypeAuthoring(
                                                         { dataAppVizUuid },

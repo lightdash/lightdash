@@ -21,6 +21,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { type SelectedDataAppViz } from '../../../hooks/useDataAppVizVisualizationConfig';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useIsInsideChartGallery } from '../../common/ChartGallery/ChartGalleryContext';
@@ -51,18 +52,20 @@ export const ConfigTabs: FC = memo(() => {
     const isDataAppViz = isDataAppVizVisualizationConfig(visualizationConfig);
     const dataAppVizUuid = isDataAppViz
         ? visualizationConfig.chartConfig.dataAppVizUuid
-        : '';
+        : null;
 
     // A chart renders the viz's latest ready version, so its options come from
     // that version's declaration — unless the builder is previewing an older
     // version of this same viz, whose own declaration the panel then follows.
     const authoringVersion =
-        authoring !== null && authoring.dataAppVizUuid === dataAppVizUuid
+        authoring !== null &&
+        dataAppVizUuid !== null &&
+        authoring.dataAppVizUuid === dataAppVizUuid
             ? authoring.viewedVersion
             : null;
     const { data: dataAppViz } = useDataAppVisualization(
         projectUuid,
-        dataAppVizUuid || undefined,
+        dataAppVizUuid ?? undefined,
         authoringVersion,
     );
 
@@ -101,89 +104,103 @@ export const ConfigTabs: FC = memo(() => {
     if (!isDataAppViz) return null;
 
     const {
-        setDataAppVizUuid,
+        validConfig: selected,
+        clearDataAppViz,
         setField,
         setOption,
-        fieldMapping,
-        optionValues,
     } = visualizationConfig.chartConfig;
     const fields = dataAppViz?.schema?.fields ?? [];
-    const effectiveValues = getEffectiveOptionValues(
-        configOptions,
-        optionValues,
-    );
-    // The contract can change under a stable uuid when the viz is rebuilt, so
-    // what the selects show is the saved mapping reconciled against the
-    // contract and columns in force now — the same value the renderer uses.
-    const effectiveMapping = reconcileDataAppVizFieldMapping(
-        fields,
-        itemsMap ?? NO_COLUMNS,
-        fieldMapping,
-    );
 
-    const setMappingPivotDimensions = (
-        nextFields: typeof fields,
-        nextMapping: typeof effectiveMapping,
-    ) =>
-        setPivotDimensions(
-            deriveDataAppVizPivotConfig(nextFields, nextMapping)?.columns,
+    const selectedOption: CustomChartTypeOption | null =
+        selected !== null
+            ? { kind: 'projectType', dataAppVizUuid: selected.dataAppVizUuid }
+            : null;
+
+    const selectedTypeTabs = (selectedViz: SelectedDataAppViz) => {
+        const effectiveValues = getEffectiveOptionValues(
+            configOptions,
+            selectedViz.optionValues,
+        );
+        // A rebuild can change the contract under a stable uuid, so the selects
+        // show the saved mapping reconciled the way the renderer does.
+        const effectiveMapping = reconcileDataAppVizFieldMapping(
+            fields,
+            itemsMap ?? NO_COLUMNS,
+            selectedViz.fieldMapping,
         );
 
-    const handleFieldChange = (fieldName: string, fieldId: string | null) => {
-        const nextMapping = { ...effectiveMapping };
-        if (fieldId) nextMapping[fieldName] = fieldId;
-        else delete nextMapping[fieldName];
+        const handleFieldChange = (
+            fieldName: string,
+            fieldId: string | null,
+        ) => {
+            const nextMapping = { ...effectiveMapping };
+            if (fieldId) nextMapping[fieldName] = fieldId;
+            else delete nextMapping[fieldName];
 
-        setField(fieldName, fieldId);
-        setMappingPivotDimensions(fields, nextMapping);
-    };
+            setField(fieldName, fieldId);
+            setPivotDimensions(
+                deriveDataAppVizPivotConfig(fields, nextMapping)?.columns,
+            );
+        };
 
-    const selectedOption: CustomChartTypeOption | null = dataAppVizUuid
-        ? { kind: 'projectType', dataAppVizUuid }
-        : null;
-
-    const settings = (
-        <Stack>
-            <DataAppVizSettings
-                dataAppVizUuid={dataAppVizUuid}
-                itemsMap={itemsMap ?? NO_COLUMNS}
-                fields={fields}
-                fieldMapping={effectiveMapping}
-                onFieldChange={handleFieldChange}
-            />
-            {dataAppViz && !isInsideChartGallery && (
-                <Box className={classes.typeCard}>
-                    <Text fz="xs" fw={500}>
-                        {getAppDisplayName(
-                            dataAppViz.name,
-                            dataAppViz.dataAppVizUuid,
+        const settings = (
+            <Stack>
+                <DataAppVizSettings
+                    itemsMap={itemsMap ?? NO_COLUMNS}
+                    fields={fields}
+                    fieldMapping={effectiveMapping}
+                    onFieldChange={handleFieldChange}
+                />
+                {dataAppViz && !isInsideChartGallery && (
+                    <Box className={classes.typeCard}>
+                        <Text fz="xs" fw={500}>
+                            {getAppDisplayName(
+                                dataAppViz.name,
+                                dataAppViz.dataAppVizUuid,
+                            )}
+                        </Text>
+                        <Text fz="xs" c="dimmed" lh={1.5}>
+                            {dataAppViz.description || 'No description'}
+                        </Text>
+                        {canEditSelectedType && !isInsideChartGallery && (
+                            <Anchor
+                                component={Link}
+                                to={{
+                                    pathname: chartTypeBuilderPath(
+                                        projectUuid ?? '',
+                                        dataAppViz.dataAppVizUuid,
+                                    ),
+                                    search: location.search,
+                                }}
+                                fz="xs"
+                                fw={500}
+                                mt={4}
+                                display="inline-block"
+                            >
+                                Edit ↗
+                            </Anchor>
                         )}
-                    </Text>
-                    <Text fz="xs" c="dimmed" lh={1.5}>
-                        {dataAppViz.description || 'No description'}
-                    </Text>
-                    {canEditSelectedType && !isInsideChartGallery && (
-                        <Anchor
-                            component={Link}
-                            to={{
-                                pathname: chartTypeBuilderPath(
-                                    projectUuid ?? '',
-                                    dataAppViz.dataAppVizUuid,
-                                ),
-                                search: location.search,
-                            }}
-                            fz="xs"
-                            fw={500}
-                            mt={4}
-                            display="inline-block"
-                        >
-                            Edit ↗
-                        </Anchor>
-                    )}
-                </Box>
-            )}
-        </Stack>
-    );
+                    </Box>
+                )}
+            </Stack>
+        );
+
+        return (
+            <DataAppVizOptionTabs
+                // Remount on a viz switch so no control keeps the previous
+                // viz's draft edit.
+                key={`${selectedViz.dataAppVizUuid}:${optionContractKey}`}
+                generalContent={settings}
+                configOptions={configOptions}
+                values={effectiveValues}
+                onChange={(name, value) =>
+                    setOption(selectedViz.dataAppVizUuid, name, value)
+                }
+                colorPalette={colorPalette}
+                paletteControl={<ColorPaletteSection size="xs" />}
+            />
+        );
+    };
 
     return (
         <Box className={classes.panel}>
@@ -202,7 +219,7 @@ export const ConfigTabs: FC = memo(() => {
                             )
                         }
                         onClear={() => {
-                            setDataAppVizUuid('', {});
+                            clearDataAppViz();
                             setPivotDimensions(undefined);
                         }}
                         onCreateNew={
@@ -223,20 +240,8 @@ export const ConfigTabs: FC = memo(() => {
                 )}
 
                 {/* With nothing selected the tabs would only be an empty row. */}
-                {dataAppVizUuid ? (
-                    <DataAppVizOptionTabs
-                        // Remount on a viz switch so no control keeps the
-                        // previous viz's draft edit.
-                        key={`${dataAppVizUuid}:${optionContractKey}`}
-                        generalContent={settings}
-                        configOptions={configOptions}
-                        values={effectiveValues}
-                        onChange={(name, value) =>
-                            setOption(dataAppVizUuid, name, value)
-                        }
-                        colorPalette={colorPalette}
-                        paletteControl={<ColorPaletteSection size="xs" />}
-                    />
+                {selected !== null ? (
+                    selectedTypeTabs(selected)
                 ) : isAuthoring ? (
                     <Text size="xs" c="dimmed">
                         Describe the chart type you need. Its bindings and

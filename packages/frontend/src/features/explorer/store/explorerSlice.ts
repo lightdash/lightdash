@@ -62,6 +62,10 @@ function saveConfigToCache<T extends ChartType>(
     } as ConfigCacheMap[T];
 }
 
+// `current` rejects undefined, and a data app viz chart may carry no config.
+const snapshotChartConfig = (config: ChartConfig['config']) =>
+    config === undefined ? undefined : current(config);
+
 const initialState: ExplorerSliceState = defaultState;
 
 const removePivotValuesFromSorts = (sorts: SortField[]): SortField[] => {
@@ -351,8 +355,8 @@ const explorerSlice = createSlice({
             state.chartSidebarStep = action.payload;
         },
 
-        // A new type starts as the empty custom config until its first version
-        // lands; what was there before is kept so cancelling restores it.
+        // A new type has no viz to point at until its first version lands;
+        // what was there before is kept so cancelling restores it.
         startChartTypeAuthoring: (
             state,
             action: PayloadAction<{ dataAppVizUuid: string | null }>,
@@ -379,7 +383,7 @@ const explorerSlice = createSlice({
                 saveConfigToCache(
                     state.cachedChartConfigs,
                     before.type,
-                    current(before.config),
+                    snapshotChartConfig(before.config),
                     beforePivotConfig
                         ? (current(
                               beforePivotConfig,
@@ -388,11 +392,6 @@ const explorerSlice = createSlice({
                 );
                 state.unsavedChartVersion.chartConfig = {
                     type: ChartType.DATA_APP_VIZ,
-                    config: {
-                        dataAppVizUuid: '',
-                        fieldMapping: {},
-                        optionValues: {},
-                    },
                 };
                 state.unsavedChartVersion.pivotConfig = undefined;
             }
@@ -606,7 +605,7 @@ const explorerSlice = createSlice({
             saveConfigToCache(
                 state.cachedChartConfigs,
                 before.type,
-                current(before.config),
+                snapshotChartConfig(before.config),
                 beforePivotConfig
                     ? (current(beforePivotConfig) as SavedChart['pivotConfig'])
                     : undefined,

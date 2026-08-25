@@ -100,7 +100,7 @@ describe('explorerSlice chart type authoring', () => {
         explorerActions.startChartTypeAuthoring({ dataAppVizUuid: null }),
     );
 
-    it('moves a new type onto the empty custom config and shows Configure', () => {
+    it('moves a new type onto a chart with no viz yet and shows Configure', () => {
         expect(authoringNew.chartTypeAuthoring).toEqual({
             dataAppVizUuid: null,
             viewedVersion: null,
@@ -111,15 +111,69 @@ describe('explorerSlice chart type authoring', () => {
                 pivotConfig: undefined,
             },
         });
-        expect(authoringNew.unsavedChartVersion.chartConfig).toEqual({
+        expect(authoringNew.unsavedChartVersion.chartConfig).toStrictEqual({
             type: ChartType.DATA_APP_VIZ,
-            config: { dataAppVizUuid: '', fieldMapping: {}, optionValues: {} },
         });
         expect(authoringNew.chartSidebarStep).toBe('configure');
         expect(authoringNew.isVisualizationConfigOpen).toBe(true);
         expect(
             authoringNew.cachedChartConfigs[ChartType.CARTESIAN]?.chartConfig,
         ).toEqual(fromChoose.unsavedChartVersion.chartConfig.config);
+    });
+
+    it('switches away from a chart with no viz without a config to cache', () => {
+        const switched = explorerReducer(
+            authoringNew,
+            explorerActions.setChartType({ chartType: ChartType.TABLE }),
+        );
+
+        expect(switched.unsavedChartVersion.chartConfig.type).toBe(
+            ChartType.TABLE,
+        );
+        expect(
+            switched.cachedChartConfigs[ChartType.DATA_APP_VIZ]?.chartConfig,
+        ).toBeUndefined();
+    });
+
+    it('starts a new type again from a chart with no viz', () => {
+        const again = explorerReducer(
+            authoringNew,
+            explorerActions.startChartTypeAuthoring({ dataAppVizUuid: null }),
+        );
+
+        expect(again.unsavedChartVersion.chartConfig).toStrictEqual({
+            type: ChartType.DATA_APP_VIZ,
+        });
+    });
+
+    it('points at no viz through setChartConfig even with a viz cached', () => {
+        const vizConfig = {
+            dataAppVizUuid: 'viz-1',
+            fieldMapping: {},
+            optionValues: {},
+        };
+        const onViz = explorerReducer(
+            fromChoose,
+            explorerActions.setChartConfig({
+                chartConfig: {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: vizConfig,
+                },
+            }),
+        );
+        const created = [
+            explorerActions.setChartType({ chartType: ChartType.DATA_APP_VIZ }),
+            explorerActions.setChartConfig({
+                chartConfig: { type: ChartType.DATA_APP_VIZ },
+            }),
+        ].reduce(explorerReducer, onViz);
+
+        expect(
+            created.cachedChartConfigs[ChartType.DATA_APP_VIZ]?.chartConfig,
+        ).toEqual(vizConfig);
+        expect(created.unsavedChartVersion.chartConfig).toStrictEqual({
+            type: ChartType.DATA_APP_VIZ,
+        });
     });
 
     it('keeps the chart as it is when revising an existing type', () => {

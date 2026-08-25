@@ -248,12 +248,13 @@ const queryColumns: ItemsMap = {
 describe('DataAppVizConfigTabs', () => {
     const setOption = vi.fn();
     const setDataAppVizUuid = vi.fn();
+    const clearDataAppViz = vi.fn();
     const setField = vi.fn();
     const setPivotDimensions = vi.fn();
 
     const mockContext = (
         itemsMap: ItemsMap,
-        dataAppVizUuid: string = 'data-app-viz-uuid',
+        dataAppVizUuid: string | null = 'data-app-viz-uuid',
         optionValues: Record<string, boolean | number | string> = {},
         fieldMapping: Record<string, string> = {},
     ) =>
@@ -263,10 +264,13 @@ describe('DataAppVizConfigTabs', () => {
             visualizationConfig: {
                 chartType: ChartType.DATA_APP_VIZ,
                 chartConfig: {
+                    validConfig:
+                        dataAppVizUuid === null
+                            ? null
+                            : { dataAppVizUuid, fieldMapping, optionValues },
                     dataAppVizUuid,
-                    fieldMapping,
-                    optionValues,
                     setDataAppVizUuid,
+                    clearDataAppViz,
                     setField,
                     setOption,
                 },
@@ -282,6 +286,7 @@ describe('DataAppVizConfigTabs', () => {
         navigate.mockClear();
         setOption.mockClear();
         setDataAppVizUuid.mockClear();
+        clearDataAppViz.mockClear();
         setField.mockClear();
         setPivotDimensions.mockClear();
         defaultAbility.update([]);
@@ -467,7 +472,7 @@ describe('DataAppVizConfigTabs', () => {
 
     it('points builders at the dedicated builder when nothing is selected', async () => {
         signInAs(OrganizationMemberRole.EDITOR);
-        mockContext(queryColumns, '');
+        mockContext(queryColumns, null);
         vi.mocked(useDataAppVisualization).mockReturnValue({
             data: undefined,
         } as unknown as ReturnType<typeof useDataAppVisualization>);
@@ -482,7 +487,7 @@ describe('DataAppVizConfigTabs', () => {
 
     it('keeps the Explorer query in builder links', async () => {
         signInAs(OrganizationMemberRole.EDITOR);
-        mockContext(queryColumns, '');
+        mockContext(queryColumns, null);
         locationSearch.current =
             '?create_saved_chart_version=serialized-query&fromSpace=space-1';
         vi.mocked(useDataAppVisualization).mockReturnValue({
@@ -506,7 +511,7 @@ describe('DataAppVizConfigTabs', () => {
 
     it('starts authoring in place from inside the chart gallery', async () => {
         signInAs(OrganizationMemberRole.EDITOR);
-        mockContext(queryColumns, '');
+        mockContext(queryColumns, null);
         vi.mocked(useDataAppVisualization).mockReturnValue({
             data: undefined,
         } as unknown as ReturnType<typeof useDataAppVisualization>);
@@ -530,7 +535,7 @@ describe('DataAppVizConfigTabs', () => {
 
     it('explains the empty configuration while a new type is being authored', async () => {
         signInAs(OrganizationMemberRole.EDITOR);
-        mockContext(queryColumns, '');
+        mockContext(queryColumns, null);
         authoringState.current = { dataAppVizUuid: null };
         vi.mocked(useDataAppVisualization).mockReturnValue({
             data: undefined,
@@ -554,7 +559,7 @@ describe('DataAppVizConfigTabs', () => {
 
     it('offers no builder link to who cannot create chart types', async () => {
         signInAs(OrganizationMemberRole.INTERACTIVE_VIEWER);
-        mockContext(queryColumns, '');
+        mockContext(queryColumns, null);
         vi.mocked(useDataAppVisualization).mockReturnValue({
             data: undefined,
         } as unknown as ReturnType<typeof useDataAppVisualization>);

@@ -13,8 +13,6 @@ import FieldSelect from '../../common/FieldSelect';
 import { Config } from '../common/Config';
 
 type Props = {
-    /** The visualization the chart points at; empty when it points at none. */
-    dataAppVizUuid: string;
     itemsMap: ItemsMap;
     /** The contract's declared slots. */
     fields: DataAppVizField[];
@@ -30,7 +28,6 @@ type Props = {
  * separates them from the build session docked below.
  */
 const DataAppVizSettings: FC<Props> = ({
-    dataAppVizUuid,
     itemsMap,
     fields,
     fieldMapping,
@@ -46,7 +43,7 @@ const DataAppVizSettings: FC<Props> = ({
 
     return (
         <Stack>
-            {dataAppVizUuid && fields.length === 0 && (
+            {fields.length === 0 && (
                 <Text c="dimmed" size="sm">
                     This chart type has no fields to map.
                 </Text>
