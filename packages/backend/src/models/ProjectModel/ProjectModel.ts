@@ -835,6 +835,24 @@ export class ProjectModel {
             .where('project_uuid', projectUuid);
     }
 
+    async getContentAsCodeSyncEnabled(projectUuid: string): Promise<boolean> {
+        const [row] = await this.database(ProjectTableName)
+            .select('content_as_code_sync_enabled')
+            .where('project_uuid', projectUuid);
+        return row?.content_as_code_sync_enabled === true;
+    }
+
+    async setContentAsCodeSyncEnabled(
+        projectUuid: string,
+        enabled: boolean,
+    ): Promise<void> {
+        await this.database(ProjectTableName)
+            .update({
+                content_as_code_sync_enabled: enabled,
+            })
+            .where('project_uuid', projectUuid);
+    }
+
     async getPreviewExpirationSettings(projectUuid: string): Promise<{
         defaultPreviewExpirationHours: number;
         maxPreviewExpirationHours: number;

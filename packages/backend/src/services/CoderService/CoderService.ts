@@ -3673,8 +3673,11 @@ export class CoderService extends BaseService {
                 return left.contentType.localeCompare(right.contentType);
             });
 
+        const syncEnabled =
+            await this.projectModel.getContentAsCodeSyncEnabled(projectUuid);
+
         return {
-            syncEnabled: true,
+            syncEnabled,
             lastAppliedAt: revisions[0]?.appliedAt ?? null,
             items,
         };

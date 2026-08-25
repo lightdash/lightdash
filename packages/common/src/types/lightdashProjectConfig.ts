@@ -101,8 +101,18 @@ export type CustomGranularity = {
     type?: DimensionType.DATE | DimensionType.TIMESTAMP | DimensionType.STRING;
 };
 
+export type ContentAsCodeConfig = {
+    /**
+     * When true, content-as-code sync is enabled for this project.
+     * Uploads can refuse to overwrite instance-ahead content, and the
+     * settings panel is shown. When false or omitted, sync is off.
+     */
+    sync?: boolean;
+};
+
 export type LightdashProjectConfig = {
     spotlight: SpotlightConfig;
+    content_as_code?: ContentAsCodeConfig;
     parameters?: Record<string, LightdashProjectParameter>; // keys must be ^[a-zA-Z0-9_-]+$
     warehouse?: WarehouseConfig; // Required for Lightdash-only projects (no dbt)
     defaults?: ProjectDefaults; // Project-wide defaults for various settings

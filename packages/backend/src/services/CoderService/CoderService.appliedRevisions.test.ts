@@ -83,6 +83,7 @@ const buildService = (appliedRevisionModel: {
         projectModel: {
             get: vi.fn(async () => project),
             getSummary: vi.fn(async () => project),
+            getContentAsCodeSyncEnabled: vi.fn(async () => true),
         } as never,
         savedChartModel: {} as never,
         savedSqlModel: {} as never,
@@ -347,6 +348,47 @@ describe('CoderService applied revisions', () => {
                 },
             ],
         );
+    });
+
+    it('returns syncEnabled false when the compiled project config has not opted in', async () => {
+        const appliedRevisionModel = {
+            upsertMany: vi.fn(),
+            listByProject: vi.fn(async () => []),
+        };
+        const service = new CoderService({
+            lightdashConfig: lightdashConfigMock,
+            analytics: analyticsMock,
+            projectModel: {
+                get: vi.fn(async () => project),
+                getSummary: vi.fn(async () => project),
+                getContentAsCodeSyncEnabled: vi.fn(async () => false),
+            } as never,
+            savedChartModel: {} as never,
+            savedSqlModel: {} as never,
+            appModel: {} as never,
+            dashboardModel: {} as never,
+            spaceModel: {} as never,
+            schedulerModel: {} as never,
+            schedulerService: {} as never,
+            savedChartService: {} as never,
+            dashboardService: {} as never,
+            schedulerClient: {} as never,
+            promoteService: {} as never,
+            spacePermissionService: {} as never,
+            contentVerificationModel: {} as never,
+            contentAsCodeAppliedRevisionModel: appliedRevisionModel as never,
+            groupsModel: {} as never,
+            organizationMemberProfileModel: {} as never,
+            userModel: {} as never,
+        });
+        mockCurrentContent(service);
+
+        await expect(
+            service.getContentAsCodeSyncStatus(makeSessionUser(), PROJECT_UUID),
+        ).resolves.toMatchObject({
+            syncEnabled: false,
+            items: [],
+        });
     });
 
     it('rejects restamp when the chart does not exist', async () => {

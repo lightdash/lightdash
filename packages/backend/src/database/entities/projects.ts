@@ -48,6 +48,7 @@ export type DbProject = {
     results_cache_ttl_seconds: number | null;
     provisioning_source: string | null;
     agent_sql_scope: AgentSqlScope | null;
+    content_as_code_sync_enabled: boolean | null;
 };
 
 type CreateDbProject = Pick<
@@ -96,6 +97,7 @@ type UpdateDbProject = Partial<
         | 'results_cache_ttl_seconds'
         | 'provisioning_source'
         | 'agent_sql_scope'
+        | 'content_as_code_sync_enabled'
     >
 >;
 

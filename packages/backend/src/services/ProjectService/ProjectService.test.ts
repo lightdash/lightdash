@@ -233,6 +233,7 @@ const projectModel = {
     saveWarehouseToCache: vi.fn(async () => undefined),
     saveExploresToCache: vi.fn(async () => ({ cachedExploreUuids: [] })),
     setTableGroups: vi.fn(async () => undefined),
+    setContentAsCodeSyncEnabled: vi.fn(async () => undefined),
     updateProjectDefaults: vi.fn(async () => undefined),
     updateDefaultUserSpaces: vi.fn(async () => undefined),
     tryAcquireProjectLock: vi.fn(

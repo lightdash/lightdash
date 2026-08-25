@@ -3225,6 +3225,10 @@ export class ProjectService extends BaseService {
                         newProjectUuid,
                         lightdashProjectConfig.table_groups,
                     );
+                    await this.projectModel.setContentAsCodeSyncEnabled(
+                        newProjectUuid,
+                        lightdashProjectConfig.content_as_code?.sync === true,
+                    );
                     // Mirrors CLI deploy semantics: only overwrite stored
                     // defaults when the config file defines them
                     if (lightdashProjectConfig.defaults) {
@@ -3920,6 +3924,11 @@ export class ProjectService extends BaseService {
                             await this.projectModel.setTableGroups(
                                 projectUuid,
                                 lightdashProjectConfig.table_groups,
+                            );
+                            await this.projectModel.setContentAsCodeSyncEnabled(
+                                projectUuid,
+                                lightdashProjectConfig.content_as_code?.sync ===
+                                    true,
                             );
                             // Mirrors CLI deploy semantics: only overwrite
                             // stored defaults when the config file defines them
@@ -8755,6 +8764,11 @@ export class ProjectService extends BaseService {
                         await this.projectModel.setTableGroups(
                             projectUuid,
                             lightdashProjectConfig.table_groups,
+                        );
+                        await this.projectModel.setContentAsCodeSyncEnabled(
+                            projectUuid,
+                            lightdashProjectConfig.content_as_code?.sync ===
+                                true,
                         );
                         // Mirrors CLI deploy semantics: only overwrite stored
                         // defaults when the config file defines them
