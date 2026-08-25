@@ -1,11 +1,14 @@
 import {
     derivePivotConfigurationFromChart,
+    MERGE_URL_PARAM,
     MergeJoinType,
+    parseMergeState,
+    serializeMergeState,
     type ApiCompiledMergeQueryResults,
     type ApiError,
     type ApiExecuteAsyncMetricQueryResults,
-    type MergeQuery,
     type Filters,
+    type MergeQuery,
     type MergeQueryError,
     type ParametersValuesMap,
     type SavedChartDAO,
@@ -31,11 +34,6 @@ import {
 } from '../constants';
 import { executeMergeQuery } from '../hooks/useMergeQuery';
 import { MergeContext, type MergeFocus, type MergeJoinPart } from './context';
-import {
-    MERGE_URL_PARAM,
-    parseMergeState,
-    serializeMergeState,
-} from './mergeUrlState';
 import { restoreSavedMerge } from './restoreSavedMerge';
 
 /**

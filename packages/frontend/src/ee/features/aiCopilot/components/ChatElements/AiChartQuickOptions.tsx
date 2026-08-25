@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
 import {
+    canonicalizeAiMerge,
+    MERGE_URL_PARAM,
+    mergeUrlStateFromCanonicalAiMerge,
+    remapFieldIdsDeep,
+    serializeMergeState,
     type AiAgentMessageAssistant,
     type AiArtifact,
     type ApiError,
@@ -34,10 +39,6 @@ import { useVisualizationContext } from '../../../../../components/LightdashVisu
 import useEmbed from '../../../../../ee/providers/Embed/useEmbed';
 import { useChartVersionPreview } from '../../../../../features/apps/ChartVersionPreview/useChartVersionPreview';
 import { useDataAppVizRenderMetadata } from '../../../../../features/chartTypes/hooks/useDataAppVizRender';
-import {
-    MERGE_URL_PARAM,
-    serializeMergeState,
-} from '../../../../../features/mergeQuery/context/mergeUrlState';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import { useCreateShareMutation } from '../../../../../hooks/useShare';
@@ -62,10 +63,6 @@ import {
     buildAiSavedChartData,
     getCustomChartTypeConfig,
 } from '../../utils/aiSavedChartData';
-import {
-    canonicalizeAiMerge,
-    remapFieldIdsDeep,
-} from '../../utils/canonicalizeAiMerge';
 import { AiChartDownloadModal } from './AiChartDownloadModal';
 import {
     AiChartImageExportMenuItem,
@@ -340,7 +337,7 @@ export const AiChartQuickOptions = ({
             // (already canonical); until the schema loads there is no URL.
             if (customChartTypeConfig && !savedData) return undefined;
             const { fieldIdByAiFieldId } = canonicalMerge;
-            const [primary, additional] = canonicalMerge.mergeQuery.sources;
+            const [primary] = canonicalMerge.mergeQuery.sources;
             const url = getOpenInExploreUrl({
                 metricQuery: primary.metricQuery,
                 projectUuid,
@@ -355,28 +352,9 @@ export const AiChartQuickOptions = ({
             const search = new URLSearchParams(url.search);
             search.set(
                 MERGE_URL_PARAM,
-                serializeMergeState({
-                    focus: { kind: 'source', sourceId: primary.id },
-                    additionalSources: [
-                        {
-                            id: additional.id,
-                            exploreName: additional.metricQuery.exploreName,
-                            dimensions: additional.metricQuery.dimensions,
-                            metrics: additional.metricQuery.metrics,
-                            filters: additional.metricQuery.filters,
-                            additionalMetrics:
-                                additional.metricQuery.additionalMetrics,
-                            customDimensions:
-                                additional.metricQuery.customDimensions,
-                        },
-                    ],
-                    joinParts: canonicalMerge.mergeQuery.joinKey.map(
-                        (part) => ({
-                            fieldIdBySourceId: part.fieldIdBySourceId,
-                        }),
-                    ),
-                    joinType: canonicalMerge.mergeQuery.joinType,
-                }),
+                serializeMergeState(
+                    mergeUrlStateFromCanonicalAiMerge(canonicalMerge),
+                ),
             );
             return { pathname: url.pathname, search: search.toString() };
         }

@@ -1,14 +1,33 @@
-import { MergeJoinType, type Filters } from '@lightdash/common';
-import {
-    DEFAULT_ADDITIONAL_SOURCE_ID,
-    MAX_MERGE_SOURCES,
-    PRIMARY_SOURCE_ID,
-} from '../constants';
-import {
-    type MergeEditorSource,
-    type MergeFocus,
-    type MergeJoinPart,
-} from './context';
+import { type Filters } from './filter';
+import { MergeJoinType } from './mergeQuery';
+import { type MetricQuery } from './metricQuery';
+
+// The merge editor's canonical naming: sources take these fixed ids and join
+// keys `join_key_<i>`, so a merge built anywhere reads identically downstream.
+export const PRIMARY_SOURCE_ID = 'a';
+export const DEFAULT_ADDITIONAL_SOURCE_ID = 'b';
+export const MAX_MERGE_SOURCES = 2;
+export const JOIN_KEY = 'join_key';
+
+export type MergeEditorSource = {
+    id: string;
+    exploreName: string | null;
+    dimensions: string[];
+    metrics: string[];
+    filters: Filters;
+    /** Keep saved-query-only fields intact while the merge is edited. */
+    additionalMetrics?: MetricQuery['additionalMetrics'];
+    customDimensions?: MetricQuery['customDimensions'];
+};
+
+export type MergeFocus =
+    | { kind: 'source'; sourceId: string }
+    | { kind: 'join' };
+
+/** One part of the join key: the field each source contributes. */
+export type MergeJoinPart = {
+    fieldIdBySourceId: Record<string, string | null>;
+};
 
 /** Search param the merge relationship is kept in. */
 export const MERGE_URL_PARAM = 'merge';

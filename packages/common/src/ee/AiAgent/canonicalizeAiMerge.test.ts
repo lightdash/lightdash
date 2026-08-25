@@ -1,9 +1,9 @@
-import { MergeJoinType, type MergeQuery } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     parseMergeState,
     serializeMergeState,
-} from '../../../../features/mergeQuery/context/mergeUrlState';
+} from '../../types/mergeEditorState';
+import { MergeJoinType, type MergeQuery } from '../../types/mergeQuery';
 import { canonicalizeAiMerge, remapFieldIdsDeep } from './canonicalizeAiMerge';
 
 const aiMergeQuery: MergeQuery = {

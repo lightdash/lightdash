@@ -3,28 +3,41 @@ import {
     AiAgentMessageAssistantArtifact,
     AiAgentToolResult,
     AiArtifact,
+    canonicalizeAiMerge,
     ChartType,
     deriveDataAppVizPivotConfig,
     getDataAppVizChartFromArtifact,
     getGroupByDimensions,
+    getItemId,
     getItemMap,
     getWebAiChartConfig,
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     isToolEditDbtProjectResult,
     isToolSetupPreviewDeployResult,
+    MERGE_TABLE_NAME,
+    MERGE_URL_PARAM,
+    mergeUrlStateFromCanonicalAiMerge,
     parseAiArtifactChartConfig,
     parseVizConfig,
+    remapFieldIdsDeep,
+    serializeMergeState,
     SlackPrompt,
     type AiLegacySemanticChartArtifactConfig,
     type ChartConfig,
+    type DataAppVizChart,
     type DataAppVizField,
     type Explore,
+    type ToolRunQueryArgsTransformed,
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
 import { partition } from 'lodash';
 import { z } from 'zod';
 import type { SlackStreamChunk } from '../../../../clients/Slack/SlackClient';
+import {
+    buildAiMergeQuery,
+    buildAiMergeSourceConfigs,
+} from './buildAiMergeQuery';
 import { stripMemoryCitations } from './memoryCitation';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 
@@ -526,6 +539,98 @@ const buildSlackCardBlock = ({
         ...(actions?.length ? { actions: actions.slice(0, 3) } : {}),
     }) as unknown as Block;
 
+// Mirrors the web explore-from-here for merged custom answers: opens the merge
+// editor on the canonical primary source carrying the custom chart and pivot.
+const buildMergedCustomChartTypeExploreLink = async ({
+    vizTool,
+    dataAppVizChart,
+    schemaFields,
+    getExplore,
+    maxQueryLimit,
+    projectUuid,
+}: {
+    vizTool: ToolRunQueryArgsTransformed;
+    dataAppVizChart: DataAppVizChart;
+    schemaFields: DataAppVizField[];
+    getExplore: (exploreName: string) => Promise<Explore>;
+    maxQueryLimit: number;
+    projectUuid: string;
+}): Promise<{ path: string; params: string } | null> => {
+    const exploreNames = [
+        ...new Set(
+            buildAiMergeSourceConfigs(vizTool).map(
+                (source) => source.queryConfig.exploreName,
+            ),
+        ),
+    ];
+    const explores = new Map(
+        await Promise.all(
+            exploreNames.map(
+                async (name) => [name, await getExplore(name)] as const,
+            ),
+        ),
+    );
+    const mergeQuery = buildAiMergeQuery({
+        toolArgs: vizTool,
+        getExplore: (name) => {
+            const explore = explores.get(name);
+            if (!explore) throw new Error(`Explore not found: ${name}`);
+            return explore;
+        },
+        maxQueryLimit,
+    });
+    const canonical = canonicalizeAiMerge(mergeQuery);
+    if (!canonical) return null;
+
+    const { fieldIdByAiFieldId } = canonical;
+    const [primary, additional] = canonical.mergeQuery.sources;
+    const chartConfig: ChartConfig = remapFieldIdsDeep(
+        { type: ChartType.DATA_APP_VIZ, config: dataAppVizChart },
+        fieldIdByAiFieldId,
+    );
+    const pivotConfig = remapFieldIdsDeep(
+        deriveDataAppVizPivotConfig(schemaFields, dataAppVizChart.fieldMapping),
+        fieldIdByAiFieldId,
+    );
+    // Merged output columns: join keys, then each source's metrics and calcs.
+    const columnOrder = [
+        ...canonical.mergeQuery.joinKey.map((part) =>
+            getItemId({ table: MERGE_TABLE_NAME, name: part.name }),
+        ),
+        ...[primary, additional].flatMap((source) =>
+            [
+                ...source.metricQuery.metrics,
+                ...source.metricQuery.tableCalculations.map(
+                    (calculation) => calculation.name,
+                ),
+            ].map((column) => getItemId({ table: source.id, name: column })),
+        ),
+    ];
+
+    const search = new URLSearchParams();
+    search.set(
+        'create_saved_chart_version',
+        JSON.stringify({
+            tableName: primary.metricQuery.exploreName,
+            metricQuery: primary.metricQuery,
+            tableConfig: { columnOrder },
+            chartConfig,
+            ...(pivotConfig ? { pivotConfig } : {}),
+        }),
+    );
+    search.set(
+        MERGE_URL_PARAM,
+        serializeMergeState(mergeUrlStateFromCanonicalAiMerge(canonical)),
+    );
+    // Web explore-from-here links always carry this; it gates the auto-fetch.
+    search.set('isExploreFromHere', 'true');
+
+    return {
+        path: `/projects/${projectUuid}/tables/${primary.metricQuery.exploreName}`,
+        params: `?${search.toString()}`,
+    };
+};
+
 const getArtifactTitle = (artifact: AiArtifact) =>
     artifact.title ||
     (artifact.artifactType === 'dashboard'
@@ -732,12 +837,13 @@ export async function getModernArtifactCardBlocks(
                     },
                 };
                 let pivotConfig: { columns: string[] } | undefined;
-                if (
-                    artifact.chartConfig.source === 'customChartType' &&
-                    // Merged custom answers keep the merge fallback while
-                    // Slack rendering of custom chart types stays deferred.
-                    !vizConfig.vizTool.mergeConfig
-                ) {
+                // Whole URL for merged custom answers: the merge rides in its
+                // own search param beside the chart state.
+                let mergedCustomLink: {
+                    path: string;
+                    params: string;
+                } | null = null;
+                if (artifact.chartConfig.source === 'customChartType') {
                     // Mirror the web save flow: DATA_APP_VIZ config plus the
                     // type's schema-derived pivot. Without the schema (app
                     // deleted / invalid) keep the table fallback so the link
@@ -751,14 +857,33 @@ export async function getModernArtifactCardBlocks(
                           )
                         : null;
                     if (dataAppVizChart && schemaFields) {
-                        chartConfig = {
-                            type: ChartType.DATA_APP_VIZ,
-                            config: dataAppVizChart,
-                        };
-                        pivotConfig = deriveDataAppVizPivotConfig(
-                            schemaFields,
-                            dataAppVizChart.fieldMapping,
-                        );
+                        if (vizConfig.vizTool.mergeConfig) {
+                            try {
+                                mergedCustomLink =
+                                    await buildMergedCustomChartTypeExploreLink(
+                                        {
+                                            vizTool: vizConfig.vizTool,
+                                            dataAppVizChart,
+                                            schemaFields,
+                                            getExplore,
+                                            maxQueryLimit,
+                                            projectUuid:
+                                                slackPrompt.projectUuid,
+                                        },
+                                    );
+                            } catch {
+                                // keep the table fallback
+                            }
+                        } else {
+                            chartConfig = {
+                                type: ChartType.DATA_APP_VIZ,
+                                config: dataAppVizChart,
+                            };
+                            pivotConfig = deriveDataAppVizPivotConfig(
+                                schemaFields,
+                                dataAppVizChart.fieldMapping,
+                            );
+                        }
                     }
                 } else {
                     try {
@@ -785,18 +910,22 @@ export async function getModernArtifactCardBlocks(
                     }
                 }
 
-                const path = `/projects/${slackPrompt.projectUuid}/tables/${vizConfig.metricQuery.exploreName}`;
-                const params = `?create_saved_chart_version=${encodeURIComponent(
-                    JSON.stringify({
-                        tableName: vizConfig.metricQuery.exploreName,
-                        metricQuery: metricQueryWithSql,
-                        tableConfig: {
-                            columnOrder,
-                        },
-                        chartConfig,
-                        ...(pivotConfig ? { pivotConfig } : {}),
-                    }),
-                )}`;
+                const path =
+                    mergedCustomLink?.path ??
+                    `/projects/${slackPrompt.projectUuid}/tables/${vizConfig.metricQuery.exploreName}`;
+                const params =
+                    mergedCustomLink?.params ??
+                    `?create_saved_chart_version=${encodeURIComponent(
+                        JSON.stringify({
+                            tableName: vizConfig.metricQuery.exploreName,
+                            metricQuery: metricQueryWithSql,
+                            tableConfig: {
+                                columnOrder,
+                            },
+                            chartConfig,
+                            ...(pivotConfig ? { pivotConfig } : {}),
+                        }),
+                    )}`;
 
                 // Always link via a short /share URL — inlining the full chart
                 // state in the button URL exceeds Slack's URL length limits.

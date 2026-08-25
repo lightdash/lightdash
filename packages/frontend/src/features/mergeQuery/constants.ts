@@ -1,10 +1,18 @@
-import { MergeJoinType } from '@lightdash/common';
+import {
+    DEFAULT_ADDITIONAL_SOURCE_ID,
+    MergeJoinType,
+    PRIMARY_SOURCE_ID,
+} from '@lightdash/common';
 import { type MergeEditorSource, type MergeJoinPart } from './context/context';
 
-export const PRIMARY_SOURCE_ID = 'a';
-export const DEFAULT_ADDITIONAL_SOURCE_ID = 'b';
-export const MAX_MERGE_SOURCES = 2;
-export const JOIN_KEY = 'join_key';
+// Canonical merge editor naming lives in common so the backend can mint
+// merge links with the exact same conventions.
+export {
+    DEFAULT_ADDITIONAL_SOURCE_ID,
+    JOIN_KEY,
+    MAX_MERGE_SOURCES,
+    PRIMARY_SOURCE_ID,
+} from '@lightdash/common';
 
 export const emptyMergeSource = (id: string): MergeEditorSource => ({
     id,

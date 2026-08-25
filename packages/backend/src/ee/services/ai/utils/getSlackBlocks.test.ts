@@ -4,6 +4,7 @@ import {
     FilterOperator,
     FilterType,
     MergeJoinType,
+    parseMergeState,
 } from '@lightdash/common';
 import type { AgentSelectOption } from './getSlackBlocks';
 import {
@@ -586,9 +587,106 @@ describe('Slack AI agent blocks', () => {
         expect(saved.pivotConfig).toBeUndefined();
     });
 
-    it('keeps the merge fallback for merged custom chart type answers', async () => {
+    type CardArtifact = NonNullable<
+        Parameters<typeof getModernArtifactCardBlocks>[7]
+    >[number];
+    type GetDataAppVizSchemaFields = NonNullable<
+        Parameters<typeof getModernArtifactCardBlocks>[9]
+    >;
+
+    const mergedCustomChartTypeArtifact: CardArtifact = {
+        artifactUuid: 'artifact-1',
+        threadUuid: 'thread-1',
+        promptUuid: 'prompt-1',
+        artifactType: 'chart',
+        savedQueryUuid: null,
+        savedDashboardUuid: null,
+        createdAt: new Date(),
+        versionNumber: 1,
+        versionUuid: 'version-1',
+        title: 'Orders vs Targets',
+        description: null,
+        dashboardConfig: null,
+        versionCreatedAt: new Date(),
+        verifiedByUserUuid: null,
+        verifiedAt: null,
+        chartConfig: {
+            source: 'customChartType',
+            schemaVersion: 1,
+            dataAppVizUuid: 'data-app-viz-1',
+            config: {
+                title: 'Orders vs Targets',
+                description: 'Orders vs targets by month',
+                queryConfig: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_order_date_month'],
+                    metrics: ['orders_unique_order_count'],
+                    sorts: [],
+                    limit: 500,
+                    parameters: null,
+                    customMetrics: [],
+                    tableCalculations: [],
+                    filters: null,
+                },
+                chartConfig: {
+                    customChartTypeSlug: 'fuzzy-bar',
+                    fieldMapping: {
+                        x: 'merge_month',
+                        y: 'primary_orders_unique_order_count',
+                        series: 'merge_month',
+                    },
+                    options: null,
+                },
+                mergeConfig: {
+                    primarySourceId: 'primary',
+                    additionalSources: [
+                        {
+                            id: 'targets',
+                            queryConfig: {
+                                exploreName: 'targets',
+                                dimensions: ['targets_month'],
+                                metrics: ['targets_target'],
+                                sorts: [],
+                                customMetrics: [],
+                                filters: null,
+                            },
+                        },
+                    ],
+                    joinKey: [
+                        {
+                            name: 'month',
+                            fields: [
+                                {
+                                    sourceId: 'primary',
+                                    fieldId: 'orders_order_date_month',
+                                },
+                                {
+                                    sourceId: 'targets',
+                                    fieldId: 'targets_month',
+                                },
+                            ],
+                        },
+                    ],
+                    joinType: MergeJoinType.FULL,
+                },
+            },
+        },
+    };
+
+    it('links merged custom chart type answers into the merge editor with the custom chart', async () => {
         let sharedParams: string | undefined;
-        const getDataAppVizSchemaFields = vi.fn();
+        const getDataAppVizSchemaFields = vi.fn<GetDataAppVizSchemaFields>(
+            async () => [
+                { name: 'x', label: 'X', type: 'dimension', required: true },
+                { name: 'y', label: 'Y', type: 'metric', required: true },
+                {
+                    name: 'series',
+                    label: 'Series',
+                    type: 'series',
+                    required: false,
+                },
+            ],
+        );
         await getModernArtifactCardBlocks(
             {
                 promptUuid: 'prompt-1',
@@ -604,101 +702,148 @@ describe('Slack AI agent blocks', () => {
             async () => ({}) as never,
             async () => true,
             'agent-1',
-            [
-                {
-                    artifactUuid: 'artifact-1',
-                    threadUuid: 'thread-1',
-                    promptUuid: 'prompt-1',
-                    artifactType: 'chart',
-                    savedQueryUuid: null,
-                    savedDashboardUuid: null,
-                    createdAt: new Date(),
-                    versionNumber: 1,
-                    versionUuid: 'version-1',
-                    title: 'Orders vs Targets',
-                    description: null,
-                    dashboardConfig: null,
-                    versionCreatedAt: new Date(),
-                    verifiedByUserUuid: null,
-                    verifiedAt: null,
-                    chartConfig: {
-                        source: 'customChartType',
-                        schemaVersion: 1,
-                        dataAppVizUuid: 'data-app-viz-1',
-                        config: {
-                            title: 'Orders vs Targets',
-                            description: 'Orders vs targets by month',
-                            queryConfig: {
-                                exploreName: 'orders',
-                                dimensions: ['orders_order_date_month'],
-                                metrics: ['orders_unique_order_count'],
-                                sorts: [],
-                                limit: 500,
-                                parameters: null,
-                                customMetrics: [],
-                                tableCalculations: [],
-                                filters: null,
-                            },
-                            chartConfig: {
-                                customChartTypeSlug: 'fuzzy-bar',
-                                fieldMapping: {
-                                    x: 'merge_month',
-                                    y: 'primary_orders_unique_order_count',
-                                },
-                                options: null,
-                            },
-                            mergeConfig: {
-                                primarySourceId: 'primary',
-                                additionalSources: [
-                                    {
-                                        id: 'targets',
-                                        queryConfig: {
-                                            exploreName: 'targets',
-                                            dimensions: ['targets_month'],
-                                            metrics: ['targets_target'],
-                                            sorts: [],
-                                            customMetrics: [],
-                                            filters: null,
-                                        },
-                                    },
-                                ],
-                                joinKey: [
-                                    {
-                                        name: 'month',
-                                        fields: [
-                                            {
-                                                sourceId: 'primary',
-                                                fieldId:
-                                                    'orders_order_date_month',
-                                            },
-                                            {
-                                                sourceId: 'targets',
-                                                fieldId: 'targets_month',
-                                            },
-                                        ],
-                                    },
-                                ],
-                                joinType: MergeJoinType.FULL,
-                            },
-                        },
-                    },
-                },
-            ],
+            [mergedCustomChartTypeArtifact],
             [],
             getDataAppVizSchemaFields,
         );
 
-        // The custom-chart branch is skipped for merged answers: the link
-        // stays the table-configured primary-source explore.
-        expect(getDataAppVizSchemaFields).not.toHaveBeenCalled();
-        const saved = JSON.parse(
-            new URLSearchParams(sharedParams).get(
-                'create_saved_chart_version',
-            )!,
+        expect(getDataAppVizSchemaFields).toHaveBeenCalledWith(
+            'data-app-viz-1',
         );
+        const search = new URLSearchParams(sharedParams);
+        const saved = JSON.parse(search.get('create_saved_chart_version')!);
+        // Canonical primary source carries the query; ids are renamed to the
+        // merge editor's conventions.
+        expect(saved.tableName).toBe('orders');
+        expect(saved.metricQuery.exploreName).toBe('orders');
+        expect(saved.chartConfig).toEqual({
+            type: ChartType.DATA_APP_VIZ,
+            config: {
+                dataAppVizUuid: 'data-app-viz-1',
+                fieldMapping: {
+                    x: 'merge_join_key_0',
+                    y: 'a_orders_unique_order_count',
+                    series: 'merge_join_key_0',
+                },
+            },
+        });
+        expect(saved.pivotConfig).toEqual({ columns: ['merge_join_key_0'] });
+        expect(saved.tableConfig.columnOrder).toEqual([
+            'merge_join_key_0',
+            'a_orders_unique_order_count',
+            'b_targets_target',
+        ]);
+        // The whole merge rides in the merge search param, so the link lands
+        // in the merge editor fully set up.
+        const mergeState = parseMergeState(search.get('merge'));
+        expect(mergeState).toEqual({
+            focus: { kind: 'source', sourceId: 'a' },
+            additionalSources: [
+                {
+                    id: 'b',
+                    exploreName: 'targets',
+                    dimensions: ['targets_month'],
+                    metrics: ['targets_target'],
+                    // The persisted parse normalizes null filters to empty
+                    // groups; empty groups carry no rules.
+                    filters: {
+                        dimensions: expect.objectContaining({ and: [] }),
+                        metrics: expect.objectContaining({ and: [] }),
+                        tableCalculations: expect.objectContaining({
+                            and: [],
+                        }),
+                    },
+                    additionalMetrics: [],
+                    customDimensions: undefined,
+                },
+            ],
+            joinParts: [
+                {
+                    fieldIdBySourceId: {
+                        a: 'orders_order_date_month',
+                        b: 'targets_month',
+                    },
+                },
+            ],
+            joinType: MergeJoinType.FULL,
+        });
+        // Explore-from-here links auto-run; web sets the same flag.
+        expect(search.get('isExploreFromHere')).toBe('true');
+    });
+
+    it('keeps the table fallback when a merge source explore cannot be loaded', async () => {
+        let sharedParams: string | undefined;
+        const getDataAppVizSchemaFields = vi.fn<GetDataAppVizSchemaFields>(
+            async () => [
+                { name: 'x', label: 'X', type: 'dimension', required: true },
+                { name: 'y', label: 'Y', type: 'metric', required: true },
+            ],
+        );
+        await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async (_path, params) => {
+                sharedParams = params;
+                return 'https://lightdash.example.com/share/custom';
+            },
+            async (exploreName) => {
+                if (exploreName === 'targets') {
+                    throw new Error('Explore not found');
+                }
+                return {} as never;
+            },
+            async () => true,
+            'agent-1',
+            [mergedCustomChartTypeArtifact],
+            [],
+            getDataAppVizSchemaFields,
+        );
+
+        const search = new URLSearchParams(sharedParams);
+        const saved = JSON.parse(search.get('create_saved_chart_version')!);
+        expect(saved.tableName).toBe('orders');
+        expect(saved.chartConfig.type).toBe(ChartType.TABLE);
+        expect(search.get('merge')).toBeNull();
+    });
+
+    it('keeps the table fallback for merged custom chart type answers when the schema is unavailable', async () => {
+        let sharedParams: string | undefined;
+        const getDataAppVizSchemaFields = vi.fn<GetDataAppVizSchemaFields>(
+            async () => null,
+        );
+        await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async (_path, params) => {
+                sharedParams = params;
+                return 'https://lightdash.example.com/share/custom';
+            },
+            async () => ({}) as never,
+            async () => true,
+            'agent-1',
+            [mergedCustomChartTypeArtifact],
+            [],
+            getDataAppVizSchemaFields,
+        );
+
+        // Without the type's schema the link stays the table-configured
+        // primary-source explore, so it still works.
+        const search = new URLSearchParams(sharedParams);
+        const saved = JSON.parse(search.get('create_saved_chart_version')!);
         expect(saved.tableName).toBe('orders');
         expect(saved.chartConfig.type).toBe(ChartType.TABLE);
         expect(saved.pivotConfig).toBeUndefined();
+        expect(search.get('merge')).toBeNull();
     });
 
     it('omits the hero but keeps the Open image button when the image URL is unreachable', async () => {

@@ -1,10 +1,10 @@
-import { MergeJoinType } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     parseMergeState,
     serializeMergeState,
     type MergeUrlState,
-} from './mergeUrlState';
+} from './mergeEditorState';
+import { MergeJoinType } from './mergeQuery';
 
 const state: MergeUrlState = {
     focus: { kind: 'source', sourceId: 'subscriptions' },

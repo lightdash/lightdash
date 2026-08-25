@@ -2,6 +2,9 @@ import {
     type ApiError,
     type Filters,
     type ItemsMap,
+    type MergeEditorSource,
+    type MergeFocus,
+    type MergeJoinPart,
     type MergeJoinType,
     type MergeFieldOrigins,
     type MergeQuery,
@@ -13,25 +16,13 @@ import {
 import { createContext } from 'react';
 import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
 
-export type MergeEditorSource = {
-    id: string;
-    exploreName: string | null;
-    dimensions: string[];
-    metrics: string[];
-    filters: Filters;
-    /** Keep saved-query-only fields intact while the merge is edited. */
-    additionalMetrics?: MetricQuery['additionalMetrics'];
-    customDimensions?: MetricQuery['customDimensions'];
-};
-
-export type MergeFocus =
-    | { kind: 'source'; sourceId: string }
-    | { kind: 'join' };
-
-/** One part of the join key: the field each source contributes. */
-export type MergeJoinPart = {
-    fieldIdBySourceId: Record<string, string | null>;
-};
+// Editor state shapes live in common (beside the merge URL contract) so the
+// backend can mint merge links; re-exported here for the editor's modules.
+export type {
+    MergeEditorSource,
+    MergeFocus,
+    MergeJoinPart,
+} from '@lightdash/common';
 
 /**
  * A merged run, in the shape the explorer's results machinery expects.

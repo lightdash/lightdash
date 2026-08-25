@@ -1,18 +1,22 @@
 import {
-    getItemId,
+    DEFAULT_ADDITIONAL_SOURCE_ID,
+    JOIN_KEY,
+    PRIMARY_SOURCE_ID,
+    type MergeUrlState,
+} from '../../types/mergeEditorState';
+import {
     isMergeMetricSource,
     MERGE_TABLE_NAME,
     type MergeQuery,
     type MergeQueryMetricSource,
-} from '@lightdash/common';
-import {
-    DEFAULT_ADDITIONAL_SOURCE_ID,
-    JOIN_KEY,
-    PRIMARY_SOURCE_ID,
-} from '../../../../features/mergeQuery/constants';
+} from '../../types/mergeQuery';
+import { getItemId } from '../../utils/item';
 
 export type CanonicalAiMerge = {
-    mergeQuery: MergeQuery & { sources: MergeQueryMetricSource[] };
+    mergeQuery: MergeQuery & {
+        /** Primary first; canonicalization refuses anything but two. */
+        sources: [MergeQueryMetricSource, MergeQueryMetricSource];
+    };
     /** Merged output column ids under the AI's names to their canonical ids. */
     fieldIdByAiFieldId: Record<string, string>;
 };
@@ -72,16 +76,47 @@ export const canonicalizeAiMerge = (
 
     return {
         mergeQuery: {
-            sources: metricSources.map((source) => ({
-                id: idBySourceId[source.id],
-                metricQuery: source.metricQuery,
-            })),
+            sources: [
+                { id: PRIMARY_SOURCE_ID, metricQuery: primary.metricQuery },
+                {
+                    id: DEFAULT_ADDITIONAL_SOURCE_ID,
+                    metricQuery: additional.metricQuery,
+                },
+            ],
             joinKey,
             joinType: mergeQuery.joinType,
             tableCalculations: mergeQuery.tableCalculations,
             limit: mergeQuery.limit,
         },
         fieldIdByAiFieldId,
+    };
+};
+
+/**
+ * The merge editor state a canonical AI merge restores from — one authority
+ * for the merge URL payload the web and Slack links carry.
+ */
+export const mergeUrlStateFromCanonicalAiMerge = (
+    canonical: CanonicalAiMerge,
+): MergeUrlState => {
+    const [primary, additional] = canonical.mergeQuery.sources;
+    return {
+        focus: { kind: 'source', sourceId: primary.id },
+        additionalSources: [
+            {
+                id: additional.id,
+                exploreName: additional.metricQuery.exploreName,
+                dimensions: additional.metricQuery.dimensions,
+                metrics: additional.metricQuery.metrics,
+                filters: additional.metricQuery.filters,
+                additionalMetrics: additional.metricQuery.additionalMetrics,
+                customDimensions: additional.metricQuery.customDimensions,
+            },
+        ],
+        joinParts: canonical.mergeQuery.joinKey.map((part) => ({
+            fieldIdBySourceId: part.fieldIdBySourceId,
+        })),
+        joinType: canonical.mergeQuery.joinType,
     };
 };
 

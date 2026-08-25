@@ -1,6 +1,8 @@
 import {
     ChartType,
     deriveDataAppVizPivotConfig,
+    remapFieldIdsDeep,
+    type CanonicalAiMerge,
     type ChartConfig,
     type CreateSavedChartVersion,
     type DataAppVizChart,
@@ -9,10 +11,6 @@ import {
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { toSavedMerge } from '../../../../features/mergeQuery/hooks/useSavedMerge';
-import {
-    remapFieldIdsDeep,
-    type CanonicalAiMerge,
-} from './canonicalizeAiMerge';
 
 type BuildAiSavedChartDataArgs = {
     metricQuery: MetricQuery | undefined;

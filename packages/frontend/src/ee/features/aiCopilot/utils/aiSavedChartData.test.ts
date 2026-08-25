@@ -1,17 +1,15 @@
 import {
     ChartType,
+    DEFAULT_ADDITIONAL_SOURCE_ID,
     MergeJoinType,
+    PRIMARY_SOURCE_ID,
+    type CanonicalAiMerge,
     type ChartConfig,
     type DataAppVizRenderMetadata,
     type MetricQuery,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import {
-    DEFAULT_ADDITIONAL_SOURCE_ID,
-    PRIMARY_SOURCE_ID,
-} from '../../../../features/mergeQuery/constants';
 import { buildAiSavedChartData } from './aiSavedChartData';
-import { type CanonicalAiMerge } from './canonicalizeAiMerge';
 
 const metricQuery: MetricQuery = {
     exploreName: 'orders',
