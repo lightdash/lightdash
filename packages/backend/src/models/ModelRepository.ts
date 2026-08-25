@@ -20,6 +20,7 @@ import { EmailModel } from './EmailModel';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import { GithubAppInstallationsModel } from './GithubAppInstallations/GithubAppInstallationsModel';
 import { GitlabAppInstallationsModel } from './GitlabAppInstallations/GitlabAppInstallationsModel';
+import { LinearAppInstallationsModel } from './LinearAppInstallations/LinearAppInstallationsModel';
 import { GitUserCredentialsModel } from './GitUserCredentials/GitUserCredentialsModel';
 import { GroupsModel } from './GroupsModel';
 import { HeadlessBrowserLoginGrantModel } from './HeadlessBrowserLoginGrantModel';
@@ -97,6 +98,7 @@ export type ModelManifest = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
     gitUserCredentialsModel: GitUserCredentialsModel;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
+    linearAppInstallationsModel: LinearAppInstallationsModel;
     groupsModel: GroupsModel;
     headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
     inviteLinkModel: InviteLinkModel;
@@ -391,6 +393,17 @@ export class ModelRepository
             'gitlabAppInstallationsModel',
             () =>
                 new GitlabAppInstallationsModel({
+                    database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                }),
+        );
+    }
+
+    public getLinearAppInstallationsModel(): LinearAppInstallationsModel {
+        return this.getModel(
+            'linearAppInstallationsModel',
+            () =>
+                new LinearAppInstallationsModel({
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                 }),

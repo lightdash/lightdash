@@ -1629,6 +1629,11 @@ export type LightdashConfig = {
         clientSecret: string | undefined;
         redirectDomain: string;
     };
+    linear: {
+        clientId: string | undefined;
+        clientSecret: string | undefined;
+        redirectDomain: string;
+    };
     contentAsCode: {
         maxDownloads: number;
     };
@@ -3351,6 +3356,13 @@ export const parseConfig = (): LightdashConfig => {
             clientSecret: process.env.GITLAB_CLIENT_SECRET,
             redirectDomain:
                 process.env.GITLAB_REDIRECT_DOMAIN ||
+                siteUrl.split('.')[0].split('//')[1],
+        },
+        linear: {
+            clientId: process.env.LINEAR_CLIENT_ID,
+            clientSecret: process.env.LINEAR_CLIENT_SECRET,
+            redirectDomain:
+                process.env.LINEAR_REDIRECT_DOMAIN ||
                 siteUrl.split('.')[0].split('//')[1],
         },
         contentAsCode: {

@@ -45,6 +45,7 @@ import ExportingPanel from '../components/UserSettings/ExportingPanel';
 import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel';
 import GithubUserSettingsPanel from '../components/UserSettings/GithubUserSettingsPanel';
 import GitlabSettingsPanel from '../components/UserSettings/GitlabSettingsPanel';
+import LinearSettingsPanel from '../components/UserSettings/LinearSettingsPanel';
 import ImpersonationPanel from '../components/UserSettings/ImpersonationPanel';
 import { LeaveOrganizationPanel } from '../components/UserSettings/LeaveOrganizationPanel';
 import LimitsPanel from '../components/UserSettings/LimitsPanel';
@@ -533,10 +534,12 @@ const Settings: FC = () => {
                         {!health?.hasSlack &&
                             !health?.hasGithub &&
                             !health?.hasGitlab &&
+                            !health?.hasLinear &&
                             'No integrations available'}
                         {health?.hasSlack && <SlackSettingsPanel />}
                         {health?.hasGithub && <GithubSettingsPanel />}
                         {health?.hasGitlab && <GitlabSettingsPanel />}
+                        {health?.hasLinear && <LinearSettingsPanel />}
                     </SettingsPage>
                 ),
             });
@@ -770,6 +773,7 @@ const Settings: FC = () => {
         health?.hasSlack,
         health?.hasGithub,
         health?.hasGitlab,
+        health?.hasLinear,
         health?.auth.google.enabled,
         dataAppsFlag?.enabled,
         externalSourcesFlag?.enabled,

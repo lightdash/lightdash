@@ -149,6 +149,7 @@ export * from './types/funnel';
 export * from './types/gdrive';
 export * from './types/gitIntegration';
 export * from './types/groups';
+export * from './types/linear';
 export * from './types/job';
 export * from './types/knex-paginate';
 export * from './types/lightdashModel';
