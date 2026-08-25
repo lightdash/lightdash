@@ -1,3 +1,10 @@
+# [1.257.0](https://github.com/lightdash/lightdash/compare/1.256.1...1.257.0) (2026-08-25)
+
+
+### Features
+
+* **ai:** enable Deep Research with Auto Router ([#27987](https://github.com/lightdash/lightdash/issues/27987)) ([93e0791](https://github.com/lightdash/lightdash/commit/93e0791c7b891ac910dae640ab21e98d0813b1b0))
+
 ## [1.256.1](https://github.com/lightdash/lightdash/compare/1.256.0...1.256.1) (2026-08-25)
 
 
