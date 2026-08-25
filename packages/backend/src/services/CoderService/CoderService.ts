@@ -131,6 +131,10 @@ import {
     type CurrentChartSqlItems,
 } from './chartPermissions';
 import {
+    hashContentAsCodeDocument,
+    toCanonicalContentAsCodeSnapshot,
+} from './contentAsCodeHash';
+import {
     getConfigWithDateZoomTileSlugs,
     getConfigWithDateZoomTileUuids,
     getFiltersWithTileSlugs,
@@ -140,10 +144,6 @@ import {
     withTileWarnings,
 } from './dashboardReferences';
 import { normalizeFilterIds, stripFilterIds } from './filterIds';
-import {
-    hashContentAsCodeDocument,
-    toCanonicalContentAsCodeSnapshot,
-} from './contentAsCodeHash';
 import { ScheduledContentCoder } from './handlers/ScheduledContentCoder';
 import { VirtualViewCoder } from './handlers/VirtualViewCoder';
 import { paginateAsCode } from './pagination';
@@ -2618,7 +2618,9 @@ export class CoderService extends BaseService {
                     `revisions[${index}].snapshot must be an object`,
                 );
             }
-            const snapshot = toCanonicalContentAsCodeSnapshot(revision.snapshot);
+            const snapshot = toCanonicalContentAsCodeSnapshot(
+                revision.snapshot,
+            );
             return {
                 contentType: revision.contentType,
                 slug: revision.slug,

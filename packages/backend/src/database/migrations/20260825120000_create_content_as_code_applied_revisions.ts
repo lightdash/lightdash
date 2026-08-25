@@ -47,7 +47,5 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");
-    await knex.schema.dropTableIfExists(
-        ContentAsCodeAppliedRevisionsTableName,
-    );
+    await knex.schema.dropTableIfExists(ContentAsCodeAppliedRevisionsTableName);
 }

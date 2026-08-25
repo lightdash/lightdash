@@ -47,12 +47,10 @@ const makeSessionUser = (
         abilityRules: [],
     }) as unknown as SessionUser;
 
-const buildService = (
-    appliedRevisionModel: {
-        upsertMany: ReturnType<typeof vi.fn>;
-        listByProject: ReturnType<typeof vi.fn>;
-    },
-) =>
+const buildService = (appliedRevisionModel: {
+    upsertMany: ReturnType<typeof vi.fn>;
+    listByProject: ReturnType<typeof vi.fn>;
+}) =>
     new CoderService({
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
@@ -88,10 +86,7 @@ describe('CoderService applied revisions', () => {
         const service = buildService(appliedRevisionModel);
 
         await expect(
-            service.getContentAsCodeSyncStatus(
-                makeSessionUser(),
-                PROJECT_UUID,
-            ),
+            service.getContentAsCodeSyncStatus(makeSessionUser(), PROJECT_UUID),
         ).resolves.toEqual({
             lastAppliedAt: null,
             revisionCount: 0,
@@ -107,7 +102,10 @@ describe('CoderService applied revisions', () => {
         const service = buildService(appliedRevisionModel);
 
         await expect(
-            service.getContentAsCodeSyncStatus(makeSessionUser([]), PROJECT_UUID),
+            service.getContentAsCodeSyncStatus(
+                makeSessionUser([]),
+                PROJECT_UUID,
+            ),
         ).rejects.toBeInstanceOf(ForbiddenError);
         expect(appliedRevisionModel.listByProject).not.toHaveBeenCalled();
     });

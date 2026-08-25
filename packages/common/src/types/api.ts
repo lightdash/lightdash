@@ -142,6 +142,7 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiContentAsCodeSyncStatusResponse,
     type ApiDashboardAsCodeListResponse,
     type ApiGoogleSheetsSyncAsCodeListResponse,
     type ApiGoogleSheetsSyncAsCodeUpsertResponse,
@@ -152,7 +153,6 @@ import {
     type ApiSqlChartAsCodeListResponse,
     type ApiVirtualViewAsCodeListResponse,
     type ApiVirtualViewAsCodeUpsertResponse,
-    type ApiContentAsCodeSyncStatusResponse,
 } from './coder';
 import {
     type ApiChartContentResponse,
