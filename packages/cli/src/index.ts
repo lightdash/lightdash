@@ -1003,6 +1003,11 @@ const uploadCommand = program
         false,
     )
     .option(
+        '--overwrite-drifted',
+        'Overwrite content that changed on the instance since the last upload (git wins). Only relevant with content_as_code.sync enabled in lightdash.config.yml',
+        false,
+    )
+    .option(
         '-p, --path <path>',
         'specify a custom path to upload content from',
         undefined,
@@ -2030,7 +2035,9 @@ const successHandler = () => {
         process.exit(0);
     }
     console.error(`Done 🕶`);
-    process.exit(0);
+    // No explicit code: respect a non-zero process.exitCode set by a handler
+    // (e.g. upload skips or failed data apps), defaulting to 0.
+    process.exit();
 };
 
 program.parseAsync().then(successHandler).catch(errorHandler);

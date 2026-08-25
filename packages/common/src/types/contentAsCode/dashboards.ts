@@ -15,6 +15,7 @@ import type {
 } from '../dashboard';
 import type { DashboardFilterRule } from '../filter';
 import type { PromotionChanges } from '../promotion';
+import type { ContentAsCodeSyncStatus } from './base';
 import type { ContentAsCodeType } from './core';
 import type { SpaceAsCode } from './spaces';
 
@@ -177,10 +178,11 @@ export type ApiDashboardAsCodeListResponse = {
         offset: number;
     };
 };
-export type DashboardAsCodeUpsertResult = PromotionChanges & {
-    /** Non-fatal issues, e.g. a data app tile whose app is not in this project. */
-    warnings?: string[];
-};
+export type DashboardAsCodeUpsertResult = PromotionChanges &
+    ContentAsCodeSyncStatus & {
+        /** Non-fatal issues, e.g. a data app tile whose app is not in this project. */
+        warnings?: string[];
+    };
 
 export type ApiDashboardAsCodeUpsertResponse = {
     status: 'ok';
