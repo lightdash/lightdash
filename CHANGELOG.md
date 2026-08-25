@@ -1,3 +1,10 @@
+# [2.2.0](https://github.com/lightdash/lightdash/compare/2.1.0...2.2.0) (2026-08-25)
+
+
+### Features
+
+* add mobile minimum versions to health response ([#28053](https://github.com/lightdash/lightdash/issues/28053)) ([59b4b00](https://github.com/lightdash/lightdash/commit/59b4b00e703acb698aa3d5f59198b92a842e3f64))
+
 # [2.1.0](https://github.com/lightdash/lightdash/compare/2.0.0...2.1.0) (2026-08-25)
 
 
