@@ -74,6 +74,62 @@ describe('parseAiArtifactChartConfig', () => {
         });
     });
 
+    it('round-trips a customChartType envelope carrying a merge', () => {
+        const config = {
+            source: 'customChartType',
+            schemaVersion: 1,
+            dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+            config: {
+                ...semanticConfig,
+                chartConfig: {
+                    ...customChartTypeSlugChartConfig,
+                    fieldMapping: { x: 'merge_month', y: 'orders_revenue' },
+                },
+                mergeConfig: {
+                    primarySourceId: 'orders',
+                    additionalSources: [
+                        {
+                            id: 'targets',
+                            queryConfig: {
+                                exploreName: 'targets',
+                                dimensions: ['targets_month'],
+                                metrics: ['targets_target'],
+                                sorts: [],
+                                customMetrics: null,
+                                filters: null,
+                            },
+                        },
+                    ],
+                    joinKey: [
+                        {
+                            name: 'month',
+                            fields: [
+                                {
+                                    sourceId: 'orders',
+                                    fieldId: 'orders_created_month',
+                                },
+                                {
+                                    sourceId: 'targets',
+                                    fieldId: 'targets_month',
+                                },
+                            ],
+                        },
+                    ],
+                    joinType: 'full',
+                },
+            },
+        } as const;
+
+        // The V3 schema parse fills defaulted fields the persisted value omits.
+        expect(parseAiArtifactChartConfig(config)).toEqual({
+            ...config,
+            config: {
+                ...config.config,
+                queryConfig: { ...config.config.queryConfig, parameters: null },
+            },
+        });
+    });
+
     it('rejects a customChartType envelope whose config is not the slug branch', () => {
         expect(
             parseAiArtifactChartConfig({

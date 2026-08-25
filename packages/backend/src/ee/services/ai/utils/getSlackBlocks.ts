@@ -732,7 +732,12 @@ export async function getModernArtifactCardBlocks(
                     },
                 };
                 let pivotConfig: { columns: string[] } | undefined;
-                if (artifact.chartConfig.source === 'customChartType') {
+                if (
+                    artifact.chartConfig.source === 'customChartType' &&
+                    // Merged custom answers keep the merge fallback while
+                    // Slack rendering of custom chart types stays deferred.
+                    !vizConfig.vizTool.mergeConfig
+                ) {
                     // Mirror the web save flow: DATA_APP_VIZ config plus the
                     // type's schema-derived pivot. Without the schema (app
                     // deleted / invalid) keep the table fallback so the link

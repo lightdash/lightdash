@@ -42,8 +42,12 @@ export const getAiArtifactChartSource = (
                 customChartType: null,
             };
         case 'customChartType':
+            // Merged custom answers (stored mergeConfig is the discriminator)
+            // carry every merge affordance around the custom chart render.
             return {
-                isMergeArtifact: false,
+                isMergeArtifact:
+                    'mergeConfig' in chartConfig.config &&
+                    !!chartConfig.config.mergeConfig,
                 semanticChartConfig: chartConfig.config,
                 customChartType: getDataAppVizChartFromArtifact(chartConfig),
             };

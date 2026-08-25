@@ -219,6 +219,70 @@ describe('buildAiSavedChartData', () => {
             expect(result?.merge?.primarySourceId).toBe(PRIMARY_SOURCE_ID);
         });
 
+        describe('rendered through a custom chart type', () => {
+            const mergedCanonicalMerge: CanonicalAiMerge = {
+                ...canonicalMerge,
+                fieldIdByAiFieldId: {
+                    source_1_total: 'a_total',
+                    merge_month: 'merge_join_key_0',
+                    merge_region: 'merge_join_key_1',
+                },
+            };
+            const mergedCustomChartConfig: ChartConfig = {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: 'viz-uuid',
+                    fieldMapping: {
+                        x: 'merge_month',
+                        y: 'source_1_total',
+                        split: 'merge_region',
+                    },
+                },
+            };
+
+            it('derives the pivot from the schema and remaps everything to canonical ids', () => {
+                const result = buildAiSavedChartData({
+                    ...baseArgs,
+                    chartConfig: mergedCustomChartConfig,
+                    columnOrder: [
+                        'merge_month',
+                        'merge_region',
+                        'source_1_total',
+                    ],
+                    merge: { parameters: undefined },
+                    canonicalMerge: mergedCanonicalMerge,
+                    customChartTypeMetadata: readyMetadata,
+                });
+                expect(result?.metricQuery).toEqual(metricQuery);
+                expect(result?.chartConfig).toEqual({
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizUuid: 'viz-uuid',
+                        fieldMapping: {
+                            x: 'merge_join_key_0',
+                            y: 'a_total',
+                            split: 'merge_join_key_1',
+                        },
+                    },
+                });
+                expect(result?.pivotConfig).toEqual({
+                    columns: ['merge_join_key_1'],
+                });
+                expect(result?.merge?.primarySourceId).toBe(PRIMARY_SOURCE_ID);
+            });
+
+            it('returns undefined until the schema metadata is ready', () => {
+                expect(
+                    buildAiSavedChartData({
+                        ...baseArgs,
+                        chartConfig: mergedCustomChartConfig,
+                        merge: { parameters: undefined },
+                        canonicalMerge: mergedCanonicalMerge,
+                    }),
+                ).toBeUndefined();
+            });
+        });
+
         it('returns undefined for a merge that could not be canonicalized', () => {
             expect(
                 buildAiSavedChartData({

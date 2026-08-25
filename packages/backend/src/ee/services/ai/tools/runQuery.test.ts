@@ -476,81 +476,197 @@ describe('getRunQuery custom chart types', () => {
         expect(runAsyncQuery).not.toHaveBeenCalled();
     });
 
-    it('rejects mergeConfig combined with a custom chart type', async () => {
-        const runAsyncMergeQuery = vi.fn() as RunAsyncMergeQueryFn;
-        const runAsyncQuery = vi.fn() as RunAsyncQueryFn;
-        const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
-        const queryTool = getRunQuery({
-            updateProgress: vi.fn().mockResolvedValue(undefined),
-            runAsyncQuery,
-            runAsyncMergeQuery,
-            enableMergeQueries: true,
-            projectParameterDefinitions: {},
-            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
-            sendFile: vi.fn().mockResolvedValue(undefined),
-            createOrUpdateArtifact,
-            maxLimit: 500,
-            maxContextRows: Number.POSITIVE_INFINITY,
-            exposeQueryUuid: false,
-            enableDataAccess: true,
-            resolveCustomChartType: vi.fn().mockResolvedValue({
+    describe('with mergeConfig', () => {
+        const mergeConfig = {
+            primarySourceId: 'primary',
+            additionalSources: [
+                {
+                    id: 'comparison',
+                    queryConfig: {
+                        exploreName: validExplore.name,
+                        dimensions: metricQueryMock.dimensions,
+                        metrics: metricQueryMock.metrics,
+                        sorts: [],
+                        customMetrics: null,
+                        filters: null,
+                    },
+                },
+            ],
+            joinKey: [
+                {
+                    name: 'key',
+                    fields: [
+                        {
+                            sourceId: 'primary',
+                            fieldId: metricQueryMock.dimensions[0],
+                        },
+                        {
+                            sourceId: 'comparison',
+                            fieldId: metricQueryMock.dimensions[0],
+                        },
+                    ],
+                },
+            ],
+            joinType: 'full' as const,
+        };
+
+        const mergedCustomChartConfig = {
+            customChartTypeSlug: 'cohort-waterfall',
+            fieldMapping: { x: 'merge_key', y: 'primary_a_met1' },
+            options: { showLegend: true },
+        };
+
+        const executeMergeCustom = async ({
+            chartConfig = mergedCustomChartConfig,
+            enableMergeQueries = true,
+            resolveCustomChartType = vi.fn().mockResolvedValue({
                 dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
                 schema: vizSchema,
             }) as ResolveCustomChartTypeFn,
-        });
-
-        const mergeCustomInput = {
-            ...toolInput,
-            chartConfig: customChartConfig,
-            mergeConfig: {
-                primarySourceId: 'primary',
-                additionalSources: [
-                    {
-                        id: 'comparison',
-                        queryConfig: {
-                            exploreName: validExplore.name,
-                            dimensions: metricQueryMock.dimensions,
-                            metrics: metricQueryMock.metrics,
-                            sorts: [],
-                            customMetrics: null,
-                            filters: null,
-                        },
-                    },
-                ],
-                joinKey: [
-                    {
-                        name: 'key',
-                        fields: [
-                            {
-                                sourceId: 'primary',
-                                fieldId: metricQueryMock.dimensions[0],
-                            },
-                            {
-                                sourceId: 'comparison',
-                                fieldId: metricQueryMock.dimensions[0],
-                            },
-                        ],
-                    },
-                ],
-                joinType: 'full' as const,
-            },
+        }: {
+            chartConfig?: ToolRunQueryCustomChartTypeConfig;
+            enableMergeQueries?: boolean;
+            resolveCustomChartType?: ResolveCustomChartTypeFn;
+        } = {}) => {
+            const runAsyncMergeQuery: RunAsyncMergeQueryFn = vi
+                .fn()
+                .mockResolvedValue({
+                    queryUuid: '22222222-2222-4222-8222-222222222222',
+                    rows: [{ merge_key: 'one', primary_a_met1: 1 }],
+                    cacheMetadata: { cacheHit: false },
+                    fields: {},
+                    metricQuery: metricQueryMock,
+                });
+            const runAsyncQuery = vi.fn() as RunAsyncQueryFn;
+            const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
+            const queryTool = getRunQuery({
+                updateProgress: vi.fn().mockResolvedValue(undefined),
+                runAsyncQuery,
+                runAsyncMergeQuery,
+                enableMergeQueries,
+                projectParameterDefinitions: {},
+                getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+                sendFile: vi.fn().mockResolvedValue(undefined),
+                createOrUpdateArtifact,
+                maxLimit: 500,
+                maxContextRows: Number.POSITIVE_INFINITY,
+                exposeQueryUuid: false,
+                enableDataAccess: true,
+                resolveCustomChartType,
+            });
+            const input = { ...toolInput, chartConfig, mergeConfig };
+            const output = await queryTool.execute!(input, {
+                messages: [],
+                toolCallId: 'tool-call-1',
+                experimental_context: new AgentContext([validExplore]),
+            });
+            if (Symbol.asyncIterator in output) {
+                throw new Error('Expected a non-streaming tool result');
+            }
+            return {
+                output,
+                createOrUpdateArtifact,
+                runAsyncMergeQuery,
+                runAsyncQuery,
+                input,
+            };
         };
-        const output = await queryTool.execute!(mergeCustomInput, {
-            messages: [],
-            toolCallId: 'tool-call-1',
-            experimental_context: new AgentContext([validExplore]),
-        });
-        if (Symbol.asyncIterator in output) {
-            throw new Error('Expected a non-streaming tool result');
-        }
 
-        expect(output.metadata).toEqual({ status: 'error' });
-        expect(output.result).toContain(
-            'Custom chart types cannot be combined with mergeConfig',
-        );
-        expect(runAsyncMergeQuery).not.toHaveBeenCalled();
-        expect(runAsyncQuery).not.toHaveBeenCalled();
-        expect(createOrUpdateArtifact).not.toHaveBeenCalled();
+        it('runs the merge and persists the custom envelope with the merge intact', async () => {
+            const {
+                output,
+                createOrUpdateArtifact,
+                runAsyncMergeQuery,
+                runAsyncQuery,
+                input,
+            } = await executeMergeCustom();
+
+            expect(output.metadata).toMatchObject({
+                status: 'success',
+                queryUuid: '22222222-2222-4222-8222-222222222222',
+            });
+            expect(runAsyncQuery).not.toHaveBeenCalled();
+            expect(runAsyncMergeQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    sources: expect.arrayContaining([
+                        expect.objectContaining({ id: 'primary' }),
+                        expect.objectContaining({ id: 'comparison' }),
+                    ]),
+                    joinType: 'full',
+                }),
+                undefined,
+            );
+            expect(createOrUpdateArtifact).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    vizConfig: {
+                        source: 'customChartType',
+                        schemaVersion: 1,
+                        dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                        config: input,
+                    },
+                }),
+            );
+        });
+
+        it('rejects a fieldMapping bound to source-explore ids listing the merged pools', async () => {
+            const { output, runAsyncMergeQuery } = await executeMergeCustom({
+                chartConfig: {
+                    ...mergedCustomChartConfig,
+                    fieldMapping: { x: 'a_dim1', y: 'a_met1' },
+                },
+            });
+
+            expect(output.metadata).toEqual({ status: 'error' });
+            expect(output.result).toContain('x → a_dim1');
+            expect(output.result).toContain('y → a_met1');
+            expect(output.result).toContain('merge_key');
+            expect(output.result).toContain('primary_a_met1');
+            expect(output.result).toContain('comparison_a_met1');
+            expect(runAsyncMergeQuery).not.toHaveBeenCalled();
+        });
+
+        it('rejects a join key bound to a metric slot via the merged pools', async () => {
+            const { output, runAsyncMergeQuery } = await executeMergeCustom({
+                chartConfig: {
+                    ...mergedCustomChartConfig,
+                    fieldMapping: { x: 'merge_key', y: 'merge_key' },
+                },
+            });
+
+            expect(output.metadata).toEqual({ status: 'error' });
+            expect(output.result).toContain(
+                'Slot "y" (metric) only accepts metrics or table calculations, but "merge_key" is a dimension',
+            );
+            expect(runAsyncMergeQuery).not.toHaveBeenCalled();
+        });
+
+        it('rejects an unknown slug before the merge executes', async () => {
+            const { output, runAsyncMergeQuery, createOrUpdateArtifact } =
+                await executeMergeCustom({
+                    resolveCustomChartType: vi
+                        .fn()
+                        .mockResolvedValue(null) as ResolveCustomChartTypeFn,
+                });
+
+            expect(output.metadata).toEqual({ status: 'error' });
+            expect(output.result).toContain(
+                'Custom chart type "cohort-waterfall" was not found in this project',
+            );
+            expect(runAsyncMergeQuery).not.toHaveBeenCalled();
+            expect(createOrUpdateArtifact).not.toHaveBeenCalled();
+        });
+
+        it('still rejects merge payloads when merge queries are disabled', async () => {
+            const { output, runAsyncMergeQuery, createOrUpdateArtifact } =
+                await executeMergeCustom({ enableMergeQueries: false });
+
+            expect(output.metadata).toEqual({ status: 'error' });
+            expect(output.result).toContain(
+                'Merge queries are not enabled for this organization.',
+            );
+            expect(runAsyncMergeQuery).not.toHaveBeenCalled();
+            expect(createOrUpdateArtifact).not.toHaveBeenCalled();
+        });
     });
 });
 

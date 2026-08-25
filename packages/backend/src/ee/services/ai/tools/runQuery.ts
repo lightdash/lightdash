@@ -328,15 +328,25 @@ export const getRunQuery = ({
                     );
                 }
 
-                // Merge × custom chart type has no defined contract yet —
-                // reject explicitly rather than silently falling back.
-                if (
-                    queryTool.mergeConfig &&
-                    isCustomChartTypeSlugChartConfig(queryTool.chartConfig)
-                ) {
-                    throw new AiAgentValidatorError(
-                        'Custom chart types cannot be combined with mergeConfig. Either set mergeConfig to null to render this answer through the custom chart type, or keep the merge and use a builtin chartConfig.',
+                // Resolve the custom chart type slug before any query runs
+                // (merged or not); the uuid is persisted in the envelope.
+                const customChartConfig = isCustomChartTypeSlugChartConfig(
+                    queryTool.chartConfig,
+                )
+                    ? queryTool.chartConfig
+                    : null;
+                let resolvedCustomChartType: Awaited<
+                    ReturnType<ResolveCustomChartTypeFn>
+                > = null;
+                if (customChartConfig) {
+                    resolvedCustomChartType = await resolveCustomChartType(
+                        customChartConfig.customChartTypeSlug,
                     );
+                    if (!resolvedCustomChartType) {
+                        throw new AiAgentValidatorError(
+                            `Custom chart type "${customChartConfig.customChartTypeSlug}" was not found in this project. Use findCustomChartTypes to browse the available types and their slugs.`,
+                        );
+                    }
                 }
 
                 const prompt = await getPrompt();
@@ -374,31 +384,42 @@ export const getRunQuery = ({
                         maxQueryLimit: maxLimit,
                     });
 
-                    // Custom chart configs were rejected above; the guard
-                    // narrows chartConfig to the builtin branch.
-                    if (
+                    // Merged output columns are fields of the merge/source
+                    // "tables", so getItemId is the naming authority.
+                    const dimensionIds = queryTool.mergeConfig.joinKey.map(
+                        (part) =>
+                            getItemId({
+                                table: MERGE_TABLE_NAME,
+                                name: part.name,
+                            }),
+                    );
+                    const metricIds = mergeQuery.sources
+                        .filter(isMergeMetricSource)
+                        .flatMap((source) =>
+                            source.metricQuery.metrics.map((metricId) =>
+                                getItemId({
+                                    table: source.id,
+                                    name: metricId,
+                                }),
+                            ),
+                        );
+
+                    // Custom chart types bind against the merged pools: join
+                    // keys as dimensions, per-source metrics as metrics.
+                    if (customChartConfig && resolvedCustomChartType) {
+                        validateCustomChartTypeChartConfig(
+                            customChartConfig,
+                            resolvedCustomChartType.schema,
+                            {
+                                dimensions: dimensionIds,
+                                metrics: metricIds,
+                                tableCalculations: [],
+                            },
+                        );
+                    } else if (
                         queryTool.chartConfig &&
                         !isCustomChartTypeSlugChartConfig(queryTool.chartConfig)
                     ) {
-                        // Merged output columns are fields of the merge/source
-                        // "tables", so getItemId is the naming authority.
-                        const dimensionIds = queryTool.mergeConfig.joinKey.map(
-                            (part) =>
-                                getItemId({
-                                    table: MERGE_TABLE_NAME,
-                                    name: part.name,
-                                }),
-                        );
-                        const metricIds = mergeQuery.sources
-                            .filter(isMergeMetricSource)
-                            .flatMap((source) =>
-                                source.metricQuery.metrics.map((metricId) =>
-                                    getItemId({
-                                        table: source.id,
-                                        name: metricId,
-                                    }),
-                                ),
-                            );
                         const selected = new Set([
                             ...dimensionIds,
                             ...metricIds,
@@ -431,11 +452,21 @@ export const getRunQuery = ({
                             artifactType: 'chart',
                             title: toolArgs.title,
                             description: toolArgs.description,
-                            vizConfig: {
-                                source: 'merge',
-                                schemaVersion: 1,
-                                config: toolArgs,
-                            },
+                            // The stored merge config inside the tool args is
+                            // the merge discriminator for custom envelopes.
+                            vizConfig: resolvedCustomChartType
+                                ? {
+                                      source: 'customChartType',
+                                      schemaVersion: 1,
+                                      dataAppVizUuid:
+                                          resolvedCustomChartType.dataAppVizUuid,
+                                      config: toolArgs,
+                                  }
+                                : {
+                                      source: 'merge',
+                                      schemaVersion: 1,
+                                      config: toolArgs,
+                                  },
                         });
 
                     if (!enableDataAccess && !isSlackPrompt(prompt)) {
@@ -498,27 +529,15 @@ export const getRunQuery = ({
                     };
                 }
 
-                // Custom chart type answers: resolve the slug project-scoped
-                // and validate the field mapping against the type's schema.
-                // The resolved uuid is persisted beside the verbatim tool
-                // args in the artifact envelope.
-                let customChartTypeDataAppVizUuid: string | null = null;
-                if (isCustomChartTypeSlugChartConfig(queryTool.chartConfig)) {
-                    const customChartConfig = queryTool.chartConfig;
-                    const resolved = await resolveCustomChartType(
-                        customChartConfig.customChartTypeSlug,
-                    );
-                    if (!resolved) {
-                        throw new AiAgentValidatorError(
-                            `Custom chart type "${customChartConfig.customChartTypeSlug}" was not found in this project. Use findCustomChartTypes to browse the available types and their slugs.`,
-                        );
-                    }
+                // Validate the field mapping against the type's schema using
+                // this query's field pools.
+                if (customChartConfig && resolvedCustomChartType) {
                     const aggregations = filterAggregationCustomMetrics(
                         queryTool.queryConfig.customMetrics,
                     );
                     validateCustomChartTypeChartConfig(
                         customChartConfig,
-                        resolved.schema,
+                        resolvedCustomChartType.schema,
                         {
                             dimensions: queryTool.queryConfig.dimensions,
                             metrics: [
@@ -530,7 +549,6 @@ export const getRunQuery = ({
                             ).map((tableCalc) => tableCalc.name),
                         },
                     );
-                    customChartTypeDataAppVizUuid = resolved.dataAppVizUuid;
                 }
 
                 const populatedCustomMetrics = populateCustomMetricsSQL(
@@ -574,13 +592,14 @@ export const getRunQuery = ({
                         artifactType: 'chart',
                         title: toolArgs.title,
                         description: toolArgs.description,
-                        vizConfig: customChartTypeDataAppVizUuid
+                        vizConfig: resolvedCustomChartType
                             ? {
                                   // Envelope: model output verbatim, server-
                                   // derived uuid beside it.
                                   source: 'customChartType',
                                   schemaVersion: 1,
-                                  dataAppVizUuid: customChartTypeDataAppVizUuid,
+                                  dataAppVizUuid:
+                                      resolvedCustomChartType.dataAppVizUuid,
                                   config: toolArgs,
                               }
                             : {

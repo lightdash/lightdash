@@ -110,9 +110,10 @@ export const parseAiArtifactChartConfig = (
         'config' in config
     ) {
         const parsed = toolRunQueryArgsSchemaPersisted.safeParse(config.config);
+        // A merge-shaped config is valid here: the stored mergeConfig inside
+        // the tool args is the merge discriminator for custom envelopes.
         if (
             parsed.success &&
-            !parsed.data.mergeConfig &&
             isCustomChartTypeSlugChartConfig(parsed.data.chartConfig)
         ) {
             return {

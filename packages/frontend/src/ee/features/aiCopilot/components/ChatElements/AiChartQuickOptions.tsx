@@ -336,6 +336,9 @@ export const AiChartQuickOptions = ({
         // the merge search param, landing in the merge editor fully set up.
         if (merge) {
             if (!canonicalMerge || !projectUuid) return undefined;
+            // Merged custom answers reuse savedData's schema-derived pivot
+            // (already canonical); until the schema loads there is no URL.
+            if (customChartTypeConfig && !savedData) return undefined;
             const { fieldIdByAiFieldId } = canonicalMerge;
             const [primary, additional] = canonicalMerge.mergeQuery.sources;
             const url = getOpenInExploreUrl({
@@ -343,9 +346,11 @@ export const AiChartQuickOptions = ({
                 projectUuid,
                 columnOrder: remapFieldIdsDeep(columnOrder, fieldIdByAiFieldId),
                 chartConfig: remapFieldIdsDeep(chartConfig, fieldIdByAiFieldId),
-                pivotColumns: pivotDimensions?.length
-                    ? remapFieldIdsDeep(pivotDimensions, fieldIdByAiFieldId)
-                    : undefined,
+                pivotColumns: customChartTypeConfig
+                    ? savedData?.pivotConfig?.columns
+                    : pivotDimensions?.length
+                      ? remapFieldIdsDeep(pivotDimensions, fieldIdByAiFieldId)
+                      : undefined,
             });
             const search = new URLSearchParams(url.search);
             search.set(

@@ -50,6 +50,25 @@ export const buildAiSavedChartData = ({
         if (!canonicalMerge) return undefined;
         const { fieldIdByAiFieldId } = canonicalMerge;
         const [primary] = canonicalMerge.mergeQuery.sources;
+        // Merged custom answers persist the schema-derived pivot with the
+        // AI merge ids remapped to the merge editor's canonical ids.
+        const mergedCustomChartTypeConfig =
+            getCustomChartTypeConfig(chartConfig);
+        let pivotConfig: CreateSavedChartVersion['pivotConfig'];
+        if (mergedCustomChartTypeConfig) {
+            if (customChartTypeMetadata?.state !== 'ready') return undefined;
+            pivotConfig = remapFieldIdsDeep(
+                deriveDataAppVizPivotConfig(
+                    customChartTypeMetadata.schema.fields,
+                    mergedCustomChartTypeConfig.fieldMapping,
+                ),
+                fieldIdByAiFieldId,
+            );
+        } else if (pivotDimensions?.length) {
+            pivotConfig = {
+                columns: remapFieldIdsDeep(pivotDimensions, fieldIdByAiFieldId),
+            };
+        }
         return {
             metricQuery: primary.metricQuery,
             tableName: primary.metricQuery.exploreName,
@@ -57,14 +76,7 @@ export const buildAiSavedChartData = ({
             tableConfig: {
                 columnOrder: remapFieldIdsDeep(columnOrder, fieldIdByAiFieldId),
             },
-            pivotConfig: pivotDimensions?.length
-                ? {
-                      columns: remapFieldIdsDeep(
-                          pivotDimensions,
-                          fieldIdByAiFieldId,
-                      ),
-                  }
-                : undefined,
+            pivotConfig,
             merge: toSavedMerge(canonicalMerge.mergeQuery),
             parameters: merge.parameters,
         };

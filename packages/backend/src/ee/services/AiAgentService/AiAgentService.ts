@@ -55,6 +55,7 @@ import {
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     assertUnreachable,
+    ChartType,
     CommercialFeatureFlags,
     ConflictError,
     ContentType,
@@ -128,6 +129,7 @@ import {
     type AiAgentEditDbtProjectPipelineJobPayload,
     type AiAgentModelConfig,
     type AiClonedThreadCreatedFrom,
+    type AiCustomChartTypeChartArtifactConfig,
     type AiDeepResearchBudget,
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchEvidencePack,
@@ -137,6 +139,7 @@ import {
     type AiWebAppThreadCreatedFrom,
     type DataAppVizChart,
     type ItemsMap,
+    type MergeQueryChart,
     type MetricQuery,
     type PivotConfiguration,
     type SessionUser,
@@ -2496,10 +2499,44 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    // Best-effort merge pivot chart from the type's schema: a deleted app
+    // or invalid schema means no pivot, not an error.
+    private async buildCustomChartTypeMergeChart(
+        projectUuid: string,
+        artifactConfig: AiCustomChartTypeChartArtifactConfig,
+    ): Promise<MergeQueryChart | undefined> {
+        const dataAppVizChart = getDataAppVizChartFromArtifact(artifactConfig);
+        if (!dataAppVizChart) return undefined;
+        const app = await this.appModel.findVisualizationApp(
+            dataAppVizChart.dataAppVizUuid,
+            projectUuid,
+        );
+        const parsedSchema = dataAppVizSchema.safeParse(app?.viz_schema);
+        if (!parsedSchema.success) {
+            Logger.warn(
+                `Skipping custom chart type merge pivot for ${dataAppVizChart.dataAppVizUuid}: app missing or viz_schema failed validation`,
+            );
+            return undefined;
+        }
+        return {
+            chartConfig: {
+                type: ChartType.DATA_APP_VIZ,
+                config: dataAppVizChart,
+            },
+            pivotConfig: deriveDataAppVizPivotConfig(
+                parsedSchema.data.fields,
+                dataAppVizChart.fieldMapping,
+            ),
+        };
+    }
+
     private async executeAsyncAiMergeQuery(
         user: SessionUser,
         projectUuid: string,
         toolArgs: ToolRunQueryArgsTransformed,
+        // Set for custom chart type answers: the merge pivot seam derives
+        // series pivots over the merged result from the type's schema.
+        chart?: MergeQueryChart,
     ) {
         const mergeQuery = await this.buildAiMergeQuery(
             user,
@@ -2513,6 +2550,7 @@ export class AiAgentService extends BaseService {
             context: QueryExecutionContext.AI,
             parameters: toolArgs.queryConfig.parameters ?? undefined,
             mode: { type: 'interactive' },
+            chart,
         });
         if (outcome.outcome === 'refused') {
             throw new ParameterError(formatMergeQueryRefusal(outcome.errors), {
@@ -6856,7 +6894,20 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        if (isAiMergeChartArtifactConfig(artifact.chartConfig)) {
+        // Custom envelopes may carry a merge (the stored mergeConfig is the
+        // discriminator) and replay through merge execution like merges.
+        const customChartTypeEnvelope =
+            artifact.chartConfig.source === 'customChartType'
+                ? artifact.chartConfig
+                : null;
+        const customChartTypeParsed = customChartTypeEnvelope
+            ? parsePersistedRunQueryArgs(customChartTypeEnvelope.config)
+            : null;
+
+        if (
+            isAiMergeChartArtifactConfig(artifact.chartConfig) ||
+            customChartTypeParsed?.mergeConfig
+        ) {
             const { enabled: mergeQueriesEnabled } =
                 await this.featureFlagService.get({
                     user,
@@ -6865,16 +6916,23 @@ export class AiAgentService extends BaseService {
             if (!mergeQueriesEnabled) {
                 throw new ForbiddenError('Merge queries are not enabled');
             }
-            const parsed = parsePersistedRunQueryArgs(
-                artifact.chartConfig.config,
-            );
+            const parsed = isAiMergeChartArtifactConfig(artifact.chartConfig)
+                ? parsePersistedRunQueryArgs(artifact.chartConfig.config)
+                : customChartTypeParsed;
             if (!parsed?.mergeConfig) {
                 throw new ParameterError('Invalid merge visualization config');
             }
+            const chart = customChartTypeEnvelope
+                ? await this.buildCustomChartTypeMergeChart(
+                      projectUuid,
+                      customChartTypeEnvelope,
+                  )
+                : undefined;
             const { query, mergeQuery } = await this.executeAsyncAiMergeQuery(
                 user,
                 projectUuid,
                 parsed,
+                chart,
             );
             this.analytics.track({
                 event: 'ai_agent.artifact_viz_query',

@@ -3,6 +3,7 @@ import {
     DimensionType,
     FilterOperator,
     FilterType,
+    MergeJoinType,
 } from '@lightdash/common';
 import type { AgentSelectOption } from './getSlackBlocks';
 import {
@@ -581,6 +582,121 @@ describe('Slack AI agent blocks', () => {
                 'create_saved_chart_version',
             )!,
         );
+        expect(saved.chartConfig.type).toBe(ChartType.TABLE);
+        expect(saved.pivotConfig).toBeUndefined();
+    });
+
+    it('keeps the merge fallback for merged custom chart type answers', async () => {
+        let sharedParams: string | undefined;
+        const getDataAppVizSchemaFields = vi.fn();
+        await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async (_path, params) => {
+                sharedParams = params;
+                return 'https://lightdash.example.com/share/custom';
+            },
+            async () => ({}) as never,
+            async () => true,
+            'agent-1',
+            [
+                {
+                    artifactUuid: 'artifact-1',
+                    threadUuid: 'thread-1',
+                    promptUuid: 'prompt-1',
+                    artifactType: 'chart',
+                    savedQueryUuid: null,
+                    savedDashboardUuid: null,
+                    createdAt: new Date(),
+                    versionNumber: 1,
+                    versionUuid: 'version-1',
+                    title: 'Orders vs Targets',
+                    description: null,
+                    dashboardConfig: null,
+                    versionCreatedAt: new Date(),
+                    verifiedByUserUuid: null,
+                    verifiedAt: null,
+                    chartConfig: {
+                        source: 'customChartType',
+                        schemaVersion: 1,
+                        dataAppVizUuid: 'data-app-viz-1',
+                        config: {
+                            title: 'Orders vs Targets',
+                            description: 'Orders vs targets by month',
+                            queryConfig: {
+                                exploreName: 'orders',
+                                dimensions: ['orders_order_date_month'],
+                                metrics: ['orders_unique_order_count'],
+                                sorts: [],
+                                limit: 500,
+                                parameters: null,
+                                customMetrics: [],
+                                tableCalculations: [],
+                                filters: null,
+                            },
+                            chartConfig: {
+                                customChartTypeSlug: 'fuzzy-bar',
+                                fieldMapping: {
+                                    x: 'merge_month',
+                                    y: 'primary_orders_unique_order_count',
+                                },
+                                options: null,
+                            },
+                            mergeConfig: {
+                                primarySourceId: 'primary',
+                                additionalSources: [
+                                    {
+                                        id: 'targets',
+                                        queryConfig: {
+                                            exploreName: 'targets',
+                                            dimensions: ['targets_month'],
+                                            metrics: ['targets_target'],
+                                            sorts: [],
+                                            customMetrics: [],
+                                            filters: null,
+                                        },
+                                    },
+                                ],
+                                joinKey: [
+                                    {
+                                        name: 'month',
+                                        fields: [
+                                            {
+                                                sourceId: 'primary',
+                                                fieldId:
+                                                    'orders_order_date_month',
+                                            },
+                                            {
+                                                sourceId: 'targets',
+                                                fieldId: 'targets_month',
+                                            },
+                                        ],
+                                    },
+                                ],
+                                joinType: MergeJoinType.FULL,
+                            },
+                        },
+                    },
+                },
+            ],
+            [],
+            getDataAppVizSchemaFields,
+        );
+
+        // The custom-chart branch is skipped for merged answers: the link
+        // stays the table-configured primary-source explore.
+        expect(getDataAppVizSchemaFields).not.toHaveBeenCalled();
+        const saved = JSON.parse(
+            new URLSearchParams(sharedParams).get(
+                'create_saved_chart_version',
+            )!,
+        );
+        expect(saved.tableName).toBe('orders');
         expect(saved.chartConfig.type).toBe(ChartType.TABLE);
         expect(saved.pivotConfig).toBeUndefined();
     });
