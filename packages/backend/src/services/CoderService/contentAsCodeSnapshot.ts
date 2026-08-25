@@ -131,8 +131,8 @@ export const resolveDriftGate = (args: {
             const label = contentType === 'chart' ? 'Chart' : 'Dashboard';
             const cause =
                 verdict === 'ahead'
-                    ? `changed on the instance since the last upload`
-                    : `exists on the instance but has no record of a previous upload`;
+                    ? `changed in the Lightdash project since the last upload`
+                    : `exists in the Lightdash project but has no record of a previous upload`;
             if (overwriteDrifted) {
                 return {
                     outcome: 'proceed',
@@ -146,13 +146,13 @@ export const resolveDriftGate = (args: {
                         contentType,
                         slug,
                         reason: ContentAsCodeSkipReason.SKIPPED_AHEAD,
-                        message: `${label} "${slug}" ${cause}; skipped to avoid overwriting instance changes. Use --overwrite-drifted to make git win.`,
+                        message: `${label} "${slug}" ${cause}; skipped to avoid overwriting those changes. Use --overwrite-drifted to make git win.`,
                     },
                 };
             }
             return {
                 outcome: 'proceed',
-                driftWarning: `${label} "${slug}" ${cause} and was overwritten. Set content_as_code.sync: true in lightdash.config.yml to protect instance changes.`,
+                driftWarning: `${label} "${slug}" ${cause} and was overwritten. Set content_as_code.sync: true in lightdash.config.yml to protect changes made in Lightdash.`,
             };
         }
         default:

@@ -31,11 +31,11 @@ describe('renderContentDiff', () => {
         };
         const out = strip(
             renderContentDiff(current, incoming, {
-                current: 'instance (current)',
+                current: 'project (current)',
                 incoming: 'git (this upload)',
             }),
         );
-        expect(out).toContain('--- instance (current)');
+        expect(out).toContain('--- project (current)');
         expect(out).toContain('+++ git (this upload)');
         expect(out).toContain('- description: edited on the instance');
         expect(out).toContain('+ description: what git wants');
