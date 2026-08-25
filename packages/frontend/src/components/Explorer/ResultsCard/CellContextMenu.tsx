@@ -17,9 +17,9 @@ import { useCallback, useMemo, type FC } from 'react';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useMergeQuickFilter } from '../../../features/mergeQuery/hooks/useMergeQuickFilter';
 import { useMergeSourceCell } from '../../../features/mergeQuery/hooks/useMergeSourceCell';
-import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useAccount } from '../../../hooks/user/useAccount';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -53,10 +53,24 @@ const CellContextMenu: FC<
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
     const { user } = useApp();
-    const { data: organization } = useOrganization();
+    const { data: account } = useAccount();
     const projectUuid = useProjectUuid();
+    const isEmbedded = account?.isJwtUser() === true;
     const organizationUuid =
-        user.data?.organizationUuid ?? organization?.organizationUuid;
+        user.data?.organizationUuid ?? account?.organization.organizationUuid;
+    const drillDownPermission = subject(
+        'Explore',
+        isEmbedded
+            ? {
+                  organizationUuid,
+                  projectUuid,
+                  exploreNames: [tableName],
+              }
+            : {
+                  organizationUuid: user.data?.organizationUuid,
+                  projectUuid,
+              },
+    );
 
     const value: ResultValue = useMemo(
         () => cell.getValue()?.value || {},
@@ -179,9 +193,8 @@ const CellContextMenu: FC<
             <Can
                 I="manage"
                 this={subject('Explore', {
-                    organizationUuid,
+                    organizationUuid: user.data?.organizationUuid,
                     projectUuid: projectUuid,
-                    exploreNames: [tableName],
                 })}
             >
                 {isEditMode &&
@@ -199,14 +212,7 @@ const CellContextMenu: FC<
                         />
                     )}
             </Can>
-            <Can
-                I="view"
-                this={subject('Explore', {
-                    organizationUuid,
-                    projectUuid: projectUuid,
-                    exploreNames: [tableName],
-                })}
-            >
+            <Can I={isEmbedded ? 'view' : 'manage'} this={drillDownPermission}>
                 {(!isMerged || resolvedSourceCell) && (
                     <DrillDownMenuItem
                         item={resolvedSourceCell?.item ?? item}

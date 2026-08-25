@@ -16,9 +16,9 @@ import {
     useState,
     type FC,
 } from 'react';
-import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useAccount } from '../../../hooks/user/useAccount';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -40,22 +40,35 @@ export const SeriesContextMenu: FC<{
     const clipboard = useClipboard({ timeout: 200 });
     const { track } = useTracking();
     const { user } = useApp();
-    const { data: organization } = useOrganization();
+    const { data: account } = useAccount();
+    const isEmbedded = account?.isJwtUser() === true;
     const organizationUuid =
-        user.data?.organizationUuid ?? organization?.organizationUuid;
+        user.data?.organizationUuid ?? account?.organization.organizationUuid;
+    const projectUuid = useProjectUuid();
 
     const context = useVisualizationContext();
     const { resultsData: { metricQuery } = {} } = context;
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const { openUnderlyingDataModal, tableName } = useMetricQueryDataContext();
+    const drillDownPermission = subject(
+        'Explore',
+        isEmbedded
+            ? {
+                  organizationUuid,
+                  projectUuid,
+                  exploreNames: [tableName],
+              }
+            : {
+                  organizationUuid: user.data?.organizationUuid,
+                  projectUuid,
+              },
+    );
 
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
         top: number;
     }>();
-
-    const projectUuid = useProjectUuid();
 
     useEffect(() => {
         if (echartsSeriesClickEvent !== undefined) {
@@ -181,12 +194,8 @@ export const SeriesContextMenu: FC<{
                 </Can>
 
                 <Can
-                    I="view"
-                    this={subject('Explore', {
-                        organizationUuid,
-                        projectUuid: projectUuid,
-                        exploreNames: [tableName],
-                    })}
+                    I={isEmbedded ? 'view' : 'manage'}
+                    this={drillDownPermission}
                 >
                     <DrillDownMenuItem
                         {...underlyingData}

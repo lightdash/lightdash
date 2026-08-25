@@ -12,9 +12,9 @@ import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
-import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
+import { useAccount } from '../../hooks/user/useAccount';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -46,10 +46,24 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
 
     const { track } = useTracking();
     const { user } = useApp();
-    const { data: organization } = useOrganization();
+    const { data: account } = useAccount();
     const projectUuid = useProjectUuid();
+    const isEmbedded = account?.isJwtUser() === true;
     const organizationUuid =
-        user.data?.organizationUuid ?? organization?.organizationUuid;
+        user.data?.organizationUuid ?? account?.organization.organizationUuid;
+    const drillDownPermission = subject(
+        'Explore',
+        isEmbedded
+            ? {
+                  organizationUuid,
+                  projectUuid,
+                  exploreNames: [tableName],
+              }
+            : {
+                  organizationUuid: user.data?.organizationUuid,
+                  projectUuid,
+              },
+    );
     const clipboard = useClipboard({ timeout: 200 });
 
     const handleCopyToClipboard = useCallback(() => {
@@ -127,9 +141,8 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
             <Can
                 I="manage"
                 this={subject('Explore', {
-                    organizationUuid,
+                    organizationUuid: user.data?.organizationUuid,
                     projectUuid: projectUuid,
-                    exploreNames: [tableName],
                 })}
             >
                 {isEditMode &&
@@ -139,14 +152,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                         <QuickFilterMenuItems item={item} value={value} />
                     )}
             </Can>
-            <Can
-                I="view"
-                this={subject('Explore', {
-                    organizationUuid,
-                    projectUuid: projectUuid,
-                    exploreNames: [tableName],
-                })}
-            >
+            <Can I={isEmbedded ? 'view' : 'manage'} this={drillDownPermission}>
                 <DrillDownMenuItem
                     item={item}
                     fieldValues={fieldValues}

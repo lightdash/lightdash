@@ -57,8 +57,7 @@ const EmbedExploreView: FC<{
             }
             isSidebarOpen={isEditMode}
             withFullHeight
-            withPaddedContent={!chartView || isEditMode}
-            noContentPadding={chartView && !isEditMode}
+            withPaddedContent
         >
             <MergeProvider readOnly={!isEditMode}>
                 <Explorer chartView={chartView} />

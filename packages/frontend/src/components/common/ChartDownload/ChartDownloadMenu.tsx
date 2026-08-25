@@ -10,9 +10,8 @@ import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback } from 'react';
 import useEchartsCartesianConfig from '../../../hooks/echarts/useEchartsCartesianConfig';
-import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { useAccount } from '../../../hooks/user/useAccount';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
-import useApp from '../../../providers/App/useApp';
 import { type Limit } from '../../ExportResults/types';
 import ExportSelector from '../../ExportSelector';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
@@ -61,41 +60,42 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             (visualizationConfig.chartType === ChartType.CARTESIAN &&
                 !eChartsOptions);
 
-        const { user } = useApp();
-        const { data: organization } = useOrganization();
+        const { data: account } = useAccount();
         const ability = useAbilityContext();
-        const organizationUuid =
-            user.data?.organizationUuid ?? organization?.organizationUuid;
-        const canExportCsv =
-            ability.can(
-                'manage',
-                subject('ExportCsv', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            ) ||
-            ability.can(
-                'export',
-                subject('SavedChart', {
-                    organizationUuid,
-                    type: 'csv',
-                }),
-            );
-        const canExportImages =
-            ability.can(
-                'manage',
-                subject('Explore', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            ) ||
-            ability.can(
-                'export',
-                subject('SavedChart', {
-                    organizationUuid,
-                    type: 'images',
-                }),
-            );
+        const organizationUuid = account?.organization.organizationUuid;
+        const isEmbedded = account?.isJwtUser() === true;
+        const canManageExplore = ability.can(
+            'manage',
+            subject('Explore', {
+                organizationUuid,
+                projectUuid,
+            }),
+        );
+        const canExportCsv = isEmbedded
+            ? ability.can(
+                  'export',
+                  subject('SavedChart', {
+                      organizationUuid,
+                      type: 'csv',
+                  }),
+              )
+            : canManageExplore &&
+              ability.can(
+                  'manage',
+                  subject('ExportCsv', {
+                      organizationUuid,
+                      projectUuid,
+                  }),
+              );
+        const canExportImages = isEmbedded
+            ? ability.can(
+                  'export',
+                  subject('SavedChart', {
+                      organizationUuid,
+                      type: 'images',
+                  }),
+              )
+            : canManageExplore;
 
         const getChartInstance = useCallback(
             () => chartRef.current?.getEchartsInstance(),
