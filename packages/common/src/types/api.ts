@@ -152,6 +152,7 @@ import {
     type ApiSqlChartAsCodeListResponse,
     type ApiVirtualViewAsCodeListResponse,
     type ApiVirtualViewAsCodeUpsertResponse,
+    type ApiContentAsCodeSyncStatusResponse,
 } from './coder';
 import {
     type ApiChartContentResponse,
@@ -1341,6 +1342,7 @@ type ApiResults =
     | ApiExternalConnectionAsCodeUpsertResponse['results']
     | ApiSpaceAsCodeListResponse['results']
     | ApiSpaceAsCodeUpsertResponse['results']
+    | ApiContentAsCodeSyncStatusResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']
     | ApiGetMetricsTreeResponse['results']

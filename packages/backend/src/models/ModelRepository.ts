@@ -8,6 +8,7 @@ import { AppAccessModel } from './AppAccessModel';
 import { AppModel } from './AppModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
 import { CommentModel } from './CommentModel/CommentModel';
+import { ContentAsCodeAppliedRevisionModel } from './ContentAsCodeAppliedRevisionModel';
 import { ContentModel } from './ContentModel/ContentModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
 import { DashboardAccessModel } from './DashboardAccessModel';
@@ -150,6 +151,7 @@ export type ModelManifest = {
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
     savedSqlAccessModel: SavedSqlAccessModel;
+    contentAsCodeAppliedRevisionModel: ContentAsCodeAppliedRevisionModel;
     contentModel: ContentModel;
     contentVerificationModel: ContentVerificationModel;
     tagsModel: TagsModel;
@@ -839,6 +841,16 @@ export class ModelRepository
         return this.getModel(
             'savedSqlAccessModel',
             () => new SavedSqlAccessModel(this.database),
+        );
+    }
+
+    public getContentAsCodeAppliedRevisionModel(): ContentAsCodeAppliedRevisionModel {
+        return this.getModel(
+            'contentAsCodeAppliedRevisionModel',
+            () =>
+                new ContentAsCodeAppliedRevisionModel({
+                    database: this.database,
+                }),
         );
     }
 

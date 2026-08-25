@@ -1274,6 +1274,8 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
+                    contentAsCodeAppliedRevisionModel:
+                        this.models.getContentAsCodeAppliedRevisionModel(),
                     projectService: this.getProjectService(),
                     groupsModel: this.models.getGroupsModel(),
                     organizationMemberProfileModel:

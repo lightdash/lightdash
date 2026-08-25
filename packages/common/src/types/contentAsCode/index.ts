@@ -5,4 +5,5 @@ export * from './dashboards';
 export * from './parsers';
 export * from './scheduledContent';
 export * from './spaces';
+export * from './sync';
 export * from './virtualViews';

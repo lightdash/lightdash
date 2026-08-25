@@ -352,6 +352,13 @@ export enum FeatureFlags {
      * still delete threads from the agent admin threads view. Off by default.
      */
     AiDisableThreadDeletion = 'ai-disable-thread-deletion',
+
+    /**
+     * Two-way content-as-code sync: last-applied snapshot, skip instance-ahead
+     * uploads, conflict UI, and the project settings sync status panel.
+     * Off by default.
+     */
+    ContentAsCodeSync = 'content-as-code-sync',
 }
 
 export type FeatureFlag = {

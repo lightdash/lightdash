@@ -21,6 +21,8 @@ import {
     ChartGoogleSheetsSyncAsCode,
     ChartScheduledDeliveryAsCode,
     ChartSummary,
+    ContentAsCodeAppliedRevisionInput,
+    ContentAsCodeSyncStatus,
     ContentAsCodeType,
     ContentSlugRenameRequest,
     ContentType,
@@ -50,6 +52,7 @@ import {
     getContentAsCodePathFromLtreePath,
     getLtreePathFromContentAsCodePath,
     getParameterReferences,
+    isAccount,
     isChartScheduler,
     isDashboardScheduler,
     isEmailTarget,
@@ -98,6 +101,7 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { getAccountApiAccessContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AppModel } from '../../models/AppModel';
+import { ContentAsCodeAppliedRevisionModel } from '../../models/ContentAsCodeAppliedRevisionModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { GroupsModel } from '../../models/GroupsModel';
@@ -135,6 +139,10 @@ import {
     withTileWarnings,
 } from './dashboardReferences';
 import { normalizeFilterIds, stripFilterIds } from './filterIds';
+import {
+    hashContentAsCodeDocument,
+    isContentAsCodeContentHash,
+} from './contentAsCodeHash';
 import { ScheduledContentCoder } from './handlers/ScheduledContentCoder';
 import { VirtualViewCoder } from './handlers/VirtualViewCoder';
 import { paginateAsCode } from './pagination';
@@ -171,6 +179,7 @@ type CoderServiceArguments = {
     promoteService: PromoteService;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
+    contentAsCodeAppliedRevisionModel?: ContentAsCodeAppliedRevisionModel;
     projectService?: ProjectService;
     groupsModel: GroupsModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
@@ -218,6 +227,8 @@ export class CoderService extends BaseService {
 
     contentVerificationModel: ContentVerificationModel;
 
+    contentAsCodeAppliedRevisionModel?: ContentAsCodeAppliedRevisionModel;
+
     projectService?: ProjectService;
 
     groupsModel: GroupsModel;
@@ -254,6 +265,7 @@ export class CoderService extends BaseService {
         promoteService,
         spacePermissionService,
         contentVerificationModel,
+        contentAsCodeAppliedRevisionModel,
         projectService,
         groupsModel,
         organizationMemberProfileModel,
@@ -276,6 +288,8 @@ export class CoderService extends BaseService {
         this.promoteService = promoteService;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
+        this.contentAsCodeAppliedRevisionModel =
+            contentAsCodeAppliedRevisionModel;
         this.projectService = projectService;
         this.groupsModel = groupsModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
@@ -310,13 +324,23 @@ export class CoderService extends BaseService {
         virtualView: VirtualViewAsCode,
         force = false,
     ): Promise<ApiVirtualViewAsCodeUpsertResponse['results']> {
-        return this.virtualViewCoder.upsert(
+        const result = await this.virtualViewCoder.upsert(
             account,
             projectUuid,
             slug,
             virtualView,
             force,
         );
+        await this.recordAppliedRevision({
+            userUuid: isAccount(account)
+                ? account.user.userUuid
+                : (account as unknown as SessionUser).userUuid,
+            projectUuid,
+            contentType: ContentAsCodeType.VIRTUAL_VIEW,
+            slug,
+            document: virtualView,
+        });
+        return result;
     }
 
     private static handleContentAsCodeSqlPermissionChecks({
@@ -1172,6 +1196,13 @@ export class CoderService extends BaseService {
                     `You don't have permission to view space "${desiredSpace.slug}"`,
                 );
             }
+            await this.recordAppliedRevision({
+                userUuid: user.userUuid,
+                projectUuid,
+                contentType: ContentAsCodeType.SPACE,
+                slug: desiredSpace.slug,
+                document: desiredSpace,
+            });
             return { action: SpaceAsCodeAction.NO_CHANGES };
         }
 
@@ -1271,6 +1302,13 @@ export class CoderService extends BaseService {
             accessChanged = !isEqual(currentAccess, desiredSpace.access);
         }
         if (existingSpace && !metadataChanged && !accessChanged) {
+            await this.recordAppliedRevision({
+                userUuid: user.userUuid,
+                projectUuid,
+                contentType: ContentAsCodeType.SPACE,
+                slug: desiredSpace.slug,
+                document: desiredSpace,
+            });
             return { action: SpaceAsCodeAction.NO_CHANGES };
         }
 
@@ -1384,6 +1422,13 @@ export class CoderService extends BaseService {
             },
         });
 
+        await this.recordAppliedRevision({
+            userUuid: user.userUuid,
+            projectUuid,
+            contentType: ContentAsCodeType.SPACE,
+            slug: desiredSpace.slug,
+            document: desiredSpace,
+        });
         return {
             action: existingSpace
                 ? SpaceAsCodeAction.UPDATE
@@ -2538,13 +2583,91 @@ export class CoderService extends BaseService {
         | ApiAlertAsCodeUpsertResponse['results']
         | ApiGoogleSheetsSyncAsCodeUpsertResponse['results']
     > {
-        return this.scheduledContentCoder.upsertScheduledDelivery(
-            user,
+        const result =
+            await this.scheduledContentCoder.upsertScheduledDelivery(
+                user,
+                projectUuid,
+                slug,
+                delivery,
+                force,
+            );
+        await this.recordAppliedRevision({
+            userUuid: user.userUuid,
             projectUuid,
+            contentType: delivery.contentType,
             slug,
-            delivery,
-            force,
+            document: delivery,
+        });
+        return result;
+    }
+
+    async getContentAsCodeSyncStatus(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ContentAsCodeSyncStatus> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('ContentAsCode', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You are not allowed to view content-as-code sync status',
+            );
+        }
+
+        return this.buildContentAsCodeSyncStatus(projectUuid);
+    }
+
+    async upsertContentAsCodeAppliedRevisions(
+        user: SessionUser,
+        projectUuid: string,
+        revisions: ContentAsCodeAppliedRevisionInput[],
+    ): Promise<ContentAsCodeSyncStatus> {
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        CoderService.checkContentAsCodeWriteAccess({
+            auditedAbility,
+            project,
+            slug: 'applied-revisions',
+        });
+
+        const uniqueTypes = new Set(Object.values(ContentAsCodeType));
+        const normalized = revisions.map((revision, index) => {
+            if (!uniqueTypes.has(revision.contentType)) {
+                throw new ParameterError(
+                    `revisions[${index}].contentType is not a valid content-as-code type`,
+                );
+            }
+            if (!revision.slug || revision.slug.trim().length === 0) {
+                throw new ParameterError(
+                    `revisions[${index}].slug must not be empty`,
+                );
+            }
+            if (!isContentAsCodeContentHash(revision.contentHash)) {
+                throw new ParameterError(
+                    `revisions[${index}].contentHash must be a sha256 hex digest`,
+                );
+            }
+            return {
+                contentType: revision.contentType,
+                slug: revision.slug,
+                contentHash: revision.contentHash,
+            };
+        });
+
+        await this.contentAsCodeAppliedRevisionModel?.upsertMany(
+            projectUuid,
+            user.userUuid,
+            normalized,
         );
+
+        return this.buildContentAsCodeSyncStatus(projectUuid);
     }
 
     private async syncVerification({
@@ -2854,6 +2977,13 @@ export class CoderService extends BaseService {
                     : [],
                 dashboards: [],
             };
+            await this.recordAppliedRevision({
+                userUuid: user.userUuid,
+                projectUuid,
+                contentType: ContentAsCodeType.CHART,
+                slug,
+                document: chartAsCode,
+            });
             return promotionChanges;
         }
         console.info(
@@ -2985,6 +3115,13 @@ export class CoderService extends BaseService {
             `Finished updating chart "${chartWithDefaults.name}" on project ${projectUuid}: ${promotionChanges.charts[0].action}`,
         );
 
+        await this.recordAppliedRevision({
+            userUuid: user.userUuid,
+            projectUuid,
+            contentType: ContentAsCodeType.CHART,
+            slug,
+            document: chartAsCode,
+        });
         return promotionChanges;
     }
 
@@ -3200,6 +3337,13 @@ export class CoderService extends BaseService {
                     : [],
                 dashboards: [],
             };
+            await this.recordAppliedRevision({
+                userUuid: user.userUuid,
+                projectUuid,
+                contentType: ContentAsCodeType.SQL_CHART,
+                slug,
+                document: sqlChartAsCode,
+            });
             return promotionChanges;
         }
 
@@ -3246,6 +3390,13 @@ export class CoderService extends BaseService {
                 : [],
             dashboards: [],
         };
+        await this.recordAppliedRevision({
+            userUuid: user.userUuid,
+            projectUuid,
+            contentType: ContentAsCodeType.SQL_CHART,
+            slug,
+            document: sqlChartAsCode,
+        });
         return promotionChanges;
     }
 
@@ -3335,6 +3486,49 @@ export class CoderService extends BaseService {
                 }),
             );
         return { canUploadAnyContent, allowSpaceCreate };
+    }
+
+    private async recordAppliedRevision({
+        userUuid,
+        projectUuid,
+        contentType,
+        slug,
+        document,
+    }: {
+        userUuid: string;
+        projectUuid: string;
+        contentType: ContentAsCodeType;
+        slug: string;
+        document: unknown;
+    }): Promise<void> {
+        if (!this.contentAsCodeAppliedRevisionModel) {
+            return;
+        }
+        await this.contentAsCodeAppliedRevisionModel.upsertMany(
+            projectUuid,
+            userUuid,
+            [
+                {
+                    contentType,
+                    slug,
+                    contentHash: hashContentAsCodeDocument(document),
+                },
+            ],
+        );
+    }
+
+    private async buildContentAsCodeSyncStatus(
+        projectUuid: string,
+    ): Promise<ContentAsCodeSyncStatus> {
+        const revisions =
+            (await this.contentAsCodeAppliedRevisionModel?.listByProject(
+                projectUuid,
+            )) ?? [];
+        return {
+            lastAppliedAt: revisions[0]?.appliedAt ?? null,
+            revisionCount: revisions.length,
+            revisions,
+        };
     }
 
     private async assertSpaceContentAccess({
@@ -3816,6 +4010,13 @@ export class CoderService extends BaseService {
                 verified: dashboardAsCode.verified,
             });
 
+            await this.recordAppliedRevision({
+                userUuid: user.userUuid,
+                projectUuid,
+                contentType: ContentAsCodeType.DASHBOARD,
+                slug,
+                document: dashboardAsCode,
+            });
             return withTileWarnings(
                 {
                     dashboards: [
@@ -3973,6 +4174,13 @@ export class CoderService extends BaseService {
         console.info(
             `Finished updating dashboard "${dashboard.name}" on project ${projectUuid}: ${promotionChanges.dashboards[0].action}`,
         );
+        await this.recordAppliedRevision({
+            userUuid: user.userUuid,
+            projectUuid,
+            contentType: ContentAsCodeType.DASHBOARD,
+            slug,
+            document: dashboardAsCode,
+        });
         return withTileWarnings(promotionChanges, tileWarnings);
     }
 }

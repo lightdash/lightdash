@@ -27,7 +27,10 @@ import {
     type ApiSuccessEmpty,
     type ApiVirtualViewAsCodeListResponse,
     type ApiVirtualViewAsCodeUpsertResponse,
+    type ApiContentAsCodeSyncStatusResponse,
+    type ApiUpsertContentAsCodeAppliedRevisionsResponse,
     type ChartAsCode,
+    type UpsertContentAsCodeAppliedRevisionsRequest,
     type ContentSlugRenameRequest,
     type DashboardAsCode,
     type ExternalConnectionAsCode,
@@ -45,6 +48,7 @@ import {
     OperationId,
     Path,
     Post,
+    Put,
     Query,
     Request,
     Response,
@@ -116,6 +120,58 @@ export class ProjectCoderController extends BaseController {
             .getCoderService()
             .renameContentSlug(toSessionUser(req.account), projectUuid, body);
         return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Get the last-applied content-as-code snapshot for a project
+     * @summary Get content-as-code sync status
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/sync-status')
+    @OperationId('getContentAsCodeSyncStatus')
+    async getContentAsCodeSyncStatus(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentAsCodeSyncStatusResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getCoderService()
+                .getContentAsCodeSyncStatus(
+                    toSessionUser(req.account),
+                    projectUuid,
+                ),
+        );
+    }
+
+    /**
+     * Record last-applied content-as-code revisions after a successful upload
+     * @summary Upsert content-as-code applied revisions
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Put('/code/applied-revisions')
+    @OperationId('upsertContentAsCodeAppliedRevisions')
+    async upsertContentAsCodeAppliedRevisions(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: UpsertContentAsCodeAppliedRevisionsRequest,
+    ): Promise<ApiUpsertContentAsCodeAppliedRevisionsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getCoderService()
+                .upsertContentAsCodeAppliedRevisions(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    body.revisions,
+                ),
+        );
     }
 
     /**
