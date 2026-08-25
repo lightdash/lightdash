@@ -59,6 +59,7 @@ import ChartAsCodeModal from '../../../features/contentAsCode/components/ChartAs
 import {
     explorerActions,
     selectHasUnsavedChanges,
+    selectIsChartTypeAuthoring,
     selectIsEditMode,
     selectIsValidQuery,
     selectSavedChart,
@@ -162,6 +163,10 @@ const SavedChartsHeader: FC = () => {
     const dispatch = useExplorerDispatch();
 
     const isEditMode = useExplorerSelector(selectIsEditMode);
+    // A chart type being authored is not the chart; it finishes or cancels first.
+    const isChartTypeAuthoring = useExplorerSelector(
+        selectIsChartTypeAuthoring,
+    );
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     const savedChart = useExplorerSelector(selectSavedChart);
@@ -465,6 +470,8 @@ const SavedChartsHeader: FC = () => {
                 modals: defaultState.modals,
                 queryExecution: defaultQueryExecution,
                 preAggregate: defaultState.preAggregate,
+                chartSidebarStep: defaultState.chartSidebarStep,
+                chartTypeAuthoring: null,
             };
             dispatch(explorerActions.reset(resetState));
         }
@@ -663,6 +670,7 @@ const SavedChartsHeader: FC = () => {
                                     ) : (
                                         <>
                                             <SaveChartButton
+                                                disabled={isChartTypeAuthoring}
                                                 onSaveModalOpenChange={
                                                     setIsSaveModalOpen
                                                 }
@@ -674,8 +682,9 @@ const SavedChartsHeader: FC = () => {
                                                 variant="default"
                                                 size="xs"
                                                 disabled={
-                                                    isFromDashboard &&
-                                                    !hasUnsavedChanges
+                                                    isChartTypeAuthoring ||
+                                                    (isFromDashboard &&
+                                                        !hasUnsavedChanges)
                                                 }
                                                 onClick={handleCancelClick}
                                             >

@@ -16,6 +16,8 @@ const defaultFilters: Filters = {};
 
 export const defaultState: ExplorerSliceState = {
     isVisualizationConfigOpen: false,
+    chartSidebarStep: 'configure',
+    chartTypeAuthoring: null,
     isEditMode: false,
     isMinimal: false,
     parameterReferences: [],

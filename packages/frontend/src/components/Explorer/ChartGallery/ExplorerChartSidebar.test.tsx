@@ -2,9 +2,14 @@ import { ChartKind, ChartType } from '@lightdash/common';
 import { IconTable } from '@tabler/icons-react';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
+import {
+    createExplorerStore,
+    explorerActions,
+} from '../../../features/explorer/store';
 import { renderWithProviders } from '../../../testing/testUtils';
 import ExplorerChartSidebar from './ExplorerChartSidebar';
 
@@ -42,6 +47,13 @@ vi.mock('../VisualizationCardOptions/useChartTypeOptions', () => ({
     useChartTypeOptions: () => ({ getSelectedChartTypeItem }),
 }));
 
+const renderSidebar = (ui: ReactNode, store = createExplorerStore()) =>
+    renderWithProviders(
+        <Provider store={store}>
+            <MemoryRouter>{ui}</MemoryRouter>
+        </Provider>,
+    );
+
 const ReopenHarness = () => {
     const [open, setOpen] = useState(true);
     return (
@@ -60,13 +72,11 @@ const ReopenHarness = () => {
 
 describe('ExplorerChartSidebar', () => {
     it('moves from Configure to Choose and back after selection', async () => {
-        renderWithProviders(
-            <MemoryRouter>
-                <ExplorerChartSidebar
-                    chartType={ChartType.TABLE}
-                    onClose={vi.fn()}
-                />
-            </MemoryRouter>,
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.TABLE}
+                onClose={vi.fn()}
+            />,
         );
 
         expect(screen.getByText('Configure controls')).toBeInTheDocument();
@@ -84,13 +94,11 @@ describe('ExplorerChartSidebar', () => {
     });
 
     it('returns to Configure from Choose without selecting', async () => {
-        renderWithProviders(
-            <MemoryRouter>
-                <ExplorerChartSidebar
-                    chartType={ChartType.TABLE}
-                    onClose={vi.fn()}
-                />
-            </MemoryRouter>,
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.TABLE}
+                onClose={vi.fn()}
+            />,
         );
 
         await userEvent.click(screen.getByRole('button', { name: 'Change' }));
@@ -104,11 +112,7 @@ describe('ExplorerChartSidebar', () => {
     });
 
     it('reopens in Configure after closing from Choose', async () => {
-        renderWithProviders(
-            <MemoryRouter>
-                <ReopenHarness />
-            </MemoryRouter>,
-        );
+        renderSidebar(<ReopenHarness />);
 
         await userEvent.click(screen.getByRole('button', { name: 'Change' }));
         await userEvent.click(
@@ -121,6 +125,33 @@ describe('ExplorerChartSidebar', () => {
         expect(screen.getByText('Configure controls')).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Select chart' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('stays on Configure without Change or Close while a type is authored', () => {
+        const store = createExplorerStore();
+        store.dispatch(explorerActions.setIsEditMode(true));
+        store.dispatch(explorerActions.setChartSidebarStep('choose'));
+        store.dispatch(
+            explorerActions.startChartTypeAuthoring({ dataAppVizUuid: null }),
+        );
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.DATA_APP_VIZ}
+                onClose={vi.fn()}
+            />,
+            store,
+        );
+
+        expect(screen.getByText('Configure controls')).toBeInTheDocument();
+        expect(screen.getByText('New chart type')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Change' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', {
+                name: 'Close visualization config',
+            }),
         ).not.toBeInTheDocument();
     });
 });

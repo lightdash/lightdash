@@ -86,6 +86,18 @@ export const selectIsVisualizationConfigOpen = createSelector(
     (explorer) => explorer.isVisualizationConfigOpen === true,
 );
 
+export const selectChartSidebarStep = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.chartSidebarStep,
+);
+
+// Authoring only takes over the Explorer in edit mode.
+export const selectIsChartTypeAuthoring = createSelector(
+    [selectExplorerState],
+    (explorer) =>
+        explorer.chartTypeAuthoring !== null && explorer.isEditMode === true,
+);
+
 // FiltersCard specific selectors
 export const selectFilters = createSelector(
     [selectMetricQuery],
