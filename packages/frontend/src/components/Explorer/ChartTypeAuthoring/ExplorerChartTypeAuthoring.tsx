@@ -119,8 +119,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
         selectProjectChartType,
     ]);
 
-    // Latest-abandonment cleanup, callable from the forbidden ejection
-    // effect above render order without stale captures.
+    // Ref so the forbidden-exit effect can call cleanup without stale closures.
     const cleanupAbandonedTypeRef = useRef<() => void>(() => {});
 
     // The entry points gate already; this closes a door opened by hand.
@@ -137,8 +136,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
     useEffect(() => {
         if (!isForbidden) return;
         showToastError({ title: 'You cannot author this chart type' });
-        // The same abandonment cleanup a manual cancel runs; without it a
-        // forbidden ejection strands a running draft or a never-built type.
+        // Run the same cleanup as a manual cancel to avoid orphaned drafts.
         cleanupAbandonedTypeRef.current();
         dispatch(explorerActions.cancelChartTypeAuthoring());
     }, [isForbidden, showToastError, dispatch]);

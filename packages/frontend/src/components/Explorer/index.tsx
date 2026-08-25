@@ -67,7 +67,7 @@ import { WriteBackModal } from './WriteBackModal';
 
 const EMPTY_PARAMETER_REFERENCES: string[] = [];
 
-// Flag-gated surface; keep it out of the flag-off Explorer chunk.
+// Lazy-load to keep the flag-off Explorer bundle small.
 const ExplorerChartTypeAuthoring = lazy(
     () => import('./ChartTypeAuthoring/ExplorerChartTypeAuthoring'),
 );
