@@ -17,6 +17,7 @@ import {
     DashboardAvailableFilters,
     DashboardDAO,
     DashboardFilters,
+    DATA_APP_VIZ_TEMPLATE,
     DateGranularity,
     DateZoom,
     DecodedEmbed,
@@ -2641,6 +2642,20 @@ export class EmbedService extends BaseService {
                             'This data app is not authorized for standalone embedding',
                         );
                     }
+                    // Custom chart types are chart-rendering content, not
+                    // standalone apps — `allowAllApps` and stale allowlist
+                    // entries must not make them embeddable as apps. Chart
+                    // embeds render vizs through the viz-specific endpoints.
+                    if (content.appUuid !== undefined) {
+                        const app = await this.appModel.findAppByUuid(
+                            content.appUuid,
+                        );
+                        if (app?.template === DATA_APP_VIZ_TEMPLATE) {
+                            throw new ForbiddenError(
+                                'Custom chart types cannot be embedded as standalone data apps',
+                            );
+                        }
+                    }
                 }
 
                 return fromJwt({
@@ -2712,6 +2727,7 @@ export class EmbedService extends BaseService {
             if (spaceAccessContext.projectUuid !== projectUuid) {
                 return {
                     canUpdateDashboard: false,
+                    canUpdateSavedChart: false,
                     canCreateSavedChart: false,
                     canUseAiAgent: false,
                     aiAgentErrorMessage:
@@ -2730,6 +2746,25 @@ export class EmbedService extends BaseService {
                         metadata: {
                             dashboardUuid: content.dashboardUuid,
                         },
+                    }),
+                );
+            const savedChartUuid =
+                content.type === 'chart' ? content.chartUuids[0] : undefined;
+            const savedChart = savedChartUuid
+                ? await this.savedChartModel.get(savedChartUuid)
+                : undefined;
+            const canUpdateSavedChart =
+                savedChart !== undefined &&
+                savedChart.spaceUuid === writeActions.spaceUuid &&
+                auditedAbility.can(
+                    'update',
+                    subject('SavedChart', {
+                        organizationUuid,
+                        projectUuid,
+                        inheritsFromOrgOrProject:
+                            spaceAccessContext.inheritsFromOrgOrProject,
+                        access: spaceAccessContext.access,
+                        metadata: { savedChartUuid },
                     }),
                 );
             const canCreateSavedChart = auditedAbility.can(
@@ -2760,6 +2795,7 @@ export class EmbedService extends BaseService {
 
             return {
                 canUpdateDashboard,
+                canUpdateSavedChart,
                 canCreateSavedChart,
                 canUseAiAgent,
                 aiAgentErrorMessage: canUseAiAgent
@@ -2778,6 +2814,7 @@ export class EmbedService extends BaseService {
             ) {
                 return {
                     canUpdateDashboard: false,
+                    canUpdateSavedChart: false,
                     canCreateSavedChart: false,
                     canUseAiAgent: false,
                     aiAgentErrorMessage:

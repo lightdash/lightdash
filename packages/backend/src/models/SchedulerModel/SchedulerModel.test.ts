@@ -1,4 +1,10 @@
-import { AnyType, SchedulerJobStatus, SchedulerLog } from '@lightdash/common';
+import {
+    AnyType,
+    SchedulerFormat,
+    SchedulerJobStatus,
+    SchedulerLog,
+    type SchedulerAndTargets,
+} from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { SchedulerTableName } from '../../database/entities/scheduler';
@@ -204,6 +210,71 @@ describe('Scheduler model test', () => {
             const sql = schedulerSelectSql();
             expect(sql).toContain('"users"."is_active"');
             expect(sql).not.toContain('service_accounts');
+        });
+    });
+
+    describe('getRunsForSchedulers', () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const model = new SchedulerModel({ database });
+        let tracker: Tracker;
+
+        beforeAll(() => {
+            tracker = getTracker();
+        });
+
+        afterEach(() => {
+            tracker.reset();
+        });
+
+        it('limits child job ranking to runs for the requested schedulers', async () => {
+            tracker.on.select(/scheduler_log/).response([]);
+            const scheduler: SchedulerAndTargets = {
+                schedulerUuid: 'scheduler-1',
+                slug: 'daily-dashboard',
+                name: 'Daily dashboard',
+                message: undefined,
+                createdAt: new Date('2026-08-24T00:00:00Z'),
+                updatedAt: new Date('2026-08-24T00:00:00Z'),
+                createdBy: 'user-1',
+                createdByName: 'Test user',
+                format: SchedulerFormat.PDF,
+                cron: '0 9 * * *',
+                timezone: 'UTC',
+                savedChartUuid: null,
+                savedChartName: null,
+                dashboardUuid: 'dashboard-1',
+                dashboardName: 'Dashboard',
+                savedSqlUuid: null,
+                savedSqlName: null,
+                appUuid: null,
+                appName: null,
+                options: {},
+                filters: undefined,
+                parameters: undefined,
+                selectedTabs: null,
+                enabled: true,
+                includeLinks: true,
+                plainTextEmail: false,
+                targets: [],
+            };
+
+            await model.getRunsForSchedulers({ schedulers: [scheduler] });
+
+            const [query] = tracker.history.select;
+            const normalizedSql = query.sql.replace(/\$\d+/g, '?');
+            expect(normalizedSql).toContain(
+                '"job_group" in (select distinct "job_id" from "scheduler_log" where job_id = job_group and "scheduler_uuid" in (?) and "scheduled_time" > ? and "scheduled_time" < ?)',
+            );
+            expect(normalizedSql.match(/job_id = job_group/g)).toHaveLength(2);
+            const dateBindings = query.bindings.filter(
+                (binding): binding is Date => binding instanceof Date,
+            );
+            expect(dateBindings).toHaveLength(4);
+            expect(dateBindings[0]).toEqual(dateBindings[2]);
+            expect(dateBindings[1]).toEqual(dateBindings[3]);
+            expect(
+                query.bindings.filter((binding) => binding === 'scheduler-1'),
+            ).toHaveLength(2);
         });
     });
 

@@ -16320,11 +16320,32 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Exclude_DataAppTemplate.custom_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['dashboard'] },
+                { dataType: 'enum', enums: ['slideshow'] },
+                { dataType: 'enum', enums: ['pdf'] },
+                { dataType: 'enum', enums: ['data_app_viz'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     EmbedProjectApp: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                template: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Exclude_DataAppTemplate.custom_' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 slug: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
                 appUuid: { dataType: 'string', required: true },
@@ -16624,20 +16645,6 @@ const models: TsoaRoute.Models = {
     ApiGetDataAppAuthoringContextResponse: {
         dataType: 'refAlias',
         type: { ref: 'ApiSuccess_DataAppContext_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Exclude_DataAppTemplate.custom_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['dashboard'] },
-                { dataType: 'enum', enums: ['slideshow'] },
-                { dataType: 'enum', enums: ['pdf'] },
-                { dataType: 'enum', enums: ['data_app_viz'] },
-            ],
-            validators: {},
-        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AppVersionStatus: {
@@ -66029,6 +66036,67 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'listProjectApps',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_listProjectChartTypes: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/apps/chart-types',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype.listProjectChartTypes,
+        ),
+
+        async function AppGenerateController_listProjectChartTypes(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_listProjectChartTypes,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'listProjectChartTypes',
                     controller,
                     response,
                     next,

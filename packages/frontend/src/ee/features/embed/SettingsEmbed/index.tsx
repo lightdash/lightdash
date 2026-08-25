@@ -163,6 +163,8 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         useState<CreateEmbedJwt['writeActions']>();
     const [selectedDashboardSpaceUuid, setSelectedDashboardSpaceUuid] =
         useState<string>();
+    const [selectedChartSpaceUuid, setSelectedChartSpaceUuid] =
+        useState<string>();
     const [activeTab, setActiveTab] = useState<
         'dashboards' | 'charts' | 'apps' | 'aiAgents'
     >('dashboards');
@@ -368,12 +370,16 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 siteUrl={health.data.siteUrl}
                                 charts={charts || []}
                                 writeActions={writeActions}
+                                onChartSpaceChange={setSelectedChartSpaceUuid}
                                 writeActionsPanel={
                                     activeTab === 'charts' ? (
                                         <EmbedWriteActionsForm
                                             projectUuid={projectUuid}
                                             value={writeActions}
                                             onChange={setWriteActions}
+                                            fixedSpaceUuid={
+                                                selectedChartSpaceUuid
+                                            }
                                         />
                                     ) : null
                                 }
