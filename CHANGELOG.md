@@ -1,3 +1,10 @@
+## [1.258.3](https://github.com/lightdash/lightdash/compare/1.258.2...1.258.3) (2026-08-25)
+
+
+### Bug Fixes
+
+* **exports:** preserve parameters in google sheets exports ([#27751](https://github.com/lightdash/lightdash/issues/27751)) ([d4bbfb3](https://github.com/lightdash/lightdash/commit/d4bbfb3592d0b91182d066363187b0808fa1e6cc))
+
 ## [1.258.2](https://github.com/lightdash/lightdash/compare/1.258.1...1.258.2) (2026-08-25)
 
 

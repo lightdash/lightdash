@@ -48381,6 +48381,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                parameters: { ref: 'ParametersValuesMap' },
                 pivotConfig: { ref: 'PivotConfig' },
                 hiddenFields: {
                     dataType: 'array',
