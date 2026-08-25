@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import {
     canUseEmbeddedChartBuilder,
     convertSdkFilterToDashboardFilter,
+    haveSdkFiltersChanged,
     shouldDeferSdkFilters,
 } from './utils';
 
@@ -161,6 +162,31 @@ describe('convertSdkFilterToDashboardFilter', () => {
                 tableName: 'payments',
             },
         });
+    });
+});
+
+describe('haveSdkFiltersChanged', () => {
+    it('detects when a filter value changes', () => {
+        expect(
+            haveSdkFiltersChanged(
+                [baseFilter],
+                [{ ...baseFilter, value: 'credit_card' }],
+            ),
+        ).toBe(true);
+    });
+
+    it('ignores a new array containing equivalent filters', () => {
+        expect(haveSdkFiltersChanged([baseFilter], [{ ...baseFilter }])).toBe(
+            false,
+        );
+    });
+
+    it('detects when all filters are removed', () => {
+        expect(haveSdkFiltersChanged([baseFilter], [])).toBe(true);
+    });
+
+    it('detects the initial empty SDK filter set', () => {
+        expect(haveSdkFiltersChanged(undefined, [])).toBe(true);
     });
 });
 
