@@ -2861,7 +2861,7 @@ export class CoderService extends BaseService {
         return transformed;
     }
 
-    private async getCurrentDashboardAsCode(
+    async getCurrentDashboardAsCode(
         dashboardUuid: string,
     ): Promise<DashboardAsCode> {
         const dashboard =
