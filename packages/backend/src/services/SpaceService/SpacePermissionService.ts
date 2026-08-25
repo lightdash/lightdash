@@ -21,6 +21,7 @@ import {
     type SpaceShare,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { type DashboardAccessModel } from '../../models/DashboardAccessModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import {
     SpacePermissionModel,
@@ -28,6 +29,7 @@ import {
     type ProjectSpaceAccessWithCustomRole,
 } from '../../models/SpacePermissionModel';
 import { BaseService } from '../BaseService';
+import { type DirectAccessFeatureGate } from '../DirectAccess/DirectAccessFeatureGate';
 
 export type SpaceAdmin = {
     userUuid: string;
@@ -44,12 +46,40 @@ export type SpaceAccessContextForCasl = {
     admins: SpaceAdmin[];
 };
 
+export type DashboardAccessContextForCasl = SpaceAccessContextForCasl & {
+    /**
+     * True when the requester reaches the dashboard only through direct
+     * grants: no space access path and no org/project admin standing.
+     * Callers use it to suppress private space names in responses.
+     */
+    directOnly: boolean;
+};
+
 export class SpacePermissionService extends BaseService {
-    constructor(
-        private readonly spaceModel: SpaceModel,
-        private readonly spacePermissionModel: SpacePermissionModel,
-    ) {
+    private readonly spaceModel: SpaceModel;
+
+    private readonly spacePermissionModel: SpacePermissionModel;
+
+    private readonly dashboardAccessModel: DashboardAccessModel;
+
+    private readonly directAccessFeatureGate: DirectAccessFeatureGate;
+
+    constructor({
+        spaceModel,
+        spacePermissionModel,
+        dashboardAccessModel,
+        directAccessFeatureGate,
+    }: {
+        spaceModel: SpaceModel;
+        spacePermissionModel: SpacePermissionModel;
+        dashboardAccessModel: DashboardAccessModel;
+        directAccessFeatureGate: DirectAccessFeatureGate;
+    }) {
         super();
+        this.spaceModel = spaceModel;
+        this.spacePermissionModel = spacePermissionModel;
+        this.dashboardAccessModel = dashboardAccessModel;
+        this.directAccessFeatureGate = directAccessFeatureGate;
     }
 
     /**
@@ -157,6 +187,67 @@ export class SpacePermissionService extends BaseService {
             );
         }
         return ctx;
+    }
+
+    /**
+     * Returns the CASL context for a dashboard: the space context plus the
+     * requester's direct dashboard grants appended as ordinary access rows,
+     * so the existing `access` elemMatch ability rules interpret them with
+     * no dashboard-specific rules. Behind the direct-access feature gate;
+     * with the flag off the result equals the plain space context.
+     */
+    async getDashboardAccessContext(
+        userUuid: string,
+        dashboard: { uuid: string; spaceUuid: string },
+    ): Promise<DashboardAccessContextForCasl> {
+        const spaceContext = await this.getSpaceAccessContext(
+            userUuid,
+            dashboard.spaceUuid,
+        );
+        const spaceOnlyContext = { ...spaceContext, directOnly: false };
+        if (
+            !(await this.directAccessFeatureGate.isEnabledForUser({
+                userUuid,
+                organizationUuid: spaceContext.organizationUuid,
+            }))
+        ) {
+            return spaceOnlyContext;
+        }
+
+        const grants = await this.dashboardAccessModel.getUserAccess(
+            [dashboard.uuid],
+            userUuid,
+            { organizationUuid: spaceContext.organizationUuid },
+        );
+        const grant = grants[dashboard.uuid];
+        const grantRoles = [
+            ...(grant?.userRole ? [grant.userRole] : []),
+            ...(grant?.groupRoles ?? []),
+        ];
+        if (grantRoles.length === 0) {
+            return spaceOnlyContext;
+        }
+
+        const hasSpacePath =
+            spaceContext.access.some(
+                (access) => access.userUuid === userUuid,
+            ) ||
+            spaceContext.admins.some((admin) => admin.userUuid === userUuid);
+        return {
+            ...spaceContext,
+            access: [
+                ...spaceContext.access,
+                ...grantRoles.map((role) => ({
+                    userUuid,
+                    role,
+                    hasDirectAccess: true,
+                    projectRole: undefined,
+                    inheritedRole: undefined,
+                    inheritedFrom: undefined,
+                })),
+            ],
+            directOnly: !hasSpacePath,
+        };
     }
 
     /**

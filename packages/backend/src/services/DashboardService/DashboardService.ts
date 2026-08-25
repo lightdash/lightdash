@@ -187,9 +187,9 @@ export class DashboardService
             // real session, so it is not available to embed/JWT callers.
             assertRegisteredAccount(account);
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getSpaceAccessContext(
+                await this.spacePermissionService.getDashboardAccessContext(
                     account.user.userUuid,
-                    dashboard.spaceUuid,
+                    { uuid: dashboard.uuid, spaceUuid: dashboard.spaceUuid },
                 );
 
             if (
@@ -479,10 +479,41 @@ export class DashboardService
         dashboardUuid: UUID;
         user: SessionUser;
     }): Promise<string> {
-        const chartToDuplicate = await this.savedChartModel.get(chartUuid);
+        const chartToDuplicate = await this.savedChartModel.get(
+            chartUuid,
+            undefined,
+            { projectUuid },
+        );
         if (!chartToDuplicate.dashboardUuid) {
             throw new ParameterError(
                 'We cannot duplicate a chart that is not part of a dashboard',
+            );
+        }
+        // Tile payloads can name any chart uuid; require view access on the
+        // source chart before copying it into the target dashboard.
+        const sourceContext =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                chartToDuplicate.spaceUuid,
+            );
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: chartToDuplicate.organizationUuid,
+                    projectUuid: chartToDuplicate.projectUuid,
+                    inheritsFromOrgOrProject:
+                        sourceContext.inheritsFromOrgOrProject,
+                    access: sourceContext.access,
+                    metadata: {
+                        spaceUuid: chartToDuplicate.spaceUuid,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the chart being duplicated",
             );
         }
         const duplicatedChart = await this.savedChartModel.create(
@@ -603,15 +634,18 @@ export class DashboardService
             },
         );
 
-        const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
+        const { inheritsFromOrgOrProject, access, directOnly } =
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                dashboardDao.spaceUuid,
+                { uuid: dashboardDao.uuid, spaceUuid: dashboardDao.spaceUuid },
             );
         const dashboard = {
             ...dashboardDao,
             inheritsFromOrgOrProject,
             access,
+            // Grant-only readers can open the dashboard but must not learn
+            // the private space's name.
+            spaceName: directOnly ? '' : dashboardDao.spaceName,
         };
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -677,9 +711,9 @@ export class DashboardService
             { projectUuid },
         );
         const spaceContext =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                dashboard.spaceUuid,
+                { uuid: dashboard.uuid, spaceUuid: dashboard.spaceUuid },
             );
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -1433,9 +1467,12 @@ export class DashboardService
         const { preserveVerification, ...dashboardFields } = dashboard;
 
         const currentSpace =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                existingDashboardDao.spaceUuid,
+                {
+                    uuid: existingDashboardDao.uuid,
+                    spaceUuid: existingDashboardDao.spaceUuid,
+                },
             );
         const auditedAbility = this.createAuditedAbility(user);
         const canUpdateDashboardInCurrentSpace = auditedAbility.can(
@@ -1663,13 +1700,19 @@ export class DashboardService
             existingDashboardDao.uuid,
         );
         const updatedSpace =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                updatedNewDashboard.spaceUuid,
+                {
+                    uuid: updatedNewDashboard.uuid,
+                    spaceUuid: updatedNewDashboard.spaceUuid,
+                },
             );
 
         return {
             ...updatedNewDashboard,
+            spaceName: updatedSpace.directOnly
+                ? ''
+                : updatedNewDashboard.spaceName,
             inheritsFromOrgOrProject: updatedSpace.inheritsFromOrgOrProject,
             access: updatedSpace.access,
         };
@@ -1723,9 +1766,12 @@ export class DashboardService
         const existingDashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                existingDashboardDao.spaceUuid,
+                {
+                    uuid: existingDashboardDao.uuid,
+                    spaceUuid: existingDashboardDao.spaceUuid,
+                },
             );
         const existingDashboard = {
             ...existingDashboardDao,
@@ -1816,9 +1862,12 @@ export class DashboardService
                     dashboardToUpdate.uuid,
                 );
                 const currentSpaceContext =
-                    await this.spacePermissionService.getSpaceAccessContext(
+                    await this.spacePermissionService.getDashboardAccessContext(
                         user.userUuid,
-                        dashboard.spaceUuid,
+                        {
+                            uuid: dashboard.uuid,
+                            spaceUuid: dashboard.spaceUuid,
+                        },
                     );
                 const canUpdateDashboardInCurrentSpace = auditedAbility.can(
                     'update',
@@ -1869,12 +1918,18 @@ export class DashboardService
         const updatedDashboardsWithSpacesAccess = updatedDashboards.map(
             async (dashboard) => {
                 const dashboardSpaceContext =
-                    await this.spacePermissionService.getSpaceAccessContext(
+                    await this.spacePermissionService.getDashboardAccessContext(
                         user.userUuid,
-                        dashboard.spaceUuid,
+                        {
+                            uuid: dashboard.uuid,
+                            spaceUuid: dashboard.spaceUuid,
+                        },
                     );
                 return {
                     ...dashboard,
+                    spaceName: dashboardSpaceContext.directOnly
+                        ? ''
+                        : dashboard.spaceName,
                     inheritsFromOrgOrProject:
                         dashboardSpaceContext.inheritsFromOrgOrProject,
                     access: dashboardSpaceContext.access,
@@ -1901,9 +1956,9 @@ export class DashboardService
 
         if (!options?.bypassPermissions) {
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getSpaceAccessContext(
+                await this.spacePermissionService.getDashboardAccessContext(
                     user.userUuid,
-                    spaceUuid,
+                    { uuid: dashboardToDelete.uuid, spaceUuid },
                 );
             const auditedAbility = this.createAuditedAbility(user);
             if (
@@ -2010,9 +2065,9 @@ export class DashboardService
             });
         } else {
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getSpaceAccessContext(
+                await this.spacePermissionService.getDashboardAccessContext(
                     user.userUuid,
-                    dashboard.spaceUuid,
+                    { uuid: dashboard.uuid, spaceUuid: dashboard.spaceUuid },
                 );
             const auditedAbility = this.createAuditedAbility(user);
             if (
@@ -2341,9 +2396,9 @@ export class DashboardService
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                dashboardDao.spaceUuid,
+                { uuid: dashboardDao.uuid, spaceUuid: dashboardDao.spaceUuid },
             );
         const dashboard = {
             ...dashboardDao,
@@ -2406,9 +2461,9 @@ export class DashboardService
             throw new NotFoundError('Dashboard not found');
         }
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 actor.user.userUuid,
-                dashboard.spaceUuid,
+                { uuid: dashboard.uuid, spaceUuid: dashboard.spaceUuid },
             );
 
         const auditedAbility = this.createAuditedAbility(actor.user);
@@ -2462,9 +2517,9 @@ export class DashboardService
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                dashboardDao.spaceUuid,
+                { uuid: dashboardDao.uuid, spaceUuid: dashboardDao.spaceUuid },
             );
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -2510,10 +2565,10 @@ export class DashboardService
     ): Promise<DashboardVersion> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
-        const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
+        const { inheritsFromOrgOrProject, access, directOnly } =
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                dashboardDao.spaceUuid,
+                { uuid: dashboardDao.uuid, spaceUuid: dashboardDao.spaceUuid },
             );
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -2562,6 +2617,7 @@ export class DashboardService
             updatedByUser: dashboard.updatedByUser,
             inheritsFromOrgOrProject,
             access,
+            spaceName: directOnly ? '' : dashboardDao.spaceName,
         };
 
         // Check if this is the current version
@@ -2660,9 +2716,9 @@ export class DashboardService
         }
 
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                dashboardDao.spaceUuid,
+                { uuid: dashboardDao.uuid, spaceUuid: dashboardDao.spaceUuid },
             );
         const auditedAbility = this.createAuditedAbility(user);
         if (

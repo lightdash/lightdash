@@ -936,9 +936,9 @@ export class UnfurlService extends BaseService {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                dashboard.spaceUuid,
+                { uuid: dashboard.uuid, spaceUuid: dashboard.spaceUuid },
             );
 
         validateSelectedTabs(selectedTabs, dashboard.tiles);
