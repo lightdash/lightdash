@@ -69,8 +69,7 @@ const ChartTypeIcon: FC<ChartTypeIconProps> = ({
         data-rotated={rotatedIcon}
         icon={icon}
         size={small ? 'md' : 'xl'}
-        stroke={1.5}
-        color="ldGray.7"
+        stroke={1.25}
     />
 );
 
