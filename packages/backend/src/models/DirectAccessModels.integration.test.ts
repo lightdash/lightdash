@@ -42,7 +42,10 @@ import { UserTableName } from '../database/entities/users';
 import { getTestContext } from '../vitest.setup.integration';
 import { AppAccessModel } from './AppAccessModel';
 import { DashboardAccessModel } from './DashboardAccessModel';
-import { type DirectAccess } from './directAccessModelUtils';
+import {
+    type DirectAccess,
+    type DirectAccessModel,
+} from './directAccessModelUtils';
 import { SavedChartAccessModel } from './SavedChartAccessModel';
 import { SavedSqlAccessModel } from './SavedSqlAccessModel';
 
@@ -50,6 +53,7 @@ type AccessModel = {
     getUserAccess(
         resourceUuids: string[],
         userUuid: string,
+        scope: { organizationUuid: string },
     ): Promise<Record<string, DirectAccess>>;
 };
 
@@ -316,6 +320,7 @@ describe('direct access read models PostgreSQL integration', () => {
                 const result = await testCase.model.getUserAccess(
                     [testCase.resourceUuid, testCase.resourceUuid],
                     SEED_ORG_1_ADMIN.user_uuid,
+                    { organizationUuid },
                 );
                 transaction.removeListener('query', countAccessQueries);
 
@@ -326,6 +331,93 @@ describe('direct access read models PostgreSQL integration', () => {
                     groupRoles: [SpaceMemberRole.ADMIN],
                 });
                 expect(accessQueryCount).toBe(1);
+            }),
+        );
+    });
+
+    it('scopes every concrete read and write to the expected organization', async () => {
+        const wrongOrganizationUuid = randomUUID();
+        const cases = [
+            {
+                read: () =>
+                    new DashboardAccessModel(transaction).getUserAccess(
+                        [dashboardUuid],
+                        SEED_ORG_1_ADMIN.user_uuid,
+                        { organizationUuid: wrongOrganizationUuid },
+                    ),
+                write: () =>
+                    new DashboardAccessModel(transaction).upsertUserAccess({
+                        resourceUuid: dashboardUuid,
+                        userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        role: SpaceMemberRole.EDITOR,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                        grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        organizationUuid: wrongOrganizationUuid,
+                    }),
+            },
+            {
+                read: () =>
+                    new SavedChartAccessModel(transaction).getUserAccess(
+                        [savedChartUuid],
+                        SEED_ORG_1_ADMIN.user_uuid,
+                        { organizationUuid: wrongOrganizationUuid },
+                    ),
+                write: () =>
+                    new SavedChartAccessModel(transaction).upsertUserAccess({
+                        resourceUuid: savedChartUuid,
+                        userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        role: SpaceMemberRole.EDITOR,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                        grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        organizationUuid: wrongOrganizationUuid,
+                    }),
+            },
+            {
+                read: () =>
+                    new SavedSqlAccessModel(transaction).getUserAccess(
+                        [savedSqlUuid],
+                        SEED_ORG_1_ADMIN.user_uuid,
+                        { organizationUuid: wrongOrganizationUuid },
+                    ),
+                write: () =>
+                    new SavedSqlAccessModel(transaction).upsertUserAccess({
+                        resourceUuid: savedSqlUuid,
+                        userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        role: SpaceMemberRole.EDITOR,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                        grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        organizationUuid: wrongOrganizationUuid,
+                    }),
+            },
+            {
+                read: () =>
+                    new AppAccessModel(transaction).getUserAccess(
+                        [appUuid],
+                        SEED_ORG_1_ADMIN.user_uuid,
+                        { organizationUuid: wrongOrganizationUuid },
+                    ),
+                write: () =>
+                    new AppAccessModel(transaction).upsertUserAccess({
+                        resourceUuid: appUuid,
+                        userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        role: SpaceMemberRole.EDITOR,
+                        actorRole: SpaceMemberRole.ADMIN,
+                        actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                        grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        organizationUuid: wrongOrganizationUuid,
+                    }),
+            },
+        ];
+
+        await Promise.all(
+            cases.map(async (testCase) => {
+                await expect(testCase.read()).resolves.toEqual({});
+                await expect(testCase.write()).rejects.toMatchObject({
+                    name: 'NotFoundError',
+                });
             }),
         );
     });
@@ -372,16 +464,19 @@ describe('direct access read models PostgreSQL integration', () => {
             new SavedChartAccessModel(transaction).getUserAccess(
                 [savedChart.saved_query_uuid],
                 SEED_ORG_1_ADMIN.user_uuid,
+                { organizationUuid },
             ),
         ).resolves.toEqual({});
         await expect(
             new SavedSqlAccessModel(transaction).getUserAccess(
                 [savedSql.saved_sql_uuid],
                 SEED_ORG_1_ADMIN.user_uuid,
+                { organizationUuid },
             ),
         ).resolves.toEqual({});
         await expect(
             new SavedChartAccessModel(transaction).upsertUserAccess({
+                organizationUuid,
                 resourceUuid: savedChart.saved_query_uuid,
                 userUuid: SEED_ORG_1_ADMIN.user_uuid,
                 role: SpaceMemberRole.VIEWER,
@@ -392,6 +487,7 @@ describe('direct access read models PostgreSQL integration', () => {
         ).rejects.toMatchObject({ name: 'NotFoundError' });
         await expect(
             new SavedSqlAccessModel(transaction).upsertUserAccess({
+                organizationUuid,
                 resourceUuid: savedSql.saved_sql_uuid,
                 userUuid: SEED_ORG_1_ADMIN.user_uuid,
                 role: SpaceMemberRole.VIEWER,
@@ -408,7 +504,9 @@ describe('direct access read models PostgreSQL integration', () => {
             .delete();
 
         await expect(
-            model.getUserAccess([dashboardUuid], SEED_ORG_1_ADMIN.user_uuid),
+            model.getUserAccess([dashboardUuid], SEED_ORG_1_ADMIN.user_uuid, {
+                organizationUuid,
+            }),
         ).resolves.toMatchObject({
             [dashboardUuid]: {
                 userRole: SpaceMemberRole.VIEWER,
@@ -426,7 +524,9 @@ describe('direct access read models PostgreSQL integration', () => {
         });
 
         await expect(
-            model.getUserAccess([dashboardUuid], principal.userUuid),
+            model.getUserAccess([dashboardUuid], principal.userUuid, {
+                organizationUuid,
+            }),
         ).resolves.toHaveProperty(
             `${dashboardUuid}.userRole`,
             SpaceMemberRole.EDITOR,
@@ -436,7 +536,9 @@ describe('direct access read models PostgreSQL integration', () => {
             .where({ project_id: projectId, user_id: principal.userId })
             .delete();
         await expect(
-            model.getUserAccess([dashboardUuid], principal.userUuid),
+            model.getUserAccess([dashboardUuid], principal.userUuid, {
+                organizationUuid,
+            }),
         ).resolves.toEqual({});
 
         await transaction(ProjectMembershipsTableName).insert({
@@ -448,7 +550,9 @@ describe('direct access read models PostgreSQL integration', () => {
             .where('user_id', principal.userId)
             .update({ is_active: false });
         await expect(
-            model.getUserAccess([dashboardUuid], principal.userUuid),
+            model.getUserAccess([dashboardUuid], principal.userUuid, {
+                organizationUuid,
+            }),
         ).resolves.toEqual({});
     });
 
@@ -461,7 +565,9 @@ describe('direct access read models PostgreSQL integration', () => {
         });
 
         await expect(
-            model.getUserAccess([dashboardUuid], principal.userUuid),
+            model.getUserAccess([dashboardUuid], principal.userUuid, {
+                organizationUuid,
+            }),
         ).resolves.toHaveProperty(
             `${dashboardUuid}.userRole`,
             SpaceMemberRole.EDITOR,
@@ -471,7 +577,9 @@ describe('direct access read models PostgreSQL integration', () => {
             .where({ group_uuid: groupUuid, user_id: principal.userId })
             .delete();
         await expect(
-            model.getUserAccess([dashboardUuid], principal.userUuid),
+            model.getUserAccess([dashboardUuid], principal.userUuid, {
+                organizationUuid,
+            }),
         ).resolves.toEqual({});
     });
 
@@ -489,7 +597,9 @@ describe('direct access read models PostgreSQL integration', () => {
         });
 
         await expect(
-            model.getUserAccess([dashboardUuid], principal.userUuid),
+            model.getUserAccess([dashboardUuid], principal.userUuid, {
+                organizationUuid,
+            }),
         ).resolves.toHaveProperty(`${dashboardUuid}.groupRoles`, [
             SpaceMemberRole.ADMIN,
         ]);
@@ -498,7 +608,9 @@ describe('direct access read models PostgreSQL integration', () => {
             .where({ project_uuid: projectUuid, group_uuid: groupUuid })
             .delete();
         await expect(
-            model.getUserAccess([dashboardUuid], principal.userUuid),
+            model.getUserAccess([dashboardUuid], principal.userUuid, {
+                organizationUuid,
+            }),
         ).resolves.toHaveProperty(`${dashboardUuid}.groupRoles`, []);
     });
 
@@ -515,7 +627,9 @@ describe('direct access read models PostgreSQL integration', () => {
         const principal = await createMemberPrincipal(role.role_uuid);
 
         await expect(
-            model.getUserAccess([dashboardUuid], principal.userUuid),
+            model.getUserAccess([dashboardUuid], principal.userUuid, {
+                organizationUuid,
+            }),
         ).resolves.toHaveProperty(
             `${dashboardUuid}.userRole`,
             SpaceMemberRole.EDITOR,
@@ -528,7 +642,9 @@ describe('direct access read models PostgreSQL integration', () => {
             role_uuid: role.role_uuid,
         });
         await expect(
-            model.getUserAccess([dashboardUuid], extraRolePrincipal.userUuid),
+            model.getUserAccess([dashboardUuid], extraRolePrincipal.userUuid, {
+                organizationUuid,
+            }),
         ).resolves.toHaveProperty(
             `${dashboardUuid}.userRole`,
             SpaceMemberRole.EDITOR,
@@ -542,6 +658,7 @@ describe('direct access read models PostgreSQL integration', () => {
                 resourceUuid: dashboardUuid,
                 upsertUser: () =>
                     new DashboardAccessModel(transaction).upsertUserAccess({
+                        organizationUuid,
                         resourceUuid: dashboardUuid,
                         userUuid: SEED_ORG_1_ADMIN.user_uuid,
                         role: SpaceMemberRole.EDITOR,
@@ -551,6 +668,7 @@ describe('direct access read models PostgreSQL integration', () => {
                     }),
                 upsertGroup: () =>
                     new DashboardAccessModel(transaction).upsertGroupAccess({
+                        organizationUuid,
                         resourceUuid: dashboardUuid,
                         groupUuid,
                         role: SpaceMemberRole.VIEWER,
@@ -560,6 +678,7 @@ describe('direct access read models PostgreSQL integration', () => {
                     }),
                 reset: () =>
                     new DashboardAccessModel(transaction).resetAccess({
+                        organizationUuid,
                         resourceUuid: dashboardUuid,
                         actorRole: SpaceMemberRole.ADMIN,
                         actorRoleResolver: async () => SpaceMemberRole.ADMIN,
@@ -570,6 +689,7 @@ describe('direct access read models PostgreSQL integration', () => {
                 resourceUuid: savedChartUuid,
                 upsertUser: () =>
                     new SavedChartAccessModel(transaction).upsertUserAccess({
+                        organizationUuid,
                         resourceUuid: savedChartUuid,
                         userUuid: SEED_ORG_1_ADMIN.user_uuid,
                         role: SpaceMemberRole.EDITOR,
@@ -579,6 +699,7 @@ describe('direct access read models PostgreSQL integration', () => {
                     }),
                 upsertGroup: () =>
                     new SavedChartAccessModel(transaction).upsertGroupAccess({
+                        organizationUuid,
                         resourceUuid: savedChartUuid,
                         groupUuid,
                         role: SpaceMemberRole.VIEWER,
@@ -588,6 +709,7 @@ describe('direct access read models PostgreSQL integration', () => {
                     }),
                 reset: () =>
                     new SavedChartAccessModel(transaction).resetAccess({
+                        organizationUuid,
                         resourceUuid: savedChartUuid,
                         actorRole: SpaceMemberRole.ADMIN,
                         actorRoleResolver: async () => SpaceMemberRole.ADMIN,
@@ -598,6 +720,7 @@ describe('direct access read models PostgreSQL integration', () => {
                 resourceUuid: savedSqlUuid,
                 upsertUser: () =>
                     new SavedSqlAccessModel(transaction).upsertUserAccess({
+                        organizationUuid,
                         resourceUuid: savedSqlUuid,
                         userUuid: SEED_ORG_1_ADMIN.user_uuid,
                         role: SpaceMemberRole.EDITOR,
@@ -607,6 +730,7 @@ describe('direct access read models PostgreSQL integration', () => {
                     }),
                 upsertGroup: () =>
                     new SavedSqlAccessModel(transaction).upsertGroupAccess({
+                        organizationUuid,
                         resourceUuid: savedSqlUuid,
                         groupUuid,
                         role: SpaceMemberRole.VIEWER,
@@ -616,6 +740,7 @@ describe('direct access read models PostgreSQL integration', () => {
                     }),
                 reset: () =>
                     new SavedSqlAccessModel(transaction).resetAccess({
+                        organizationUuid,
                         resourceUuid: savedSqlUuid,
                         actorRole: SpaceMemberRole.ADMIN,
                         actorRoleResolver: async () => SpaceMemberRole.ADMIN,
@@ -626,6 +751,7 @@ describe('direct access read models PostgreSQL integration', () => {
                 resourceUuid: appUuid,
                 upsertUser: () =>
                     new AppAccessModel(transaction).upsertUserAccess({
+                        organizationUuid,
                         resourceUuid: appUuid,
                         userUuid: SEED_ORG_1_ADMIN.user_uuid,
                         role: SpaceMemberRole.EDITOR,
@@ -635,6 +761,7 @@ describe('direct access read models PostgreSQL integration', () => {
                     }),
                 upsertGroup: () =>
                     new AppAccessModel(transaction).upsertGroupAccess({
+                        organizationUuid,
                         resourceUuid: appUuid,
                         groupUuid,
                         role: SpaceMemberRole.VIEWER,
@@ -644,6 +771,7 @@ describe('direct access read models PostgreSQL integration', () => {
                     }),
                 reset: () =>
                     new AppAccessModel(transaction).resetAccess({
+                        organizationUuid,
                         resourceUuid: appUuid,
                         actorRole: SpaceMemberRole.ADMIN,
                         actorRoleResolver: async () => SpaceMemberRole.ADMIN,
@@ -667,6 +795,7 @@ describe('direct access read models PostgreSQL integration', () => {
                     testCase.model.getUserAccess(
                         [testCase.resourceUuid],
                         SEED_ORG_1_ADMIN.user_uuid,
+                        { organizationUuid },
                     ),
                 ).resolves.toMatchObject({
                     [testCase.resourceUuid]: {
@@ -682,9 +811,81 @@ describe('direct access read models PostgreSQL integration', () => {
                     testCase.model.getUserAccess(
                         [testCase.resourceUuid],
                         SEED_ORG_1_ADMIN.user_uuid,
+                        { organizationUuid },
                     ),
                 ).resolves.toEqual({});
             }),
+        );
+    });
+
+    it('rejects stale preflight authority for every model mutation', async () => {
+        const createOperations = (
+            accessModel: DirectAccessModel,
+            resourceUuid: string,
+        ): Array<() => Promise<unknown>> => {
+            const authority = {
+                actorRole: SpaceMemberRole.ADMIN,
+                actorRoleResolver: async () => SpaceMemberRole.VIEWER,
+                organizationUuid,
+            };
+            return [
+                () =>
+                    accessModel.upsertUserAccess({
+                        ...authority,
+                        resourceUuid,
+                        userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        role: SpaceMemberRole.EDITOR,
+                        grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    }),
+                () =>
+                    accessModel.upsertGroupAccess({
+                        ...authority,
+                        resourceUuid,
+                        groupUuid,
+                        role: SpaceMemberRole.EDITOR,
+                        grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    }),
+                () =>
+                    accessModel.revokeUserAccess({
+                        ...authority,
+                        resourceUuid,
+                        userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        actorUserUuid: randomUUID(),
+                    }),
+                () =>
+                    accessModel.revokeGroupAccess({
+                        ...authority,
+                        resourceUuid,
+                        groupUuid,
+                    }),
+                () => accessModel.resetAccess({ ...authority, resourceUuid }),
+            ];
+        };
+
+        const operations = [
+            ...createOperations(
+                new DashboardAccessModel(transaction),
+                dashboardUuid,
+            ),
+            ...createOperations(
+                new SavedChartAccessModel(transaction),
+                savedChartUuid,
+            ),
+            ...createOperations(
+                new SavedSqlAccessModel(transaction),
+                savedSqlUuid,
+            ),
+            ...createOperations(new AppAccessModel(transaction), appUuid),
+        ];
+
+        await operations.reduce<Promise<void>>(
+            (previous, operation) =>
+                previous.then(async () => {
+                    await expect(operation()).rejects.toMatchObject({
+                        name: 'ForbiddenError',
+                    });
+                }),
+            Promise.resolve(),
         );
     });
 
@@ -696,6 +897,7 @@ describe('direct access read models PostgreSQL integration', () => {
         transaction.on('query', countQueries);
         await expect(
             model.upsertUserAccess({
+                organizationUuid,
                 resourceUuid: randomUUID(),
                 userUuid: randomUUID(),
                 role: SpaceMemberRole.ADMIN,
@@ -709,6 +911,7 @@ describe('direct access read models PostgreSQL integration', () => {
 
         await expect(
             model.upsertUserAccess({
+                organizationUuid,
                 resourceUuid: randomUUID(),
                 userUuid: SEED_ORG_1_ADMIN.user_uuid,
                 role: SpaceMemberRole.VIEWER,
@@ -743,6 +946,7 @@ describe('direct access read models PostgreSQL integration', () => {
         });
         await expect(
             model.upsertUserAccess({
+                organizationUuid,
                 resourceUuid: dashboardUuid,
                 userUuid: foreignUserUuid,
                 role: SpaceMemberRole.VIEWER,
@@ -759,6 +963,7 @@ describe('direct access read models PostgreSQL integration', () => {
     it('allows self-revoke but prevents an editor from revoking admin access', async () => {
         await expect(
             model.revokeUserAccess({
+                organizationUuid,
                 resourceUuid: dashboardUuid,
                 userUuid: SEED_ORG_1_ADMIN.user_uuid,
                 actorRole: SpaceMemberRole.VIEWER,
@@ -772,6 +977,7 @@ describe('direct access read models PostgreSQL integration', () => {
 
         await expect(
             model.revokeGroupAccess({
+                organizationUuid,
                 resourceUuid: dashboardUuid,
                 groupUuid,
                 actorRole: SpaceMemberRole.EDITOR,
@@ -780,6 +986,7 @@ describe('direct access read models PostgreSQL integration', () => {
         ).rejects.toMatchObject({ name: 'ForbiddenError' });
         await expect(
             model.upsertGroupAccess({
+                organizationUuid,
                 resourceUuid: dashboardUuid,
                 groupUuid,
                 role: SpaceMemberRole.VIEWER,
@@ -815,6 +1022,7 @@ describe('direct access read models PostgreSQL integration', () => {
             cases.map(({ model: accessModel, resourceUuid }) =>
                 expect(
                     accessModel.revokeUserAccess({
+                        organizationUuid,
                         resourceUuid,
                         userUuid: principalUuid,
                         actorRole: SpaceMemberRole.VIEWER,
@@ -829,6 +1037,7 @@ describe('direct access read models PostgreSQL integration', () => {
         );
         await expect(
             model.revokeUserAccess({
+                organizationUuid,
                 resourceUuid: randomUUID(),
                 userUuid: principalUuid,
                 actorRole: SpaceMemberRole.VIEWER,
@@ -870,6 +1079,7 @@ describe('direct access read models PostgreSQL integration', () => {
                         groupUuid: missingGroupUuid,
                         actorRole: SpaceMemberRole.ADMIN,
                         actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                        organizationUuid,
                     }),
                 ).rejects.toMatchObject({
                     name: 'NotFoundError',
@@ -882,6 +1092,7 @@ describe('direct access read models PostgreSQL integration', () => {
     it('rolls back a role replacement when grantor attribution is invalid', async () => {
         await expect(
             model.upsertUserAccess({
+                organizationUuid,
                 resourceUuid: dashboardUuid,
                 userUuid: SEED_ORG_1_ADMIN.user_uuid,
                 role: SpaceMemberRole.EDITOR,
@@ -909,6 +1120,7 @@ describe('direct access read models PostgreSQL integration', () => {
             role: ProjectMemberRole.ADMIN,
         });
         await model.upsertUserAccess({
+            organizationUuid,
             resourceUuid: dashboardUuid,
             userUuid: SEED_ORG_1_ADMIN.user_uuid,
             role: SpaceMemberRole.EDITOR,
@@ -974,6 +1186,7 @@ describe('direct access read models PostgreSQL integration', () => {
                 userUuid: SEED_ORG_1_ADMIN.user_uuid,
                 role: SpaceMemberRole.EDITOR,
                 actorRole: SpaceMemberRole.ADMIN,
+                organizationUuid,
                 actorRoleResolver: async ({ transaction: mutationTrx }) => {
                     const membership = await mutationTrx(
                         ProjectMembershipsTableName,
@@ -1080,6 +1293,7 @@ describe('direct access read models PostgreSQL integration', () => {
             const committedModel = new DashboardAccessModel(database);
             await Promise.all([
                 committedModel.upsertUserAccess({
+                    organizationUuid,
                     resourceUuid: dashboardUuid,
                     userUuid: SEED_ORG_1_ADMIN.user_uuid,
                     role: SpaceMemberRole.VIEWER,
@@ -1088,6 +1302,7 @@ describe('direct access read models PostgreSQL integration', () => {
                     grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
                 }),
                 committedModel.upsertUserAccess({
+                    organizationUuid,
                     resourceUuid: dashboardUuid,
                     userUuid: SEED_ORG_1_ADMIN.user_uuid,
                     role: SpaceMemberRole.EDITOR,

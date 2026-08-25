@@ -63,6 +63,7 @@ export type DirectAccessModel = {
     getUserAccess(
         resourceUuids: UUID[],
         userUuid: UUID,
+        scope: { organizationUuid: UUID },
     ): Promise<Record<string, DirectAccess>>;
     upsertUserAccess(input: {
         resourceUuid: UUID;
@@ -71,6 +72,7 @@ export type DirectAccessModel = {
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
         grantedByUserUuid: UUID;
+        organizationUuid: UUID;
     }): Promise<DirectAccessMutationResult>;
     upsertGroupAccess(input: {
         resourceUuid: UUID;
@@ -79,6 +81,7 @@ export type DirectAccessModel = {
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
         grantedByUserUuid: UUID;
+        organizationUuid: UUID;
     }): Promise<DirectAccessMutationResult>;
     revokeUserAccess(input: {
         resourceUuid: UUID;
@@ -86,17 +89,20 @@ export type DirectAccessModel = {
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
         actorUserUuid: UUID;
+        organizationUuid: UUID;
     }): Promise<DirectAccessMutationResult>;
     revokeGroupAccess(input: {
         resourceUuid: UUID;
         groupUuid: UUID;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: UUID;
     }): Promise<DirectAccessMutationResult>;
     resetAccess(input: {
         resourceUuid: UUID;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: UUID;
     }): Promise<DirectAccessResetResult>;
 };
 

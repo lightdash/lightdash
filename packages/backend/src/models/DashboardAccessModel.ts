@@ -37,6 +37,7 @@ export class DashboardAccessModel implements DirectAccessModel {
     private static async getMutationContext(
         trx: Knex,
         resourceUuid: string,
+        expectedOrganizationUuid: string,
     ): Promise<DirectAccessMutationContext> {
         const context = await trx(DashboardsTableName)
             .innerJoin(
@@ -56,6 +57,10 @@ export class DashboardAccessModel implements DirectAccessModel {
             )
             .where(`${DashboardsTableName}.dashboard_uuid`, resourceUuid)
             .whereNull(`${DashboardsTableName}.deleted_at`)
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                expectedOrganizationUuid,
+            )
             .select<DirectAccessMutationContext>({
                 organizationId: `${OrganizationTableName}.organization_id`,
                 organizationUuid: `${OrganizationTableName}.organization_uuid`,
@@ -77,6 +82,7 @@ export class DashboardAccessModel implements DirectAccessModel {
         role,
         actorRole: preflightActorRole,
         actorRoleResolver,
+        organizationUuid,
         grantedByUserUuid,
     }: {
         resourceUuid: string;
@@ -84,6 +90,7 @@ export class DashboardAccessModel implements DirectAccessModel {
         role: SpaceMemberRole;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: string;
         grantedByUserUuid: string;
     }): Promise<DirectAccessMutationResult> {
         assertCanGrantDirectAccess(preflightActorRole, role);
@@ -91,6 +98,7 @@ export class DashboardAccessModel implements DirectAccessModel {
             const context = await DashboardAccessModel.getMutationContext(
                 trx,
                 resourceUuid,
+                organizationUuid,
             );
             const actorRole = await actorRoleResolver({
                 transaction: trx,
@@ -136,6 +144,7 @@ export class DashboardAccessModel implements DirectAccessModel {
         role,
         actorRole: preflightActorRole,
         actorRoleResolver,
+        organizationUuid,
         grantedByUserUuid,
     }: {
         resourceUuid: string;
@@ -143,6 +152,7 @@ export class DashboardAccessModel implements DirectAccessModel {
         role: SpaceMemberRole;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: string;
         grantedByUserUuid: string;
     }): Promise<DirectAccessMutationResult> {
         assertCanGrantDirectAccess(preflightActorRole, role);
@@ -150,6 +160,7 @@ export class DashboardAccessModel implements DirectAccessModel {
             const context = await DashboardAccessModel.getMutationContext(
                 trx,
                 resourceUuid,
+                organizationUuid,
             );
             const actorRole = await actorRoleResolver({
                 transaction: trx,
@@ -194,12 +205,14 @@ export class DashboardAccessModel implements DirectAccessModel {
         userUuid,
         actorRole: preflightActorRole,
         actorRoleResolver,
+        organizationUuid,
         actorUserUuid,
     }: {
         resourceUuid: string;
         userUuid: string;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: string;
         actorUserUuid: string;
     }): Promise<DirectAccessMutationResult> {
         const isSelfRevoke = actorUserUuid === userUuid;
@@ -211,6 +224,7 @@ export class DashboardAccessModel implements DirectAccessModel {
             const context = await DashboardAccessModel.getMutationContext(
                 trx,
                 resourceUuid,
+                organizationUuid,
             );
             const actorRole = await actorRoleResolver({
                 transaction: trx,
@@ -244,11 +258,13 @@ export class DashboardAccessModel implements DirectAccessModel {
         groupUuid,
         actorRole: preflightActorRole,
         actorRoleResolver,
+        organizationUuid,
     }: {
         resourceUuid: string;
         groupUuid: string;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: string;
     }): Promise<DirectAccessMutationResult> {
         assertCanRevokeDirectAccess({
             actorRole: preflightActorRole,
@@ -258,6 +274,7 @@ export class DashboardAccessModel implements DirectAccessModel {
             const context = await DashboardAccessModel.getMutationContext(
                 trx,
                 resourceUuid,
+                organizationUuid,
             );
             const actorRole = await actorRoleResolver({
                 transaction: trx,
@@ -290,16 +307,19 @@ export class DashboardAccessModel implements DirectAccessModel {
         resourceUuid,
         actorRole: preflightActorRole,
         actorRoleResolver,
+        organizationUuid,
     }: {
         resourceUuid: string;
         actorRole: SpaceMemberRole | undefined;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
+        organizationUuid: string;
     }): Promise<DirectAccessResetResult> {
         assertCanResetDirectAccess(preflightActorRole);
         return this.database.transaction(async (trx) => {
             const context = await DashboardAccessModel.getMutationContext(
                 trx,
                 resourceUuid,
+                organizationUuid,
             );
             const actorRole = await actorRoleResolver({
                 transaction: trx,
@@ -321,7 +341,13 @@ export class DashboardAccessModel implements DirectAccessModel {
     async getUserAccess(
         dashboardUuids: string[],
         userUuid: string,
-        { trx = this.database }: { trx?: Knex } = {},
+        {
+            trx = this.database,
+            organizationUuid,
+        }: {
+            trx?: Knex;
+            organizationUuid: string;
+        },
     ): Promise<Record<string, DashboardDirectAccess>> {
         const uniqueDashboardUuids = [...new Set(dashboardUuids)];
         if (uniqueDashboardUuids.length === 0) {
@@ -378,6 +404,10 @@ export class DashboardAccessModel implements DirectAccessModel {
                 uniqueDashboardUuids,
             )
             .where(`${DashboardUserAccessTableName}.user_uuid`, userUuid)
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
             .where(getActiveProjectMemberPredicate(trx))
             .whereNull(`${DashboardsTableName}.deleted_at`)
             .unionAll(
@@ -436,6 +466,10 @@ export class DashboardAccessModel implements DirectAccessModel {
                         uniqueDashboardUuids,
                     )
                     .where(`${UserTableName}.user_uuid`, userUuid)
+                    .where(
+                        `${OrganizationTableName}.organization_uuid`,
+                        organizationUuid,
+                    )
                     .where(getActiveProjectMemberPredicate(trx))
                     .where(
                         `${GroupMembershipTableName}.organization_id`,
