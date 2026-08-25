@@ -161,7 +161,11 @@ describe('ContentAsCodeWriteBackService', () => {
     const gitIntegrationService = {
         writeBackContentAsCodeFiles: vi.fn(),
         hasOpenContentAsCodePullRequest: vi.fn(async () => false),
-        getContentAsCodePullRequestStatus: vi.fn(async () => ({
+        getContentAsCodePullRequestStatus: vi.fn(async (): Promise<{
+            prState: 'open' | 'merged' | 'none';
+            prUrl: string | null;
+            prTitle: string | null;
+        }> => ({
             prState: 'none',
             prUrl: null,
             prTitle: null,
@@ -359,7 +363,7 @@ describe('ContentAsCodeWriteBackService', () => {
     it('rejects propose when the slug is already in sync', async () => {
         const chartAsCode = await service['buildChartAsCode'](
             chart as never,
-            spaces,
+            spaces as never,
         );
         appliedRevisionModel.findBySlug.mockResolvedValue({
             contentType: ContentAsCodeType.CHART,
