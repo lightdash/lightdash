@@ -7,6 +7,7 @@ import { AnalyticsModel } from './AnalyticsModel';
 import { AppModel } from './AppModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
 import { CommentModel } from './CommentModel/CommentModel';
+import { ContentAsCodeSnapshotModel } from './ContentAsCodeSnapshotModel';
 import { ContentModel } from './ContentModel/ContentModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
@@ -143,6 +144,7 @@ export type ModelManifest = {
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
     contentModel: ContentModel;
+    contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
     contentVerificationModel: ContentVerificationModel;
     tagsModel: TagsModel;
     featureFlagModel: FeatureFlagModel;
@@ -810,6 +812,13 @@ export class ModelRepository
         return this.getModel(
             'contentModel',
             () => new ContentModel({ database: this.database }),
+        );
+    }
+
+    public getContentAsCodeSnapshotModel(): ContentAsCodeSnapshotModel {
+        return this.getModel(
+            'contentAsCodeSnapshotModel',
+            () => new ContentAsCodeSnapshotModel({ database: this.database }),
         );
     }
 
