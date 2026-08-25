@@ -1,3 +1,10 @@
+# [2.1.0](https://github.com/lightdash/lightdash/compare/2.0.0...2.1.0) (2026-08-25)
+
+
+### Features
+
+* add server-directed mobile login ([#28055](https://github.com/lightdash/lightdash/issues/28055)) ([50a2f44](https://github.com/lightdash/lightdash/commit/50a2f44c10516efa94f8c0dccd766150b0d720d6))
+
 # [2.0.0](https://github.com/lightdash/lightdash/compare/1.262.1...2.0.0) (2026-08-25)
 
 

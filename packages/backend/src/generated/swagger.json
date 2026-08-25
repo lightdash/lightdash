@@ -38463,8 +38463,93 @@
                     }
                 ]
             },
+            "OpenIdIdentityIssuerType.GOOGLE": {
+                "enum": ["google"],
+                "type": "string"
+            },
+            "OpenIdIdentityIssuerType.OKTA": {
+                "enum": ["okta"],
+                "type": "string"
+            },
+            "OpenIdIdentityIssuerType.ONELOGIN": {
+                "enum": ["oneLogin"],
+                "type": "string"
+            },
+            "OpenIdIdentityIssuerType.AZUREAD": {
+                "enum": ["azuread"],
+                "type": "string"
+            },
+            "OpenIdIdentityIssuerType.GENERIC_OIDC": {
+                "enum": ["oidc"],
+                "type": "string"
+            },
+            "MobileLoginSsoProvider": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/OpenIdIdentityIssuerType.GOOGLE"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OpenIdIdentityIssuerType.OKTA"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OpenIdIdentityIssuerType.ONELOGIN"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OpenIdIdentityIssuerType.AZUREAD"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OpenIdIdentityIssuerType.GENERIC_OIDC"
+                    }
+                ]
+            },
+            "MobileLoginSsoPresentation": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": ["none"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["kind"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": ["neutral"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["kind"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "provider": {
+                                "$ref": "#/components/schemas/MobileLoginSsoProvider"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["branded"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["provider", "kind"],
+                        "type": "object"
+                    }
+                ]
+            },
             "LoginOptions": {
                 "properties": {
+                    "localEmailAvailable": {
+                        "type": "boolean"
+                    },
+                    "ssoPresentation": {
+                        "$ref": "#/components/schemas/MobileLoginSsoPresentation"
+                    },
                     "redirectUri": {
                         "type": "string"
                     },
@@ -56237,7 +56322,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -71555,6 +71640,14 @@
                     {
                         "in": "query",
                         "name": "email",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "mobile_login_intent",
                         "required": false,
                         "schema": {
                             "type": "string"

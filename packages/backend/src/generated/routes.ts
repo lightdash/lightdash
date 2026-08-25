@@ -38434,11 +38434,97 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'OpenIdIdentityIssuerType.GOOGLE': {
+        dataType: 'refEnum',
+        enums: ['google'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'OpenIdIdentityIssuerType.OKTA': {
+        dataType: 'refEnum',
+        enums: ['okta'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'OpenIdIdentityIssuerType.ONELOGIN': {
+        dataType: 'refEnum',
+        enums: ['oneLogin'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'OpenIdIdentityIssuerType.AZUREAD': {
+        dataType: 'refEnum',
+        enums: ['azuread'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'OpenIdIdentityIssuerType.GENERIC_OIDC': {
+        dataType: 'refEnum',
+        enums: ['oidc'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MobileLoginSsoProvider: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'OpenIdIdentityIssuerType.GOOGLE' },
+                { ref: 'OpenIdIdentityIssuerType.OKTA' },
+                { ref: 'OpenIdIdentityIssuerType.ONELOGIN' },
+                { ref: 'OpenIdIdentityIssuerType.AZUREAD' },
+                { ref: 'OpenIdIdentityIssuerType.GENERIC_OIDC' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MobileLoginSsoPresentation: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        kind: {
+                            dataType: 'enum',
+                            enums: ['none'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        kind: {
+                            dataType: 'enum',
+                            enums: ['neutral'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        provider: {
+                            ref: 'MobileLoginSsoProvider',
+                            required: true,
+                        },
+                        kind: {
+                            dataType: 'enum',
+                            enums: ['branded'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     LoginOptions: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                localEmailAvailable: { dataType: 'boolean' },
+                ssoPresentation: { ref: 'MobileLoginSsoPresentation' },
                 redirectUri: { dataType: 'string' },
                 forceRedirect: { dataType: 'boolean' },
                 showOptions: {
@@ -82955,6 +83041,11 @@ export function RegisterRoutes(app: Router) {
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
         email: { in: 'query', name: 'email', dataType: 'string' },
+        mobile_login_intent: {
+            in: 'query',
+            name: 'mobile_login_intent',
+            dataType: 'string',
+        },
     };
     app.get(
         '/api/v1/user/login-options',
