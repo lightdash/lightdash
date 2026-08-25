@@ -742,12 +742,23 @@ export class AsyncQueryService extends ProjectService {
             project: Pick<Project, 'projectUuid'>;
             organization: Pick<Organization, 'organizationUuid'>;
             space: Pick<SpaceSummaryBase, 'uuid'>;
+            // Charts owned by a dashboard are covered by that dashboard's
+            // direct grants.
+            dashboard: { uuid: string } | null;
         },
     ) {
-        const ctx = await this.spacePermissionService.getSpaceAccessContext(
-            account.user.id,
-            savedChart.space.uuid,
-        );
+        const ctx = savedChart.dashboard?.uuid
+            ? await this.spacePermissionService.getDashboardAccessContext(
+                  account.user.id,
+                  {
+                      uuid: savedChart.dashboard.uuid,
+                      spaceUuid: savedChart.space.uuid,
+                  },
+              )
+            : await this.spacePermissionService.getSpaceAccessContext(
+                  account.user.id,
+                  savedChart.space.uuid,
+              );
 
         const auditedAbility = this.createAuditedAbility(account);
         if (
@@ -5994,6 +6005,9 @@ export class AsyncQueryService extends ProjectService {
         projectUuid: string,
         savedChartUuid: string,
         space: SpaceSummaryBase,
+        // Set when the chart is owned by a dashboard, whose direct grants
+        // then cover running it.
+        owningDashboardUuid: string | null,
     ) {
         if (isJwtUser(account)) {
             const embedWriteActions = account.authentication.data.writeActions;
@@ -6034,10 +6048,15 @@ export class AsyncQueryService extends ProjectService {
             );
         } else {
             const auditedAbility = this.createAuditedAbility(account);
-            const ctx = await this.spacePermissionService.getSpaceAccessContext(
-                account.user.id,
-                space.uuid,
-            );
+            const ctx = owningDashboardUuid
+                ? await this.spacePermissionService.getDashboardAccessContext(
+                      account.user.id,
+                      { uuid: owningDashboardUuid, spaceUuid: space.uuid },
+                  )
+                : await this.spacePermissionService.getSpaceAccessContext(
+                      account.user.id,
+                      space.uuid,
+                  );
 
             if (
                 auditedAbility.cannot(
@@ -6179,6 +6198,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             savedChart.uuid,
             space,
+            savedChart.dashboardUuid,
         );
 
         // Fire-and-forget: analytics tracking is non-critical and shouldn't block query execution

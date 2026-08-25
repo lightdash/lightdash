@@ -156,6 +156,7 @@ export class SavedSqlService
               },
     ) {
         let { spaceUuid } = resource;
+        let owningDashboardUuid: string | null = null;
 
         if (resource.savedSqlUuid !== null) {
             const savedSql = await this.savedSqlModel.getByUuid(
@@ -170,6 +171,7 @@ export class SavedSqlService
             }
 
             spaceUuid = savedSql.space.uuid;
+            owningDashboardUuid = savedSql.dashboard?.uuid ?? null;
         }
 
         if (!spaceUuid) {
@@ -179,15 +181,22 @@ export class SavedSqlService
         const needsNewSpaceCheck =
             resource.spaceUuid && spaceUuid !== resource.spaceUuid;
 
-        const ctx = needsNewSpaceCheck
-            ? await this.spacePermissionService.getSpacesAccessContext(
+        // Charts owned by a dashboard are covered by that dashboard's
+        // direct grants.
+        const currentCtx = owningDashboardUuid
+            ? await this.spacePermissionService.getDashboardAccessContext(
                   actor.user.userUuid,
-                  [spaceUuid, resource.spaceUuid!],
+                  { uuid: owningDashboardUuid, spaceUuid },
               )
-            : await this.spacePermissionService.getSpacesAccessContext(
-                  actor.user.userUuid,
-                  [spaceUuid],
-              );
+            : {
+                  ...(
+                      await this.spacePermissionService.getSpacesAccessContext(
+                          actor.user.userUuid,
+                          [spaceUuid],
+                      )
+                  )[spaceUuid],
+                  directOnly: false,
+              };
 
         const auditedAbility = this.createAuditedAbility(actor.user);
 
@@ -195,7 +204,7 @@ export class SavedSqlService
             auditedAbility.cannot(
                 action,
                 subject('SavedChart', {
-                    ...ctx[spaceUuid],
+                    ...currentCtx,
                     metadata: { savedSqlUuid: resource.savedSqlUuid ?? '' },
                 }),
             )
@@ -206,11 +215,17 @@ export class SavedSqlService
         }
 
         if (needsNewSpaceCheck) {
+            const newSpaceCtx = (
+                await this.spacePermissionService.getSpacesAccessContext(
+                    actor.user.userUuid,
+                    [resource.spaceUuid!],
+                )
+            )[resource.spaceUuid!];
             if (
                 auditedAbility.cannot(
                     action,
                     subject('SavedChart', {
-                        ...ctx[resource.spaceUuid!],
+                        ...newSpaceCtx,
                         metadata: { savedSqlUuid: resource.savedSqlUuid ?? '' },
                     }),
                 )
@@ -221,7 +236,7 @@ export class SavedSqlService
             }
         }
 
-        return ctx[spaceUuid];
+        return currentCtx;
     }
 
     async getSqlChart(
@@ -273,6 +288,7 @@ export class SavedSqlService
             ...savedChart,
             space: {
                 ...savedChart.space,
+                name: spaceCtx.directOnly ? '' : savedChart.space.name,
                 userAccess: spaceCtx.access[0],
             },
             resolvedColorPalette,
@@ -339,6 +355,7 @@ export class SavedSqlService
             ...savedChart,
             space: {
                 ...savedChart.space,
+                name: spaceCtx.directOnly ? '' : savedChart.space.name,
                 userAccess: embedWriteActions ? undefined : spaceCtx.access[0],
             },
             resolvedColorPalette,

@@ -492,6 +492,24 @@ describe('DashboardService', () => {
         expect(dashboardModel.update).not.toHaveBeenCalled();
     });
 
+    test('blanks the space name in the update response for a grant-only editor', async () => {
+        spacePermissionService.getDashboardAccessContext
+            .mockResolvedValueOnce({
+                ...lookupSpaceContext(dashboard.spaceUuid),
+                directOnly: true,
+            })
+            .mockResolvedValueOnce({
+                ...lookupSpaceContext(dashboard.spaceUuid),
+                directOnly: true,
+            });
+
+        const result = await service.update(user, dashboard.uuid, {
+            name: 'renamed',
+        });
+
+        expect(result.spaceName).toBe('');
+    });
+
     test('should get dashboard charts after dashboard access check', async () => {
         const result = await service.getDashboardCharts(
             user,

@@ -26,6 +26,7 @@ const sqlChart = {
     organization: { organizationUuid },
     project: { projectUuid },
     space: { uuid: spaceUuid, name: 'Space' },
+    dashboard: null as { uuid: string; name: string } | null,
 };
 
 const baseUser = {
@@ -233,5 +234,112 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
             );
             expect(schedulerModel.createScheduler).not.toHaveBeenCalled();
         });
+    });
+});
+
+describe('SavedSqlService - dashboard-owned chart access', () => {
+    const owningDashboardUuid = 'owning-dashboard-uuid';
+    const accessContext = {
+        organizationUuid,
+        projectUuid,
+        inheritsFromOrgOrProject: true,
+        access: [],
+    };
+    const directAccessModel = {
+        getByUuid: vi.fn(async () => sqlChart),
+        resolveColorPalette: vi.fn(async () => null),
+    };
+    const directAccessPermissionService = {
+        getDashboardAccessContext: vi.fn(async () => ({
+            ...accessContext,
+            directOnly: true,
+        })),
+        getSpacesAccessContext: vi.fn(async () => ({
+            [spaceUuid]: accessContext,
+        })),
+    };
+    const service = new SavedSqlService({
+        lightdashConfig: lightdashConfigMock,
+        analytics: analyticsMock,
+        projectModel: {} as unknown as ProjectModel,
+        savedSqlModel: directAccessModel as unknown as SavedSqlModel,
+        schedulerClient: {} as unknown as SchedulerClient,
+        schedulerModel: {} as unknown as SchedulerModel,
+        analyticsModel: {} as unknown as AnalyticsModel,
+        spacePermissionService:
+            directAccessPermissionService as unknown as SpacePermissionService,
+    });
+    const chartViewer = {
+        ...baseUser,
+        role: OrganizationMemberRole.VIEWER,
+        ability: new Ability<PossibleAbilities>([
+            { subject: 'SavedChart', action: 'view' },
+        ]),
+    };
+
+    afterEach(() => vi.clearAllMocks());
+
+    it('authorizes a dashboard-owned sql chart through its dashboard access context', async () => {
+        directAccessModel.getByUuid.mockResolvedValueOnce({
+            ...sqlChart,
+            dashboard: { uuid: owningDashboardUuid, name: 'Dashboard' },
+        });
+
+        await expect(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (service as any).hasAccess(
+                'view',
+                { user: chartViewer, projectUuid },
+                { savedSqlUuid },
+            ),
+        ).resolves.toEqual({ ...accessContext, directOnly: true });
+        expect(
+            directAccessPermissionService.getDashboardAccessContext,
+        ).toHaveBeenCalledWith(chartViewer.userUuid, {
+            uuid: owningDashboardUuid,
+            spaceUuid,
+        });
+        expect(
+            directAccessPermissionService.getSpacesAccessContext,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('authorizes a space sql chart through its space access context', async () => {
+        directAccessModel.getByUuid.mockResolvedValueOnce({
+            ...sqlChart,
+            dashboard: null,
+        });
+
+        await expect(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (service as any).hasAccess(
+                'view',
+                { user: chartViewer, projectUuid },
+                { savedSqlUuid },
+            ),
+        ).resolves.toEqual({ ...accessContext, directOnly: false });
+        expect(
+            directAccessPermissionService.getDashboardAccessContext,
+        ).not.toHaveBeenCalled();
+        expect(
+            directAccessPermissionService.getSpacesAccessContext,
+        ).toHaveBeenCalledWith(chartViewer.userUuid, [spaceUuid]);
+    });
+
+    it('does not expose the private space name to a grant-only user', async () => {
+        const ownedChart = {
+            ...sqlChart,
+            dashboard: { uuid: owningDashboardUuid, name: 'Dashboard' },
+        };
+        directAccessModel.getByUuid.mockResolvedValue(ownedChart);
+
+        const result = await service.getSqlChart(
+            chartViewer,
+            projectUuid,
+            savedSqlUuid,
+        );
+
+        expect(result.space.name).toBe('');
+        expect(result.space.uuid).toBe(spaceUuid);
     });
 });

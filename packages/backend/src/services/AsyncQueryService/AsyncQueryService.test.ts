@@ -4996,3 +4996,127 @@ describe('AsyncQueryService', () => {
         });
     });
 });
+
+describe('checkDashboardChartQueryPermissions', () => {
+    const owningDashboardUuid = 'owned-dashboard-uuid';
+    const chartSpace = {
+        uuid: 'space-1',
+        organizationUuid: projectSummary.organizationUuid,
+    } as AnyType;
+
+    const buildGrantOnlyAccount = () => {
+        const account = buildAccount();
+        account.user.ability = new Ability<PossibleAbilities>([
+            {
+                subject: 'SavedChart',
+                action: ['view'],
+                conditions: {
+                    organizationUuid: projectSummary.organizationUuid,
+                    access: {
+                        $elemMatch: { userUuid: account.user.id },
+                    },
+                },
+            },
+            {
+                subject: 'Project',
+                action: ['view'],
+                conditions: {
+                    organizationUuid: projectSummary.organizationUuid,
+                },
+            },
+        ]);
+        return account;
+    };
+
+    const buildSpacePermissionService = (
+        dashboardAccess: { userUuid: string }[],
+    ) => ({
+        getDashboardAccessContext: vi.fn(async () => ({
+            organizationUuid: projectSummary.organizationUuid,
+            projectUuid: projectSummary.projectUuid,
+            inheritsFromOrgOrProject: false,
+            access: dashboardAccess.map(({ userUuid }) => ({
+                userUuid,
+                role: 'viewer',
+                hasDirectAccess: true,
+            })),
+            admins: [],
+            directOnly: true,
+        })),
+        getSpaceAccessContext: vi.fn(async () => ({
+            organizationUuid: projectSummary.organizationUuid,
+            projectUuid: projectSummary.projectUuid,
+            inheritsFromOrgOrProject: false,
+            access: [],
+            admins: [],
+        })),
+    });
+
+    it('authorizes a dashboard-owned chart through the dashboard grant', async () => {
+        const account = buildGrantOnlyAccount();
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const spacePermissionService = buildSpacePermissionService([
+            { userUuid: account.user.id },
+        ]);
+        (service as AnyType).spacePermissionService = spacePermissionService;
+
+        await expect(
+            (service as AnyType).checkDashboardChartQueryPermissions(
+                account,
+                projectSummary.projectUuid,
+                'chart-uuid',
+                chartSpace,
+                owningDashboardUuid,
+            ),
+        ).resolves.toBeUndefined();
+        expect(
+            spacePermissionService.getDashboardAccessContext,
+        ).toHaveBeenCalledWith(account.user.id, {
+            uuid: owningDashboardUuid,
+            spaceUuid: chartSpace.uuid,
+        });
+        expect(
+            spacePermissionService.getSpaceAccessContext,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('denies a dashboard-owned chart without a grant or space access', async () => {
+        const account = buildGrantOnlyAccount();
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        (service as AnyType).spacePermissionService =
+            buildSpacePermissionService([]);
+
+        await expect(
+            (service as AnyType).checkDashboardChartQueryPermissions(
+                account,
+                projectSummary.projectUuid,
+                'chart-uuid',
+                chartSpace,
+                owningDashboardUuid,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('keeps the space check for reusable charts', async () => {
+        const account = buildGrantOnlyAccount();
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const spacePermissionService = buildSpacePermissionService([]);
+        (service as AnyType).spacePermissionService = spacePermissionService;
+
+        await expect(
+            (service as AnyType).checkDashboardChartQueryPermissions(
+                account,
+                projectSummary.projectUuid,
+                'chart-uuid',
+                chartSpace,
+                null,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            spacePermissionService.getSpaceAccessContext,
+        ).toHaveBeenCalledWith(account.user.id, chartSpace.uuid);
+        expect(
+            spacePermissionService.getDashboardAccessContext,
+        ).not.toHaveBeenCalled();
+    });
+});

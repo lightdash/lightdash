@@ -492,9 +492,12 @@ export class DashboardService
         // Tile payloads can name any chart uuid; require view access on the
         // source chart before copying it into the target dashboard.
         const sourceContext =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                chartToDuplicate.spaceUuid,
+                {
+                    uuid: chartToDuplicate.dashboardUuid,
+                    spaceUuid: chartToDuplicate.spaceUuid,
+                },
             );
         const auditedAbility = this.createAuditedAbility(user);
         if (

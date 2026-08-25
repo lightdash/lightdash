@@ -1288,9 +1288,14 @@ export class SavedChartService
         account: Account,
         space: SpaceSummaryBase,
         savedChart: SavedChartDAO,
-    ): Promise<{ access: SpaceAccess[]; inheritsFromOrgOrProject: boolean }> {
+    ): Promise<{
+        access: SpaceAccess[];
+        inheritsFromOrgOrProject: boolean;
+        directOnly: boolean;
+    }> {
         let access;
         let inheritsFromOrgOrProject: boolean;
+        let directOnly = false;
         let permissionActor: Account | SessionUser = account;
         if (isJwtUser(account)) {
             const { embedWriteUser } = account;
@@ -1324,6 +1329,18 @@ export class SavedChartService
                     );
                 inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
             }
+        } else if (savedChart.dashboardUuid) {
+            const ctx =
+                await this.spacePermissionService.getDashboardAccessContext(
+                    account.user.userUuid,
+                    {
+                        uuid: savedChart.dashboardUuid,
+                        spaceUuid: savedChart.spaceUuid,
+                    },
+                );
+            access = ctx.access;
+            inheritsFromOrgOrProject = ctx.inheritsFromOrgOrProject;
+            directOnly = ctx.directOnly;
         } else {
             const ctx = await this.spacePermissionService.getSpaceAccessContext(
                 account.user.userUuid,
@@ -1356,6 +1373,7 @@ export class SavedChartService
         return {
             access: isJwtUser(account) ? [] : (access as SpaceAccess[]),
             inheritsFromOrgOrProject,
+            directOnly,
         };
     }
 
@@ -1373,7 +1391,7 @@ export class SavedChartService
             savedChart.spaceUuid,
         );
 
-        const { access, inheritsFromOrgOrProject } =
+        const { access, inheritsFromOrgOrProject, directOnly } =
             await this.checkPermissions(account, space, savedChart);
 
         try {
@@ -1410,6 +1428,7 @@ export class SavedChartService
 
         return {
             ...savedChart,
+            spaceName: directOnly ? '' : savedChart.spaceName,
             inheritsFromOrgOrProject,
             access,
         };
