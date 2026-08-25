@@ -1188,18 +1188,41 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             description: string;
         },
     ): Promise<PullRequestCreated> {
+        return this.writeBackContentAsCodeFiles(user, projectUuid, {
+            slug,
+            files: [{ filePath, content }],
+            title,
+            description,
+        });
+    }
+
+    async writeBackContentAsCodeFiles(
+        user: SessionUser,
+        projectUuid: string,
+        {
+            slug,
+            files,
+            title,
+            description,
+        }: {
+            slug: string;
+            files: Array<{ filePath: string; content: string }>;
+            title: string;
+            description: string;
+        },
+    ): Promise<PullRequestCreated> {
         await this.assertSameOrganizationAsProject(user, projectUuid);
+        if (files.length === 0) {
+            throw new ParameterError('No files to write back');
+        }
 
         const repo = await this.getProjectRepo(projectUuid);
-        const fileName = GitIntegrationService.removeExtraSlashes(
-            `${repo.path}/${filePath}`,
-        );
         const branchName = getContentAsCodeWriteBackBranchName(
             getContentAsCodeWriteBackInstanceId(this.lightdashConfig.siteUrl),
             slug,
         );
         const eventProperties: WriteBackEvent['properties'] = {
-            name: fileName,
+            name: files.map((file) => file.filePath).join(', '),
             projectId: projectUuid,
             organizationId: user.organizationUuid!,
             context: QueryExecutionContext.CHART,
@@ -1218,32 +1241,37 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             // Branch already exists from a previous save — append a commit.
         }
 
-        let existingSha: string | undefined;
-        try {
-            const file = await this.getFileOrDirectory(
+        for (const file of files) {
+            const fileName = GitIntegrationService.removeExtraSlashes(
+                `${repo.path}/${file.filePath}`,
+            );
+            let existingSha: string | undefined;
+            try {
+                const existing = await this.getFileOrDirectory(
+                    user,
+                    projectUuid,
+                    branchName,
+                    fileName,
+                    systemWrite,
+                );
+                if (existing.type === 'file') {
+                    existingSha = existing.sha;
+                }
+            } catch {
+                existingSha = undefined;
+            }
+
+            await this.saveFile(
                 user,
                 projectUuid,
                 branchName,
                 fileName,
+                file.content,
+                existingSha,
+                existingSha ? `Update ${fileName}` : `Create ${fileName}`,
                 systemWrite,
             );
-            if (file.type === 'file') {
-                existingSha = file.sha;
-            }
-        } catch {
-            existingSha = undefined;
         }
-
-        await this.saveFile(
-            user,
-            projectUuid,
-            branchName,
-            fileName,
-            content,
-            existingSha,
-            existingSha ? `Update ${fileName}` : `Create ${fileName}`,
-            systemWrite,
-        );
 
         const openPullRequest = await this.findOpenPullRequestForHead(
             user,
@@ -1276,6 +1304,69 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             });
             throw error;
         }
+    }
+
+    async hasOpenContentAsCodePullRequest(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+    ): Promise<boolean> {
+        const branchName = getContentAsCodeWriteBackBranchName(
+            getContentAsCodeWriteBackInstanceId(this.lightdashConfig.siteUrl),
+            slug,
+        );
+        const openPullRequest = await this.findOpenPullRequestForHead(
+            user,
+            projectUuid,
+            branchName,
+            { asSystemWriteBack: true },
+        );
+        return openPullRequest !== null;
+    }
+
+    async getContentAsCodePullRequestStatus(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+    ): Promise<{
+        prState: 'open' | 'merged' | 'none';
+        prUrl: string | null;
+        prTitle: string | null;
+    }> {
+        await this.assertSameOrganizationAsProject(user, projectUuid);
+        const branchName = getContentAsCodeWriteBackBranchName(
+            getContentAsCodeWriteBackInstanceId(this.lightdashConfig.siteUrl),
+            slug,
+        );
+        const systemWrite: GitOperationOptions = { asSystemWriteBack: true };
+        const openPullRequest = await this.findOpenPullRequestForHead(
+            user,
+            projectUuid,
+            branchName,
+            systemWrite,
+        );
+        if (openPullRequest) {
+            return {
+                prState: 'open',
+                prUrl: openPullRequest.prUrl,
+                prTitle: openPullRequest.prTitle,
+            };
+        }
+
+        const latest = await this.findLatestPullRequestForHead(
+            user,
+            projectUuid,
+            branchName,
+            systemWrite,
+        );
+        if (latest?.merged === true) {
+            return {
+                prState: 'merged',
+                prUrl: latest.prUrl,
+                prTitle: latest.prTitle,
+            };
+        }
+        return { prState: 'none', prUrl: null, prTitle: null };
     }
 
     private async assertSameOrganizationAsProject(
@@ -1319,6 +1410,45 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         return {
             prTitle: openPullRequest.title,
             prUrl: openPullRequest.html_url,
+        };
+    }
+
+    private async findLatestPullRequestForHead(
+        user: SessionUser,
+        projectUuid: string,
+        head: string,
+        options?: GitOperationOptions,
+    ): Promise<{
+        prTitle: string;
+        prUrl: string;
+        merged: boolean;
+    } | null> {
+        const creds = await this.getGitCredentials(user, projectUuid, {
+            preferUserToken: options?.asSystemWriteBack !== true,
+        });
+        const latest =
+            creds.type === DbtProjectType.GITHUB
+                ? await GithubClient.findLatestPullRequestByHead({
+                      owner: creds.owner,
+                      repo: creds.repo,
+                      head,
+                      installationId: creds.installationId,
+                      token: creds.token,
+                  })
+                : await GitlabClient.findLatestMergeRequestBySourceBranch({
+                      owner: creds.owner,
+                      repo: creds.repo,
+                      sourceBranch: head,
+                      token: creds.token,
+                      hostDomain: creds.hostDomain,
+                  });
+        if (!latest) {
+            return null;
+        }
+        return {
+            prTitle: latest.title,
+            prUrl: latest.html_url,
+            merged: latest.merged,
         };
     }
 

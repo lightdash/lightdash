@@ -18,6 +18,7 @@ import {
     ExportContentRequest,
     ForbiddenError,
     generateSlug,
+    getErrorMessage,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
     isDashboardChartTileType,
@@ -90,6 +91,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { createTwoColumnTiles } from '../../utils/dashboardTileUtils';
 import { BaseService } from '../BaseService';
+import type { ContentAsCodeWriteBackService } from '../CoderService/ContentAsCodeWriteBackService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -119,6 +121,7 @@ type DashboardServiceArguments = {
     organizationModel: OrganizationModel;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
+    contentAsCodeWriteBackService?: ContentAsCodeWriteBackService;
 };
 
 export class DashboardService
@@ -162,6 +165,10 @@ export class DashboardService
     spacePermissionService: SpacePermissionService;
 
     contentVerificationModel: ContentVerificationModel;
+
+    private readonly contentAsCodeWriteBackService:
+        | ContentAsCodeWriteBackService
+        | undefined;
 
     async scheduleExportContent(
         account: Account,
@@ -277,6 +284,7 @@ export class DashboardService
         organizationModel,
         spacePermissionService,
         contentVerificationModel,
+        contentAsCodeWriteBackService,
     }: DashboardServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -298,6 +306,39 @@ export class DashboardService
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
+        this.contentAsCodeWriteBackService = contentAsCodeWriteBackService;
+    }
+
+    /**
+     * Fire-and-forget git proposal after a successful dashboard save. Never
+     * attach PR details to the save response.
+     */
+    private async writeBackManagedDashboardAfterSave(
+        user: SessionUser,
+        dashboard: DashboardDAO,
+        previousChartSlugs: string[],
+    ): Promise<void> {
+        if (!this.contentAsCodeWriteBackService) {
+            return;
+        }
+        try {
+            await this.contentAsCodeWriteBackService.writeBackManagedDashboardIfNeeded(
+                user,
+                dashboard,
+                previousChartSlugs,
+            );
+        } catch (error) {
+            this.logger.warn(
+                'Content-as-code write-back failed after dashboard save',
+                {
+                    userUuid: user.userUuid,
+                    dashboardUuid: dashboard.uuid,
+                    projectUuid: dashboard.projectUuid,
+                    slug: dashboard.slug,
+                    error: getErrorMessage(error),
+                },
+            );
+        }
     }
 
     async verifyDashboard(
@@ -1661,6 +1702,19 @@ export class DashboardService
 
         const updatedNewDashboard = await this.dashboardModel.getByIdOrSlug(
             existingDashboardDao.uuid,
+        );
+        const previousChartSlugs = [
+            ...new Set(
+                existingDashboardDao.tiles
+                    .filter(isDashboardChartTileType)
+                    .map((tile) => tile.properties.chartSlug)
+                    .filter((slug): slug is string => Boolean(slug)),
+            ),
+        ];
+        await this.writeBackManagedDashboardAfterSave(
+            user,
+            updatedNewDashboard,
+            previousChartSlugs,
         );
         const updatedSpace =
             await this.spacePermissionService.getSpaceAccessContext(

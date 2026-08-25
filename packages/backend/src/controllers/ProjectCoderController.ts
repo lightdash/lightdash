@@ -10,7 +10,9 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiContentAsCodeProposeResponse,
     type ApiContentAsCodeSyncStatusResponse,
+    type ApiContentAsCodeWriteBackStatusResponse,
     type ApiDashboardAsCodeListResponse,
     type ApiDashboardAsCodeUpsertResponse,
     type ApiErrorPayload,
@@ -35,6 +37,7 @@ import {
     type ExternalConnectionAsCode,
     type GoogleSheetsSyncAsCode,
     type RegisteredAccount,
+    type ProposeContentAsCodeRequest,
     type RestampContentAsCodeRevisionRequest,
     type ScheduledDeliveryAsCode,
     type SpaceAsCode,
@@ -171,6 +174,63 @@ export class ProjectCoderController extends BaseController {
                     toSessionUser(req.account),
                     projectUuid,
                     body,
+                ),
+        );
+    }
+
+    /**
+     * Propose current instance content as a git pull request
+     * @summary Propose content as code to git
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/propose')
+    @OperationId('proposeContentAsCodeToGit')
+    async proposeContentAsCodeToGit(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: ProposeContentAsCodeRequest,
+    ): Promise<ApiContentAsCodeProposeResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getContentAsCodeWriteBackService()
+                .proposeContentToGit(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    body.contentType,
+                    body.slug,
+                ),
+        );
+    }
+
+    /**
+     * Get write-back pull request status for a slug
+     * @summary Get content-as-code write-back status
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/write-back-status')
+    @OperationId('getContentAsCodeWriteBackStatus')
+    async getContentAsCodeWriteBackStatus(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() contentType: ProposeContentAsCodeRequest['contentType'],
+        @Query() slug: string,
+    ): Promise<ApiContentAsCodeWriteBackStatusResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getContentAsCodeWriteBackService()
+                .getWriteBackStatus(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    contentType,
+                    slug,
                 ),
         );
     }

@@ -56,6 +56,7 @@ import {
 import { useBlocker, useLocation, useNavigate } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import ChartAsCodeModal from '../../../features/contentAsCode/components/ChartAsCodeModal';
+import ContentAsCodeGitMenuItems from '../../../features/contentAsCode/components/ContentAsCodeGitMenuItems';
 import {
     explorerActions,
     selectHasUnsavedChanges,
@@ -955,6 +956,20 @@ const SavedChartsHeader: FC = () => {
                                         >
                                             View as code
                                         </Menu.Item>
+                                        <ContentAsCodeGitMenuItems
+                                            project={
+                                                project
+                                                    ? {
+                                                          organizationUuid:
+                                                              project.organizationUuid,
+                                                          projectUuid:
+                                                              project.projectUuid,
+                                                      }
+                                                    : undefined
+                                            }
+                                            contentType="chart"
+                                            slug={savedChart.slug}
+                                        />
                                     </>
                                 )}
 

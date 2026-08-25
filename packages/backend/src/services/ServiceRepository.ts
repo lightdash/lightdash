@@ -129,6 +129,7 @@ interface ServiceManifest {
     projectService: ProjectService;
     promptService: PromptService;
     savedChartService: SavedChartService;
+    contentAsCodeWriteBackService: ContentAsCodeWriteBackService;
     schedulerService: SchedulerService;
     searchService: SearchService;
     shareService: ShareService;
@@ -441,6 +442,8 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
+                    contentAsCodeWriteBackService:
+                        this.getContentAsCodeWriteBackService(),
                 }),
         );
     }
@@ -997,6 +1000,25 @@ export class ServiceRepository
         });
     }
 
+    public getContentAsCodeWriteBackService(): ContentAsCodeWriteBackService {
+        return this.getService(
+            'contentAsCodeWriteBackService',
+            () =>
+                new ContentAsCodeWriteBackService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    projectModel: this.models.getProjectModel(),
+                    contentAsCodeAppliedRevisionModel:
+                        this.models.getContentAsCodeAppliedRevisionModel(),
+                    contentVerificationModel:
+                        this.models.getContentVerificationModel(),
+                    dashboardModel: this.models.getDashboardModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    gitIntegrationService: this.getGitIntegrationService(),
+                }),
+        );
+    }
+
     public getSavedChartService(): SavedChartService {
         return this.getService(
             'savedChartService',
@@ -1023,18 +1045,7 @@ export class ServiceRepository
                         this.models.getContentVerificationModel(),
                     organizationModel: this.models.getOrganizationModel(),
                     contentAsCodeWriteBackService:
-                        new ContentAsCodeWriteBackService({
-                            lightdashConfig: this.context.lightdashConfig,
-                            projectModel: this.models.getProjectModel(),
-                            contentAsCodeAppliedRevisionModel:
-                                this.models.getContentAsCodeAppliedRevisionModel(),
-                            contentVerificationModel:
-                                this.models.getContentVerificationModel(),
-                            dashboardModel: this.models.getDashboardModel(),
-                            spaceModel: this.models.getSpaceModel(),
-                            gitIntegrationService:
-                                this.getGitIntegrationService(),
-                        }),
+                        this.getContentAsCodeWriteBackService(),
                 }),
         );
     }

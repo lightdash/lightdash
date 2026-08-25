@@ -196,7 +196,7 @@ describe('SavedChartService - content-as-code write-back', () => {
         findBySlug: vi.fn(),
     };
     const gitIntegrationService = {
-        writeBackContentAsCodeFile: vi.fn(),
+        writeBackContentAsCodeFiles: vi.fn(),
     };
 
     const writeBackService = new ContentAsCodeWriteBackService({
@@ -207,6 +207,7 @@ describe('SavedChartService - content-as-code write-back', () => {
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
         dashboardModel: dashboardModel as unknown as DashboardModel,
+        savedChartModel: savedChartModel as unknown as SavedChartModel,
         spaceModel: spaceModel as unknown as SpaceModel,
         gitIntegrationService:
             gitIntegrationService as unknown as GitIntegrationService,
@@ -245,7 +246,7 @@ describe('SavedChartService - content-as-code write-back', () => {
         projectModel.getContentAsCodeSyncEnabled.mockResolvedValue(true);
         projectModel.getContentAsCodeWriteBackEnabled.mockResolvedValue(true);
         spaceModel.isDefaultUserSpace.mockResolvedValue(false);
-        gitIntegrationService.writeBackContentAsCodeFile.mockResolvedValue({
+        gitIntegrationService.writeBackContentAsCodeFiles.mockResolvedValue({
             prTitle: 'Update chart `orders`',
             prUrl: 'https://example.com/pull/1',
         });
@@ -267,30 +268,32 @@ describe('SavedChartService - content-as-code write-back', () => {
             'orders',
         );
         expect(
-            gitIntegrationService.writeBackContentAsCodeFile,
+            gitIntegrationService.writeBackContentAsCodeFiles,
         ).toHaveBeenCalledTimes(1);
         expect(
-            gitIntegrationService.writeBackContentAsCodeFile,
+            gitIntegrationService.writeBackContentAsCodeFiles,
         ).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid: 'user-uuid' }),
             'project-uuid',
             expect.objectContaining({
                 slug: 'orders',
-                filePath: 'lightdash/charts/orders.yml',
                 title: 'Update chart `orders`',
                 description: expect.stringContaining(
                     '/projects/project-uuid/saved/orders',
                 ),
+                files: [
+                    expect.objectContaining({
+                        filePath: 'lightdash/charts/orders.yml',
+                    }),
+                ],
             }),
         );
-        const [{ content }] =
-            gitIntegrationService.writeBackContentAsCodeFile.mock.calls[0].slice(
-                2,
-            );
-        expect(content).toContain('name: Orders');
-        expect(content).toContain('slug: orders');
-        expect(content).not.toContain('updatedAt');
-        expect(content).not.toContain('downloadedAt');
+        const payload =
+            gitIntegrationService.writeBackContentAsCodeFiles.mock.calls[0][2];
+        expect(payload.files[0].content).toContain('name: Orders');
+        expect(payload.files[0].content).toContain('slug: orders');
+        expect(payload.files[0].content).not.toContain('updatedAt');
+        expect(payload.files[0].content).not.toContain('downloadedAt');
     });
 
     it('does not write back when write_back is not enabled', async () => {
@@ -304,7 +307,7 @@ describe('SavedChartService - content-as-code write-back', () => {
         );
 
         expect(
-            gitIntegrationService.writeBackContentAsCodeFile,
+            gitIntegrationService.writeBackContentAsCodeFiles,
         ).not.toHaveBeenCalled();
     });
 
@@ -319,7 +322,7 @@ describe('SavedChartService - content-as-code write-back', () => {
         );
 
         expect(
-            gitIntegrationService.writeBackContentAsCodeFile,
+            gitIntegrationService.writeBackContentAsCodeFiles,
         ).not.toHaveBeenCalled();
     });
 
@@ -337,7 +340,7 @@ describe('SavedChartService - content-as-code write-back', () => {
             'orders',
         );
         expect(
-            gitIntegrationService.writeBackContentAsCodeFile,
+            gitIntegrationService.writeBackContentAsCodeFiles,
         ).not.toHaveBeenCalled();
     });
 
@@ -353,10 +356,10 @@ describe('SavedChartService - content-as-code write-back', () => {
         expect(result.uuid).toBe('chart-uuid');
         expect(result).not.toHaveProperty('prUrl');
         expect(
-            gitIntegrationService.writeBackContentAsCodeFile,
+            gitIntegrationService.writeBackContentAsCodeFiles,
         ).toHaveBeenCalledTimes(1);
         expect(
-            gitIntegrationService.writeBackContentAsCodeFile,
+            gitIntegrationService.writeBackContentAsCodeFiles,
         ).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid: 'editor-uuid' }),
             'project-uuid',
@@ -366,7 +369,7 @@ describe('SavedChartService - content-as-code write-back', () => {
 
     it('does not fail the UI save when write-back fails', async () => {
         appliedRevisionModel.findBySlug.mockResolvedValue(appliedRevision);
-        gitIntegrationService.writeBackContentAsCodeFile.mockRejectedValue(
+        gitIntegrationService.writeBackContentAsCodeFiles.mockRejectedValue(
             new Error('git unavailable'),
         );
 
@@ -378,7 +381,7 @@ describe('SavedChartService - content-as-code write-back', () => {
             ),
         ).resolves.toMatchObject({ uuid: 'chart-uuid' });
         expect(
-            gitIntegrationService.writeBackContentAsCodeFile,
+            gitIntegrationService.writeBackContentAsCodeFiles,
         ).toHaveBeenCalledTimes(1);
     });
 });

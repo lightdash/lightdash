@@ -62,6 +62,43 @@ export type ApiUpsertContentAsCodeAppliedRevisionsResponse = {
     results: ContentAsCodeSyncStatus;
 };
 
+export type ProposeContentAsCodeRequest = {
+    contentType: ContentAsCodeSnapshotType;
+    slug: string;
+};
+
+export type ContentAsCodeWriteBackPrState = 'open' | 'merged' | 'none';
+
+export type ContentAsCodeProposeResult = {
+    prUrl: string;
+    prTitle: string;
+    filesWritten: string[];
+    notedChartSlugs: string[];
+};
+
+export type ApiContentAsCodeProposeResponse = {
+    status: 'ok';
+    results: ContentAsCodeProposeResult;
+};
+
+export type ContentAsCodeWriteBackStatus = {
+    contentType: ContentAsCodeSnapshotType;
+    slug: string;
+    syncEnabled: boolean;
+    writeBackEnabled: boolean;
+    state: ContentAsCodeSyncItemState | 'unavailable';
+    writeBack: {
+        prState: ContentAsCodeWriteBackPrState;
+        prUrl: string | null;
+        prTitle: string | null;
+    };
+};
+
+export type ApiContentAsCodeWriteBackStatusResponse = {
+    status: 'ok';
+    results: ContentAsCodeWriteBackStatus;
+};
+
 export const isContentAsCodeSnapshotType = (
     value: string,
 ): value is ContentAsCodeSnapshotType =>

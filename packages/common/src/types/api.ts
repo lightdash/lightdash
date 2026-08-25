@@ -142,7 +142,9 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiContentAsCodeProposeResponse,
     type ApiContentAsCodeSyncStatusResponse,
+    type ApiContentAsCodeWriteBackStatusResponse,
     type ApiDashboardAsCodeListResponse,
     type ApiGoogleSheetsSyncAsCodeListResponse,
     type ApiGoogleSheetsSyncAsCodeUpsertResponse,
@@ -1343,6 +1345,8 @@ type ApiResults =
     | ApiSpaceAsCodeListResponse['results']
     | ApiSpaceAsCodeUpsertResponse['results']
     | ApiContentAsCodeSyncStatusResponse['results']
+    | ApiContentAsCodeProposeResponse['results']
+    | ApiContentAsCodeWriteBackStatusResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']
     | ApiGetMetricsTreeResponse['results']

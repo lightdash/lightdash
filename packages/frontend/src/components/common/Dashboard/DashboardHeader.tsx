@@ -49,6 +49,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useToggle } from 'react-use';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import ContentAsCodeGitMenuItems from '../../../features/contentAsCode/components/ContentAsCodeGitMenuItems';
 import DashboardAsCodeModal from '../../../features/contentAsCode/components/DashboardAsCodeModal';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
@@ -964,6 +965,20 @@ const DashboardHeader = memo(
                                             >
                                                 View as code
                                             </Menu.Item>
+                                            <ContentAsCodeGitMenuItems
+                                                project={
+                                                    project
+                                                        ? {
+                                                              organizationUuid:
+                                                                  project.organizationUuid,
+                                                              projectUuid:
+                                                                  project.projectUuid,
+                                                          }
+                                                        : undefined
+                                                }
+                                                contentType="dashboard"
+                                                slug={dashboard.slug}
+                                            />
                                         </>
                                     )}
 

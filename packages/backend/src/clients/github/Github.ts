@@ -1138,6 +1138,52 @@ export const findOpenPullRequestByHead = async ({
     }
 };
 
+export const findLatestPullRequestByHead = async ({
+    owner,
+    repo,
+    head,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    head: string;
+    installationId?: string;
+    token?: string;
+}): Promise<{
+    number: number;
+    html_url: string;
+    title: string;
+    merged: boolean;
+} | null> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const response = await octokit.rest.pulls.list({
+            owner,
+            repo,
+            state: 'all',
+            head: `${owner}:${head}`,
+            sort: 'updated',
+            direction: 'desc',
+            per_page: 1,
+            headers,
+        });
+        const pullRequest = response.data[0];
+        if (!pullRequest) {
+            return null;
+        }
+        return {
+            number: pullRequest.number,
+            html_url: pullRequest.html_url,
+            title: pullRequest.title,
+            merged: pullRequest.merged_at != null,
+        };
+    } catch (e) {
+        throw toGitWriteError(e);
+    }
+};
+
 export const updatePullRequest = async ({
     owner,
     repo,

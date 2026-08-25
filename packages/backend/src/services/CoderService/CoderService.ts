@@ -1460,7 +1460,7 @@ export class CoderService extends BaseService {
 
     static getConfigWithDateZoomTileUuids = getConfigWithDateZoomTileUuids;
 
-    private static transformDashboard(
+    static transformDashboard(
         dashboard: DashboardDAO,
         spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
         verificationMap: Map<string, ContentVerificationInfo>,
