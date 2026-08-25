@@ -1,6 +1,4 @@
 import {
-    derivePivotConfigurationFromChart,
-    getFieldsFromMetricQuery,
     getHiddenTableFields,
     getPivotConfig,
     NotFoundError,
@@ -58,6 +56,7 @@ import { useIsChartGalleryEnabled } from '../ChartGallery/useIsChartGalleryEnabl
 import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
 import { SeriesContextMenu } from './SeriesContextMenu';
+import { useDirtyPivotConfiguration } from './useDirtyPivotConfiguration';
 import { useExplorerChartColorPalette } from './useExplorerChartColorPalette';
 import { useExplorerResultsData } from './useExplorerResultsData';
 import useVisualizationConfigPortalTarget from './useVisualizationConfigPortalTarget';
@@ -264,29 +263,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
         merge?.runErrors,
     ]);
 
-    const dirtyPivotConfiguration = useMemo(() => {
-        const fields =
-            mergeResults?.fields ??
-            (explore
-                ? getFieldsFromMetricQuery(
-                      unsavedChartVersion.metricQuery,
-                      explore,
-                  )
-                : undefined);
-
-        return visualizationMetricQuery && fields
-            ? derivePivotConfigurationFromChart(
-                  unsavedChartVersion,
-                  visualizationMetricQuery,
-                  fields,
-              )
-            : undefined;
-    }, [
-        unsavedChartVersion,
-        explore,
-        mergeResults?.fields,
-        visualizationMetricQuery,
-    ]);
+    const dirtyPivotConfiguration = useDirtyPivotConfiguration();
 
     if (!unsavedChartVersion.tableName) {
         return <CollapsableCard title="Charts" disabled />;

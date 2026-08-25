@@ -1,8 +1,6 @@
 import {
     ChartType,
-    derivePivotConfigurationFromChart,
     FeatureFlags,
-    getFieldsFromMetricQuery,
     type DataAppVizOptionValues,
     type ItemsMap,
 } from '@lightdash/common';
@@ -16,19 +14,18 @@ import { buildExplorerVizContext } from '../../../features/chartTypes/utils/expl
 import {
     explorerActions,
     selectChartConfig,
-    selectUnsavedChartVersion,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import useHealth from '../../../hooks/health/useHealth';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useExplore } from '../../../hooks/useExplore';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { type ChartTypeAuthoringState } from '../../../providers/Explorer/types';
 import { CHART_GALLERY_SIDEBAR_TITLE_ID } from '../../common/ChartGallery/ChartGalleryContext';
 import { RefreshButton } from '../../RefreshButton';
 import { useSelectProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
+import { useDirtyPivotConfiguration } from '../VisualizationCard/useDirtyPivotConfiguration';
 import { useExplorerChartColorPalette } from '../VisualizationCard/useExplorerChartColorPalette';
 import { useExplorerResultsData } from '../VisualizationCard/useExplorerResultsData';
 import VisualizationWarning from '../VisualizationCard/VisualizationWarning';
@@ -52,12 +49,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
     const selectProjectChartType = useSelectProjectChartType();
     const { mutate: deleteApp } = useDeleteApp();
 
-    const {
-        resultsData,
-        isLoadingQueryResults,
-        mergeResults,
-        suppressPrimaryResults,
-    } = useExplorerResultsData();
+    const { resultsData, isLoadingQueryResults } = useExplorerResultsData();
     // Every page, so the preview sees what the chart would.
     useEffect(() => {
         resultsData.setFetchAll(true);
@@ -66,29 +58,8 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
 
     // The same staleness signal the chart card shows: results computed with
     // pivot settings that no longer match the configuration.
-    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
-    const { data: explore } = useExplore(unsavedChartVersion.tableName);
     const health = useHealth();
-    const visualizationMetricQuery = suppressPrimaryResults
-        ? undefined
-        : (mergeResults?.metricQuery ?? unsavedChartVersion.metricQuery);
-    const dirtyPivotConfiguration = useMemo(() => {
-        const fields =
-            mergeResults?.fields ??
-            (explore
-                ? getFieldsFromMetricQuery(
-                      unsavedChartVersion.metricQuery,
-                      explore,
-                  )
-                : undefined);
-        return visualizationMetricQuery && fields
-            ? derivePivotConfigurationFromChart(
-                  unsavedChartVersion,
-                  visualizationMetricQuery,
-                  fields,
-              )
-            : undefined;
-    }, [unsavedChartVersion, visualizationMetricQuery, mergeResults, explore]);
+    const dirtyPivotConfiguration = useDirtyPivotConfiguration();
 
     const workspace = useChartTypeBuilderWorkspace({
         projectUuid,
@@ -265,7 +236,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
                 <>
                     <VisualizationWarning
                         dirtyPivotConfiguration={dirtyPivotConfiguration}
-                        chartConfig={unsavedChartVersion.chartConfig}
+                        chartConfig={chartConfig}
                         resultsData={resultsData}
                         isLoading={isLoadingQueryResults}
                         maxColumnLimit={health.data?.pivotTable?.maxColumnLimit}
