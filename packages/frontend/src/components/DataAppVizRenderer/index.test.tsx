@@ -45,7 +45,7 @@ const mocks = vi.hoisted(() => ({
         current: undefined as ReturnType<typeof apiError> | undefined,
     },
     embedToken: { current: undefined as string | undefined },
-    dataAppVizUuid: { current: 'viz-uuid' as string | undefined },
+    dataAppVizUuid: { current: 'viz-uuid' as string | null },
     iframePreview: vi.fn(() => null),
     renderMetadataHook: vi.fn(),
     previewTokenHook: vi.fn(),
@@ -119,11 +119,14 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
     useVisualizationContext: () => ({
         visualizationConfig: {
             chartConfig: {
-                validConfig: {
-                    dataAppVizUuid: mocks.dataAppVizUuid.current,
-                    fieldMapping: { category: 'orders.category' },
-                    optionValues: { title: 12 },
-                },
+                validConfig:
+                    mocks.dataAppVizUuid.current === null
+                        ? null
+                        : {
+                              dataAppVizUuid: mocks.dataAppVizUuid.current,
+                              fieldMapping: { category: 'orders.category' },
+                              optionValues: { title: 12 },
+                          },
             },
         },
         savedChartUuid: 'saved-chart-uuid',
@@ -196,7 +199,7 @@ describe('DataAppVizRenderer', () => {
     });
 
     it('prompts for a visualization when none is selected', () => {
-        mocks.dataAppVizUuid.current = undefined;
+        mocks.dataAppVizUuid.current = null;
 
         renderRenderer();
 

@@ -98,8 +98,8 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
 
     const config = isDataAppVizVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig.validConfig
-        : undefined;
-    const dataAppVizUuid = config?.dataAppVizUuid ?? '';
+        : null;
+    const dataAppVizUuid = config?.dataAppVizUuid;
     const fieldMapping = config?.fieldMapping;
     const optionValues = config?.optionValues;
     const rows = resultsData?.rows;
@@ -111,16 +111,12 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         [embedToken, savedChartUuid, chartVersionUuid],
     );
     const { data: renderMetadata, error: renderMetadataError } =
-        useDataAppVizRenderMetadata(
-            projectUuid,
-            dataAppVizUuid || undefined,
-            renderTarget,
-        );
+        useDataAppVizRenderMetadata(projectUuid, dataAppVizUuid, renderTarget);
     const readyMetadata =
         renderMetadata?.state === 'ready' ? renderMetadata : undefined;
     const { data: token, error: previewTokenError } = useDataAppVizPreviewToken(
         projectUuid,
-        dataAppVizUuid || undefined,
+        dataAppVizUuid,
         readyMetadata?.version,
         renderTarget,
     );
@@ -296,7 +292,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         drillDownEnabled,
     ]);
 
-    if (!projectUuid || !dataAppVizUuid) {
+    if (!projectUuid || dataAppVizUuid === undefined) {
         return (
             <DataAppVizPlaceholder message="Pick a custom chart type to render." />
         );

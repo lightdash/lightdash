@@ -55,8 +55,9 @@ export const useSelectProjectChartType = () => {
 };
 
 /**
- * Start a new custom chart type: move to an empty data-app-viz config, which is
- * the state the build dock treats as "describe a new visualization".
+ * Start a new custom chart type: move to a data-app-viz chart that points at
+ * no viz yet, which is the state the build dock treats as "describe a new
+ * visualization".
  */
 export const useCreateProjectChartType = () => {
     const dispatch = useExplorerDispatch();
@@ -69,14 +70,7 @@ export const useCreateProjectChartType = () => {
         );
         dispatch(
             explorerActions.setChartConfig({
-                chartConfig: {
-                    type: ChartType.DATA_APP_VIZ,
-                    config: {
-                        dataAppVizUuid: '',
-                        fieldMapping: {},
-                        optionValues: {},
-                    },
-                },
+                chartConfig: { type: ChartType.DATA_APP_VIZ },
             }),
         );
         dispatch(explorerActions.setPivotConfig(undefined));

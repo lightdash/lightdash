@@ -21,7 +21,8 @@ export const fromOptionValue = (
     if (value === BUILT_IN_VEGA_VALUE) return { kind: 'builtInVega' };
     if (value.startsWith(PROJECT_TYPE_PREFIX)) {
         const dataAppVizUuid = value.slice(PROJECT_TYPE_PREFIX.length);
-        return dataAppVizUuid ? { kind: 'projectType', dataAppVizUuid } : null;
+        if (dataAppVizUuid === '') return null;
+        return { kind: 'projectType', dataAppVizUuid };
     }
     return null;
 };
