@@ -10,6 +10,8 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiContentAsCodeConflictResolveResponse,
+    type ApiContentAsCodeConflictViewResponse,
     type ApiDashboardAsCodeListResponse,
     type ApiDashboardAsCodeUpsertResponse,
     type ApiErrorPayload,
@@ -29,6 +31,7 @@ import {
     type ApiVirtualViewAsCodeUpsertResponse,
     type ChartAsCode,
     type ContentSlugRenameRequest,
+    type ResolveContentAsCodeConflictRequest,
     type DashboardAsCode,
     type ExternalConnectionAsCode,
     type GoogleSheetsSyncAsCode,
@@ -1073,6 +1076,65 @@ export class ProjectCoderController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSqlChartAsCodeUpsertResponse> {
         return this.upsertSqlChartAsCode(projectUuid, slug, sqlChart, req);
+    }
+
+    /**
+     * Three-way view for a skipped slug: last-applied, instance, incoming git.
+     * @summary Get content-as-code conflict
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/conflicts')
+    @OperationId('getContentAsCodeConflict')
+    async getContentAsCodeConflict(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query()
+        contentType: ResolveContentAsCodeConflictRequest['contentType'],
+        @Query() slug: string,
+    ): Promise<ApiContentAsCodeConflictViewResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getCoderService()
+                .getContentAsCodeConflict(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    contentType,
+                    slug,
+                ),
+        );
+    }
+
+    /**
+     * Resolve a skipped slug: keep instance content or apply the stashed git document.
+     * @summary Resolve content-as-code conflict
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/conflicts/resolve')
+    @OperationId('resolveContentAsCodeConflict')
+    async resolveContentAsCodeConflict(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: ResolveContentAsCodeConflictRequest,
+    ): Promise<ApiContentAsCodeConflictResolveResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getCoderService()
+                .resolveContentAsCodeConflict(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    body.contentType,
+                    body.slug,
+                    body.resolution,
+                ),
+        );
     }
 
     /**

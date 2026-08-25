@@ -1,5 +1,6 @@
 export * from './base';
 export * from './charts';
+export * from './conflicts';
 export * from './core';
 export * from './dashboards';
 export * from './parsers';

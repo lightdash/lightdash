@@ -1,12 +1,17 @@
 // CoderService.test.ts
+import { Ability } from '@casl/ability';
 import {
     AnyType,
     CartesianSeriesType,
     ChartType,
+    ContentAsCodeType,
     DashboardDAO,
     DashboardFilterRule,
     DashboardTileTarget,
     DashboardTileTypes,
+    ForbiddenError,
+    ParameterError,
+    PossibleAbilities,
 } from '@lightdash/common';
 import { CoderService } from './CoderService';
 import { withTileWarnings } from './dashboardReferences';
@@ -1657,6 +1662,160 @@ describe('CoderService', () => {
                 'revenue-explorer-1',
                 'revenue-explorer-2',
             ]);
+        });
+    });
+
+    describe('content-as-code conflicts', () => {
+        const editorUser = {
+            userUuid: 'user-uuid',
+            organizationUuid: 'org-uuid',
+            ability: new Ability<PossibleAbilities>([
+                {
+                    subject: 'ContentAsCode',
+                    action: ['view', 'create', 'manage'],
+                },
+            ]),
+        };
+        const viewerUser = {
+            userUuid: 'viewer-uuid',
+            organizationUuid: 'org-uuid',
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'ContentAsCode', action: ['view'] },
+            ]),
+        };
+        const projectModel = {
+            get: vi.fn(async () => ({
+                projectUuid: 'project-uuid',
+                organizationUuid: 'org-uuid',
+                upstreamProjectUuid: null,
+                type: 'DEFAULT',
+                createdByUserUuid: 'user-uuid',
+            })),
+        };
+        const snapshotModel = {
+            get: vi.fn(),
+            upsert: vi.fn(),
+            getIncoming: vi.fn(),
+            upsertIncoming: vi.fn(),
+            clearIncoming: vi.fn(),
+        };
+        const serviceArgs: AnyType = {
+            analytics: {} as AnyType,
+            contentAsCodeSnapshotModel: snapshotModel as AnyType,
+            contentVerificationModel: {} as AnyType,
+            dashboardModel: { find: vi.fn(async () => []) } as AnyType,
+            projectModel: projectModel as AnyType,
+            promoteService: {} as AnyType,
+            savedChartModel: { find: vi.fn(async () => []) } as AnyType,
+            savedSqlModel: {} as AnyType,
+            appModel: {} as AnyType,
+            schedulerModel: {} as AnyType,
+            schedulerService: {} as AnyType,
+            savedChartService: {} as AnyType,
+            dashboardService: {} as AnyType,
+            schedulerClient: {} as AnyType,
+            spaceModel: {} as AnyType,
+            spacePermissionService: {} as AnyType,
+            groupsModel: {} as AnyType,
+            organizationMemberProfileModel: {} as AnyType,
+            userModel: {} as AnyType,
+        };
+        serviceArgs[`light${'dash'}Config`] = {};
+        const service = new CoderService(serviceArgs);
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+            snapshotModel.get.mockResolvedValue({
+                snapshot: { slug: 'orders', name: 'Last applied' },
+                snapshotHash: 'base-hash',
+                appliedAt: new Date(),
+            });
+            snapshotModel.getIncoming.mockResolvedValue({
+                snapshot: { slug: 'orders', name: 'From git' },
+                snapshotHash: 'incoming-hash',
+                stashedAt: new Date(),
+            });
+            snapshotModel.clearIncoming.mockResolvedValue(undefined);
+        });
+
+        it('returns a three-way view for a skipped slug', async () => {
+            const view = await service.getContentAsCodeConflict(
+                editorUser as AnyType,
+                'project-uuid',
+                'chart',
+                'orders',
+            );
+            expect(view).toMatchObject({
+                contentType: 'chart',
+                slug: 'orders',
+                base: { slug: 'orders', name: 'Last applied' },
+                ours: null,
+                theirs: { slug: 'orders', name: 'From git' },
+                hasIncoming: true,
+            });
+        });
+
+        it('keep_mine clears the incoming stash', async () => {
+            const result = await service.resolveContentAsCodeConflict(
+                editorUser as AnyType,
+                'project-uuid',
+                'chart',
+                'orders',
+                'keep_mine',
+            );
+            expect(result.resolution).toBe('keep_mine');
+            expect(snapshotModel.clearIncoming).toHaveBeenCalledWith(
+                'project-uuid',
+                ContentAsCodeType.CHART,
+                'orders',
+            );
+        });
+
+        it('take_git applies the stashed document with overwriteDrifted', async () => {
+            const upsertChart = vi
+                .spyOn(service, 'upsertChart')
+                .mockResolvedValue({} as AnyType);
+            const result = await service.resolveContentAsCodeConflict(
+                editorUser as AnyType,
+                'project-uuid',
+                'chart',
+                'orders',
+                'take_git',
+            );
+            expect(result.resolution).toBe('take_git');
+            expect(upsertChart).toHaveBeenCalledWith(
+                editorUser,
+                'project-uuid',
+                'orders',
+                { slug: 'orders', name: 'From git' },
+                { overwriteDrifted: true, syncEnforced: true },
+            );
+            upsertChart.mockRestore();
+        });
+
+        it('rejects resolve when no incoming document was stashed', async () => {
+            snapshotModel.getIncoming.mockResolvedValue(undefined);
+            await expect(
+                service.resolveContentAsCodeConflict(
+                    editorUser as AnyType,
+                    'project-uuid',
+                    'chart',
+                    'orders',
+                    'keep_mine',
+                ),
+            ).rejects.toBeInstanceOf(ParameterError);
+        });
+
+        it('forbids resolve without ContentAsCode write access', async () => {
+            await expect(
+                service.resolveContentAsCodeConflict(
+                    viewerUser as AnyType,
+                    'project-uuid',
+                    'chart',
+                    'orders',
+                    'keep_mine',
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
         });
     });
 });

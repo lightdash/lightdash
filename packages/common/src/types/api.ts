@@ -142,6 +142,8 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiContentAsCodeConflictResolveResponse,
+    type ApiContentAsCodeConflictViewResponse,
     type ApiDashboardAsCodeListResponse,
     type ApiGoogleSheetsSyncAsCodeListResponse,
     type ApiGoogleSheetsSyncAsCodeUpsertResponse,
@@ -1342,6 +1344,8 @@ type ApiResults =
     | ApiSpaceAsCodeListResponse['results']
     | ApiSpaceAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
+    | ApiContentAsCodeConflictViewResponse['results']
+    | ApiContentAsCodeConflictResolveResponse['results']
     | ApiGetMetricsTree['results']
     | ApiGetMetricsTreeResponse['results']
     | ApiGetMetricsTreesResponse['results']

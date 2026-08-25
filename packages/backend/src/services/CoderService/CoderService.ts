@@ -22,6 +22,10 @@ import {
     ChartGoogleSheetsSyncAsCode,
     ChartScheduledDeliveryAsCode,
     ChartSummary,
+    ContentAsCodeConflictContentType,
+    ContentAsCodeConflictResolveResult,
+    ContentAsCodeConflictResolution,
+    ContentAsCodeConflictView,
     ContentAsCodeType,
     ContentSlugRenameRequest,
     ContentType,
@@ -2661,6 +2665,36 @@ export class CoderService extends BaseService {
             snapshotHash,
             appliedByUserUuid,
         });
+        await this.contentAsCodeSnapshotModel.clearIncoming(
+            projectUuid,
+            contentType,
+            content.slug,
+        );
+    }
+
+    private async stashIncomingSnapshot(
+        projectUuid: string,
+        contentType: ContentAsCodeSnapshotType,
+        content: SnapshotAsCodeContent,
+        stashedByUserUuid: string | null,
+    ): Promise<void> {
+        try {
+            const { snapshot, snapshotHash } =
+                buildContentAsCodeSnapshot(content);
+            await this.contentAsCodeSnapshotModel.upsertIncoming({
+                projectUuid,
+                contentType,
+                slug: content.slug,
+                snapshot,
+                snapshotHash,
+                stashedByUserUuid,
+            });
+        } catch (error) {
+            this.logger.warn(
+                `Failed to stash incoming as-code document for ${contentType} ${content.slug} on project ${projectUuid}`,
+                error,
+            );
+        }
     }
 
     // The instance content in its canonical as-code form — the same document
@@ -2717,6 +2751,7 @@ export class CoderService extends BaseService {
         getCurrentContent: () => Promise<SnapshotAsCodeContent>;
         incomingContent: SnapshotAsCodeContent;
         options: UpsertContentAsCodeOptions;
+        userUuid: string | null;
     }): Promise<DriftGateOutcome | undefined> {
         const {
             projectUuid,
@@ -2725,6 +2760,7 @@ export class CoderService extends BaseService {
             getCurrentContent,
             incomingContent,
             options,
+            userUuid,
         } = args;
         try {
             const currentContent = await getCurrentContent();
@@ -2740,7 +2776,7 @@ export class CoderService extends BaseService {
                     buildContentAsCodeSnapshot(incomingContent).snapshotHash,
                 lastAppliedHash: lastApplied?.snapshotHash ?? null,
             });
-            return resolveDriftGate({
+            const gate = resolveDriftGate({
                 verdict,
                 contentType:
                     contentType === ContentAsCodeType.DASHBOARD
@@ -2751,6 +2787,15 @@ export class CoderService extends BaseService {
                 syncEnforced: options.syncEnforced,
                 overwriteDrifted: options.overwriteDrifted,
             });
+            if (gate.outcome === 'skip') {
+                await this.stashIncomingSnapshot(
+                    projectUuid,
+                    contentType,
+                    incomingContent,
+                    userUuid,
+                );
+            }
+            return gate;
         } catch (error) {
             this.logger.warn(
                 `Failed to evaluate as-code drift for ${contentType} ${slug} on project ${projectUuid}`,
@@ -2837,6 +2882,146 @@ export class CoderService extends BaseService {
                 error,
             );
         }
+    }
+
+    async getContentAsCodeConflict(
+        user: SessionUser,
+        projectUuid: string,
+        contentType: ContentAsCodeConflictContentType,
+        slug: string,
+    ): Promise<ContentAsCodeConflictView> {
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('ContentAsCode', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const snapshotType =
+            contentType === 'dashboard'
+                ? ContentAsCodeType.DASHBOARD
+                : ContentAsCodeType.CHART;
+        const [lastApplied, incoming, ours] = await Promise.all([
+            this.contentAsCodeSnapshotModel.get(
+                projectUuid,
+                snapshotType,
+                slug,
+            ),
+            this.contentAsCodeSnapshotModel.getIncoming(
+                projectUuid,
+                snapshotType,
+                slug,
+            ),
+            this.getCurrentCanonicalDocument(projectUuid, snapshotType, slug),
+        ]);
+
+        return {
+            contentType,
+            slug,
+            base: (lastApplied?.snapshot as Record<string, unknown>) ?? null,
+            ours,
+            theirs: (incoming?.snapshot as Record<string, unknown>) ?? null,
+            hasIncoming: incoming !== undefined,
+        };
+    }
+
+    async resolveContentAsCodeConflict(
+        user: SessionUser,
+        projectUuid: string,
+        contentType: ContentAsCodeConflictContentType,
+        slug: string,
+        resolution: ContentAsCodeConflictResolution,
+    ): Promise<ContentAsCodeConflictResolveResult> {
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        CoderService.checkContentAsCodeWriteAccess({
+            auditedAbility,
+            project,
+            slug,
+        });
+
+        const snapshotType =
+            contentType === 'dashboard'
+                ? ContentAsCodeType.DASHBOARD
+                : ContentAsCodeType.CHART;
+        const incoming = await this.contentAsCodeSnapshotModel.getIncoming(
+            projectUuid,
+            snapshotType,
+            slug,
+        );
+        if (incoming === undefined) {
+            throw new ParameterError(
+                `No skipped incoming document is stored for ${contentType} "${slug}"`,
+            );
+        }
+
+        if (resolution === 'keep_mine') {
+            await this.contentAsCodeSnapshotModel.clearIncoming(
+                projectUuid,
+                snapshotType,
+                slug,
+            );
+            return { contentType, slug, resolution };
+        }
+
+        if (contentType === 'chart') {
+            await this.upsertChart(
+                user,
+                projectUuid,
+                slug,
+                incoming.snapshot as ChartAsCode,
+                { overwriteDrifted: true, syncEnforced: true },
+            );
+        } else {
+            await this.upsertDashboard(
+                user,
+                projectUuid,
+                slug,
+                incoming.snapshot as DashboardAsCode,
+                { overwriteDrifted: true, syncEnforced: true },
+            );
+        }
+        return { contentType, slug, resolution };
+    }
+
+    private async getCurrentCanonicalDocument(
+        projectUuid: string,
+        contentType: ContentAsCodeSnapshotType,
+        slug: string,
+    ): Promise<Record<string, unknown> | null> {
+        if (contentType === ContentAsCodeType.CHART) {
+            const [summary] = await this.savedChartModel.find({
+                projectUuid,
+                slugs: [slug],
+                includeOrphanChartsWithinDashboard: true,
+            });
+            if (summary === undefined) {
+                return null;
+            }
+            return buildContentAsCodeSnapshot(
+                await this.getCurrentChartAsCode(summary.uuid),
+            ).snapshot;
+        }
+        if (contentType === ContentAsCodeType.DASHBOARD) {
+            const [summary] = await this.dashboardModel.find({
+                projectUuid,
+                slugs: [slug],
+            });
+            if (summary === undefined) {
+                return null;
+            }
+            return buildContentAsCodeSnapshot(
+                await this.getCurrentDashboardAsCode(summary.uuid),
+            ).snapshot;
+        }
+        return null;
     }
 
     async upsertChart(
@@ -3162,6 +3347,7 @@ export class CoderService extends BaseService {
                           this.getCurrentChartAsCode(chart.uuid),
                       incomingContent: chartWithDefaults,
                       options,
+                      userUuid: user.userUuid,
                   })
                 : undefined;
         if (driftGate?.outcome === 'skip') {
@@ -4177,6 +4363,7 @@ export class CoderService extends BaseService {
                           this.getCurrentDashboardAsCode(dashboard.uuid),
                       incomingContent: dashboardWithDefaults,
                       options,
+                      userUuid: user.userUuid,
                   })
                 : undefined;
         if (driftGate?.outcome === 'skip') {
