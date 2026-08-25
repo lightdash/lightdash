@@ -805,7 +805,11 @@ export class DashboardModel {
 
     async getByIdOrSlug(
         dashboardUuidOrSlug: string,
-        options?: { deleted?: boolean | 'any'; projectUuid?: string },
+        options?: {
+            deleted?: boolean | 'any';
+            projectUuid?: string;
+            strictUuid?: boolean;
+        },
     ): Promise<DashboardDAO> {
         const query = this.database(DashboardsTableName)
             .leftJoin(
@@ -898,7 +902,12 @@ export class DashboardModel {
             void query.whereNull(`${DashboardsTableName}.deleted_at`);
         }
 
-        if (isValidUuid(dashboardUuidOrSlug)) {
+        if (options?.strictUuid) {
+            void query.where(
+                `${DashboardsTableName}.dashboard_uuid`,
+                dashboardUuidOrSlug,
+            );
+        } else if (isValidUuid(dashboardUuidOrSlug)) {
             void query.where((builder) => {
                 void builder
                     .where(

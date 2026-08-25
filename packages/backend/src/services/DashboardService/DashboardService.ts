@@ -759,7 +759,11 @@ export class DashboardService
     async getByIdOrSlug(
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
-        options?: { projectUuid?: string; includeDependencies?: boolean },
+        options?: {
+            projectUuid?: string;
+            includeDependencies?: boolean;
+            strictUuid?: boolean;
+        },
     ): Promise<Dashboard> {
         const dashboard = await this.assertViewAccess(
             user,
@@ -773,12 +777,17 @@ export class DashboardService
     async assertViewAccess(
         actor: DashboardAccessActor,
         dashboardUuidOrSlug: UuidOrSlug,
-        options?: { projectUuid?: string; includeDependencies?: boolean },
+        options?: {
+            projectUuid?: string;
+            includeDependencies?: boolean;
+            strictUuid?: boolean;
+        },
     ): Promise<Dashboard> {
         const dashboardDao = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
             {
                 projectUuid: options?.projectUuid,
+                strictUuid: options?.strictUuid,
             },
         );
         const { isDirectOnly, ...accessContext } =

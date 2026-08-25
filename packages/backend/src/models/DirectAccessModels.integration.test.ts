@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    DirectAccessOrigin,
     OrganizationMemberRole,
     ProjectMemberRole,
     SEED_ORG_1_ADMIN,
@@ -333,6 +334,94 @@ describe('direct access read models PostgreSQL integration', () => {
                 expect(accessQueryCount).toBe(1);
             }),
         );
+    });
+
+    it('lists dashboard user and group grants without expanding group members', async () => {
+        const result = await model.getDirectAccessList(
+            dashboardUuid,
+            organizationUuid,
+            { paginateArgs: { page: 1, pageSize: 20 } },
+        );
+
+        expect(result.data).toEqual([
+            expect.objectContaining({
+                origin: DirectAccessOrigin.USER,
+                principalUuid: SEED_ORG_1_ADMIN.user_uuid,
+                directRole: SpaceMemberRole.VIEWER,
+            }),
+            expect.objectContaining({
+                origin: DirectAccessOrigin.GROUP,
+                principalUuid: groupUuid,
+                directRole: SpaceMemberRole.ADMIN,
+            }),
+        ]);
+        expect(result.pagination).toMatchObject({
+            page: 1,
+            pageSize: 20,
+            totalPageCount: 1,
+            totalResults: 2,
+        });
+        await expect(
+            model.getGroupRolesForUsers(
+                dashboardUuid,
+                [SEED_ORG_1_ADMIN.user_uuid],
+                organizationUuid,
+            ),
+        ).resolves.toEqual({
+            [SEED_ORG_1_ADMIN.user_uuid]: [SpaceMemberRole.ADMIN],
+        });
+    });
+
+    it('searches and scopes dashboard grant lists before pagination', async () => {
+        const groupOnly = await model.getDirectAccessList(
+            dashboardUuid,
+            organizationUuid,
+            {
+                searchQuery: 'Direct access group',
+                paginateArgs: { page: 1, pageSize: 1 },
+            },
+        );
+        expect(groupOnly.data).toEqual([
+            expect.objectContaining({
+                origin: DirectAccessOrigin.GROUP,
+                principalUuid: groupUuid,
+            }),
+        ]);
+        expect(groupOnly.pagination).toMatchObject({ totalResults: 1 });
+
+        await expect(
+            model.getDirectAccessList(dashboardUuid, randomUUID()),
+        ).resolves.toEqual({ data: [] });
+
+        await transaction(ProjectGroupAccessTableName)
+            .where({ project_uuid: projectUuid, group_uuid: groupUuid })
+            .delete();
+        await expect(
+            model.getDirectAccessList(dashboardUuid, organizationUuid),
+        ).resolves.toMatchObject({
+            data: [
+                expect.objectContaining({
+                    origin: DirectAccessOrigin.USER,
+                    principalUuid: SEED_ORG_1_ADMIN.user_uuid,
+                }),
+            ],
+        });
+        await expect(
+            model.getGroupRolesForUsers(
+                dashboardUuid,
+                [SEED_ORG_1_ADMIN.user_uuid],
+                organizationUuid,
+            ),
+        ).resolves.toEqual({});
+
+        await transaction(UserTableName)
+            .where('user_uuid', SEED_ORG_1_ADMIN.user_uuid)
+            .update({ is_active: false });
+        await expect(
+            model.getDirectAccessList(dashboardUuid, organizationUuid),
+        ).resolves.toMatchObject({
+            data: [],
+        });
     });
 
     it('scopes every concrete read and write to the expected organization', async () => {
@@ -997,13 +1086,20 @@ describe('direct access read models PostgreSQL integration', () => {
         ).rejects.toMatchObject({ name: 'ForbiddenError' });
     });
 
-    it('hides resource existence when a self-revoke has no direct grant', async () => {
+    it('makes dashboard self-revoke idempotent without changing other resources', async () => {
         const principalUuid = randomUUID();
-        const cases = [
-            {
-                model: new DashboardAccessModel(transaction),
+        await expect(
+            new DashboardAccessModel(transaction).revokeUserAccess({
+                organizationUuid,
                 resourceUuid: dashboardUuid,
-            },
+                userUuid: principalUuid,
+                actorRole: SpaceMemberRole.VIEWER,
+                actorRoleResolver: async () => SpaceMemberRole.VIEWER,
+                actorUserUuid: principalUuid,
+            }),
+        ).resolves.toMatchObject({ beforeRole: null, afterRole: null });
+
+        const cases = [
             {
                 model: new SavedChartAccessModel(transaction),
                 resourceUuid: savedChartUuid,
@@ -1050,13 +1146,19 @@ describe('direct access read models PostgreSQL integration', () => {
         });
     });
 
-    it('throws NotFoundError when revoking a missing group grant', async () => {
+    it('makes dashboard group revoke idempotent without changing other resources', async () => {
         const missingGroupUuid = randomUUID();
-        const cases = [
-            {
-                model: new DashboardAccessModel(transaction),
+        await expect(
+            new DashboardAccessModel(transaction).revokeGroupAccess({
                 resourceUuid: dashboardUuid,
-            },
+                groupUuid: missingGroupUuid,
+                actorRole: SpaceMemberRole.ADMIN,
+                actorRoleResolver: async () => SpaceMemberRole.ADMIN,
+                organizationUuid,
+            }),
+        ).resolves.toMatchObject({ beforeRole: null, afterRole: null });
+
+        const cases = [
             {
                 model: new SavedChartAccessModel(transaction),
                 resourceUuid: savedChartUuid,

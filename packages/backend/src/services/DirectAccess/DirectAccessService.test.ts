@@ -25,6 +25,17 @@ const account = {
     isServiceAccount: () => true,
 } as unknown as RegisteredAccount;
 
+const user = {
+    userUuid: 'persisted-user-uuid',
+    organizationUuid: 'organization-uuid',
+    role: 'admin',
+    serviceAccount: {
+        uuid: 'audit-service-account-uuid',
+        description: 'Test service account',
+    },
+    requestContext: { requestId: 'request-id' },
+} as unknown as Parameters<DirectAccessService['assertEnabled']>[0];
+
 const mutationResult = {
     organizationId: 1,
     organizationUuid: 'organization-uuid',
@@ -73,12 +84,48 @@ const createActorRoleResolver = () =>
 const createFeatureGate = (isEnabled: boolean): DirectAccessFeatureGate =>
     ({
         isEnabled: vi.fn().mockResolvedValue(isEnabled),
+        isEnabledForUser: vi.fn().mockResolvedValue(isEnabled),
         assertEnabled: isEnabled
             ? vi.fn().mockResolvedValue(undefined)
             : vi.fn().mockRejectedValue(new Error('Direct access unavailable')),
     }) as unknown as DirectAccessFeatureGate;
 
 describe('DirectAccessService', () => {
+    it('uses the existing session user for mutations', async () => {
+        const models = createModels();
+        const actorRoleResolver = createActorRoleResolver();
+        const featureGate = createFeatureGate(true);
+        const service = new DirectAccessService({
+            models,
+            actorRoleResolver,
+            featureGate,
+        });
+
+        await service.upsertUserAccess({
+            user,
+            resource: { type: 'dashboard', uuid: 'dashboard-uuid' },
+            userUuid: 'principal-uuid',
+            role: SpaceMemberRole.VIEWER,
+        });
+
+        expect(featureGate.isEnabledForUser).toHaveBeenCalledWith({
+            userUuid: 'persisted-user-uuid',
+            organizationUuid: 'organization-uuid',
+        });
+        expect(actorRoleResolver).toHaveBeenCalledWith({
+            actorUserUuid: 'persisted-user-uuid',
+            organizationUuid: 'organization-uuid',
+            phase: 'preflight',
+            resource: { type: 'dashboard', uuid: 'dashboard-uuid' },
+        });
+        expect(models.dashboard.upsertUserAccess).toHaveBeenCalledWith(
+            expect.objectContaining({
+                grantedByUserUuid: 'persisted-user-uuid',
+                organizationUuid: 'organization-uuid',
+            }),
+        );
+    });
+
     it('issues zero direct-model reads while the feature is unavailable', async () => {
         const models = createModels();
         const service = new DirectAccessService({
@@ -251,7 +298,7 @@ describe('DirectAccessService', () => {
         });
         const operations = resourceTypes.flatMap((type) => {
             const mutation = {
-                account,
+                user,
                 resource: { type, uuid: `${type}-uuid` },
             };
             return [
@@ -305,7 +352,7 @@ describe('DirectAccessService', () => {
         await Promise.all(
             resourceTypes.map((type) =>
                 service.upsertUserAccess({
-                    account,
+                    user,
                     resource: { type, uuid: `${type}-uuid` },
                     userUuid: 'principal-uuid',
                     role: SpaceMemberRole.VIEWER,
@@ -333,13 +380,13 @@ describe('DirectAccessService', () => {
         });
         expect(actorRoleResolver).toHaveBeenCalledTimes(5);
         expect(actorRoleResolver).toHaveBeenCalledWith({
-            account,
+            actorUserUuid: 'persisted-user-uuid',
             organizationUuid: 'organization-uuid',
             phase: 'preflight',
             resource: { type: 'dashboard', uuid: 'dashboard-uuid' },
         });
         expect(actorRoleResolver).toHaveBeenCalledWith({
-            account,
+            actorUserUuid: 'persisted-user-uuid',
             organizationUuid: 'organization-uuid',
             phase: 'transaction',
             transaction: {},
@@ -390,7 +437,7 @@ describe('DirectAccessService', () => {
             featureGate: createFeatureGate(true),
         });
         const mutation = {
-            account,
+            user,
             resource: {
                 type: 'dashboard' as const,
                 uuid: 'dashboard-uuid',
@@ -469,7 +516,7 @@ describe('DirectAccessService', () => {
 
         await expect(
             service.upsertUserAccess({
-                account,
+                user,
                 resource: {
                     type: 'dashboard',
                     uuid: 'dashboard-uuid',
@@ -494,6 +541,10 @@ describe('DirectAccessService', () => {
             ...account,
             organization: {},
         } as RegisteredAccount;
+        const userWithoutOrganization = {
+            ...user,
+            organizationUuid: undefined,
+        } as unknown as Parameters<DirectAccessService['assertEnabled']>[0];
 
         await expect(
             service.getUserAccess({
@@ -504,7 +555,7 @@ describe('DirectAccessService', () => {
         ).rejects.toMatchObject({ name: 'ForbiddenError' });
         await expect(
             service.resetAccess({
-                account: accountWithoutOrganization,
+                user: userWithoutOrganization,
                 resource: { type: 'dashboard', uuid: 'dashboard-uuid' },
             }),
         ).rejects.toMatchObject({ name: 'ForbiddenError' });

@@ -30,6 +30,7 @@ import { ContentVerificationService } from './ContentVerificationService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DeployService } from './DeployService';
+import { DashboardAccessHandler } from './DirectAccess/DashboardAccessHandler';
 import { DirectAccessFeatureGate } from './DirectAccess/DirectAccessFeatureGate';
 import { DirectAccessService } from './DirectAccess/DirectAccessService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
@@ -98,6 +99,7 @@ interface ServiceManifest {
     analyticsService: AnalyticsService;
     commentService: CommentService;
     csvService: CsvService;
+    dashboardAccessHandler: DashboardAccessHandler;
     dashboardService: DashboardService;
     directAccessService: DirectAccessService;
     deployService: DeployService;
@@ -448,6 +450,19 @@ export class ServiceRepository
                         this.models.getContentVerificationModel(),
                     directAccessService: this.getDirectAccessService(),
                 }),
+        );
+    }
+
+    public getDashboardAccessHandler(): DashboardAccessHandler {
+        return this.getService(
+            'dashboardAccessHandler',
+            () =>
+                new DashboardAccessHandler(
+                    this.models.getDashboardAccessModel(),
+                    this.getDashboardService(),
+                    this.getDirectAccessService(),
+                    this.getSpacePermissionService(),
+                ),
         );
     }
 

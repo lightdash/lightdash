@@ -1,10 +1,11 @@
 import {
     ForbiddenError,
     type RegisteredAccount,
+    type SessionUser,
     type SpaceMemberRole,
     type UUID,
 } from '@lightdash/common';
-import { createActorFromAccount } from '../../logging/caslAuditWrapper';
+import { createActorFromUser } from '../../logging/caslAuditWrapper';
 import {
     type DirectAccess,
     type DirectAccessModel,
@@ -50,7 +51,7 @@ const auditResourceTypes: Record<DirectAccessResourceType, string> = {
 };
 
 type DirectAccessActorRoleResolverInput = {
-    account: RegisteredAccount;
+    actorUserUuid: UUID;
     organizationUuid: UUID;
     resource: DirectAccessResource;
 } & (
@@ -74,7 +75,7 @@ export type DirectAccessActorRoleResolver = (
 ) => Promise<SpaceMemberRole | undefined>;
 
 type DirectAccessMutationInput = {
-    account: RegisteredAccount;
+    user: SessionUser;
     resource: DirectAccessResource;
 };
 
@@ -113,18 +114,27 @@ export class DirectAccessService extends BaseService {
         return organizationUuid;
     }
 
+    private static getMutationOrganizationUuid(
+        input: DirectAccessMutationInput,
+    ): UUID {
+        const { organizationUuid } = input.user;
+        if (organizationUuid === undefined) {
+            throw new ForbiddenError('Direct access is not available');
+        }
+        return organizationUuid;
+    }
+
     private createActorRoleResolver(
         input: DirectAccessMutationInput,
     ): DirectAccessModelActorRoleResolver {
-        const organizationUuid = DirectAccessService.getOrganizationUuid(
-            input.account,
-        );
+        const organizationUuid =
+            DirectAccessService.getMutationOrganizationUuid(input);
         return ({ transaction, context }) => {
             if (context.organizationUuid !== organizationUuid) {
                 throw new ForbiddenError('Direct access is not available');
             }
             return this.actorRoleResolver({
-                account: input.account,
+                actorUserUuid: input.user.userUuid,
                 organizationUuid,
                 phase: 'transaction',
                 transaction,
@@ -137,11 +147,10 @@ export class DirectAccessService extends BaseService {
     private resolveActorRole(
         input: DirectAccessMutationInput,
     ): Promise<SpaceMemberRole | undefined> {
-        const organizationUuid = DirectAccessService.getOrganizationUuid(
-            input.account,
-        );
+        const organizationUuid =
+            DirectAccessService.getMutationOrganizationUuid(input);
         return this.actorRoleResolver({
-            account: input.account,
+            actorUserUuid: input.user.userUuid,
             organizationUuid,
             phase: 'preflight',
             resource: input.resource,
@@ -153,10 +162,9 @@ export class DirectAccessService extends BaseService {
         actorRole?: SpaceMemberRole;
         actorRoleResolver: DirectAccessModelActorRoleResolver;
     }> {
-        const organizationUuid = DirectAccessService.getOrganizationUuid(
-            input.account,
-        );
-        await this.featureGate.assertEnabled(input.account);
+        const organizationUuid =
+            DirectAccessService.getMutationOrganizationUuid(input);
+        await this.assertEnabled(input.user);
         const actorRole = await this.resolveActorRole(input);
         return {
             organizationUuid,
@@ -171,14 +179,25 @@ export class DirectAccessService extends BaseService {
         return this.models[resourceType];
     }
 
+    async assertEnabled(user: SessionUser): Promise<void> {
+        if (
+            !(await this.featureGate.isEnabledForUser({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            }))
+        ) {
+            throw new ForbiddenError('Direct access is not available');
+        }
+    }
+
     private auditMutation(
         input: DirectAccessMutationInput,
         principal: { type: 'user' | 'group'; uuid: UUID },
         result: DirectAccessMutationResult,
     ): void {
         auditDirectAccessMutation({
-            actor: createActorFromAccount(input.account),
-            context: input.account.requestContext ?? {},
+            actor: createActorFromUser(input.user),
+            context: input.user.requestContext ?? {},
             resourceType: auditResourceTypes[input.resource.type],
             resourceUuid: input.resource.uuid,
             principal,
@@ -192,8 +211,8 @@ export class DirectAccessService extends BaseService {
         result: DirectAccessResetResult,
     ): void {
         auditDirectAccessReset({
-            actor: createActorFromAccount(input.account),
-            context: input.account.requestContext ?? {},
+            actor: createActorFromUser(input.user),
+            context: input.user.requestContext ?? {},
             resourceType: auditResourceTypes[input.resource.type],
             resourceUuid: input.resource.uuid,
             result,
@@ -299,7 +318,7 @@ export class DirectAccessService extends BaseService {
             role: input.role,
             actorRole,
             actorRoleResolver,
-            grantedByUserUuid: input.account.user.userUuid,
+            grantedByUserUuid: input.user.userUuid,
             organizationUuid,
         });
         this.auditMutation(
@@ -325,7 +344,7 @@ export class DirectAccessService extends BaseService {
             role: input.role,
             actorRole,
             actorRoleResolver,
-            grantedByUserUuid: input.account.user.userUuid,
+            grantedByUserUuid: input.user.userUuid,
             organizationUuid,
         });
         this.auditMutation(
@@ -347,7 +366,7 @@ export class DirectAccessService extends BaseService {
             userUuid: input.userUuid,
             actorRole,
             actorRoleResolver,
-            actorUserUuid: input.account.user.userUuid,
+            actorUserUuid: input.user.userUuid,
             organizationUuid,
         });
         this.auditMutation(
