@@ -550,6 +550,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     rolesModel: models.getRolesModel(),
                     featureFlagService: repository.getFeatureFlagService(),
                     slackClient: clients.getSlackClient(),
+                    unfurlService: repository.getUnfurlService(),
                     projectService: repository.getProjectService(),
                     catalogService: repository.getCatalogService(),
                     asyncQueryService: repository.getAsyncQueryService(),

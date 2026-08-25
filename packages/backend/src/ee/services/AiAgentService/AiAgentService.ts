@@ -243,6 +243,7 @@ import { SavedChartService } from '../../../services/SavedChartsService/SavedCha
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
+import { UnfurlService } from '../../../services/UnfurlService/UnfurlService';
 import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
@@ -344,6 +345,7 @@ import {
     EditProjectContextFn,
     EditRepoFn,
     ExploreRepoFn,
+    ExportCustomChartTypeImageFn,
     GetPromptFn,
     GetPullRequestDiffFn,
     ListWorkstreamsFn,
@@ -563,6 +565,7 @@ type AiAgentServiceDependencies = {
     schedulerClient: CommercialSchedulerClient;
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
     slackClient: SlackClient;
+    unfurlService: UnfurlService;
     userAttributesModel: UserAttributesModel;
     userModel: UserModel;
     spaceService: SpaceService;
@@ -877,6 +880,8 @@ export class AiAgentService extends BaseService {
     private readonly slackAuthenticationModel: CommercialSlackAuthenticationModel;
 
     private readonly slackClient: SlackClient;
+
+    private readonly unfurlService: UnfurlService;
 
     private readonly userAttributesModel: UserAttributesModel;
 
@@ -1243,6 +1248,7 @@ export class AiAgentService extends BaseService {
         this.schedulerClient = dependencies.schedulerClient;
         this.slackAuthenticationModel = dependencies.slackAuthenticationModel;
         this.slackClient = dependencies.slackClient;
+        this.unfurlService = dependencies.unfurlService;
         this.userAttributesModel = dependencies.userAttributesModel;
         this.userModel = dependencies.userModel;
         this.spaceService = dependencies.spaceService;
@@ -9345,6 +9351,29 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     .then(() => undefined);
             });
 
+        // Headless-renders a custom chart type answer as the requesting user.
+        // The artifact was just persisted by this prompt run for this same
+        // user, so no access re-resolution is needed before rendering.
+        const exportCustomChartTypeImage: ExportCustomChartTypeImageFn = (
+            artifact,
+        ) =>
+            wrapSentryTransaction(
+                'AiAgent.exportCustomChartTypeImage',
+                {
+                    artifactUuid: artifact.artifactUuid,
+                    versionUuid: artifact.versionUuid,
+                },
+                async () => {
+                    const { imageBuffer } =
+                        await this.unfurlService.exportAiAgentArtifact(user, {
+                            projectUuid,
+                            agentUuid: runtimeAgentSettings.uuid,
+                            artifact,
+                        });
+                    return imageBuffer;
+                },
+            );
+
         const sendSlackBlocks: SendSlackBlocksFn = async (args) =>
             wrapSentryTransaction(
                 'AiAgent.sendSlackBlocks',
@@ -9909,6 +9938,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 toolsRuntime.getKnowledgeDocumentContent,
             getSavedChart: toolsRuntime.getSavedChart,
             sendFile,
+            exportCustomChartTypeImage,
             sendSlackBlocks,
             updateSlackMessage,
             storeToolCall,
@@ -10114,6 +10144,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getKnowledgeDocumentContent,
             getSavedChart,
             sendFile,
+            exportCustomChartTypeImage,
             sendSlackBlocks,
             updateSlackMessage,
             storeToolCall,
@@ -10713,6 +10744,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getSavedChart,
             getPrompt,
             sendFile,
+            exportCustomChartTypeImage,
             sendSlackBlocks,
             updateSlackMessage,
             storeToolCall,

@@ -431,6 +431,12 @@ export type GetSavedChartFn = (chartUuidOrSlug: string) => Promise<SavedChart>;
 
 export type SendFileFn = (args: PostSlackFile) => Promise<string | undefined>;
 
+// Renders a custom chart type artifact version to a PNG buffer via the
+// headless browser, as the requesting user.
+export type ExportCustomChartTypeImageFn = (
+    artifact: AiArtifact,
+) => Promise<Buffer>;
+
 export type SendSlackBlocksFn = (args: {
     channelId: string;
     threadTs: string;
