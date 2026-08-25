@@ -1,3 +1,11 @@
+# [1.261.0](https://github.com/lightdash/lightdash/compare/1.260.1...1.261.0) (2026-08-25)
+
+
+### Features
+
+* **cli:** download custom chart types as code separately from data apps ([#27863](https://github.com/lightdash/lightdash/issues/27863)) ([9e7abbc](https://github.com/lightdash/lightdash/commit/9e7abbc3e7d8c0f94f2a4dcdf0fee616bf11c8a8)), closes [#27857](https://github.com/lightdash/lightdash/issues/27857) [#27855](https://github.com/lightdash/lightdash/issues/27855)
+* **cli:** upload custom chart types as code separately from data apps ([#27864](https://github.com/lightdash/lightdash/issues/27864)) ([39a40cf](https://github.com/lightdash/lightdash/commit/39a40cfd2d8d89157a30602dd55ca1d4a73eef2b)), closes [#27855](https://github.com/lightdash/lightdash/issues/27855)
+
 ## [1.260.1](https://github.com/lightdash/lightdash/compare/1.260.0...1.260.1) (2026-08-25)
 
 
