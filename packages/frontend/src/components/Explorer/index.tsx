@@ -4,6 +4,7 @@ import {
     getReferencedParameterDefinitions,
 } from '@lightdash/common';
 import { Box, Stack } from '@mantine/core';
+import clsx from 'clsx';
 import {
     lazy,
     memo,
@@ -55,6 +56,7 @@ import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import RefreshDbtButton from '../RefreshDbtButton';
 import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
+import classes from './Explorer.module.css';
 import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
 import { FormatModal } from './FormatModal';
@@ -281,7 +283,12 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
                 parameters={parameters}
                 resolvedTimezone={query.data?.resolvedTimezone}
             >
-                <Stack style={{ flexGrow: 1 }}>
+                <Stack
+                    className={clsx(
+                        classes.stack,
+                        isAuthoring && classes.stackAuthoring,
+                    )}
+                >
                     <MergeAutoRun />
                     {/* The query controls keep their usual spot while a chart
                         type is authored; only the cards below make way. */}
