@@ -1,7 +1,4 @@
-import {
-    getAppDisplayName,
-    type ApiAppVersionSummary,
-} from '@lightdash/common';
+import { getAppDisplayName } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -24,9 +21,8 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
 import AppUpgradeModal from '../../apps/components/AppUpgradeModal';
 import { type SdkUpgradeOffer } from '../../apps/hooks/useSdkUpgradeStatus';
-import { getVersionAuthorName } from '../../apps/utils/versionsToChatMessages';
+import { type ChartTypeAppMeta } from './appMeta';
 import classes from './ChartTypeBuilderHeader.module.css';
-import VersionProvenance from './VersionProvenance';
 
 type Props = {
     projectUuid: string;
@@ -35,12 +31,8 @@ type Props = {
         to: To;
     };
     /** Null while no app exists yet (create flow before the first build). */
-    app: { appUuid: string; name: string; description: string } | null;
+    app: ChartTypeAppMeta | null;
     latestReadyVersion: number | null;
-    /** The version the provenance line reports; null while history is empty. */
-    provenanceVersion: ApiAppVersionSummary | null;
-    /** Whether `provenanceVersion` really is the origin (v1 is loaded). */
-    hasOrigin: boolean;
     /** False while the visualization has no versions to look back through. */
     hasHistory: boolean;
     isHistoryOpen: boolean;
@@ -55,8 +47,6 @@ const ChartTypeBuilderHeader: FC<Props> = ({
     backLink,
     app,
     latestReadyVersion,
-    provenanceVersion,
-    hasOrigin,
     hasHistory,
     isHistoryOpen,
     upgrade,
@@ -84,59 +74,58 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                     {backLink.label}
                 </Button>
                 <Box className={classes.divider} />
-                {app ? (
-                    <>
-                        <Title
-                            className={classes.name}
-                            order={6}
-                            c="ldDark.9"
-                            fw={600}
-                            lineClamp={1}
-                        >
-                            {getAppDisplayName(app.name, app.appUuid)}
-                        </Title>
-                        {app.description && (
-                            <Tooltip
-                                withArrow
-                                multiline
-                                w={280}
-                                label={app.description}
+                <Box className={classes.nameCluster}>
+                    {app ? (
+                        <>
+                            <Title
+                                className={classes.name}
+                                order={6}
+                                c="ldDark.9"
+                                fw={600}
+                                lineClamp={1}
                             >
+                                {getAppDisplayName(app.name, app.appUuid)}
+                            </Title>
+                            {app.description && (
+                                <Tooltip
+                                    withArrow
+                                    multiline
+                                    w={280}
+                                    label={app.description}
+                                >
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        size="sm"
+                                        aria-label="Chart type description"
+                                    >
+                                        <MantineIcon icon={IconInfoCircle} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                            <Tooltip withArrow label="Edit details">
                                 <ActionIcon
                                     variant="subtle"
                                     color="gray"
                                     size="sm"
-                                    aria-label="Chart type description"
+                                    aria-label="Edit chart type details"
+                                    onClick={() => setIsEditingDetails(true)}
                                 >
-                                    <MantineIcon icon={IconInfoCircle} />
+                                    <MantineIcon icon={IconPencil} />
                                 </ActionIcon>
                             </Tooltip>
-                        )}
-                        <Tooltip withArrow label="Edit details">
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                size="sm"
-                                aria-label="Edit chart type details"
-                                onClick={() => setIsEditingDetails(true)}
-                            >
-                                <MantineIcon icon={IconPencil} />
-                            </ActionIcon>
-                        </Tooltip>
-                    </>
-                ) : (
-                    <Text className={classes.name} fz="sm" fw={600} c="dimmed">
-                        Untitled chart type
-                    </Text>
-                )}
-                {provenanceVersion && (
-                    <VersionProvenance
-                        className={classes.provenance}
-                        authorName={getVersionAuthorName(provenanceVersion)}
-                        at={new Date(provenanceVersion.createdAt)}
-                        isOrigin={hasOrigin}
-                    />
-                )}
+                        </>
+                    ) : (
+                        <Text
+                            className={classes.name}
+                            fz="sm"
+                            fw={600}
+                            c="dimmed"
+                        >
+                            Untitled chart type
+                        </Text>
+                    )}
+                </Box>
             </Box>
             <Group gap="xs" wrap="nowrap">
                 {upgradeAvailable && (

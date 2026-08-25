@@ -1,10 +1,6 @@
+import { FeatureFlags, type DataAppViz } from '@lightdash/common';
 import {
-    assertUnreachable,
-    FeatureFlags,
-    type DataAppViz,
-} from '@lightdash/common';
-import {
-    Anchor,
+    ActionIcon,
     Box,
     Button,
     Group,
@@ -17,13 +13,21 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconPlus, IconSearch } from '@tabler/icons-react';
-import { useCallback, useMemo, useRef, useState, type FC } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import {
+    IconDots,
+    IconFilePencil,
+    IconPlus,
+    IconSearch,
+} from '@tabler/icons-react';
+import clsx from 'clsx';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
-import { chartTypeBuilderPath } from '../../../features/chartTypes/utils/chartTypeBuilderPath';
+import {
+    explorerActions,
+    useExplorerDispatch,
+} from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
@@ -37,17 +41,17 @@ import {
 } from '../VisualizationCardOptions/useChartTypeOptions';
 import classes from './ChartTypeGallery.module.css';
 
-/** Rows shown before "Load more", keeping built-ins visible at first glance. */
-const INITIAL_PROJECT_TYPES_SHOWN = 5;
+/** Grid slots the project section may fill before collapsing; when it does,
+    the last slot becomes the "+N more" tile, so the collapse never trades a
+    single hidden card for a tile. */
+const MAX_UNCOLLAPSED_PROJECT_TYPES = 6;
+const COLLAPSED_PROJECT_TYPES_SHOWN = MAX_UNCOLLAPSED_PROJECT_TYPES - 1;
 
 export type ChartTypeGalleryItem = Omit<ChartTypeOption, 'id'> & {
     key: string;
     disabled: boolean;
-};
-
-/** Rows show per-item text and actions that grid cards deliberately drop. */
-export type ChartTypeGalleryRowItem = ChartTypeGalleryItem & {
-    description: string;
+    /** Shown as the card's tooltip; null shows none. */
+    description: string | null;
     /** Opens the chart type builder for this item; null hides the action. */
     onEdit: (() => void) | null;
 };
@@ -66,8 +70,7 @@ const ChartTypeIcon: FC<ChartTypeIconProps> = ({
         data-rotated={rotatedIcon}
         icon={icon}
         size={small ? 'md' : 'xl'}
-        stroke={1.5}
-        color="blue"
+        stroke={1.25}
     />
 );
 
@@ -80,109 +83,64 @@ export const ChartTypeThumbnail: FC<ChartTypeIconProps> = ({
     </Box>
 );
 
-type ChartTypeGallerySectionBase = {
+export type ChartTypeGallerySection = {
     label: string;
-    emptyMessage: string;
-};
-
-/** A static set of built-ins: a compact card grid, no remote-list states. */
-type ChartTypeGalleryGridSection = ChartTypeGallerySectionBase & {
-    layout: 'grid';
     items: ChartTypeGalleryItem[];
-};
-
-/** A remote list of project chart types: richer rows with list states. */
-type ChartTypeGalleryRowsSection = ChartTypeGallerySectionBase & {
-    layout: 'rows';
-    items: ChartTypeGalleryRowItem[];
+    emptyMessage: string;
+    /* Remote-list states; a static section passes them inert. */
     loading: boolean;
     errorMessage: string | null;
     onRetry: (() => void) | null;
     onLoadMore: (() => void) | null;
+    /** Hidden items behind the "+N more" tile; 0 when onLoadMore is null. */
+    moreCount: number;
     loadingMore: boolean;
-    /** Opens the chart type builder; null hides the create action. */
+    /** Opens the chart type builder; null hides the create tile. */
     onCreateNew: (() => void) | null;
 };
 
-export type ChartTypeGallerySection =
-    | ChartTypeGalleryGridSection
-    | ChartTypeGalleryRowsSection;
-
-// Observes the clamped description and reports whether it is actually cut
-// off; ResizeObserver fires on observe and on any later size change.
-const useIsClamped = () => {
-    const [isClamped, setIsClamped] = useState(false);
-    const observerRef = useRef<ResizeObserver | null>(null);
-    const ref = useCallback((node: HTMLParagraphElement | null) => {
-        observerRef.current?.disconnect();
-        observerRef.current = null;
-        if (!node) return;
-        observerRef.current = new ResizeObserver(() => {
-            setIsClamped(node.scrollHeight > node.clientHeight);
-        });
-        observerRef.current.observe(node);
-    }, []);
-    return { ref, isClamped };
-};
-
-const GalleryRow: FC<{ item: ChartTypeGalleryRowItem }> = ({ item }) => {
-    // The description is clamped to two lines; surface the full text on hover
-    // only when it is actually cut off.
-    const { ref, isClamped } = useIsClamped();
-
-    return (
-        <Box className={classes.rowWrapper}>
-            <Tooltip
-                label={item.description}
-                withinPortal
-                position="left"
-                withArrow
-                openDelay={500}
-                color="dark"
-                events={{ hover: true, focus: true, touch: false }}
-                disabled={!isClamped}
-                maw={300}
-                multiline
+const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => (
+    <Box className={classes.cardWrapper}>
+        <Tooltip
+            label={item.description}
+            withinPortal
+            position="top"
+            withArrow
+            openDelay={500}
+            color="dark"
+            events={{ hover: true, focus: true, touch: false }}
+            disabled={item.description === null}
+            maw={300}
+            multiline
+        >
+            <UnstyledButton
+                className={classes.card}
+                data-selected={item.selected}
+                disabled={item.disabled}
+                onClick={item.select}
             >
-                <UnstyledButton
-                    className={classes.row}
-                    data-selected={item.selected}
-                    data-has-edit={item.onEdit !== null}
-                    disabled={item.disabled}
-                    onClick={item.select}
-                >
-                    <Group wrap="nowrap" gap="sm">
-                        <ChartTypeThumbnail
-                            icon={item.icon}
-                            rotatedIcon={item.rotatedIcon}
-                        />
-                        <Stack gap={2} flex={1} miw={0}>
-                            <Text size="sm" fw={500}>
-                                {item.label}
-                            </Text>
-                            <Text ref={ref} fz="xs" c="dimmed" lineClamp={2}>
-                                {item.description}
-                            </Text>
-                        </Stack>
-                    </Group>
-                </UnstyledButton>
-            </Tooltip>
-            {item.onEdit !== null ? (
-                <Anchor
-                    component="button"
-                    type="button"
-                    className={classes.rowEdit}
-                    aria-label={`Edit ${item.label}`}
-                    fz="xs"
-                    fw={500}
-                    onClick={item.onEdit}
-                >
-                    Edit
-                </Anchor>
-            ) : null}
-        </Box>
-    );
-};
+                <ChartTypeIcon
+                    icon={item.icon}
+                    rotatedIcon={item.rotatedIcon}
+                />
+                <Text fz="xs" fw={500} lh={1.2} lineClamp={2}>
+                    {item.label}
+                </Text>
+            </UnstyledButton>
+        </Tooltip>
+        {item.onEdit !== null ? (
+            <ActionIcon
+                className={classes.cardEdit}
+                variant="default"
+                size="sm"
+                aria-label={`Edit ${item.label}`}
+                onClick={item.onEdit}
+            >
+                <MantineIcon icon={IconFilePencil} size={14} />
+            </ActionIcon>
+        ) : null}
+    </Box>
+);
 
 const SectionEmpty: FC<{ message: string }> = ({ message }) => (
     <Text fz="xs" c="dimmed">
@@ -191,109 +149,119 @@ const SectionEmpty: FC<{ message: string }> = ({ message }) => (
 );
 
 const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
-    switch (section.layout) {
-        case 'grid':
-            if (section.items.length === 0) {
-                return <SectionEmpty message={section.emptyMessage} />;
-            }
-            return (
-                <Box className={classes.grid}>
-                    {section.items.map((item) => (
-                        <UnstyledButton
-                            key={item.key}
-                            className={classes.card}
-                            data-selected={item.selected}
-                            disabled={item.disabled}
-                            onClick={item.select}
-                        >
-                            <ChartTypeIcon
-                                icon={item.icon}
-                                rotatedIcon={item.rotatedIcon}
-                            />
-                            <Text fz="xs" fw={500} lh={1.2}>
-                                {item.label}
-                            </Text>
-                        </UnstyledButton>
-                    ))}
-                </Box>
-            );
-        case 'rows':
-            if (section.loading) {
-                return (
-                    <Group gap="xs">
-                        <Loader size="xs" />
-                        <Text fz="xs" c="dimmed">
-                            Loading chart types…
-                        </Text>
-                    </Group>
-                );
-            }
-            if (section.errorMessage !== null) {
-                return (
-                    <Group justify="space-between" wrap="nowrap">
-                        <Text fz="xs" c="red">
-                            {section.errorMessage}
-                        </Text>
-                        {section.onRetry !== null ? (
-                            <Button
-                                variant="subtle"
-                                size="compact-xs"
-                                onClick={section.onRetry}
-                            >
-                                Retry
-                            </Button>
-                        ) : null}
-                    </Group>
-                );
-            }
-            if (section.items.length === 0) {
-                return <SectionEmpty message={section.emptyMessage} />;
-            }
-            return (
-                <>
-                    {section.items.map((item) => (
-                        <GalleryRow key={item.key} item={item} />
-                    ))}
-                </>
-            );
-        default:
-            return assertUnreachable(
-                section,
-                'Unknown chart type gallery section layout',
-            );
+    const gridRef = useRef<HTMLDivElement | null>(null);
+    const pendingFocusIndex = useRef<number | null>(null);
+    const itemCount = section.items.length;
+
+    // The "+N more" tile can unmount on reveal; move focus to the first new
+    // card so keyboard users are not dropped back to the body. The pending
+    // index is consumed by whatever count change answers the click, so a
+    // failed or shorter load cannot leave it armed for a later, unrelated
+    // change.
+    useEffect(() => {
+        const index = pendingFocusIndex.current;
+        if (index === null) return;
+        pendingFocusIndex.current = null;
+        if (itemCount === 0) return;
+        gridRef.current
+            ?.querySelectorAll<HTMLButtonElement>(`.${classes.card}`)
+            [Math.min(index, itemCount - 1)]?.focus();
+    }, [itemCount]);
+
+    if (section.loading) {
+        return (
+            <Group gap="xs">
+                <Loader size="xs" />
+                <Text fz="xs" c="dimmed">
+                    Loading chart types…
+                </Text>
+            </Group>
+        );
     }
+    // A transient refetch failure must not hide types already on screen.
+    if (section.errorMessage !== null && section.items.length === 0) {
+        return (
+            <Group justify="space-between" wrap="nowrap">
+                <Text fz="xs" c="red">
+                    {section.errorMessage}
+                </Text>
+                {section.onRetry !== null ? (
+                    <Button
+                        variant="subtle"
+                        size="compact-xs"
+                        onClick={section.onRetry}
+                    >
+                        Retry
+                    </Button>
+                ) : null}
+            </Group>
+        );
+    }
+    if (section.items.length === 0 && section.onCreateNew === null) {
+        return <SectionEmpty message={section.emptyMessage} />;
+    }
+    return (
+        <>
+            {section.items.length === 0 ? (
+                <SectionEmpty message={section.emptyMessage} />
+            ) : null}
+            <Box ref={gridRef} className={classes.grid}>
+                {section.items.map((item) => (
+                    <GalleryCard key={item.key} item={item} />
+                ))}
+                {/* Stands in for the hidden cards, so it keeps the card
+                    material; the count is the informative part. Covers both
+                    revealing capped items and fetching the next page. */}
+                {section.onLoadMore !== null ? (
+                    <UnstyledButton
+                        className={clsx(classes.card, classes.moreCard)}
+                        aria-label={`Show ${section.moreCount} more chart types`}
+                        disabled={section.loadingMore}
+                        onClick={() => {
+                            pendingFocusIndex.current = section.items.length;
+                            section.onLoadMore?.();
+                        }}
+                    >
+                        {section.loadingMore ? (
+                            <Loader size="sm" color="ldGray.6" />
+                        ) : (
+                            <MantineIcon
+                                className={classes.icon}
+                                icon={IconDots}
+                                size="xl"
+                                stroke={1.5}
+                                color="ldGray.6"
+                            />
+                        )}
+                        <Text fz="xs" fw={500} lh={1.2}>
+                            +{section.moreCount} more
+                        </Text>
+                    </UnstyledButton>
+                ) : null}
+                {/* An action, not a chart type; a tile so it lives where the
+                    eye already is. */}
+                {section.onCreateNew !== null ? (
+                    <UnstyledButton
+                        className={clsx(classes.card, classes.createCard)}
+                        aria-label="Create new chart type"
+                        onClick={section.onCreateNew}
+                    >
+                        <MantineIcon
+                            className={classes.icon}
+                            icon={IconPlus}
+                            size="xl"
+                            stroke={1.5}
+                            color="ldGray.6"
+                        />
+                        <Text fz="xs" fw={500} lh={1.2}>
+                            New chart type
+                        </Text>
+                    </UnstyledButton>
+                ) : null}
+            </Box>
+        </>
+    );
 };
-
-const RowsSectionActions: FC<{ section: ChartTypeGalleryRowsSection }> = ({
-    section,
-}) => (
-    <>
-        {section.onLoadMore !== null ? (
-            <Button
-                variant="subtle"
-                size="xs"
-                loading={section.loadingMore}
-                onClick={section.onLoadMore}
-            >
-                Load more
-            </Button>
-        ) : null}
-
-        {/* An action, not a chart type; wanted even when the section is empty. */}
-        {section.onCreateNew !== null ? (
-            <Button
-                variant="subtle"
-                size="xs"
-                px="xs"
-                leftSection={<MantineIcon icon={IconPlus} />}
-                onClick={section.onCreateNew}
-                justify="flex-start"
-            >
-                Create new chart type
-            </Button>
-        ) : null}
-    </>
-);
 
 type GalleryProps = {
     search: string;
@@ -332,10 +300,6 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
                         </Text>
 
                         <SectionBody section={section} />
-
-                        {section.layout === 'rows' ? (
-                            <RowsSectionActions section={section} />
-                        ) : null}
                     </Stack>
                 ))}
             </Stack>
@@ -351,8 +315,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     onSelected,
 }) => {
     const projectUuid = useProjectUuid();
-    const location = useLocation();
-    const navigate = useNavigate();
+    const dispatch = useExplorerDispatch();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [showAllProjectTypes, setShowAllProjectTypes] = useState(false);
@@ -395,13 +358,15 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             ...option,
             key: id,
             disabled,
+            description: null,
+            onEdit: null,
             select: () => {
                 option.select();
                 onSelected();
             },
         }));
     const projectItems = projectTypes.map(
-        (dataAppViz: DataAppViz): ChartTypeGalleryRowItem => {
+        (dataAppViz: DataAppViz): ChartTypeGalleryItem => {
             const { label, icon, rotatedIcon } =
                 projectChartTypeItem(dataAppViz);
             return {
@@ -415,41 +380,51 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                 selected: selectedProjectUuid === dataAppViz.dataAppVizUuid,
                 disabled,
                 select: () => {
-                    selectProjectChartType(dataAppViz, itemsMap ?? {});
+                    // Re-selecting the active type must not overwrite the
+                    // chart's local bindings with a fresh automap.
+                    if (selectedProjectUuid !== dataAppViz.dataAppVizUuid) {
+                        selectProjectChartType(dataAppViz, itemsMap ?? {});
+                    }
                     onSelected();
                 },
                 onEdit: canEditChartType(dataAppViz)
                     ? () =>
-                          void navigate({
-                              pathname: chartTypeBuilderPath(
-                                  projectUuid ?? '',
-                                  dataAppViz.dataAppVizUuid,
-                              ),
-                              search: location.search,
-                          })
+                          dispatch(
+                              explorerActions.startChartTypeAuthoring({
+                                  dataAppVizUuid: dataAppViz.dataAppVizUuid,
+                              }),
+                          )
                     : null,
             };
         },
     );
 
-    // Cap the initial list so built-ins stay in view; searching shows every
+    // Cap the initial grid so built-ins stay in view; searching shows every
     // match, and a selection deeper in the list is never hidden.
     const selectedProjectIdx = projectItems.findIndex((item) => item.selected);
     const collapseProjectTypes =
         !showAllProjectTypes &&
         debouncedSearch === '' &&
-        projectItems.length > INITIAL_PROJECT_TYPES_SHOWN &&
-        selectedProjectIdx < INITIAL_PROJECT_TYPES_SHOWN;
+        projectItems.length > MAX_UNCOLLAPSED_PROJECT_TYPES &&
+        selectedProjectIdx < COLLAPSED_PROJECT_TYPES_SHOWN;
     const visibleProjectItems = collapseProjectTypes
-        ? projectItems.slice(0, INITIAL_PROJECT_TYPES_SHOWN)
+        ? projectItems.slice(0, COLLAPSED_PROJECT_TYPES_SHOWN)
         : projectItems;
+    // Server total for the current search, so the tile counts pages that are
+    // not fetched yet.
+    const totalProjectTypes =
+        data?.pages.at(-1)?.pagination?.totalResults ?? projectItems.length;
+    const hiddenProjectTypes = collapseProjectTypes
+        ? totalProjectTypes - visibleProjectItems.length
+        : hasNextPage
+          ? Math.max(totalProjectTypes - projectItems.length, 1)
+          : 0;
 
     const sections: ChartTypeGallerySection[] = [
         ...(dataAppsEnabled
             ? [
                   {
                       label: 'Project',
-                      layout: 'rows' as const,
                       items: visibleProjectItems,
                       loading: isInitialLoading,
                       errorMessage: error
@@ -464,24 +439,30 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                           : hasNextPage
                             ? () => void fetchNextPage()
                             : null,
+                      moreCount: hiddenProjectTypes,
                       loadingMore: isFetchingNextPage,
                       onCreateNew: canCreateChartType
                           ? () =>
-                                void navigate({
-                                    pathname: chartTypeBuilderPath(
-                                        projectUuid ?? '',
-                                    ),
-                                    search: location.search,
-                                })
+                                dispatch(
+                                    explorerActions.startChartTypeAuthoring({
+                                        dataAppVizUuid: null,
+                                    }),
+                                )
                           : null,
                   },
               ]
             : []),
         {
             label: 'Built in',
-            layout: 'grid',
             items: builtInItems,
             emptyMessage: 'No built-in chart types match your search',
+            loading: false,
+            errorMessage: null,
+            onRetry: null,
+            onLoadMore: null,
+            moreCount: 0,
+            loadingMore: false,
+            onCreateNew: null,
         },
     ];
 

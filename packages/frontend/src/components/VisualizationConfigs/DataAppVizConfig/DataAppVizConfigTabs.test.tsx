@@ -45,6 +45,7 @@ const {
     locationSearch,
     navigate,
     pickerProps,
+    authoringState,
 } = vi.hoisted(() => ({
     dispatch: vi.fn(),
     fieldSelectItems: [] as Item[][],
@@ -52,12 +53,20 @@ const {
     locationSearch: { current: '' },
     navigate: vi.fn(),
     pickerProps: [] as PickerProps[],
+    authoringState: {
+        current: null as {
+            dataAppVizUuid: string | null;
+            viewedVersion?: number | null;
+        } | null,
+    },
 }));
 
 // The picker routes project-type selection through the Redux-based
 // useSelectProjectChartType hook; assert on what it dispatches.
 vi.mock('../../../features/explorer/store', () => ({
     useExplorerDispatch: () => dispatch,
+    useExplorerSelector: () => authoringState.current,
+    selectChartTypeAuthoring: () => null,
     explorerActions: {
         setChartType: (payload: unknown) => ({ type: 'setChartType', payload }),
         setChartConfig: (payload: unknown) => ({
@@ -68,6 +77,10 @@ vi.mock('../../../features/explorer/store', () => ({
             type: 'setPivotConfig',
             payload,
         }),
+        startChartTypeAuthoring: (payload: unknown) => ({
+            type: 'startChartTypeAuthoring',
+            payload,
+        }),
     },
 }));
 vi.mock('../CustomChartType/CustomChartTypePicker', () => ({
@@ -75,6 +88,12 @@ vi.mock('../CustomChartType/CustomChartTypePicker', () => ({
         pickerProps.push(props);
         return <div data-testid="viz-picker" />;
     },
+}));
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: { enabled: true },
+        isLoading: false,
+    }),
 }));
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualization', () => ({
     useDataAppVisualization: vi.fn(),
@@ -485,6 +504,54 @@ describe('DataAppVizConfigTabs', () => {
         });
     });
 
+    it('starts authoring in place from inside the chart gallery', async () => {
+        signInAs(OrganizationMemberRole.EDITOR);
+        mockContext(queryColumns, '');
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: undefined,
+        } as unknown as ReturnType<typeof useDataAppVisualization>);
+
+        renderWithProviders(
+            <ChartGalleryContext.Provider value={true}>
+                <ConfigTabs />
+            </ChartGalleryContext.Provider>,
+        );
+
+        const builder = await screen.findByText('builder');
+        expect(builder.closest('a')).toBeNull();
+        await userEvent.click(builder);
+
+        expect(dispatch).toHaveBeenCalledWith({
+            type: 'startChartTypeAuthoring',
+            payload: { dataAppVizUuid: null },
+        });
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('explains the empty configuration while a new type is being authored', async () => {
+        signInAs(OrganizationMemberRole.EDITOR);
+        mockContext(queryColumns, '');
+        authoringState.current = { dataAppVizUuid: null };
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: undefined,
+        } as unknown as ReturnType<typeof useDataAppVisualization>);
+
+        try {
+            renderWithProviders(
+                <ChartGalleryContext.Provider value={true}>
+                    <ConfigTabs />
+                </ChartGalleryContext.Provider>,
+            );
+
+            expect(
+                await screen.findByText(/Describe the chart type you need/),
+            ).toBeInTheDocument();
+            expect(screen.queryByText('builder')).not.toBeInTheDocument();
+        } finally {
+            authoringState.current = null;
+        }
+    });
+
     it('offers no builder link to who cannot create chart types', async () => {
         signInAs(OrganizationMemberRole.INTERACTIVE_VIEWER);
         mockContext(queryColumns, '');
@@ -526,6 +593,42 @@ describe('DataAppVizConfigTabs', () => {
 
         expect(screen.getByText('Radial gauge')).toBeInTheDocument();
         await expect(screen.findByText('Edit ↗')).rejects.toThrow();
+    });
+
+    it('fetches the schema of the version the builder previews while authoring', () => {
+        authoringState.current = {
+            dataAppVizUuid: 'data-app-viz-uuid',
+            viewedVersion: 2,
+        };
+        try {
+            renderWithProviders(<ConfigTabs />);
+
+            expect(useDataAppVisualization).toHaveBeenLastCalledWith(
+                'project-1',
+                'data-app-viz-uuid',
+                2,
+            );
+        } finally {
+            authoringState.current = null;
+        }
+    });
+
+    it('stays on the latest schema when authoring a different type', () => {
+        authoringState.current = {
+            dataAppVizUuid: 'another-viz-uuid',
+            viewedVersion: 2,
+        };
+        try {
+            renderWithProviders(<ConfigTabs />);
+
+            expect(useDataAppVisualization).toHaveBeenLastCalledWith(
+                'project-1',
+                'data-app-viz-uuid',
+                null,
+            );
+        } finally {
+            authoringState.current = null;
+        }
     });
 
     it('fires setOption when a control changes', async () => {

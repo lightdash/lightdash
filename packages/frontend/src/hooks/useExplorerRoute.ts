@@ -395,6 +395,8 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                     isExploreFromHere: isExploreFromHere,
                     queryExecution: defaultQueryExecution,
                     preAggregate: defaultState.preAggregate,
+                    chartSidebarStep: defaultState.chartSidebarStep,
+                    chartTypeAuthoring: null,
                 };
             } catch (e: any) {
                 const errorMessage = e.message ? ` Error: "${e.message}"` : '';

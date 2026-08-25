@@ -342,6 +342,103 @@ const explorerSlice = createSlice({
         },
         closeVisualizationConfig: (state) => {
             state.isVisualizationConfigOpen = false;
+            state.chartSidebarStep = 'configure';
+        },
+        setChartSidebarStep: (
+            state,
+            action: PayloadAction<ExplorerSliceState['chartSidebarStep']>,
+        ) => {
+            state.chartSidebarStep = action.payload;
+        },
+
+        // A new type starts as the empty custom config until its first version
+        // lands; what was there before is kept so cancelling restores it.
+        startChartTypeAuthoring: (
+            state,
+            action: PayloadAction<{ dataAppVizUuid: string | null }>,
+        ) => {
+            const before = state.unsavedChartVersion.chartConfig;
+            const beforePivotConfig = state.unsavedChartVersion.pivotConfig;
+            state.chartTypeAuthoring = {
+                dataAppVizUuid: action.payload.dataAppVizUuid,
+                viewedVersion: null,
+                createdInSession: false,
+                previous: {
+                    chartSidebarStep: state.chartSidebarStep,
+                    chartConfig: current(before),
+                    pivotConfig: beforePivotConfig
+                        ? (current(
+                              beforePivotConfig,
+                          ) as SavedChart['pivotConfig'])
+                        : undefined,
+                },
+            };
+            state.chartSidebarStep = 'configure';
+            state.isVisualizationConfigOpen = true;
+            if (action.payload.dataAppVizUuid === null) {
+                saveConfigToCache(
+                    state.cachedChartConfigs,
+                    before.type,
+                    current(before.config),
+                    beforePivotConfig
+                        ? (current(
+                              beforePivotConfig,
+                          ) as SavedChart['pivotConfig'])
+                        : undefined,
+                );
+                state.unsavedChartVersion.chartConfig = {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizUuid: '',
+                        fieldMapping: {},
+                        optionValues: {},
+                    },
+                };
+                state.unsavedChartVersion.pivotConfig = undefined;
+            }
+        },
+        // The builder pinned an older version (or returned to the current
+        // one), so the sidebar configures what the preview renders.
+        viewChartTypeAuthoringVersion: (
+            state,
+            action: PayloadAction<number | null>,
+        ) => {
+            if (state.chartTypeAuthoring === null) return;
+            state.chartTypeAuthoring.viewedVersion = action.payload;
+        },
+        // A first build claimed an app; the session keeps going under it.
+        claimChartTypeAuthoringViz: (state, action: PayloadAction<string>) => {
+            if (state.chartTypeAuthoring?.dataAppVizUuid !== null) return;
+            state.chartTypeAuthoring.dataAppVizUuid = action.payload;
+            state.chartTypeAuthoring.createdInSession = true;
+        },
+        // Back to the chart and the sidebar step as they were.
+        cancelChartTypeAuthoring: (state) => {
+            const authoring = state.chartTypeAuthoring;
+            if (authoring === null) return;
+            // The query stayed live meanwhile, so the pivot only keeps the
+            // dimensions it still has.
+            const dimensions = new Set(
+                state.unsavedChartVersion.metricQuery.dimensions,
+            );
+            const pivot = authoring.previous.pivotConfig;
+            const columns = pivot?.columns.filter((c) => dimensions.has(c));
+            state.unsavedChartVersion.chartConfig =
+                authoring.previous.chartConfig;
+            state.unsavedChartVersion.pivotConfig =
+                pivot && columns && columns.length > 0
+                    ? { ...pivot, columns }
+                    : undefined;
+            state.chartSidebarStep = authoring.previous.chartSidebarStep;
+            state.chartTypeAuthoring = null;
+            state.isVisualizationConfigOpen = true;
+        },
+        // The chart now uses the authored type, so land on its configuration.
+        finishChartTypeAuthoring: (state) => {
+            if (state.chartTypeAuthoring === null) return;
+            state.chartTypeAuthoring = null;
+            state.isVisualizationConfigOpen = true;
+            state.chartSidebarStep = 'configure';
         },
 
         toggleCustomDimensionModal: (
@@ -1030,12 +1127,19 @@ const explorerSlice = createSlice({
                 tableName: string;
             }>,
         ) => {
-            const { isEditMode, isMinimal } = state;
+            const {
+                isEditMode,
+                isMinimal,
+                chartSidebarStep,
+                chartTypeAuthoring,
+            } = state;
             return createNextState(d, (draft: ExplorerSliceState) => {
                 draft.unsavedChartVersion.tableName = tableName;
                 draft.unsavedChartVersion.metricQuery.exploreName = tableName;
                 draft.isEditMode = isEditMode;
                 draft.isMinimal = isMinimal;
+                draft.chartSidebarStep = chartSidebarStep;
+                draft.chartTypeAuthoring = chartTypeAuthoring;
             });
         },
 

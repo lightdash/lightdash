@@ -8,7 +8,8 @@ import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/use
 import { renderWithProviders } from '../../../testing/testUtils';
 import ExplorerChartTypeGallery, {
     ChartTypeGallery,
-    type ChartTypeGalleryRowItem,
+    type ChartTypeGalleryItem,
+    type ChartTypeGallerySection,
 } from './ChartTypeGallery';
 
 const { mocks } = vi.hoisted(() => ({
@@ -20,6 +21,7 @@ const { mocks } = vi.hoisted(() => ({
         refetch: vi.fn(),
         fetchNextPage: vi.fn(),
         navigate: vi.fn(),
+        dispatch: vi.fn(),
         canCreateDataApp: vi.fn(() => true),
     },
 }));
@@ -65,6 +67,15 @@ vi.mock(
 vi.mock('../../../features/apps/hooks/useCanCreateDataApp', () => ({
     useCanCreateDataApp: () => mocks.canCreateDataApp(),
 }));
+vi.mock('../../../features/explorer/store', () => ({
+    useExplorerDispatch: () => mocks.dispatch,
+    explorerActions: {
+        startChartTypeAuthoring: (payload: unknown) => ({
+            type: 'startChartTypeAuthoring',
+            payload,
+        }),
+    },
+}));
 vi.mock('react-router', async (importOriginal) => ({
     ...(await importOriginal<typeof ReactRouter>()),
     useParams: () => ({ projectUuid: 'project-uuid' }),
@@ -74,8 +85,8 @@ vi.mock('react-router', async (importOriginal) => ({
 
 const galleryItem = (
     label: string,
-    description: string,
-): ChartTypeGalleryRowItem => ({
+    description: string | null = null,
+): ChartTypeGalleryItem => ({
     key: label,
     label,
     description,
@@ -87,22 +98,34 @@ const galleryItem = (
     onEdit: null,
 });
 
+const gallerySection = (
+    overrides: Partial<ChartTypeGallerySection> = {},
+): ChartTypeGallerySection => ({
+    label: 'Built in',
+    items: [],
+    emptyMessage: 'Nothing here',
+    loading: false,
+    errorMessage: null,
+    onRetry: null,
+    onLoadMore: null,
+    moreCount: 0,
+    loadingMore: false,
+    onCreateNew: null,
+    ...overrides,
+});
+
 describe('ChartTypeGallery', () => {
-    it('renders grid sections as icon+label cards and rows sections with descriptions', () => {
+    it('renders every section as cards, with Edit only where it is offered', () => {
         renderWithProviders(
             <ChartTypeGallery
                 search=""
                 onSearchChange={vi.fn()}
                 sections={[
-                    {
-                        label: 'Built in',
-                        layout: 'grid',
-                        items: [galleryItem('Bar chart', 'Compare categories')],
-                        emptyMessage: 'Nothing here',
-                    },
-                    {
+                    gallerySection({
+                        items: [galleryItem('Bar chart')],
+                    }),
+                    gallerySection({
                         label: 'Project',
-                        layout: 'rows',
                         items: [
                             {
                                 ...galleryItem(
@@ -112,31 +135,23 @@ describe('ChartTypeGallery', () => {
                                 onEdit: vi.fn(),
                             },
                         ],
-                        emptyMessage: 'Nothing here',
-                        loading: false,
-                        errorMessage: null,
-                        onRetry: null,
-                        onLoadMore: null,
-                        loadingMore: false,
-                        onCreateNew: null,
-                    },
+                    }),
                 ]}
             />,
         );
 
-        // Grid cards keep the label as the accessible name, drop the description.
+        // Cards keep the label as the accessible name; the description lives
+        // in a tooltip rather than the card face.
         expect(
             screen.getByRole('button', { name: 'Bar chart' }),
         ).toBeInTheDocument();
         expect(
-            screen.queryByText('Compare categories'),
-        ).not.toBeInTheDocument();
-
-        expect(
-            screen.getByRole('button', { name: /^Event pulse/ }),
+            screen.getByRole('button', { name: 'Event pulse' }),
         ).toBeInTheDocument();
-        expect(screen.getByText('Reusable ranked bars')).toBeInTheDocument();
-        // Edit names its row so repeated Edit links stay distinguishable.
+        expect(
+            screen.queryByText('Reusable ranked bars'),
+        ).not.toBeInTheDocument();
+        // Edit names its card so repeated pencils stay distinguishable.
         expect(
             screen.getByRole('button', { name: 'Edit Event pulse' }),
         ).toBeInTheDocument();
@@ -148,21 +163,12 @@ describe('ChartTypeGallery', () => {
                 search=""
                 onSearchChange={vi.fn()}
                 sections={[
-                    {
-                        label: 'Built in',
-                        layout: 'grid',
+                    gallerySection({
                         items: [
-                            {
-                                ...galleryItem('Bar chart', ''),
-                                selected: true,
-                            },
-                            {
-                                ...galleryItem('Line chart', ''),
-                                disabled: true,
-                            },
+                            { ...galleryItem('Bar chart'), selected: true },
+                            { ...galleryItem('Line chart'), disabled: true },
                         ],
-                        emptyMessage: 'Nothing here',
-                    },
+                    }),
                 ]}
             />,
         );
@@ -175,19 +181,40 @@ describe('ChartTypeGallery', () => {
         expect(lineChart).toBeDisabled();
     });
 
-    it('shows the empty message when a grid section has no items', () => {
+    it('offers the create tile even when the section is empty', () => {
+        const onCreateNew = vi.fn();
+        renderWithProviders(
+            <ChartTypeGallery
+                search=""
+                onSearchChange={vi.fn()}
+                sections={[
+                    gallerySection({
+                        label: 'Project',
+                        emptyMessage: 'No project chart types yet',
+                        onCreateNew,
+                    }),
+                ]}
+            />,
+        );
+
+        expect(
+            screen.getByText('No project chart types yet'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Create new chart type' }),
+        ).toBeInTheDocument();
+    });
+
+    it('shows the empty message when a section has no items', () => {
         renderWithProviders(
             <ChartTypeGallery
                 search="zzz"
                 onSearchChange={vi.fn()}
                 sections={[
-                    {
-                        label: 'Built in',
-                        layout: 'grid',
-                        items: [],
+                    gallerySection({
                         emptyMessage:
                             'No built-in chart types match your search',
-                    },
+                    }),
                 ]}
             />,
         );
@@ -314,17 +341,18 @@ describe('ExplorerChartTypeGallery', () => {
         expect(onSelected).toHaveBeenCalledTimes(1);
     });
 
-    it('opens the chart type builder from the project section', async () => {
+    it('starts authoring a new chart type in place from the project section', async () => {
         renderGallery();
 
         await userEvent.click(
             screen.getByRole('button', { name: /Create new chart type/ }),
         );
 
-        expect(mocks.navigate).toHaveBeenCalledWith({
-            pathname: '/projects/project-uuid/chart-types/new',
-            search: '?tableName=orders',
+        expect(mocks.dispatch).toHaveBeenCalledWith({
+            type: 'startChartTypeAuthoring',
+            payload: { dataAppVizUuid: null },
         });
+        expect(mocks.navigate).not.toHaveBeenCalled();
     });
 
     it('hides the create action without permission to author chart types', () => {
@@ -339,7 +367,7 @@ describe('ExplorerChartTypeGallery', () => {
         ).toBeInTheDocument();
     });
 
-    it('caps the initial project list and reveals the rest on Load more', async () => {
+    it('caps the initial project list and reveals the rest via the "+N more" tile', async () => {
         const many = Array.from({ length: 8 }, (_, i) => ({
             ...projectChartType,
             dataAppVizUuid: `project-chart-type-${i}`,
@@ -370,20 +398,67 @@ describe('ExplorerChartTypeGallery', () => {
         renderGallery();
 
         expect(
-            screen.getByRole('button', { name: /Event pulse 4/ }),
+            screen.getByRole('button', { name: 'Event pulse 4' }),
         ).toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: /Event pulse 5/ }),
+            screen.queryByRole('button', { name: 'Event pulse 5' }),
         ).not.toBeInTheDocument();
 
         await userEvent.click(
-            screen.getByRole('button', { name: 'Load more' }),
+            screen.getByRole('button', { name: 'Show 3 more chart types' }),
         );
 
         expect(
-            screen.getByRole('button', { name: /Event pulse 7/ }),
+            screen.getByRole('button', { name: 'Event pulse 7' }),
         ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /more chart types/ }),
+        ).not.toBeInTheDocument();
+        // Focus lands on the first revealed card once the tile unmounts.
+        expect(
+            screen.getByRole('button', { name: 'Event pulse 5' }),
+        ).toHaveFocus();
         expect(mocks.fetchNextPage).not.toHaveBeenCalled();
+    });
+
+    it('fetches the next page from the "+N more" tile once every loaded item shows', async () => {
+        const loaded = Array.from({ length: 6 }, (_, i) => ({
+            ...projectChartType,
+            dataAppVizUuid: `project-chart-type-${i}`,
+            name: `Event pulse ${i}`,
+        }));
+        mockedUseDataAppVisualizations.mockReturnValue({
+            data: {
+                pages: [
+                    {
+                        data: loaded,
+                        pagination: {
+                            page: 1,
+                            pageSize: 6,
+                            totalPageCount: 2,
+                            totalResults: 10,
+                        },
+                    },
+                ],
+                pageParams: [1],
+            },
+            isInitialLoading: false,
+            error: null,
+            refetch: mocks.refetch,
+            hasNextPage: true,
+            fetchNextPage: mocks.fetchNextPage,
+            isFetchingNextPage: false,
+        } as unknown as ReturnType<typeof useDataAppVisualizations>);
+        renderGallery();
+
+        expect(
+            screen.getByRole('button', { name: 'Event pulse 5' }),
+        ).toBeInTheDocument();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Show 4 more chart types' }),
+        );
+
+        expect(mocks.fetchNextPage).toHaveBeenCalled();
     });
 
     it('keeps built-in choices usable when project types fail to load', async () => {

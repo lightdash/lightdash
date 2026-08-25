@@ -16,44 +16,33 @@
     min-width: 0;
 }
 
-.rowWrapper {
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: var(--mantine-spacing-xs);
+}
+
+.cardWrapper {
     position: relative;
+    display: grid;
+    min-width: 0;
 }
 
-.row {
-    width: 100%;
-    padding: var(--mantine-spacing-sm);
-    border: 1px solid transparent;
-    text-align: left;
-}
-
-/* Reserve space for the hover-revealed Edit so text never runs under it. */
-.row[data-has-edit='true'] {
-    padding-right: calc(var(--mantine-spacing-sm) * 2 + 24px);
-}
-
-/* Edit fades in on hover/focus so resting rows stay clean. */
-.rowEdit {
+/* Edit fades in on hover/focus so resting cards stay clean; the configure
+   step's persistent "Edit chart type" action covers discovery and touch. */
+.cardEdit {
     position: absolute;
-    top: 50%;
-    right: var(--mantine-spacing-sm);
-    translate: 0 -50%;
-    font-family: inherit;
+    top: 4px;
+    right: 4px;
     opacity: 0;
     pointer-events: none;
     transition: opacity 100ms ease-out;
 }
 
-.rowWrapper:hover .rowEdit,
-.rowWrapper:focus-within .rowEdit {
+.cardWrapper:hover .cardEdit,
+.cardWrapper:focus-within .cardEdit {
     opacity: 1;
     pointer-events: auto;
-}
-
-.grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-    gap: var(--mantine-spacing-xs);
 }
 
 .card {
@@ -64,43 +53,92 @@
     gap: var(--mantine-spacing-xs);
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-xs);
     border: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-5));
+        light-dark(var(--mantine-color-ldGray-3), var(--mantine-color-ldDark-5));
     background: light-dark(
-        var(--mantine-color-white),
-        var(--mantine-color-ldDark-2)
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-ldDark-3)
     );
     text-align: center;
-}
-
-/* Interactive states shared by the rows and grid layouts. Kept after the
-   base rules: light-dark() compiles to a scheme-prefixed selector with the
-   same specificity, so source order decides the selected border. */
-.row,
-.card {
     border-radius: var(--mantine-radius-md);
     /* User-defined names can be one long unbroken word; break rather than
        forcing the gallery to scroll horizontally at min sidebar width. */
     overflow-wrap: anywhere;
     min-width: 0;
+    transition:
+        transform 120ms cubic-bezier(0.23, 1, 0.32, 1),
+        background-color 120ms ease,
+        box-shadow 120ms ease;
 }
 
-.row:hover:not(:disabled),
-.card:hover:not(:disabled) {
-    background: var(--mantine-color-ldGray-0);
-}
-
-.row[data-selected='true'],
-.card[data-selected='true'] {
-    border-color: var(--mantine-color-blue-5);
+.card:hover:not(:disabled):not([data-selected='true']) {
+    border-color: light-dark(
+        var(--mantine-color-ldGray-4),
+        var(--mantine-color-ldDark-6)
+    );
     background: light-dark(
-        var(--mantine-color-blue-0),
-        color-mix(in srgb, var(--mantine-color-blue-9) 26%, transparent)
+        var(--mantine-color-ldGray-1),
+        var(--mantine-color-ldDark-4)
     );
 }
 
-.row:disabled,
+/* Selection owns the blue at full strength: accent border over a tint of the
+   same hue. Dark mixes the tint into the card surface explicitly so it reads
+   as a lit tile, never a darker cut-out. The hairline stays on the border,
+   where the scroll viewport cannot clip it. */
+.card[data-selected='true'] {
+    border-color: light-dark(
+        var(--mantine-color-blue-5),
+        var(--mantine-color-blue-7)
+    );
+    background: light-dark(
+        var(--mantine-color-blue-0),
+        color-mix(
+            in srgb,
+            var(--mantine-color-blue-9) 30%,
+            var(--mantine-color-ldDark-3)
+        )
+    );
+    box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
+}
+
+/* An action tile among content tiles: outlined, not filled. */
+.createCard {
+    border-style: dashed;
+    background: transparent;
+    color: var(--mantine-color-ldGray-7);
+}
+
+/* Keeps the content cards' material — it stands for hidden cards — with
+   muted ink marking it as an affordance rather than a chart type. */
+.moreCard {
+    color: var(--mantine-color-ldGray-7);
+}
+
+.card:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card {
+        transition: none;
+    }
+
+    .card:active:not(:disabled) {
+        transform: none;
+    }
+}
+
 .card:disabled {
     opacity: 0.5;
+}
+
+/* Resting glyphs stay gray; only selection earns the blue fill. */
+.card .icon {
+    color: var(--mantine-color-ldGray-7);
+}
+
+.card[data-selected='true'] .icon {
+    color: light-dark(var(--mantine-color-blue-7), var(--mantine-color-blue-4));
 }
 
 .thumbnail {
@@ -111,12 +149,13 @@
     place-items: center;
     overflow: hidden;
     border: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-5));
+        light-dark(var(--mantine-color-ldGray-3), var(--mantine-color-ldDark-5));
     border-radius: var(--mantine-radius-sm);
     background: light-dark(
-        var(--mantine-color-white),
-        var(--mantine-color-ldDark-2)
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-ldDark-3)
     );
+    color: var(--mantine-color-ldGray-7);
 }
 
 .thumbnail[data-small='true'] {

@@ -1,6 +1,7 @@
 import {
     ChartType,
     deriveDataAppVizPivotConfig,
+    FeatureFlags,
     getAppDisplayName,
     getEffectiveOptionValues,
     type ItemsMap,
@@ -14,7 +15,14 @@ import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useD
 import { reconcileDataAppVizFieldMapping } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { chartTypeBuilderPath } from '../../../features/chartTypes/utils/chartTypeBuilderPath';
 import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
+import {
+    explorerActions,
+    selectChartTypeAuthoring,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useIsInsideChartGallery } from '../../common/ChartGallery/ChartGalleryContext';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -36,6 +44,9 @@ export const ConfigTabs: FC = memo(() => {
     const { visualizationConfig, itemsMap, setChartType, setPivotDimensions } =
         useVisualizationContext();
     const selectProjectChartType = useSelectProjectChartType();
+    const dispatch = useExplorerDispatch();
+    const authoring = useExplorerSelector(selectChartTypeAuthoring);
+    const isAuthoring = authoring !== null;
 
     const isDataAppViz = isDataAppVizVisualizationConfig(visualizationConfig);
     const dataAppVizUuid = isDataAppViz
@@ -43,11 +54,16 @@ export const ConfigTabs: FC = memo(() => {
         : '';
 
     // A chart renders the viz's latest ready version, so its options come from
-    // that version's declaration.
+    // that version's declaration — unless the builder is previewing an older
+    // version of this same viz, whose own declaration the panel then follows.
+    const authoringVersion =
+        authoring !== null && authoring.dataAppVizUuid === dataAppVizUuid
+            ? authoring.viewedVersion
+            : null;
     const { data: dataAppViz } = useDataAppVisualization(
         projectUuid,
         dataAppVizUuid || undefined,
-        null,
+        authoringVersion,
     );
 
     const configOptions = useMemo(
@@ -64,6 +80,11 @@ export const ConfigTabs: FC = memo(() => {
     // The gallery sidebar already shows the picked type, so the picker and
     // the type card are redundant there.
     const isInsideChartGallery = useIsInsideChartGallery();
+    // In-place authoring needs data-apps; without it, fall back to the
+    // standalone builder link the panel always offered.
+    const dataAppsEnabled =
+        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
+        true;
     const canEditSelectedType = useCanEditDataApp(projectUuid, {
         spaceUuid: dataAppViz?.spaceUuid ?? null,
         createdByUserUuid: dataAppViz?.createdByUserUuid ?? null,
@@ -141,7 +162,7 @@ export const ConfigTabs: FC = memo(() => {
                     <Text fz="xs" c="dimmed" lh={1.5}>
                         {dataAppViz.description || 'No description'}
                     </Text>
-                    {canEditSelectedType && (
+                    {canEditSelectedType && !isInsideChartGallery && (
                         <Anchor
                             component={Link}
                             to={{
@@ -216,24 +237,46 @@ export const ConfigTabs: FC = memo(() => {
                         colorPalette={colorPalette}
                         paletteControl={<ColorPaletteSection size="xs" />}
                     />
+                ) : isAuthoring ? (
+                    <Text size="xs" c="dimmed">
+                        Describe the chart type you need. Its bindings and
+                        options appear here once the first version is ready.
+                    </Text>
                 ) : (
                     <Text size="xs" c="dimmed">
                         Pick a chart type above
                         {canCreateApp ? (
                             <>
                                 , or create a new one in the{' '}
-                                <Anchor
-                                    component={Link}
-                                    to={{
-                                        pathname: chartTypeBuilderPath(
-                                            projectUuid ?? '',
-                                        ),
-                                        search: location.search,
-                                    }}
-                                    size="xs"
-                                >
-                                    builder
-                                </Anchor>
+                                {isInsideChartGallery && dataAppsEnabled ? (
+                                    <Anchor
+                                        component="button"
+                                        type="button"
+                                        size="xs"
+                                        onClick={() =>
+                                            dispatch(
+                                                explorerActions.startChartTypeAuthoring(
+                                                    { dataAppVizUuid: null },
+                                                ),
+                                            )
+                                        }
+                                    >
+                                        builder
+                                    </Anchor>
+                                ) : (
+                                    <Anchor
+                                        component={Link}
+                                        to={{
+                                            pathname: chartTypeBuilderPath(
+                                                projectUuid ?? '',
+                                            ),
+                                            search: location.search,
+                                        }}
+                                        size="xs"
+                                    >
+                                        builder
+                                    </Anchor>
+                                )}
                             </>
                         ) : null}
                         .

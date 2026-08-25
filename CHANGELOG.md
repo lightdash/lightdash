@@ -1,3 +1,36 @@
+## [1.260.1](https://github.com/lightdash/lightdash/compare/1.260.0...1.260.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **dashboards:** scope metric filter chips to tabs ([#28041](https://github.com/lightdash/lightdash/issues/28041)) ([d721dac](https://github.com/lightdash/lightdash/commit/d721daca4008b20b74a6735cea5f1f633e245159))
+
+# [1.260.0](https://github.com/lightdash/lightdash/compare/1.259.1...1.260.0) (2026-08-25)
+
+
+### Bug Fixes
+
+* **explorer:** fold project chart types into the gallery grid ([#27993](https://github.com/lightdash/lightdash/issues/27993)) ([10d38e3](https://github.com/lightdash/lightdash/commit/10d38e31b44c89f1c0ff51581977f9d2c50866fe))
+* **explorer:** give the gallery's selected card the blue accent ([#28001](https://github.com/lightdash/lightdash/issues/28001)) ([8c6285c](https://github.com/lightdash/lightdash/commit/8c6285c0d5fe8a1aee779c4a752a4edd4c444f38))
+* **explorer:** gray out the chart gallery's cards and selection ([#27990](https://github.com/lightdash/lightdash/issues/27990)) ([ac916b5](https://github.com/lightdash/lightdash/commit/ac916b53722da7b5bf44c09d5e0ce1c6f8f2ee41))
+* **explorer:** polish the embedded builder headers and authoring flow ([#28025](https://github.com/lightdash/lightdash/issues/28025)) ([d921310](https://github.com/lightdash/lightdash/commit/d921310be75d4fcadf8bf7374c6002c9ecac361f))
+* **explorer:** review follow-ups for the embedded builder ([#28032](https://github.com/lightdash/lightdash/issues/28032)) ([7ca91d6](https://github.com/lightdash/lightdash/commit/7ca91d6e21024ce93988d82dbccb5c5fc5caf8bf)), closes [#27201](https://github.com/lightdash/lightdash/issues/27201)
+* **explorer:** scroll the version history inside the embedded builder ([#28034](https://github.com/lightdash/lightdash/issues/28034)) ([05e82d9](https://github.com/lightdash/lightdash/commit/05e82d9d573a6b9220e3cf92299874efee787f5e))
+* **explorer:** version sync, run query and header parity in authoring ([#28013](https://github.com/lightdash/lightdash/issues/28013)) ([4275675](https://github.com/lightdash/lightdash/commit/42756755f66de770dc2c488fd7d27a1708a326b1))
+
+
+### Features
+
+* **explorer:** chart type authoring state and shared results hooks ([#27941](https://github.com/lightdash/lightdash/issues/27941)) ([313db0c](https://github.com/lightdash/lightdash/commit/313db0ce5de151b8eba7d337aff3d194d8673c0b))
+* **explorer:** embed the chart type builder behind explorer-chart-gallery ([#27942](https://github.com/lightdash/lightdash/issues/27942)) ([ca82886](https://github.com/lightdash/lightdash/commit/ca8288630e43fa4832a84163f531309529773084))
+
+## [1.259.1](https://github.com/lightdash/lightdash/compare/1.259.0...1.259.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **backend:** treat migration-ledger supersets with nothing pending as database-ahead ([#28031](https://github.com/lightdash/lightdash/issues/28031)) ([f95ffb3](https://github.com/lightdash/lightdash/commit/f95ffb3c3f4a688707aa336824e202ee31d756cd))
+
 # [1.259.0](https://github.com/lightdash/lightdash/compare/1.258.5...1.259.0) (2026-08-25)
 
 

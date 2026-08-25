@@ -106,6 +106,12 @@ const classifyMigrationState = (
     if (newestLocalMigration === undefined) {
         return { classification: 'diverged', offending: missing };
     }
+    // Nothing pending means the ledger is a strict superset of local files (an
+    // older image on an already-upgraded database); safe regardless of
+    // timestamp ordering because no migration will run.
+    if (pending.length === 0) {
+        return { classification: 'database-ahead', offending: [] };
+    }
     const loadExtensions = new Set(
         getLoadExtensions(config).map((extension) =>
             extension.startsWith('.') ? extension : `.${extension}`,

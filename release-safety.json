@@ -1,29 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "1.259.0",
-  "previousVersion": "1.258.5",
-  "releaseDate": "2026-08-25T13:57:08.595Z",
+  "version": "1.260.1",
+  "previousVersion": "1.260.0",
+  "releaseDate": "2026-08-25T15:17:29.342Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260824120000_index_scheduler_log_scheduler_uuid_scheduled_time.ts",
-        "edition": "core",
-        "tables": [
-          "pg_class",
-          "pg_index",
-          "scheduler_log"
-        ],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
