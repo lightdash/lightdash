@@ -678,8 +678,42 @@ describe('downloadAppsToDir', () => {
         expect(outcome).toEqual({
             successCount: 1,
             skippedNotBuiltCount: 0,
+            skippedWrongKindCount: 0,
             failures: [],
         });
+        expect(
+            fs.existsSync(
+                path.join(appsDir, 'revenue-explorer', 'lightdash-app.yml'),
+            ),
+        ).toBe(true);
+    });
+
+    it('skips bundles the skipBundle guard rejects without writing them', async () => {
+        const appsDir = tmpDir();
+        const vizCode = codeFor('my-chart-type');
+        vizCode.manifest.template = 'data_app_viz';
+
+        const outcome = await downloadAppsToDir({
+            appRefs: ['my-chart-type', 'revenue-explorer'],
+            projectId: 'project-uuid',
+            appsDir,
+            takenFolders: new Set(),
+            cliVersion: '0.0.0-test',
+            fetchApp: async (_p, ref) =>
+                ref === 'my-chart-type' ? vizCode : codeFor(ref),
+            skipBundle: (manifest) =>
+                manifest.template === 'data_app_viz'
+                    ? 'this is a custom chart type'
+                    : null,
+        });
+
+        expect(outcome).toEqual({
+            successCount: 1,
+            skippedNotBuiltCount: 0,
+            skippedWrongKindCount: 1,
+            failures: [],
+        });
+        expect(fs.existsSync(path.join(appsDir, 'my-chart-type'))).toBe(false);
         expect(
             fs.existsSync(
                 path.join(appsDir, 'revenue-explorer', 'lightdash-app.yml'),

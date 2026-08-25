@@ -32,6 +32,7 @@ import {
     ContentAsCodeType as ContentAsCodeTypeEnum,
     DashboardAsCode,
     DashboardTileTypes,
+    DATA_APP_VIZ_TEMPLATE,
     ExternalConnectionAsCode,
     generateSlug,
     getErrorMessage,
@@ -169,9 +170,12 @@ export type DownloadHandlerOptions = {
     virtualViews: string[];
     externalConnections: string[]; // external connection slugs (enterprise)
     apps?: string[]; // specific app UUIDs or URLs (enterprise); absent = no explicit selection
+    chartTypes?: string[]; // specific custom chart type UUIDs or URLs (enterprise); absent = no explicit selection
     includeAgents?: boolean;
     includeApps?: boolean; // download: all of the project's apps, capped at --apps-limit; upload: all app folders on disk
+    includeChartTypes?: boolean; // download: all custom chart types, capped at --chart-types-limit; upload: all chart-type folders on disk
     appsLimit?: string; // download only: cap for the --include-apps listing (default 50); raw string from commander
+    chartTypesLimit?: string; // download only: cap for the --include-chart-types listing (default 50); raw string from commander
     createNew?: boolean; // upload only: always create a new app instead of updating the manifest's app
     allowCustomDependencies?: boolean; // upload only: approve custom-dependency uploads without prompting
     appSpace?: string; // upload only: space (slug or uuid) for data apps this run creates
@@ -202,6 +206,7 @@ export type DownloadHandlerOptions = {
     includeExternalConnections: boolean;
     includeAll: boolean;
     appsOnly?: boolean; // download: implies skipCharts + skipDashboards + skipSpaces; upload: apps-only filtered run
+    chartTypesOnly?: boolean; // download: implies skipCharts + skipDashboards + skipSpaces; upload: chart-types-only filtered run
     stripPivotSeries: boolean; // Strip per-value pivot series config for portable chart YAML
     validate?: boolean; // Validate charts and dashboards after upload
     concurrency: number;
@@ -235,6 +240,7 @@ const hasContentFilters = ({
     virtualViews,
     externalConnections,
     apps,
+    chartTypes,
 }: Pick<
     DownloadHandlerOptions,
     | 'spacesOnly'
@@ -247,6 +253,7 @@ const hasContentFilters = ({
     | 'virtualViews'
     | 'externalConnections'
     | 'apps'
+    | 'chartTypes'
 >): boolean =>
     !spacesOnly &&
     [
@@ -259,6 +266,7 @@ const hasContentFilters = ({
         virtualViews,
         externalConnections,
         apps ?? [],
+        chartTypes ?? [],
     ].some((filters) => filters.length > 0);
 
 /*
@@ -1746,6 +1754,12 @@ export const downloadHandler = async (
 
     const isOrganizationDownload = options.organization === true;
 
+    if (options.appsOnly && options.chartTypesOnly) {
+        throw new ParameterError(
+            '--apps-only cannot be combined with --chart-types-only.',
+        );
+    }
+
     // Bare --apps-only means "all apps": imply --include-apps.
     if (
         options.appsOnly &&
@@ -1755,16 +1769,43 @@ export const downloadHandler = async (
     ) {
         options.includeApps = true;
     }
+    // Bare --chart-types-only means "all chart types" likewise.
+    if (
+        options.chartTypesOnly &&
+        options.chartTypes === undefined &&
+        options.includeChartTypes !== true &&
+        options.includeAll !== true
+    ) {
+        options.includeChartTypes = true;
+    }
 
     const includeAll = options.includeAll === true;
     const includeApps =
-        !options.spacesOnly && (options.includeApps === true || includeAll);
+        !options.spacesOnly &&
+        !options.chartTypesOnly &&
+        (options.includeApps === true || includeAll);
+    const includeChartTypes =
+        !options.spacesOnly &&
+        !options.appsOnly &&
+        (options.includeChartTypes === true || includeAll);
     const includeAllOptionalContent =
-        includeAll && !options.appsOnly && !options.spacesOnly;
+        includeAll &&
+        !options.appsOnly &&
+        !options.chartTypesOnly &&
+        !options.spacesOnly;
     const { limit: appsLimit, noEffectWarning: appsLimitWarning } =
         resolveAppsLimit(options.appsLimit, includeApps);
     if (appsLimitWarning) {
         GlobalState.log(styles.warning(appsLimitWarning));
+    }
+    const { limit: chartTypesLimit, noEffectWarning: chartTypesLimitWarning } =
+        resolveAppsLimit(options.chartTypesLimit, includeChartTypes, {
+            limitFlag: '--chart-types-limit',
+            includeFlag: '--include-chart-types',
+            refsFlag: '--chart-types',
+        });
+    if (chartTypesLimitWarning) {
+        GlobalState.log(styles.warning(chartTypesLimitWarning));
     }
 
     if (options.appsOnly) {
@@ -1777,6 +1818,31 @@ export const downloadHandler = async (
                 'Nothing to download: --apps-only requires --apps <appReferences...>, --include-apps, or --include-all.',
             );
         }
+        options.chartTypes = undefined;
+        options.skipCharts = true;
+        options.skipDashboards = true;
+        options.skipSpaces = true;
+        options.includeAgents = false;
+        options.includeAlerts = false;
+        options.includeGoogleSheets = false;
+        options.includeScheduledDeliveries = false;
+        options.includeVirtualViews = false;
+        options.includeExternalConnections = false;
+    }
+
+    if (options.chartTypesOnly) {
+        const chartTypesOnlySelection = selectAppsToDownload({
+            apps: Array.isArray(options.chartTypes)
+                ? options.chartTypes
+                : undefined,
+            includeApps: includeChartTypes,
+        });
+        if (chartTypesOnlySelection.mode === 'none') {
+            throw new ParameterError(
+                'Nothing to download: --chart-types-only requires --chart-types <chartTypeReferences...>, --include-chart-types, or --include-all.',
+            );
+        }
+        options.apps = undefined;
         options.skipCharts = true;
         options.skipDashboards = true;
         options.skipSpaces = true;
@@ -1799,6 +1865,7 @@ export const downloadHandler = async (
         options.agents = [];
         options.alerts = [];
         options.apps = [];
+        options.chartTypes = [];
         options.googleSheets = [];
         options.scheduledDeliveries = [];
         options.virtualViews = [];
@@ -1891,6 +1958,8 @@ export const downloadHandler = async (
         // Shared across both apps-download steps so two different apps whose
         // names collide under the pre-slug fallback naming don't clobber each other.
         const downloadedAppFolders = new Set<string>();
+        // Chart types live in their own folder, so they track their own names.
+        const downloadedChartTypeFolders = new Set<string>();
         // App slugs referenced by downloaded dashboards' tiles, populated by
         // the Dashboards step and consumed by the Linked data apps step.
         let dashboardAppSlugs: string[] = [];
@@ -2342,39 +2411,49 @@ export const downloadHandler = async (
                 const baseDir = getDownloadFolder(options.path);
                 const appsDir = path.join(baseDir, 'apps');
 
-                const { successCount, skippedNotBuiltCount, failures } =
-                    await downloadAppsToDir({
-                        appRefs: appRefsToDownload,
-                        projectId,
-                        appsDir,
-                        takenFolders: downloadedAppFolders,
-                        cliVersion: CLI_VERSION,
-                        fetchApp: (fetchProjectId, appRef) =>
-                            lightdashApi<DataAppCodeDownload>({
-                                method: 'GET',
-                                url: `/api/v1/ee/projects/${fetchProjectId}/apps/${encodeURIComponent(
-                                    appRef,
-                                )}/download`,
-                                body: undefined,
-                            }),
-                        onProgress: (processed, total) =>
-                            output.updateActive(
-                                `${processed} of ${total} processed`,
-                            ),
-                    });
+                const {
+                    successCount,
+                    skippedNotBuiltCount,
+                    skippedWrongKindCount,
+                    failures,
+                } = await downloadAppsToDir({
+                    appRefs: appRefsToDownload,
+                    projectId,
+                    appsDir,
+                    takenFolders: downloadedAppFolders,
+                    cliVersion: CLI_VERSION,
+                    fetchApp: (fetchProjectId, appRef) =>
+                        lightdashApi<DataAppCodeDownload>({
+                            method: 'GET',
+                            url: `/api/v1/ee/projects/${fetchProjectId}/apps/${encodeURIComponent(
+                                appRef,
+                            )}/download`,
+                            body: undefined,
+                        }),
+                    skipBundle: (manifest) =>
+                        manifest.template === DATA_APP_VIZ_TEMPLATE
+                            ? 'this is a custom chart type — download it with --chart-types or --include-chart-types'
+                            : null,
+                    onProgress: (processed, total) =>
+                        output.updateActive(
+                            `${processed} of ${total} processed`,
+                        ),
+                });
 
                 const summary = appsDownloadSummary(
                     successCount,
                     appRefsToDownload.length,
                     failures,
                     appsDir,
-                    skippedNotBuiltCount,
+                    skippedNotBuiltCount + skippedWrongKindCount,
                 );
                 counts.appsNum = successCount;
                 output.completeItem(
                     `${successCount} downloaded${
-                        skippedNotBuiltCount > 0
-                            ? `, ${skippedNotBuiltCount} skipped`
+                        skippedNotBuiltCount + skippedWrongKindCount > 0
+                            ? `, ${
+                                  skippedNotBuiltCount + skippedWrongKindCount
+                              } skipped`
                             : ''
                     }${
                         failures.length > 0 ? `, ${failures.length} failed` : ''
@@ -2383,6 +2462,151 @@ export const downloadHandler = async (
                 );
                 if (!summary.ok) {
                     summary.failureLines.forEach((line) =>
+                        GlobalState.log(styles.warning(line)),
+                    );
+                }
+            }
+        }
+
+        // Download custom chart types (enterprise, opt-in via --chart-types /
+        // --include-chart-types / --include-all) into chart-types/, kept
+        // separate from data apps.
+        const chartTypesSelection = selectAppsToDownload({
+            apps: Array.isArray(options.chartTypes)
+                ? options.chartTypes
+                : undefined,
+            includeApps: includeChartTypes,
+        });
+        if (chartTypesSelection.mode !== 'none') {
+            output.startItem('Custom chart types');
+            let chartTypeRefsToDownload: string[];
+            let chartTypeListingError: string | null = null;
+
+            if (chartTypesSelection.mode === 'explicit') {
+                chartTypeRefsToDownload = chartTypesSelection.appRefs;
+            } else {
+                output.updateActive('listing project chart types…');
+                let listedChartTypes: ListedApp[] = [];
+                try {
+                    const projectChartTypes = await lightdashApi<
+                        ApiEmbedProjectAppsResponse['results']
+                    >({
+                        method: 'GET',
+                        url: `/api/v1/ee/projects/${projectId}/apps/chart-types`,
+                        body: undefined,
+                    });
+                    listedChartTypes = projectChartTypes.map((chartType) => ({
+                        appUuid: chartType.appUuid,
+                        slug: chartType.slug,
+                    }));
+                } catch (listErr) {
+                    if (shouldFallBackToSpaceScopedListing(listErr)) {
+                        // 404: the server predates the chart-types listing
+                        // (or chart types entirely) — nothing to list.
+                        GlobalState.log(
+                            styles.warning(
+                                'This server does not support listing custom chart types; pass explicit --chart-types references or upgrade the server.',
+                            ),
+                        );
+                        listedChartTypes = [];
+                    } else if (includeAllOptionalContent) {
+                        chartTypeListingError = getErrorMessage(listErr);
+                        listedChartTypes = [];
+                    } else {
+                        throw listErr;
+                    }
+                }
+
+                const {
+                    appUuids: cappedChartTypeUuids,
+                    truncatedCount: chartTypesTruncated,
+                } = capListedApps(
+                    listedChartTypes.map((chartType) => chartType.appUuid),
+                    chartTypesLimit,
+                );
+                if (chartTypesTruncated > 0) {
+                    GlobalState.log(
+                        styles.warning(
+                            `Found ${listedChartTypes.length} custom chart types, downloading the first ${chartTypesLimit}. Pass --chart-types-limit <n> to raise the cap.`,
+                        ),
+                    );
+                }
+                chartTypeRefsToDownload = [
+                    ...new Set([
+                        ...cappedChartTypeUuids,
+                        ...chartTypesSelection.extraAppRefs,
+                    ]),
+                ];
+            }
+
+            if (chartTypeRefsToDownload.length === 0) {
+                if (chartTypeListingError === null) {
+                    output.completeItem('0 found');
+                } else {
+                    output.completeItem(
+                        `listing failed: ${chartTypeListingError}`,
+                        'warning',
+                    );
+                }
+            } else {
+                output.updateActive(
+                    `0 of ${chartTypeRefsToDownload.length} downloaded`,
+                );
+                const chartTypesDir = path.join(
+                    getDownloadFolder(options.path),
+                    'chart-types',
+                );
+
+                const chartTypesOutcome = await downloadAppsToDir({
+                    appRefs: chartTypeRefsToDownload,
+                    projectId,
+                    appsDir: chartTypesDir,
+                    takenFolders: downloadedChartTypeFolders,
+                    cliVersion: CLI_VERSION,
+                    fetchApp: (fetchProjectId, appRef) =>
+                        lightdashApi<DataAppCodeDownload>({
+                            method: 'GET',
+                            url: `/api/v1/ee/projects/${fetchProjectId}/apps/${encodeURIComponent(
+                                appRef,
+                            )}/download`,
+                            body: undefined,
+                        }),
+                    skipBundle: (manifest) =>
+                        manifest.template !== DATA_APP_VIZ_TEMPLATE
+                            ? 'this is a data app — download it with --apps or --include-apps'
+                            : null,
+                    onProgress: (processed, total) =>
+                        output.updateActive(
+                            `${processed} of ${total} processed`,
+                        ),
+                });
+
+                const chartTypesSummary = appsDownloadSummary(
+                    chartTypesOutcome.successCount,
+                    chartTypeRefsToDownload.length,
+                    chartTypesOutcome.failures,
+                    chartTypesDir,
+                    chartTypesOutcome.skippedNotBuiltCount +
+                        chartTypesOutcome.skippedWrongKindCount,
+                    'custom chart type',
+                );
+                const chartTypesSkipped =
+                    chartTypesOutcome.skippedNotBuiltCount +
+                    chartTypesOutcome.skippedWrongKindCount;
+                output.completeItem(
+                    `${chartTypesOutcome.successCount} downloaded${
+                        chartTypesSkipped > 0
+                            ? `, ${chartTypesSkipped} skipped`
+                            : ''
+                    }${
+                        chartTypesOutcome.failures.length > 0
+                            ? `, ${chartTypesOutcome.failures.length} failed`
+                            : ''
+                    }`,
+                    chartTypesSummary.ok ? undefined : 'warning',
+                );
+                if (!chartTypesSummary.ok) {
+                    chartTypesSummary.failureLines.forEach((line) =>
                         GlobalState.log(styles.warning(line)),
                     );
                 }
@@ -2414,22 +2638,27 @@ export const downloadHandler = async (
                         )}/download`,
                         body: undefined,
                     }),
+                // Dashboard data-app tiles reference apps, never chart types.
+                skipBundle: (manifest) =>
+                    manifest.template === DATA_APP_VIZ_TEMPLATE
+                        ? 'this is a custom chart type — dashboard app tiles cannot reference it'
+                        : null,
                 onProgress: (processed, total) =>
                     output.updateActive(`${processed} of ${total} processed`),
             });
+            const linkedSkipped =
+                outcome.skippedNotBuiltCount + outcome.skippedWrongKindCount;
             const linkedSummary = appsDownloadSummary(
                 outcome.successCount,
                 linkedAppSlugs.length,
                 outcome.failures,
                 appsDir,
-                outcome.skippedNotBuiltCount,
+                linkedSkipped,
             );
             counts.appsNum = (counts.appsNum ?? 0) + outcome.successCount;
             output.completeItem(
                 `${outcome.successCount} downloaded${
-                    outcome.skippedNotBuiltCount > 0
-                        ? `, ${outcome.skippedNotBuiltCount} skipped`
-                        : ''
+                    linkedSkipped > 0 ? `, ${linkedSkipped} skipped` : ''
                 }${
                     outcome.failures.length > 0
                         ? `, ${outcome.failures.length} failed`
