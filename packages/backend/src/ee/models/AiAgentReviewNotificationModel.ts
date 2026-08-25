@@ -38,6 +38,9 @@ export class AiAgentReviewNotificationModel {
             organizationUuid: row.organization_uuid,
             enabled: row.enabled,
             slackChannelId: row.slack_channel_id,
+            linearEnabled: row.linear_enabled,
+            linearTeamId: row.linear_team_id,
+            linearProjectId: row.linear_project_id,
         };
     }
 
@@ -53,6 +56,9 @@ export class AiAgentReviewNotificationModel {
                 organizationUuid,
                 enabled: false,
                 slackChannelId: null,
+                linearEnabled: false,
+                linearTeamId: null,
+                linearProjectId: null,
             };
         }
 
@@ -67,12 +73,18 @@ export class AiAgentReviewNotificationModel {
                 organization_uuid: settings.organizationUuid,
                 enabled: settings.enabled,
                 slack_channel_id: settings.slackChannelId,
+                linear_enabled: settings.linearEnabled,
+                linear_team_id: settings.linearTeamId,
+                linear_project_id: settings.linearProjectId,
                 updated_at: new Date(),
             })
             .onConflict('organization_uuid')
             .merge({
                 enabled: settings.enabled,
                 slack_channel_id: settings.slackChannelId,
+                linear_enabled: settings.linearEnabled,
+                linear_team_id: settings.linearTeamId,
+                linear_project_id: settings.linearProjectId,
                 updated_at: new Date(),
             })
             .returning('*');

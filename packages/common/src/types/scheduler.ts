@@ -955,3 +955,12 @@ export type SendReviewNotificationPayload = {
     schedulerUuid?: string;
     userUuid?: string;
 };
+
+export type CreateReviewLinearIssuePayload = {
+    organizationUuid: string;
+    projectUuid: string;
+    fingerprints: string[];
+    reviewRunUuid: string | null;
+    schedulerUuid?: string;
+    userUuid?: string;
+};
