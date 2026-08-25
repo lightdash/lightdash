@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/cli",
-  "version": "1.262.1",
+  "version": "2.0.0",
   "description": "Lightdash CLI tool",
   "license": "MIT",
   "repository": {

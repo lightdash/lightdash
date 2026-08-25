@@ -1,3 +1,19 @@
+# [2.0.0](https://github.com/lightdash/lightdash/compare/1.262.1...2.0.0) (2026-08-25)
+
+
+### Features
+
+* **coder:** slug-only custom chart type bindings in chart YAML ([#28054](https://github.com/lightdash/lightdash/issues/28054)) ([11711d2](https://github.com/lightdash/lightdash/commit/11711d2e915b5011f88b0d775aa5927dceb8de08)), closes [#27865](https://github.com/lightdash/lightdash/issues/27865) [#27856](https://github.com/lightdash/lightdash/issues/27856)
+
+
+### BREAKING CHANGES
+
+* **coder:** (accepted): previously downloaded viz-chart YAML carrying only a uuid keeps working via the legacy read path; files written after this PR are slug-only and require a server with slug resolution (#27865) to upload.
+
+Test plan: CoderService suite (149 tests) incl. swap/strip/fail-loud coverage; chart-as-code schema regenerated and verified; common/backend/cli/frontend typechecks clean.
+
+Relates: PROD-10449
+
 ## [1.262.1](https://github.com/lightdash/lightdash/compare/1.262.0...1.262.1) (2026-08-25)
 
 

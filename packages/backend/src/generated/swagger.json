@@ -76,8 +76,165 @@
                 "required": ["to", "from", "resourceType"],
                 "type": "object"
             },
-            "ChartType.BIG_NUMBER": {
-                "enum": ["big_number"],
+            "ParameterValue": {
+                "anyOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    {
+                        "items": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "type": "array"
+                    }
+                ]
+            },
+            "Record_string.ParameterValue_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/ParameterValue"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ParametersValuesMap": {
+                "$ref": "#/components/schemas/Record_string.ParameterValue_"
+            },
+            "Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery-or-chartConfig__": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Display name of the chart"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Optional description of what this chart displays"
+                    },
+                    "tableName": {
+                        "type": "string",
+                        "description": "The explore/table name this chart queries from"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "rows": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object",
+                        "description": "Pivot table configuration"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Unique identifier slug for this chart"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for the chart query"
+                    }
+                },
+                "required": ["name", "tableName", "slug"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery-or-chartConfig_": {
+                "$ref": "#/components/schemas/Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery-or-chartConfig__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "PivotSortAnchor": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            {
+                                "type": "boolean"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "reference"],
+                "type": "object",
+                "description": "Coordinates of a single pivot column, used to anchor a row sort to that\nspecific column when results are pivoted."
+            },
+            "SortField": {
+                "properties": {
+                    "pivotValues": {
+                        "items": {
+                            "$ref": "#/components/schemas/PivotSortAnchor"
+                        },
+                        "type": "array",
+                        "description": "Pins the row-sort anchor to a specific pivot column. Ignored for non-pivoted results."
+                    },
+                    "nullsFirst": {
+                        "type": "boolean",
+                        "description": "Sort null values first"
+                    },
+                    "descending": {
+                        "type": "boolean",
+                        "description": "Sort in descending order"
+                    },
+                    "fieldId": {
+                        "type": "string",
+                        "description": "Field ID to sort by"
+                    }
+                },
+                "required": ["descending", "fieldId"],
+                "type": "object"
+            },
+            "CustomFormatType": {
+                "enum": [
+                    "default",
+                    "percent",
+                    "currency",
+                    "number",
+                    "id",
+                    "date",
+                    "timestamp",
+                    "bytes_si",
+                    "bytes_iec",
+                    "custom"
+                ],
+                "type": "string"
+            },
+            "NumberSeparator": {
+                "enum": [
+                    "default",
+                    "commaPeriod",
+                    "spacePeriod",
+                    "periodComma",
+                    "noSeparatorPeriod",
+                    "apostrophePeriod"
+                ],
                 "type": "string"
             },
             "Compact": {
@@ -140,19 +297,503 @@
                     }
                 ]
             },
-            "ComparisonFormatTypes": {
-                "enum": ["raw", "percentage"],
+            "TimeFrames": {
+                "enum": [
+                    "RAW",
+                    "YEAR",
+                    "QUARTER",
+                    "MONTH",
+                    "WEEK",
+                    "DAY",
+                    "HOUR",
+                    "MINUTE",
+                    "SECOND",
+                    "MILLISECOND",
+                    "DAY_OF_WEEK_INDEX",
+                    "DAY_OF_MONTH_NUM",
+                    "DAY_OF_YEAR_NUM",
+                    "WEEK_NUM",
+                    "MONTH_NUM",
+                    "QUARTER_NUM",
+                    "YEAR_NUM",
+                    "DAY_OF_WEEK_NAME",
+                    "MONTH_NAME",
+                    "QUARTER_NAME",
+                    "HOUR_OF_DAY_NUM",
+                    "MINUTE_OF_HOUR_NUM"
+                ],
                 "type": "string"
             },
-            "FieldTarget": {
+            "CustomFormat": {
                 "properties": {
-                    "fieldId": {
+                    "type": {
+                        "$ref": "#/components/schemas/CustomFormatType",
+                        "description": "Format type"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Number of decimal places"
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator",
+                        "description": "Number separator style"
+                    },
+                    "currency": {
                         "type": "string",
-                        "description": "Field ID to filter on"
+                        "description": "Currency code (e.g., USD, GBP, EUR)"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/CompactOrAlias",
+                        "description": "Compact format for large numbers (K, M, B, T) or byte units"
+                    },
+                    "prefix": {
+                        "type": "string",
+                        "description": "Prefix to prepend to formatted values"
+                    },
+                    "suffix": {
+                        "type": "string",
+                        "description": "Suffix to append to formatted values"
+                    },
+                    "timeInterval": {
+                        "$ref": "#/components/schemas/TimeFrames",
+                        "description": "Time interval for date formatting"
+                    },
+                    "custom": {
+                        "type": "string",
+                        "description": "Custom format string"
                     }
                 },
-                "required": ["fieldId"],
+                "required": ["type"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "TableCalculationType": {
+                "enum": ["number", "string", "date", "timestamp", "boolean"],
+                "type": "string"
+            },
+            "TableCalculationTotalMode": {
+                "enum": ["formula", "sum_of_rows", "none"],
+                "type": "string"
+            },
+            "TableCalculationBase": {
+                "properties": {
+                    "totalMode": {
+                        "$ref": "#/components/schemas/TableCalculationTotalMode",
+                        "description": "How column totals are computed for this calculation"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/TableCalculationType",
+                        "description": "Data type of the calculation result"
+                    },
+                    "format": {
+                        "$ref": "#/components/schemas/CustomFormat",
+                        "description": "Formatting options for the calculation"
+                    },
+                    "displayName": {
+                        "type": "string",
+                        "description": "Display name shown in the UI"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Internal name of the table calculation"
+                    },
+                    "index": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Display order index"
+                    }
+                },
+                "required": ["displayName", "name"],
                 "type": "object"
+            },
+            "SqlTableCalculation": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/TableCalculationBase"
+                    },
+                    {
+                        "properties": {
+                            "sql": {
+                                "type": "string",
+                                "description": "SQL expression for the calculation (can reference fields with ${table.field})"
+                            }
+                        },
+                        "required": ["sql"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS": {
+                "enum": ["percent_change_from_previous"],
+                "type": "string"
+            },
+            "TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE": {
+                "enum": ["percent_of_previous_value"],
+                "type": "string"
+            },
+            "TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL": {
+                "enum": ["percent_of_column_total"],
+                "type": "string"
+            },
+            "TableCalculationTemplateType.RANK_IN_COLUMN": {
+                "enum": ["rank_in_column"],
+                "type": "string"
+            },
+            "TableCalculationTemplateType.RUNNING_TOTAL": {
+                "enum": ["running_total"],
+                "type": "string"
+            },
+            "TableCalculationTemplateType.WINDOW_FUNCTION": {
+                "enum": ["window_function"],
+                "type": "string"
+            },
+            "WindowFunctionType": {
+                "enum": [
+                    "row_number",
+                    "percent_rank",
+                    "cume_dist",
+                    "rank",
+                    "sum",
+                    "avg",
+                    "count",
+                    "min",
+                    "max"
+                ],
+                "type": "string"
+            },
+            "FrameType": {
+                "enum": ["rows", "range"],
+                "type": "string"
+            },
+            "FrameBoundaryType": {
+                "enum": [
+                    "unbounded_preceding",
+                    "preceding",
+                    "current_row",
+                    "following",
+                    "unbounded_following"
+                ],
+                "type": "string"
+            },
+            "FrameBoundary": {
+                "properties": {
+                    "offset": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Offset for PRECEDING/FOLLOWING"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/FrameBoundaryType",
+                        "description": "Boundary type"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "FrameClause": {
+                "properties": {
+                    "end": {
+                        "$ref": "#/components/schemas/FrameBoundary",
+                        "description": "End boundary of the frame"
+                    },
+                    "start": {
+                        "$ref": "#/components/schemas/FrameBoundary",
+                        "description": "Start boundary of the frame"
+                    },
+                    "frameType": {
+                        "$ref": "#/components/schemas/FrameType",
+                        "description": "Type of frame (ROWS or RANGE)"
+                    }
+                },
+                "required": ["end", "frameType"],
+                "type": "object"
+            },
+            "TableCalculationTemplate": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "partitionBy": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "orderBy": {
+                                "items": {
+                                    "properties": {
+                                        "order": {
+                                            "type": "string",
+                                            "enum": ["asc", "desc", null],
+                                            "nullable": true
+                                        },
+                                        "fieldId": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["order", "fieldId"],
+                                    "type": "object"
+                                },
+                                "type": "array",
+                                "description": "Fields to order by for window functions"
+                            },
+                            "fieldId": {
+                                "type": "string",
+                                "description": "Field ID to apply the template to"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS",
+                                "description": "Type of template calculation"
+                            }
+                        },
+                        "required": ["orderBy", "fieldId", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "partitionBy": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "orderBy": {
+                                "items": {
+                                    "properties": {
+                                        "order": {
+                                            "type": "string",
+                                            "enum": ["asc", "desc", null],
+                                            "nullable": true
+                                        },
+                                        "fieldId": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["order", "fieldId"],
+                                    "type": "object"
+                                },
+                                "type": "array",
+                                "description": "Fields to order by for window functions"
+                            },
+                            "fieldId": {
+                                "type": "string",
+                                "description": "Field ID to apply the template to"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE",
+                                "description": "Type of template calculation"
+                            }
+                        },
+                        "required": ["orderBy", "fieldId", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "partitionBy": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "Fields to partition by"
+                            },
+                            "fieldId": {
+                                "type": "string",
+                                "description": "Field ID to apply the template to"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL",
+                                "description": "Type of template calculation"
+                            }
+                        },
+                        "required": ["fieldId", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "type": "string",
+                                "description": "Field ID to apply the template to"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.RANK_IN_COLUMN",
+                                "description": "Type of template calculation"
+                            }
+                        },
+                        "required": ["fieldId", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "orderBy": {
+                                "items": {
+                                    "properties": {
+                                        "order": {
+                                            "type": "string",
+                                            "enum": ["asc", "desc", null],
+                                            "nullable": true
+                                        },
+                                        "fieldId": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["order", "fieldId"],
+                                    "type": "object"
+                                },
+                                "type": "array",
+                                "description": "Fields to order by for the running total"
+                            },
+                            "fieldId": {
+                                "type": "string",
+                                "description": "Field ID to apply the template to"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.RUNNING_TOTAL",
+                                "description": "Type of template calculation"
+                            }
+                        },
+                        "required": ["fieldId", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "frame": {
+                                "$ref": "#/components/schemas/FrameClause",
+                                "description": "Frame clause for window functions"
+                            },
+                            "partitionBy": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "Fields to partition by for window functions"
+                            },
+                            "orderBy": {
+                                "items": {
+                                    "properties": {
+                                        "order": {
+                                            "type": "string",
+                                            "enum": ["asc", "desc", null],
+                                            "nullable": true
+                                        },
+                                        "fieldId": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["order", "fieldId"],
+                                    "type": "object"
+                                },
+                                "type": "array",
+                                "description": "Fields to order by for window functions"
+                            },
+                            "fieldId": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Field ID to apply the template to"
+                            },
+                            "windowFunction": {
+                                "$ref": "#/components/schemas/WindowFunctionType",
+                                "description": "Window function type"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.WINDOW_FUNCTION",
+                                "description": "Type of template calculation"
+                            }
+                        },
+                        "required": [
+                            "partitionBy",
+                            "orderBy",
+                            "fieldId",
+                            "windowFunction",
+                            "type"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "TemplateTableCalculation": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/TableCalculationBase"
+                    },
+                    {
+                        "properties": {
+                            "template": {
+                                "$ref": "#/components/schemas/TableCalculationTemplate",
+                                "description": "Template-based calculation (alternative to sql)"
+                            }
+                        },
+                        "required": ["template"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "FormulaTableCalculation": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/TableCalculationBase"
+                    },
+                    {
+                        "properties": {
+                            "formula": {
+                                "type": "string",
+                                "description": "Spreadsheet-like formula compiled to SQL at query time"
+                            }
+                        },
+                        "required": ["formula"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "TableCalculation": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SqlTableCalculation"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TemplateTableCalculation"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FormulaTableCalculation"
+                    }
+                ]
+            },
+            "MetricType": {
+                "enum": [
+                    "percentile",
+                    "average",
+                    "count",
+                    "count_distinct",
+                    "sum",
+                    "sum_distinct",
+                    "average_distinct",
+                    "min",
+                    "max",
+                    "percent_of_previous",
+                    "percent_of_total",
+                    "running_total",
+                    "number",
+                    "median",
+                    "string",
+                    "date",
+                    "timestamp",
+                    "boolean"
+                ],
+                "type": "string"
+            },
+            "Format": {
+                "enum": [
+                    "km",
+                    "mi",
+                    "si",
+                    "usd",
+                    "gbp",
+                    "eur",
+                    "jpy",
+                    "dkk",
+                    "id",
+                    "percent"
+                ],
+                "type": "string"
             },
             "FilterOperator": {
                 "enum": [
@@ -177,6 +818,776 @@
                     "notInBetween",
                     "inPeriodToDate"
                 ],
+                "type": "string"
+            },
+            "MetricFilterRule": {
+                "description": "Filter rule for metrics, targeting fields by reference",
+                "properties": {
+                    "includeNull": {
+                        "type": "boolean",
+                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
+                    },
+                    "values": {
+                        "items": {
+                            "$ref": "#/components/schemas/AnyType"
+                        },
+                        "type": "array",
+                        "description": "Values to filter by"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the filter"
+                    },
+                    "target": {
+                        "properties": {
+                            "fieldRef": {
+                                "type": "string",
+                                "description": "Field reference to filter on (e.g., 'table_name.field_name')"
+                            }
+                        },
+                        "required": ["fieldRef"],
+                        "type": "object",
+                        "description": "Target field for the filter"
+                    },
+                    "settings": {
+                        "$ref": "#/components/schemas/AnyType",
+                        "description": "Additional settings for date/time filters"
+                    },
+                    "disabled": {
+                        "type": "boolean",
+                        "description": "Whether this filter is disabled"
+                    },
+                    "required": {
+                        "type": "boolean",
+                        "description": "Whether this filter is required"
+                    },
+                    "caseSensitive": {
+                        "type": "boolean",
+                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
+                    }
+                },
+                "required": ["operator", "id", "target"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "FieldId": {
+                "type": "string"
+            },
+            "AdditionalMetric": {
+                "properties": {
+                    "label": {
+                        "type": "string",
+                        "description": "Display label for the metric"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/MetricType",
+                        "description": "Aggregation type"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Description of what the metric measures"
+                    },
+                    "sql": {
+                        "type": "string",
+                        "description": "SQL expression (e.g., ${TABLE}.column_name)"
+                    },
+                    "hidden": {
+                        "type": "boolean",
+                        "description": "Whether the metric is hidden from users"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Number of decimal places"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/CompactOrAlias",
+                        "description": "Compact format for large numbers"
+                    },
+                    "format": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Format"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "description": "Format string (legacy format specification)"
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator",
+                        "description": "Number separator style for grouping/decimal characters"
+                    },
+                    "table": {
+                        "type": "string",
+                        "description": "Table name the metric belongs to"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Internal name of the metric"
+                    },
+                    "index": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Display order index"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricFilterRule"
+                        },
+                        "type": "array",
+                        "description": "Filters to apply to this metric"
+                    },
+                    "baseDimensionName": {
+                        "type": "string",
+                        "description": "Name of the base dimension/column this metric aggregates"
+                    },
+                    "baseMetricName": {
+                        "type": "string",
+                        "description": "Name of the explore metric this metric was cloned from"
+                    },
+                    "uuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Unique identifier for the metric"
+                    },
+                    "percentile": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Percentile value for percentile metrics"
+                    },
+                    "distinctKeys": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "formatOptions": {
+                        "$ref": "#/components/schemas/CustomFormat",
+                        "description": "Formatting configuration"
+                    },
+                    "generationType": {
+                        "type": "string",
+                        "enum": ["periodOverPeriod"],
+                        "nullable": false,
+                        "description": "Optional marker for metrics generated by the system.\nCurrently used for Period-over-Period (PoP) previous-period metrics."
+                    },
+                    "baseMetricId": {
+                        "$ref": "#/components/schemas/FieldId",
+                        "description": "For PoP-generated metrics, the base metric id that this metric is derived from."
+                    },
+                    "timeDimensionId": {
+                        "$ref": "#/components/schemas/FieldId",
+                        "description": "For PoP-generated metrics, the time dimension id used for the comparison."
+                    },
+                    "granularity": {
+                        "$ref": "#/components/schemas/TimeFrames",
+                        "description": "For PoP-generated metrics, the granularity used for the comparison."
+                    },
+                    "periodOffset": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "For PoP-generated metrics, the number of periods to offset by (>= 1)."
+                    }
+                },
+                "required": ["type", "sql", "table", "name"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "BinType.FIXED_NUMBER": {
+                "enum": ["fixed_number"],
+                "type": "string"
+            },
+            "CustomDimensionType.BIN": {
+                "enum": ["bin"],
+                "type": "string"
+            },
+            "CustomDimensionType": {
+                "enum": ["bin", "sql"],
+                "type": "string"
+            },
+            "FixedNumberBinDimension": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the custom dimension"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name for the custom dimension"
+                    },
+                    "table": {
+                        "type": "string",
+                        "description": "Table this custom dimension belongs to"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/CustomDimensionType.BIN",
+                        "description": "Type of custom dimension (bin or sql)"
+                    },
+                    "dimensionId": {
+                        "$ref": "#/components/schemas/FieldId",
+                        "description": "Field ID of the parent dimension to bin"
+                    },
+                    "binType": {
+                        "$ref": "#/components/schemas/BinType.FIXED_NUMBER"
+                    },
+                    "binNumber": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "table",
+                    "type",
+                    "dimensionId",
+                    "binType",
+                    "binNumber"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "BinType.FIXED_WIDTH": {
+                "enum": ["fixed_width"],
+                "type": "string"
+            },
+            "FixedWidthBinDimension": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the custom dimension"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name for the custom dimension"
+                    },
+                    "table": {
+                        "type": "string",
+                        "description": "Table this custom dimension belongs to"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/CustomDimensionType.BIN",
+                        "description": "Type of custom dimension (bin or sql)"
+                    },
+                    "dimensionId": {
+                        "$ref": "#/components/schemas/FieldId",
+                        "description": "Field ID of the parent dimension to bin"
+                    },
+                    "binType": {
+                        "$ref": "#/components/schemas/BinType.FIXED_WIDTH"
+                    },
+                    "binWidth": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "table",
+                    "type",
+                    "dimensionId",
+                    "binType",
+                    "binWidth"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "BinType.CUSTOM_RANGE": {
+                "enum": ["custom_range"],
+                "type": "string"
+            },
+            "BinRange": {
+                "properties": {
+                    "to": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "End value for this bin range (undefined for the last range)"
+                    },
+                    "from": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Start value for this bin range (undefined for the first range)"
+                    }
+                },
+                "type": "object"
+            },
+            "CustomRangeBinDimension": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the custom dimension"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name for the custom dimension"
+                    },
+                    "table": {
+                        "type": "string",
+                        "description": "Table this custom dimension belongs to"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/CustomDimensionType.BIN",
+                        "description": "Type of custom dimension (bin or sql)"
+                    },
+                    "dimensionId": {
+                        "$ref": "#/components/schemas/FieldId",
+                        "description": "Field ID of the parent dimension to bin"
+                    },
+                    "binType": {
+                        "$ref": "#/components/schemas/BinType.CUSTOM_RANGE"
+                    },
+                    "customRange": {
+                        "items": {
+                            "$ref": "#/components/schemas/BinRange"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "table",
+                    "type",
+                    "dimensionId",
+                    "binType",
+                    "customRange"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "BinType.CUSTOM_GROUP": {
+                "enum": ["custom_group"],
+                "type": "string"
+            },
+            "GroupValueMatchType": {
+                "enum": ["exact", "startsWith", "endsWith", "includes"],
+                "type": "string"
+            },
+            "GroupValueRule": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "matchType": {
+                        "$ref": "#/components/schemas/GroupValueMatchType"
+                    }
+                },
+                "required": ["value", "matchType"],
+                "type": "object"
+            },
+            "BinGroup": {
+                "properties": {
+                    "values": {
+                        "items": {
+                            "$ref": "#/components/schemas/GroupValueRule"
+                        },
+                        "type": "array",
+                        "description": "Rules that match values into this group"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name for this group (e.g. \"North America\")"
+                    }
+                },
+                "required": ["values", "name"],
+                "type": "object"
+            },
+            "CustomGroupBinDimension": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the custom dimension"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name for the custom dimension"
+                    },
+                    "table": {
+                        "type": "string",
+                        "description": "Table this custom dimension belongs to"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/CustomDimensionType.BIN",
+                        "description": "Type of custom dimension (bin or sql)"
+                    },
+                    "dimensionId": {
+                        "$ref": "#/components/schemas/FieldId",
+                        "description": "Field ID of the parent dimension to bin"
+                    },
+                    "binType": {
+                        "$ref": "#/components/schemas/BinType.CUSTOM_GROUP"
+                    },
+                    "customGroups": {
+                        "items": {
+                            "$ref": "#/components/schemas/BinGroup"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "table",
+                    "type",
+                    "dimensionId",
+                    "binType",
+                    "customGroups"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "CustomBinDimension": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/FixedNumberBinDimension"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FixedWidthBinDimension"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CustomRangeBinDimension"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CustomGroupBinDimension"
+                    }
+                ]
+            },
+            "CustomDimensionType.SQL": {
+                "enum": ["sql"],
+                "type": "string"
+            },
+            "DimensionType": {
+                "enum": ["string", "number", "timestamp", "date", "boolean"],
+                "type": "string"
+            },
+            "CustomSqlDimension": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the custom dimension"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name for the custom dimension"
+                    },
+                    "table": {
+                        "type": "string",
+                        "description": "Table this custom dimension belongs to"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/CustomDimensionType.SQL",
+                        "description": "Type of custom dimension (bin or sql)"
+                    },
+                    "sql": {
+                        "type": "string",
+                        "description": "SQL expression for the custom dimension"
+                    },
+                    "dimensionType": {
+                        "$ref": "#/components/schemas/DimensionType",
+                        "description": "Data type of the dimension result"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "table",
+                    "type",
+                    "sql",
+                    "dimensionType"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "CustomDimension": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/CustomBinDimension"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CustomSqlDimension"
+                    }
+                ]
+            },
+            "Pick_Metric.formatOptions_": {
+                "properties": {
+                    "formatOptions": {
+                        "$ref": "#/components/schemas/CustomFormat"
+                    }
+                },
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "MetricOverrides": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/Pick_Metric.formatOptions_"
+                },
+                "type": "object"
+            },
+            "Pick_Dimension.formatOptions_": {
+                "properties": {
+                    "formatOptions": {
+                        "$ref": "#/components/schemas/CustomFormat"
+                    }
+                },
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DimensionOverrides": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/Pick_Dimension.formatOptions_"
+                },
+                "type": "object"
+            },
+            "Pick_CompiledDimension.name-or-label-or-table_": {
+                "properties": {},
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_MetricQuery.Exclude_keyofMetricQuery.filters__": {
+                "properties": {
+                    "exploreName": {
+                        "type": "string",
+                        "description": "The name of the explore to query"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "List of dimension field IDs to include"
+                    },
+                    "metrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "List of metric field IDs to include"
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array",
+                        "description": "Sort configuration for query results"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Maximum number of rows to return"
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        "type": "array",
+                        "description": "Custom calculations to perform on query results"
+                    },
+                    "additionalMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AdditionalMetric"
+                        },
+                        "type": "array",
+                        "description": "Custom metrics defined inline (ad-hoc metrics not in the dbt model)"
+                    },
+                    "customDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomDimension"
+                        },
+                        "type": "array",
+                        "description": "Custom dimensions defined inline"
+                    },
+                    "metricOverrides": {
+                        "$ref": "#/components/schemas/MetricOverrides",
+                        "description": "Override formatting options for existing metrics"
+                    },
+                    "dimensionOverrides": {
+                        "$ref": "#/components/schemas/DimensionOverrides",
+                        "description": "Override formatting options for existing dimensions"
+                    },
+                    "timezone": {
+                        "type": "string",
+                        "description": "Timezone for date/time values (e.g., 'America/Los_Angeles', 'UTC')"
+                    },
+                    "pivotDimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Dimension field IDs used as pivot columns (from chart's pivotConfig.columns).\nUsed by row_total() to determine non-pivot dimensions for GROUP BY."
+                    },
+                    "metadata": {
+                        "properties": {
+                            "hasADateDimension": {
+                                "$ref": "#/components/schemas/Pick_CompiledDimension.name-or-label-or-table_"
+                            }
+                        },
+                        "required": ["hasADateDimension"],
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "exploreName",
+                    "dimensions",
+                    "metrics",
+                    "sorts",
+                    "limit",
+                    "tableCalculations"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_MetricQuery.filters_": {
+                "$ref": "#/components/schemas/Pick_MetricQuery.Exclude_keyofMetricQuery.filters__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "FilterGroupInput": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/OrFilterGroupInput"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AndFilterGroupInput"
+                    }
+                ]
+            },
+            "FieldTarget": {
+                "properties": {
+                    "fieldId": {
+                        "type": "string",
+                        "description": "Field ID to filter on"
+                    }
+                },
+                "required": ["fieldId"],
+                "type": "object"
+            },
+            "Pick_FilterRule.Exclude_keyofFilterRule.id__": {
+                "properties": {
+                    "target": {
+                        "$ref": "#/components/schemas/FieldTarget",
+                        "description": "Target field for the filter"
+                    },
+                    "settings": {
+                        "description": "Additional settings for date/time filters"
+                    },
+                    "disabled": {
+                        "type": "boolean",
+                        "description": "Whether this filter is disabled"
+                    },
+                    "required": {
+                        "type": "boolean",
+                        "description": "Whether this filter is required"
+                    },
+                    "caseSensitive": {
+                        "type": "boolean",
+                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
+                    },
+                    "values": {
+                        "items": {},
+                        "type": "array",
+                        "description": "Values to filter by"
+                    },
+                    "includeNull": {
+                        "type": "boolean",
+                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
+                    }
+                },
+                "required": ["target", "operator"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_FilterRule.id_": {
+                "$ref": "#/components/schemas/Pick_FilterRule.Exclude_keyofFilterRule.id__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "FilterRuleInput": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_FilterRule.id_"
+                    },
+                    {
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ],
+                "description": "Permissive filter types for chart-as-code uploads where `id` may be omitted.\nFilter IDs are auto-generated during upsert if absent.\nAfter normalization these become the strict runtime types (FilterGroup, Filters)."
+            },
+            "FilterGroupItemInput": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/FilterGroupInput"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterRuleInput"
+                    }
+                ]
+            },
+            "OrFilterGroupInput": {
+                "properties": {
+                    "or": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterGroupItemInput"
+                        },
+                        "type": "array"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["or"],
+                "type": "object"
+            },
+            "AndFilterGroupInput": {
+                "properties": {
+                    "and": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterGroupItemInput"
+                        },
+                        "type": "array"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["and"],
+                "type": "object"
+            },
+            "FiltersInput": {
+                "properties": {
+                    "tableCalculations": {
+                        "$ref": "#/components/schemas/FilterGroupInput"
+                    },
+                    "metrics": {
+                        "$ref": "#/components/schemas/FilterGroupInput"
+                    },
+                    "dimensions": {
+                        "$ref": "#/components/schemas/FilterGroupInput"
+                    }
+                },
+                "type": "object"
+            },
+            "ChartType.BIG_NUMBER": {
+                "enum": ["big_number"],
+                "type": "string"
+            },
+            "ComparisonFormatTypes": {
+                "enum": ["raw", "percentage"],
                 "type": "string"
             },
             "BaseFilterRule_FilterOperator.number-or-string_": {
@@ -1813,76 +3224,6 @@
                 "required": ["type"],
                 "type": "object"
             },
-            "ChartType.DATA_APP_VIZ": {
-                "enum": ["data_app_viz"],
-                "type": "string"
-            },
-            "DataAppVizFieldMapping": {
-                "$ref": "#/components/schemas/Record_string.string_",
-                "description": "Maps a data app viz's field name → the host query field id bound to it."
-            },
-            "DataAppVizOptionValue": {
-                "anyOf": [
-                    {
-                        "type": "boolean"
-                    },
-                    {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    {
-                        "type": "string"
-                    }
-                ],
-                "description": "A persisted config value; its shape is set by the option's declared `type`."
-            },
-            "Record_string.DataAppVizOptionValue_": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/DataAppVizOptionValue"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "DataAppVizOptionValues": {
-                "$ref": "#/components/schemas/Record_string.DataAppVizOptionValue_",
-                "description": "Maps a declared config option's name → the value the user chose for it."
-            },
-            "DataAppVizChart": {
-                "properties": {
-                    "optionValues": {
-                        "$ref": "#/components/schemas/DataAppVizOptionValues",
-                        "description": "Only options the user explicitly changed — declared defaults are never\nseeded here, they're resolved at render time. Absent on charts saved\nbefore config options shipped."
-                    },
-                    "fieldMapping": {
-                        "$ref": "#/components/schemas/DataAppVizFieldMapping"
-                    },
-                    "dataAppVizSlug": {
-                        "type": "string",
-                        "description": "Content-as-code only: the viz's project-scoped slug, emitted on chart\ndownload and resolved back to dataAppVizUuid (then stripped) on upload\nso chart YAML stays portable across projects. Never persisted and\nnever used at render time — dataAppVizUuid is the runtime identity."
-                    },
-                    "dataAppVizUuid": {
-                        "type": "string",
-                        "description": "The reusable data app viz this chart renders with (by reference)."
-                    }
-                },
-                "required": ["fieldMapping", "dataAppVizUuid"],
-                "type": "object"
-            },
-            "DataAppVizChartConfig": {
-                "properties": {
-                    "config": {
-                        "$ref": "#/components/schemas/DataAppVizChart",
-                        "description": "Reference to a data app viz plus its field mapping."
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/ChartType.DATA_APP_VIZ",
-                        "description": "Type of chart visualization"
-                    }
-                },
-                "required": ["type"],
-                "type": "object"
-            },
             "ChartType.MAP": {
                 "enum": ["map"],
                 "type": "string"
@@ -2175,7 +3516,91 @@
                 "required": ["type"],
                 "type": "object"
             },
-            "ChartConfig": {
+            "ChartType.DATA_APP_VIZ": {
+                "enum": ["data_app_viz"],
+                "type": "string"
+            },
+            "DataAppVizFieldMapping": {
+                "$ref": "#/components/schemas/Record_string.string_",
+                "description": "Maps a data app viz's field name → the host query field id bound to it."
+            },
+            "DataAppVizOptionValue": {
+                "anyOf": [
+                    {
+                        "type": "boolean"
+                    },
+                    {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    {
+                        "type": "string"
+                    }
+                ],
+                "description": "A persisted config value; its shape is set by the option's declared `type`."
+            },
+            "Record_string.DataAppVizOptionValue_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DataAppVizOptionValue"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DataAppVizOptionValues": {
+                "$ref": "#/components/schemas/Record_string.DataAppVizOptionValue_",
+                "description": "Maps a declared config option's name → the value the user chose for it."
+            },
+            "Pick_DataAppVizChart.Exclude_keyofDataAppVizChart.dataAppVizUuid__": {
+                "properties": {
+                    "fieldMapping": {
+                        "$ref": "#/components/schemas/DataAppVizFieldMapping"
+                    },
+                    "optionValues": {
+                        "$ref": "#/components/schemas/DataAppVizOptionValues",
+                        "description": "Only options the user explicitly changed — declared defaults are never\nseeded here, they're resolved at render time. Absent on charts saved\nbefore config options shipped."
+                    }
+                },
+                "required": ["fieldMapping"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_DataAppVizChart.dataAppVizUuid_": {
+                "$ref": "#/components/schemas/Pick_DataAppVizChart.Exclude_keyofDataAppVizChart.dataAppVizUuid__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DataAppVizChartAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_DataAppVizChart.dataAppVizUuid_"
+                    },
+                    {
+                        "properties": {
+                            "dataAppVizUuid": {
+                                "type": "string"
+                            },
+                            "dataAppVizSlug": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ],
+                "description": "The as-code shape of a custom chart type binding. Files carry the viz's\nproject-scoped slug — portable across projects/instances — and upload\nresolves it to the target project's viz uuid. Exactly one identity is\npresent: `dataAppVizSlug` in every file written today; `dataAppVizUuid`\nonly in legacy files that predate slugs (accepted on upload, never\nemitted)."
+            },
+            "DataAppVizChartConfigAsCode": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/DataAppVizChartAsCode"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.DATA_APP_VIZ"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "ChartAsCodeConfig": {
                 "anyOf": [
                     {
                         "$ref": "#/components/schemas/BigNumberConfig"
@@ -2202,1430 +3627,16 @@
                         "$ref": "#/components/schemas/GaugeChartConfig"
                     },
                     {
-                        "$ref": "#/components/schemas/DataAppVizChartConfig"
-                    },
-                    {
                         "$ref": "#/components/schemas/MapChartConfig"
                     },
                     {
                         "$ref": "#/components/schemas/SankeyChartConfig"
-                    }
-                ]
-            },
-            "ParameterValue": {
-                "anyOf": [
-                    {
-                        "type": "string"
                     },
                     {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    {
-                        "items": {
-                            "type": "number",
-                            "format": "double"
-                        },
-                        "type": "array"
-                    }
-                ]
-            },
-            "Record_string.ParameterValue_": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/ParameterValue"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ParametersValuesMap": {
-                "$ref": "#/components/schemas/Record_string.ParameterValue_"
-            },
-            "Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery__": {
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "Display name of the chart"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "Optional description of what this chart displays"
-                    },
-                    "tableName": {
-                        "type": "string",
-                        "description": "The explore/table name this chart queries from"
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig",
-                        "description": "Visualization configuration for the chart"
-                    },
-                    "pivotConfig": {
-                        "properties": {
-                            "rows": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "columns": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columns"],
-                        "type": "object",
-                        "description": "Pivot table configuration"
-                    },
-                    "slug": {
-                        "type": "string",
-                        "description": "Unique identifier slug for this chart"
-                    },
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap",
-                        "description": "Parameter values for the chart query"
-                    }
-                },
-                "required": ["name", "tableName", "chartConfig", "slug"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery_": {
-                "$ref": "#/components/schemas/Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "PivotSortAnchor": {
-                "properties": {
-                    "value": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            {
-                                "type": "boolean"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "reference": {
-                        "type": "string"
-                    }
-                },
-                "required": ["value", "reference"],
-                "type": "object",
-                "description": "Coordinates of a single pivot column, used to anchor a row sort to that\nspecific column when results are pivoted."
-            },
-            "SortField": {
-                "properties": {
-                    "pivotValues": {
-                        "items": {
-                            "$ref": "#/components/schemas/PivotSortAnchor"
-                        },
-                        "type": "array",
-                        "description": "Pins the row-sort anchor to a specific pivot column. Ignored for non-pivoted results."
-                    },
-                    "nullsFirst": {
-                        "type": "boolean",
-                        "description": "Sort null values first"
-                    },
-                    "descending": {
-                        "type": "boolean",
-                        "description": "Sort in descending order"
-                    },
-                    "fieldId": {
-                        "type": "string",
-                        "description": "Field ID to sort by"
-                    }
-                },
-                "required": ["descending", "fieldId"],
-                "type": "object"
-            },
-            "CustomFormatType": {
-                "enum": [
-                    "default",
-                    "percent",
-                    "currency",
-                    "number",
-                    "id",
-                    "date",
-                    "timestamp",
-                    "bytes_si",
-                    "bytes_iec",
-                    "custom"
-                ],
-                "type": "string"
-            },
-            "NumberSeparator": {
-                "enum": [
-                    "default",
-                    "commaPeriod",
-                    "spacePeriod",
-                    "periodComma",
-                    "noSeparatorPeriod",
-                    "apostrophePeriod"
-                ],
-                "type": "string"
-            },
-            "TimeFrames": {
-                "enum": [
-                    "RAW",
-                    "YEAR",
-                    "QUARTER",
-                    "MONTH",
-                    "WEEK",
-                    "DAY",
-                    "HOUR",
-                    "MINUTE",
-                    "SECOND",
-                    "MILLISECOND",
-                    "DAY_OF_WEEK_INDEX",
-                    "DAY_OF_MONTH_NUM",
-                    "DAY_OF_YEAR_NUM",
-                    "WEEK_NUM",
-                    "MONTH_NUM",
-                    "QUARTER_NUM",
-                    "YEAR_NUM",
-                    "DAY_OF_WEEK_NAME",
-                    "MONTH_NAME",
-                    "QUARTER_NAME",
-                    "HOUR_OF_DAY_NUM",
-                    "MINUTE_OF_HOUR_NUM"
-                ],
-                "type": "string"
-            },
-            "CustomFormat": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/CustomFormatType",
-                        "description": "Format type"
-                    },
-                    "round": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Number of decimal places"
-                    },
-                    "separator": {
-                        "$ref": "#/components/schemas/NumberSeparator",
-                        "description": "Number separator style"
-                    },
-                    "currency": {
-                        "type": "string",
-                        "description": "Currency code (e.g., USD, GBP, EUR)"
-                    },
-                    "compact": {
-                        "$ref": "#/components/schemas/CompactOrAlias",
-                        "description": "Compact format for large numbers (K, M, B, T) or byte units"
-                    },
-                    "prefix": {
-                        "type": "string",
-                        "description": "Prefix to prepend to formatted values"
-                    },
-                    "suffix": {
-                        "type": "string",
-                        "description": "Suffix to append to formatted values"
-                    },
-                    "timeInterval": {
-                        "$ref": "#/components/schemas/TimeFrames",
-                        "description": "Time interval for date formatting"
-                    },
-                    "custom": {
-                        "type": "string",
-                        "description": "Custom format string"
-                    }
-                },
-                "required": ["type"],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "TableCalculationType": {
-                "enum": ["number", "string", "date", "timestamp", "boolean"],
-                "type": "string"
-            },
-            "TableCalculationTotalMode": {
-                "enum": ["formula", "sum_of_rows", "none"],
-                "type": "string"
-            },
-            "TableCalculationBase": {
-                "properties": {
-                    "totalMode": {
-                        "$ref": "#/components/schemas/TableCalculationTotalMode",
-                        "description": "How column totals are computed for this calculation"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/TableCalculationType",
-                        "description": "Data type of the calculation result"
-                    },
-                    "format": {
-                        "$ref": "#/components/schemas/CustomFormat",
-                        "description": "Formatting options for the calculation"
-                    },
-                    "displayName": {
-                        "type": "string",
-                        "description": "Display name shown in the UI"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Internal name of the table calculation"
-                    },
-                    "index": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Display order index"
-                    }
-                },
-                "required": ["displayName", "name"],
-                "type": "object"
-            },
-            "SqlTableCalculation": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/TableCalculationBase"
-                    },
-                    {
-                        "properties": {
-                            "sql": {
-                                "type": "string",
-                                "description": "SQL expression for the calculation (can reference fields with ${table.field})"
-                            }
-                        },
-                        "required": ["sql"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS": {
-                "enum": ["percent_change_from_previous"],
-                "type": "string"
-            },
-            "TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE": {
-                "enum": ["percent_of_previous_value"],
-                "type": "string"
-            },
-            "TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL": {
-                "enum": ["percent_of_column_total"],
-                "type": "string"
-            },
-            "TableCalculationTemplateType.RANK_IN_COLUMN": {
-                "enum": ["rank_in_column"],
-                "type": "string"
-            },
-            "TableCalculationTemplateType.RUNNING_TOTAL": {
-                "enum": ["running_total"],
-                "type": "string"
-            },
-            "TableCalculationTemplateType.WINDOW_FUNCTION": {
-                "enum": ["window_function"],
-                "type": "string"
-            },
-            "WindowFunctionType": {
-                "enum": [
-                    "row_number",
-                    "percent_rank",
-                    "cume_dist",
-                    "rank",
-                    "sum",
-                    "avg",
-                    "count",
-                    "min",
-                    "max"
-                ],
-                "type": "string"
-            },
-            "FrameType": {
-                "enum": ["rows", "range"],
-                "type": "string"
-            },
-            "FrameBoundaryType": {
-                "enum": [
-                    "unbounded_preceding",
-                    "preceding",
-                    "current_row",
-                    "following",
-                    "unbounded_following"
-                ],
-                "type": "string"
-            },
-            "FrameBoundary": {
-                "properties": {
-                    "offset": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Offset for PRECEDING/FOLLOWING"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/FrameBoundaryType",
-                        "description": "Boundary type"
-                    }
-                },
-                "required": ["type"],
-                "type": "object"
-            },
-            "FrameClause": {
-                "properties": {
-                    "end": {
-                        "$ref": "#/components/schemas/FrameBoundary",
-                        "description": "End boundary of the frame"
-                    },
-                    "start": {
-                        "$ref": "#/components/schemas/FrameBoundary",
-                        "description": "Start boundary of the frame"
-                    },
-                    "frameType": {
-                        "$ref": "#/components/schemas/FrameType",
-                        "description": "Type of frame (ROWS or RANGE)"
-                    }
-                },
-                "required": ["end", "frameType"],
-                "type": "object"
-            },
-            "TableCalculationTemplate": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "partitionBy": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "orderBy": {
-                                "items": {
-                                    "properties": {
-                                        "order": {
-                                            "type": "string",
-                                            "enum": ["asc", "desc", null],
-                                            "nullable": true
-                                        },
-                                        "fieldId": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": ["order", "fieldId"],
-                                    "type": "object"
-                                },
-                                "type": "array",
-                                "description": "Fields to order by for window functions"
-                            },
-                            "fieldId": {
-                                "type": "string",
-                                "description": "Field ID to apply the template to"
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS",
-                                "description": "Type of template calculation"
-                            }
-                        },
-                        "required": ["orderBy", "fieldId", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "partitionBy": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "orderBy": {
-                                "items": {
-                                    "properties": {
-                                        "order": {
-                                            "type": "string",
-                                            "enum": ["asc", "desc", null],
-                                            "nullable": true
-                                        },
-                                        "fieldId": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": ["order", "fieldId"],
-                                    "type": "object"
-                                },
-                                "type": "array",
-                                "description": "Fields to order by for window functions"
-                            },
-                            "fieldId": {
-                                "type": "string",
-                                "description": "Field ID to apply the template to"
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE",
-                                "description": "Type of template calculation"
-                            }
-                        },
-                        "required": ["orderBy", "fieldId", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "partitionBy": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array",
-                                "description": "Fields to partition by"
-                            },
-                            "fieldId": {
-                                "type": "string",
-                                "description": "Field ID to apply the template to"
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL",
-                                "description": "Type of template calculation"
-                            }
-                        },
-                        "required": ["fieldId", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "fieldId": {
-                                "type": "string",
-                                "description": "Field ID to apply the template to"
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/TableCalculationTemplateType.RANK_IN_COLUMN",
-                                "description": "Type of template calculation"
-                            }
-                        },
-                        "required": ["fieldId", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "orderBy": {
-                                "items": {
-                                    "properties": {
-                                        "order": {
-                                            "type": "string",
-                                            "enum": ["asc", "desc", null],
-                                            "nullable": true
-                                        },
-                                        "fieldId": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": ["order", "fieldId"],
-                                    "type": "object"
-                                },
-                                "type": "array",
-                                "description": "Fields to order by for the running total"
-                            },
-                            "fieldId": {
-                                "type": "string",
-                                "description": "Field ID to apply the template to"
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/TableCalculationTemplateType.RUNNING_TOTAL",
-                                "description": "Type of template calculation"
-                            }
-                        },
-                        "required": ["fieldId", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "frame": {
-                                "$ref": "#/components/schemas/FrameClause",
-                                "description": "Frame clause for window functions"
-                            },
-                            "partitionBy": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array",
-                                "description": "Fields to partition by for window functions"
-                            },
-                            "orderBy": {
-                                "items": {
-                                    "properties": {
-                                        "order": {
-                                            "type": "string",
-                                            "enum": ["asc", "desc", null],
-                                            "nullable": true
-                                        },
-                                        "fieldId": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": ["order", "fieldId"],
-                                    "type": "object"
-                                },
-                                "type": "array",
-                                "description": "Fields to order by for window functions"
-                            },
-                            "fieldId": {
-                                "type": "string",
-                                "nullable": true,
-                                "description": "Field ID to apply the template to"
-                            },
-                            "windowFunction": {
-                                "$ref": "#/components/schemas/WindowFunctionType",
-                                "description": "Window function type"
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/TableCalculationTemplateType.WINDOW_FUNCTION",
-                                "description": "Type of template calculation"
-                            }
-                        },
-                        "required": [
-                            "partitionBy",
-                            "orderBy",
-                            "fieldId",
-                            "windowFunction",
-                            "type"
-                        ],
-                        "type": "object"
-                    }
-                ]
-            },
-            "TemplateTableCalculation": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/TableCalculationBase"
-                    },
-                    {
-                        "properties": {
-                            "template": {
-                                "$ref": "#/components/schemas/TableCalculationTemplate",
-                                "description": "Template-based calculation (alternative to sql)"
-                            }
-                        },
-                        "required": ["template"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "FormulaTableCalculation": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/TableCalculationBase"
-                    },
-                    {
-                        "properties": {
-                            "formula": {
-                                "type": "string",
-                                "description": "Spreadsheet-like formula compiled to SQL at query time"
-                            }
-                        },
-                        "required": ["formula"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "TableCalculation": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/SqlTableCalculation"
-                    },
-                    {
-                        "$ref": "#/components/schemas/TemplateTableCalculation"
-                    },
-                    {
-                        "$ref": "#/components/schemas/FormulaTableCalculation"
-                    }
-                ]
-            },
-            "MetricType": {
-                "enum": [
-                    "percentile",
-                    "average",
-                    "count",
-                    "count_distinct",
-                    "sum",
-                    "sum_distinct",
-                    "average_distinct",
-                    "min",
-                    "max",
-                    "percent_of_previous",
-                    "percent_of_total",
-                    "running_total",
-                    "number",
-                    "median",
-                    "string",
-                    "date",
-                    "timestamp",
-                    "boolean"
-                ],
-                "type": "string"
-            },
-            "Format": {
-                "enum": [
-                    "km",
-                    "mi",
-                    "si",
-                    "usd",
-                    "gbp",
-                    "eur",
-                    "jpy",
-                    "dkk",
-                    "id",
-                    "percent"
-                ],
-                "type": "string"
-            },
-            "MetricFilterRule": {
-                "description": "Filter rule for metrics, targeting fields by reference",
-                "properties": {
-                    "includeNull": {
-                        "type": "boolean",
-                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
-                    },
-                    "values": {
-                        "items": {
-                            "$ref": "#/components/schemas/AnyType"
-                        },
-                        "type": "array",
-                        "description": "Values to filter by"
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/FilterOperator",
-                        "description": "Filter operator"
-                    },
-                    "id": {
-                        "type": "string",
-                        "description": "Unique identifier for the filter"
-                    },
-                    "target": {
-                        "properties": {
-                            "fieldRef": {
-                                "type": "string",
-                                "description": "Field reference to filter on (e.g., 'table_name.field_name')"
-                            }
-                        },
-                        "required": ["fieldRef"],
-                        "type": "object",
-                        "description": "Target field for the filter"
-                    },
-                    "settings": {
-                        "$ref": "#/components/schemas/AnyType",
-                        "description": "Additional settings for date/time filters"
-                    },
-                    "disabled": {
-                        "type": "boolean",
-                        "description": "Whether this filter is disabled"
-                    },
-                    "required": {
-                        "type": "boolean",
-                        "description": "Whether this filter is required"
-                    },
-                    "caseSensitive": {
-                        "type": "boolean",
-                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
-                    }
-                },
-                "required": ["operator", "id", "target"],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "FieldId": {
-                "type": "string"
-            },
-            "AdditionalMetric": {
-                "properties": {
-                    "label": {
-                        "type": "string",
-                        "description": "Display label for the metric"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/MetricType",
-                        "description": "Aggregation type"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "Description of what the metric measures"
-                    },
-                    "sql": {
-                        "type": "string",
-                        "description": "SQL expression (e.g., ${TABLE}.column_name)"
-                    },
-                    "hidden": {
-                        "type": "boolean",
-                        "description": "Whether the metric is hidden from users"
-                    },
-                    "round": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Number of decimal places"
-                    },
-                    "compact": {
-                        "$ref": "#/components/schemas/CompactOrAlias",
-                        "description": "Compact format for large numbers"
-                    },
-                    "format": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/Format"
-                            },
-                            {
-                                "type": "string"
-                            }
-                        ],
-                        "description": "Format string (legacy format specification)"
-                    },
-                    "separator": {
-                        "$ref": "#/components/schemas/NumberSeparator",
-                        "description": "Number separator style for grouping/decimal characters"
-                    },
-                    "table": {
-                        "type": "string",
-                        "description": "Table name the metric belongs to"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Internal name of the metric"
-                    },
-                    "index": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Display order index"
-                    },
-                    "filters": {
-                        "items": {
-                            "$ref": "#/components/schemas/MetricFilterRule"
-                        },
-                        "type": "array",
-                        "description": "Filters to apply to this metric"
-                    },
-                    "baseDimensionName": {
-                        "type": "string",
-                        "description": "Name of the base dimension/column this metric aggregates"
-                    },
-                    "baseMetricName": {
-                        "type": "string",
-                        "description": "Name of the explore metric this metric was cloned from"
-                    },
-                    "uuid": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Unique identifier for the metric"
-                    },
-                    "percentile": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Percentile value for percentile metrics"
-                    },
-                    "distinctKeys": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "formatOptions": {
-                        "$ref": "#/components/schemas/CustomFormat",
-                        "description": "Formatting configuration"
-                    },
-                    "generationType": {
-                        "type": "string",
-                        "enum": ["periodOverPeriod"],
-                        "nullable": false,
-                        "description": "Optional marker for metrics generated by the system.\nCurrently used for Period-over-Period (PoP) previous-period metrics."
-                    },
-                    "baseMetricId": {
-                        "$ref": "#/components/schemas/FieldId",
-                        "description": "For PoP-generated metrics, the base metric id that this metric is derived from."
-                    },
-                    "timeDimensionId": {
-                        "$ref": "#/components/schemas/FieldId",
-                        "description": "For PoP-generated metrics, the time dimension id used for the comparison."
-                    },
-                    "granularity": {
-                        "$ref": "#/components/schemas/TimeFrames",
-                        "description": "For PoP-generated metrics, the granularity used for the comparison."
-                    },
-                    "periodOffset": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "For PoP-generated metrics, the number of periods to offset by (>= 1)."
-                    }
-                },
-                "required": ["type", "sql", "table", "name"],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "BinType.FIXED_NUMBER": {
-                "enum": ["fixed_number"],
-                "type": "string"
-            },
-            "CustomDimensionType.BIN": {
-                "enum": ["bin"],
-                "type": "string"
-            },
-            "CustomDimensionType": {
-                "enum": ["bin", "sql"],
-                "type": "string"
-            },
-            "FixedNumberBinDimension": {
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "description": "Unique identifier for the custom dimension"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Display name for the custom dimension"
-                    },
-                    "table": {
-                        "type": "string",
-                        "description": "Table this custom dimension belongs to"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/CustomDimensionType.BIN",
-                        "description": "Type of custom dimension (bin or sql)"
-                    },
-                    "dimensionId": {
-                        "$ref": "#/components/schemas/FieldId",
-                        "description": "Field ID of the parent dimension to bin"
-                    },
-                    "binType": {
-                        "$ref": "#/components/schemas/BinType.FIXED_NUMBER"
-                    },
-                    "binNumber": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": [
-                    "id",
-                    "name",
-                    "table",
-                    "type",
-                    "dimensionId",
-                    "binType",
-                    "binNumber"
-                ],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "BinType.FIXED_WIDTH": {
-                "enum": ["fixed_width"],
-                "type": "string"
-            },
-            "FixedWidthBinDimension": {
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "description": "Unique identifier for the custom dimension"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Display name for the custom dimension"
-                    },
-                    "table": {
-                        "type": "string",
-                        "description": "Table this custom dimension belongs to"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/CustomDimensionType.BIN",
-                        "description": "Type of custom dimension (bin or sql)"
-                    },
-                    "dimensionId": {
-                        "$ref": "#/components/schemas/FieldId",
-                        "description": "Field ID of the parent dimension to bin"
-                    },
-                    "binType": {
-                        "$ref": "#/components/schemas/BinType.FIXED_WIDTH"
-                    },
-                    "binWidth": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": [
-                    "id",
-                    "name",
-                    "table",
-                    "type",
-                    "dimensionId",
-                    "binType",
-                    "binWidth"
-                ],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "BinType.CUSTOM_RANGE": {
-                "enum": ["custom_range"],
-                "type": "string"
-            },
-            "BinRange": {
-                "properties": {
-                    "to": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "End value for this bin range (undefined for the last range)"
-                    },
-                    "from": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Start value for this bin range (undefined for the first range)"
-                    }
-                },
-                "type": "object"
-            },
-            "CustomRangeBinDimension": {
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "description": "Unique identifier for the custom dimension"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Display name for the custom dimension"
-                    },
-                    "table": {
-                        "type": "string",
-                        "description": "Table this custom dimension belongs to"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/CustomDimensionType.BIN",
-                        "description": "Type of custom dimension (bin or sql)"
-                    },
-                    "dimensionId": {
-                        "$ref": "#/components/schemas/FieldId",
-                        "description": "Field ID of the parent dimension to bin"
-                    },
-                    "binType": {
-                        "$ref": "#/components/schemas/BinType.CUSTOM_RANGE"
-                    },
-                    "customRange": {
-                        "items": {
-                            "$ref": "#/components/schemas/BinRange"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "id",
-                    "name",
-                    "table",
-                    "type",
-                    "dimensionId",
-                    "binType",
-                    "customRange"
-                ],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "BinType.CUSTOM_GROUP": {
-                "enum": ["custom_group"],
-                "type": "string"
-            },
-            "GroupValueMatchType": {
-                "enum": ["exact", "startsWith", "endsWith", "includes"],
-                "type": "string"
-            },
-            "GroupValueRule": {
-                "properties": {
-                    "value": {
-                        "type": "string"
-                    },
-                    "matchType": {
-                        "$ref": "#/components/schemas/GroupValueMatchType"
-                    }
-                },
-                "required": ["value", "matchType"],
-                "type": "object"
-            },
-            "BinGroup": {
-                "properties": {
-                    "values": {
-                        "items": {
-                            "$ref": "#/components/schemas/GroupValueRule"
-                        },
-                        "type": "array",
-                        "description": "Rules that match values into this group"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Display name for this group (e.g. \"North America\")"
-                    }
-                },
-                "required": ["values", "name"],
-                "type": "object"
-            },
-            "CustomGroupBinDimension": {
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "description": "Unique identifier for the custom dimension"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Display name for the custom dimension"
-                    },
-                    "table": {
-                        "type": "string",
-                        "description": "Table this custom dimension belongs to"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/CustomDimensionType.BIN",
-                        "description": "Type of custom dimension (bin or sql)"
-                    },
-                    "dimensionId": {
-                        "$ref": "#/components/schemas/FieldId",
-                        "description": "Field ID of the parent dimension to bin"
-                    },
-                    "binType": {
-                        "$ref": "#/components/schemas/BinType.CUSTOM_GROUP"
-                    },
-                    "customGroups": {
-                        "items": {
-                            "$ref": "#/components/schemas/BinGroup"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "id",
-                    "name",
-                    "table",
-                    "type",
-                    "dimensionId",
-                    "binType",
-                    "customGroups"
-                ],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "CustomBinDimension": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/FixedNumberBinDimension"
-                    },
-                    {
-                        "$ref": "#/components/schemas/FixedWidthBinDimension"
-                    },
-                    {
-                        "$ref": "#/components/schemas/CustomRangeBinDimension"
-                    },
-                    {
-                        "$ref": "#/components/schemas/CustomGroupBinDimension"
-                    }
-                ]
-            },
-            "CustomDimensionType.SQL": {
-                "enum": ["sql"],
-                "type": "string"
-            },
-            "DimensionType": {
-                "enum": ["string", "number", "timestamp", "date", "boolean"],
-                "type": "string"
-            },
-            "CustomSqlDimension": {
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "description": "Unique identifier for the custom dimension"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Display name for the custom dimension"
-                    },
-                    "table": {
-                        "type": "string",
-                        "description": "Table this custom dimension belongs to"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/CustomDimensionType.SQL",
-                        "description": "Type of custom dimension (bin or sql)"
-                    },
-                    "sql": {
-                        "type": "string",
-                        "description": "SQL expression for the custom dimension"
-                    },
-                    "dimensionType": {
-                        "$ref": "#/components/schemas/DimensionType",
-                        "description": "Data type of the dimension result"
-                    }
-                },
-                "required": [
-                    "id",
-                    "name",
-                    "table",
-                    "type",
-                    "sql",
-                    "dimensionType"
-                ],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "CustomDimension": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/CustomBinDimension"
-                    },
-                    {
-                        "$ref": "#/components/schemas/CustomSqlDimension"
-                    }
-                ]
-            },
-            "Pick_Metric.formatOptions_": {
-                "properties": {
-                    "formatOptions": {
-                        "$ref": "#/components/schemas/CustomFormat"
-                    }
-                },
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "MetricOverrides": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/Pick_Metric.formatOptions_"
-                },
-                "type": "object"
-            },
-            "Pick_Dimension.formatOptions_": {
-                "properties": {
-                    "formatOptions": {
-                        "$ref": "#/components/schemas/CustomFormat"
-                    }
-                },
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "DimensionOverrides": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/Pick_Dimension.formatOptions_"
-                },
-                "type": "object"
-            },
-            "Pick_CompiledDimension.name-or-label-or-table_": {
-                "properties": {},
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_MetricQuery.Exclude_keyofMetricQuery.filters__": {
-                "properties": {
-                    "exploreName": {
-                        "type": "string",
-                        "description": "The name of the explore to query"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "List of dimension field IDs to include"
-                    },
-                    "metrics": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "List of metric field IDs to include"
-                    },
-                    "sorts": {
-                        "items": {
-                            "$ref": "#/components/schemas/SortField"
-                        },
-                        "type": "array",
-                        "description": "Sort configuration for query results"
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Maximum number of rows to return"
-                    },
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/TableCalculation"
-                        },
-                        "type": "array",
-                        "description": "Custom calculations to perform on query results"
-                    },
-                    "additionalMetrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/AdditionalMetric"
-                        },
-                        "type": "array",
-                        "description": "Custom metrics defined inline (ad-hoc metrics not in the dbt model)"
-                    },
-                    "customDimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/CustomDimension"
-                        },
-                        "type": "array",
-                        "description": "Custom dimensions defined inline"
-                    },
-                    "metricOverrides": {
-                        "$ref": "#/components/schemas/MetricOverrides",
-                        "description": "Override formatting options for existing metrics"
-                    },
-                    "dimensionOverrides": {
-                        "$ref": "#/components/schemas/DimensionOverrides",
-                        "description": "Override formatting options for existing dimensions"
-                    },
-                    "timezone": {
-                        "type": "string",
-                        "description": "Timezone for date/time values (e.g., 'America/Los_Angeles', 'UTC')"
-                    },
-                    "pivotDimensions": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "Dimension field IDs used as pivot columns (from chart's pivotConfig.columns).\nUsed by row_total() to determine non-pivot dimensions for GROUP BY."
-                    },
-                    "metadata": {
-                        "properties": {
-                            "hasADateDimension": {
-                                "$ref": "#/components/schemas/Pick_CompiledDimension.name-or-label-or-table_"
-                            }
-                        },
-                        "required": ["hasADateDimension"],
-                        "type": "object"
-                    }
-                },
-                "required": [
-                    "exploreName",
-                    "dimensions",
-                    "metrics",
-                    "sorts",
-                    "limit",
-                    "tableCalculations"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_MetricQuery.filters_": {
-                "$ref": "#/components/schemas/Pick_MetricQuery.Exclude_keyofMetricQuery.filters__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "FilterGroupInput": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/OrFilterGroupInput"
-                    },
-                    {
-                        "$ref": "#/components/schemas/AndFilterGroupInput"
-                    }
-                ]
-            },
-            "Pick_FilterRule.Exclude_keyofFilterRule.id__": {
-                "properties": {
-                    "target": {
-                        "$ref": "#/components/schemas/FieldTarget",
-                        "description": "Target field for the filter"
-                    },
-                    "settings": {
-                        "description": "Additional settings for date/time filters"
-                    },
-                    "disabled": {
-                        "type": "boolean",
-                        "description": "Whether this filter is disabled"
-                    },
-                    "required": {
-                        "type": "boolean",
-                        "description": "Whether this filter is required"
-                    },
-                    "caseSensitive": {
-                        "type": "boolean",
-                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/FilterOperator",
-                        "description": "Filter operator"
-                    },
-                    "values": {
-                        "items": {},
-                        "type": "array",
-                        "description": "Values to filter by"
-                    },
-                    "includeNull": {
-                        "type": "boolean",
-                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
-                    }
-                },
-                "required": ["target", "operator"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_FilterRule.id_": {
-                "$ref": "#/components/schemas/Pick_FilterRule.Exclude_keyofFilterRule.id__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "FilterRuleInput": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Omit_FilterRule.id_"
-                    },
-                    {
-                        "properties": {
-                            "id": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object"
+                        "$ref": "#/components/schemas/DataAppVizChartConfigAsCode"
                     }
                 ],
-                "description": "Permissive filter types for chart-as-code uploads where `id` may be omitted.\nFilter IDs are auto-generated during upsert if absent.\nAfter normalization these become the strict runtime types (FilterGroup, Filters)."
-            },
-            "FilterGroupItemInput": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/FilterGroupInput"
-                    },
-                    {
-                        "$ref": "#/components/schemas/FilterRuleInput"
-                    }
-                ]
-            },
-            "OrFilterGroupInput": {
-                "properties": {
-                    "or": {
-                        "items": {
-                            "$ref": "#/components/schemas/FilterGroupItemInput"
-                        },
-                        "type": "array"
-                    },
-                    "id": {
-                        "type": "string"
-                    }
-                },
-                "required": ["or"],
-                "type": "object"
-            },
-            "AndFilterGroupInput": {
-                "properties": {
-                    "and": {
-                        "items": {
-                            "$ref": "#/components/schemas/FilterGroupItemInput"
-                        },
-                        "type": "array"
-                    },
-                    "id": {
-                        "type": "string"
-                    }
-                },
-                "required": ["and"],
-                "type": "object"
-            },
-            "FiltersInput": {
-                "properties": {
-                    "tableCalculations": {
-                        "$ref": "#/components/schemas/FilterGroupInput"
-                    },
-                    "metrics": {
-                        "$ref": "#/components/schemas/FilterGroupInput"
-                    },
-                    "dimensions": {
-                        "$ref": "#/components/schemas/FilterGroupInput"
-                    }
-                },
-                "type": "object"
+                "description": "ChartConfig as serialized in chart YAML: viz bindings are slug-based.\nEnumerated rather than Exclude<ChartConfig, DataAppVizChartConfig> —\nTSOA cannot resolve Exclude over object unions, which corrupts the\ngenerated chart-as-code JSON schema. Keep in sync with ChartConfig."
             },
             "ContentAsCodeType.CHART": {
                 "enum": ["chart"],
@@ -3659,7 +3670,7 @@
             "ChartAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery_"
+                        "$ref": "#/components/schemas/Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery-or-chartConfig_"
                     },
                     {
                         "properties": {
@@ -3716,6 +3727,9 @@
                                 "format": "date-time",
                                 "description": "Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted."
                             },
+                            "chartConfig": {
+                                "$ref": "#/components/schemas/ChartAsCodeConfig"
+                            },
                             "metricQuery": {
                                 "allOf": [
                                     {
@@ -3733,7 +3747,12 @@
                                 ]
                             }
                         },
-                        "required": ["spaceSlug", "version", "metricQuery"],
+                        "required": [
+                            "spaceSlug",
+                            "version",
+                            "chartConfig",
+                            "metricQuery"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -7823,6 +7842,74 @@
                     "exploreName"
                 ],
                 "type": "object"
+            },
+            "DataAppVizChart": {
+                "properties": {
+                    "optionValues": {
+                        "$ref": "#/components/schemas/DataAppVizOptionValues",
+                        "description": "Only options the user explicitly changed — declared defaults are never\nseeded here, they're resolved at render time. Absent on charts saved\nbefore config options shipped."
+                    },
+                    "fieldMapping": {
+                        "$ref": "#/components/schemas/DataAppVizFieldMapping"
+                    },
+                    "dataAppVizUuid": {
+                        "type": "string",
+                        "description": "The reusable data app viz this chart renders with (by reference).\nContent-as-code files carry the viz's project-scoped slug instead —\nsee DataAppVizChartAsCode."
+                    }
+                },
+                "required": ["fieldMapping", "dataAppVizUuid"],
+                "type": "object"
+            },
+            "DataAppVizChartConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/DataAppVizChart",
+                        "description": "Reference to a data app viz plus its field mapping."
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.DATA_APP_VIZ",
+                        "description": "Type of chart visualization"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "ChartConfig": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/BigNumberConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CartesianChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CustomVisConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PieChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FunnelChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TableChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TreemapChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/GaugeChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DataAppVizChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MapChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SankeyChartConfig"
+                    }
+                ]
             },
             "SavedMergeQuerySource": {
                 "anyOf": [
@@ -14878,11 +14965,11 @@
             },
             "Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always-or-relationship_": {
                 "properties": {
-                    "hidden": {
-                        "type": "boolean"
-                    },
                     "table": {
                         "type": "string"
+                    },
+                    "hidden": {
+                        "type": "boolean"
                     },
                     "type": {
                         "$ref": "#/components/schemas/DbtModelJoinType"
@@ -56150,7 +56237,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.262.1",
+        "version": "2.0.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -275,9 +275,162 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ChartType.BIG_NUMBER': {
+    ParameterValue: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'string' },
+                { dataType: 'double' },
+                { dataType: 'array', array: { dataType: 'string' } },
+                { dataType: 'array', array: { dataType: 'double' } },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.ParameterValue_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'ParameterValue' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ParametersValuesMap: {
+        dataType: 'refAlias',
+        type: { ref: 'Record_string.ParameterValue_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery-or-chartConfig__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    description: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    tableName: { dataType: 'string', required: true },
+                    pivotConfig: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    rows: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            {
+                                                dataType: 'array',
+                                                array: { dataType: 'string' },
+                                            },
+                                            { dataType: 'undefined' },
+                                        ],
+                                    },
+                                    columns: {
+                                        dataType: 'array',
+                                        array: { dataType: 'string' },
+                                        required: true,
+                                    },
+                                },
+                            },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    slug: { dataType: 'string', required: true },
+                    parameters: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ParametersValuesMap' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery-or-chartConfig_':
+        {
+            dataType: 'refAlias',
+            type: {
+                ref: 'Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery-or-chartConfig__',
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PivotSortAnchor: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                value: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'double' },
+                        { dataType: 'boolean' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                reference: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SortField: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pivotValues: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'PivotSortAnchor' },
+                },
+                nullsFirst: { dataType: 'boolean' },
+                descending: { dataType: 'boolean', required: true },
+                fieldId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CustomFormatType: {
         dataType: 'refEnum',
-        enums: ['big_number'],
+        enums: [
+            'default',
+            'percent',
+            'currency',
+            'number',
+            'id',
+            'date',
+            'timestamp',
+            'bytes_si',
+            'bytes_iec',
+            'custom',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    NumberSeparator: {
+        dataType: 'refEnum',
+        enums: [
+            'default',
+            'commaPeriod',
+            'spacePeriod',
+            'periodComma',
+            'noSeparatorPeriod',
+            'apostrophePeriod',
+        ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Compact: {
@@ -345,20 +498,498 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ComparisonFormatTypes: {
+    TimeFrames: {
         dataType: 'refEnum',
-        enums: ['raw', 'percentage'],
+        enums: [
+            'RAW',
+            'YEAR',
+            'QUARTER',
+            'MONTH',
+            'WEEK',
+            'DAY',
+            'HOUR',
+            'MINUTE',
+            'SECOND',
+            'MILLISECOND',
+            'DAY_OF_WEEK_INDEX',
+            'DAY_OF_MONTH_NUM',
+            'DAY_OF_YEAR_NUM',
+            'WEEK_NUM',
+            'MONTH_NUM',
+            'QUARTER_NUM',
+            'YEAR_NUM',
+            'DAY_OF_WEEK_NAME',
+            'MONTH_NAME',
+            'QUARTER_NAME',
+            'HOUR_OF_DAY_NUM',
+            'MINUTE_OF_HOUR_NUM',
+        ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FieldTarget: {
+    CustomFormat: {
+        dataType: 'refObject',
+        properties: {
+            type: { ref: 'CustomFormatType', required: true },
+            round: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'double' }, { dataType: 'undefined' }],
+            },
+            separator: { ref: 'NumberSeparator' },
+            currency: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
+            compact: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'CompactOrAlias' },
+                    { dataType: 'undefined' },
+                ],
+            },
+            prefix: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
+            suffix: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
+            timeInterval: { ref: 'TimeFrames' },
+            custom: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TableCalculationType: {
+        dataType: 'refEnum',
+        enums: ['number', 'string', 'date', 'timestamp', 'boolean'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TableCalculationTotalMode: {
+        dataType: 'refEnum',
+        enums: ['formula', 'sum_of_rows', 'none'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TableCalculationBase: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                fieldId: { dataType: 'string', required: true },
+                totalMode: { ref: 'TableCalculationTotalMode' },
+                type: { ref: 'TableCalculationType' },
+                format: { ref: 'CustomFormat' },
+                displayName: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+                index: { dataType: 'double' },
             },
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SqlTableCalculation: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'TableCalculationBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        sql: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS': {
+        dataType: 'refEnum',
+        enums: ['percent_change_from_previous'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE': {
+        dataType: 'refEnum',
+        enums: ['percent_of_previous_value'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL': {
+        dataType: 'refEnum',
+        enums: ['percent_of_column_total'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'TableCalculationTemplateType.RANK_IN_COLUMN': {
+        dataType: 'refEnum',
+        enums: ['rank_in_column'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'TableCalculationTemplateType.RUNNING_TOTAL': {
+        dataType: 'refEnum',
+        enums: ['running_total'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'TableCalculationTemplateType.WINDOW_FUNCTION': {
+        dataType: 'refEnum',
+        enums: ['window_function'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WindowFunctionType: {
+        dataType: 'refEnum',
+        enums: [
+            'row_number',
+            'percent_rank',
+            'cume_dist',
+            'rank',
+            'sum',
+            'avg',
+            'count',
+            'min',
+            'max',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FrameType: {
+        dataType: 'refEnum',
+        enums: ['rows', 'range'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FrameBoundaryType: {
+        dataType: 'refEnum',
+        enums: [
+            'unbounded_preceding',
+            'preceding',
+            'current_row',
+            'following',
+            'unbounded_following',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FrameBoundary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                offset: { dataType: 'double' },
+                type: { ref: 'FrameBoundaryType', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FrameClause: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                end: { ref: 'FrameBoundary', required: true },
+                start: { ref: 'FrameBoundary' },
+                frameType: { ref: 'FrameType', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TableCalculationTemplate: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        partitionBy: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                        },
+                        orderBy: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    order: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            {
+                                                dataType: 'enum',
+                                                enums: ['asc'],
+                                            },
+                                            {
+                                                dataType: 'enum',
+                                                enums: ['desc'],
+                                            },
+                                            { dataType: 'enum', enums: [null] },
+                                        ],
+                                        required: true,
+                                    },
+                                    fieldId: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                },
+                            },
+                            required: true,
+                        },
+                        fieldId: { dataType: 'string', required: true },
+                        type: {
+                            ref: 'TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS',
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        partitionBy: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                        },
+                        orderBy: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    order: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            {
+                                                dataType: 'enum',
+                                                enums: ['asc'],
+                                            },
+                                            {
+                                                dataType: 'enum',
+                                                enums: ['desc'],
+                                            },
+                                            { dataType: 'enum', enums: [null] },
+                                        ],
+                                        required: true,
+                                    },
+                                    fieldId: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                },
+                            },
+                            required: true,
+                        },
+                        fieldId: { dataType: 'string', required: true },
+                        type: {
+                            ref: 'TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE',
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        partitionBy: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                        },
+                        fieldId: { dataType: 'string', required: true },
+                        type: {
+                            ref: 'TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL',
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        fieldId: { dataType: 'string', required: true },
+                        type: {
+                            ref: 'TableCalculationTemplateType.RANK_IN_COLUMN',
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        orderBy: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    order: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            {
+                                                dataType: 'enum',
+                                                enums: ['asc'],
+                                            },
+                                            {
+                                                dataType: 'enum',
+                                                enums: ['desc'],
+                                            },
+                                            { dataType: 'enum', enums: [null] },
+                                        ],
+                                        required: true,
+                                    },
+                                    fieldId: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                },
+                            },
+                        },
+                        fieldId: { dataType: 'string', required: true },
+                        type: {
+                            ref: 'TableCalculationTemplateType.RUNNING_TOTAL',
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        frame: { ref: 'FrameClause' },
+                        partitionBy: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                        orderBy: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    order: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            {
+                                                dataType: 'enum',
+                                                enums: ['asc'],
+                                            },
+                                            {
+                                                dataType: 'enum',
+                                                enums: ['desc'],
+                                            },
+                                            { dataType: 'enum', enums: [null] },
+                                        ],
+                                        required: true,
+                                    },
+                                    fieldId: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                },
+                            },
+                            required: true,
+                        },
+                        fieldId: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        windowFunction: {
+                            ref: 'WindowFunctionType',
+                            required: true,
+                        },
+                        type: {
+                            ref: 'TableCalculationTemplateType.WINDOW_FUNCTION',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TemplateTableCalculation: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'TableCalculationBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        template: {
+                            ref: 'TableCalculationTemplate',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FormulaTableCalculation: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'TableCalculationBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        formula: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TableCalculation: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'SqlTableCalculation' },
+                { ref: 'TemplateTableCalculation' },
+                { ref: 'FormulaTableCalculation' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricType: {
+        dataType: 'refEnum',
+        enums: [
+            'percentile',
+            'average',
+            'count',
+            'count_distinct',
+            'sum',
+            'sum_distinct',
+            'average_distinct',
+            'min',
+            'max',
+            'percent_of_previous',
+            'percent_of_total',
+            'running_total',
+            'number',
+            'median',
+            'string',
+            'date',
+            'timestamp',
+            'boolean',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Format: {
+        dataType: 'refEnum',
+        enums: [
+            'km',
+            'mi',
+            'si',
+            'usd',
+            'gbp',
+            'eur',
+            'jpy',
+            'dkk',
+            'id',
+            'percent',
+        ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FilterOperator: {
@@ -385,6 +1016,620 @@ const models: TsoaRoute.Models = {
             'notInBetween',
             'inPeriodToDate',
         ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricFilterRule: {
+        dataType: 'refObject',
+        properties: {
+            includeNull: { dataType: 'boolean' },
+            values: {
+                dataType: 'array',
+                array: { dataType: 'refAlias', ref: 'AnyType' },
+            },
+            operator: { ref: 'FilterOperator', required: true },
+            id: { dataType: 'string', required: true },
+            target: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    fieldRef: { dataType: 'string', required: true },
+                },
+                required: true,
+            },
+            settings: { ref: 'AnyType' },
+            disabled: { dataType: 'boolean' },
+            required: { dataType: 'boolean' },
+            caseSensitive: { dataType: 'boolean' },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FieldId: {
+        dataType: 'refAlias',
+        type: { dataType: 'string', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AdditionalMetric: {
+        dataType: 'refObject',
+        properties: {
+            label: { dataType: 'string' },
+            type: { ref: 'MetricType', required: true },
+            description: { dataType: 'string' },
+            sql: { dataType: 'string', required: true },
+            hidden: { dataType: 'boolean' },
+            round: { dataType: 'double' },
+            compact: { ref: 'CompactOrAlias' },
+            format: {
+                dataType: 'union',
+                subSchemas: [{ ref: 'Format' }, { dataType: 'string' }],
+            },
+            separator: { ref: 'NumberSeparator' },
+            table: { dataType: 'string', required: true },
+            name: { dataType: 'string', required: true },
+            index: { dataType: 'double' },
+            filters: {
+                dataType: 'array',
+                array: { dataType: 'refObject', ref: 'MetricFilterRule' },
+            },
+            baseDimensionName: { dataType: 'string' },
+            baseMetricName: { dataType: 'string' },
+            uuid: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+            },
+            percentile: { dataType: 'double' },
+            distinctKeys: { dataType: 'array', array: { dataType: 'string' } },
+            formatOptions: { ref: 'CustomFormat' },
+            generationType: { dataType: 'enum', enums: ['periodOverPeriod'] },
+            baseMetricId: { ref: 'FieldId' },
+            timeDimensionId: { ref: 'FieldId' },
+            granularity: { ref: 'TimeFrames' },
+            periodOffset: { dataType: 'double' },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'BinType.FIXED_NUMBER': {
+        dataType: 'refEnum',
+        enums: ['fixed_number'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'CustomDimensionType.BIN': {
+        dataType: 'refEnum',
+        enums: ['bin'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CustomDimensionType: {
+        dataType: 'refEnum',
+        enums: ['bin', 'sql'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FixedNumberBinDimension: {
+        dataType: 'refObject',
+        properties: {
+            id: { dataType: 'string', required: true },
+            name: { dataType: 'string', required: true },
+            table: { dataType: 'string', required: true },
+            type: { ref: 'CustomDimensionType.BIN', required: true },
+            dimensionId: { ref: 'FieldId', required: true },
+            binType: { ref: 'BinType.FIXED_NUMBER', required: true },
+            binNumber: { dataType: 'double', required: true },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'BinType.FIXED_WIDTH': {
+        dataType: 'refEnum',
+        enums: ['fixed_width'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FixedWidthBinDimension: {
+        dataType: 'refObject',
+        properties: {
+            id: { dataType: 'string', required: true },
+            name: { dataType: 'string', required: true },
+            table: { dataType: 'string', required: true },
+            type: { ref: 'CustomDimensionType.BIN', required: true },
+            dimensionId: { ref: 'FieldId', required: true },
+            binType: { ref: 'BinType.FIXED_WIDTH', required: true },
+            binWidth: { dataType: 'double', required: true },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'BinType.CUSTOM_RANGE': {
+        dataType: 'refEnum',
+        enums: ['custom_range'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    BinRange: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                to: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                from: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CustomRangeBinDimension: {
+        dataType: 'refObject',
+        properties: {
+            id: { dataType: 'string', required: true },
+            name: { dataType: 'string', required: true },
+            table: { dataType: 'string', required: true },
+            type: { ref: 'CustomDimensionType.BIN', required: true },
+            dimensionId: { ref: 'FieldId', required: true },
+            binType: { ref: 'BinType.CUSTOM_RANGE', required: true },
+            customRange: {
+                dataType: 'array',
+                array: { dataType: 'refAlias', ref: 'BinRange' },
+                required: true,
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'BinType.CUSTOM_GROUP': {
+        dataType: 'refEnum',
+        enums: ['custom_group'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GroupValueMatchType: {
+        dataType: 'refEnum',
+        enums: ['exact', 'startsWith', 'endsWith', 'includes'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GroupValueRule: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                value: { dataType: 'string', required: true },
+                matchType: { ref: 'GroupValueMatchType', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    BinGroup: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                values: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'GroupValueRule' },
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CustomGroupBinDimension: {
+        dataType: 'refObject',
+        properties: {
+            id: { dataType: 'string', required: true },
+            name: { dataType: 'string', required: true },
+            table: { dataType: 'string', required: true },
+            type: { ref: 'CustomDimensionType.BIN', required: true },
+            dimensionId: { ref: 'FieldId', required: true },
+            binType: { ref: 'BinType.CUSTOM_GROUP', required: true },
+            customGroups: {
+                dataType: 'array',
+                array: { dataType: 'refAlias', ref: 'BinGroup' },
+                required: true,
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CustomBinDimension: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'FixedNumberBinDimension' },
+                { ref: 'FixedWidthBinDimension' },
+                { ref: 'CustomRangeBinDimension' },
+                { ref: 'CustomGroupBinDimension' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'CustomDimensionType.SQL': {
+        dataType: 'refEnum',
+        enums: ['sql'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DimensionType: {
+        dataType: 'refEnum',
+        enums: ['string', 'number', 'timestamp', 'date', 'boolean'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CustomSqlDimension: {
+        dataType: 'refObject',
+        properties: {
+            id: { dataType: 'string', required: true },
+            name: { dataType: 'string', required: true },
+            table: { dataType: 'string', required: true },
+            type: { ref: 'CustomDimensionType.SQL', required: true },
+            sql: { dataType: 'string', required: true },
+            dimensionType: { ref: 'DimensionType', required: true },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CustomDimension: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'CustomBinDimension' },
+                { ref: 'CustomSqlDimension' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_Metric.formatOptions_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                formatOptions: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'CustomFormat' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricOverrides: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'Pick_Metric.formatOptions_' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_Dimension.formatOptions_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                formatOptions: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'CustomFormat' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DimensionOverrides: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'Pick_Dimension.formatOptions_' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CompiledDimension.name-or-label-or-table_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_MetricQuery.Exclude_keyofMetricQuery.filters__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                exploreName: { dataType: 'string', required: true },
+                dimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                metrics: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                sorts: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SortField' },
+                    required: true,
+                },
+                limit: { dataType: 'double', required: true },
+                tableCalculations: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'TableCalculation' },
+                    required: true,
+                },
+                additionalMetrics: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refObject',
+                                ref: 'AdditionalMetric',
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                customDimensions: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'CustomDimension',
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                metricOverrides: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'MetricOverrides' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                dimensionOverrides: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DimensionOverrides' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                timezone: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                pivotDimensions: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                metadata: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                hasADateDimension: {
+                                    ref: 'Pick_CompiledDimension.name-or-label-or-table_',
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_MetricQuery.filters_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_MetricQuery.Exclude_keyofMetricQuery.filters__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FilterGroupInput: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'OrFilterGroupInput' },
+                { ref: 'AndFilterGroupInput' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FieldTarget: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                fieldId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_FilterRule.Exclude_keyofFilterRule.id__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                target: { ref: 'FieldTarget', required: true },
+                settings: { dataType: 'any' },
+                disabled: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                required: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                caseSensitive: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                operator: { ref: 'FilterOperator', required: true },
+                values: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'any' } },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                includeNull: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_FilterRule.id_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_FilterRule.Exclude_keyofFilterRule.id__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FilterRuleInput: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Omit_FilterRule.id_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: { id: { dataType: 'string' } },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FilterGroupItemInput: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'FilterGroupInput' },
+                { ref: 'FilterRuleInput' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OrFilterGroupInput: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                or: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'FilterGroupItemInput',
+                    },
+                    required: true,
+                },
+                id: { dataType: 'string' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AndFilterGroupInput: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                and: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'FilterGroupItemInput',
+                    },
+                    required: true,
+                },
+                id: { dataType: 'string' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FiltersInput: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                tableCalculations: { ref: 'FilterGroupInput' },
+                metrics: { ref: 'FilterGroupInput' },
+                dimensions: { ref: 'FilterGroupInput' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ChartType.BIG_NUMBER': {
+        dataType: 'refEnum',
+        enums: ['big_number'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ComparisonFormatTypes: {
+        dataType: 'refEnum',
+        enums: ['raw', 'percentage'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'BaseFilterRule_FilterOperator.number-or-string_': {
@@ -1746,70 +2991,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ChartType.DATA_APP_VIZ': {
-        dataType: 'refEnum',
-        enums: ['data_app_viz'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppVizFieldMapping: {
-        dataType: 'refAlias',
-        type: { ref: 'Record_string.string_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppVizOptionValue: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'boolean' },
-                { dataType: 'double' },
-                { dataType: 'string' },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.DataAppVizOptionValue_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: { ref: 'DataAppVizOptionValue' },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppVizOptionValues: {
-        dataType: 'refAlias',
-        type: { ref: 'Record_string.DataAppVizOptionValue_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppVizChart: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                optionValues: { ref: 'DataAppVizOptionValues' },
-                fieldMapping: { ref: 'DataAppVizFieldMapping', required: true },
-                dataAppVizSlug: { dataType: 'string' },
-                dataAppVizUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppVizChartConfig: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                config: { ref: 'DataAppVizChart' },
-                type: { ref: 'ChartType.DATA_APP_VIZ', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ChartType.MAP': {
         dataType: 'refEnum',
         enums: ['map'],
@@ -2008,7 +3189,101 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ChartConfig: {
+    'ChartType.DATA_APP_VIZ': {
+        dataType: 'refEnum',
+        enums: ['data_app_viz'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizFieldMapping: {
+        dataType: 'refAlias',
+        type: { ref: 'Record_string.string_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizOptionValue: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'boolean' },
+                { dataType: 'double' },
+                { dataType: 'string' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.DataAppVizOptionValue_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'DataAppVizOptionValue' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizOptionValues: {
+        dataType: 'refAlias',
+        type: { ref: 'Record_string.DataAppVizOptionValue_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_DataAppVizChart.Exclude_keyofDataAppVizChart.dataAppVizUuid__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                fieldMapping: { ref: 'DataAppVizFieldMapping', required: true },
+                optionValues: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DataAppVizOptionValues' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_DataAppVizChart.dataAppVizUuid_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_DataAppVizChart.Exclude_keyofDataAppVizChart.dataAppVizUuid__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizChartAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Omit_DataAppVizChart.dataAppVizUuid_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dataAppVizUuid: { dataType: 'string' },
+                        dataAppVizSlug: { dataType: 'string' },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizChartConfigAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                config: { ref: 'DataAppVizChartAsCode' },
+                type: { ref: 'ChartType.DATA_APP_VIZ', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ChartAsCodeConfig: {
         dataType: 'refAlias',
         type: {
             dataType: 'union',
@@ -2021,1256 +3296,10 @@ const models: TsoaRoute.Models = {
                 { ref: 'TableChartConfig' },
                 { ref: 'TreemapChartConfig' },
                 { ref: 'GaugeChartConfig' },
-                { ref: 'DataAppVizChartConfig' },
                 { ref: 'MapChartConfig' },
                 { ref: 'SankeyChartConfig' },
+                { ref: 'DataAppVizChartConfigAsCode' },
             ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ParameterValue: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'string' },
-                { dataType: 'double' },
-                { dataType: 'array', array: { dataType: 'string' } },
-                { dataType: 'array', array: { dataType: 'double' } },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.ParameterValue_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: { ref: 'ParameterValue' },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ParametersValuesMap: {
-        dataType: 'refAlias',
-        type: { ref: 'Record_string.ParameterValue_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery__':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    name: { dataType: 'string', required: true },
-                    description: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    tableName: { dataType: 'string', required: true },
-                    chartConfig: { ref: 'ChartConfig', required: true },
-                    pivotConfig: {
-                        dataType: 'union',
-                        subSchemas: [
-                            {
-                                dataType: 'nestedObjectLiteral',
-                                nestedProperties: {
-                                    rows: {
-                                        dataType: 'union',
-                                        subSchemas: [
-                                            {
-                                                dataType: 'array',
-                                                array: { dataType: 'string' },
-                                            },
-                                            { dataType: 'undefined' },
-                                        ],
-                                    },
-                                    columns: {
-                                        dataType: 'array',
-                                        array: { dataType: 'string' },
-                                        required: true,
-                                    },
-                                },
-                            },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    slug: { dataType: 'string', required: true },
-                    parameters: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { ref: 'ParametersValuesMap' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                },
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery_':
-        {
-            dataType: 'refAlias',
-            type: {
-                ref: 'Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery__',
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PivotSortAnchor: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                value: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'double' },
-                        { dataType: 'boolean' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                reference: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SortField: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                pivotValues: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'PivotSortAnchor' },
-                },
-                nullsFirst: { dataType: 'boolean' },
-                descending: { dataType: 'boolean', required: true },
-                fieldId: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CustomFormatType: {
-        dataType: 'refEnum',
-        enums: [
-            'default',
-            'percent',
-            'currency',
-            'number',
-            'id',
-            'date',
-            'timestamp',
-            'bytes_si',
-            'bytes_iec',
-            'custom',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    NumberSeparator: {
-        dataType: 'refEnum',
-        enums: [
-            'default',
-            'commaPeriod',
-            'spacePeriod',
-            'periodComma',
-            'noSeparatorPeriod',
-            'apostrophePeriod',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    TimeFrames: {
-        dataType: 'refEnum',
-        enums: [
-            'RAW',
-            'YEAR',
-            'QUARTER',
-            'MONTH',
-            'WEEK',
-            'DAY',
-            'HOUR',
-            'MINUTE',
-            'SECOND',
-            'MILLISECOND',
-            'DAY_OF_WEEK_INDEX',
-            'DAY_OF_MONTH_NUM',
-            'DAY_OF_YEAR_NUM',
-            'WEEK_NUM',
-            'MONTH_NUM',
-            'QUARTER_NUM',
-            'YEAR_NUM',
-            'DAY_OF_WEEK_NAME',
-            'MONTH_NAME',
-            'QUARTER_NAME',
-            'HOUR_OF_DAY_NUM',
-            'MINUTE_OF_HOUR_NUM',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CustomFormat: {
-        dataType: 'refObject',
-        properties: {
-            type: { ref: 'CustomFormatType', required: true },
-            round: {
-                dataType: 'union',
-                subSchemas: [{ dataType: 'double' }, { dataType: 'undefined' }],
-            },
-            separator: { ref: 'NumberSeparator' },
-            currency: {
-                dataType: 'union',
-                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
-            },
-            compact: {
-                dataType: 'union',
-                subSchemas: [
-                    { ref: 'CompactOrAlias' },
-                    { dataType: 'undefined' },
-                ],
-            },
-            prefix: {
-                dataType: 'union',
-                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
-            },
-            suffix: {
-                dataType: 'union',
-                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
-            },
-            timeInterval: { ref: 'TimeFrames' },
-            custom: {
-                dataType: 'union',
-                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
-            },
-        },
-        additionalProperties: true,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    TableCalculationType: {
-        dataType: 'refEnum',
-        enums: ['number', 'string', 'date', 'timestamp', 'boolean'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    TableCalculationTotalMode: {
-        dataType: 'refEnum',
-        enums: ['formula', 'sum_of_rows', 'none'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    TableCalculationBase: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                totalMode: { ref: 'TableCalculationTotalMode' },
-                type: { ref: 'TableCalculationType' },
-                format: { ref: 'CustomFormat' },
-                displayName: { dataType: 'string', required: true },
-                name: { dataType: 'string', required: true },
-                index: { dataType: 'double' },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SqlTableCalculation: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'TableCalculationBase' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        sql: { dataType: 'string', required: true },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS': {
-        dataType: 'refEnum',
-        enums: ['percent_change_from_previous'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE': {
-        dataType: 'refEnum',
-        enums: ['percent_of_previous_value'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL': {
-        dataType: 'refEnum',
-        enums: ['percent_of_column_total'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'TableCalculationTemplateType.RANK_IN_COLUMN': {
-        dataType: 'refEnum',
-        enums: ['rank_in_column'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'TableCalculationTemplateType.RUNNING_TOTAL': {
-        dataType: 'refEnum',
-        enums: ['running_total'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'TableCalculationTemplateType.WINDOW_FUNCTION': {
-        dataType: 'refEnum',
-        enums: ['window_function'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    WindowFunctionType: {
-        dataType: 'refEnum',
-        enums: [
-            'row_number',
-            'percent_rank',
-            'cume_dist',
-            'rank',
-            'sum',
-            'avg',
-            'count',
-            'min',
-            'max',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FrameType: {
-        dataType: 'refEnum',
-        enums: ['rows', 'range'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FrameBoundaryType: {
-        dataType: 'refEnum',
-        enums: [
-            'unbounded_preceding',
-            'preceding',
-            'current_row',
-            'following',
-            'unbounded_following',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FrameBoundary: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                offset: { dataType: 'double' },
-                type: { ref: 'FrameBoundaryType', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FrameClause: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                end: { ref: 'FrameBoundary', required: true },
-                start: { ref: 'FrameBoundary' },
-                frameType: { ref: 'FrameType', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    TableCalculationTemplate: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        partitionBy: {
-                            dataType: 'array',
-                            array: { dataType: 'string' },
-                        },
-                        orderBy: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'nestedObjectLiteral',
-                                nestedProperties: {
-                                    order: {
-                                        dataType: 'union',
-                                        subSchemas: [
-                                            {
-                                                dataType: 'enum',
-                                                enums: ['asc'],
-                                            },
-                                            {
-                                                dataType: 'enum',
-                                                enums: ['desc'],
-                                            },
-                                            { dataType: 'enum', enums: [null] },
-                                        ],
-                                        required: true,
-                                    },
-                                    fieldId: {
-                                        dataType: 'string',
-                                        required: true,
-                                    },
-                                },
-                            },
-                            required: true,
-                        },
-                        fieldId: { dataType: 'string', required: true },
-                        type: {
-                            ref: 'TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS',
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        partitionBy: {
-                            dataType: 'array',
-                            array: { dataType: 'string' },
-                        },
-                        orderBy: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'nestedObjectLiteral',
-                                nestedProperties: {
-                                    order: {
-                                        dataType: 'union',
-                                        subSchemas: [
-                                            {
-                                                dataType: 'enum',
-                                                enums: ['asc'],
-                                            },
-                                            {
-                                                dataType: 'enum',
-                                                enums: ['desc'],
-                                            },
-                                            { dataType: 'enum', enums: [null] },
-                                        ],
-                                        required: true,
-                                    },
-                                    fieldId: {
-                                        dataType: 'string',
-                                        required: true,
-                                    },
-                                },
-                            },
-                            required: true,
-                        },
-                        fieldId: { dataType: 'string', required: true },
-                        type: {
-                            ref: 'TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE',
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        partitionBy: {
-                            dataType: 'array',
-                            array: { dataType: 'string' },
-                        },
-                        fieldId: { dataType: 'string', required: true },
-                        type: {
-                            ref: 'TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL',
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        fieldId: { dataType: 'string', required: true },
-                        type: {
-                            ref: 'TableCalculationTemplateType.RANK_IN_COLUMN',
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        orderBy: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'nestedObjectLiteral',
-                                nestedProperties: {
-                                    order: {
-                                        dataType: 'union',
-                                        subSchemas: [
-                                            {
-                                                dataType: 'enum',
-                                                enums: ['asc'],
-                                            },
-                                            {
-                                                dataType: 'enum',
-                                                enums: ['desc'],
-                                            },
-                                            { dataType: 'enum', enums: [null] },
-                                        ],
-                                        required: true,
-                                    },
-                                    fieldId: {
-                                        dataType: 'string',
-                                        required: true,
-                                    },
-                                },
-                            },
-                        },
-                        fieldId: { dataType: 'string', required: true },
-                        type: {
-                            ref: 'TableCalculationTemplateType.RUNNING_TOTAL',
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        frame: { ref: 'FrameClause' },
-                        partitionBy: {
-                            dataType: 'array',
-                            array: { dataType: 'string' },
-                            required: true,
-                        },
-                        orderBy: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'nestedObjectLiteral',
-                                nestedProperties: {
-                                    order: {
-                                        dataType: 'union',
-                                        subSchemas: [
-                                            {
-                                                dataType: 'enum',
-                                                enums: ['asc'],
-                                            },
-                                            {
-                                                dataType: 'enum',
-                                                enums: ['desc'],
-                                            },
-                                            { dataType: 'enum', enums: [null] },
-                                        ],
-                                        required: true,
-                                    },
-                                    fieldId: {
-                                        dataType: 'string',
-                                        required: true,
-                                    },
-                                },
-                            },
-                            required: true,
-                        },
-                        fieldId: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'string' },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                            required: true,
-                        },
-                        windowFunction: {
-                            ref: 'WindowFunctionType',
-                            required: true,
-                        },
-                        type: {
-                            ref: 'TableCalculationTemplateType.WINDOW_FUNCTION',
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    TemplateTableCalculation: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'TableCalculationBase' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        template: {
-                            ref: 'TableCalculationTemplate',
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FormulaTableCalculation: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'TableCalculationBase' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        formula: { dataType: 'string', required: true },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    TableCalculation: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { ref: 'SqlTableCalculation' },
-                { ref: 'TemplateTableCalculation' },
-                { ref: 'FormulaTableCalculation' },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MetricType: {
-        dataType: 'refEnum',
-        enums: [
-            'percentile',
-            'average',
-            'count',
-            'count_distinct',
-            'sum',
-            'sum_distinct',
-            'average_distinct',
-            'min',
-            'max',
-            'percent_of_previous',
-            'percent_of_total',
-            'running_total',
-            'number',
-            'median',
-            'string',
-            'date',
-            'timestamp',
-            'boolean',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    Format: {
-        dataType: 'refEnum',
-        enums: [
-            'km',
-            'mi',
-            'si',
-            'usd',
-            'gbp',
-            'eur',
-            'jpy',
-            'dkk',
-            'id',
-            'percent',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MetricFilterRule: {
-        dataType: 'refObject',
-        properties: {
-            includeNull: { dataType: 'boolean' },
-            values: {
-                dataType: 'array',
-                array: { dataType: 'refAlias', ref: 'AnyType' },
-            },
-            operator: { ref: 'FilterOperator', required: true },
-            id: { dataType: 'string', required: true },
-            target: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    fieldRef: { dataType: 'string', required: true },
-                },
-                required: true,
-            },
-            settings: { ref: 'AnyType' },
-            disabled: { dataType: 'boolean' },
-            required: { dataType: 'boolean' },
-            caseSensitive: { dataType: 'boolean' },
-        },
-        additionalProperties: true,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FieldId: {
-        dataType: 'refAlias',
-        type: { dataType: 'string', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AdditionalMetric: {
-        dataType: 'refObject',
-        properties: {
-            label: { dataType: 'string' },
-            type: { ref: 'MetricType', required: true },
-            description: { dataType: 'string' },
-            sql: { dataType: 'string', required: true },
-            hidden: { dataType: 'boolean' },
-            round: { dataType: 'double' },
-            compact: { ref: 'CompactOrAlias' },
-            format: {
-                dataType: 'union',
-                subSchemas: [{ ref: 'Format' }, { dataType: 'string' }],
-            },
-            separator: { ref: 'NumberSeparator' },
-            table: { dataType: 'string', required: true },
-            name: { dataType: 'string', required: true },
-            index: { dataType: 'double' },
-            filters: {
-                dataType: 'array',
-                array: { dataType: 'refObject', ref: 'MetricFilterRule' },
-            },
-            baseDimensionName: { dataType: 'string' },
-            baseMetricName: { dataType: 'string' },
-            uuid: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'string' },
-                    { dataType: 'enum', enums: [null] },
-                ],
-            },
-            percentile: { dataType: 'double' },
-            distinctKeys: { dataType: 'array', array: { dataType: 'string' } },
-            formatOptions: { ref: 'CustomFormat' },
-            generationType: { dataType: 'enum', enums: ['periodOverPeriod'] },
-            baseMetricId: { ref: 'FieldId' },
-            timeDimensionId: { ref: 'FieldId' },
-            granularity: { ref: 'TimeFrames' },
-            periodOffset: { dataType: 'double' },
-        },
-        additionalProperties: true,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'BinType.FIXED_NUMBER': {
-        dataType: 'refEnum',
-        enums: ['fixed_number'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'CustomDimensionType.BIN': {
-        dataType: 'refEnum',
-        enums: ['bin'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CustomDimensionType: {
-        dataType: 'refEnum',
-        enums: ['bin', 'sql'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FixedNumberBinDimension: {
-        dataType: 'refObject',
-        properties: {
-            id: { dataType: 'string', required: true },
-            name: { dataType: 'string', required: true },
-            table: { dataType: 'string', required: true },
-            type: { ref: 'CustomDimensionType.BIN', required: true },
-            dimensionId: { ref: 'FieldId', required: true },
-            binType: { ref: 'BinType.FIXED_NUMBER', required: true },
-            binNumber: { dataType: 'double', required: true },
-        },
-        additionalProperties: true,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'BinType.FIXED_WIDTH': {
-        dataType: 'refEnum',
-        enums: ['fixed_width'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FixedWidthBinDimension: {
-        dataType: 'refObject',
-        properties: {
-            id: { dataType: 'string', required: true },
-            name: { dataType: 'string', required: true },
-            table: { dataType: 'string', required: true },
-            type: { ref: 'CustomDimensionType.BIN', required: true },
-            dimensionId: { ref: 'FieldId', required: true },
-            binType: { ref: 'BinType.FIXED_WIDTH', required: true },
-            binWidth: { dataType: 'double', required: true },
-        },
-        additionalProperties: true,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'BinType.CUSTOM_RANGE': {
-        dataType: 'refEnum',
-        enums: ['custom_range'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    BinRange: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                to: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
-                from: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CustomRangeBinDimension: {
-        dataType: 'refObject',
-        properties: {
-            id: { dataType: 'string', required: true },
-            name: { dataType: 'string', required: true },
-            table: { dataType: 'string', required: true },
-            type: { ref: 'CustomDimensionType.BIN', required: true },
-            dimensionId: { ref: 'FieldId', required: true },
-            binType: { ref: 'BinType.CUSTOM_RANGE', required: true },
-            customRange: {
-                dataType: 'array',
-                array: { dataType: 'refAlias', ref: 'BinRange' },
-                required: true,
-            },
-        },
-        additionalProperties: true,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'BinType.CUSTOM_GROUP': {
-        dataType: 'refEnum',
-        enums: ['custom_group'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    GroupValueMatchType: {
-        dataType: 'refEnum',
-        enums: ['exact', 'startsWith', 'endsWith', 'includes'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    GroupValueRule: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                value: { dataType: 'string', required: true },
-                matchType: { ref: 'GroupValueMatchType', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    BinGroup: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                values: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'GroupValueRule' },
-                    required: true,
-                },
-                name: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CustomGroupBinDimension: {
-        dataType: 'refObject',
-        properties: {
-            id: { dataType: 'string', required: true },
-            name: { dataType: 'string', required: true },
-            table: { dataType: 'string', required: true },
-            type: { ref: 'CustomDimensionType.BIN', required: true },
-            dimensionId: { ref: 'FieldId', required: true },
-            binType: { ref: 'BinType.CUSTOM_GROUP', required: true },
-            customGroups: {
-                dataType: 'array',
-                array: { dataType: 'refAlias', ref: 'BinGroup' },
-                required: true,
-            },
-        },
-        additionalProperties: true,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CustomBinDimension: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { ref: 'FixedNumberBinDimension' },
-                { ref: 'FixedWidthBinDimension' },
-                { ref: 'CustomRangeBinDimension' },
-                { ref: 'CustomGroupBinDimension' },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'CustomDimensionType.SQL': {
-        dataType: 'refEnum',
-        enums: ['sql'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DimensionType: {
-        dataType: 'refEnum',
-        enums: ['string', 'number', 'timestamp', 'date', 'boolean'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CustomSqlDimension: {
-        dataType: 'refObject',
-        properties: {
-            id: { dataType: 'string', required: true },
-            name: { dataType: 'string', required: true },
-            table: { dataType: 'string', required: true },
-            type: { ref: 'CustomDimensionType.SQL', required: true },
-            sql: { dataType: 'string', required: true },
-            dimensionType: { ref: 'DimensionType', required: true },
-        },
-        additionalProperties: true,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CustomDimension: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { ref: 'CustomBinDimension' },
-                { ref: 'CustomSqlDimension' },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Metric.formatOptions_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                formatOptions: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'CustomFormat' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MetricOverrides: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: { ref: 'Pick_Metric.formatOptions_' },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Dimension.formatOptions_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                formatOptions: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'CustomFormat' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DimensionOverrides: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: { ref: 'Pick_Dimension.formatOptions_' },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_CompiledDimension.name-or-label-or-table_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_MetricQuery.Exclude_keyofMetricQuery.filters__': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                exploreName: { dataType: 'string', required: true },
-                dimensions: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-                metrics: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-                sorts: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'SortField' },
-                    required: true,
-                },
-                limit: { dataType: 'double', required: true },
-                tableCalculations: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'TableCalculation' },
-                    required: true,
-                },
-                additionalMetrics: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'refObject',
-                                ref: 'AdditionalMetric',
-                            },
-                        },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                customDimensions: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'refAlias',
-                                ref: 'CustomDimension',
-                            },
-                        },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                metricOverrides: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'MetricOverrides' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                dimensionOverrides: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'DimensionOverrides' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                timezone: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                pivotDimensions: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'array', array: { dataType: 'string' } },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                metadata: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                hasADateDimension: {
-                                    ref: 'Pick_CompiledDimension.name-or-label-or-table_',
-                                    required: true,
-                                },
-                            },
-                        },
-                        { dataType: 'undefined' },
-                    ],
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_MetricQuery.filters_': {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Pick_MetricQuery.Exclude_keyofMetricQuery.filters__',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FilterGroupInput: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { ref: 'OrFilterGroupInput' },
-                { ref: 'AndFilterGroupInput' },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_FilterRule.Exclude_keyofFilterRule.id__': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                target: { ref: 'FieldTarget', required: true },
-                settings: { dataType: 'any' },
-                disabled: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'boolean' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                required: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'boolean' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                caseSensitive: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'boolean' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                operator: { ref: 'FilterOperator', required: true },
-                values: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'array', array: { dataType: 'any' } },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                includeNull: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'boolean' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_FilterRule.id_': {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Pick_FilterRule.Exclude_keyofFilterRule.id__',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FilterRuleInput: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'Omit_FilterRule.id_' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: { id: { dataType: 'string' } },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FilterGroupItemInput: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { ref: 'FilterGroupInput' },
-                { ref: 'FilterRuleInput' },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    OrFilterGroupInput: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                or: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'FilterGroupItemInput',
-                    },
-                    required: true,
-                },
-                id: { dataType: 'string' },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AndFilterGroupInput: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                and: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'FilterGroupItemInput',
-                    },
-                    required: true,
-                },
-                id: { dataType: 'string' },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FiltersInput: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                tableCalculations: { ref: 'FilterGroupInput' },
-                metrics: { ref: 'FilterGroupInput' },
-                dimensions: { ref: 'FilterGroupInput' },
-            },
             validators: {},
         },
     },
@@ -3306,7 +3335,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery_',
+                    ref: 'Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery-or-chartConfig_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -3342,6 +3371,10 @@ const models: TsoaRoute.Models = {
                             },
                         },
                         updatedAt: { dataType: 'datetime' },
+                        chartConfig: {
+                            ref: 'ChartAsCodeConfig',
+                            required: true,
+                        },
                         metricQuery: {
                             dataType: 'intersection',
                             subSchemas: [
@@ -7359,6 +7392,52 @@ const models: TsoaRoute.Models = {
                 },
                 exploreName: { dataType: 'string', required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizChart: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                optionValues: { ref: 'DataAppVizOptionValues' },
+                fieldMapping: { ref: 'DataAppVizFieldMapping', required: true },
+                dataAppVizUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizChartConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                config: { ref: 'DataAppVizChart' },
+                type: { ref: 'ChartType.DATA_APP_VIZ', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ChartConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'BigNumberConfig' },
+                { ref: 'CartesianChartConfig' },
+                { ref: 'CustomVisConfig' },
+                { ref: 'PieChartConfig' },
+                { ref: 'FunnelChartConfig' },
+                { ref: 'TableChartConfig' },
+                { ref: 'TreemapChartConfig' },
+                { ref: 'GaugeChartConfig' },
+                { ref: 'DataAppVizChartConfig' },
+                { ref: 'MapChartConfig' },
+                { ref: 'SankeyChartConfig' },
+            ],
             validators: {},
         },
     },
@@ -13854,6 +13933,7 @@ const models: TsoaRoute.Models = {
             type: {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
+                    table: { dataType: 'string', required: true },
                     hidden: {
                         dataType: 'union',
                         subSchemas: [
@@ -13861,7 +13941,6 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
-                    table: { dataType: 'string', required: true },
                     type: {
                         dataType: 'union',
                         subSchemas: [

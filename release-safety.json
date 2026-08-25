@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "1.262.1",
-  "previousVersion": "1.262.0",
-  "releaseDate": "2026-08-25T17:08:04.457Z",
+  "version": "2.0.0",
+  "previousVersion": "1.262.1",
+  "releaseDate": "2026-08-25T17:16:37.554Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,8 +20,25 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/dashboards/{dashboardUuidOrSlug}/promoteDiff — removed the optional property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/chartConfig/anyOf[#/components/schemas/DataAppVizChartConfig]/config/dataAppVizSlug` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/charts/{slug}/code — removed the optional property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/chartConfig/anyOf[#/components/schemas/DataAppVizChartConfig]/config/dataAppVizSlug` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/code/charts/{slug} — removed the optional property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/chartConfig/anyOf[#/components/schemas/DataAppVizChartConfig]/config/dataAppVizSlug` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed the optional property `results/allOf[#/components/schemas/PromotionChanges]/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/chartConfig/anyOf[#/components/schemas/DataAppVizChartConfig]/config/dataAppVizSlug` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/code/sqlCharts/{slug} — removed the optional property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/chartConfig/anyOf[#/components/schemas/DataAppVizChartConfig]/config/dataAppVizSlug` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — removed the request property `charts/items/anyOf[#/components/schemas/CreateChartInDashboard]/allOf[#/components/schemas/CreateChartBase]/chartConfig/anyOf[#/components/schemas/DataAppVizChartConfig]/config/dataAppVizSlug`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — removed the request property `charts/items/anyOf[#/components/schemas/CreateChartInSpace]/allOf[#/components/schemas/CreateChartBase]/chartConfig/anyOf[#/components/schemas/DataAppVizChartConfig]/config/dataAppVizSlug`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — removed the optional property `results/allOf[#/components/schemas/PromotionChanges]/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/chartConfig/anyOf[#/components/schemas/DataAppVizChartConfig]/config/dataAppVizSlug` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/sqlCharts/{slug}/code — removed the optional property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/chartConfig/anyOf[#/components/schemas/DataAppVizChartConfig]/config/dataAppVizSlug` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/sqlRunner/saved/{uuid}/promoteDiff — removed the optional property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/chartConfig/anyOf[#/components/schemas/DataAppVizChartConfig]/config/dataAppVizSlug` from the response with the `200` status",
+        "POST /api/v1/saved/{chartUuid}/promote — removed the optional property `results/chartConfig/anyOf[#/components/schemas/DataAppVizChartConfig]/config/dataAppVizSlug` from the response with the `200` status",
+        "GET /api/v1/saved/{chartUuid}/promoteDiff — removed the optional property `results/charts/items/data/allOf[#/components/schemas/SavedChartDAO]/chartConfig/anyOf[#/components/schemas/DataAppVizChartConfig]/config/dataAppVizSlug` from the response with the `200` status",
+        "GET /api/v1/saved/{chartUuid}/version/{versionUuid} — removed the optional property `results/chart/chartConfig/anyOf[#/components/schemas/DataAppVizChartConfig]/config/dataAppVizSlug` from the response with the `200` status",
+        "POST /api/v2/projects/{projectUuid}/query/compose-merge-query — removed the request property `chart/chartConfig/anyOf[#/components/schemas/DataAppVizChartConfig]/config/dataAppVizSlug`",
+        "POST /api/v2/projects/{projectUuid}/query/merge-query — removed the request property `allOf[subschema #2]/chart/chartConfig/anyOf[#/components/schemas/DataAppVizChartConfig]/config/dataAppVizSlug`",
+        "GET /api/v2/projects/{projectUuid}/saved/{chartUuidOrSlug} — removed the optional property `results/chartConfig/anyOf[#/components/schemas/DataAppVizChartConfig]/config/dataAppVizSlug` from the response with the `200` status"
+      ],
+      "advisoryCount": 16
     },
     "mcp": {
       "checked": true,
