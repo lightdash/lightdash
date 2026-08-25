@@ -41,7 +41,11 @@ import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedCon
 import { type StartDeepResearchArgs } from '../../features/aiCopilot/deepResearch/types';
 import { useAiAgentModelSelection } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
-import { useAiAgentRouterFlow } from '../../features/aiCopilot/hooks/useAiAgentRouterFlow';
+import {
+    useAiAgentRouterFlow,
+    type AiAgentRouterErrorArgs,
+    type CreateThreadForAgent,
+} from '../../features/aiCopilot/hooks/useAiAgentRouterFlow';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useAiAgentMemoryEnabled } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useStartDeepResearchForThreadMutation } from '../../features/aiCopilot/hooks/useDeepResearch';
@@ -54,8 +58,6 @@ import {
 import { setThreadSqlMode } from '../../features/aiCopilot/store/aiAgentThreadModeSlice';
 import { useAiAgentStoreDispatch } from '../../features/aiCopilot/store/hooks';
 import classes from './AgentsRouterPage.module.css';
-
-type AgentsRouterPayload = { kind: 'chat' } | { kind: 'deep_research' };
 
 const AgentsRouterPage = () => {
     const projectUuid = useProjectUuid();
@@ -120,7 +122,7 @@ const AgentsRouterPage = () => {
         projectUuid!,
     );
 
-    const createChatThreadForAgent = useCallback(
+    const createThreadForAgent = useCallback(
         async (args: {
             agentUuid: string;
             context?: AiPromptContextInput;
@@ -160,14 +162,8 @@ const AgentsRouterPage = () => {
         ],
     );
 
-    const createDeepResearchForAgent = useCallback(
-        async (args: {
-            agentUuid: string;
-            context?: AiPromptContextInput;
-            message: string;
-            optimisticContext?: AiPromptContext;
-            toolHints: string[];
-        }) => {
+    const createDeepResearchForAgent = useCallback<CreateThreadForAgent>(
+        async (args) => {
             const thread = await createThread({
                 agentUuid: args.agentUuid,
                 context: args.context,
@@ -187,48 +183,27 @@ const AgentsRouterPage = () => {
         [createThread, modelConfig, startDeepResearch],
     );
 
-    const createThreadForPayload = useCallback(
-        ({
-            payload,
-            ...args
-        }: Parameters<typeof createChatThreadForAgent>[0] & {
-            payload: AgentsRouterPayload;
-        }) =>
-            payload.kind === 'deep_research'
-                ? createDeepResearchForAgent(args)
-                : createChatThreadForAgent(args),
-        [createChatThreadForAgent, createDeepResearchForAgent],
-    );
-
     const handleRouteError = useCallback(
-        async ({
+        ({
             fallbackAgent,
             context,
+            createThreadForAgent: createThreadForAgentOverride,
             message,
             optimisticContext,
-            payload,
             toolHints,
-        }: {
-            fallbackAgent?: { uuid: string };
-            context?: AiPromptContextInput;
-            message: string;
-            optimisticContext?: AiPromptContext;
-            payload: AgentsRouterPayload;
-            toolHints: string[];
-        }) => {
+        }: AiAgentRouterErrorArgs) => {
             setPendingPrompt(message);
             if (fallbackAgent && projectUuid) {
-                await createThreadForPayload({
+                void (createThreadForAgentOverride ?? createThreadForAgent)({
                     agentUuid: fallbackAgent.uuid,
                     context,
                     message,
                     optimisticContext,
-                    payload,
                     toolHints,
                 });
             }
         },
-        [createThreadForPayload, projectUuid, setPendingPrompt],
+        [createThreadForAgent, projectUuid, setPendingPrompt],
     );
 
     const {
@@ -240,9 +215,9 @@ const AgentsRouterPage = () => {
         isRouting,
         phase,
         sortedCandidates,
-    } = useAiAgentRouterFlow<AgentsRouterPayload>({
+    } = useAiAgentRouterFlow({
         agents: agents ?? [],
-        createThreadForAgent: createThreadForPayload,
+        createThreadForAgent,
         onRouteError: handleRouteError,
         projectUuid,
     });
@@ -273,9 +248,8 @@ const AgentsRouterPage = () => {
                 context: mergedContext,
                 message,
                 optimisticContext: mergedOptimisticContext,
-                payload: { kind: 'chat' },
                 toolHints,
-            }).catch(() => undefined);
+            });
         },
         [
             contextInput,
@@ -295,15 +269,16 @@ const AgentsRouterPage = () => {
             setPendingPrompt('');
             await handleRouterSubmit({
                 context: contextInput,
+                createThreadForAgent: createDeepResearchForAgent,
                 message: question,
                 optimisticContext: previewItems,
-                payload: { kind: 'deep_research' },
                 toolHints: [],
             });
         },
         [
             canStartDeepResearch,
             contextInput,
+            createDeepResearchForAgent,
             handleRouterSubmit,
             isPinnedContextReady,
             previewItems,

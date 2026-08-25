@@ -8,7 +8,7 @@ import {
 import { useCallback, useMemo, useReducer } from 'react';
 import { useAiRouterCommit, useAiRouterRoute } from './useAiRouter';
 
-type AiAgentRouterPhase<TPayload> =
+type AiAgentRouterPhase =
     | { kind: 'idle' }
     | { kind: 'routing' }
     | { kind: 'creating' }
@@ -17,12 +17,12 @@ type AiAgentRouterPhase<TPayload> =
           context?: AiPromptContextInput;
           decision: AiRouterRouteResponseResult;
           optimisticContext?: AiPromptContext;
-          payload: TPayload;
+          createThreadForAgent?: CreateThreadForAgent;
           prompt: string;
           toolHints: string[];
       };
 
-type AiAgentRouterAction<TPayload> =
+type AiAgentRouterAction =
     | { type: 'idle' }
     | { type: 'routing' }
     | { type: 'creating' }
@@ -31,37 +31,40 @@ type AiAgentRouterAction<TPayload> =
           context?: AiPromptContextInput;
           decision: AiRouterRouteResponseResult;
           optimisticContext?: AiPromptContext;
-          payload: TPayload;
+          createThreadForAgent?: CreateThreadForAgent;
           prompt: string;
           toolHints: string[];
       };
 
-export type AiAgentRouterSubmitArgs<TPayload = undefined> = {
+export type AiAgentRouterSubmitArgs = {
     message: string;
     toolHints: string[];
     context?: AiPromptContextInput;
     optimisticContext?: AiPromptContext;
-    payload: TPayload;
+    createThreadForAgent?: CreateThreadForAgent;
 };
 
-type CreateThreadForAgent<TPayload> = (args: {
+export type CreateThreadForAgent = (args: {
     agentUuid: string;
     context?: AiPromptContextInput;
     message: string;
     optimisticContext?: AiPromptContext;
-    payload: TPayload;
     toolHints: string[];
 }) => Promise<{ uuid: string }>;
+
+export type AiAgentRouterErrorArgs = AiAgentRouterSubmitArgs & {
+    fallbackAgent?: AiAgentSummary;
+};
 
 export type AiAgentRouterCandidate = AiRouterDecisionCandidate & {
     agent: AiAgentSummary | undefined;
     isRecommended: boolean;
 };
 
-const aiAgentRouterReducer = <TPayload>(
-    phase: AiAgentRouterPhase<TPayload>,
-    action: AiAgentRouterAction<TPayload>,
-): AiAgentRouterPhase<TPayload> => {
+const aiAgentRouterReducer = (
+    phase: AiAgentRouterPhase,
+    action: AiAgentRouterAction,
+): AiAgentRouterPhase => {
     switch (action.type) {
         case 'idle':
             return { kind: 'idle' };
@@ -75,7 +78,7 @@ const aiAgentRouterReducer = <TPayload>(
                 context: action.context,
                 decision: action.decision,
                 optimisticContext: action.optimisticContext,
-                payload: action.payload,
+                createThreadForAgent: action.createThreadForAgent,
                 prompt: action.prompt,
                 toolHints: action.toolHints,
             };
@@ -84,22 +87,18 @@ const aiAgentRouterReducer = <TPayload>(
     }
 };
 
-export const useAiAgentRouterFlow = <TPayload = undefined>({
+export const useAiAgentRouterFlow = ({
     agents,
     createThreadForAgent,
     onRouteError,
     projectUuid,
 }: {
     agents: AiAgentSummary[];
-    createThreadForAgent: CreateThreadForAgent<TPayload>;
-    onRouteError?: (
-        args: AiAgentRouterSubmitArgs<TPayload> & {
-            fallbackAgent?: AiAgentSummary;
-        },
-    ) => void | Promise<void>;
+    createThreadForAgent: CreateThreadForAgent;
+    onRouteError?: (args: AiAgentRouterErrorArgs) => void;
     projectUuid: string | undefined;
 }) => {
-    const [phase, dispatch] = useReducer(aiAgentRouterReducer<TPayload>, {
+    const [phase, dispatch] = useReducer(aiAgentRouterReducer, {
         kind: 'idle',
     });
     const { mutateAsync: routePrompt } = useAiRouterRoute();
@@ -117,19 +116,20 @@ export const useAiAgentRouterFlow = <TPayload = undefined>({
             decisionUuid,
             message,
             optimisticContext,
-            payload,
+            createThreadForAgent: createThreadForAgentOverride,
             toolHints,
-        }: AiAgentRouterSubmitArgs<TPayload> & {
+        }: AiAgentRouterSubmitArgs & {
             agentUuid: string;
             decisionUuid?: string;
         }) => {
             dispatch({ type: decisionUuid ? 'creating' : 'idle' });
-            const thread = await createThreadForAgent({
+            const thread = await (
+                createThreadForAgentOverride ?? createThreadForAgent
+            )({
                 agentUuid,
                 context,
                 message,
                 optimisticContext,
-                payload,
                 toolHints,
             });
 
@@ -150,53 +150,56 @@ export const useAiAgentRouterFlow = <TPayload = undefined>({
             toolHints,
             context,
             optimisticContext,
-            payload,
-        }: AiAgentRouterSubmitArgs<TPayload>) => {
+            createThreadForAgent: createThreadForAgentOverride,
+        }: AiAgentRouterSubmitArgs) => {
             if (!projectUuid) return;
 
-            let result: AiRouterRouteResponseResult;
+            let hasRouted = false;
+            dispatch({ type: 'routing' });
             try {
-                dispatch({ type: 'routing' });
-                result = await routePrompt({
+                const result = await routePrompt({
                     prompt: message,
                     projectUuid,
                 });
-            } catch {
-                dispatch({ type: 'idle' });
-                await onRouteError?.({
-                    context,
-                    fallbackAgent: agents[0],
-                    message,
-                    optimisticContext,
-                    payload,
-                    toolHints,
-                });
-                return;
-            }
+                hasRouted = true;
 
-            if (result.nextAction === 'create_thread') {
-                try {
+                if (result.nextAction === 'create_thread') {
                     await createAndCommitThread({
                         agentUuid: result.decision.suggestedAgentUuid,
                         decisionUuid: result.decision.decisionUuid,
                         message,
                         context,
                         optimisticContext,
-                        payload,
+                        createThreadForAgent: createThreadForAgentOverride,
                         toolHints,
                     });
-                } catch (error) {
-                    dispatch({ type: 'idle' });
-                    throw error;
+                } else {
+                    dispatch({
+                        type: 'picker',
+                        context,
+                        decision: result,
+                        optimisticContext,
+                        createThreadForAgent: createThreadForAgentOverride,
+                        prompt: message,
+                        toolHints,
+                    });
                 }
-            } else {
-                dispatch({
-                    type: 'picker',
+            } catch {
+                dispatch({ type: 'idle' });
+                if (hasRouted) {
+                    return;
+                }
+                onRouteError?.({
                     context,
-                    decision: result,
+                    fallbackAgent: agents[0],
+                    message,
                     optimisticContext,
-                    payload,
-                    prompt: message,
+                    ...(createThreadForAgentOverride
+                        ? {
+                              createThreadForAgent:
+                                  createThreadForAgentOverride,
+                          }
+                        : {}),
                     toolHints,
                 });
             }
@@ -213,18 +216,8 @@ export const useAiAgentRouterFlow = <TPayload = undefined>({
                 decisionUuid: phase.decision.decision.decisionUuid,
                 message: phase.prompt,
                 optimisticContext: phase.optimisticContext,
-                payload: phase.payload,
+                createThreadForAgent: phase.createThreadForAgent,
                 toolHints: phase.toolHints,
-            }).catch(() => {
-                dispatch({
-                    type: 'picker',
-                    context: phase.context,
-                    decision: phase.decision,
-                    optimisticContext: phase.optimisticContext,
-                    payload: phase.payload,
-                    prompt: phase.prompt,
-                    toolHints: phase.toolHints,
-                });
             });
         },
         [createAndCommitThread, phase],

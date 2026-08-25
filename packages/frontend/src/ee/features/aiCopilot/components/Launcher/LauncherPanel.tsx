@@ -236,6 +236,40 @@ const NewThreadPanel: FC<{
     const startDeepResearch =
         useStartDeepResearchForThreadMutation(projectUuid);
 
+    const handleStartDeepResearch = useCallback(
+        async ({ question }: StartDeepResearchArgs) => {
+            if (
+                !concreteAgent ||
+                !isPinnedContextReady ||
+                !canStartDeepResearch
+            ) {
+                return;
+            }
+            const thread = await createAgentThread({
+                agentUuid: concreteAgent.uuid,
+                prompt: question,
+                context: contextInputWithPageContext,
+                optimisticContext: previewItemsWithPageContext,
+                skipAgentResponse: true,
+            });
+            await startDeepResearch.mutateAsync({
+                question,
+                agentUuid: concreteAgent.uuid,
+                threadUuid: thread.uuid,
+                promptUuid: thread.firstMessage.uuid,
+            });
+        },
+        [
+            concreteAgent,
+            canStartDeepResearch,
+            contextInputWithPageContext,
+            createAgentThread,
+            isPinnedContextReady,
+            previewItemsWithPageContext,
+            startDeepResearch,
+        ],
+    );
+
     const createThreadForAgent = useCallback(
         async ({
             agentUuid,
@@ -263,39 +297,8 @@ const NewThreadPanel: FC<{
         [createAgentThread, getSqlModeForAgent, sqlModeAvailable],
     );
 
-    const createDeepResearchForAgent = useCallback(
-        async ({
-            agentUuid,
-            context,
-            message,
-            optimisticContext,
-        }: {
-            agentUuid: string;
-            context?: AiPromptContextInput;
-            message: string;
-            optimisticContext?: AiPromptContext;
-        }) => {
-            const thread = await createAgentThread({
-                agentUuid,
-                prompt: message,
-                context,
-                optimisticContext,
-                skipAgentResponse: true,
-            });
-            await startDeepResearch.mutateAsync({
-                question: message,
-                agentUuid,
-                threadUuid: thread.uuid,
-                promptUuid: thread.firstMessage.uuid,
-            });
-            return thread;
-        },
-        [createAgentThread, startDeepResearch],
-    );
-
     const {
         confirmPick,
-        handleStartDeepResearch,
         handleSubmit,
         isLocked,
         isPickingAgent,
@@ -304,7 +307,6 @@ const NewThreadPanel: FC<{
         agent,
         agents,
         contextInput: contextInputWithPageContext,
-        createDeepResearchForAgent,
         createThreadForAgent,
         isCreatingThread,
         isPinnedContextReady,
@@ -391,7 +393,7 @@ const NewThreadPanel: FC<{
                     defaultValue={composerSeed ?? undefined}
                     onSubmit={handleSubmit}
                     onStartDeepResearch={
-                        canStartDeepResearch
+                        concreteAgent && canStartDeepResearch
                             ? handleStartDeepResearch
                             : undefined
                     }
