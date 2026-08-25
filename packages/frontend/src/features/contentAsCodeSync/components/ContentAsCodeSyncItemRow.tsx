@@ -19,15 +19,21 @@ import {
 } from '../utils/contentAsCodeSyncState';
 import { getContentAsCodeTypeLabel } from '../utils/contentAsCodeTypeLabel';
 import { toDate } from '../utils/toDate';
+import ContentAsCodeSyncProposeActions from './ContentAsCodeSyncProposeActions';
 import classes from './ContentAsCodeSyncStatusPanel.module.css';
 
 type ContentAsCodeSyncItemRowProps = {
+    projectUuid: string;
     item: ContentAsCodeSyncItem;
     canRestamp: boolean;
+    canPropose: boolean;
     isRestamping: boolean;
+    isProposing: boolean;
     isRestampAvailable: boolean;
+    isProposeAvailable: boolean;
     onViewDiff: () => void;
     onRestamp: () => void;
+    onPropose: () => void;
 };
 
 const AppliedTime: FC<{ value: Date | string }> = ({ value }) => {
@@ -64,12 +70,17 @@ const restampDisabledReason = ({
 };
 
 const ContentAsCodeSyncItemRow: FC<ContentAsCodeSyncItemRowProps> = ({
+    projectUuid,
     item,
     canRestamp,
+    canPropose,
     isRestamping,
+    isProposing,
     isRestampAvailable,
+    isProposeAvailable,
     onViewDiff,
     onRestamp,
+    onPropose,
 }) => {
     const stateBadge = CONTENT_AS_CODE_SYNC_STATE_BADGE[item.state];
     const canShowRestamp = canRestamp;
@@ -120,7 +131,15 @@ const ContentAsCodeSyncItemRow: FC<ContentAsCodeSyncItemRowProps> = ({
                             View diff
                         </Button>
                     ) : null}
-                    {/* Write-back later adds "Propose to git" here. */}
+                    {canPropose ? (
+                        <ContentAsCodeSyncProposeActions
+                            projectUuid={projectUuid}
+                            item={item}
+                            isProposeAvailable={isProposeAvailable}
+                            isProposing={isProposing}
+                            onPropose={onPropose}
+                        />
+                    ) : null}
                     {canShowRestamp ? (
                         <Tooltip
                             label={disabledReason}

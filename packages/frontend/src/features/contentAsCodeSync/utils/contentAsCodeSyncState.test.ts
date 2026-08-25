@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    canProposeContentAsCodeSyncItem,
     canRestampContentAsCodeSyncItem,
     CONTENT_AS_CODE_SYNC_STATE_BADGE,
 } from './contentAsCodeSyncState';
@@ -15,5 +16,11 @@ describe('contentAsCodeSyncState', () => {
         expect(canRestampContentAsCodeSyncItem('ahead')).toBe(true);
         expect(canRestampContentAsCodeSyncItem('ui_only')).toBe(true);
         expect(canRestampContentAsCodeSyncItem('in_sync')).toBe(false);
+    });
+
+    it('allows propose for ahead and UI-only, not in sync', () => {
+        expect(canProposeContentAsCodeSyncItem('ahead')).toBe(true);
+        expect(canProposeContentAsCodeSyncItem('ui_only')).toBe(true);
+        expect(canProposeContentAsCodeSyncItem('in_sync')).toBe(false);
     });
 });

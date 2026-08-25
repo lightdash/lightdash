@@ -35,6 +35,35 @@ export type ContentAsCodeSyncStatusResult =
 export const CONTENT_AS_CODE_SYNC_STATUS_QUERY_KEY =
     'content-as-code-sync-status';
 
+export const CONTENT_AS_CODE_WRITE_BACK_STATUS_QUERY_KEY =
+    'content-as-code-write-back-status';
+
+export type ContentAsCodeWriteBackPrState = 'open' | 'merged' | 'none';
+
+export type ContentAsCodeWriteBackStatus = {
+    contentType: ContentAsCodeSyncContentType;
+    slug: string;
+    syncEnabled: boolean;
+    writeBackEnabled: boolean;
+    state: ContentAsCodeSyncItemState | 'unavailable';
+    writeBack: {
+        prState: ContentAsCodeWriteBackPrState;
+        prUrl: string | null;
+        prTitle: string | null;
+    };
+};
+
+export type ContentAsCodeWriteBackStatusResult =
+    | { kind: 'unavailable' }
+    | { kind: 'ok'; status: ContentAsCodeWriteBackStatus };
+
+export type ContentAsCodeProposeResult = {
+    prUrl: string;
+    prTitle: string;
+    filesWritten: string[];
+    notedChartSlugs: string[];
+};
+
 export const shouldShowContentAsCodeSync = (
     result: ContentAsCodeSyncStatusResult | undefined,
 ): boolean => {

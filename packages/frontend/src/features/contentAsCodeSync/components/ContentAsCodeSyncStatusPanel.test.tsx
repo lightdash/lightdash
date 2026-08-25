@@ -1,10 +1,12 @@
 import { screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import ContentAsCodeSyncStatusPanel from './ContentAsCodeSyncStatusPanel';
 
 const useContentAsCodeSyncStatus = vi.hoisted(() => vi.fn());
 const useRestampContentAsCodeRevision = vi.hoisted(() => vi.fn());
+const useProposeContentAsCode = vi.hoisted(() => vi.fn());
+const useContentAsCodeWriteBackStatus = vi.hoisted(() => vi.fn());
 
 vi.mock('../hooks/useContentAsCodeSyncStatus', () => ({
     useContentAsCodeSyncStatus,
@@ -14,12 +16,47 @@ vi.mock('../hooks/useRestampContentAsCodeRevision', () => ({
     useRestampContentAsCodeRevision,
 }));
 
+vi.mock('../hooks/useProposeContentAsCode', () => ({
+    useProposeContentAsCode,
+}));
+
+vi.mock('../hooks/useContentAsCodeWriteBackStatus', () => ({
+    useContentAsCodeWriteBackStatus,
+}));
+
 const restampMock = {
     mutate: vi.fn(),
     isLoading: false,
     isError: false,
     error: null,
     variables: undefined,
+};
+
+const proposeMock = {
+    mutate: vi.fn(),
+    isLoading: false,
+    isError: false,
+    error: null,
+    variables: undefined,
+};
+
+const noneWriteBackStatus = {
+    data: {
+        kind: 'ok' as const,
+        status: {
+            contentType: 'chart' as const,
+            slug: 'orders',
+            syncEnabled: true,
+            writeBackEnabled: true,
+            state: 'ahead' as const,
+            writeBack: {
+                prState: 'none' as const,
+                prUrl: null,
+                prTitle: null,
+            },
+        },
+    },
+    isInitialLoading: false,
 };
 
 const populatedItems = {
@@ -68,6 +105,11 @@ const createAbility = {
 };
 
 describe('ContentAsCodeSyncStatusPanel', () => {
+    beforeEach(() => {
+        useProposeContentAsCode.mockReturnValue(proposeMock);
+        useContentAsCodeWriteBackStatus.mockReturnValue(noneWriteBackStatus);
+    });
+
     it('shows a not-available state when the API is missing', () => {
         useContentAsCodeSyncStatus.mockReturnValue({
             data: { kind: 'unavailable' },
@@ -143,6 +185,12 @@ describe('ContentAsCodeSyncStatusPanel', () => {
         expect(restampButtons[0]).toBeDisabled();
         expect(restampButtons[1]).toBeEnabled();
         expect(restampButtons[2]).toBeEnabled();
+        expect(
+            screen.getByRole('button', { name: 'Propose to git' }),
+        ).toBeVisible();
+        expect(
+            screen.getByRole('button', { name: 'Add to git' }),
+        ).toBeVisible();
     });
 
     it('hides restamp when the user cannot create content as code', async () => {
@@ -165,6 +213,12 @@ describe('ContentAsCodeSyncStatusPanel', () => {
             screen.queryByRole('button', {
                 name: 'Use git version on next deploy',
             }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Propose to git' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Add to git' }),
         ).not.toBeInTheDocument();
     });
 
@@ -227,5 +281,31 @@ describe('ContentAsCodeSyncStatusPanel', () => {
         expect(restampButtons[0]).toBeDisabled();
         expect(restampButtons[1]).toBeDisabled();
         expect(restampButtons[2]).toBeDisabled();
+    });
+
+    it('hides propose when the write-back API is not deployed yet', () => {
+        useContentAsCodeSyncStatus.mockReturnValue({
+            data: populatedItems,
+            isInitialLoading: false,
+            isError: false,
+            refetch: vi.fn(),
+        });
+        useRestampContentAsCodeRevision.mockReturnValue(restampMock);
+        useContentAsCodeWriteBackStatus.mockReturnValue({
+            data: { kind: 'unavailable' },
+            isInitialLoading: false,
+        });
+
+        renderWithProviders(
+            <ContentAsCodeSyncStatusPanel projectUuid="project-uuid" />,
+            createAbility,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Propose to git' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Add to git' }),
+        ).not.toBeInTheDocument();
     });
 });

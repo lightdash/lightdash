@@ -12,3 +12,7 @@ export const CONTENT_AS_CODE_SYNC_STATE_BADGE: Record<
 export const canRestampContentAsCodeSyncItem = (
     state: ContentAsCodeSyncItemState,
 ): boolean => state === 'ahead' || state === 'ui_only';
+
+export const canProposeContentAsCodeSyncItem = (
+    state: ContentAsCodeSyncItemState,
+): boolean => state === 'ahead' || state === 'ui_only';

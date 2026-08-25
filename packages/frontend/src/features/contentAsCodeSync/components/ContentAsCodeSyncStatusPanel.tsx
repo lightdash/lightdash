@@ -9,6 +9,7 @@ import { SettingsEmptyState } from '../../../components/common/Settings/Settings
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import useApp from '../../../providers/App/useApp';
 import { useContentAsCodeSyncStatus } from '../hooks/useContentAsCodeSyncStatus';
+import { useProposeContentAsCode } from '../hooks/useProposeContentAsCode';
 import { useRestampContentAsCodeRevision } from '../hooks/useRestampContentAsCodeRevision';
 import { type ContentAsCodeSyncItem } from '../types';
 import { toDate } from '../utils/toDate';
@@ -37,11 +38,12 @@ const ContentAsCodeSyncStatusPanel: FC<ContentAsCodeSyncStatusPanelProps> = ({
     const { data, isInitialLoading, isError, refetch } =
         useContentAsCodeSyncStatus(projectUuid);
     const restampMutation = useRestampContentAsCodeRevision(projectUuid);
+    const proposeMutation = useProposeContentAsCode(projectUuid);
     const [diffItem, setDiffItem] = useState<ContentAsCodeSyncItem | null>(
         null,
     );
 
-    const canRestamp =
+    const canManageGit =
         user.data?.ability.can(
             'create',
             subject('ContentAsCode', {
@@ -49,6 +51,8 @@ const ContentAsCodeSyncStatusPanel: FC<ContentAsCodeSyncStatusPanelProps> = ({
                 projectUuid,
             }),
         ) ?? false;
+    const canRestamp = canManageGit;
+    const canPropose = canManageGit;
 
     const isRestampAvailable =
         data?.kind === 'ok' &&
@@ -56,6 +60,10 @@ const ContentAsCodeSyncStatusPanel: FC<ContentAsCodeSyncStatusPanelProps> = ({
             restampMutation.isError &&
             restampMutation.error.error.statusCode === 404
         );
+    const isProposeAvailable = !(
+        proposeMutation.isError &&
+        proposeMutation.error.error.statusCode === 404
+    );
 
     if (isInitialLoading) {
         return <EmptyStateLoader title="Loading sync status" />;
@@ -97,6 +105,9 @@ const ContentAsCodeSyncStatusPanel: FC<ContentAsCodeSyncStatusPanelProps> = ({
     const restampingKey = restampMutation.isLoading
         ? `${restampMutation.variables?.contentType}:${restampMutation.variables?.slug}`
         : null;
+    const proposingKey = proposeMutation.isLoading
+        ? `${proposeMutation.variables?.contentType}:${proposeMutation.variables?.slug}`
+        : null;
 
     return (
         <Stack gap="md">
@@ -111,17 +122,29 @@ const ContentAsCodeSyncStatusPanel: FC<ContentAsCodeSyncStatusPanelProps> = ({
                 {status.items.map((item) => (
                     <ContentAsCodeSyncItemRow
                         key={`${item.contentType}:${item.slug}`}
+                        projectUuid={projectUuid}
                         item={item}
                         canRestamp={canRestamp}
+                        canPropose={canPropose}
                         isRestampAvailable={isRestampAvailable}
+                        isProposeAvailable={isProposeAvailable}
                         isRestamping={
                             restampingKey === `${item.contentType}:${item.slug}`
+                        }
+                        isProposing={
+                            proposingKey === `${item.contentType}:${item.slug}`
                         }
                         onViewDiff={() => {
                             setDiffItem(item);
                         }}
                         onRestamp={() => {
                             restampMutation.mutate({
+                                contentType: item.contentType,
+                                slug: item.slug,
+                            });
+                        }}
+                        onPropose={() => {
+                            proposeMutation.mutate({
                                 contentType: item.contentType,
                                 slug: item.slug,
                             });
