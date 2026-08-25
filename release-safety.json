@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "1.253.0",
-  "previousVersion": "1.252.1",
-  "releaseDate": "2026-08-25T07:34:06.846Z",
+  "version": "1.253.1",
+  "previousVersion": "1.253.0",
+  "releaseDate": "2026-08-25T08:21:31.320Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,8 +11,8 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": false,
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
@@ -41,5 +41,11 @@
     "minPreviousVersion": "1.111.0",
     "requiredStops": []
   },
-  "declaredBreaks": []
+  "declaredBreaks": [
+    {
+      "id": "ai-agent-legacy-viz-tool-names-removed",
+      "reason": "The retired AI agent tool names generateBarVizConfig, generateTableVizConfig and generateTimeSeriesVizConfig are removed from the AgentToolName API enum. No agent has emitted them since November 2025, so this only affects AI threads created before then: their legacy chart tool calls stop rendering. Threads still load and every other message is unaffected.",
+      "requiredStop": false
+    }
+  ]
 }

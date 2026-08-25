@@ -1,3 +1,11 @@
+## [1.253.1](https://github.com/lightdash/lightdash/compare/1.253.0...1.253.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **sdk:** sync dashboard filter prop changes ([#27973](https://github.com/lightdash/lightdash/issues/27973)) ([3c01aef](https://github.com/lightdash/lightdash/commit/3c01aef65deccaeb54d1cc981ed1d8e56e4d2d04))
+* **table-calculations:** rerun query after changes ([#27978](https://github.com/lightdash/lightdash/issues/27978)) ([741b419](https://github.com/lightdash/lightdash/commit/741b419d85cd9a4d6c082ba941127429e9cb319c))
+
 # [1.253.0](https://github.com/lightdash/lightdash/compare/1.252.1...1.253.0) (2026-08-25)
 
 

@@ -22391,9 +22391,6 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['generateVisualization'] },
                 { dataType: 'enum', enums: ['runSql'] },
                 { dataType: 'enum', enums: ['findContent'] },
-                { dataType: 'enum', enums: ['generateBarVizConfig'] },
-                { dataType: 'enum', enums: ['generateTableVizConfig'] },
-                { dataType: 'enum', enums: ['generateTimeSeriesVizConfig'] },
                 { dataType: 'enum', enums: ['generateHashes'] },
                 { dataType: 'enum', enums: ['generateUuids'] },
                 { dataType: 'enum', enums: ['listContent'] },
@@ -24373,63 +24370,6 @@ const models: TsoaRoute.Models = {
                                                         },
                                                     ],
                                                 },
-                                                status: {
-                                                    dataType: 'union',
-                                                    subSchemas: [
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['error'],
-                                                        },
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['success'],
-                                                        },
-                                                    ],
-                                                    required: true,
-                                                },
-                                            },
-                                        },
-                                        {
-                                            dataType: 'nestedObjectLiteral',
-                                            nestedProperties: {
-                                                status: {
-                                                    dataType: 'union',
-                                                    subSchemas: [
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['error'],
-                                                        },
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['success'],
-                                                        },
-                                                    ],
-                                                    required: true,
-                                                },
-                                            },
-                                        },
-                                        {
-                                            dataType: 'nestedObjectLiteral',
-                                            nestedProperties: {
-                                                status: {
-                                                    dataType: 'union',
-                                                    subSchemas: [
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['error'],
-                                                        },
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['success'],
-                                                        },
-                                                    ],
-                                                    required: true,
-                                                },
-                                            },
-                                        },
-                                        {
-                                            dataType: 'nestedObjectLiteral',
-                                            nestedProperties: {
                                                 status: {
                                                     dataType: 'union',
                                                     subSchemas: [
