@@ -584,6 +584,172 @@ describe('EmbedService', () => {
     });
 
     describe('searchFilterValues', () => {
+        test('searches values for an authorized embedded Explore without a dashboard', async () => {
+            const field = validExplore.tables.a.dimensions.dim1;
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                embedModel: {
+                    get: vi.fn().mockResolvedValue({
+                        dashboardUuids: [],
+                        allowAllDashboards: false,
+                        user: { userUuid: mockUserUuid },
+                    }),
+                },
+                projectModel: {
+                    getSummary: vi.fn().mockResolvedValue({
+                        projectUuid: mockProjectUuid,
+                        organizationUuid: mockOrganizationUuid,
+                    }),
+                },
+                projectService: {
+                    _getFieldValuesMetricQuery: vi.fn().mockResolvedValue({
+                        metricQuery: {
+                            exploreName: validExplore.name,
+                            dimensions: ['a_dim1'],
+                            metrics: [],
+                            filters: {},
+                            sorts: [],
+                            limit: 50,
+                            tableCalculations: [],
+                        },
+                        explore: validExplore,
+                        field,
+                        initialExplore: validExplore,
+                        initialField: field,
+                        staticResults: [{ value: 'available value' }],
+                    }),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            const account = {
+                authentication: { type: 'jwt', source: 'embed-token' },
+                access: {
+                    content: {
+                        type: 'chart',
+                        chartUuids: ['chart-1'],
+                        explores: [validExplore.name],
+                    },
+                    controls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                },
+                user: {
+                    id: mockUserUuid,
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            subject: 'Explore',
+                            action: ['view'],
+                            conditions: {
+                                organizationUuid: mockOrganizationUuid,
+                                projectUuid: mockProjectUuid,
+                                exploreNames: { $all: [validExplore.name] },
+                            },
+                        },
+                    ]),
+                },
+                organization: { organizationUuid: mockOrganizationUuid },
+                isAnonymousUser: vi.fn().mockReturnValue(true),
+            } as unknown as AnonymousAccount;
+
+            await expect(
+                scopedService.searchFilterValues({
+                    account,
+                    projectUuid: mockProjectUuid,
+                    filterUuid: 'filter-uuid',
+                    search: '',
+                    limit: 50,
+                    filters: undefined,
+                    forceRefresh: false,
+                    tableName: 'a',
+                    fieldId: 'a_dim1',
+                }),
+            ).resolves.toMatchObject({ results: ['available value'] });
+        });
+
+        test('rejects autocomplete source fields hidden by embed user attributes', async () => {
+            const initialField = validExplore.tables.a.dimensions.dim1;
+            const field = validExplore.tables.b.dimensions.dim1;
+            const restrictedSourceExplore = {
+                ...validExplore,
+                name: 'autocomplete_source',
+                tables: {
+                    ...validExplore.tables,
+                    b: {
+                        ...validExplore.tables.b,
+                        requiredAttributes: { region: 'allowed' },
+                    },
+                },
+            };
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                embedModel: {
+                    get: vi.fn().mockResolvedValue({
+                        dashboardUuids: [],
+                        allowAllDashboards: false,
+                        user: { userUuid: mockUserUuid },
+                    }),
+                },
+                projectModel: {
+                    getSummary: vi.fn().mockResolvedValue({
+                        projectUuid: mockProjectUuid,
+                        organizationUuid: mockOrganizationUuid,
+                    }),
+                },
+                projectService: {
+                    _getFieldValuesMetricQuery: vi.fn().mockResolvedValue({
+                        metricQuery: {},
+                        explore: restrictedSourceExplore,
+                        field,
+                        initialExplore: validExplore,
+                        initialField,
+                        staticResults: null,
+                    }),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            const account = {
+                authentication: { type: 'jwt', source: 'embed-token' },
+                access: {
+                    content: { type: 'chart' },
+                    controls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                },
+                user: {
+                    id: mockUserUuid,
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            subject: 'Explore',
+                            action: ['view'],
+                            conditions: {
+                                organizationUuid: mockOrganizationUuid,
+                                projectUuid: mockProjectUuid,
+                                exploreNames: {
+                                    $all: [validExplore.name],
+                                },
+                            },
+                        },
+                    ]),
+                },
+                organization: { organizationUuid: mockOrganizationUuid },
+                isAnonymousUser: vi.fn().mockReturnValue(true),
+            } as unknown as AnonymousAccount;
+
+            await expect(
+                scopedService.searchFilterValues({
+                    account,
+                    projectUuid: mockProjectUuid,
+                    filterUuid: 'filter-uuid',
+                    search: '',
+                    limit: 50,
+                    filters: undefined,
+                    forceRefresh: false,
+                    tableName: 'a',
+                    fieldId: 'a_dim1',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
         test('scopes dashboard lookup to the requested project', async () => {
             const dashboardUuid = 'dashboard-1';
             const dashboardModel = {
@@ -714,6 +880,8 @@ describe('EmbedService', () => {
                             },
                             explore: validExplore,
                             field,
+                            initialExplore: validExplore,
+                            initialField: field,
                             staticResults: null,
                         }),
                         combineParameters,
@@ -732,6 +900,10 @@ describe('EmbedService', () => {
                     access: {
                         content: { dashboardUuid },
                         parameters: { enabled: isInteractivityEnabled },
+                        controls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
                     },
                     user: { id: mockUserUuid },
                     organization: {
