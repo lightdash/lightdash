@@ -37,6 +37,7 @@ export enum PullRequestSource {
     SQL_RUNNER = 'sql_runner',
     SOURCE_EDITOR = 'source_editor',
     AI_AGENT = 'ai_agent',
+    CONTENT_AS_CODE = 'content_as_code',
 }
 
 export enum PullRequestState {

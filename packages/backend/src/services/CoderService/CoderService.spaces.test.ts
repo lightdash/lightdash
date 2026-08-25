@@ -208,6 +208,7 @@ const buildService = ({
         promoteService: {} as AnyType,
         spacePermissionService: spacePermissionService as AnyType,
         contentAsCodeSnapshotModel: { upsert: vi.fn() } as AnyType,
+        contentAsCodeProjectSettingsModel: { upsert: vi.fn() } as AnyType,
         contentVerificationModel: {} as AnyType,
         groupsModel: {
             find: vi.fn(async ({ name }) => ({

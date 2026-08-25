@@ -110,6 +110,8 @@ const schedulerWorkerFactory = (context: {
         msTeamsClient: context.clients.getMsTeamsClient(),
         googleChatClient: context.clients.getGoogleChatClient(),
         renameService: context.serviceRepository.getRenameService(),
+        contentAsCodeWritebackService:
+            context.serviceRepository.getContentAsCodeWritebackService(),
         asyncQueryService: context.serviceRepository.getAsyncQueryService(),
         featureFlagService: context.serviceRepository.getFeatureFlagService(),
         persistentDownloadFileService:

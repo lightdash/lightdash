@@ -119,6 +119,34 @@ export class ProjectCoderController extends BaseController {
     }
 
     /**
+     * Persist the repo's content_as_code flags as project-level state.
+     * Called by the CLI at upload time so the instance learns what the
+     * repo has opted into (sync enforcement, write-back).
+     * @summary Stamp content-as-code settings
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/sync-settings')
+    @OperationId('stampContentAsCodeSettings')
+    async stampContentAsCodeSettings(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: { sync: boolean; writeBack: boolean },
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.services
+            .getCoderService()
+            .stampContentAsCodeSettings(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
      * Get charts in code representation
      * @summary List charts as code
      */

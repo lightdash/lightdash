@@ -5,6 +5,7 @@ import {
     assertUnreachable,
     BackfillDefaultUserSpacesPayload,
     CompileProjectPayload,
+    ContentAsCodeWritebackPayload,
     convertReplaceableFieldMatchMapToReplaceCustomFields,
     CreateProject,
     CreateSchedulerAndTargets,
@@ -180,6 +181,7 @@ import { WarehouseConnectCodeModel } from '../models/WarehouseConnectCodeModel';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../services/AsyncQueryService/types';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
+import { ContentAsCodeWritebackService } from '../services/ContentAsCodeWritebackService/ContentAsCodeWritebackService';
 import {
     CsvService,
     getSchedulerCsvLimit,
@@ -248,6 +250,7 @@ export type SchedulerTaskArguments = {
     msTeamsClient: MicrosoftTeamsClient;
     googleChatClient: GoogleChatClient;
     renameService: RenameService;
+    contentAsCodeWritebackService: ContentAsCodeWritebackService;
     asyncQueryService: AsyncQueryService;
     featureFlagService: FeatureFlagService;
     persistentDownloadFileService: PersistentDownloadFileService;
@@ -535,6 +538,8 @@ export default class SchedulerTask {
 
     private readonly renameService: RenameService;
 
+    protected readonly contentAsCodeWritebackService: ContentAsCodeWritebackService;
+
     protected readonly asyncQueryService: AsyncQueryService;
 
     private readonly featureFlagService: FeatureFlagService;
@@ -573,6 +578,7 @@ export default class SchedulerTask {
         this.msTeamsClient = args.msTeamsClient;
         this.googleChatClient = args.googleChatClient;
         this.renameService = args.renameService;
+        this.contentAsCodeWritebackService = args.contentAsCodeWritebackService;
         this.asyncQueryService = args.asyncQueryService;
         this.featureFlagService = args.featureFlagService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
@@ -6471,6 +6477,35 @@ export default class SchedulerTask {
                 this.userService.ensureDefaultUserSpacesForOrganizationMembers(
                     payload.organizationUuid,
                 ),
+        );
+    }
+
+    protected async contentAsCodeWriteback(
+        jobId: string,
+        scheduledTime: Date,
+        payload: ContentAsCodeWritebackPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.CONTENT_AS_CODE_WRITEBACK,
+                jobId,
+                scheduledTime,
+                details: {
+                    userUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    createdByUserUuid: payload.userUuid,
+                },
+            },
+            async () => {
+                const sessionUser = await this.userService.getSessionByUserUuid(
+                    payload.userUuid,
+                );
+                await this.contentAsCodeWritebackService.runChartWriteback(
+                    sessionUser,
+                    payload,
+                );
+            },
         );
     }
 

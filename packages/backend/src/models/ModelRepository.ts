@@ -7,7 +7,9 @@ import { AnalyticsModel } from './AnalyticsModel';
 import { AppModel } from './AppModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
 import { CommentModel } from './CommentModel/CommentModel';
+import { ContentAsCodeProjectSettingsModel } from './ContentAsCodeProjectSettingsModel';
 import { ContentAsCodeSnapshotModel } from './ContentAsCodeSnapshotModel';
+import { ContentAsCodeWritebackModel } from './ContentAsCodeWritebackModel';
 import { ContentModel } from './ContentModel/ContentModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
 import { DashboardAccessModel } from './DashboardAccessModel';
@@ -148,7 +150,9 @@ export type ModelManifest = {
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
     contentModel: ContentModel;
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
     contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+    contentAsCodeWritebackModel: ContentAsCodeWritebackModel;
     contentVerificationModel: ContentVerificationModel;
     tagsModel: TagsModel;
     featureFlagModel: FeatureFlagModel;
@@ -837,10 +841,27 @@ export class ModelRepository
         );
     }
 
+    public getContentAsCodeProjectSettingsModel(): ContentAsCodeProjectSettingsModel {
+        return this.getModel(
+            'contentAsCodeProjectSettingsModel',
+            () =>
+                new ContentAsCodeProjectSettingsModel({
+                    database: this.database,
+                }),
+        );
+    }
+
     public getContentAsCodeSnapshotModel(): ContentAsCodeSnapshotModel {
         return this.getModel(
             'contentAsCodeSnapshotModel',
             () => new ContentAsCodeSnapshotModel({ database: this.database }),
+        );
+    }
+
+    public getContentAsCodeWritebackModel(): ContentAsCodeWritebackModel {
+        return this.getModel(
+            'contentAsCodeWritebackModel',
+            () => new ContentAsCodeWritebackModel({ database: this.database }),
         );
     }
 
