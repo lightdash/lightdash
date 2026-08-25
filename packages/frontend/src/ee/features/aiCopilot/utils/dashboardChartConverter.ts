@@ -6,7 +6,6 @@ import {
     type ChartConfig,
     type CreateSavedChartVersion,
     type DashboardV2Visualization,
-    type DashboardVisualization,
 } from '@lightdash/common';
 
 export type VizQueryWithOverrides = ApiAiAgentThreadMessageVizQuery & {
@@ -16,7 +15,7 @@ export type VizQueryWithOverrides = ApiAiAgentThreadMessageVizQuery & {
 
 function convertAiVisualizationToCreateSavedChartVersion(
     aiVizData: VizQueryWithOverrides,
-    dashboardVisualization: DashboardVisualization | DashboardV2Visualization,
+    dashboardVisualization: DashboardV2Visualization,
     options: {
         name: string;
         description?: string;
@@ -77,7 +76,7 @@ export function convertDashboardVisualizationsToChartData(
     dashboardConfig: {
         title: string;
         description: string;
-        visualizations: (DashboardVisualization | DashboardV2Visualization)[];
+        visualizations: DashboardV2Visualization[];
     },
     vizQueryResults: VizQueryWithOverrides[],
     options: {

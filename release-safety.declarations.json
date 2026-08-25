@@ -1,4 +1,9 @@
 {
     "$schema": "./scripts/release-safety-declarations.schema.json",
-    "declarations": {}
+    "declarations": {
+        "ai-agent-legacy-viz-tool-names-removed": {
+            "reason": "The retired AI agent tool names generateBarVizConfig, generateTableVizConfig and generateTimeSeriesVizConfig are removed from the AgentToolName API enum. No agent has emitted them since November 2025, so this only affects AI threads created before then: their legacy chart tool calls stop rendering. Threads still load and every other message is unaffected.",
+            "requiredStop": false
+        }
+    }
 }

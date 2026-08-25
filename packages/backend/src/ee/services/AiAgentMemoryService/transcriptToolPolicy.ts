@@ -130,6 +130,7 @@ export const DISTILL_TOOL_POLICIES = {
     submitDiscoverFieldsResult: { result: omitCall },
     findCharts: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     findDashboards: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
+    // Legacy persisted viz tools; keep past-thread distillation bounded and quiet.
     generateBarVizConfig: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     generateTableVizConfig: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     generateTimeSeriesVizConfig: {

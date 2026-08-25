@@ -116,8 +116,6 @@ import {
     SlackPrompt,
     sleep,
     SpaceMemberRole,
-    ToolDashboardArgs,
-    toolDashboardArgsSchema,
     ToolDashboardV2Args,
     toolDashboardV2ArgsSchemaPersisted,
     UnexpectedServerError,
@@ -7077,24 +7075,15 @@ export class AiAgentService extends BaseService {
         }
 
         // We use base schema here because later we call `parseVizConfig` that uses transformed schem which takes base schema output as input
-        // Try to parse with v2 schema first, then fall back to v1. The wide
-        // persisted variant accepts legacy template table calcs.
-        const dashboardConfigV2Parsed =
+        // The wide persisted variant accepts legacy template table calcs.
+        const dashboardConfigParsed =
             toolDashboardV2ArgsSchemaPersisted.safeParse(
                 artifact.dashboardConfig,
             );
-        let dashboardConfig: ToolDashboardArgs | ToolDashboardV2Args;
-        if (dashboardConfigV2Parsed.success) {
-            dashboardConfig = dashboardConfigV2Parsed.data;
-        } else {
-            const dashboardConfigV1Parsed = toolDashboardArgsSchema.safeParse(
-                artifact.dashboardConfig,
-            );
-            if (!dashboardConfigV1Parsed.success) {
-                throw new ParameterError('Invalid dashboard config');
-            }
-            dashboardConfig = dashboardConfigV1Parsed.data;
+        if (!dashboardConfigParsed.success) {
+            throw new ParameterError('Invalid dashboard config');
         }
+        const dashboardConfig: ToolDashboardV2Args = dashboardConfigParsed.data;
         const { visualizations } = dashboardConfig;
 
         if (
@@ -12099,9 +12088,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     return 'Reviewing the semantic layer...';
                 case 'generateVisualization':
                 case 'generateDashboard':
-                case 'generateBarVizConfig':
-                case 'generateTableVizConfig':
-                case 'generateTimeSeriesVizConfig':
                     return 'Preparing the answer...';
                 case 'runSql':
                 case 'runComposerQueries':
