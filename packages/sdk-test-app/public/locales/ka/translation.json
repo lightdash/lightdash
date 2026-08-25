@@ -102,6 +102,20 @@
         "filters.summary.parameterPlural": "პარამეტრი",
         "filters.summary.dateZoomLabel": "თარიღის მასშტაბი:",
         "filters.summary.default": "ნაგულისხმევი",
-        "filters.summary.showFilters": "ფილტრების ჩვენება"
+        "filters.summary.showFilters": "ფილტრების ჩვენება",
+        "filters.operators.equals": "არის",
+        "filters.operators.notEquals": "არ არის",
+        "filters.operators.isNull": "ცარიელია",
+        "filters.operators.inThePast": "ბოლო",
+        "filters.operators.inBetween": "შორისაა",
+        "filters.betweenJoiner": "და",
+        "filters.selectValuePlaceholder": "აირჩიეთ მნიშვნელობა",
+        "filters.selectPeriodPlaceholder": "აირჩიეთ პერიოდი",
+        "filters.unitsOfTime.days.singular": "დღე",
+        "filters.unitsOfTime.days.plural": "დღეები",
+        "filters.unitsOfTime.months.singular": "თვე",
+        "filters.unitsOfTime.months.plural": "თვეები",
+        "filters.unitsOfTime.years.singular": "წელი",
+        "filters.unitsOfTime.years.plural": "წლები"
     }
 }

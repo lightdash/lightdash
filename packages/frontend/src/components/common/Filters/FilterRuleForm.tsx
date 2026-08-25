@@ -15,13 +15,14 @@ import {
 import { ActionIcon, Box, Group, Menu, Select, Tooltip } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import { FILTER_SELECT_LIMIT } from './constants';
 import FilterInputComponent from './FilterInputs';
 import {
-    filterOperatorDescription,
-    filterOperatorDropdownLabel,
+    filterOperatorDescriptionKey,
+    filterOperatorDropdownLabelKey,
 } from './FilterInputs/constants';
 import { getFilterOperatorOptions } from './FilterInputs/utils';
 import useFiltersContext from './useFiltersContext';
@@ -48,6 +49,7 @@ const FilterRuleForm: FC<Props> = memo(
         onConvertToGroup,
     }) => {
         const { popoverProps, baseTable } = useFiltersContext();
+        const getUiString = useUiStrings();
         const activeField = useMemo(() => {
             return fields.find(
                 (field) => getItemId(field) === filterRule.target.fieldId,
@@ -61,8 +63,12 @@ const FilterRuleForm: FC<Props> = memo(
         }, [activeField]);
 
         const filterOperatorOptions = useMemo(() => {
-            return getFilterOperatorOptions(filterType, activeField);
-        }, [filterType, activeField]);
+            return getFilterOperatorOptions(
+                filterType,
+                activeField,
+                getUiString,
+            );
+        }, [filterType, activeField, getUiString]);
 
         const onFieldChange = useCallback(
             (fieldId: string) => {
@@ -191,14 +197,20 @@ const FilterRuleForm: FC<Props> = memo(
                     value={filterRule.operator}
                     data={filterOperatorOptions}
                     renderOption={({ option }) => {
-                        const description =
-                            filterOperatorDescription[
+                        const descriptionKey =
+                            filterOperatorDescriptionKey[
                                 option.value as FilterOperator
                             ];
-                        const dropdownLabel =
-                            filterOperatorDropdownLabel[
+                        const description = descriptionKey
+                            ? getUiString(descriptionKey)
+                            : undefined;
+                        const dropdownLabelKey =
+                            filterOperatorDropdownLabelKey[
                                 option.value as FilterOperator
-                            ] ?? option.label;
+                            ];
+                        const dropdownLabel = dropdownLabelKey
+                            ? getUiString(dropdownLabelKey)
+                            : option.label;
                         if (description) {
                             return (
                                 <Tooltip
