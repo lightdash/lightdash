@@ -311,10 +311,15 @@ export class SearchModel {
                 { spaceUuid: `${SpaceTableName}.space_uuid` },
                 this.database.raw(
                     `GREATEST(
-                        ${dashboardSearchRankRawSql},
-                        COALESCE(MAX(${directChartSearchRankRawSql}), 0),
-                        COALESCE(MAX(${tileChartSearchRankRawSql}), 0)
+                        ?,
+                        COALESCE(MAX(?), 0),
+                        COALESCE(MAX(?), 0)
                     ) as search_rank`,
+                    [
+                        dashboardSearchRankRawSql,
+                        directChartSearchRankRawSql,
+                        tileChartSearchRankRawSql,
+                    ],
                 ),
                 { viewsCount: `${DashboardsTableName}.views_count` },
                 { firstViewedAt: `${DashboardsTableName}.first_viewed_at` },
