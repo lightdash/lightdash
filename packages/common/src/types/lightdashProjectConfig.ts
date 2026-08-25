@@ -101,8 +101,18 @@ export type CustomGranularity = {
     type?: DimensionType.DATE | DimensionType.TIMESTAMP | DimensionType.STRING;
 };
 
+export type ContentAsCodeConfig = {
+    /**
+     * When true, `lightdash upload` refuses to overwrite content that has
+     * changed on the instance since the last upload (reported as skipped,
+     * exit 1). When false or omitted, drift is only reported as warnings.
+     */
+    sync?: boolean;
+};
+
 export type LightdashProjectConfig = {
     spotlight: SpotlightConfig;
+    content_as_code?: ContentAsCodeConfig;
     parameters?: Record<string, LightdashProjectParameter>; // keys must be ^[a-zA-Z0-9_-]+$
     warehouse?: WarehouseConfig; // Required for Lightdash-only projects (no dbt)
     defaults?: ProjectDefaults; // Project-wide defaults for various settings

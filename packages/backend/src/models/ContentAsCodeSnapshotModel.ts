@@ -11,11 +11,37 @@ type ContentAsCodeSnapshotModelArguments = {
     database: Knex;
 };
 
+export type ContentAsCodeSnapshot = {
+    snapshot: object;
+    snapshotHash: string;
+    appliedAt: Date;
+};
+
 export class ContentAsCodeSnapshotModel {
     private readonly database: Knex;
 
     constructor({ database }: ContentAsCodeSnapshotModelArguments) {
         this.database = database;
+    }
+
+    async get(
+        projectUuid: string,
+        contentType: ContentAsCodeSnapshotType,
+        slug: string,
+    ): Promise<ContentAsCodeSnapshot | undefined> {
+        const row = await this.database(ContentAsCodeSnapshotsTableName)
+            .where({
+                project_uuid: projectUuid,
+                content_type: contentType,
+                slug,
+            })
+            .first();
+        if (row === undefined) return undefined;
+        return {
+            snapshot: row.snapshot,
+            snapshotHash: row.snapshot_hash,
+            appliedAt: row.applied_at,
+        };
     }
 
     async upsert({

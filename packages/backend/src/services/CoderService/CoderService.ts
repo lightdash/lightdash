@@ -19,6 +19,7 @@ import {
     ChartAsCode,
     ChartAsCodeConfig,
     ChartAsCodeInternalization,
+    ChartAsCodeUpsertResult,
     ChartConfig,
     ChartGoogleSheetsSyncAsCode,
     ChartScheduledDeliveryAsCode,
@@ -134,6 +135,9 @@ import {
 } from './chartPermissions';
 import {
     buildContentAsCodeSnapshot,
+    resolveDriftGate,
+    resolveDriftVerdict,
+    type DriftGateOutcome,
     type SnapshotAsCodeContent,
 } from './contentAsCodeSnapshot';
 import {
@@ -195,6 +199,9 @@ type UpsertContentAsCodeOptions = {
     force?: boolean;
     spaceNames?: Record<string, string>;
     mode?: 'upsert' | 'create';
+    // content_as_code.sync in lightdash.config.yml: skip instance-ahead content
+    syncEnforced?: boolean;
+    overwriteDrifted?: boolean;
 };
 
 export class CoderService extends BaseService {
@@ -2777,6 +2784,103 @@ export class CoderService extends BaseService {
         });
     }
 
+    // The instance content in its canonical as-code form — the same document
+    // an upload of the current state would have applied.
+    private async getCurrentChartAsCode(
+        chartUuid: string,
+    ): Promise<ChartAsCode> {
+        const chart = await this.savedChartModel.get(chartUuid);
+        const spaces = await this.spaceModel.find({
+            spaceUuids: chart.spaceUuid ? [chart.spaceUuid] : [],
+        });
+        const dashboardSlugs = chart.dashboardUuid
+            ? await this.dashboardModel.getSlugsForUuids([chart.dashboardUuid])
+            : {};
+        const verificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.CHART,
+                [chart.uuid],
+            );
+        return CoderService.transformChart(
+            chart,
+            spaces,
+            dashboardSlugs,
+            verificationMap,
+        );
+    }
+
+    private async getCurrentDashboardAsCode(
+        dashboardUuid: string,
+    ): Promise<DashboardAsCode> {
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const spaces = await this.spaceModel.find({
+            spaceUuids: dashboard.spaceUuid ? [dashboard.spaceUuid] : [],
+        });
+        const verificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.DASHBOARD,
+                [dashboard.uuid],
+            );
+        return CoderService.transformDashboard(
+            dashboard,
+            spaces,
+            verificationMap,
+        );
+    }
+
+    // Drift detection is best-effort: a failure here must not block uploads,
+    // so any error falls back to today's behavior (proceed, no gate).
+    private async runDriftGate(args: {
+        projectUuid: string;
+        contentType: ContentAsCodeSnapshotType;
+        slug: string;
+        getCurrentContent: () => Promise<SnapshotAsCodeContent>;
+        incomingContent: SnapshotAsCodeContent;
+        options: UpsertContentAsCodeOptions;
+    }): Promise<DriftGateOutcome | undefined> {
+        const {
+            projectUuid,
+            contentType,
+            slug,
+            getCurrentContent,
+            incomingContent,
+            options,
+        } = args;
+        try {
+            const currentContent = await getCurrentContent();
+            const lastApplied = await this.contentAsCodeSnapshotModel.get(
+                projectUuid,
+                contentType,
+                slug,
+            );
+            const verdict = resolveDriftVerdict({
+                currentHash:
+                    buildContentAsCodeSnapshot(currentContent).snapshotHash,
+                incomingHash:
+                    buildContentAsCodeSnapshot(incomingContent).snapshotHash,
+                lastAppliedHash: lastApplied?.snapshotHash ?? null,
+            });
+            return resolveDriftGate({
+                verdict,
+                contentType:
+                    contentType === ContentAsCodeType.DASHBOARD
+                        ? 'dashboard'
+                        : 'chart',
+                slug,
+                force: options.force,
+                syncEnforced: options.syncEnforced,
+                overwriteDrifted: options.overwriteDrifted,
+            });
+        } catch (error) {
+            this.logger.warn(
+                `Failed to evaluate as-code drift for ${contentType} ${slug} on project ${projectUuid}`,
+                error,
+            );
+            return undefined;
+        }
+    }
+
     // Snapshot stamping is bookkeeping for drift detection; it must never
     // fail an upload, so each stamp method swallows and logs its errors.
     private async stampAppliedChartSnapshot(
@@ -2785,29 +2889,10 @@ export class CoderService extends BaseService {
         chartUuid: string,
     ): Promise<void> {
         try {
-            const chart = await this.savedChartModel.get(chartUuid);
-            const spaces = await this.spaceModel.find({
-                spaceUuids: chart.spaceUuid ? [chart.spaceUuid] : [],
-            });
-            const dashboardSlugs = chart.dashboardUuid
-                ? await this.dashboardModel.getSlugsForUuids([
-                      chart.dashboardUuid,
-                  ])
-                : {};
-            const verificationMap =
-                await this.contentVerificationModel.getByContentUuids(
-                    ContentType.CHART,
-                    [chart.uuid],
-                );
             await this.recordAppliedSnapshot(
                 projectUuid,
                 ContentAsCodeType.CHART,
-                CoderService.transformChart(
-                    chart,
-                    spaces,
-                    dashboardSlugs,
-                    verificationMap,
-                ),
+                await this.getCurrentChartAsCode(chartUuid),
                 user.userUuid,
             );
         } catch (error) {
@@ -2824,24 +2909,10 @@ export class CoderService extends BaseService {
         dashboardUuid: string,
     ): Promise<void> {
         try {
-            const dashboard =
-                await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-            const spaces = await this.spaceModel.find({
-                spaceUuids: dashboard.spaceUuid ? [dashboard.spaceUuid] : [],
-            });
-            const verificationMap =
-                await this.contentVerificationModel.getByContentUuids(
-                    ContentType.DASHBOARD,
-                    [dashboard.uuid],
-                );
             await this.recordAppliedSnapshot(
                 projectUuid,
                 ContentAsCodeType.DASHBOARD,
-                CoderService.transformDashboard(
-                    dashboard,
-                    spaces,
-                    verificationMap,
-                ),
+                await this.getCurrentDashboardAsCode(dashboardUuid),
                 user.userUuid,
             );
         } catch (error) {
@@ -2895,7 +2966,7 @@ export class CoderService extends BaseService {
         slug: string,
         chartAsCode: ChartAsCode,
         options: UpsertContentAsCodeOptions = {},
-    ) {
+    ): Promise<ChartAsCodeUpsertResult> {
         const {
             skipSpaceCreate,
             publicSpaceCreate,
@@ -3207,6 +3278,27 @@ export class CoderService extends BaseService {
             });
         }
 
+        const driftGate =
+            mode === 'upsert'
+                ? await this.runDriftGate({
+                      projectUuid,
+                      contentType: ContentAsCodeType.CHART,
+                      slug: chart.slug,
+                      getCurrentContent: () =>
+                          this.getCurrentChartAsCode(chart.uuid),
+                      incomingContent: chartWithDefaults,
+                      options,
+                  })
+                : undefined;
+        if (driftGate?.outcome === 'skip') {
+            return {
+                spaces: [],
+                charts: [],
+                dashboards: [],
+                skips: [driftGate.skip],
+            };
+        }
+
         const { promotedChart, upstreamChart } =
             await this.promoteService.getPromoteCharts(
                 user,
@@ -3243,6 +3335,38 @@ export class CoderService extends BaseService {
                 ),
             };
         }
+
+        // Instance already matches the incoming document: nothing to write,
+        // just realign the applied snapshot.
+        if (driftGate?.outcome === 'fast_forward') {
+            promotionChanges = {
+                ...promotionChanges,
+                charts: promotionChanges.charts.map((c) => ({
+                    ...c,
+                    action: PromotionAction.NO_CHANGES,
+                })),
+            };
+            await this.stampAppliedChartSnapshot(user, projectUuid, chart.uuid);
+            console.info(
+                `Fast-forwarded chart "${chartWithDefaults.name}" on project ${projectUuid}: instance already matches incoming content`,
+            );
+            return promotionChanges;
+        }
+
+        // The snapshot comparison replaces the updatedAt heuristic: past this
+        // point the incoming document differs from the instance, so it must
+        // be written even when updatedAt makes it look unchanged.
+        if (driftGate?.outcome === 'proceed') {
+            promotionChanges = {
+                ...promotionChanges,
+                charts: promotionChanges.charts.map((c) =>
+                    c.action === PromotionAction.NO_CHANGES
+                        ? { ...c, action: PromotionAction.UPDATE }
+                        : c,
+                ),
+            };
+        }
+
         promotionChanges = await this.promoteService.upsertCharts(
             user,
             promotionChanges,
@@ -3265,7 +3389,9 @@ export class CoderService extends BaseService {
             `Finished updating chart "${chartWithDefaults.name}" on project ${projectUuid}: ${promotionChanges.charts[0].action}`,
         );
 
-        return promotionChanges;
+        return driftGate?.outcome === 'proceed' && driftGate.driftWarning
+            ? { ...promotionChanges, driftWarnings: [driftGate.driftWarning] }
+            : promotionChanges;
     }
 
     async renameContentSlug(
@@ -4167,6 +4293,27 @@ export class CoderService extends BaseService {
             });
         }
 
+        const driftGate =
+            mode === 'upsert'
+                ? await this.runDriftGate({
+                      projectUuid,
+                      contentType: ContentAsCodeType.DASHBOARD,
+                      slug: dashboard.slug,
+                      getCurrentContent: () =>
+                          this.getCurrentDashboardAsCode(dashboard.uuid),
+                      incomingContent: dashboardWithDefaults,
+                      options,
+                  })
+                : undefined;
+        if (driftGate?.outcome === 'skip') {
+            return {
+                spaces: [],
+                charts: [],
+                dashboards: [],
+                skips: [driftGate.skip],
+            };
+        }
+
         const dashboardWithUuids = {
             ...dashboardWithResolvedTabs,
             tiles: tilesWithUuids,
@@ -4241,6 +4388,31 @@ export class CoderService extends BaseService {
             };
         }
 
+        // Instance already matches the incoming document: nothing to write,
+        // just realign the applied snapshot.
+        if (driftGate?.outcome === 'fast_forward') {
+            promotionChanges = {
+                ...promotionChanges,
+                dashboards: promotionChanges.dashboards.map((d) => ({
+                    ...d,
+                    action: PromotionAction.NO_CHANGES,
+                })),
+                charts: promotionChanges.charts.map((c) => ({
+                    ...c,
+                    action: PromotionAction.NO_CHANGES,
+                })),
+            };
+            await this.stampAppliedDashboardSnapshot(
+                user,
+                projectUuid,
+                dashboard.uuid,
+            );
+            console.info(
+                `Fast-forwarded dashboard "${dashboard.name}" on project ${projectUuid}: instance already matches incoming content`,
+            );
+            return withTileWarnings(promotionChanges, tileWarnings);
+        }
+
         promotionChanges = await this.promoteService.getOrCreateDashboard(
             user,
             promotionChanges,
@@ -4277,6 +4449,9 @@ export class CoderService extends BaseService {
         console.info(
             `Finished updating dashboard "${dashboard.name}" on project ${projectUuid}: ${promotionChanges.dashboards[0].action}`,
         );
-        return withTileWarnings(promotionChanges, tileWarnings);
+        const result = withTileWarnings(promotionChanges, tileWarnings);
+        return driftGate?.outcome === 'proceed' && driftGate.driftWarning
+            ? { ...result, driftWarnings: [driftGate.driftWarning] }
+            : result;
     }
 }
