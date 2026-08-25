@@ -79,6 +79,8 @@ import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
+import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
+import { ContentDraftModel } from '../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
@@ -116,6 +118,8 @@ type DashboardServiceArguments = {
     savedSqlModel: SavedSqlModel;
     savedChartService: SavedChartService;
     schedulerClient: SchedulerClient;
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+    contentDraftModel: ContentDraftModel;
     slackClient: SlackClient;
     projectModel: ProjectModel;
     catalogModel: CatalogModel;
@@ -162,6 +166,10 @@ export class DashboardService
     organizationMemberProfileModel: OrganizationMemberProfileModel;
 
     schedulerClient: SchedulerClient;
+
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+
+    contentDraftModel: ContentDraftModel;
 
     slackClient: SlackClient;
 
@@ -277,6 +285,8 @@ export class DashboardService
         savedSqlModel,
         savedChartService,
         schedulerClient,
+        contentAsCodeProjectSettingsModel,
+        contentDraftModel,
         slackClient,
         projectModel,
         catalogModel,
@@ -303,6 +313,9 @@ export class DashboardService
         this.organizationModel = organizationModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.schedulerClient = schedulerClient;
+        this.contentAsCodeProjectSettingsModel =
+            contentAsCodeProjectSettingsModel;
+        this.contentDraftModel = contentDraftModel;
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
@@ -715,7 +728,7 @@ export class DashboardService
             });
         });
 
-        return dashboard;
+        return this.applyOpenDraftOverlay(user, dashboard);
     }
 
     async getDashboardCharts(
@@ -1581,6 +1594,134 @@ export class DashboardService
         return this.update(user, dashboardUuidOrSlug, dashboard, options);
     }
 
+    private async canManageContentAsCode(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        return auditedAbility.can(
+            'manage',
+            subject('ContentAsCode', {
+                projectUuid: project.projectUuid,
+                organizationUuid: project.organizationUuid,
+                upstreamProjectUuid: project.upstreamProjectUuid,
+                type: project.type,
+                createdByUserUuid: project.createdByUserUuid,
+                metadata: { slug: '' },
+            }),
+        );
+    }
+
+    private static mergeDraftIntoDashboard<T extends DashboardDAO>(
+        dashboard: T,
+        draft: object,
+    ): T {
+        const fields = draft as Partial<DashboardDAO>;
+        return {
+            ...dashboard,
+            ...(fields.name !== undefined && { name: fields.name }),
+            ...(fields.description !== undefined && {
+                description: fields.description,
+            }),
+            ...(fields.tiles !== undefined && { tiles: fields.tiles }),
+            ...(fields.filters !== undefined && { filters: fields.filters }),
+            ...(fields.tabs !== undefined && { tabs: fields.tabs }),
+            ...(fields.config !== undefined && { config: fields.config }),
+        };
+    }
+
+    // Drafts mode: a business user's save becomes an unpublished draft that
+    // only they see; reviewers later write it back to the repo. The
+    // published dashboard is untouched.
+    private async maybeStoreDraft(
+        user: SessionUser,
+        existingDashboardDao: DashboardDAO,
+        dashboardFields: object,
+    ): Promise<Dashboard | undefined> {
+        const settings = await this.contentAsCodeProjectSettingsModel.get(
+            existingDashboardDao.projectUuid,
+        );
+        if (!settings?.draftsEnabled) return undefined;
+        if (
+            await this.canManageContentAsCode(
+                user,
+                existingDashboardDao.projectUuid,
+            )
+        ) {
+            return undefined;
+        }
+        await this.contentDraftModel.upsertOpenDraft({
+            projectUuid: existingDashboardDao.projectUuid,
+            contentType: 'dashboard',
+            contentUuid: existingDashboardDao.uuid,
+            slug: existingDashboardDao.slug,
+            authorUserUuid: user.userUuid,
+            draft: dashboardFields,
+        });
+        const overlaid = DashboardService.mergeDraftIntoDashboard(
+            existingDashboardDao,
+            dashboardFields,
+        );
+        const space = await this.spacePermissionService.getSpaceAccessContext(
+            user.userUuid,
+            existingDashboardDao.spaceUuid,
+        );
+        return {
+            ...overlaid,
+            inheritsFromOrgOrProject: space.inheritsFromOrgOrProject,
+            access: space.access,
+            hasUnpublishedChanges: true,
+        };
+    }
+
+    private async applyOpenDraftOverlay(
+        user: SessionUser,
+        dashboard: Dashboard,
+    ): Promise<Dashboard> {
+        try {
+            const settings = await this.contentAsCodeProjectSettingsModel.get(
+                dashboard.projectUuid,
+            );
+            if (!settings?.draftsEnabled) return dashboard;
+            const draft = await this.contentDraftModel.findOpenDraft(
+                dashboard.projectUuid,
+                'dashboard',
+                dashboard.uuid,
+                user.userUuid,
+            );
+            if (draft) {
+                return {
+                    ...DashboardService.mergeDraftIntoDashboard(
+                        dashboard,
+                        draft.draft,
+                    ),
+                    hasUnpublishedChanges: true,
+                };
+            }
+            // Reviewers get an entry point when others have open drafts here
+            if (
+                await this.canManageContentAsCode(user, dashboard.projectUuid)
+            ) {
+                const awaiting =
+                    await this.contentDraftModel.countOpenForContent(
+                        dashboard.projectUuid,
+                        'dashboard',
+                        dashboard.uuid,
+                        user.userUuid,
+                    );
+                if (awaiting > 0) {
+                    return { ...dashboard, draftsAwaitingReview: awaiting };
+                }
+            }
+            return dashboard;
+        } catch (error) {
+            this.logger.warn('Draft overlay failed', error);
+            return dashboard;
+        }
+    }
+
+
     async update(
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
@@ -1624,6 +1765,13 @@ export class DashboardService
             projectUuid: existingDashboardDao.projectUuid,
             organizationUuid: existingDashboardDao.organizationUuid,
         });
+
+        const draftResult = await this.maybeStoreDraft(
+            user,
+            existingDashboardDao,
+            dashboardFields,
+        );
+        if (draftResult) return draftResult;
 
         const verificationAfterUpdate =
             await this.getVerificationAfterDashboardUpdate({

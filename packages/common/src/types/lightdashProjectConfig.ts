@@ -104,6 +104,12 @@ export type CustomGranularity = {
 export type ContentAsCodeConfig = {
     /** Track uploaded content as Git-backed for review/write-back workflows. */
     sync?: boolean;
+    /**
+     * When true, business-user saves of managed dashboards become
+     * unpublished drafts that reviewers write back to the repo, instead of
+     * publishing directly.
+     */
+    drafts?: boolean;
 };
 
 export type LightdashProjectConfig = {

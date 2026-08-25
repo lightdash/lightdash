@@ -12,6 +12,11 @@
                     "type": "boolean",
                     "default": false,
                     "description": "When true, uploaded content is tracked as Git-backed for content review and write-back workflows."
+                },
+                "drafts": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "When true, business-user saves of managed dashboards become unpublished drafts for reviewers to write back, instead of publishing directly."
                 }
             },
             "additionalProperties": false

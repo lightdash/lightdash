@@ -16,6 +16,7 @@ import {
 } from 'react-router';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import SettingsEmbed from '../../ee/features/embed/SettingsEmbed';
+import ContentReviewPage from '../../features/contentAsCode/components/ContentReviewPage';
 import { ExternalSourcesSettingsPanel } from '../../features/externalSources/components/ExternalSourcesSettingsPanel';
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
@@ -363,6 +364,23 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
                                   description="Review pull requests opened for this project's code."
                               >
                                   <PullRequestsPage projectUuid={projectUuid} />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
+            ...(isGitProject
+                ? [
+                      {
+                          path: `/contentReview`,
+                          element: (
+                              <ProjectSettingsPage
+                                  title="Content review"
+                                  description="Unpublished changes made in this project, awaiting a reviewer to write them back to the repo."
+                              >
+                                  <ContentReviewPage
+                                      projectUuid={projectUuid}
+                                  />
                               </ProjectSettingsPage>
                           ),
                       },

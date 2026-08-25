@@ -10,6 +10,7 @@ import { CommentModel } from './CommentModel/CommentModel';
 import { ContentAsCodeProjectSettingsModel } from './ContentAsCodeProjectSettingsModel';
 import { ContentAsCodeSnapshotModel } from './ContentAsCodeSnapshotModel';
 import { ContentAsCodeWritebackModel } from './ContentAsCodeWritebackModel';
+import { ContentDraftModel } from './ContentDraftModel';
 import { ContentModel } from './ContentModel/ContentModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
 import { DashboardAccessModel } from './DashboardAccessModel';
@@ -153,6 +154,7 @@ export type ModelManifest = {
     contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
     contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
     contentAsCodeWritebackModel: ContentAsCodeWritebackModel;
+    contentDraftModel: ContentDraftModel;
     contentVerificationModel: ContentVerificationModel;
     tagsModel: TagsModel;
     featureFlagModel: FeatureFlagModel;
@@ -862,6 +864,13 @@ export class ModelRepository
         return this.getModel(
             'contentAsCodeWritebackModel',
             () => new ContentAsCodeWritebackModel({ database: this.database }),
+        );
+    }
+
+    public getContentDraftModel(): ContentDraftModel {
+        return this.getModel(
+            'contentDraftModel',
+            () => new ContentDraftModel({ database: this.database }),
         );
     }
 

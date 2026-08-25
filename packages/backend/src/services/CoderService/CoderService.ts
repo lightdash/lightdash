@@ -2886,6 +2886,7 @@ export class CoderService extends BaseService {
         projectUuid: string,
     ): Promise<{
         syncEnabled: boolean;
+        draftsEnabled: boolean;
         stampedAt: Date;
     } | null> {
         const project = await this.projectModel.getSummary(projectUuid);
@@ -2906,13 +2907,44 @@ export class CoderService extends BaseService {
         return settings ?? null;
     }
 
+    // Drafts review: render the dashboard's as-code document with an
+    // unpublished draft's fields applied on top of the published version
+    async getDashboardAsCodeWithOverlay(
+        dashboardUuid: string,
+        overlay: object,
+    ): Promise<DashboardAsCode> {
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const fields = overlay as Partial<typeof dashboard>;
+        const merged = {
+            ...dashboard,
+            ...(fields.name !== undefined && { name: fields.name }),
+            ...(fields.description !== undefined && {
+                description: fields.description,
+            }),
+            ...(fields.tiles !== undefined && { tiles: fields.tiles }),
+            ...(fields.filters !== undefined && { filters: fields.filters }),
+            ...(fields.tabs !== undefined && { tabs: fields.tabs }),
+            ...(fields.config !== undefined && { config: fields.config }),
+        };
+        const spaces = await this.spaceModel.find({
+            spaceUuids: merged.spaceUuid ? [merged.spaceUuid] : [],
+        });
+        const verificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.DASHBOARD,
+                [merged.uuid],
+            );
+        return CoderService.transformDashboard(merged, spaces, verificationMap);
+    }
+
     // The repo's content_as_code flags travel with uploads; stamping them as
     // project-level state is how the instance (settings UI, write-back)
     // learns what the repo has opted into.
     async stampContentAsCodeSettings(
         user: SessionUser,
         projectUuid: string,
-        settings: { sync: boolean },
+        settings: { sync: boolean; drafts?: boolean },
     ): Promise<void> {
         const project = await this.projectModel.get(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
@@ -2936,6 +2968,7 @@ export class CoderService extends BaseService {
         await this.contentAsCodeProjectSettingsModel.upsert({
             projectUuid,
             syncEnabled: settings.sync,
+            draftsEnabled: settings.sync && (settings.drafts ?? false),
         });
     }
 

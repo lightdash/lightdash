@@ -45,6 +45,10 @@ import {
     ContentAsCodeWritebackTable,
 } from '../database/entities/contentAsCodeWritebacks';
 import {
+    ContentDraftsTable,
+    ContentDraftsTableName,
+} from '../database/entities/contentDrafts';
+import {
     ContentVerificationTable,
     ContentVerificationTableName,
 } from '../database/entities/contentVerification';
@@ -768,6 +772,7 @@ declare module 'knex/types/tables' {
         [ManagedAgentProtectionsTableName]: ManagedAgentProtectionsTable;
         [UserFavoritesTableName]: UserFavoritesTable;
         [ContentAsCodeSnapshotsTableName]: ContentAsCodeSnapshotTable;
+        [ContentDraftsTableName]: ContentDraftsTable;
         [ContentAsCodeProjectSettingsTableName]: ContentAsCodeProjectSettingsTable;
         [ContentAsCodeWritebacksTableName]: ContentAsCodeWritebackTable;
         [ContentVerificationTableName]: ContentVerificationTable;
