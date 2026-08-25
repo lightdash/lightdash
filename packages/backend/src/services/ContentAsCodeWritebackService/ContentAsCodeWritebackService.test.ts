@@ -151,7 +151,9 @@ describe('ContentAsCodeWritebackService', () => {
         ).toHaveBeenCalledTimes(1);
         const prBody =
             gitIntegrationService.createPullRequestFromBranch.mock.calls[0][4];
-        expect(prBody).toContain('https://app.lightdash.dev');
+        expect(prBody).toContain(
+            'https://app.lightdash.dev/projects/project-uuid',
+        );
         expect(prBody).toContain('/projects/project-uuid/saved/chart-uuid');
         expect(contentAsCodeWritebackModel.update).toHaveBeenCalledWith(
             'row-uuid',
@@ -170,7 +172,9 @@ describe('ContentAsCodeWritebackService', () => {
         const { service, gitIntegrationService } = buildService();
         await service.runChartWriteback(user, payload);
         const message = gitIntegrationService.saveFile.mock.calls[0][6];
-        expect(message).toContain('Instance: https://app.lightdash.dev');
+        expect(message).toContain(
+            'Project: https://app.lightdash.dev/projects/project-uuid',
+        );
         expect(message).toContain(
             'Co-authored-by: Demo User <demo@lightdash.com>',
         );
