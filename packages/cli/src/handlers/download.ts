@@ -28,6 +28,7 @@ import {
     assertUnreachable,
     AuthorizationError,
     ChartAsCode,
+    ChartType,
     computeCustomDependencies,
     ContentAsCodeType as ContentAsCodeTypeEnum,
     DashboardAsCode,
@@ -357,7 +358,9 @@ const sanitizeChartForDownload = (
     chart: ChartAsCode,
     stripPivotSeries: boolean,
 ): ChartAsCode =>
-    stripPivotSeries
+    // Only cartesian configs carry pivoted series; the helper takes the
+    // runtime config union, so narrow before calling.
+    stripPivotSeries && chart.chartConfig.type === ChartType.CARTESIAN
         ? {
               ...chart,
               chartConfig: removePivotedSeriesValuesFromChartConfig(

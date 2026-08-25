@@ -793,15 +793,12 @@ export type DataAppVizFieldMapping = Record<string, string>;
 export type DataAppVizOptionValues = Record<string, DataAppVizOptionValue>;
 
 export type DataAppVizChart = {
-    /** The reusable data app viz this chart renders with (by reference). */
-    dataAppVizUuid: string;
     /**
-     * Content-as-code only: the viz's project-scoped slug, emitted on chart
-     * download and resolved back to dataAppVizUuid (then stripped) on upload
-     * so chart YAML stays portable across projects. Never persisted and
-     * never used at render time — dataAppVizUuid is the runtime identity.
+     * The reusable data app viz this chart renders with (by reference).
+     * Content-as-code files carry the viz's project-scoped slug instead —
+     * see DataAppVizChartAsCode.
      */
-    dataAppVizSlug?: string;
+    dataAppVizUuid: string;
     fieldMapping: DataAppVizFieldMapping;
     /**
      * Only options the user explicitly changed — declared defaults are never
