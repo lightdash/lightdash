@@ -2894,16 +2894,30 @@ export class UnfurlService extends BaseService {
             return;
         }
 
-        const organizationUuid =
-            await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
-                teamId,
+        // A missing installer mapping (user deleted or out of the org) must
+        // degrade to "no unfurl", not reject the whole link_shared handler.
+        let organizationUuid: string;
+        let authUserUuid: string;
+        let user: SessionUser;
+        try {
+            organizationUuid =
+                await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                    teamId,
+                );
+            authUserUuid =
+                await this.slackAuthenticationModel.getUserUuid(teamId);
+            user = await this.userService.getSessionByUserUuidAndOrg(
+                authUserUuid,
+                organizationUuid,
             );
-        const authUserUuid =
-            await this.slackAuthenticationModel.getUserUuid(teamId);
-        const user = await this.userService.getSessionByUserUuidAndOrg(
-            authUserUuid,
-            organizationUuid,
-        );
+        } catch (error) {
+            Logger.warn(
+                `Slack unfurl skipped for team ${teamId}: could not resolve the installing user (${getErrorMessage(
+                    error,
+                )})`,
+            );
+            return;
+        }
 
         void event.links.map(async (l) => {
             const eventUserId = context.botUserId;

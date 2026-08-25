@@ -177,6 +177,33 @@ describe('UnfurlService', () => {
         expect(sendUnfurl).not.toHaveBeenCalled();
     });
 
+    it('skips unfurling when the installing user can no longer be resolved', async () => {
+        const service = createService({
+            slackAuthenticationModel: {
+                getUnfurlsEnabled: vi.fn().mockResolvedValue(true),
+                getOrganizationUuidFromTeamId: vi
+                    .fn()
+                    .mockResolvedValue('organization-uuid'),
+                getUserUuid: vi
+                    .fn()
+                    .mockRejectedValue(new NotFoundError('installer deleted')),
+            },
+        });
+        const unfurlDetails = vi.spyOn(service, 'unfurlDetails');
+
+        await expect(
+            service.unfurlSlackUrls({
+                event: {
+                    channel: 'channel',
+                    message_ts: 'timestamp',
+                    links: [{ url: 'https://app.lightdash.cloud/dashboard' }],
+                },
+                context: { teamId: 'team-uuid' },
+            } as never),
+        ).resolves.toBeUndefined();
+        expect(unfurlDetails).not.toHaveBeenCalled();
+    });
+
     afterEach(() => {
         vi.clearAllMocks();
     });

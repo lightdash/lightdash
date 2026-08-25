@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     OrganizationMemberRole,
     PossibleAbilities,
+    SpaceMemberRole,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { SlackClient } from '../../clients/Slack/SlackClient';
@@ -32,6 +33,25 @@ const dashboardData = {
     organizationUuid: 'org-uuid',
     projectUuid: 'project-uuid',
     uuid: 'dashboard-uuid',
+    spaceUuid: 'space-uuid',
+    name: 'Dashboard',
+    tiles: [],
+};
+
+const spacePermissionService = {
+    getSpaceAccessContext: vi.fn(async () => ({
+        organizationUuid: 'org-uuid',
+        projectUuid: 'project-uuid',
+        inheritsFromOrgOrProject: true,
+        access: [],
+        admins: [],
+    })),
+};
+
+const directAccessService = {
+    resolveUserAccessForUser: vi.fn(async () => ({
+        'dashboard-uuid': SpaceMemberRole.VIEWER,
+    })),
 };
 
 const verificationInfo = {
@@ -115,10 +135,12 @@ describe('DashboardService - Content Verification', () => {
         schedulerClient: {} as unknown as SchedulerClient,
         catalogModel: {} as unknown as CatalogModel,
         organizationModel: {} as unknown as OrganizationModel,
-        spacePermissionService: {} as unknown as SpacePermissionService,
+        spacePermissionService:
+            spacePermissionService as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
-        directAccessService: {} as unknown as DirectAccessService,
+        directAccessService:
+            directAccessService as unknown as DirectAccessService,
     });
 
     afterEach(() => {

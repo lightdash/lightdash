@@ -525,7 +525,7 @@ describe('DashboardService', () => {
             tiles: [
                 {
                     uuid: 'markdown-tile-uuid',
-                    type: DashboardTileTypes.MARKDOWN,
+                    type: DashboardTileTypes.MARKDOWN as const,
                     properties: { title: 'Notes', content: 'Hello' },
                     x: 0,
                     y: 0,
