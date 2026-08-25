@@ -20,6 +20,7 @@ describe('DeepResearchModeControl', () => {
             name: 'Enable deep research',
         });
         expect(enable).toHaveAttribute('aria-pressed', 'false');
+        expect(enable).toHaveAttribute('data-active', 'false');
 
         await user.click(enable);
 
@@ -27,6 +28,7 @@ describe('DeepResearchModeControl', () => {
             name: 'Disable deep research',
         });
         expect(disable).toHaveAttribute('aria-pressed', 'true');
+        expect(disable).toHaveAttribute('data-active', 'true');
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
         await user.click(disable);

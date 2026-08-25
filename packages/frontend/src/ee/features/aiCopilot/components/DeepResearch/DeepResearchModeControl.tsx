@@ -71,8 +71,11 @@ export const DeepResearchModeControl = ({
             onClick={toggleMode}
             aria-label={label}
             aria-pressed={isDeepResearch}
+            data-active={isDeepResearch}
             disabled={disabled}
-            className={nudgeClassName}
+            className={[styles.textControl, nudgeClassName]
+                .filter(Boolean)
+                .join(' ')}
         >
             Deep research
         </Button>

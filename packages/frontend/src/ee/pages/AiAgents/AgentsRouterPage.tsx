@@ -38,11 +38,14 @@ import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatEleme
 import { MyMemoriesModal } from '../../features/aiCopilot/components/MyMemories/MyMemoriesModal';
 import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
+import { type StartDeepResearchArgs } from '../../features/aiCopilot/deepResearch/types';
 import { useAiAgentModelSelection } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentRouterFlow } from '../../features/aiCopilot/hooks/useAiAgentRouterFlow';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useAiAgentMemoryEnabled } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
+import { useStartDeepResearchForThreadMutation } from '../../features/aiCopilot/hooks/useDeepResearch';
+import { useDeepResearchAccess } from '../../features/aiCopilot/hooks/useDeepResearchAccess';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
 import {
     useCreateAgentThreadMutation,
@@ -51,6 +54,8 @@ import {
 import { setThreadSqlMode } from '../../features/aiCopilot/store/aiAgentThreadModeSlice';
 import { useAiAgentStoreDispatch } from '../../features/aiCopilot/store/hooks';
 import classes from './AgentsRouterPage.module.css';
+
+type AgentsRouterPayload = { kind: 'chat' } | { kind: 'deep_research' };
 
 const AgentsRouterPage = () => {
     const projectUuid = useProjectUuid();
@@ -75,6 +80,7 @@ const AgentsRouterPage = () => {
     const memoryEnabled = useAiAgentMemoryEnabled();
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
+    const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
 
@@ -110,8 +116,11 @@ const AgentsRouterPage = () => {
     const { mutateAsync: createThread } = useCreateAgentThreadMutation(
         projectUuid!,
     );
+    const startDeepResearch = useStartDeepResearchForThreadMutation(
+        projectUuid!,
+    );
 
-    const createThreadForAgent = useCallback(
+    const createChatThreadForAgent = useCallback(
         async (args: {
             agentUuid: string;
             context?: AiPromptContextInput;
@@ -151,32 +160,75 @@ const AgentsRouterPage = () => {
         ],
     );
 
-    const handleRouteError = useCallback(
+    const createDeepResearchForAgent = useCallback(
+        async (args: {
+            agentUuid: string;
+            context?: AiPromptContextInput;
+            message: string;
+            optimisticContext?: AiPromptContext;
+            toolHints: string[];
+        }) => {
+            const thread = await createThread({
+                agentUuid: args.agentUuid,
+                context: args.context,
+                modelConfig,
+                optimisticContext: args.optimisticContext,
+                prompt: args.message,
+                skipAgentResponse: true,
+            });
+            await startDeepResearch.mutateAsync({
+                agentUuid: args.agentUuid,
+                promptUuid: thread.firstMessage.uuid,
+                question: args.message,
+                threadUuid: thread.uuid,
+            });
+            return thread;
+        },
+        [createThread, modelConfig, startDeepResearch],
+    );
+
+    const createThreadForPayload = useCallback(
         ({
+            payload,
+            ...args
+        }: Parameters<typeof createChatThreadForAgent>[0] & {
+            payload: AgentsRouterPayload;
+        }) =>
+            payload.kind === 'deep_research'
+                ? createDeepResearchForAgent(args)
+                : createChatThreadForAgent(args),
+        [createChatThreadForAgent, createDeepResearchForAgent],
+    );
+
+    const handleRouteError = useCallback(
+        async ({
             fallbackAgent,
             context,
             message,
             optimisticContext,
+            payload,
             toolHints,
         }: {
             fallbackAgent?: { uuid: string };
             context?: AiPromptContextInput;
             message: string;
             optimisticContext?: AiPromptContext;
+            payload: AgentsRouterPayload;
             toolHints: string[];
         }) => {
             setPendingPrompt(message);
             if (fallbackAgent && projectUuid) {
-                void createThreadForAgent({
+                await createThreadForPayload({
                     agentUuid: fallbackAgent.uuid,
                     context,
                     message,
                     optimisticContext,
+                    payload,
                     toolHints,
                 });
             }
         },
-        [createThreadForAgent, projectUuid, setPendingPrompt],
+        [createThreadForPayload, projectUuid, setPendingPrompt],
     );
 
     const {
@@ -188,9 +240,9 @@ const AgentsRouterPage = () => {
         isRouting,
         phase,
         sortedCandidates,
-    } = useAiAgentRouterFlow({
+    } = useAiAgentRouterFlow<AgentsRouterPayload>({
         agents: agents ?? [],
-        createThreadForAgent,
+        createThreadForAgent: createThreadForPayload,
         onRouteError: handleRouteError,
         projectUuid,
     });
@@ -221,11 +273,36 @@ const AgentsRouterPage = () => {
                 context: mergedContext,
                 message,
                 optimisticContext: mergedOptimisticContext,
-                payload: undefined,
+                payload: { kind: 'chat' },
                 toolHints,
             }).catch(() => undefined);
         },
         [
+            contextInput,
+            handleRouterSubmit,
+            isPinnedContextReady,
+            previewItems,
+            setPendingPrompt,
+        ],
+    );
+
+    const handleStartDeepResearch = useCallback(
+        async ({ question }: StartDeepResearchArgs) => {
+            if (!isPinnedContextReady || !canStartDeepResearch) {
+                return;
+            }
+
+            setPendingPrompt('');
+            await handleRouterSubmit({
+                context: contextInput,
+                message: question,
+                optimisticContext: previewItems,
+                payload: { kind: 'deep_research' },
+                toolHints: [],
+            });
+        },
+        [
+            canStartDeepResearch,
             contextInput,
             handleRouterSubmit,
             isPinnedContextReady,
@@ -370,6 +447,11 @@ const AgentsRouterPage = () => {
                             loading={isLocked}
                             disabled={!isPinnedContextReady}
                             onSubmit={handleSubmit}
+                            onStartDeepResearch={
+                                canStartDeepResearch
+                                    ? handleStartDeepResearch
+                                    : undefined
+                            }
                             defaultValue={pendingPrompt}
                             onValueChange={setPendingPrompt}
                             models={modelOptions}
