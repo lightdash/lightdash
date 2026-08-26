@@ -30,6 +30,14 @@ export type SqlRunnerLinkState = {
     limit?: number;
 };
 
+const isPlainLeftClick = (e: MouseEvent<HTMLAnchorElement>) =>
+    !e.defaultPrevented &&
+    e.button === 0 &&
+    !e.metaKey &&
+    !e.altKey &&
+    !e.ctrlKey &&
+    !e.shiftKey;
+
 const REFERENCE_LINK_KINDS = {
     'dashboard-link': 'dashboard',
     'data-app-link': 'data_app',
@@ -73,15 +81,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
     );
 
     const handleResourceClick = (e: MouseEvent<HTMLAnchorElement>) => {
-        if (
-            !resourceHref ||
-            e.defaultPrevented ||
-            e.button !== 0 ||
-            e.metaKey ||
-            e.altKey ||
-            e.ctrlKey ||
-            e.shiftKey
-        ) {
+        if (!resourceHref || !isPlainLeftClick(e)) {
             return;
         }
 
@@ -132,19 +132,10 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     : undefined;
             const isActive = !!appUuid && currentDataApp?.appUuid === appUuid;
 
-            // Plain left-click previews the app in the thread panel; modified
-            // clicks fall through to the anchor and open the full page in a
-            // new tab.
+            // Modified clicks fall through to the anchor and open the full
+            // page in a new tab.
             const handleDataAppClick = (e: MouseEvent<HTMLAnchorElement>) => {
-                if (
-                    !appUuid ||
-                    e.defaultPrevented ||
-                    e.button !== 0 ||
-                    e.metaKey ||
-                    e.altKey ||
-                    e.ctrlKey ||
-                    e.shiftKey
-                ) {
+                if (!appUuid || !isPlainLeftClick(e)) {
                     return;
                 }
 
@@ -203,16 +194,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 isSavedChart && currentSavedChart?.savedChartUuid === chartUuid;
 
             const handleChartClick = (e: MouseEvent<HTMLAnchorElement>) => {
-                if (
-                    !isSavedChart ||
-                    !chartUuid ||
-                    e.defaultPrevented ||
-                    e.button !== 0 ||
-                    e.metaKey ||
-                    e.altKey ||
-                    e.ctrlKey ||
-                    e.shiftKey
-                ) {
+                if (!isSavedChart || !chartUuid || !isPlainLeftClick(e)) {
                     return;
                 }
 

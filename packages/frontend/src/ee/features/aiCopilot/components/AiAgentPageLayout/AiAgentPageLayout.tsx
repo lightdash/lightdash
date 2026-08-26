@@ -187,9 +187,13 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         />
 
                         <ErrorBoundary>
+                            {/* Keyed by preview kind: interactive apps remount
+                                to a wider default; chart/artifact switches keep
+                                the user's size. */}
                             <Panel
+                                key={dataApp ? 'data-app' : 'chart-artifact'}
                                 className={styles.floatingArtifactRegion}
-                                defaultSize={46}
+                                defaultSize={dataApp ? 60 : 46}
                                 id="artifact"
                                 minSize={32}
                                 maxSize={64}

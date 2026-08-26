@@ -78,7 +78,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({ dataAppPreview }) => {
     );
 
     const renderMessage = (message: string) => (
-        <div className={artifactStyles.floatingPanel}>
+        <Box className={artifactStyles.floatingPanel}>
             <Center className={artifactStyles.loading}>
                 <Stack gap="xs" align="center">
                     <Text size="xs" c="dimmed" ta="center">
@@ -87,7 +87,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({ dataAppPreview }) => {
                     {closeButton}
                 </Stack>
             </Center>
-        </div>
+        </Box>
     );
 
     if (isNotFound) {
@@ -107,18 +107,18 @@ export const AiDataAppPreviewPanel: FC<Props> = ({ dataAppPreview }) => {
 
     if (appQuery.isLoading || !app) {
         return (
-            <div className={artifactStyles.floatingPanel}>
+            <Box className={artifactStyles.floatingPanel}>
                 <Center className={artifactStyles.loading}>
                     <Stack gap="xs" align="center">
                         <Loader
                             type="dots"
-                            color="gray"
+                            color="ldGray.6"
                             delayedMessage="Loading data app..."
                         />
                         {closeButton}
                     </Stack>
                 </Center>
-            </div>
+            </Box>
         );
     }
 
@@ -128,7 +128,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({ dataAppPreview }) => {
             <Center h="100%">
                 <Loader
                     type="dots"
-                    color="gray"
+                    color="ldGray.6"
                     delayedMessage="Loading data app..."
                 />
             </Center>
@@ -150,9 +150,9 @@ export const AiDataAppPreviewPanel: FC<Props> = ({ dataAppPreview }) => {
     const appUrl = `/projects/${projectUuid}/apps/${appUuid}/view`;
 
     return (
-        <div className={artifactStyles.floatingPanel}>
-            <div className={artifactStyles.floatingContent}>
-                <div className={artifactStyles.head}>
+        <Box className={artifactStyles.floatingPanel}>
+            <Box className={artifactStyles.floatingContent}>
+                <Box className={artifactStyles.head}>
                     <Stack gap={0} flex={1} miw={0}>
                         <TruncatedText fz="sm" fw={600} maxWidth="100%">
                             {getAppDisplayName(app.name, appUuid)}
@@ -197,12 +197,12 @@ export const AiDataAppPreviewPanel: FC<Props> = ({ dataAppPreview }) => {
                         </Menu>
                         {closeButton}
                     </Group>
-                </div>
+                </Box>
 
                 <Box flex={1} mih={0}>
                     {body}
                 </Box>
-            </div>
-        </div>
+            </Box>
+        </Box>
     );
 };
