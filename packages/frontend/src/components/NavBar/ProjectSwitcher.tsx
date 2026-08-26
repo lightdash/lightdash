@@ -319,7 +319,13 @@ const swappableProjectRoutes = (
     ].map((path) => ({ path, handle: { useProjectSlug: false } })),
 ];
 
-const ProjectSwitcher = () => {
+type ProjectSwitcherProps = {
+    /** Selector the dropdown is portaled into, or null to portal into the body.
+     *  The desktop navbar targets its own forced-dark subtree. */
+    portalTarget: string | null;
+};
+
+const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
     const { showToastSuccess } = useToaster();
     const navigate = useNavigate();
 
@@ -632,7 +638,7 @@ const ProjectSwitcher = () => {
                 }}
                 classNames={{ dropdown: classes.dropdown }}
                 zIndex={getDefaultZIndex('max')}
-                portalProps={{ target: '#navbar-header' }}
+                portalProps={portalTarget ? { target: portalTarget } : undefined}
             >
                 <Menu.Target>
                     <Button

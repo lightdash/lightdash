@@ -103,7 +103,7 @@ export const MainNavBarContent: FC<Props> = ({
                             <HeadwayMenuItem projectUuid={activeProjectUuid} />
                         )}
 
-                    <ProjectSwitcher />
+                    <ProjectSwitcher portalTarget="#navbar-header" />
 
                     <UserCredentialsSwitcher />
                 </Button.Group>
