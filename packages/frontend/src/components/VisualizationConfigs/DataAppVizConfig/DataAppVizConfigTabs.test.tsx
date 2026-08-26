@@ -36,6 +36,8 @@ type PickerProps = {
 type FieldSelectProps = {
     items: Item[];
     onChange: (item: Item | null) => void;
+    disabled: boolean;
+    placeholder: string;
 };
 
 const {
@@ -300,6 +302,72 @@ describe('DataAppVizConfigTabs', () => {
         expect(fieldSelectItems.map((items) => items.map(getItemId))).toEqual([
             ['orders_visible', 'custom-dimension'],
             ['orders_visible_metric', 'table_calculation'],
+        ]);
+    });
+
+    it('names what the chart is missing on a select it cannot offer', () => {
+        // Only dimensions in play, so the metric slot has no candidate at all.
+        mockContext({ orders_visible: makeDimension('visible', false) });
+        renderWithProviders(<ConfigTabs />);
+
+        expect(
+            fieldSelectProps.map((props) => [
+                props.disabled,
+                props.placeholder,
+            ]),
+        ).toEqual([
+            [false, 'Select source'],
+            [
+                true,
+                'You need at least one metric in your chart to set this field',
+            ],
+        ]);
+    });
+
+    it('stays quiet about a slot the user can still fill by hand', () => {
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: {
+                dataAppVizUuid: 'data-app-viz-uuid',
+                name: 'Radial gauge',
+                description: '',
+                spaceUuid: null,
+                createdByUserUuid: MOCK_USER_UUID,
+                schema: {
+                    fields: [
+                        {
+                            name: 'first',
+                            label: 'First',
+                            type: 'metric',
+                            required: true,
+                        },
+                        {
+                            name: 'second',
+                            label: 'Second',
+                            type: 'metric',
+                            required: true,
+                        },
+                    ],
+                    configOptions: [],
+                    colorPalette: null,
+                },
+            },
+        } as unknown as ReturnType<typeof useDataAppVisualization>);
+        // One metric between two required metric slots: auto-binding spreads
+        // columns, so the second is left unbound.
+        mockContext({
+            orders_visible_metric: makeMetric('visible_metric', false),
+        });
+        renderWithProviders(<ConfigTabs />);
+
+        // Both selects still offer it, because a column may serve more than
+        // one slot, so neither claims the chart is missing anything.
+        expect(fieldSelectItems.map((items) => items.map(getItemId))).toEqual([
+            ['orders_visible_metric'],
+            ['orders_visible_metric'],
+        ]);
+        expect(fieldSelectProps.map((props) => props.placeholder)).toEqual([
+            'Select first',
+            'Select second',
         ]);
     });
 

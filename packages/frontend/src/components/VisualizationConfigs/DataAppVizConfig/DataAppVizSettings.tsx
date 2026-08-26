@@ -61,7 +61,14 @@ const DataAppVizSettings: FC<Props> = ({
                             <Config.Heading>{field.label}</Config.Heading>
                             <FieldSelect
                                 size="xs"
-                                placeholder={`Select ${field.label.toLowerCase()}`}
+                                // A disabled, empty select says nothing on its
+                                // own; the placeholder names what the chart is
+                                // missing, as the cartesian layout does.
+                                placeholder={
+                                    items.length === 0
+                                        ? `You need at least one ${poolKeyForSlot(field)} in your chart to set this field`
+                                        : `Select ${field.label.toLowerCase()}`
+                                }
                                 disabled={items.length === 0}
                                 item={selectedItem}
                                 items={items}
