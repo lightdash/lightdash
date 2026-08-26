@@ -10467,7 +10467,8 @@
                     "recently-updated",
                     "pinned",
                     "favorites",
-                    "recently-viewed"
+                    "recently-viewed",
+                    "verified"
                 ],
                 "description": "Where a collection block's items come from.\n\n`manual` reads the block's own `items`. Every other source is a live rule\nresolved per viewer at render time — which is the point: a snapshot of\n\"most viewed\" is stale the week after it's taken, and a frozen copy of the\npin list stops tracking pins the moment it's published.\n\n`favorites` and `recently-viewed` are per-viewer; the rest are project-wide."
             },
@@ -56344,7 +56345,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.6.0",
+        "version": "2.7.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

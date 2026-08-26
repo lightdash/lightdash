@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.6.0",
-  "previousVersion": "2.5.2",
-  "releaseDate": "2026-08-26T09:47:22.481Z",
+  "version": "2.7.0",
+  "previousVersion": "2.6.0",
+  "releaseDate": "2026-08-26T10:17:45.204Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,8 +20,23 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/projects/{projectUuid}/homepage — added the new `verified` enum value to the `results/allOf[#/components/schemas/ResolvedHomepage]/homepage/config/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/source` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/homepage — added the new `verified` enum value to the `results/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/source` response property for the response status `201`",
+        "POST /api/v1/projects/{projectUuid}/homepage — added the new `verified` enum value to the `results/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/source` response property for the response status `201`",
+        "GET /api/v1/projects/{projectUuid}/homepage/builder — added the new `verified` enum value to the `results/allOf[#/components/schemas/ProjectHomepage]/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/source` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/homepage/builder — added the new `verified` enum value to the `results/allOf[#/components/schemas/ProjectHomepage]/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/source` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/homepage/list — added the new `verified` enum value to the `results/items/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/source` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/homepage/list — added the new `verified` enum value to the `results/items/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/source` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/homepage/view-as — added the new `verified` enum value to the `results/resolved/allOf[#/components/schemas/ResolvedHomepage]/homepage/config/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/source` response property for the response status `200`",
+        "PATCH /api/v1/projects/{projectUuid}/homepage/{homepageUuid} — added the new `verified` enum value to the `results/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/source` response property for the response status `200`",
+        "PATCH /api/v1/projects/{projectUuid}/homepage/{homepageUuid} — added the new `verified` enum value to the `results/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/source` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/homepage/{homepageUuid}/discard-draft — added the new `verified` enum value to the `results/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/source` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/homepage/{homepageUuid}/discard-draft — added the new `verified` enum value to the `results/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/source` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/homepage/{homepageUuid}/publish — added the new `verified` enum value to the `results/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/source` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/homepage/{homepageUuid}/publish — added the new `verified` enum value to the `results/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/source` response property for the response status `200`"
+      ],
+      "advisoryCount": 14
     },
     "mcp": {
       "checked": true,

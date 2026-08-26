@@ -1,3 +1,16 @@
+# [2.7.0](https://github.com/lightdash/lightdash/compare/2.6.0...2.7.0) (2026-08-26)
+
+
+### Bug Fixes
+
+* **pgwire:** log describe failures so extended-protocol errors are visible ([#28073](https://github.com/lightdash/lightdash/issues/28073)) ([5e13d2a](https://github.com/lightdash/lightdash/commit/5e13d2aafcbefe9959b39a7a745ddcc99fc88e4d))
+* **search:** boost exact names and reserve verified results ([#28060](https://github.com/lightdash/lightdash/issues/28060)) ([f37907c](https://github.com/lightdash/lightdash/commit/f37907c64570334df2b70aed4602e77665302c05))
+
+
+### Features
+
+* **search:** add Verified filter and homepage section ([#28064](https://github.com/lightdash/lightdash/issues/28064)) ([b28f1ac](https://github.com/lightdash/lightdash/commit/b28f1ac5aaf9c9e48e6c9fe8a79e2f560a236429))
+
 # [2.6.0](https://github.com/lightdash/lightdash/compare/2.5.2...2.6.0) (2026-08-26)
 
 

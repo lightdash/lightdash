@@ -9803,6 +9803,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['pinned'] },
                 { dataType: 'enum', enums: ['favorites'] },
                 { dataType: 'enum', enums: ['recently-viewed'] },
+                { dataType: 'enum', enums: ['verified'] },
             ],
             validators: {},
         },
