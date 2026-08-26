@@ -1445,11 +1445,6 @@ program
             .choices([...VALIDATION_SEVERITIES])
             .default('error'),
     )
-    .option(
-        '--warnings-as-errors',
-        'Treat chart configuration warnings as errors. Equivalent to --severity warning.',
-        false,
-    )
     .addOption(
         new Option('--only <elems...>', 'Specify project elements to validate')
             .choices(Object.values(ValidationTarget))

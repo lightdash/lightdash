@@ -29,7 +29,6 @@ const baseOptions: ValidateOptions = {
     validateWarehouseColumns: false,
     showChartConfigurationWarnings: false,
     severity: 'error',
-    warningsAsErrors: false,
     projectDir: '.',
     profilesDir: '.',
     target: undefined,
@@ -330,19 +329,6 @@ describe('validateHandler warehouse column validation', () => {
         expect(output).toContain('1 warning');
     });
 
-    test('fails when --warnings-as-errors is set and warnings exist', async () => {
-        validationResults = [chartConfigurationWarning];
-        vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
-
-        await validateHandler({
-            ...baseOptions,
-            warningsAsErrors: true,
-        });
-
-        expect(process.exit).toHaveBeenCalledWith(1);
-        expect(errorOutput.join('\n')).toContain('Chart configuration warning');
-    });
-
     test('still fails on --show-chart-configuration-warnings', async () => {
         validationResults = [chartConfigurationWarning];
         vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
@@ -389,23 +375,12 @@ describe('validateHandler warehouse column validation', () => {
 
 describe('resolveValidationSeverity', () => {
     test('defaults to error', () => {
-        expect(resolveValidationSeverity({})).toBe('error');
-        expect(resolveValidationSeverity({ severity: 'error' })).toBe('error');
+        expect(resolveValidationSeverity()).toBe('error');
+        expect(resolveValidationSeverity('error')).toBe('error');
     });
 
     test('uses warning when --severity warning is set', () => {
-        expect(resolveValidationSeverity({ severity: 'warning' })).toBe(
-            'warning',
-        );
-    });
-
-    test('treats --warnings-as-errors as warning even if severity is error', () => {
-        expect(
-            resolveValidationSeverity({
-                severity: 'error',
-                warningsAsErrors: true,
-            }),
-        ).toBe('warning');
+        expect(resolveValidationSeverity('warning')).toBe('warning');
     });
 });
 
@@ -414,11 +389,8 @@ describe('shouldTreatWarningsAsErrors', () => {
         expect(shouldTreatWarningsAsErrors({})).toBe(false);
     });
 
-    test('is on for --severity warning, --warnings-as-errors, and the show flag', () => {
+    test('is on for --severity warning and the show flag', () => {
         expect(shouldTreatWarningsAsErrors({ severity: 'warning' })).toBe(true);
-        expect(shouldTreatWarningsAsErrors({ warningsAsErrors: true })).toBe(
-            true,
-        );
         expect(
             shouldTreatWarningsAsErrors({
                 showChartConfigurationWarnings: true,

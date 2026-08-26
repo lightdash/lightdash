@@ -101,34 +101,22 @@ type ValidateHandlerOptions = CompileHandlerOptions & {
     validateWarehouseColumns: boolean;
     showChartConfigurationWarnings: boolean;
     severity?: ValidationSeverity;
-    warningsAsErrors?: boolean;
     includeSpaces?: string[];
     excludeSpaces?: string[];
 };
 
-export const resolveValidationSeverity = ({
-    severity,
-    warningsAsErrors,
-}: {
-    severity?: ValidationSeverity;
-    warningsAsErrors?: boolean;
-}): ValidationSeverity => {
-    if (warningsAsErrors) {
-        return 'warning';
-    }
-    return severity ?? 'error';
-};
+export const resolveValidationSeverity = (
+    severity?: ValidationSeverity,
+): ValidationSeverity => severity ?? 'error';
 
 export const shouldTreatWarningsAsErrors = ({
     severity,
-    warningsAsErrors,
     showChartConfigurationWarnings,
 }: {
     severity?: ValidationSeverity;
-    warningsAsErrors?: boolean;
     showChartConfigurationWarnings?: boolean;
 }): boolean =>
-    resolveValidationSeverity({ severity, warningsAsErrors }) === 'warning' ||
+    resolveValidationSeverity(severity) === 'warning' ||
     showChartConfigurationWarnings === true;
 
 type WaitUntilFinishedOptions = {
@@ -254,7 +242,7 @@ export const validateHandler = async (
         );
     }
 
-    const severity = resolveValidationSeverity(options);
+    const severity = resolveValidationSeverity(options.severity);
     const treatWarningsAsErrors = shouldTreatWarningsAsErrors(options);
 
     await LightdashAnalytics.track({
