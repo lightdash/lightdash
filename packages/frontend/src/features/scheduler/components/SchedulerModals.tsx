@@ -103,7 +103,11 @@ export const AppSchedulersModal: FC<AppSchedulersProps> = ({
     name,
     ...modalProps
 }) => {
-    const schedulersQuery = useAppSchedulers({ projectUuid, appUuid });
+    const schedulersQuery = useAppSchedulers({
+        projectUuid,
+        appUuid,
+        includeLatestRun: true,
+    });
     const createMutation = useAppSchedulerCreateMutation(projectUuid);
 
     // The modal only mounts while open, and its hosts (builder/viewer) sync

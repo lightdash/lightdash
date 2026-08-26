@@ -542,7 +542,12 @@ describe('SchedulerService', () => {
 
         const buildAppListService = () => {
             const appListSchedulerModel = {
-                getAppSchedulers: vi.fn(async () => []),
+                getAppSchedulers: vi.fn(
+                    async (): Promise<SchedulerAndTargets[]> => [],
+                ),
+                attachLatestRunToSchedulerList: vi.fn(
+                    async (schedulers: SchedulerAndTargets[]) => schedulers,
+                ),
             };
             const appListService = new SchedulerService({
                 lightdashConfig: lightdashConfigMock,
@@ -601,6 +606,31 @@ describe('SchedulerService', () => {
                 listAppUuid,
                 undefined,
             );
+        });
+
+        test('includes the latest run when requested', async () => {
+            const { appListService, appListSchedulerModel } =
+                buildAppListService();
+            const user = buildUser([viewDataApp, createDeliveries]);
+            const appScheduler = {
+                schedulerUuid: 'appSchedulerUuid',
+                appUuid: listAppUuid,
+                targets: [],
+            } as unknown as SchedulerAndTargets;
+            appListSchedulerModel.getAppSchedulers.mockResolvedValueOnce([
+                appScheduler,
+            ]);
+
+            const result = await appListService.getAppSchedulers(
+                user,
+                listAppUuid,
+                true,
+            );
+
+            expect(
+                appListSchedulerModel.attachLatestRunToSchedulerList,
+            ).toHaveBeenCalledWith([appScheduler]);
+            expect(result).toEqual([appScheduler]);
         });
 
         test('throws ForbiddenError before listing when the user cannot create deliveries', async () => {

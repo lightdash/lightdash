@@ -2520,15 +2520,15 @@ export class SchedulerModel {
         };
     }
 
-    async attachLatestRunToSchedulers(
-        schedulers: KnexPaginatedData<SchedulerAndTargets[]>,
-    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
-        if (schedulers.data.length === 0) {
+    async attachLatestRunToSchedulerList(
+        schedulers: SchedulerAndTargets[],
+    ): Promise<SchedulerAndTargets[]> {
+        if (schedulers.length === 0) {
             return schedulers;
         }
 
         const runs = await this.getRunsForSchedulers({
-            schedulers: schedulers.data,
+            schedulers,
             latestOnly: true,
         });
 
@@ -2537,13 +2537,19 @@ export class SchedulerModel {
             latestRunByScheduler.set(run.schedulerUuid, run);
         });
 
+        return schedulers.map((scheduler) => ({
+            ...scheduler,
+            latestRun:
+                latestRunByScheduler.get(scheduler.schedulerUuid) ?? null,
+        }));
+    }
+
+    async attachLatestRunToSchedulers(
+        schedulers: KnexPaginatedData<SchedulerAndTargets[]>,
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         return {
             ...schedulers,
-            data: schedulers.data.map((scheduler) => ({
-                ...scheduler,
-                latestRun:
-                    latestRunByScheduler.get(scheduler.schedulerUuid) ?? null,
-            })),
+            data: await this.attachLatestRunToSchedulerList(schedulers.data),
         };
     }
 

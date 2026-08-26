@@ -670,6 +670,7 @@ export class SchedulerService extends BaseService {
     async getAppSchedulers(
         user: SessionUser,
         appUuid: string,
+        includeLatestRun?: boolean,
     ): Promise<SchedulerAndTargets[]> {
         const app = await this.checkAppScheduledDeliveryAccess(user, appUuid);
         // Same narrowing as the chart/SQL chart lists — without `manage` you
@@ -681,10 +682,16 @@ export class SchedulerService extends BaseService {
                 projectUuid: app.project_uuid,
             }),
         );
-        return this.schedulerModel.getAppSchedulers(
+        const schedulers = await this.schedulerModel.getAppSchedulers(
             appUuid,
             canManageAll ? undefined : user.userUuid,
         );
+
+        if (!includeLatestRun) {
+            return schedulers;
+        }
+
+        return this.schedulerModel.attachLatestRunToSchedulerList(schedulers);
     }
 
     async createAppScheduler(
