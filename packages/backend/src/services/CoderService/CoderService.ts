@@ -1802,6 +1802,12 @@ export class CoderService extends BaseService {
                 } as DashboardTileWithSlug;
             }
 
+            if (tile.properties.chartSlug != null && chartInfo === undefined) {
+                warnings.push(
+                    `Chart "${tile.properties.chartSlug}" was not found in this project — the tile was saved without a chart. Upload the chart first, then re-upload the dashboard.`,
+                );
+            }
+
             const isSqlChart =
                 chartInfo?.isSql ?? tile.type === DashboardTileTypes.SQL_CHART;
 

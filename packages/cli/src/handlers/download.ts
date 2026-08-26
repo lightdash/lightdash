@@ -3004,14 +3004,14 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
     publicSpaceCreate?: boolean,
     validate?: boolean,
     spaceNames?: Record<string, string>,
-): Promise<void> => {
+): Promise<'upserted' | 'skipped' | 'failed'> => {
     try {
         if (!force && !item.needsUpdating) {
             GlobalState.debug(
                 `Skipping ${type} "${item.slug}" with no local changes`,
             );
             changes[`${type} skipped`] = (changes[`${type} skipped`] ?? 0) + 1;
-            return;
+            return 'skipped';
         }
         GlobalState.debug(`Upserting ${type} ${item.slug}`);
 
@@ -3119,10 +3119,15 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
                 }
             }
         }
+        return 'upserted';
     } catch (error: unknown) {
         if (
             error instanceof LightdashError &&
             error.name === 'NotFoundError' &&
+            // Only the missing-space NotFoundError counts as a space skip;
+            // other NotFoundErrors (e.g. a missing custom chart type) are
+            // real failures even with --skip-space-create.
+            error.message.startsWith('Space ') &&
             skipSpaceCreate
         ) {
             GlobalState.log(
@@ -3131,28 +3136,29 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
                 ),
             );
             changes[`${type} skipped`] = (changes[`${type} skipped`] ?? 0) + 1;
-        } else {
-            changes[`${type} with errors`] =
-                (changes[`${type} with errors`] ?? 0) + 1;
-            GlobalState.log(
-                styles.error(
-                    `Error upserting ${type}:\n\t"${item.name}" (slug: "${
-                        item.slug
-                    }")\n\t${getErrorMessage(error)}`,
-                ),
-            );
-
-            await LightdashAnalytics.track({
-                event: 'download.error',
-                properties: {
-                    userId: config.user?.userUuid,
-                    organizationId: config.user?.organizationUuid,
-                    projectId,
-                    type,
-                    error: getErrorMessage(error),
-                },
-            });
+            return 'skipped';
         }
+        changes[`${type} with errors`] =
+            (changes[`${type} with errors`] ?? 0) + 1;
+        GlobalState.log(
+            styles.error(
+                `Error upserting ${type}:\n\t"${item.name}" (slug: "${
+                    item.slug
+                }")\n\t${getErrorMessage(error)}`,
+            ),
+        );
+
+        await LightdashAnalytics.track({
+            event: 'download.error',
+            properties: {
+                userId: config.user?.userUuid,
+                organizationId: config.user?.organizationUuid,
+                projectId,
+                type,
+                error: getErrorMessage(error),
+            },
+        });
+        return 'failed';
     }
 };
 
@@ -3174,7 +3180,12 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     concurrency: number = 1,
     extraItems: (T & { needsUpdating: boolean })[] = [],
     spaceNames?: Record<string, string>,
-): Promise<{ changes: Record<string, number>; total: number }> => {
+    skipSlugs?: ReadonlySet<string>,
+): Promise<{
+    changes: Record<string, number>;
+    total: number;
+    failedSlugs: string[];
+}> => {
     const config = await getConfig();
 
     const folderItems = await readCodeFiles<T>(type, customPath);
@@ -3208,14 +3219,42 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 `Error uploading ${type}: the ${requiredPermission} permission is required`,
             ),
         );
-        return { changes, total: filteredItems.length };
+        return { changes, total: filteredItems.length, failedSlugs: [] };
     }
+
+    // Items whose dependencies failed earlier in the upload are held back so
+    // they are not created in a broken state (e.g. dashboards with null
+    // chart tiles).
+    const uploadableItems = skipSlugs
+        ? filteredItems.filter((item) => !skipSlugs.has(item.slug))
+        : filteredItems;
+    filteredItems
+        .filter((item) => !uploadableItems.includes(item))
+        .forEach((item) => {
+            changes[`${type} dependency skipped`] =
+                (changes[`${type} dependency skipped`] ?? 0) + 1;
+            GlobalState.log(
+                styles.warning(
+                    `Skipped ${type.slice(0, -1)} "${item.slug}" because a chart it references failed to upload`,
+                ),
+            );
+        });
+
+    const failedSlugs: string[] = [];
+    const trackOutcome = (
+        item: T & { needsUpdating: boolean },
+        outcome: 'upserted' | 'skipped' | 'failed',
+    ) => {
+        if (outcome === 'failed') {
+            failedSlugs.push(item.slug);
+        }
+    };
 
     if (concurrency <= 1) {
         // Sequential path — preserves original behavior exactly
-        for (const item of filteredItems) {
+        for (const item of uploadableItems) {
             // eslint-disable-next-line no-await-in-loop
-            await upsertSingleItem(
+            const outcome = await upsertSingleItem(
                 item,
                 type,
                 projectId,
@@ -3227,6 +3266,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 validate,
                 spaceNames,
             );
+            trackOutcome(item, outcome);
         }
     } else {
         // Two-phase parallel path
@@ -3235,7 +3275,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
         // and in placeholder dashboard creation for charts within dashboards.
         type ItemWithUpdate = T & { needsUpdating: boolean };
         const grouped = groupBy(
-            filteredItems,
+            uploadableItems,
             (item: ItemWithUpdate) => item.spaceSlug,
         ) as Record<string, ItemWithUpdate[]>;
         const seedItems = new Set<T & { needsUpdating: boolean }>();
@@ -3297,7 +3337,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
         // Phase 1: Sequential seeding (spaces + dashboard placeholders)
         for (const item of seedItems) {
             // eslint-disable-next-line no-await-in-loop
-            await upsertSingleItem(
+            const outcome = await upsertSingleItem(
                 item,
                 type,
                 projectId,
@@ -3309,6 +3349,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 validate,
                 spaceNames,
             );
+            trackOutcome(item, outcome);
         }
 
         // Phase 2: Parallel bulk upload of remaining items
@@ -3316,7 +3357,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
         await Promise.all(
             remainingItems.map((item) =>
                 limit(async () => {
-                    await upsertSingleItem(
+                    const outcome = await upsertSingleItem(
                         item,
                         type,
                         projectId,
@@ -3328,12 +3369,13 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                         validate,
                         spaceNames,
                     );
+                    trackOutcome(item, outcome);
                 }),
             ),
         );
     }
 
-    return { changes, total: filteredItems.length };
+    return { changes, total: filteredItems.length, failedSlugs };
 };
 
 // readCodeFiles walks the whole download folder recursively, so callers that
@@ -4357,6 +4399,11 @@ export const uploadHandler = async (
             }
         }
 
+        // Chart slugs that failed to upload in the Charts phase; dashboards
+        // referencing them are held back so they are not created with broken
+        // (null chart) tiles.
+        const failedChartSlugs = new Set<string>();
+
         changes = await runUploadChangesPhase({
             output,
             label: 'Charts',
@@ -4394,6 +4441,9 @@ export const uploadHandler = async (
                     looseFiles.charts,
                     spaceNames,
                 );
+                result.failedSlugs.forEach((slug) =>
+                    failedChartSlugs.add(slug),
+                );
                 counts.chartsNum = result.total;
                 return result.changes;
             },
@@ -4412,6 +4462,24 @@ export const uploadHandler = async (
                     );
                     return changes;
                 }
+                let dashboardsToSkip: Set<string> | undefined;
+                if (failedChartSlugs.size > 0) {
+                    dashboardsToSkip = new Set(
+                        (await loadDashboardItems())
+                            .filter((dashboard) =>
+                                dashboard.tiles.some(
+                                    (tile) =>
+                                        'chartSlug' in tile.properties &&
+                                        typeof tile.properties.chartSlug ===
+                                            'string' &&
+                                        failedChartSlugs.has(
+                                            tile.properties.chartSlug,
+                                        ),
+                                ),
+                            )
+                            .map((dashboard) => dashboard.slug),
+                    );
+                }
                 const result = await upsertResources<DashboardAsCode>(
                     'dashboards',
                     projectId,
@@ -4426,6 +4494,7 @@ export const uploadHandler = async (
                     concurrency,
                     looseFiles.dashboards,
                     spaceNames,
+                    dashboardsToSkip,
                 );
                 counts.dashboardsNum = result.total;
                 return result.changes;
