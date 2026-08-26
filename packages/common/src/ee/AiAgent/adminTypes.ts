@@ -412,6 +412,7 @@ export type AiOrganizationSettings = {
     deepResearchLimits: AiDeepResearchLimits;
     deepResearchRawSqlEnabled: boolean;
     mcpContentWritesEnabled: boolean;
+    mcpAgentsEnabled: boolean;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
     // Optional to keep the response schema backwards-compatible for old clients.
@@ -438,6 +439,7 @@ export type UpdateAiOrganizationSettings = {
     deepResearchLimits?: AiDeepResearchLimits;
     deepResearchRawSqlEnabled?: boolean;
     mcpContentWritesEnabled?: boolean;
+    mcpAgentsEnabled?: boolean;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig?: AiAgentModelConfig | null;
     modelVisibility?: AiOrgModelVisibility | null;

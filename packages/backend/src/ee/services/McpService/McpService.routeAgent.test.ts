@@ -207,7 +207,7 @@ const makeMcpService = () => {
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {
-            isAiAgentsVisible: vi.fn().mockResolvedValue(true),
+            isMcpAgentsEnabled: vi.fn().mockResolvedValue(true),
         },
         aiRouterService,
         aiWritebackService: {},

@@ -21,6 +21,7 @@ const settingsWithKeys: AiOrganizationSettings = {
     deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     deepResearchRawSqlEnabled: false,
     mcpContentWritesEnabled: true,
+    mcpAgentsEnabled: true,
     requireExplicitSlackChannelLinking: false,
     defaultAiAgentModelConfig: null,
     modelVisibility: null,

@@ -578,16 +578,15 @@ export class McpService extends BaseService {
 
     private async getAvailableProjects(context: McpProtocolContext) {
         const { user, organizationUuid } = McpService.getAccount(context);
-        const [projects, aiAgentsVisible, aiCopilotEnabled] = await Promise.all(
-            [
+        const [projects, mcpAgentsEnabled, aiCopilotEnabled] =
+            await Promise.all([
                 this.getAccessibleProjects(context),
-                this.aiOrganizationSettingsService.isAiAgentsVisible(
+                this.aiOrganizationSettingsService.isMcpAgentsEnabled(
                     organizationUuid,
                 ),
                 this.aiAgentService.getIsCopilotEnabled(user),
-            ],
-        );
-        if (!aiAgentsVisible || !aiCopilotEnabled) {
+            ]);
+        if (!mcpAgentsEnabled || !aiCopilotEnabled) {
             return projects.map((project) => ({
                 ...project,
                 availableAgents: [],
@@ -2540,7 +2539,7 @@ export class McpService extends BaseService {
 
                 const { user } = McpService.getAccount(ctx);
 
-                await this.checkAiAgentsVisible(user);
+                await this.checkMcpAgentsEnabled(user);
 
                 const projectUuid = await this.resolveToolProjectUuid(
                     ctx,
@@ -2585,7 +2584,7 @@ export class McpService extends BaseService {
                 const { user, organizationUuid, account } =
                     McpService.getAccount(ctx);
 
-                await this.checkAiAgentsVisible(user);
+                await this.checkMcpAgentsEnabled(user);
 
                 const projectUuid = await this.resolveToolProjectUuid(
                     ctx,
@@ -2662,7 +2661,7 @@ export class McpService extends BaseService {
                 const { user, organizationUuid, account } =
                     McpService.getAccount(ctx);
 
-                await this.checkAiAgentsVisible(user);
+                await this.checkMcpAgentsEnabled(user);
 
                 if (!args.agentUuid) {
                     throw new ParameterError('Agent UUID is required');
@@ -2773,7 +2772,7 @@ export class McpService extends BaseService {
 
                 const { user, organizationUuid } = McpService.getAccount(ctx);
 
-                await this.checkAiAgentsVisible(user);
+                await this.checkMcpAgentsEnabled(user);
 
                 const projectUuid = await this.resolveToolProjectUuid(
                     ctx,
@@ -3534,12 +3533,22 @@ export class McpService extends BaseService {
             return null;
         }
 
+        const contextAgentUuid =
+            contextRow?.context.projectUuid === projectUuid
+                ? (contextRow.context.agentUuid ?? null)
+                : null;
+
+        const agentUuid =
+            contextAgentUuid &&
+            (await this.aiOrganizationSettingsService.isMcpAgentsEnabled(
+                user.organizationUuid,
+            ))
+                ? contextAgentUuid
+                : null;
+
         return {
             projectUuid,
-            agentUuid:
-                contextRow?.context.projectUuid === projectUuid
-                    ? (contextRow.context.agentUuid ?? null)
-                    : null,
+            agentUuid,
         };
     }
 
@@ -3577,6 +3586,8 @@ export class McpService extends BaseService {
                 agentName: null,
             };
         }
+
+        await this.checkMcpAgentsEnabled(user);
 
         const agent = await this.aiAgentService.getAgent(
             user,
@@ -3630,6 +3641,19 @@ export class McpService extends BaseService {
         }
 
         if (!contextRow.context.agentUuid) {
+            return {
+                tags: contextRow.context.tags || null,
+                spaceAccess: null,
+                agentUuid: null,
+                agentName: null,
+            };
+        }
+
+        const mcpAgentsEnabled =
+            await this.aiOrganizationSettingsService.isMcpAgentsEnabled(
+                user.organizationUuid,
+            );
+        if (!mcpAgentsEnabled) {
             return {
                 tags: contextRow.context.tags || null,
                 spaceAccess: null,
@@ -4186,17 +4210,17 @@ export class McpService extends BaseService {
         return VERSION;
     }
 
-    private async checkAiAgentsVisible(user: SessionUser) {
+    private async checkMcpAgentsEnabled(user: SessionUser) {
         if (!user.organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        const aiAgentsVisible =
-            await this.aiOrganizationSettingsService.isAiAgentsVisible(
+        const mcpAgentsEnabled =
+            await this.aiOrganizationSettingsService.isMcpAgentsEnabled(
                 user.organizationUuid,
             );
-        if (!aiAgentsVisible) {
+        if (!mcpAgentsEnabled) {
             throw new ForbiddenError(
-                'AI Agent features are disabled for this organization',
+                'Agent access over MCP is disabled for this organization. Ask an admin to enable it, or use Ask AI in Lightdash.',
             );
         }
     }

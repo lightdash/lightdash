@@ -364,6 +364,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
                 deepResearchRawSqlEnabled: false,
                 mcpContentWritesEnabled: true,
+                mcpAgentsEnabled: true,
                 requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: effectiveModelVisibility,
@@ -462,12 +463,12 @@ export class AiOrganizationSettingsService extends BaseService {
         };
     }
 
-    async isAiAgentsVisible(organizationUuid: string): Promise<boolean> {
+    async isMcpAgentsEnabled(organizationUuid: string): Promise<boolean> {
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 organizationUuid,
             );
-        return settings?.aiAgentsVisible ?? true;
+        return settings?.mcpAgentsEnabled ?? true;
     }
 
     async isDeepResearchRawSqlEnabled({
