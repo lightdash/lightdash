@@ -1,3 +1,16 @@
+# [2.10.0](https://github.com/lightdash/lightdash/compare/2.9.5...2.10.0) (2026-08-26)
+
+
+### Bug Fixes
+
+* **backend:** resolve user attributes in filter SQL ([#28092](https://github.com/lightdash/lightdash/issues/28092)) ([61424db](https://github.com/lightdash/lightdash/commit/61424dbd70907877412bacc1b7a805167006e7b3))
+
+
+### Features
+
+* include data apps in find content ([#28069](https://github.com/lightdash/lightdash/issues/28069)) ([7626da8](https://github.com/lightdash/lightdash/commit/7626da8242381311d5103afa4c544c38561308b0))
+* render data app content links ([#28070](https://github.com/lightdash/lightdash/issues/28070)) ([9662d30](https://github.com/lightdash/lightdash/commit/9662d30618ca35bf62cf57302c1cc6446acf7c88))
+
 ## [2.9.5](https://github.com/lightdash/lightdash/compare/2.9.4...2.9.5) (2026-08-26)
 
 
