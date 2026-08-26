@@ -44,7 +44,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const dashboardHref = typeof props.href === 'string' ? props.href : '';
+    const resourceHref = typeof props.href === 'string' ? props.href : '';
     const title = typeof props.title === 'string' ? props.title : undefined;
     const dispatch = useAiAgentStoreDispatch();
     const currentArtifact = useAiAgentStoreSelector(
@@ -54,9 +54,9 @@ export const ContentLink: FC<ContentLinkProps> = ({
         (state) => state.aiArtifact.savedChart,
     );
 
-    const handleDashboardClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    const handleResourceClick = (e: MouseEvent<HTMLAnchorElement>) => {
         if (
-            !dashboardHref ||
+            !resourceHref ||
             e.defaultPrevented ||
             e.button !== 0 ||
             e.metaKey ||
@@ -73,7 +73,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
             pathname: location.pathname,
             search: location.search,
         });
-        const targetUrl = new URL(dashboardHref, window.location.origin);
+        const targetUrl = new URL(resourceHref, window.location.origin);
         const targetPath = createPath({
             pathname: targetUrl.pathname,
             search: targetUrl.search,
@@ -90,9 +90,21 @@ export const ContentLink: FC<ContentLinkProps> = ({
         case 'dashboard-link':
             return (
                 <ContentReferenceLink
-                    to={dashboardHref || undefined}
+                    to={resourceHref || undefined}
                     kind="dashboard"
-                    onClick={handleDashboardClick}
+                    onClick={handleResourceClick}
+                    title={title}
+                >
+                    {children}
+                </ContentReferenceLink>
+            );
+
+        case 'data-app-link':
+            return (
+                <ContentReferenceLink
+                    to={resourceHref || undefined}
+                    kind="data_app"
+                    onClick={handleResourceClick}
                     title={title}
                 >
                     {children}
@@ -104,9 +116,9 @@ export const ContentLink: FC<ContentLinkProps> = ({
         case 'scheduled-delivery-link':
             return (
                 <ContentReferenceLink
-                    to={dashboardHref || undefined}
+                    to={resourceHref || undefined}
                     kind="scheduled_delivery"
-                    onClick={handleDashboardClick}
+                    onClick={handleResourceClick}
                     title={title}
                 >
                     {children}

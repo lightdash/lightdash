@@ -44,6 +44,16 @@ describe('rehypeAiAgentContentLinks', () => {
         });
     });
 
+    it('marks canonical data app links', () => {
+        expect(
+            processHref('/projects/project-uuid/apps/app-uuid/view'),
+        ).toMatchObject({
+            href: '/projects/project-uuid/apps/app-uuid/view',
+            'data-content-type': 'data-app-link',
+            'data-app-uuid': 'app-uuid',
+        });
+    });
+
     it('marks explicit saved chart reference links', () => {
         expect(
             processHref(
@@ -88,6 +98,18 @@ describe('rehypeAiAgentContentLinks', () => {
             ),
         ).toMatchObject({
             href: '/projects/project-uuid/dashboards/dashboard-uuid/view?scheduler_uuid=scheduler-uuid',
+            'data-content-type': 'scheduled-delivery-link',
+            'data-scheduler-uuid': 'scheduler-uuid',
+        });
+    });
+
+    it('marks data app scheduled delivery deep-links instead of data app links', () => {
+        expect(
+            processHref(
+                '/projects/project-uuid/apps/app-uuid/view?scheduler_uuid=scheduler-uuid',
+            ),
+        ).toMatchObject({
+            href: '/projects/project-uuid/apps/app-uuid/view?scheduler_uuid=scheduler-uuid',
             'data-content-type': 'scheduled-delivery-link',
             'data-scheduler-uuid': 'scheduler-uuid',
         });

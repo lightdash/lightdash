@@ -4,6 +4,7 @@ import { visit } from 'unist-util-visit';
 type ContentType =
     | 'dashboard-link'
     | 'chart-link'
+    | 'data-app-link'
     | 'artifact-link'
     | 'sql-runner-link'
     | 'settings-link'
@@ -84,6 +85,9 @@ const processLink = (node: Element, href: string): void => {
         const chartMatch = href.match(
             /\/projects\/[^/]+\/saved\/([^/]+)\/view/,
         );
+        const dataAppMatch = href.match(
+            /\/projects\/[^/]+\/apps\/([^/]+)\/view/,
+        );
         const sqlRunnerMatch = href.match(
             /\/projects\/[^/]+\/sql-runner\/([^/#?]+)/,
         );
@@ -92,7 +96,7 @@ const processLink = (node: Element, href: string): void => {
         // relative path so the click can route client-side instead of reloading.
         const settingsMatch = href.match(/\/generalSettings\/[^\s)]*/);
 
-        if (schedulerMatch && (dashboardMatch || chartMatch)) {
+        if (schedulerMatch && (dashboardMatch || chartMatch || dataAppMatch)) {
             node.properties = {
                 ...node.properties,
                 'data-content-type': 'scheduled-delivery-link',
@@ -112,6 +116,13 @@ const processLink = (node: Element, href: string): void => {
                 'data-content-type': 'chart-link',
                 'data-chart-uuid': chartMatch[1],
                 'data-chart-source': 'saved-chart',
+                href,
+            };
+        } else if (dataAppMatch) {
+            node.properties = {
+                ...node.properties,
+                'data-content-type': 'data-app-link',
+                'data-app-uuid': dataAppMatch[1],
                 href,
             };
         } else if (sqlRunnerMatch) {
