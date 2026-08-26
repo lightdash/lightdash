@@ -13,6 +13,7 @@ import type { AiAgentFindContentCoverage } from '../../../../analytics/Lightdash
 import type {
     FindContentChartResult,
     FindContentDashboardResult,
+    FindContentDataAppResult,
     FindContentFn,
     FindContentResult,
     FindContentSpaceMetadata,
@@ -198,6 +199,34 @@ const renderDashboard = (
     </dashboard>
 );
 
+const renderDataApp = (
+    dataApp: FindContentDataAppResult,
+    siteUrl: string,
+    toolDescriptionMaxChars: number,
+) => (
+    <dataApp
+        dataAppUuid={dataApp.uuid}
+        slug={dataApp.slug}
+        searchRank={dataApp.search_rank}
+        spaceUuid={dataApp.spaceUuid ?? undefined}
+        viewsCount={dataApp.viewsCount}
+        href={`${siteUrl}/projects/${dataApp.projectUuid}/apps/${dataApp.uuid}/view`}
+    >
+        <name>{dataApp.name}</name>
+        {dataApp.space && renderSpaceMetadata(dataApp.space)}
+        {dataApp.description && (
+            <description>
+                {truncate(dataApp.description, toolDescriptionMaxChars)}
+            </description>
+        )}
+        {dataApp.createdBy && (
+            <createdby>
+                {`${dataApp.createdBy.firstName} ${dataApp.createdBy.lastName}`}
+            </createdby>
+        )}
+    </dataApp>
+);
+
 const isDashboardResult = (
     content: FindContentResult,
 ): content is FindContentDashboardResult => content.contentType === 'dashboard';
@@ -205,6 +234,10 @@ const isDashboardResult = (
 const isSpaceResult = (
     content: FindContentResult,
 ): content is FindContentSpaceResult => content.contentType === 'space';
+
+const isDataAppResult = (
+    content: FindContentResult,
+): content is FindContentDataAppResult => content.contentType === 'data_app';
 
 const renderContent = (
     args: Awaited<ReturnType<FindContentFn>> & {
@@ -226,6 +259,13 @@ const renderContent = (
             {sortedContent.map((content) => {
                 if (isSpaceResult(content)) {
                     return renderSpace(content);
+                }
+                if (isDataAppResult(content)) {
+                    return renderDataApp(
+                        content,
+                        siteUrl,
+                        toolDescriptionMaxChars,
+                    );
                 }
                 return isDashboardResult(content)
                     ? renderDashboard(content, siteUrl, toolDescriptionMaxChars)

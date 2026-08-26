@@ -33,7 +33,7 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
 5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
 6. **Render charts**: If the user wants a chart, call \`render_chart\` with the \`queryUuid\` returned when \`run_metric_query\` completes, or with the \`queryUuid\` returned by \`get_query_result\` after polling that metric query to completion
 7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
-8. **Find content**: Use \`find_content\` to search for existing dashboards and charts
+8. **Find content**: Use \`find_content\` to search for existing dashboards, charts, and Data Apps
 
 ## Critical Rules
 
@@ -1122,17 +1122,17 @@ Each entry in \`requests\` is one of:
       },
       "description": "Tool: "find_content"
 Purpose:
-Finds spaces, charts, or dashboards by name or description within a project, returning detailed information about each.
+Finds spaces, charts, dashboards, or Data Apps by name or description within a project, returning detailed information about each.
 
 Usage tips:
 - IMPORTANT: Pass the user's full query or relevant portion directly (e.g., "revenue based on campaigns" instead of just "campaigns").
 - The search engine understands natural language and context — more descriptive queries yield better results.
 - You can provide multiple search queries to look for different topics simultaneously (e.g., ["monthly revenue", "user acquisition trends"]).
 - Pass spaceSlug to search only inside that space and its descendants.
-- verifiedOnly=true searches only admin-verified charts/dashboards (spaces omitted). Verification is a status, not text — search topic keywords, never the word "verified". If nothing verified matches, the result is empty; verified content may still exist under other terms, so never claim the project has none from one query. Re-run with verifiedOnly=false only if unverified content is acceptable.
+- verifiedOnly=true searches only admin-verified charts/dashboards (spaces omitted). Data Apps have no verification state and remain included. Verification is a status, not text — search topic keywords, never the word "verified". If nothing matches, verified content may still exist under other terms, so never claim the project has none from one query. Re-run with verifiedOnly=false only if unverified charts or dashboards are acceptable.
 - If results aren't relevant, retry with the full user query or more specific terms.
 - Dashboards with validation errors will be deprioritized.
-- Returns space breadcrumb/path metadata and chart/dashboard URLs when available.
+- Returns space breadcrumb/path metadata and canonical chart, dashboard, and Data App URLs when available.
 - Dashboards show a preview of the first 5 charts and the total chart count. Use "read_content" to see all charts for a specific dashboard.
 - It doesn't provide summaries for dashboards yet, so don't suggest this capability.",
       "inputSchema": {
@@ -1170,7 +1170,7 @@ Usage tips:
             "type": "string",
           },
           "verifiedOnly": {
-            "description": "Set to true to search only admin-verified charts and dashboards. Null or false searches all content.",
+            "description": "Set to true to search only admin-verified charts and dashboards; matching Data Apps remain included because they have no verification state. Null or false searches all content.",
             "type": [
               "boolean",
               "null",

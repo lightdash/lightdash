@@ -169,6 +169,7 @@ export type FieldSearchResult = Pick<
 
 export type DataAppSearchResult = {
     uuid: string;
+    slug: string;
     name: string;
     description: string;
     // Personal apps live outside any space, so spaceUuid is nullable.

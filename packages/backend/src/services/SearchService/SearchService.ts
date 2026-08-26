@@ -3,8 +3,10 @@ import {
     AllChartsSearchResult,
     DashboardSearchResult,
     DashboardTabResult,
+    DataAppSearchResult,
     FieldSearchResult,
     ForbiddenError,
+    isDashboardSearchResult,
     isTableErrorSearchResult,
     SavedChartSearchResult,
     SearchFilters,
@@ -35,6 +37,11 @@ type SearchServiceArguments = {
     // EE-only — undefined on OSS builds where data apps don't exist.
     appGenerateService?: AppGenerateService;
 };
+
+export type FindContentSearchResult =
+    | (DashboardSearchResult & { contentType: 'dashboard' })
+    | (AllChartsSearchResult & { contentType: 'chart' })
+    | (DataAppSearchResult & { contentType: 'data_app' });
 
 export class SearchService extends BaseService {
     private readonly searchModel: SearchModel;
@@ -68,7 +75,7 @@ export class SearchService extends BaseService {
         query: string,
         verifiedOnly: boolean,
     ): Promise<{
-        content: (DashboardSearchResult | AllChartsSearchResult)[];
+        content: FindContentSearchResult[];
     }> {
         const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
@@ -87,7 +94,11 @@ export class SearchService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const [dashboardSearchResults, chartSearchResults] = await Promise.all([
+        const [
+            dashboardSearchResults,
+            chartSearchResults,
+            dataAppSearchResults,
+        ] = await Promise.all([
             searchReservingVerified(verifiedOnly, (opts) =>
                 this.searchModel.searchDashboards(
                     projectUuid,
@@ -102,24 +113,48 @@ export class SearchService extends BaseService {
                     ...opts,
                 }),
             ),
+            // Data Apps have no verification state, so verifiedOnly does not apply.
+            this.appGenerateService
+                ? this.appGenerateService
+                      .dataAppsEnabledFor(user)
+                      .then((enabled) =>
+                          enabled
+                              ? this.searchModel.searchDataApps(
+                                    projectUuid,
+                                    query,
+                                    undefined,
+                                    { fullTextSearchOperator: 'OR' },
+                                )
+                              : [],
+                      )
+                : Promise.resolve([]),
         ]);
 
         const allContent = [
             ...dashboardSearchResults,
             ...chartSearchResults,
         ] satisfies (DashboardSearchResult | AllChartsSearchResult)[];
-        if (allContent.length === 0) {
+        if (allContent.length === 0 && dataAppSearchResults.length === 0) {
             return { content: [] };
         }
 
         const spaceUuids = [
             ...new Set(allContent.map((content) => content.spaceUuid)),
         ];
-        const spaceContexts =
-            await this.spacePermissionService.getSpacesAccessContext(
+        const [spaceContexts, visibleDataApps] = await Promise.all([
+            this.spacePermissionService.getSpacesAccessContext(
                 user.userUuid,
                 spaceUuids,
-            );
+            ),
+            this.appGenerateService && dataAppSearchResults.length > 0
+                ? this.appGenerateService.filterAppsUserCanView(
+                      user,
+                      organizationUuid,
+                      projectUuid,
+                      dataAppSearchResults,
+                  )
+                : Promise.resolve([]),
+        ]);
 
         const contentWithContext = allContent.flatMap((content) => {
             const spaceContext = spaceContexts[content.spaceUuid];
@@ -147,9 +182,22 @@ export class SearchService extends BaseService {
         );
 
         return {
-            content: contentWithContext
-                .filter((_, index) => accessResults[index])
-                .map(({ content }) => content),
+            content: [
+                ...contentWithContext
+                    .filter((_, index) => accessResults[index])
+                    .map(
+                        ({ content }): FindContentSearchResult =>
+                            isDashboardSearchResult(content)
+                                ? { ...content, contentType: 'dashboard' }
+                                : { ...content, contentType: 'chart' },
+                    ),
+                ...visibleDataApps.map(
+                    (dataApp): FindContentSearchResult => ({
+                        ...dataApp,
+                        contentType: 'data_app',
+                    }),
+                ),
+            ],
         };
     }
 
