@@ -243,6 +243,13 @@ export type DashboardConfig = {
     requiredFiltersNote?: string;
 };
 
+export type DashboardOwner = {
+    userUuid: string;
+    firstName: string;
+    lastName: string;
+    email: string | null;
+};
+
 export type Dashboard = {
     organizationUuid: string;
     projectUuid: string;
@@ -269,6 +276,7 @@ export type Dashboard = {
     slug: string;
     config?: DashboardConfig;
     colorPaletteUuid: string | null;
+    owner: DashboardOwner | null;
     deletedAt?: Date;
     deletedBy?: {
         userUuid: string;
@@ -306,7 +314,10 @@ export type SpaceDashboard = DashboardBasicDetails;
 export type DashboardUnversionedFields = Pick<
     CreateDashboard,
     'name' | 'description' | 'spaceUuid' | 'colorPaletteUuid'
->;
+> & {
+    /** Set to a user uuid to assign an owner, null to unassign, omit to leave unchanged */
+    ownerUserUuid?: string | null;
+};
 
 export type DashboardVersionedFields = Pick<
     CreateDashboard,
@@ -351,7 +362,8 @@ export const isDashboardUnversionedFields = (
     data: UpdateDashboard,
 ): data is DashboardUnversionedFields =>
     ('name' in data && !!data.name) ||
-    ('spaceUuid' in data && !!data.spaceUuid);
+    ('spaceUuid' in data && !!data.spaceUuid) ||
+    ('ownerUserUuid' in data && data.ownerUserUuid !== undefined);
 
 export const isDashboardVersionedFields = (
     data: UpdateDashboard,

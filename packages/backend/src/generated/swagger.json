@@ -4675,6 +4675,11 @@
                                 "type": "boolean",
                                 "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
                             },
+                            "ownerEmail": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Declarative dashboard owner, referenced by email so it is portable across projects.\nA string assigns the organization member with that email as owner, `null` unassigns\nthe owner, `undefined` leaves the current owner untouched. Download sets this to the\nowner's email when an owner is assigned."
+                            },
                             "filters": {
                                 "properties": {
                                     "tableCalculations": {
@@ -7444,6 +7449,25 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "DashboardOwner": {
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["email", "lastName", "firstName", "userUuid"],
+                "type": "object"
+            },
             "Pick_Dashboard.Exclude_keyofDashboard.inheritsFromOrgOrProject-or-access__": {
                 "properties": {
                     "name": {
@@ -7542,6 +7566,14 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardOwner"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "deletedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -7582,7 +7614,8 @@
                     "spaceName",
                     "views",
                     "firstViewedAt",
-                    "colorPaletteUuid"
+                    "colorPaletteUuid",
+                    "owner"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -8836,6 +8869,11 @@
                     "verified": {
                         "type": "boolean",
                         "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
+                    },
+                    "ownerEmail": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Declarative dashboard owner, referenced by email so it is portable across projects.\nA string assigns the organization member with that email as owner, `null` unassigns\nthe owner, `undefined` leaves the current owner untouched. Download sets this to the\nowner's email when an owner is assigned."
                     }
                 },
                 "required": ["name", "slug", "tabs", "version", "spaceSlug"],
@@ -13804,8 +13842,16 @@
                 ],
                 "type": "string"
             },
+            "GrantSource": {
+                "type": "string",
+                "enum": ["dashboard"],
+                "nullable": false
+            },
             "SpaceAccess": {
                 "properties": {
+                    "grantedVia": {
+                        "$ref": "#/components/schemas/GrantSource"
+                    },
                     "inheritedFrom": {
                         "type": "string",
                         "enum": [
@@ -13863,6 +13909,14 @@
                     "deletedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardOwner"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "colorPaletteUuid": {
                         "type": "string",
@@ -13972,6 +14026,7 @@
                     }
                 },
                 "required": [
+                    "owner",
                     "colorPaletteUuid",
                     "slug",
                     "access",
@@ -54506,7 +54561,21 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "DashboardUnversionedFields": {
-                "$ref": "#/components/schemas/Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid_"
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid_"
+                    },
+                    {
+                        "properties": {
+                            "ownerUserUuid": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Set to a user uuid to assign an owner, null to unassign, omit to leave unchanged"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
             },
             "Pick_CreateDashboard.tiles-or-filters-or-parameters-or-updatedByUser-or-tabs-or-config_": {
                 "properties": {

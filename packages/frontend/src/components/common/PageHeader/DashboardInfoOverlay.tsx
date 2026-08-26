@@ -16,6 +16,7 @@ import {
     IconEye,
     IconFolder,
     IconHash,
+    IconUser,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
@@ -53,6 +54,13 @@ const DashboardInfoOverlay: FC<DashboardInfoOverlayProps> = ({
             </Box>
 
             <Stack gap={10}>
+                {dashboard.owner && (
+                    <InfoRow icon={IconUser} label="Owner">
+                        {`${dashboard.owner.firstName} ${dashboard.owner.lastName}`.trim() ||
+                            dashboard.owner.email}
+                    </InfoRow>
+                )}
+
                 <InfoRow icon={IconClock} label="Last modified">
                     {timeAgo}
                 </InfoRow>

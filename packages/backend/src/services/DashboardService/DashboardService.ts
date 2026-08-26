@@ -80,6 +80,7 @@ import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -118,6 +119,7 @@ type DashboardServiceArguments = {
     projectModel: ProjectModel;
     catalogModel: CatalogModel;
     organizationModel: OrganizationModel;
+    organizationMemberProfileModel: OrganizationMemberProfileModel;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
 };
@@ -155,6 +157,8 @@ export class DashboardService
     projectModel: ProjectModel;
 
     organizationModel: OrganizationModel;
+
+    organizationMemberProfileModel: OrganizationMemberProfileModel;
 
     schedulerClient: SchedulerClient;
 
@@ -276,6 +280,7 @@ export class DashboardService
         projectModel,
         catalogModel,
         organizationModel,
+        organizationMemberProfileModel,
         spacePermissionService,
         contentVerificationModel,
     }: DashboardServiceArguments) {
@@ -295,6 +300,7 @@ export class DashboardService
         this.projectModel = projectModel;
         this.catalogModel = catalogModel;
         this.organizationModel = organizationModel;
+        this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
@@ -1543,6 +1549,14 @@ export class DashboardService
                 }
             }
 
+            if (dashboardFields.ownerUserUuid) {
+                // Throws NotFoundError when the user is not an org member
+                await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
+                    existingDashboardDao.organizationUuid,
+                    dashboardFields.ownerUserUuid,
+                );
+            }
+
             const updatedDashboard = await this.dashboardModel.update(
                 existingDashboardDao.uuid,
                 {
@@ -1550,6 +1564,7 @@ export class DashboardService
                     description: dashboardFields.description,
                     spaceUuid: dashboardFields.spaceUuid,
                     colorPaletteUuid: dashboardFields.colorPaletteUuid,
+                    ownerUserUuid: dashboardFields.ownerUserUuid,
                 },
             );
 

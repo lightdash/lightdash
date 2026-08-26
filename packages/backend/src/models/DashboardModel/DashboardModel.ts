@@ -58,6 +58,7 @@ import {
     DashboardVersionTable,
     DashboardViewsTableName,
 } from '../../database/entities/dashboards';
+import { EmailTableName } from '../../database/entities/emails';
 import {
     OrganizationTable,
     OrganizationTableName,
@@ -109,7 +110,12 @@ export type GetDashboardQuery = Pick<
     Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
     Pick<OrganizationTable['base'], 'organization_uuid'> &
     Pick<PinnedListTable['base'], 'pinned_list_uuid'> &
-    Pick<PinnedDashboardTable['base'], 'order'>;
+    Pick<PinnedDashboardTable['base'], 'order'> & {
+        owner_user_uuid: string | null;
+        owner_first_name: string | null;
+        owner_last_name: string | null;
+        owner_email: string | null;
+    };
 
 export type GetDashboardDetailsQuery = Pick<
     DashboardTable['base'],
@@ -849,6 +855,21 @@ export class DashboardModel {
                 `${DashboardsTableName}.deleted_by_user_uuid`,
                 'deleted_by_user.user_uuid',
             )
+            .leftJoin(
+                `${UserTableName} as owner_user`,
+                `${DashboardsTableName}.owner_user_uuid`,
+                'owner_user.user_uuid',
+            )
+            .leftJoin(
+                `${EmailTableName} as owner_email`,
+                function ownerEmailJoin() {
+                    this.on(
+                        'owner_email.user_id',
+                        '=',
+                        'owner_user.user_id',
+                    ).andOnVal('owner_email.is_primary', true);
+                },
+            )
             .select<
                 (GetDashboardQuery & {
                     space_uuid: string;
@@ -885,6 +906,10 @@ export class DashboardModel {
                 `${DashboardsTableName}.color_palette_uuid`,
                 'deleted_by_user.first_name as deleted_by_user_first_name',
                 'deleted_by_user.last_name as deleted_by_user_last_name',
+                `${DashboardsTableName}.owner_user_uuid`,
+                'owner_user.first_name as owner_first_name',
+                'owner_user.last_name as owner_last_name',
+                'owner_email.email as owner_email',
             ])
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
             .limit(1);
@@ -1314,6 +1339,14 @@ export class DashboardModel {
             slug: dashboard.slug,
             config: dashboard?.config,
             colorPaletteUuid: dashboard.color_palette_uuid ?? null,
+            owner: dashboard.owner_user_uuid
+                ? {
+                      userUuid: dashboard.owner_user_uuid,
+                      firstName: dashboard.owner_first_name ?? '',
+                      lastName: dashboard.owner_last_name ?? '',
+                      email: dashboard.owner_email,
+                  }
+                : null,
             ...(dashboard.deleted_at
                 ? {
                       deletedAt: dashboard.deleted_at,
@@ -1407,7 +1440,11 @@ export class DashboardModel {
 
     async create(
         spaceUuid: string,
-        dashboard: CreateDashboard & { slug: string; forceSlug?: boolean },
+        dashboard: CreateDashboard & {
+            slug: string;
+            forceSlug?: boolean;
+            ownerUserUuid?: string | null;
+        },
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
     ): Promise<DashboardDAO> {
@@ -1453,6 +1490,7 @@ export class DashboardModel {
                     name: dashboard.name,
                     description: dashboard.description,
                     space_id: space.space_id,
+                    owner_user_uuid: dashboard.ownerUserUuid ?? null,
                     slug: dashboard.forceSlug
                         ? dashboard.slug
                         : await DashboardModel.generateUniqueSlug(
@@ -1476,7 +1514,7 @@ export class DashboardModel {
 
     async update(
         dashboardUuidOrSlug: string,
-        dashboard: DashboardUnversionedFields,
+        dashboard: Partial<DashboardUnversionedFields>,
     ): Promise<DashboardDAO> {
         const existingDashboard = await this.getByIdOrSlug(dashboardUuidOrSlug);
         let withSpaceId: { space_id: number } | Record<string, never> = {};
@@ -1503,13 +1541,23 @@ export class DashboardModel {
             dashboard.colorPaletteUuid !== undefined
                 ? { color_palette_uuid: dashboard.colorPaletteUuid }
                 : {};
+        const withOwner =
+            dashboard.ownerUserUuid !== undefined
+                ? { owner_user_uuid: dashboard.ownerUserUuid }
+                : {};
         const query = this.database(DashboardsTableName)
             .update({
                 project_uuid: existingDashboard.projectUuid,
-                name: dashboard.name,
-                description: dashboard.description,
+                // Owner-only updates omit name; leave it unchanged in that case
+                ...(dashboard.name !== undefined
+                    ? { name: dashboard.name }
+                    : {}),
+                ...(dashboard.description !== undefined
+                    ? { description: dashboard.description }
+                    : {}),
                 ...withSpaceId,
                 ...withColorPalette,
+                ...withOwner,
             })
             .where('dashboard_uuid', existingDashboard.uuid)
             .whereNull('deleted_at');
@@ -2082,6 +2130,21 @@ export class DashboardModel {
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedDashboardTableName}.pinned_list_uuid`,
             )
+            .leftJoin(
+                `${UserTableName} as owner_user`,
+                `${DashboardsTableName}.owner_user_uuid`,
+                'owner_user.user_uuid',
+            )
+            .leftJoin(
+                `${EmailTableName} as owner_email`,
+                function ownerEmailJoin() {
+                    this.on(
+                        'owner_email.user_id',
+                        '=',
+                        'owner_user.user_id',
+                    ).andOnVal('owner_email.is_primary', true);
+                },
+            )
             .select<
                 (GetDashboardQuery & {
                     space_uuid: string;
@@ -2110,6 +2173,10 @@ export class DashboardModel {
                 `${DashboardsTableName}.views_count`,
                 `${DashboardsTableName}.first_viewed_at`,
                 `${DashboardsTableName}.color_palette_uuid`,
+                `${DashboardsTableName}.owner_user_uuid`,
+                'owner_user.first_name as owner_first_name',
+                'owner_user.last_name as owner_last_name',
+                'owner_email.email as owner_email',
             ])
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
             .andWhere(
@@ -2493,6 +2560,14 @@ export class DashboardModel {
             slug: dashboard.slug,
             config: dashboard?.config,
             colorPaletteUuid: dashboard.color_palette_uuid ?? null,
+            owner: dashboard.owner_user_uuid
+                ? {
+                      userUuid: dashboard.owner_user_uuid,
+                      firstName: dashboard.owner_first_name ?? '',
+                      lastName: dashboard.owner_last_name ?? '',
+                      email: dashboard.owner_email,
+                  }
+                : null,
         };
     }
 

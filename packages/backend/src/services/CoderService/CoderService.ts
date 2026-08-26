@@ -1651,6 +1651,7 @@ export class CoderService extends BaseService {
             version: currentVersion,
             contentType: ContentAsCodeType.DASHBOARD,
             downloadedAt: new Date(),
+            ownerEmail: dashboard.owner?.email ?? undefined,
             verified: verificationMap.has(dashboard.uuid) ? true : undefined,
             verification: verificationMap.get(dashboard.uuid) ?? null,
         };
@@ -2771,6 +2772,52 @@ export class CoderService extends BaseService {
                 },
             });
         }
+    }
+
+    /**
+     * Applies the declarative `ownerEmail` from dashboard-as-code: a string
+     * assigns the matching organization member as owner, null unassigns the
+     * owner, undefined leaves the current owner untouched.
+     * Returns warnings when the email does not match any organization member.
+     */
+    private async syncDashboardOwner({
+        organizationUuid,
+        dashboardUuid,
+        currentOwnerUserUuid,
+        ownerEmail,
+    }: {
+        organizationUuid: string;
+        dashboardUuid: string;
+        currentOwnerUserUuid: string | null;
+        ownerEmail: string | null | undefined;
+    }): Promise<string[]> {
+        if (ownerEmail === undefined) return [];
+
+        if (ownerEmail === null) {
+            if (currentOwnerUserUuid !== null) {
+                await this.dashboardModel.update(dashboardUuid, {
+                    ownerUserUuid: null,
+                });
+            }
+            return [];
+        }
+
+        const [member] =
+            await this.organizationMemberProfileModel.findOrganizationMembersByEmails(
+                organizationUuid,
+                [ownerEmail],
+            );
+        if (!member) {
+            return [
+                `Dashboard owner email "${ownerEmail}" does not match any organization member; owner left unchanged.`,
+            ];
+        }
+        if (member.userUuid !== currentOwnerUserUuid) {
+            await this.dashboardModel.update(dashboardUuid, {
+                ownerUserUuid: member.userUuid,
+            });
+        }
+        return [];
     }
 
     async upsertChart(
@@ -3967,6 +4014,13 @@ export class CoderService extends BaseService {
                 verified: dashboardAsCode.verified,
             });
 
+            const createOwnerWarnings = await this.syncDashboardOwner({
+                organizationUuid: project.organizationUuid,
+                dashboardUuid: newDashboard.uuid,
+                currentOwnerUserUuid: newDashboard.owner?.userUuid ?? null,
+                ownerEmail: dashboardAsCode.ownerEmail,
+            });
+
             return withTileWarnings(
                 {
                     dashboards: [
@@ -3986,7 +4040,7 @@ export class CoderService extends BaseService {
                         ? [{ action: PromotionAction.CREATE, data: space }]
                         : [],
                 },
-                tileWarnings,
+                [...tileWarnings, ...createOwnerWarnings],
             );
         }
         // Use promote service to update existing dashboard
@@ -4115,9 +4169,19 @@ export class CoderService extends BaseService {
             verified: dashboardAsCode.verified,
         });
 
+        const ownerWarnings = await this.syncDashboardOwner({
+            organizationUuid: project.organizationUuid,
+            dashboardUuid: dashboard.uuid,
+            currentOwnerUserUuid: dashboard.owner?.userUuid ?? null,
+            ownerEmail: dashboardAsCode.ownerEmail,
+        });
+
         console.info(
             `Finished updating dashboard "${dashboard.name}" on project ${projectUuid}: ${promotionChanges.dashboards[0].action}`,
         );
-        return withTileWarnings(promotionChanges, tileWarnings);
+        return withTileWarnings(promotionChanges, [
+            ...tileWarnings,
+            ...ownerWarnings,
+        ]);
     }
 }

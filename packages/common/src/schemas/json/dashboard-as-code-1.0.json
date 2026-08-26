@@ -1023,6 +1023,10 @@
             "minLength": 1,
             "type": "string"
         },
+        "ownerEmail": {
+            "description": "Declarative dashboard owner, referenced by email so it is portable across projects.\nA string assigns the organization member with that email as owner, `null` unassigns\nthe owner, `undefined` leaves the current owner untouched. Download sets this to the\nowner's email when an owner is assigned.",
+            "type": ["string", "null"]
+        },
         "parameters": {
             "$ref": "#/$defs/DashboardParameters"
         },

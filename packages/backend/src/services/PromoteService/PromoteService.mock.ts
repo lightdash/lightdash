@@ -251,6 +251,7 @@ export const promotedDashboard: PromotedDashboard = {
         updatedByUser,
         slug: 'dashboard',
         colorPaletteUuid: null,
+        owner: null,
     },
     projectUuid: promotedProjectUuid,
     space: promotedSpace,
