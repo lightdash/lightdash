@@ -76,6 +76,11 @@ type Props = {
     displayFilters?: boolean;
     loadExplore?: boolean;
     interactionMode?: 'full' | 'read-only';
+    // Screenshot/export surfaces: flips VisualizationProvider into minimal
+    // mode so renderers disable drill-down/underlying-data structurally.
+    minimal?: boolean;
+    onScreenshotReady?: () => void;
+    onScreenshotError?: () => void;
 };
 
 export const AiVisualizationRenderer: FC<Props> = ({
@@ -92,6 +97,9 @@ export const AiVisualizationRenderer: FC<Props> = ({
     displayFilters: displayFiltersProp = true,
     loadExplore = true,
     interactionMode = 'full',
+    minimal = false,
+    onScreenshotReady,
+    onScreenshotError,
 }) => {
     const { data: health } = useHealth();
     const projectUuid = useProjectUuid();
@@ -253,6 +261,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
         >
             <VisualizationProvider
                 hasExplorerStore={false}
+                minimal={minimal}
                 key={selectedChartType ?? 'default'}
                 resultsData={resultsData}
                 chartConfig={providerChartConfig}
@@ -321,6 +330,8 @@ export const AiVisualizationRenderer: FC<Props> = ({
                             className="sentry-block ph-no-capture"
                             data-testid="ai-visualization"
                             enableContextMenu={allowsAnalyticalInteraction}
+                            onScreenshotReady={onScreenshotReady}
+                            onScreenshotError={onScreenshotError}
                         />
 
                         {allowsAnalyticalInteraction &&
