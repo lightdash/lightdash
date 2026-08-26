@@ -48,7 +48,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { useToggle } from 'react-use';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import DashboardAsCodeModal from '../../../features/contentAsCode/components/DashboardAsCodeModal';
