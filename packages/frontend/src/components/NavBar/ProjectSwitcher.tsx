@@ -638,7 +638,9 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                 }}
                 classNames={{ dropdown: classes.dropdown }}
                 zIndex={getDefaultZIndex('max')}
-                portalProps={portalTarget ? { target: portalTarget } : undefined}
+                portalProps={
+                    portalTarget ? { target: portalTarget } : undefined
+                }
             >
                 <Menu.Target>
                     <Button
