@@ -2,6 +2,7 @@ import { Ability, subject } from '@casl/ability';
 import {
     AlreadyExistsError,
     ChartSummary,
+    ChartType,
     DashboardDAO,
     DashboardTileTypes,
     ForbiddenError,
@@ -1105,37 +1106,49 @@ export class PromoteService extends BaseService {
     private static getDataAppUuidsFromChanges(
         promotionChanges: PromotionChanges,
     ): string[] {
-        return Array.from(
-            promotionChanges.dashboards.reduce<Set<string>>(
-                (acc, dashboardChange) => {
-                    dashboardChange.data.tiles.forEach((tile) => {
-                        if (
-                            isDashboardDataAppTileType(tile) &&
-                            tile.properties.appUuid
-                        ) {
-                            acc.add(tile.properties.appUuid);
-                        }
-                    });
-                    return acc;
-                },
-                new Set<string>(),
-            ),
+        const appUuids = promotionChanges.dashboards.reduce<Set<string>>(
+            (acc, dashboardChange) => {
+                dashboardChange.data.tiles.forEach((tile) => {
+                    if (
+                        isDashboardDataAppTileType(tile) &&
+                        tile.properties.appUuid
+                    ) {
+                        acc.add(tile.properties.appUuid);
+                    }
+                });
+                return acc;
+            },
+            new Set<string>(),
         );
+        // Charts bound to a custom chart type reference it via chartConfig —
+        // the viz must promote with the chart or the upstream copy points at
+        // a viz that only exists in the preview.
+        promotionChanges.charts.forEach((chartChange) => {
+            const { chartConfig } = chartChange.data;
+            if (
+                chartConfig.type === ChartType.DATA_APP_VIZ &&
+                chartConfig.config?.dataAppVizUuid
+            ) {
+                appUuids.add(chartConfig.config.dataAppVizUuid);
+            }
+        });
+        return Array.from(appUuids);
     }
 
     /**
-     * Promote the data apps referenced by a dashboard's DATA_APP tiles into the
-     * upstream project, then remap each tile's `appUuid` to the freshly promoted
-     * upstream app — the data-app equivalent of `upsertCharts`/`upsertSqlCharts`.
+     * Promote the apps a promotion references — DATA_APP dashboard tiles and
+     * the custom chart types bound by charts' DATA_APP_VIZ configs — into the
+     * upstream project, then remap each tile's `appUuid` and each chart's
+     * `dataAppVizUuid` to the freshly promoted upstream app.
      *
-     * Runs after the upstream dashboard exists but before `updateDashboard`
-     * persists the tiles, so the upstream `apps` row is in place before the
-     * `dashboard_tile_data_apps` FK references it.
+     * Must run before `upsertCharts` persists chart configs and before
+     * `updateDashboard` persists the tiles, so the remapped references (and
+     * the `dashboard_tile_data_apps` FK) point at rows that exist upstream.
      *
      * The actual app promotion (S3 copy, versioning, permission checks) lives in
      * the EE AppGenerateService, reached via the injected accessor. Apps whose
      * referenced row no longer exists (soft-deleted placeholder tiles) are left
-     * untouched rather than failing the whole dashboard promotion.
+     * untouched rather than failing the whole promotion.
      */
     async upsertDataApps(
         user: SessionUser,
@@ -1201,9 +1214,41 @@ export class PromoteService extends BaseService {
             }),
         );
 
+        const updatedCharts = promotionChanges.charts.map((chartChange) => {
+            const { chartConfig } = chartChange.data;
+            if (
+                chartConfig.type !== ChartType.DATA_APP_VIZ ||
+                !chartConfig.config?.dataAppVizUuid
+            ) {
+                return chartChange;
+            }
+            const upstreamAppUuid = appUuidMap.get(
+                chartConfig.config.dataAppVizUuid,
+            );
+            // No mapping → the viz was soft-deleted and skipped; keep the
+            // original reference (renders the viz-not-found state upstream).
+            if (!upstreamAppUuid) {
+                return chartChange;
+            }
+            return {
+                ...chartChange,
+                data: {
+                    ...chartChange.data,
+                    chartConfig: {
+                        ...chartConfig,
+                        config: {
+                            ...chartConfig.config,
+                            dataAppVizUuid: upstreamAppUuid,
+                        },
+                    },
+                },
+            };
+        });
+
         return {
             ...promotionChanges,
             dashboards: updatedDashboards,
+            charts: updatedCharts,
         };
     }
 
@@ -1289,6 +1334,14 @@ export class PromoteService extends BaseService {
                 promotionChanges,
             );
 
+            // Promote the chart's custom chart type (if any) and remap the
+            // viz binding before the chart config is persisted upstream.
+            promotionChanges = await this.upsertDataApps(
+                user,
+                promotionChanges,
+                projectUuid,
+            );
+
             promotionChanges = await this.upsertCharts(user, promotionChanges);
 
             await this.trackAnalytics(
@@ -1341,8 +1394,16 @@ export class PromoteService extends BaseService {
             upstreamChart,
         );
 
+        // A chart bound to a custom chart type promotes that viz with it.
+        const dataApps = await this.getDataAppDiffChanges(
+            user,
+            projectUuid,
+            promotionChanges,
+        );
+
         return {
             ...promotionChanges,
+            dataApps,
             spaces: PromoteService.sortSpaceChanges(promotionChanges.spaces),
         };
     }
@@ -2568,6 +2629,16 @@ export class PromoteService extends BaseService {
                 promotionChanges,
             );
 
+            // Promote embedded data apps and chart types, remapping tiles and
+            // chart viz bindings. Must run before upsertCharts persists chart
+            // configs and before updateDashboard persists tiles (the tile FK
+            // needs the upstream apps row).
+            promotionChanges = await this.upsertDataApps(
+                user,
+                promotionChanges,
+                dashboard.projectUuid,
+            );
+
             // Update or create charts
             // and return the list of dashboard.tiles updates with the new chart uuids
             promotionChanges = await this.upsertCharts(
@@ -2580,14 +2651,6 @@ export class PromoteService extends BaseService {
                 user,
                 promotionChanges,
                 sqlChanges,
-            );
-
-            // Promote embedded data apps and remap their tiles. Must run before
-            // updateDashboard so the upstream apps row exists for the tile FK.
-            promotionChanges = await this.upsertDataApps(
-                user,
-                promotionChanges,
-                dashboard.projectUuid,
             );
 
             promotionChanges = await this.updateDashboard(
