@@ -57,6 +57,7 @@ import { sqlHandler } from './handlers/sql';
 import { registerUpgradeCheckCommand } from './handlers/upgradeCheck';
 import { validateHandler, VALIDATION_SEVERITIES } from './handlers/validate';
 import { warehouseCatalogHandler } from './handlers/warehouseCatalog';
+import { parseRefsArgument } from './refsArgument';
 import * as styles from './styles';
 // Trigger CLI tests
 // Suppress AWS SDK V2 warning, imported by snowflake SDK
@@ -839,38 +840,54 @@ const downloadCommand = program
     .option(
         '-c, --charts <charts...>',
         'specify chart slugs, uuids, or urls to download',
+        parseRefsArgument,
         [],
     )
     .option(
         '-d, --dashboards <dashboards...>',
         'specify dashboard slugs, uuids or urls to download',
+        parseRefsArgument,
         [],
     )
-    .option('--agents <slugs...>', 'specify AI agent slugs to download', [])
+    .option(
+        '--agents <slugs...>',
+        'specify AI agent slugs to download',
+        parseRefsArgument,
+        [],
+    )
     .option(
         '--include-agents',
         "include all of the project's AI agents (enterprise)",
         false,
     )
-    .option('--alerts <slugs...>', 'specify alert slugs to download', [])
+    .option(
+        '--alerts <slugs...>',
+        'specify alert slugs to download',
+        parseRefsArgument,
+        [],
+    )
     .option(
         '--virtual-views <slugs...>',
         'specify virtual view slugs to download',
+        parseRefsArgument,
         [],
     )
     .option(
         '--google-sheets <slugs...>',
         'specify Google Sheets sync slugs to download',
+        parseRefsArgument,
         [],
     )
     .option(
         '--scheduled-deliveries <slugs...>',
         'specify scheduled delivery slugs to download',
+        parseRefsArgument,
         [],
     )
     .option(
         '--external-connections <slugs...>',
         'specify external connection slugs to download (enterprise)',
+        parseRefsArgument,
         [],
     )
     .option(
@@ -945,6 +962,7 @@ const downloadCommand = program
     .option(
         '--apps <appReferences...>',
         'Download only the specified data apps, by slug, app URL, or UUID (enterprise). Works for apps not added to a space.',
+        parseRefsArgument,
     )
     .option(
         '--include-apps',
@@ -964,6 +982,7 @@ const downloadCommand = program
     .option(
         '--chart-types <chartTypeReferences...>',
         'Download only the specified custom chart types, by slug, URL, or UUID (enterprise).',
+        parseRefsArgument,
     )
     .option(
         '--include-chart-types',
@@ -995,33 +1014,49 @@ const uploadCommand = program
     .option(
         '-c, --charts <charts...>',
         'specify chart slugs to force upload',
+        parseRefsArgument,
         [],
     )
     .option(
         '-d, --dashboards <dashboards...>',
         'specify dashboard slugs to force upload',
+        parseRefsArgument,
         [],
     )
-    .option('--agents <slugs...>', 'specify AI agent slugs to upload', [])
-    .option('--alerts <slugs...>', 'specify alert slugs to upload', [])
+    .option(
+        '--agents <slugs...>',
+        'specify AI agent slugs to upload',
+        parseRefsArgument,
+        [],
+    )
+    .option(
+        '--alerts <slugs...>',
+        'specify alert slugs to upload',
+        parseRefsArgument,
+        [],
+    )
     .option(
         '--virtual-views <slugs...>',
         'specify virtual view slugs to upload',
+        parseRefsArgument,
         [],
     )
     .option(
         '--google-sheets <slugs...>',
         'specify Google Sheets sync slugs to upload',
+        parseRefsArgument,
         [],
     )
     .option(
         '--scheduled-deliveries <slugs...>',
         'specify scheduled delivery slugs to upload',
+        parseRefsArgument,
         [],
     )
     .option(
         '--external-connections <slugs...>',
         'specify external connection slugs to upload (enterprise)',
+        parseRefsArgument,
         [],
     )
     .option(
@@ -1091,6 +1126,7 @@ const uploadCommand = program
     .option(
         '--apps <appReferences...>',
         'Upload only the specified data apps, by slug (the app folder name), app URL, or UUID (enterprise). URL and UUID refs are resolved against the target project.',
+        parseRefsArgument,
     )
     .option(
         '--include-apps',
@@ -1105,6 +1141,7 @@ const uploadCommand = program
     .option(
         '--chart-types <chartTypeReferences...>',
         'Upload only the specified custom chart types, by slug (the chart type folder name), URL, or UUID (enterprise). URL and UUID refs are resolved against the target project.',
+        parseRefsArgument,
     )
     .option(
         '--include-chart-types',
