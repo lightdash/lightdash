@@ -174,6 +174,180 @@ describe('UnfurlService', () => {
         });
     });
 
+    describe('exportAiAgentArtifact', () => {
+        const ACTING_USER = {
+            userUuid: 'user-uuid-1',
+            organizationUuid: 'org-uuid-1',
+        } as never;
+        const ARTIFACT_REFS = {
+            projectUuid: '11111111-1111-4111-8111-111111111111',
+            agentUuid: '22222222-2222-4222-8222-222222222222',
+            artifactUuid: '33333333-3333-4333-8333-333333333333',
+            versionUuid: '44444444-4444-4444-8444-444444444444',
+        };
+        // Callers resolve this via AiAgentService.getArtifact (access-checked)
+        // and pass the result in.
+        const customChartArtifact = {
+            artifactUuid: ARTIFACT_REFS.artifactUuid,
+            versionUuid: ARTIFACT_REFS.versionUuid,
+            title: 'Revenue treemap',
+            chartConfig: {
+                source: 'customChartType',
+                schemaVersion: 1,
+                dataAppVizUuid: 'viz-1',
+                config: {},
+            },
+        };
+        const EXPORT_ARGS = {
+            projectUuid: ARTIFACT_REFS.projectUuid,
+            agentUuid: ARTIFACT_REFS.agentUuid,
+            artifact: customChartArtifact as never,
+        };
+
+        const createScreenshotMockPage = () => {
+            const cdpSession = { send: vi.fn().mockResolvedValue(undefined) };
+            const pageContext = {
+                addCookies: vi.fn().mockResolvedValue(undefined),
+                newCDPSession: vi.fn().mockResolvedValue(cdpSession),
+                route: vi.fn().mockResolvedValue(undefined),
+                routeWebSocket: vi.fn().mockResolvedValue(undefined),
+            };
+            return {
+                cdpSession,
+                pageContext,
+                addInitScript: vi.fn().mockResolvedValue(undefined),
+                context: vi.fn().mockReturnValue(pageContext),
+                on: vi.fn(),
+                goto: vi.fn().mockResolvedValue(undefined),
+                waitForSelector: vi.fn().mockResolvedValue(undefined),
+                evaluate: vi.fn().mockResolvedValue(undefined),
+                locator: vi.fn().mockReturnValue({
+                    first: vi.fn().mockReturnValue({
+                        elementHandle: vi
+                            .fn()
+                            .mockRejectedValue(new Error('no element')),
+                    }),
+                }),
+                setViewportSize: vi.fn().mockResolvedValue(undefined),
+                waitForTimeout: vi.fn().mockResolvedValue(undefined),
+                screenshot: vi.fn().mockResolvedValue(Buffer.from('png-bytes')),
+                close: vi.fn().mockResolvedValue(undefined),
+            };
+        };
+
+        const setup = () => {
+            const page = createScreenshotMockPage();
+            const browser = {
+                newPage: vi.fn().mockResolvedValue(page),
+                close: vi.fn().mockResolvedValue(undefined),
+            };
+            playwrightMocks.connectOverCDP.mockResolvedValue(browser);
+            const service = createService({
+                headlessBrowser: {
+                    host: 'headless-browser',
+                    browserEndpoint: 'ws://headless-browser:3000',
+                    screenshotTimeoutMs: 180_000,
+                    maxScreenshotRetries: 1,
+                },
+            });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            vi.spyOn(service as any, 'getUserCookie').mockResolvedValue(
+                'connect.sid=session-value; Path=/; HttpOnly',
+            );
+            return { service, browser, page };
+        };
+
+        it('rejects artifacts that are not custom chart type answers', async () => {
+            const { service } = setup();
+
+            await expect(
+                service.exportAiAgentArtifact(ACTING_USER, {
+                    ...EXPORT_ARGS,
+                    artifact: {
+                        ...customChartArtifact,
+                        chartConfig: { source: 'semantic', config: {} },
+                    } as never,
+                }),
+            ).rejects.toThrow(/custom chart type/);
+            expect(playwrightMocks.connectOverCDP).not.toHaveBeenCalled();
+        });
+
+        it('renders the minimal artifact page with app-style launch args and a fixed 800x600@2x viewport', async () => {
+            const { service, browser, page } = setup();
+            mockFileStorageClient.isEnabled.mockReturnValue(true);
+            mockFileStorageClient.uploadImage.mockResolvedValue(
+                'https://s3.example.com/raw-signed-url',
+            );
+            mockSlackUnfurlImageModel.create.mockResolvedValue(undefined);
+
+            const imageUrl = await service.exportAiAgentArtifact(
+                ACTING_USER,
+                EXPORT_ARGS,
+            );
+
+            // App-style launch: window sizing + secure-context for the
+            // sandboxed viz iframe SDK.
+            const [endpoint] = playwrightMocks.connectOverCDP.mock.calls[0];
+            expect(endpoint).toContain('--window-size%3D800%2C600');
+            expect(endpoint).toContain(
+                'unsafely-treat-insecure-origin-as-secure',
+            );
+
+            expect(browser.newPage).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    viewport: { width: 800, height: 600 },
+                    deviceScaleFactor: 2,
+                    serviceWorkers: 'block',
+                }),
+            );
+            expect(page.cdpSession.send).toHaveBeenCalledWith(
+                'Emulation.setDeviceMetricsOverride',
+                expect.objectContaining({
+                    width: 800,
+                    height: 600,
+                    deviceScaleFactor: 2,
+                }),
+            );
+
+            expect(page.goto).toHaveBeenCalledWith(
+                `http://headless-browser:8080/minimal/projects/${ARTIFACT_REFS.projectUuid}/ai-agents/${ARTIFACT_REFS.agentUuid}/artifacts/${ARTIFACT_REFS.artifactUuid}/versions/${ARTIFACT_REFS.versionUuid}`,
+                expect.objectContaining({ timeout: expect.any(Number) }),
+            );
+            expect(page.waitForSelector).toHaveBeenCalledWith(
+                SCREENSHOT_SELECTORS.READY_INDICATOR,
+                { state: 'attached', timeout: 180_000 },
+            );
+
+            // Fixed-frame capture: viewport-sized, never content-measured.
+            expect(page.setViewportSize).not.toHaveBeenCalled();
+            expect(page.screenshot).toHaveBeenCalledTimes(1);
+            expect(page.screenshot.mock.calls[0][0]).not.toMatchObject({
+                fullPage: true,
+            });
+
+            expect(mockSlackUnfurlImageModel.create).toHaveBeenCalledWith(
+                expect.objectContaining({ organizationUuid: 'org-uuid-1' }),
+            );
+            expect(imageUrl).toMatch(
+                /^https:\/\/app\.lightdash\.cloud\/api\/v1\/slack\/preview\//,
+            );
+        });
+
+        it('fails closed when the ready indicator never mounts', async () => {
+            const { service, page } = setup();
+            const { errors } = await import('playwright');
+            page.waitForSelector.mockRejectedValue(
+                new errors.TimeoutError('Timeout 180000ms exceeded'),
+            );
+
+            await expect(
+                service.exportAiAgentArtifact(ACTING_USER, EXPORT_ARGS),
+            ).rejects.toThrow(/Screenshot timeout/);
+            expect(page.screenshot).not.toHaveBeenCalled();
+            expect(page.close).toHaveBeenCalled();
+        });
+    });
+
     describe('getPreviewSignedUrl', () => {
         const service = createService();
 

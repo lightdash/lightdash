@@ -35,10 +35,12 @@ import {
     snakeCaseName,
     UnexpectedServerError,
     validateSelectedTabs,
+    type AiArtifact,
     type DashboardFilterRule,
     type DashboardFilters,
     type DeliveryCaptureManifest,
     type ParametersValuesMap,
+    type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -229,11 +231,19 @@ const bigNumberViewport = {
     height: 500,
 };
 
+// Fixed-frame AI artifact card, captured @2x for crisp Slack rendering.
+const aiArtifactViewport = {
+    width: 800,
+    height: 600,
+    deviceScaleFactor: 2,
+} as const;
+
 export enum ScreenshotContext {
     SCHEDULED_DELIVERY = 'scheduled_delivery',
     SLACK = 'slack',
     EXPORT_DASHBOARD = 'export_dashboard',
     EXPORT_CHART = 'export_chart',
+    EXPORT_AI_ARTIFACT = 'export_ai_artifact',
 }
 
 // Default values
@@ -574,6 +584,12 @@ export class UnfurlService extends BaseService {
                     organizationUuid: app.organization_uuid,
                     resourceUuid: app.app_id,
                 };
+            case LightdashPage.AI_ARTIFACT:
+                // Never produced by parseUrl; artifact exports go through
+                // exportAiAgentArtifact, not unfurls.
+                throw new ParameterError(
+                    `AI artifact pages cannot be unfurled: ${parsedUrl.url}`,
+                );
             case undefined:
                 throw new Error(`Unrecognized page for URL ${parsedUrl.url}`);
             default:
@@ -723,38 +739,11 @@ export class UnfurlService extends BaseService {
 
         let imageUrl;
         if (imageBuffer) {
-            if (this.fileStorageClient.isEnabled()) {
-                imageUrl = await this.fileStorageClient.uploadImage(
-                    imageBuffer,
-                    imageId,
-                );
-
-                if (details?.organizationUuid) {
-                    const previewId = useNanoid();
-                    await this.slackUnfurlImageModel.create({
-                        nanoid: previewId,
-                        s3Key: `${imageId}.png`,
-                        organizationUuid: details.organizationUuid,
-                    });
-                    imageUrl = new URL(
-                        `/api/v1/slack/preview/${previewId}`,
-                        this.lightdashConfig.siteUrl,
-                    ).href;
-                }
-            } else {
-                const filePath = `/tmp/${imageId}.png`;
-                const downloadFileId = useNanoid();
-                await this.downloadFileModel.createDownloadFile(
-                    downloadFileId,
-                    filePath,
-                    DownloadFileType.IMAGE,
-                );
-
-                imageUrl = new URL(
-                    `/api/v1/slack/image/${downloadFileId}`,
-                    this.lightdashConfig.siteUrl,
-                ).href;
-            }
+            imageUrl = await this.hostImage(
+                imageBuffer,
+                imageId,
+                details?.organizationUuid,
+            );
         }
 
         let pdfFile;
@@ -766,6 +755,51 @@ export class UnfurlService extends BaseService {
             imageUrl,
             pdfFile,
         };
+    }
+
+    /**
+     * Hosts a screenshot buffer and returns a fetchable URL. With storage +
+     * an org, the stable Lightdash preview URL; with storage only, the raw
+     * storage URL; otherwise a local /tmp-backed download URL.
+     */
+    private async hostImage(
+        imageBuffer: Buffer,
+        imageId: string,
+        organizationUuid: string | undefined,
+    ): Promise<string> {
+        if (this.fileStorageClient.isEnabled()) {
+            let imageUrl = await this.fileStorageClient.uploadImage(
+                imageBuffer,
+                imageId,
+            );
+
+            if (organizationUuid) {
+                const previewId = useNanoid();
+                await this.slackUnfurlImageModel.create({
+                    nanoid: previewId,
+                    s3Key: `${imageId}.png`,
+                    organizationUuid,
+                });
+                imageUrl = new URL(
+                    `/api/v1/slack/preview/${previewId}`,
+                    this.lightdashConfig.siteUrl,
+                ).href;
+            }
+            return imageUrl;
+        }
+
+        const filePath = `/tmp/${imageId}.png`;
+        const downloadFileId = useNanoid();
+        await this.downloadFileModel.createDownloadFile(
+            downloadFileId,
+            filePath,
+            DownloadFileType.IMAGE,
+        );
+
+        return new URL(
+            `/api/v1/slack/image/${downloadFileId}`,
+            this.lightdashConfig.siteUrl,
+        ).href;
     }
 
     /**
@@ -1084,6 +1118,83 @@ export class UnfurlService extends BaseService {
     }
 
     /**
+     * Renders a custom chart type AI artifact version to a hosted PNG under
+     * the acting user's identity (one-time login grant). The caller must
+     * resolve `artifact` — and the project/agent refs it passes — via
+     * AiAgentService.getArtifact for the same user, which enforces the
+     * agent + thread access chain.
+     */
+    async exportAiAgentArtifact(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            artifact,
+        }: {
+            projectUuid: UUID;
+            agentUuid: UUID;
+            artifact: AiArtifact;
+        },
+    ): Promise<string> {
+        const { artifactUuid, versionUuid } = artifact;
+        if (artifact.chartConfig?.source !== 'customChartType') {
+            throw new ParameterError(
+                `Artifact version ${artifactUuid}/${versionUuid} is not a custom chart type answer`,
+            );
+        }
+
+        const minimalUrl = new URL(
+            `/minimal/projects/${projectUuid}/ai-agents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}`,
+            this.lightdashConfig.headlessBrowser.internalLightdashHost,
+        ).href;
+
+        this.logger.info(`Exporting AI artifact to hosted image`, {
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            minimalUrl,
+        });
+
+        const cookie = await this.getUserCookie(user.userUuid);
+        const imageId = `ai-artifact-image_${snakeCaseName(
+            artifact.title ?? 'chart',
+        )}_${useNanoid()}`;
+
+        const result = await this.saveScreenshot({
+            authUserUuid: user.userUuid,
+            imageId,
+            cookie,
+            url: minimalUrl,
+            lightdashPage: LightdashPage.AI_ARTIFACT,
+            organizationUuid: user.organizationUuid,
+            resourceUuid: versionUuid,
+            resourceName: artifact.title ?? undefined,
+            context: ScreenshotContext.EXPORT_AI_ARTIFACT,
+            selectedTabs: null,
+        });
+        if (!result?.imageBuffer) {
+            throw new UnexpectedServerError(
+                'Unable to export AI artifact image',
+            );
+        }
+
+        const imageUrl = await this.hostImage(
+            result.imageBuffer,
+            imageId,
+            user.organizationUuid,
+        );
+        this.logger.info(`AI artifact exported successfully`, {
+            userUuid: user.userUuid,
+            artifactUuid,
+            versionUuid,
+        });
+        return imageUrl;
+    }
+
+    /**
      * Reads the always-mounted #lightdash-screenshot-progress element and
      * logs which tile UUIDs are still unaccounted for, so that on
      * #lightdash-ready-indicator timeouts we can identify the specific
@@ -1360,6 +1471,12 @@ export class UnfurlService extends BaseService {
                             ...appViewport,
                             width: gridWidth ?? appViewport.width,
                         };
+                    } else if (lightdashPage === LightdashPage.AI_ARTIFACT) {
+                        // Fixed frame: never widened by gridWidth or content.
+                        initialViewport = {
+                            width: aiArtifactViewport.width,
+                            height: aiArtifactViewport.height,
+                        };
                     } else {
                         initialViewport = {
                             ...viewport,
@@ -1367,17 +1484,23 @@ export class UnfurlService extends BaseService {
                         };
                     }
 
-                    const browserConnectionEndpoint =
-                        lightdashPage === LightdashPage.APP
-                            ? getAppBrowserEndpoint(
-                                  browserEndpoint,
-                                  initialViewport,
-                                  this.screenshotTimeoutMs +
-                                      BROWSERLESS_SESSION_BUFFER_MS,
-                                  this.lightdashConfig.headlessBrowser
-                                      .internalLightdashHost,
-                              )
-                            : browserEndpoint;
+                    // Both page types host the sandboxed iframe SDK, which
+                    // needs the app-style launch args (window sizing + secure
+                    // context).
+                    const usesAppLaunchArgs =
+                        lightdashPage === LightdashPage.APP ||
+                        lightdashPage === LightdashPage.AI_ARTIFACT;
+
+                    const browserConnectionEndpoint = usesAppLaunchArgs
+                        ? getAppBrowserEndpoint(
+                              browserEndpoint,
+                              initialViewport,
+                              this.screenshotTimeoutMs +
+                                  BROWSERLESS_SESSION_BUFFER_MS,
+                              this.lightdashConfig.headlessBrowser
+                                  .internalLightdashHost,
+                          )
+                        : browserEndpoint;
 
                     browser = await playwright.chromium.connectOverCDP(
                         browserConnectionEndpoint,
@@ -1409,6 +1532,12 @@ export class UnfurlService extends BaseService {
 
                     page = await browser.newPage({
                         viewport: initialViewport,
+                        ...(lightdashPage === LightdashPage.AI_ARTIFACT
+                            ? {
+                                  deviceScaleFactor:
+                                      aiArtifactViewport.deviceScaleFactor,
+                              }
+                            : {}),
                         serviceWorkers: 'block',
                         // Allow self-signed / untrusted certs when the
                         // internal Lightdash host is reached through an
@@ -1425,6 +1554,13 @@ export class UnfurlService extends BaseService {
                             page,
                             initialViewport,
                             `unfurlId: ${imageId}`,
+                        );
+                    } else if (lightdashPage === LightdashPage.AI_ARTIFACT) {
+                        await this.overrideCdpViewport(
+                            page,
+                            initialViewport,
+                            `unfurlId: ${imageId}`,
+                            aiArtifactViewport.deviceScaleFactor,
                         );
                     }
 
@@ -2062,23 +2198,27 @@ export class UnfurlService extends BaseService {
                         }
                     }
 
-                    const fullPage = await page.locator(finalSelector);
-                    const fullPageSize = await fullPage?.boundingBox({
-                        timeout: this.screenshotTimeoutMs,
-                    });
-
-                    if (
-                        chartType !== ChartType.BIG_NUMBER &&
-                        lightdashPage !== LightdashPage.APP &&
-                        fullPageSize?.height
-                    ) {
-                        await page.setViewportSize({
-                            width: gridWidth ?? viewport.width,
-                            height: Math.round(fullPageSize.height),
+                    // AI artifacts keep their fixed frame: no content
+                    // measurement, no viewport resize.
+                    if (lightdashPage !== LightdashPage.AI_ARTIFACT) {
+                        const fullPage = await page.locator(finalSelector);
+                        const fullPageSize = await fullPage?.boundingBox({
+                            timeout: this.screenshotTimeoutMs,
                         });
-                        // Viewport changes can trigger layout shifts - wait for things to settle
-                        // before taking the shot 📸
-                        await page.waitForTimeout(100);
+
+                        if (
+                            chartType !== ChartType.BIG_NUMBER &&
+                            lightdashPage !== LightdashPage.APP &&
+                            fullPageSize?.height
+                        ) {
+                            await page.setViewportSize({
+                                width: gridWidth ?? viewport.width,
+                                height: Math.round(fullPageSize.height),
+                            });
+                            // Viewport changes can trigger layout shifts - wait for things to settle
+                            // before taking the shot 📸
+                            await page.waitForTimeout(100);
+                        }
                     }
 
                     // Helper: generate PDF from the current page state
@@ -2262,6 +2402,13 @@ export class UnfurlService extends BaseService {
                                     timeout: this.screenshotTimeoutMs,
                                 });
                         }
+                    } else if (lightdashPage === LightdashPage.AI_ARTIFACT) {
+                        // Fixed-frame capture at the declared viewport.
+                        imageBuffer = await page.screenshot({
+                            path,
+                            animations: 'disabled',
+                            timeout: this.screenshotTimeoutMs,
+                        });
                     } else {
                         // Full page screenshot for charts
                         imageBuffer = await page.screenshot({
@@ -2406,13 +2553,14 @@ export class UnfurlService extends BaseService {
         page: playwright.Page,
         size: { width: number; height: number },
         logContext: string,
+        deviceScaleFactor = 1,
     ): Promise<void> {
         try {
             const cdp = await page.context().newCDPSession(page);
             await cdp.send('Emulation.setDeviceMetricsOverride', {
                 width: size.width,
                 height: size.height,
-                deviceScaleFactor: 1,
+                deviceScaleFactor,
                 mobile: false,
             });
         } catch (cdpErr) {
