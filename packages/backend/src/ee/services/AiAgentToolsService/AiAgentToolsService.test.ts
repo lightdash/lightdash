@@ -310,7 +310,7 @@ describe('AiAgentToolsService', () => {
         );
     });
 
-    it('keeps creator-visible apps whose allowed Space is not caller-visible', async () => {
+    it('drops apps whose Space is not caller-visible, like charts and dashboards', async () => {
         const searchService = {
             findContent: vi.fn().mockResolvedValue({
                 content: [
@@ -340,14 +340,7 @@ describe('AiAgentToolsService', () => {
         ]);
 
         for (const result of [unrestrictedResult, scopedResult]) {
-            expect(result.content).toEqual([
-                expect.objectContaining({
-                    contentType: 'data_app',
-                    uuid: 'creator-app-uuid',
-                    spaceUuid: 'hidden-space-uuid',
-                    space: null,
-                }),
-            ]);
+            expect(result.content).toEqual([]);
         }
     });
 

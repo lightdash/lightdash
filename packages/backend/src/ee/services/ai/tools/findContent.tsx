@@ -1,5 +1,6 @@
 import {
     AllChartsSearchResult,
+    assertUnreachable,
     ContentVerificationInfo,
     DashboardSearchResult,
     findContentToolDefinition,
@@ -15,7 +16,6 @@ import type {
     FindContentDashboardResult,
     FindContentDataAppResult,
     FindContentFn,
-    FindContentResult,
     FindContentSpaceMetadata,
     FindContentSpaceResult,
 } from '../types/aiAgentDependencies';
@@ -227,18 +227,6 @@ const renderDataApp = (
     </dataApp>
 );
 
-const isDashboardResult = (
-    content: FindContentResult,
-): content is FindContentDashboardResult => content.contentType === 'dashboard';
-
-const isSpaceResult = (
-    content: FindContentResult,
-): content is FindContentSpaceResult => content.contentType === 'space';
-
-const isDataAppResult = (
-    content: FindContentResult,
-): content is FindContentDataAppResult => content.contentType === 'data_app';
-
 const renderContent = (
     args: Awaited<ReturnType<FindContentFn>> & {
         searchQuery: string;
@@ -257,19 +245,33 @@ const renderContent = (
                 ? 'No verified content matched this query. Verified content may still exist under other search terms; re-run with verifiedOnly=false only if unverified content is acceptable.'
                 : null}
             {sortedContent.map((content) => {
-                if (isSpaceResult(content)) {
-                    return renderSpace(content);
+                switch (content.contentType) {
+                    case 'space':
+                        return renderSpace(content);
+                    case 'data_app':
+                        return renderDataApp(
+                            content,
+                            siteUrl,
+                            toolDescriptionMaxChars,
+                        );
+                    case 'dashboard':
+                        return renderDashboard(
+                            content,
+                            siteUrl,
+                            toolDescriptionMaxChars,
+                        );
+                    case 'chart':
+                        return renderChart(
+                            content,
+                            siteUrl,
+                            toolDescriptionMaxChars,
+                        );
+                    default:
+                        return assertUnreachable(
+                            content,
+                            'Unknown content type',
+                        );
                 }
-                if (isDataAppResult(content)) {
-                    return renderDataApp(
-                        content,
-                        siteUrl,
-                        toolDescriptionMaxChars,
-                    );
-                }
-                return isDashboardResult(content)
-                    ? renderDashboard(content, siteUrl, toolDescriptionMaxChars)
-                    : renderChart(content, siteUrl, toolDescriptionMaxChars);
             })}
         </searchresult>
     );

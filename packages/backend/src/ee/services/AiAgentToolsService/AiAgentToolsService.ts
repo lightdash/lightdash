@@ -1294,7 +1294,6 @@ export class AiAgentToolsService extends BaseService {
                                     ? [
                                           {
                                               ...item,
-                                              contentType: 'data_app',
                                               space: null,
                                               verification: null,
                                           },
@@ -1307,15 +1306,17 @@ export class AiAgentToolsService extends BaseService {
                             }
 
                             const appSpace = spacesByUuid.get(item.spaceUuid);
+                            if (!appSpace) {
+                                return [];
+                            }
+
                             return [
                                 {
                                     ...item,
-                                    space: appSpace
-                                        ? AiAgentToolsService.getSpaceMetadata(
-                                              appSpace,
-                                              spacesByPath,
-                                          )
-                                        : null,
+                                    space: AiAgentToolsService.getSpaceMetadata(
+                                        appSpace,
+                                        spacesByPath,
+                                    ),
                                     verification: null,
                                 },
                             ];

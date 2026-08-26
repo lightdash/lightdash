@@ -1,8 +1,25 @@
-import { type SessionUser } from '@lightdash/common';
+import {
+    defineUserAbility,
+    OrganizationMemberRole,
+    type SessionUser,
+} from '@lightdash/common';
 import { SearchService } from './SearchService';
 
-const user = { userUuid: 'user-uuid' } as SessionUser;
 const projectUuid = 'project-uuid';
+const organizationUuid = 'organization-uuid';
+
+const user = {
+    userUuid: 'user-uuid',
+    ability: defineUserAbility(
+        {
+            role: OrganizationMemberRole.ADMIN,
+            organizationUuid,
+            userUuid: 'user-uuid',
+            roleUuid: undefined,
+        },
+        [],
+    ),
+} as unknown as SessionUser;
 
 const makeDataApp = () => ({
     uuid: 'app-uuid',
@@ -36,7 +53,7 @@ const makeService = ({ dataAppsEnabled = true } = {}) => {
         searchModel: searchModel as never,
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({
-                organizationUuid: 'organization-uuid',
+                organizationUuid,
                 name: 'Project',
             }),
         } as never,
@@ -46,17 +63,6 @@ const makeService = ({ dataAppsEnabled = true } = {}) => {
             getSpacesAccessContext: vi.fn().mockResolvedValue({}),
         } as never,
         appGenerateService: appGenerateService as never,
-    });
-    (
-        service as unknown as {
-            createAuditedAbility: () => {
-                cannot: () => boolean;
-                canBulk: () => boolean[];
-            };
-        }
-    ).createAuditedAbility = () => ({
-        cannot: () => false,
-        canBulk: () => [],
     });
 
     return { service, searchModel, appGenerateService, dataApp };
@@ -91,7 +97,7 @@ describe('SearchService.findContent', () => {
         );
         expect(appGenerateService.filterAppsUserCanView).toHaveBeenCalledWith(
             user,
-            'organization-uuid',
+            organizationUuid,
             projectUuid,
             [dataApp],
         );
