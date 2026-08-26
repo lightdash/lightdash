@@ -9606,6 +9606,23 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ScimCreateGroupRequest: {
+        dataType: 'refObject',
+        properties: {
+            schemas: {
+                dataType: 'array',
+                array: { dataType: 'string' },
+                required: true,
+            },
+            displayName: { dataType: 'string', required: true },
+            members: {
+                dataType: 'array',
+                array: { dataType: 'refObject', ref: 'ScimGroupMember' },
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SchedulerAiAugmentation: {
         dataType: 'refAlias',
         type: {
@@ -60570,7 +60587,11 @@ export function RegisterRoutes(app: Router) {
             in: 'body',
             name: 'body',
             required: true,
-            ref: 'ScimUpsertGroup',
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'ScimUpsertGroup' },
+                { ref: 'ScimCreateGroupRequest' },
+            ],
         },
     };
     app.post(

@@ -1,3 +1,10 @@
+## [2.5.2](https://github.com/lightdash/lightdash/compare/2.5.1...2.5.2) (2026-08-26)
+
+
+### Bug Fixes
+
+* **scim:** accept group schema extensions ([#28065](https://github.com/lightdash/lightdash/issues/28065)) ([dfba08a](https://github.com/lightdash/lightdash/commit/dfba08a7eb4e1bb91372ec62f2d1216700ebe53a))
+
 ## [2.5.1](https://github.com/lightdash/lightdash/compare/2.5.0...2.5.1) (2026-08-26)
 
 
