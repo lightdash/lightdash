@@ -20,7 +20,7 @@ import {
     IconSearch,
 } from '@tabler/icons-react';
 import clsx from 'clsx';
-import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type FC } from 'react';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
@@ -30,6 +30,7 @@ import {
 } from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { CHART_GALLERY_SEARCH_ID } from '../../common/ChartGallery/ChartGalleryContext';
 import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -116,6 +117,7 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => (
             <UnstyledButton
                 className={classes.card}
                 data-selected={item.selected}
+                aria-pressed={item.selected}
                 disabled={item.disabled}
                 onClick={item.select}
             >
@@ -170,7 +172,7 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
 
     if (section.loading) {
         return (
-            <Group gap="xs">
+            <Group gap="xs" role="status">
                 <Loader size="xs" />
                 <Text fz="xs" c="dimmed">
                     Loading chart types…
@@ -181,7 +183,7 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
     // A transient refetch failure must not hide types already on screen.
     if (section.errorMessage !== null && section.items.length === 0) {
         return (
-            <Group justify="space-between" wrap="nowrap">
+            <Group justify="space-between" wrap="nowrap" role="alert">
                 <Text fz="xs" c="red">
                     {section.errorMessage}
                 </Text>
@@ -263,6 +265,23 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
     );
 };
 
+/* Grouped and named after its own heading, like the builder's question
+   sheet, so the shelves stay distinct rather than one flat run of cards. */
+const GallerySection: FC<{ section: ChartTypeGallerySection }> = ({
+    section,
+}) => {
+    const labelId = useId();
+    return (
+        <Stack gap="xs" role="group" aria-labelledby={labelId}>
+            <Text id={labelId} fz="xs" fw={600} c="dimmed">
+                {section.label}
+            </Text>
+
+            <SectionBody section={section} />
+        </Stack>
+    );
+};
+
 type GalleryProps = {
     search: string;
     onSearchChange: (search: string) => void;
@@ -276,6 +295,7 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
 }) => (
     <Stack className={classes.root} gap="md">
         <TextInput
+            id={CHART_GALLERY_SEARCH_ID}
             size="xs"
             value={search}
             onChange={(event) => onSearchChange(event.currentTarget.value)}
@@ -294,13 +314,7 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
         >
             <Stack gap="lg" pb="xs">
                 {sections.map((section) => (
-                    <Stack key={section.label} gap="xs">
-                        <Text fz="xs" fw={600} c="dimmed">
-                            {section.label}
-                        </Text>
-
-                        <SectionBody section={section} />
-                    </Stack>
+                    <GallerySection key={section.label} section={section} />
                 ))}
             </Stack>
         </ScrollArea>
