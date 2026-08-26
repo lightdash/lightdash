@@ -428,6 +428,12 @@ export const applyOrganizationMemberStaticAbilities: Record<
     admin(member, { can }) {
         applyOrganizationMemberStaticAbilities.developer(member, { can });
 
+        // Project-restrictable edit lock: not granted to org developer so
+        // project custom roles can withhold it. Org admins always retain it.
+        can('manage', 'VerifiedContent', {
+            organizationUuid: member.organizationUuid,
+        });
+
         can('view', 'Roadmap', {
             organizationUuid: member.organizationUuid,
         });

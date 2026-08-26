@@ -775,7 +775,7 @@ describe('DashboardService', () => {
         expect(result).toEqual([]);
     });
     test('should preserve dashboard verification when verifier updates details', async () => {
-        contentVerificationModel.getByContent.mockResolvedValueOnce({
+        contentVerificationModel.getByContent.mockResolvedValue({
             verifiedBy: {
                 userUuid: user.userUuid,
                 firstName: user.firstName,
@@ -787,6 +787,8 @@ describe('DashboardService', () => {
         await service.update(user, dashboardUuid, updateDashboard);
 
         expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+
+        contentVerificationModel.getByContent.mockResolvedValue(null);
     });
     test('should auto-unverify dashboard when details are updated without preserving', async () => {
         await service.update(user, dashboardUuid, updateDashboard);
@@ -795,6 +797,35 @@ describe('DashboardService', () => {
             ContentType.DASHBOARD,
             dashboardUuid,
         );
+    });
+    test('should block editors without manage:VerifiedContent from updating verified dashboards', async () => {
+        contentVerificationModel.getByContent.mockResolvedValue({
+            verifiedBy: {
+                userUuid: 'other-verifier',
+                firstName: 'Other',
+                lastName: 'Verifier',
+            },
+            verifiedAt: new Date(),
+        });
+        const editorUser = {
+            ...user,
+            userUuid: 'editor-uuid',
+            role: OrganizationMemberRole.EDITOR,
+            ability: new Ability<PossibleAbilities>([
+                {
+                    subject: 'Dashboard',
+                    action: ['view', 'update', 'delete', 'create'],
+                },
+            ]),
+        };
+
+        await expect(
+            service.update(editorUser, dashboardUuid, updateDashboard),
+        ).rejects.toThrow(ForbiddenError);
+
+        expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+
+        contentVerificationModel.getByContent.mockResolvedValue(null);
     });
     test('should auto-unverify dashboard when tiles are updated without preserving', async () => {
         await service.update(user, dashboardUuid, updateDashboardTiles);

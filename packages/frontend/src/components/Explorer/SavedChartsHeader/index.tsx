@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ChartSourceType,
+    canMutateVerifiedContent,
     ContentType,
     DashboardTileTypes,
     FeatureFlags,
@@ -356,10 +357,19 @@ const SavedChartsHeader: FC = () => {
     });
 
     const userCanManageChart =
-        savedChart &&
-        user.data?.ability?.can(
+        !!savedChart &&
+        !!user.data?.ability?.can(
             'manage',
             subject('SavedChart', { ...savedChart }),
+        ) &&
+        canMutateVerifiedContent(
+            user.data.ability,
+            {
+                organizationUuid: savedChart.organizationUuid,
+                projectUuid: savedChart.projectUuid,
+            },
+            savedChart.verification,
+            user.data.userUuid,
         );
 
     const userCanViewContentAsCode =
