@@ -228,6 +228,9 @@ export const compileTableCalculationFromTemplate = (
             );
         }
 
+        case TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS:
+            return `${quotedFieldId} - LAG(${quotedFieldId}) OVER(${partitionByClause}${orderByClause})`;
+
         case TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE: {
             return (
                 `(CAST(${quotedFieldId} AS ${floatType}) / ` +
