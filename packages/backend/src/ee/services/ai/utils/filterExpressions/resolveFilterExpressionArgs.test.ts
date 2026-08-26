@@ -1,11 +1,15 @@
 import {
     DimensionType,
     FieldType,
+    FILTER_EXPRESSION_MAX_LENGTH,
+    FILTER_EXPRESSION_MAX_LITERAL_LENGTH,
     FILTER_EXPRESSION_MAX_RULES,
+    FILTER_EXPRESSION_MAX_VALUES_PER_RULE,
     FilterOperator,
     FilterType,
     getTotalFilterRules,
     MetricType,
+    parseFilterExpression,
     toolRunQueryArgsSchemaPersisted,
     toolRunQueryArgsSchemaTransformed,
     toolRunQueryExpressionArgsSchema,
@@ -85,6 +89,31 @@ const expectResolutionError = async (
         throw new Error('Expected filter-expression resolution to fail');
     }
     return result.error;
+};
+
+const filterCategoryLabels = {
+    dimensions: 'dimension',
+    metrics: 'metric',
+    tableCalculations: 'table calculation',
+} as const;
+
+const domainSpecificRepairExamples = [
+    'orders_status equals=completed',
+    'orders_total_revenue greaterThan=100',
+    'profit_margin lessThan=0.2',
+    'orders_region equals=emea',
+] as const;
+
+const expectParseableExample = (example: string | null) => {
+    expect(example).not.toBeNull();
+    if (example === null) throw new Error('Expected a repair example');
+    domainSpecificRepairExamples.forEach((domainSpecificExample) => {
+        expect(example).not.toContain(domainSpecificExample);
+    });
+    const parsed = parseFilterExpression(example);
+    expect(parsed).toMatchObject({ success: true });
+    if (!parsed.success) throw new Error(parsed.error.message);
+    return parsed.expression;
 };
 
 const rulesWithoutIds = (filters: Filters): Omit<FilterRule, 'id'>[] =>
@@ -170,6 +199,24 @@ const exploreWithPostCalculationMetric = (type: MetricType): Explore => ({
                     type,
                 },
             },
+        },
+    },
+});
+
+const ordersDimensions = mockOrdersExplore.tables.orders.dimensions;
+type OrdersDimensionName = keyof typeof ordersDimensions;
+
+const exploreWithOnlyDimension = (
+    dimensionName: OrdersDimensionName,
+): Explore => ({
+    ...mockOrdersExplore,
+    tables: {
+        orders: {
+            ...mockOrdersExplore.tables.orders,
+            dimensions: {
+                [dimensionName]: ordersDimensions[dimensionName],
+            },
+            metrics: {},
         },
     },
 });
@@ -423,10 +470,104 @@ describe('resolveFilterExpressionArgs', () => {
                 category: 'dimensions',
             },
             span: { start: endPosition, end: endPosition },
+            problem: '`equals` is missing a value after `=`.',
+            guidance: 'Add a value after `=`; quote string values.',
+            example: `${expression}"example value"`,
         });
         expect(error.parserMessage).toContain('end of input');
-        expect(error.problem).toBe(error.parserMessage);
+        const serializedError = JSON.stringify(error);
+        expect(serializedError).toContain('"parserMessage":');
+        expect(serializedError).toContain(JSON.stringify(error.parserMessage));
+        const formatted = formatFilterExpressionError(error);
+        expect(formatted).not.toContain(error.parserMessage);
+        expect(formatted).not.toContain('[ \\t\\r\\n]');
+        expectParseableExample(error.example);
+        await expectResolved(
+            expressionArgs({
+                filters: {
+                    dimensions: error.example,
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
     });
+
+    it.each([
+        {
+            description: 'a missing string value',
+            expression: 'orders_customer_name equals=',
+            problem: '`equals` is missing a value after `=`.',
+            guidance: 'Add a value after `=`; quote string values.',
+            example: 'orders_customer_name equals="example value"',
+        },
+        {
+            description: 'a trailing comma',
+            expression: 'orders_customer_name equals=Acme,',
+            problem: 'The trailing comma is missing another value.',
+            guidance:
+                'Add another value after the trailing comma, or remove the comma if the list is complete.',
+            example: 'orders_customer_name equals=Acme',
+        },
+        {
+            description: 'literal parentheses',
+            expression: 'orders_customer_name equals=(Acme)',
+            problem: 'Parentheses are syntax punctuation in unquoted values.',
+            guidance:
+                'Quote the whole literal when parentheses are part of the value.',
+            example: 'orders_customer_name equals="(Acme)"',
+        },
+        {
+            description: 'an invalid escape',
+            expression: "orders_customer_name equals='bad\\q'",
+            problem: 'The escape sequence `\\q` is unsupported.',
+            guidance:
+                'Escape a literal backslash as `\\\\`, or remove the backslash.',
+            example: "orders_customer_name equals='bad\\\\q'",
+        },
+        {
+            description: 'a named-setting equals separator',
+            expression:
+                'orders_order_date inThePast=3{unit=days,completed:false}',
+            problem:
+                'Named settings use `:` between each name and value, not `=`.',
+            guidance: 'Replace the setting separator with `:`.',
+            example: 'orders_order_date inThePast=3{unit:days,completed:false}',
+        },
+    ])(
+        'provides a parser- and metadata-valid contextual repair for $description',
+        async ({ expression, problem, guidance, example }) => {
+            const error = await expectResolutionError(
+                expressionArgs({
+                    filters: {
+                        dimensions: expression,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+
+            expect(error).toMatchObject({
+                code: 'FILTER_EXPRESSION_SYNTAX',
+                problem,
+                guidance,
+                example,
+            });
+            expect(error.example).not.toContain(
+                'orders_status equals=completed',
+            );
+            expectParseableExample(error.example);
+            await expectResolved(
+                expressionArgs({
+                    filters: {
+                        dimensions: error.example,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+        },
+    );
 
     it('propagates parser bounds errors with source, span, and limit metadata', async () => {
         const rule = 'f equals=1';
@@ -473,7 +614,9 @@ describe('resolveFilterExpressionArgs', () => {
             limit: 'ruleCount',
             maximum: FILTER_EXPRESSION_MAX_RULES,
             actual: FILTER_EXPRESSION_MAX_RULES + 1,
+            example: null,
         });
+        expect(formatFilterExpressionError(error)).not.toContain('Example:');
     });
 
     const dimensionsExpressionFor = (connector: 'AND' | 'OR') =>
@@ -586,12 +729,129 @@ describe('resolveFilterExpressionArgs', () => {
         },
     );
 
-    it('classifies mixed connectors within one expression', async () => {
+    it.each([
+        {
+            limit: 'expressionLength',
+            expression: `${'x'.repeat(FILTER_EXPRESSION_MAX_LENGTH)} equals=value`,
+            guidance: `Shorten the expression to at most ${FILTER_EXPRESSION_MAX_LENGTH} characters, using fewer rules or shorter values.`,
+        },
+        {
+            limit: 'ruleCount',
+            expression: Array.from(
+                { length: FILTER_EXPRESSION_MAX_RULES + 1 },
+                () => 'f equals=1',
+            ).join(' AND '),
+            guidance: `Reduce the expression to at most ${FILTER_EXPRESSION_MAX_RULES} rules.`,
+        },
+        {
+            limit: 'valueCount',
+            expression: `orders_customer_name equals=${Array.from(
+                { length: FILTER_EXPRESSION_MAX_VALUES_PER_RULE + 1 },
+                (_, index) => `value_${index}`,
+            ).join(',')}`,
+            guidance: `Reduce this rule to at most ${FILTER_EXPRESSION_MAX_VALUES_PER_RULE} values.`,
+        },
+        {
+            limit: 'literalLength',
+            expression: `${'f'.repeat(FILTER_EXPRESSION_MAX_LITERAL_LENGTH + 1)} equals=value`,
+            guidance: `Shorten this literal to at most ${FILTER_EXPRESSION_MAX_LITERAL_LENGTH} characters.`,
+        },
+    ] as const)(
+        'derives $limit-specific bounds guidance from the reported maximum',
+        async ({ limit, expression, guidance }) => {
+            // Spread past the args schema: parser bounds also guard callers
+            // that never went through toolRunQueryExpressionArgsSchema.
+            const args = expressionArgs();
+            const error = await expectResolutionError({
+                ...args,
+                queryConfig: {
+                    ...args.queryConfig,
+                    filters: {
+                        dimensions: expression,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                },
+            });
+
+            expect(error).toMatchObject({
+                code: 'FILTER_EXPRESSION_BOUNDS_EXCEEDED',
+                limit,
+                guidance,
+                example: null,
+            });
+        },
+    );
+
+    it.each([
+        {
+            description: 'AND followed by OR',
+            expression:
+                'orders_customer_name equals=Acme AND orders_product_category equals=Hardware OR orders_is_active equals=true',
+            example:
+                'orders_customer_name equals=Acme AND orders_product_category equals=Hardware AND orders_is_active equals=true',
+        },
+        {
+            description: 'OR followed by AND',
+            expression:
+                'orders_customer_name equals=Acme OR orders_product_category equals=Hardware AND orders_is_active equals=true',
+            example:
+                'orders_customer_name equals=Acme OR orders_product_category equals=Hardware OR orders_is_active equals=true',
+        },
+        {
+            description: 'multiline connectors around quoted connector text',
+            expression:
+                'orders_customer_name equals="A AND B" OR\norders_product_category equals="C OR D" AND\norders_is_active equals=true',
+            example:
+                'orders_customer_name equals="A AND B" OR\norders_product_category equals="C OR D" OR\norders_is_active equals=true',
+        },
+        {
+            description: 'more than one later conflict',
+            expression:
+                'orders_customer_name equals=Acme AND orders_product_category equals=Hardware OR orders_is_active equals=true OR orders_amount greaterThan=10',
+            example:
+                'orders_customer_name equals=Acme AND orders_product_category equals=Hardware AND orders_is_active equals=true AND orders_amount greaterThan=10',
+        },
+    ])(
+        'normalizes $description to the first root connector',
+        async ({ expression, example }) => {
+            const error = await expectResolutionError(
+                expressionArgs({
+                    filters: {
+                        dimensions: expression,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+
+            expect(error).toMatchObject({
+                code: 'FILTER_EXPRESSION_MIXED_CONNECTORS',
+                source: { category: 'dimensions' },
+                problem: 'This expression mixes AND and OR connectors.',
+                guidance:
+                    'Use only one connector throughout: `fieldId operator=value AND fieldId2 operator=value2 AND ...`, or `fieldId operator=value OR fieldId2 operator=value2 OR ...`. The ellipsis represents more rules, not literal syntax.',
+                example,
+            });
+            expectParseableExample(error.example);
+            await expectResolved(
+                expressionArgs({
+                    filters: {
+                        dimensions: error.example,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+        },
+    );
+
+    it('uses connector syntax guidance when normalization cannot preserve the rules', async () => {
         const error = await expectResolutionError(
             expressionArgs({
                 filters: {
                     dimensions:
-                        'orders_customer_name equals=Acme AND orders_product_category equals=Hardware OR orders_is_active equals=true',
+                        'unknown_dimension equals=Acme AND orders_product_category equals=Hardware OR orders_is_active equals=true',
                     metrics: null,
                     tableCalculations: null,
                 },
@@ -600,9 +860,115 @@ describe('resolveFilterExpressionArgs', () => {
 
         expect(error).toMatchObject({
             code: 'FILTER_EXPRESSION_MIXED_CONNECTORS',
-            source: { category: 'dimensions' },
-            span: { start: { line: 1, column: 78 } },
+            guidance:
+                'Use only one connector throughout: `fieldId operator=value AND fieldId2 operator=value2 AND ...`, or `fieldId operator=value OR fieldId2 operator=value2 OR ...`. The ellipsis represents more rules, not literal syntax.',
+            example: 'orders_amount equals=100',
         });
+        expectParseableExample(error.example);
+    });
+
+    it('uses AND-only syntax guidance for mixed custom metric connectors', async () => {
+        const error = await expectResolutionError(
+            expressionArgs({
+                customMetrics: [
+                    {
+                        ...aggregationCustomMetric,
+                        filters:
+                            'orders_customer_name equals=Acme OR orders_product_category equals=Hardware AND orders_is_active equals=true',
+                    },
+                ],
+            }),
+        );
+
+        expect(error).toMatchObject({
+            code: 'FILTER_EXPRESSION_MIXED_CONNECTORS',
+            source: { kind: 'customMetricFilter' },
+            guidance:
+                'Use only `AND` throughout: `fieldId operator=value AND fieldId2 operator=value2 AND ...`. The ellipsis represents more rules, not literal syntax.',
+            example: 'orders_amount equals=100',
+        });
+        expectParseableExample(error.example);
+    });
+
+    it.each([
+        {
+            dimensionName: 'customer_name',
+            example: 'orders_customer_name equals="example value"',
+        },
+        {
+            dimensionName: 'amount',
+            example: 'orders_amount equals=100',
+        },
+        {
+            dimensionName: 'is_active',
+            example: 'orders_is_active equals=true',
+        },
+        {
+            dimensionName: 'order_date',
+            example: 'orders_order_date equals=2025-01-01',
+        },
+    ] as const)(
+        'uses a scoped, type-valid $dimensionName fallback example',
+        async ({ dimensionName, example }) => {
+            const explore = exploreWithOnlyDimension(dimensionName);
+            const error = await expectResolutionError(
+                expressionArgs({
+                    filters: {
+                        dimensions: '???',
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+                () => explore,
+            );
+
+            expect(error).toMatchObject({
+                code: 'FILTER_EXPRESSION_SYNTAX',
+                problem: 'The expression is malformed near line 1, column 1.',
+                guidance:
+                    'Use field operator=value rules joined by only AND or only OR; quote values that contain punctuation.',
+                example,
+            });
+            expectParseableExample(error.example);
+            await expectResolved(
+                expressionArgs({
+                    filters: {
+                        dimensions: error.example,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+                () => explore,
+            );
+        },
+    );
+
+    it('uses a parseable neutral fallback when the category has no scoped field', async () => {
+        const error = await expectResolutionError(
+            expressionArgs({
+                filters: {
+                    dimensions: null,
+                    metrics: null,
+                    tableCalculations: '???',
+                },
+            }),
+        );
+
+        expect(error).toMatchObject({
+            code: 'FILTER_EXPRESSION_SYNTAX',
+            problem: 'The expression is malformed near line 1, column 1.',
+            guidance:
+                'Use field operator=value rules joined by only AND or only OR; quote values that contain punctuation.',
+            example: '`field ID` equals="example value"',
+        });
+        if (error.code !== 'FILTER_EXPRESSION_SYNTAX') {
+            throw new Error('Expected a syntax resolution error');
+        }
+        expect(error.parserMessage).toContain('Expected');
+        const formatted = formatFilterExpressionError(error);
+        expect(formatted).not.toContain(error.parserMessage);
+        expect(formatted).not.toContain('[A-Za-z0-9_.\\-]');
+        expectParseableExample(error.example);
     });
 
     it('reports unknown fields with suggestions and a stable located message', async () => {
@@ -633,16 +999,103 @@ describe('resolveFilterExpressionArgs', () => {
           Location: line 1, column 1
           Problem: The field does not exist in explore "test_explore". Did you mean: orders_customer_name?
           How to fix: Replace it with an existing dimension field ID, or use field discovery to find the field.
-          Example: orders_customer_name equals=example"
+          Example: orders_customer_name equals=Acme"
         `);
+    });
+
+    it.each([
+        {
+            label: 'metric',
+            args: expressionArgs({
+                filters: {
+                    dimensions: null,
+                    metrics: 'orders_gross_revenue greaterThan=10',
+                    tableCalculations: null,
+                },
+            }),
+            example: 'orders_total_revenue greaterThan=10',
+        },
+        {
+            label: 'date dimension',
+            args: expressionArgs({
+                filters: {
+                    dimensions:
+                        'orders_order_dat inThePast=30{completed:false,unit:days}',
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+            example:
+                'orders_order_date inThePast=30{completed:false,unit:days}',
+        },
+        {
+            label: 'table calculation',
+            args: expressionArgs({
+                tableCalculations: [numericFormula],
+                filters: {
+                    dimensions: null,
+                    metrics: null,
+                    tableCalculations: 'margin_percent lessThan=0.2',
+                },
+            }),
+            example: 'profit_margin lessThan=0.2',
+        },
+        {
+            label: 'custom metric filter',
+            args: expressionArgs({
+                customMetrics: [
+                    {
+                        ...aggregationCustomMetric,
+                        name: 'enterprise_revenue',
+                        filters: 'orders_customer_segment equals=enterprise',
+                    },
+                ],
+            }),
+            example: 'orders_customer_name equals=enterprise',
+        },
+    ])(
+        'changes only the unknown $label field ID in suggested examples',
+        async ({ args, example }) => {
+            const error = await expectResolutionError(args);
+
+            expect(error).toMatchObject({
+                code: 'FILTER_EXPRESSION_UNKNOWN_FIELD',
+                reason: 'notFound',
+                example,
+            });
+        },
+    );
+
+    it('preserves the surrounding expression when replacing a suggested field ID', async () => {
+        const error = await expectResolutionError(
+            expressionArgs({
+                filters: {
+                    dimensions:
+                        'orders_customer_nam equals="Acme, Inc." AND orders_product_category equals=Hardware',
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
+
+        expect(error).toMatchObject({
+            code: 'FILTER_EXPRESSION_UNKNOWN_FIELD',
+            example:
+                'orders_customer_name equals="Acme, Inc." AND orders_product_category equals=Hardware',
+        });
     });
 
     it.each([
         ['dimensions', 'orders_total_revenue greaterThan=10', 'metrics'],
         ['metrics', 'orders_customer_name equals=Acme', 'dimensions'],
         ['metrics', 'profit_margin greaterThan=0.2', 'tableCalculations'],
+        [
+            'metrics',
+            'orders_order_date inThePast=30{completed:false,unit:days}',
+            'dimensions',
+        ],
     ] as const)(
-        'rejects a field in the wrong %s category',
+        'rejects a field in the wrong %s category without changing its rule',
         async (category, expression, expectedCategory) => {
             const error = await expectResolutionError(
                 expressionArgs({
@@ -660,12 +1113,34 @@ describe('resolveFilterExpressionArgs', () => {
                 code: 'FILTER_EXPRESSION_WRONG_CATEGORY',
                 source: { category },
                 expectedCategory,
+                example: expression,
             });
-            expect(formatFilterExpressionError(error)).toContain(
-                `move this rule to queryConfig.filters.${expectedCategory}`,
+            expect(error.guidance).toBe(
+                `Move this rule from the ${filterCategoryLabels[category]} filters to the ${filterCategoryLabels[expectedCategory]} filters.`,
+            );
+            expect(formatFilterExpressionError(error)).not.toContain(
+                'queryConfig',
             );
         },
     );
+
+    it('suggests moving only the misplaced rule from a multi-rule expression', async () => {
+        const error = await expectResolutionError(
+            expressionArgs({
+                filters: {
+                    dimensions:
+                        'orders_customer_name equals="Acme, Inc." AND orders_total_revenue greaterThan=10',
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
+
+        expect(error).toMatchObject({
+            code: 'FILTER_EXPRESSION_WRONG_CATEGORY',
+            example: 'orders_total_revenue greaterThan=10',
+        });
+    });
 
     it('rejects ambiguous IDs rather than selecting the first field', async () => {
         const error = await expectResolutionError(
@@ -689,7 +1164,9 @@ describe('resolveFilterExpressionArgs', () => {
             fieldId: 'orders_total_revenue',
             reason: 'ambiguous',
             suggestions: [],
+            example: null,
         });
+        expect(formatFilterExpressionError(error)).not.toContain('\nExample:');
     });
 
     it('resolves aggregation custom metrics as metric filter fields', async () => {
@@ -775,7 +1252,7 @@ describe('resolveFilterExpressionArgs', () => {
                     {
                         ...aggregationCustomMetric,
                         filters:
-                            'orders_customer_name equals=Acme OR orders_product_category equals=Hardware',
+                            'orders_customer_name equals=Acme OR orders_product_category equals=Hardware OR orders_is_active equals=true',
                     },
                 ],
             }),
@@ -787,7 +1264,13 @@ describe('resolveFilterExpressionArgs', () => {
                 kind: 'customMetricFilter',
                 customMetricName: 'completed_revenue',
             },
+            problem:
+                'Aggregation custom metric filter rules are always combined with AND and cannot use OR.',
+            guidance:
+                'Custom metric filters support AND only. Keep only rules that should all apply together, or remove the filters.',
+            example: null,
         });
+        expect(formatFilterExpressionError(error)).not.toContain('\nExample:');
 
         const data = await expectResolved(
             expressionArgs({
@@ -809,6 +1292,26 @@ describe('resolveFilterExpressionArgs', () => {
         expect(
             expectLegacyRawFilters(data.persistedArgs.queryConfig.filters).type,
         ).toBe('or');
+    });
+
+    it('does not invent a repair for custom metric OR values', async () => {
+        const error = await expectResolutionError(
+            expressionArgs({
+                customMetrics: [
+                    {
+                        ...aggregationCustomMetric,
+                        filters:
+                            'orders_customer_name equals="A \\"quoted\\" value" OR orders_customer_name equals="C:\\\\tmp"',
+                    },
+                ],
+            }),
+        );
+
+        expect(error).toMatchObject({
+            code: 'FILTER_EXPRESSION_CUSTOM_METRIC_OR',
+            example: null,
+        });
+        expect(formatFilterExpressionError(error)).not.toContain('\nExample:');
     });
 
     it('derives custom metric fieldRef from resolved table and field metadata', async () => {
@@ -1132,6 +1635,195 @@ describe('strict expression value interpretation', () => {
     );
 
     it.each([
+        [
+            'orders_amount equals=Infinity',
+            'Replace the value at the reported location with a decimal or scientific-notation finite number.',
+        ],
+        [
+            'orders_is_active equals=True',
+            'Replace the value at the reported location with the exact text true or false.',
+        ],
+    ] as const)(
+        'points value guidance for %s at the reported location',
+        async (expression, guidance) => {
+            const error = await expectResolutionError(
+                expressionArgs({
+                    filters: {
+                        dimensions: expression,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+
+            expect(error).toMatchObject({
+                code: 'FILTER_EXPRESSION_INVALID_VALUE',
+                guidance,
+            });
+            expect(formatFilterExpressionError(error)).not.toContain(
+                'highlighted',
+            );
+        },
+    );
+
+    it.each([
+        {
+            expression: 'orders_is_active equals=True',
+            example: 'orders_is_active equals=true',
+        },
+        {
+            expression: "orders_is_active equals='FALSE'",
+            example: "orders_is_active equals='false'",
+        },
+        {
+            expression:
+                'orders_order_date inThePast=1{unit:days,completed:TRUE}',
+            example: 'orders_order_date inThePast=1{unit:days,completed:true}',
+        },
+        {
+            expression:
+                'orders_customer_name equals=Acme AND orders_is_active equals=True',
+            example: 'orders_is_active equals=true',
+        },
+    ])(
+        'provides a lossless boolean repair for $expression',
+        async ({ expression, example }) => {
+            const error = await expectResolutionError(
+                expressionArgs({
+                    filters: {
+                        dimensions: expression,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+
+            expect(error).toMatchObject({
+                code: 'FILTER_EXPRESSION_INVALID_VALUE',
+                example,
+            });
+            expectParseableExample(error.example);
+        },
+    );
+
+    it.each([
+        {
+            expression:
+                'orders_order_date inThePast=1{unit:hours,completed:false}',
+            example: 'orders_order_date inThePast=1{unit:days,completed:false}',
+        },
+        {
+            expression:
+                'orders_order_date inThePast=7{completed:true,unit:hours}',
+            example: 'orders_order_date inThePast=7{completed:true,unit:days}',
+        },
+        {
+            expression:
+                "orders_order_date inThePast=2{unit:'hours',completed:false}",
+            example:
+                "orders_order_date inThePast=2{unit:'days',completed:false}",
+        },
+        {
+            expression: 'orders_order_date inTheCurrent=hours',
+            example: 'orders_order_date inTheCurrent=days',
+        },
+    ])(
+        'changes only an unsupported date unit in $expression',
+        async ({ expression, example }) => {
+            const error = await expectResolutionError(
+                expressionArgs({
+                    filters: {
+                        dimensions: expression,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+
+            expect(error).toMatchObject({
+                code: 'FILTER_EXPRESSION_INVALID_VALUE',
+                example,
+            });
+            await expectResolved(
+                expressionArgs({
+                    filters: {
+                        dimensions: example,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+        },
+    );
+
+    it.each([
+        'orders_amount equals=Infinity',
+        'orders_order_date equals=January-1-2025',
+        'orders_product_category greaterThan=1',
+    ])('omits an unsafe repair example for %s', async (expression) => {
+        const error = await expectResolutionError(
+            expressionArgs({
+                filters: {
+                    dimensions: expression,
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
+
+        expect(error).toMatchObject({
+            code: 'FILTER_EXPRESSION_INVALID_VALUE',
+            example: null,
+        });
+        expect(formatFilterExpressionError(error)).not.toContain('\nExample:');
+    });
+
+    it.each([
+        {
+            filterType: FilterType.STRING,
+            expression: 'orders_product_category greaterThan=1',
+            guidance:
+                'Use a supported string operator (isNull, notNull, equals, notEquals, startsWith, endsWith, include, doesNotInclude), or move the rule to a field of a matching type.',
+        },
+        {
+            filterType: FilterType.NUMBER,
+            expression: 'orders_amount startsWith=1',
+            guidance:
+                'Use a supported number operator (isNull, notNull, equals, notEquals, lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual, inBetween, notInBetween), or move the rule to a field of a matching type.',
+        },
+        {
+            filterType: FilterType.DATE,
+            expression: 'orders_order_date notInBetween=2025-01-01,2025-02-01',
+            guidance:
+                'Use a supported date operator (isNull, notNull, equals, notEquals, lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual, inThePast, notInThePast, inTheNext, inTheCurrent, notInTheCurrent, inBetween), or move the rule to a field of a matching type.',
+        },
+        {
+            filterType: FilterType.BOOLEAN,
+            expression: 'orders_is_active startsWith=t',
+            guidance:
+                'Use a supported boolean operator (isNull, notNull, equals, notEquals), or move the rule to a field of a matching type.',
+        },
+    ] as const)(
+        'lists the supported $filterType operators when the operator is unavailable',
+        async ({ expression, guidance }) => {
+            const error = await expectResolutionError(
+                expressionArgs({
+                    filters: {
+                        dimensions: expression,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+
+            expect(error).toMatchObject({
+                code: 'FILTER_EXPRESSION_INVALID_VALUE',
+                guidance,
+            });
+        },
+    );
+
+    it.each([
         ['orders_order_date inThePast=1', 'requires a settings object'],
         [
             'orders_order_date inThePast=1{unit:days}',
@@ -1167,11 +1859,14 @@ describe('strict expression value interpretation', () => {
         },
     );
 
-    it('rejects positional relative-date settings', async () => {
+    it('repairs positional relative-date settings without changing their values', async () => {
+        const expression = 'orders_order_date inThePast=7,weeks,true';
+        const example =
+            'orders_order_date inThePast=7{unit:weeks,completed:true}';
         const error = await expectResolutionError(
             expressionArgs({
                 filters: {
-                    dimensions: 'orders_order_date inThePast=1,days,false',
+                    dimensions: expression,
                     metrics: null,
                     tableCalculations: null,
                 },
@@ -1183,28 +1878,57 @@ describe('strict expression value interpretation', () => {
             operator: FilterOperator.IN_THE_PAST,
             expected: 1,
             actual: 3,
+            guidance:
+                'Keep the period count as the only value and move unit and completed into named settings.',
+            example,
         });
-        expect(formatFilterExpressionError(error)).toContain(
-            'inThePast=30{unit:days,completed:false}',
+        await expectResolved(
+            expressionArgs({
+                filters: {
+                    dimensions: example,
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
         );
     });
 
     it.each([
         {
-            expression: 'orders_amount greaterThan=1,2',
+            expression: 'orders_amount greaterThan=17,29',
             operator: FilterOperator.GREATER_THAN,
             expected: 1,
             actual: 2,
+            guidance:
+                'Remove 1 value, leaving exactly 1 value after the equals sign.',
         },
         {
-            expression: 'orders_amount inBetween=1',
+            expression: 'orders_amount inBetween=41',
             operator: FilterOperator.IN_BETWEEN,
             expected: 2,
             actual: 1,
+            guidance:
+                'Add 1 value, supplying exactly 2 values after the equals sign.',
+        },
+        {
+            expression: 'orders_amount inBetween=3,8,13',
+            operator: FilterOperator.IN_BETWEEN,
+            expected: 2,
+            actual: 3,
+            guidance:
+                'Remove 1 value, leaving exactly 2 values after the equals sign.',
+        },
+        {
+            expression: 'orders_order_date inTheCurrent=quarters,years',
+            operator: FilterOperator.IN_THE_CURRENT,
+            expected: 1,
+            actual: 2,
+            guidance:
+                'Remove 1 value, leaving exactly 1 value after the equals sign.',
         },
     ])(
         'reports wrong arity for $operator separately from invalid values',
-        async ({ expression, operator, expected, actual }) => {
+        async ({ expression, operator, expected, actual, guidance }) => {
             const error = await expectResolutionError(
                 expressionArgs({
                     filters: {
@@ -1220,7 +1944,12 @@ describe('strict expression value interpretation', () => {
                 operator,
                 expected,
                 actual,
+                guidance,
+                example: null,
             });
+            expect(formatFilterExpressionError(error)).not.toContain(
+                '\nExample:',
+            );
         },
     );
 
@@ -1247,10 +1976,17 @@ describe('strict expression value interpretation', () => {
         expect(error).toMatchObject({
             code: 'FILTER_EXPRESSION_INVALID_VALUE',
             source: { category: 'tableCalculations' },
+            problem:
+                'Only numeric table calculations can be filtered in the current AI query contract.',
+            guidance:
+                'Use a numeric table calculation, or remove this table-calculation filter.',
+            example: null,
         });
-        expect(formatFilterExpressionError(error)).toContain(
+        const formatted = formatFilterExpressionError(error);
+        expect(formatted).toContain(
             'Only numeric table calculations can be filtered',
         );
+        expect(formatted).not.toContain('\nExample:');
     });
 });
 

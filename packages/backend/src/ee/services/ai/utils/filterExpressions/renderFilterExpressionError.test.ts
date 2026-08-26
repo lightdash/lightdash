@@ -66,6 +66,7 @@ const errorsByCode: Record<
     FILTER_EXPRESSION_BOUNDS_EXCEEDED: {
         ...details,
         code: 'FILTER_EXPRESSION_BOUNDS_EXCEEDED',
+        example: null,
         source: tableCalculationSource,
         limit: 'ruleCount',
         maximum: FILTER_EXPRESSION_MAX_RULES,
@@ -108,6 +109,7 @@ const errorsByCode: Record<
         ...details,
         code: 'FILTER_EXPRESSION_CUSTOM_METRIC_OR',
         source: customMetricSource,
+        example: null,
     },
 };
 
@@ -131,8 +133,7 @@ Invalid table calculation filter expression.
 
 Location: line 2, column 3
 Problem: The expression is invalid.
-How to fix: Correct the expression.
-Example: field equals=value`,
+How to fix: Correct the expression.`,
     FILTER_EXPRESSION_UNKNOWN_FIELD: `[FILTER_EXPRESSION_UNKNOWN_FIELD]
 Invalid custom metric "completed_revenue" filter expression for field "orders_statu".
 
@@ -166,8 +167,7 @@ Invalid custom metric "completed_revenue" filter expression.
 
 Location: line 2, column 3
 Problem: The expression is invalid.
-How to fix: Correct the expression.
-Example: field equals=value`,
+How to fix: Correct the expression.`,
 } satisfies Record<FilterExpressionResolutionError['code'], string>;
 
 describe('formatFilterExpressionError', () => {

@@ -70,12 +70,15 @@ export const formatFilterExpressionError = (
     const fieldText = fieldId
         ? ` for field ${JSON.stringify(summarizeInline(fieldId, 160))}`
         : '';
+    const exampleText =
+        error.example === null
+            ? ''
+            : `\nExample: ${summarizeInline(error.example, 300)}`;
 
     return `[${error.code}]
 Invalid ${getSourceLabel(error.source)} filter expression${fieldText}.
 
 Location: line ${error.span.start.line}, column ${error.span.start.column}
 Problem: ${summarizeInline(error.problem, 600)}
-How to fix: ${summarizeInline(error.guidance, 400)}
-Example: ${summarizeInline(error.example, 300)}`;
+How to fix: ${summarizeInline(error.guidance, 400)}${exampleText}`;
 };
