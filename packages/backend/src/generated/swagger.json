@@ -56073,6 +56073,14 @@
             },
             "DeletedDataAppContentSummary": {
                 "properties": {
+                    "template": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppTemplate"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "organizationUuid": {
                         "type": "string"
                     },
@@ -56122,6 +56130,7 @@
                     }
                 },
                 "required": [
+                    "template",
                     "organizationUuid",
                     "projectUuid",
                     "spaceName",
@@ -56345,7 +56354,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.8.0",
+        "version": "2.9.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -91869,6 +91878,15 @@
                             "items": {
                                 "type": "string"
                             }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "dataAppVizsFilter",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["exclude", "only"]
                         }
                     }
                 ]

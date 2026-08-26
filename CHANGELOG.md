@@ -1,3 +1,15 @@
+# [2.9.0](https://github.com/lightdash/lightdash/compare/2.8.0...2.9.0) (2026-08-26)
+
+
+### Bug Fixes
+
+* **recently-deleted:** distinguish custom chart types from data apps ([#28080](https://github.com/lightdash/lightdash/issues/28080)) ([fe3cd02](https://github.com/lightdash/lightdash/commit/fe3cd0285563ebec1a81b857b59ddd12577dc4ca))
+
+
+### Features
+
+* **auth:** add manage:VerifiedContent to lock verified edits ([#28072](https://github.com/lightdash/lightdash/issues/28072)) ([5ec0796](https://github.com/lightdash/lightdash/commit/5ec0796c72f3f5d872a1771ba2889f3e8fde9ca6))
+
 # [2.8.0](https://github.com/lightdash/lightdash/compare/2.7.0...2.8.0) (2026-08-26)
 
 

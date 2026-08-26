@@ -55698,6 +55698,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                template: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DataAppTemplate' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 organizationUuid: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
                 spaceName: {
@@ -108381,6 +108389,15 @@ export function RegisterRoutes(app: Router) {
             name: 'deletedByUserUuids',
             dataType: 'array',
             array: { dataType: 'string' },
+        },
+        dataAppVizsFilter: {
+            in: 'query',
+            name: 'dataAppVizsFilter',
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['exclude'] },
+                { dataType: 'enum', enums: ['only'] },
+            ],
         },
     };
     app.get(
