@@ -16,6 +16,9 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
 COPY --from=pnpm-cli /opt/pnpm /opt/pnpm
 COPY --from=pnpm-cli /pnpm /pnpm
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libatomic1 \
+    && rm -rf /var/lib/apt/lists/*
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
