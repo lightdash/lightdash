@@ -309,9 +309,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             );
             return (
                 <Box className={styles.floatingPanel}>
-                    <Box
-                        className={`${styles.floatingContent} ${styles.sqlArtifactContent}`}
-                    >
+                    <Box className={styles.floatingContent}>
                         <AiComposerArtifactVisualization
                             results={queryResults}
                             headerContent={composerHead}
@@ -453,9 +451,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         if (sqlVizQueryData) {
             return (
                 <div className={styles.floatingPanel}>
-                    <div
-                        className={`${styles.floatingContent} ${styles.sqlArtifactContent}`}
-                    >
+                    <div className={styles.floatingContent}>
                         <AiSqlArtifactVisualization
                             results={queryResults}
                             headerContent={floatingHead}
@@ -471,7 +467,11 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
 
         return (
             <div className={styles.floatingPanel}>
-                <div className={styles.floatingContent}>
+                <div
+                    className={`${styles.floatingContent} ${
+                        shouldShowPill ? styles.withPillClearance : ''
+                    }`}
+                >
                     <AiVisualizationRenderer
                         vizQueryData={semanticVizQueryData}
                         results={queryResults}
