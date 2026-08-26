@@ -3342,17 +3342,22 @@ export class UserService extends BaseService {
             );
         }
 
+        // getAllByUserUuid returns oldest first, but queries resolve the
+        // newest credential. Refresh that one, or a user who somehow holds two
+        // would keep querying with the stale token we just skipped over.
         const existingSsoCredentials = (
             await this.userWarehouseCredentialsModel.getAllByUserUuid(
                 user.userUuid,
             )
-        ).find(
-            ({ credentials, project }) =>
-                project === null &&
-                credentials.type === WarehouseTypes.SNOWFLAKE &&
-                credentials.authenticationType ===
-                    SnowflakeAuthenticationType.SSO,
-        );
+        )
+            .filter(
+                ({ credentials, project }) =>
+                    project === null &&
+                    credentials.type === WarehouseTypes.SNOWFLAKE &&
+                    credentials.authenticationType ===
+                        SnowflakeAuthenticationType.SSO,
+            )
+            .at(-1);
 
         const snowflakeCredentials: UpsertUserWarehouseCredentials = {
             name: existingSsoCredentials?.name ?? 'Default',
