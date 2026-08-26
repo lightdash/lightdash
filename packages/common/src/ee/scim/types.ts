@@ -147,7 +147,7 @@ export interface ScimUpsertGroup {
     members?: ScimGroupMember[];
 }
 
-export interface ScimCreateGroup {
+export interface ScimCreateGroupRequest {
     schemas: string[];
     displayName: string;
     members?: ScimGroupMember[];

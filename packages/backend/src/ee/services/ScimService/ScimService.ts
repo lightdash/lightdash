@@ -18,7 +18,7 @@ import {
     ParameterError,
     ProjectType,
     Role,
-    ScimCreateGroup,
+    ScimCreateGroupRequest,
     ScimError,
     ScimGroup,
     ScimListResponse,
@@ -1472,7 +1472,7 @@ export class ScimService extends BaseService {
     async createGroup(
         account: Account,
         organizationUuid: string,
-        groupToCreate: ScimCreateGroup,
+        groupToCreate: ScimCreateGroupRequest,
     ): Promise<ScimGroup> {
         this.logger.info('SCIM: Creating group', {
             organizationUuid,
