@@ -1,4 +1,7 @@
+import { type Mock } from 'vitest';
 import { createReviewLinearIssue } from './createReviewLinearIssue';
+
+type Deps = Parameters<typeof createReviewLinearIssue>[0];
 
 const ORGANIZATION_UUID = 'org-1';
 const PROJECT_UUID = 'project-1';
@@ -58,6 +61,9 @@ const makeDeps = (overrides: Record<string, unknown> = {}) => {
         createIssueForOrganization,
         updateReviewItemLinkedIssueUrl,
         ...overrides,
+    } as unknown as Deps & {
+        createIssueForOrganization: Mock;
+        updateReviewItemLinkedIssueUrl: Mock;
     };
 };
 
@@ -96,6 +102,21 @@ describe('createReviewLinearIssue', () => {
             fingerprint: FINGERPRINT,
             linkedIssueUrl: 'https://linear.app/acme/issue/PRD-12',
         });
+    });
+
+    it('fails the job when Linear rejects an item so it is retried', async () => {
+        const deps = makeDeps({
+            linearAppService: {
+                createIssueForOrganization: vi
+                    .fn()
+                    .mockRejectedValue(new Error('Linear is down')),
+            },
+        });
+
+        await expect(createReviewLinearIssue(deps)(payload)).rejects.toThrow(
+            FINGERPRINT,
+        );
+        expect(deps.updateReviewItemLinkedIssueUrl).not.toHaveBeenCalled();
     });
 
     it('skips review items that already have a linked issue', async () => {
