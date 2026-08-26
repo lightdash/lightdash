@@ -155,9 +155,40 @@ strings, numbers, or arrays of either. They are sent at the top level of the API
 | `error`   | `Error \| null` | Error if the query failed.                                       |
 | `refetch` | `() => void`    | Re-run the query.                                                |
 | `queryUuid` | `string \| null` | Async query UUID for the loaded source query.                 |
+| `drillDown` | `{ enabled, open({ row, metric }) }` | Open Lightdash's native dimension picker for a metric value. |
 | `getUnderlyingData` | `({ row, metric, limit? }) => Promise<UnderlyingDataResult>` | Fetch raw rows behind an aggregated metric value. |
 | `downloadUnderlyingData` | `({ row, metric, fileType?, values?, limit?, filename? }) => Promise<DownloadResultsResult>` | Schedule a backend CSV/XLSX export for raw rows behind an aggregated metric value. |
 | `downloadResults` | `({ fileType?, values?, limit?, filename? }) => Promise<DownloadResultsResult>` | Schedule a backend CSV/XLSX export for this query. |
+
+## Native drill-down
+
+Inside a full data app hosted by Lightdash, each loaded query exposes a native
+drill-down action. Keep the original result row on the interactive datum and
+show the action only when `enabled` is true:
+
+```tsx
+const { data, drillDown } = useLightdash(revenueQuery);
+
+return data.map((row) =>
+    drillDown.enabled ? (
+        <button
+            onClick={() =>
+                drillDown.open({ row, metric: 'total_revenue' })
+            }
+        >
+            Drill into revenue
+        </button>
+    ) : null,
+);
+```
+
+Lightdash opens its own dimension picker and then the drilled query in Explore.
+The action is bound to the exact loaded query, so saved charts, parameters,
+dashboard filters, and custom query fields stay in host-owned query context.
+
+For a custom inline drill experience or a standalone SDK client, use
+`buildDrillDownQuery()` (the original `drillDown()` export remains as a
+backwards-compatible alias) and execute the returned query with `useLightdash()`.
 
 ## Underlying data
 

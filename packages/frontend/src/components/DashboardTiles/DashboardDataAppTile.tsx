@@ -357,7 +357,7 @@ const DataAppTile: FC<Props> = (props) => {
                         identityKey={`${appUuid}:${latestReadyVersion}`}
                         dashboardFilters={dashboardFiltersForApp}
                         invalidateCache={invalidateCache}
-                        capabilities={{ gsheetExport: true }}
+                        capabilities={{ gsheetExport: true, drillDown: true }}
                     />
                 )}
             </Box>

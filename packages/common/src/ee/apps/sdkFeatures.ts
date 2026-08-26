@@ -45,6 +45,13 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Derive drill-down queries from a clicked result row to build explore-style interactions.',
     },
     {
+        key: 'app-drill-down',
+        label: 'Native drill-down',
+        description:
+            'Open Lightdash’s native dimension picker and drilled Explore view from a full data app query result.',
+        wiring: 'For each metric data point, keep the original row returned by useLightdash(), show “Drill into …” only when that query result’s drillDown.enabled is true, and call drillDown.open({ row, metric }). Use buildDrillDownQuery() only when the app needs a custom inline or standalone drill experience.',
+    },
+    {
         key: 'inspect',
         label: 'Element inspection',
         description:

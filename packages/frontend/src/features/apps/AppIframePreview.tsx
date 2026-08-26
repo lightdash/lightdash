@@ -14,6 +14,8 @@ import {
     useRef,
     useState,
 } from 'react';
+import { type DrillDownConfig } from '../../components/MetricQueryData/types';
+import { AppDrillDownModalHost } from './AppDrillDownModalHost';
 import { type DeliveryCaptureAccumulator } from './deliveryCapture/deliveryCaptureAccumulator';
 import {
     useAppSdkBridge,
@@ -112,8 +114,9 @@ type Props = {
     onIframeLoad?: () => void;
     /** SDK capabilities the host opts into. Closed by default — hosts that
      *  serve untrusted viewers (embed/JWT) must omit each capability flag.
-     *  `gsheetExport`: enables `exportToSheets()` from the iframe SDK. */
-    capabilities?: { gsheetExport?: boolean };
+     *  `gsheetExport` enables `exportToSheets()`; `drillDown` is additionally
+     *  permission-gated and opens core's native drill dialog. */
+    capabilities?: { gsheetExport?: boolean; drillDown?: boolean };
     // Render context for data app vizs: the field mapping + host rows, pushed
     // into the iframe over the SDK bridge. Undefined for ordinary data apps.
     dataAppVizContext?: DataAppVizContext;
@@ -196,6 +199,17 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         ref,
     ) => {
         const iframeRef = useRef<HTMLIFrameElement>(null);
+        const appDrillDownRequested =
+            capabilities?.drillDown === true && !dataAppVizContext;
+        const [appDrillDownAllowed, setAppDrillDownAllowed] = useState(false);
+        const [appDrillDownRequest, setAppDrillDownRequest] =
+            useState<DrillDownConfig>();
+        const appDrillDownEnabled =
+            appDrillDownRequested && appDrillDownAllowed;
+        const handleAppDrillDownIntent = useCallback(
+            (request: DrillDownConfig) => setAppDrillDownRequest(request),
+            [],
+        );
         // Resolves to an exact light/dark (embed routes force it from
         // `?theme=`), so this is the scheme the surrounding page renders in.
         const hostColorScheme = useComputedColorScheme('light');
@@ -288,6 +302,9 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             dataAppVizContext,
             rewriteVizUnderlyingDataRequest,
             onVizDrillDownIntent,
+            onAppDrillDownIntent: appDrillDownEnabled
+                ? handleAppDrillDownIntent
+                : undefined,
             onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
             onSdkManifest,
             colorScheme,
@@ -364,15 +381,24 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         };
 
         return (
-            <iframe
-                ref={iframeRef}
-                src={effectiveSrc}
-                style={{ width: '100%', height: '100%', border: 'none' }}
-                title="App preview"
-                sandbox="allow-scripts allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
-                allow=""
-                onLoad={handleLoad}
-            />
+            <>
+                <iframe
+                    ref={iframeRef}
+                    src={effectiveSrc}
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                    title="App preview"
+                    sandbox="allow-scripts allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+                    allow=""
+                    onLoad={handleLoad}
+                />
+                {appDrillDownRequested && (
+                    <AppDrillDownModalHost
+                        projectUuid={projectUuid}
+                        request={appDrillDownRequest}
+                        onPermissionChange={setAppDrillDownAllowed}
+                    />
+                )}
+            </>
         );
     },
 );

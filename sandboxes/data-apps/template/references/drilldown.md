@@ -1,17 +1,17 @@
-# `drillDown()` API reference
+# Custom drill-down query reference
 
-> Read this when adding drill-down actions beyond the basic pattern shown in the action-menu example.
+> Read this only when the user needs an inline/standalone drill result or a predetermined drill dimension. For normal Lightdash-hosted apps, use the native `drillDown.open({ row, metric })` action returned by `useLightdash()`.
 
-`drillDown()` builds a new query from a clicked row. Import it alongside `query` and `useLightdash`:
+`buildDrillDownQuery()` builds a new query from a clicked row. Import it alongside `query` and `useLightdash`:
 
 ```ts
-import { query, useLightdash, drillDown } from '@lightdash/query-sdk';
+import { buildDrillDownQuery, query, useLightdash } from '@lightdash/query-sdk';
 ```
 
 ### API
 
 ```ts
-drillDown({
+buildDrillDownQuery({
     sourceQuery,   // The QueryBuilder that produced the clicked data
     metric,        // Which metric to drill into (string)
     dimension,     // Which dimension to drill by (string)
@@ -42,7 +42,7 @@ The agent decides the drill dimension at build time from the dbt YAML. For user-
 ```tsx
 const [drillDim, setDrillDim] = useState('order_date');
 // In the menu item onClick:
-setDrillQuery(drillDown({ sourceQuery, metric: 'total_revenue', dimension: drillDim, row }));
+setDrillQuery(buildDrillDownQuery({ sourceQuery, metric: 'total_revenue', dimension: drillDim, row }));
 ```
 
 ### Displaying drill results

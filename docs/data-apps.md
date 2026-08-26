@@ -747,9 +747,16 @@ Generated apps can offer the same kinds of row-level exploration users expect fr
 to wire those interactions explicitly in its React UI. The agent is taught these patterns in
 `sandboxes/data-apps/template/skill.md`; `docs/data-apps.md` is the architecture-level contract.
 
-**Drilldowns** are SDK-side query composition. `drillDown()` takes the source `QueryBuilder`, the clicked row, a metric,
-and a new drill-by dimension, then returns another `QueryBuilder`. The app passes that query to `useLightdash()` like
-any other metric query, so it uses the existing `POST /query/metric-query` bridge route and normal query polling.
+**Native drilldown** is the default for full data apps hosted by Lightdash. Each `useLightdash()` result exposes
+`drillDown: { enabled, open({ row, metric }) }`. The SDK binds the click to the loaded query UUID, qualifies and formats
+the original row, and posts the semantic intent to the bridge-only `POST /__sdk/drill-down` route. The host resolves
+that UUID against the canonical `metricQuery` and fields captured from the backend query response, then opens core's
+existing drill dimension picker and Explore flow. The virtual route is never forwarded to the API and is advertised
+only on host surfaces where the viewer has drill permission.
+
+**Custom drilldown queries** remain available through `buildDrillDownQuery()` (with `drillDown()` retained as a
+backwards-compatible alias). This is SDK-side query composition for standalone clients or apps that intentionally want
+to render drilled results inline rather than use the native host UI.
 
 **Underlying data** uses Lightdash's native "View underlying data" backend path. `useLightdash()` returns
 `getUnderlyingData({ row, metric, limit? })` after the source query has loaded. The app calls it from a user action

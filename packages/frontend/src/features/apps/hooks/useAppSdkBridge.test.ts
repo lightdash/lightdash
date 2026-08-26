@@ -1927,3 +1927,164 @@ describe('viz drill-down virtual route', () => {
         expect(fetch).not.toHaveBeenCalled();
     });
 });
+
+describe('full-app native drill-down virtual route', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    const query = {
+        ...METRIC_QUERY,
+        dimensions: ['orders_status'],
+        metrics: ['orders_revenue'],
+    };
+    const metricItem = {
+        fieldType: 'metric',
+        type: 'sum',
+        name: 'revenue',
+        table: 'orders',
+        label: 'Revenue',
+        hidden: false,
+    };
+    const intent = {
+        queryUuid: QUERY_UUID,
+        metric: 'orders_revenue',
+        row: {
+            orders_status: {
+                value: { raw: 'paid', formatted: 'Paid' },
+            },
+            orders_revenue: { value: { raw: 42, formatted: '$42' } },
+        },
+    };
+
+    const renderNativeBridge = (
+        handler?: Parameters<typeof useAppSdkBridge>[0]['onAppDrillDownIntent'],
+    ) => {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        return renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                capabilities: { drillDown: true },
+                onAppDrillDownIntent: handler,
+            }),
+        );
+    };
+
+    it('advertises the capability and resolves clicks against the canonical query response', async () => {
+        const handler = vi.fn();
+        const { result } = renderNativeBridge(handler);
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        result.current.handleIframeLoad();
+        expect(postMessageSpy).toHaveBeenCalledWith(
+            {
+                type: 'lightdash:sdk:ready',
+                drillDown: { enabled: true },
+            },
+            '*',
+        );
+
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                queryUuid: QUERY_UUID,
+                metricQuery: query,
+                fields: { orders_revenue: metricItem },
+                usedParametersValues: { currency: 'EUR' },
+            },
+        });
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method: 'POST',
+            path: POST_PATH,
+            body: { query, parameters: { currency: 'USD' } },
+        });
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    result: expect.objectContaining({
+                        queryUuid: QUERY_UUID,
+                    }),
+                }),
+                '*',
+            ),
+        );
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: GET_ID,
+            method: 'POST',
+            path: '/__sdk/drill-down',
+            body: intent,
+        });
+
+        await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(1));
+        expect(handler).toHaveBeenCalledWith(
+            expect.objectContaining({
+                item: metricItem,
+                fieldValues: {
+                    orders_status: { raw: 'paid', formatted: 'Paid' },
+                    orders_revenue: { raw: 42, formatted: '$42' },
+                },
+                source: expect.objectContaining({
+                    metricQuery: query,
+                    parameters: { currency: 'EUR' },
+                }),
+            }),
+        );
+        expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('fails closed when the host does not opt in', async () => {
+        const handler = vi.fn();
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                onAppDrillDownIntent: handler,
+            }),
+        );
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: GET_ID,
+            method: 'POST',
+            path: '/__sdk/drill-down',
+            body: intent,
+        });
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: GET_ID,
+                    error: expect.stringMatching(/not available/i),
+                }),
+                '*',
+            ),
+        );
+        expect(handler).not.toHaveBeenCalled();
+        expect(fetch).not.toHaveBeenCalled();
+    });
+});

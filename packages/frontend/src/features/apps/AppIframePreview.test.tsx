@@ -23,6 +23,10 @@ vi.mock('./hooks/useIframeScreenshot', () => ({
     useIframeScreenshot: () => ({ captureScreenshot: vi.fn() }),
 }));
 
+vi.mock('../../hooks/useContextMenuPermissions', () => ({
+    useContextMenuPermissions: () => ({ canDrillInto: false }),
+}));
+
 const SRC =
     'https://preview.example/api/apps/a/versions/1/t/tok/#transport=postMessage&projectUuid=p';
 

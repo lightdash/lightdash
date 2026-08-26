@@ -2,6 +2,7 @@ import {
     type DateZoom,
     type ItemsMap,
     type MetricQuery,
+    type ParametersValuesMap,
     type PivotReference,
     type ResultValue,
 } from '@lightdash/common';
@@ -9,6 +10,7 @@ import {
 export type MetricQueryDataSource = {
     tableName: string;
     metricQuery: MetricQuery;
+    parameters?: ParametersValuesMap;
 };
 
 export type UnderlyingDataConfig = {

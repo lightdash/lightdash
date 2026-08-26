@@ -15,12 +15,15 @@ import type {
     DownloadResultsOptions,
     DownloadResultsResult,
     DownloadUnderlyingDataOptions,
+    DrillDownAction,
     ExternalFetchOptions,
     ExternalFetchResult,
     FormatFunction,
+    HostDrillDownIntent,
     InternalFilterDefinition,
     LightdashClientConfig,
     LightdashUser,
+    NativeDrillDownOptions,
     ParametersValuesMap,
     QueryDefinition,
     QueryResult,
@@ -42,6 +45,83 @@ const MAX_BACKOFF_MS = 1000;
 const MAX_POLL_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_DOWNLOAD_POLL_DURATION_MS = 10 * 60 * 1000; // 10 minutes
 const ALL_RESULTS_LIMIT = Number.MAX_SAFE_INTEGER;
+
+export type HostDrillDownBridge = {
+    isEnabled: () => boolean;
+    open: (intent: HostDrillDownIntent) => Promise<void>;
+};
+
+type HostDrillDownField = {
+    /** Public key on the flat SDK row. */
+    name: string;
+    /** Canonical field id used by the host metric query. */
+    fieldId: string;
+};
+
+export function buildHostDrillDownAction({
+    bridge,
+    queryUuid,
+    fields,
+    requiredDimensions,
+    resolveMetric,
+    validMetricIds,
+    format,
+}: {
+    bridge?: HostDrillDownBridge;
+    queryUuid: string;
+    fields: HostDrillDownField[];
+    requiredDimensions: string[];
+    resolveMetric: (metric: string) => string;
+    validMetricIds: string[];
+    format: FormatFunction;
+}): DrillDownAction {
+    return {
+        get enabled() {
+            return bridge?.isEnabled() === true;
+        },
+        open: async ({ row, metric }: NativeDrillDownOptions) => {
+            if (!bridge?.isEnabled()) {
+                throw new Error(
+                    'Native drill-down is not available in this Lightdash host. Use buildDrillDownQuery() for a custom or standalone drill experience.',
+                );
+            }
+
+            for (const dimension of requiredDimensions) {
+                if (!Object.prototype.hasOwnProperty.call(row, dimension)) {
+                    throw new Error(
+                        `Cannot drill down because the row is missing dimension "${dimension}". Pass the original row returned by useLightdash().`,
+                    );
+                }
+            }
+
+            const metricId = resolveMetric(metric);
+            if (!validMetricIds.includes(metricId)) {
+                throw new Error(
+                    `Cannot drill down into "${metric}" because it is not a metric in the source query.`,
+                );
+            }
+
+            const intentRow: HostDrillDownIntent['row'] = {};
+            for (const field of fields) {
+                if (!Object.prototype.hasOwnProperty.call(row, field.name)) {
+                    continue;
+                }
+                intentRow[field.fieldId] = {
+                    value: {
+                        raw: row[field.name],
+                        formatted: format(row, field.name),
+                    },
+                };
+            }
+
+            return bridge.open({
+                queryUuid,
+                row: intentRow,
+                metric: metricId,
+            });
+        },
+    };
+}
 
 type ApiResponse<T> = {
     status: 'ok';
@@ -779,6 +859,7 @@ function mapApiRowsToQueryResult({
 export function createApiTransport(
     config: LightdashClientConfig,
     adapter?: FetchAdapter,
+    hostDrillDownBridge?: HostDrillDownBridge,
 ): Transport {
     const fetchFn = adapter ?? createDefaultFetchAdapter(config);
 
@@ -822,6 +903,19 @@ export function createApiTransport(
                 fieldIds: allQualified,
                 fieldNameForId: (fieldId) =>
                     qualifiedToShort.get(fieldId) ?? fieldId,
+            });
+
+            const drillDown = buildHostDrillDownAction({
+                bridge: hostDrillDownBridge,
+                queryUuid,
+                fields: allShort.map((name, index) => ({
+                    name,
+                    fieldId: allQualified[index],
+                })),
+                requiredDimensions: query.dimensions,
+                resolveMetric: qualify,
+                validMetricIds: qualifiedMetrics,
+                format: mappedResult.format,
             });
 
             const getUnderlyingData = async (
@@ -944,6 +1038,7 @@ export function createApiTransport(
                 ...mappedResult,
                 totalResults: firstReadyPage.totalResults,
                 queryUuid,
+                drillDown,
                 getUnderlyingData,
                 downloadUnderlyingData,
                 downloadResults,
@@ -1014,6 +1109,19 @@ export function createApiTransport(
             });
 
             const chartMetrics = metricQuery?.metrics ?? [];
+
+            const drillDown = buildHostDrillDownAction({
+                bridge: hostDrillDownBridge,
+                queryUuid,
+                fields: fieldIds.map((fieldId) => ({
+                    name: fieldId,
+                    fieldId,
+                })),
+                requiredDimensions: metricQuery?.dimensions ?? [],
+                resolveMetric: (metric) => metric,
+                validMetricIds: chartMetrics,
+                format: mappedResult.format,
+            });
 
             const execUnderlying = async (
                 options: { metric: string; row: Row },
@@ -1126,6 +1234,7 @@ export function createApiTransport(
                 ...mappedResult,
                 totalResults: firstReadyPage.totalResults,
                 queryUuid,
+                drillDown,
                 getUnderlyingData,
                 downloadUnderlyingData,
                 downloadResults,

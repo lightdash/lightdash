@@ -1,4 +1,5 @@
 import {
+    APP_SDK_DRILL_DOWN_PATH,
     APP_SDK_COLOR_SCHEME_MESSAGE,
     APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
@@ -15,10 +16,14 @@ import {
     type AppColorScheme,
     type DashboardFilters,
     type DataAppVizContext,
+    type ItemsMap,
+    type MetricQuery,
+    type ParametersValuesMap,
     type QueryExecutionContext,
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { lightdashApi } from '../../../api';
+import { type DrillDownConfig } from '../../../components/MetricQueryData/types';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import {
     getGdriveAccessToken,
@@ -31,6 +36,10 @@ import {
     type GsheetExportColumn,
     type GsheetExportRow,
 } from './handleGsheetExport';
+import {
+    resolveAppDrillDown,
+    type AppDrillDownSource,
+} from './resolveAppDrillDown';
 
 // Same key the SDK persists `instanceUrl` under (sdk/index.tsx, api.ts).
 // Duplicated rather than imported to avoid threading a shared export through
@@ -238,11 +247,10 @@ export type UseAppSdkBridgeParams = {
      */
     invalidateCache?: boolean;
     /**
-     * Feature capabilities the host page opts into. Currently gates the
-     * Google Sheets export flow — hosts that don't pass `gsheetExport: true`
-     * will receive an error response for those requests.
+     * Feature capabilities the host page opts into. Each capability is closed
+     * by default; unsupported requests receive an error response.
      */
-    capabilities?: { gsheetExport?: boolean };
+    capabilities?: { gsheetExport?: boolean; drillDown?: boolean };
     onLineageAvailable?: () => void;
     onLineageSelected?: (event: { queryUuid: string }) => void;
     /**
@@ -284,6 +292,8 @@ export type UseAppSdkBridgeParams = {
      * iframe input).
      */
     onVizDrillDownIntent?: (intentBody: unknown) => void;
+    /** Opens core's drill dialog for a query-bound full-app click intent. */
+    onAppDrillDownIntent?: (config: DrillDownConfig) => void;
     // When set, `lightdash:sdk:url-state-change` messages from the iframe SDK
     // are validated and forwarded. Left undefined, they're ignored.
     onUrlStateChange?: (state: Record<string, unknown>) => void;
@@ -326,6 +336,7 @@ export function useAppSdkBridge({
     dataAppVizContext,
     rewriteVizUnderlyingDataRequest,
     onVizDrillDownIntent,
+    onAppDrillDownIntent,
     onUrlStateChange,
     onSdkManifest,
     deliveryCapture,
@@ -354,6 +365,12 @@ export function useAppSdkBridge({
     // in-flight set never drains and the screenshot indicator never
     // mounts).
     const queryUuidToPostIdRef = useRef<Map<string, string>>(new Map());
+    // Canonical query context captured from successful backend submissions.
+    // Full apps can run many queries, so the click intent carries only a UUID
+    // and is resolved against this trusted host-owned registry.
+    const drillDownSourcesRef = useRef<Map<string, AppDrillDownSource>>(
+        new Map(),
+    );
 
     // Push the render context into the iframe. Sent in response to the iframe's
     // `viz-context-request` handshake (the renderer mounts after its bundle
@@ -760,6 +777,32 @@ export function useAppSdkBridge({
                 return;
             }
 
+            // Full-app native drill-down is also host-owned, but unlike a viz
+            // the app may have many loaded queries. Resolve its UUID against
+            // the canonical query response recorded by this bridge.
+            if (path === APP_SDK_DRILL_DOWN_PATH) {
+                if (capabilities?.drillDown !== true || !onAppDrillDownIntent) {
+                    respond({
+                        error: 'Native drill-down is not available for this data app.',
+                    });
+                    return;
+                }
+                try {
+                    onAppDrillDownIntent(
+                        resolveAppDrillDown(body, drillDownSourcesRef.current),
+                    );
+                    respond({ result: {} });
+                } catch (err) {
+                    respond({
+                        error:
+                            err instanceof Error
+                                ? err.message
+                                : 'Invalid drill-down request.',
+                    });
+                }
+                return;
+            }
+
             if (!isAllowedAppSdkRoute(method, path)) {
                 respond({ error: `Blocked: ${method} ${path}` });
                 return;
@@ -950,6 +993,38 @@ export function useAppSdkBridge({
                             id,
                             json.results ?? null,
                         );
+
+                        const queryUuid = json.results?.queryUuid;
+                        const metricQuery = json.results?.metricQuery;
+                        const fields = json.results?.fields;
+                        if (
+                            capabilities?.drillDown === true &&
+                            onAppDrillDownIntent &&
+                            typeof queryUuid === 'string' &&
+                            typeof metricQuery === 'object' &&
+                            metricQuery !== null &&
+                            typeof fields === 'object' &&
+                            fields !== null
+                        ) {
+                            const usedParametersValues =
+                                json.results?.usedParametersValues;
+                            const parameters =
+                                typeof usedParametersValues === 'object' &&
+                                usedParametersValues !== null
+                                    ? (usedParametersValues as ParametersValuesMap)
+                                    : (
+                                          effectiveBody as
+                                              | {
+                                                    parameters?: ParametersValuesMap;
+                                                }
+                                              | undefined
+                                      )?.parameters;
+                            drillDownSourcesRef.current.set(queryUuid, {
+                                metricQuery: metricQuery as MetricQuery,
+                                fields: fields as ItemsMap,
+                                parameters,
+                            });
+                        }
                     }
 
                     // Track metric query initiation response (has queryUuid)
@@ -1109,6 +1184,7 @@ export function useAppSdkBridge({
             pushDataAppVizContext,
             rewriteVizUnderlyingDataRequest,
             onVizDrillDownIntent,
+            onAppDrillDownIntent,
             pushColorScheme,
             onUrlStateChange,
             onSdkManifest,
@@ -1131,7 +1207,7 @@ export function useAppSdkBridge({
         pushColorScheme();
     }, [pushColorScheme]);
 
-    const handleIframeLoad = useCallback(() => {
+    const pushSdkReady = useCallback(() => {
         // `*` because the load event fires once for the initial about:blank
         // (which inherits the parent's origin) and again after the iframe
         // navigates to its actual src. With a specific targetOrigin the
@@ -1144,11 +1220,32 @@ export function useAppSdkBridge({
                 // which ignore unknown fields — and new SDKs on old hosts
                 // both default to `useDeliveryRender() === false`.
                 ...(captureRender ? { deliveryRender: true } : {}),
+                ...(capabilities?.drillDown === true && onAppDrillDownIntent
+                    ? { drillDown: { enabled: true } }
+                    : {}),
             },
             '*',
         );
+    }, [
+        iframeRef,
+        captureRender,
+        capabilities?.drillDown,
+        onAppDrillDownIntent,
+    ]);
+
+    const handleIframeLoad = useCallback(() => {
+        queryUuidToPostIdRef.current.clear();
+        drillDownSourcesRef.current.clear();
+        pushSdkReady();
         pushColorScheme();
-    }, [iframeRef, pushColorScheme, captureRender]);
+    }, [pushSdkReady, pushColorScheme]);
+
+    // Permissions can resolve after the iframe's load event. Re-advertise the
+    // capability when that happens; new SDKs update their host capability from
+    // every ready message, while the normal load path remains the fallback.
+    useEffect(() => {
+        pushSdkReady();
+    }, [pushSdkReady]);
 
     // Re-push the render context whenever the host's field mapping or rows
     // change, so an already-loaded iframe re-renders live. The initial delivery
