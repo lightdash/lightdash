@@ -18,6 +18,7 @@ import {
     getDefaultDatabricksAuthenticationType,
     isDatabricksPersonalAccessToken,
     isSnowflakeSso,
+    validateUserWarehouseCredentials,
 } from './utils';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
@@ -115,6 +116,7 @@ export const EditCredentialsModal: FC<
                 isDatabricksSsoEnabled,
             ),
         },
+        validate: validateUserWarehouseCredentials,
     });
 
     // SSO-based credentials are only ever set through their OAuth popup. They

@@ -1737,8 +1737,18 @@ export class ProjectService extends BaseService {
     ): CreateWarehouseCredentials {
         switch (credentials.type) {
             case WarehouseTypes.SNOWFLAKE: {
-                // Remove optional properties for snowflake OAuth
-                const { refreshToken, token, ...rest } = credentials;
+                // Every secret has to go: the user's own credential is merged
+                // over this, so anything left here is inherited by whichever
+                // field the user didn't supply (e.g. their key decrypted with
+                // the project's passphrase).
+                const {
+                    refreshToken,
+                    token,
+                    password,
+                    privateKey,
+                    privateKeyPass,
+                    ...rest
+                } = credentials;
                 return rest;
             }
             case WarehouseTypes.DATABRICKS: {

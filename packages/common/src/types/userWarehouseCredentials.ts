@@ -69,15 +69,23 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
               | 'assumeRoleExternalId'
           >
         | Pick<CreatePostgresCredentials, 'type' | 'user' | 'password'>
+        // Kept as two members rather than one wider Pick: merging them renames
+        // the generated OpenAPI schema, which reads as a removed `anyOf` member.
         | Pick<
               CreateSnowflakeCredentials,
               | 'type'
               | 'user'
               | 'password'
+              | 'authenticationType'
+              | 'refreshToken'
+          >
+        | Pick<
+              CreateSnowflakeCredentials,
+              | 'type'
+              | 'user'
               | 'privateKey'
               | 'privateKeyPass'
               | 'authenticationType'
-              | 'refreshToken'
           >
         | Pick<CreateTrinoCredentials, 'type' | 'user' | 'password'>
         | Pick<CreateClickhouseCredentials, 'type' | 'user' | 'password'>

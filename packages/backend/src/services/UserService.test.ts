@@ -4674,35 +4674,36 @@ describe('UserService', () => {
         });
     });
 
+    const createSnowflakeCredentialsModel = () => ({
+        getAllByUserUuid: vi.fn().mockResolvedValue([
+            {
+                uuid: 'password-credentials-uuid',
+                name: 'Default',
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    user: 'snowflake-user',
+                    authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                },
+                project: null,
+            },
+            {
+                uuid: 'sso-credentials-uuid',
+                name: 'My Snowflake login',
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    authenticationType: SnowflakeAuthenticationType.SSO,
+                },
+                project: null,
+            },
+        ]),
+        update: vi.fn().mockResolvedValue('sso-credentials-uuid'),
+        getByUuid: vi.fn().mockResolvedValue({ uuid: 'sso-credentials-uuid' }),
+        create: vi.fn(),
+    });
+
     describe('createSnowflakeWarehouseCredentials', () => {
         it('updates only an existing Snowflake SSO credential', async () => {
-            const credentialsModel = {
-                getAllByUserUuid: vi.fn().mockResolvedValue([
-                    {
-                        uuid: 'password-credentials-uuid',
-                        credentials: {
-                            type: WarehouseTypes.SNOWFLAKE,
-                            user: 'snowflake-user',
-                            authenticationType:
-                                SnowflakeAuthenticationType.PASSWORD,
-                        },
-                        project: null,
-                    },
-                    {
-                        uuid: 'sso-credentials-uuid',
-                        credentials: {
-                            type: WarehouseTypes.SNOWFLAKE,
-                            authenticationType: SnowflakeAuthenticationType.SSO,
-                        },
-                        project: null,
-                    },
-                ]),
-                update: vi.fn().mockResolvedValue('sso-credentials-uuid'),
-                getByUuid: vi.fn().mockResolvedValue({
-                    uuid: 'sso-credentials-uuid',
-                }),
-                create: vi.fn(),
-            };
+            const credentialsModel = createSnowflakeCredentialsModel();
             const service = createUserService(lightdashConfigMock, {
                 userWarehouseCredentialsModel:
                     credentialsModel as unknown as UserWarehouseCredentialsModel,
@@ -4723,6 +4724,39 @@ describe('UserService', () => {
                     }),
                 }),
             );
+            expect(credentialsModel.create).not.toHaveBeenCalled();
+        });
+
+        it('keeps the name the user gave the existing credential', async () => {
+            const credentialsModel = createSnowflakeCredentialsModel();
+            const service = createUserService(lightdashConfigMock, {
+                userWarehouseCredentialsModel:
+                    credentialsModel as unknown as UserWarehouseCredentialsModel,
+            });
+
+            await service.createSnowflakeWarehouseCredentials(
+                sessionUser,
+                'new-refresh-token',
+            );
+
+            expect(credentialsModel.update).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                'sso-credentials-uuid',
+                expect.objectContaining({ name: 'My Snowflake login' }),
+            );
+        });
+
+        it('rejects a callback without a refresh token instead of writing', async () => {
+            const credentialsModel = createSnowflakeCredentialsModel();
+            const service = createUserService(lightdashConfigMock, {
+                userWarehouseCredentialsModel:
+                    credentialsModel as unknown as UserWarehouseCredentialsModel,
+            });
+
+            await expect(
+                service.createSnowflakeWarehouseCredentials(sessionUser, ''),
+            ).rejects.toThrow(ParameterError);
+            expect(credentialsModel.update).not.toHaveBeenCalled();
             expect(credentialsModel.create).not.toHaveBeenCalled();
         });
     });

@@ -38,6 +38,7 @@ import {
     PERSONAL_ACCESS_TOKEN_LABEL,
     PRIVATE_KEY_LABEL,
 } from '../../ProjectConnection/WarehouseForms/util';
+import { PRIVATE_KEY_FIELD_PATH } from './utils';
 import { WarehouseSsoButton } from './WarehouseSsoButton';
 
 const BigQueryFormInput: FC<{
@@ -100,8 +101,13 @@ export const SnowflakeFormInput: FC<{
             : undefined;
     const authenticationType =
         credentials?.authenticationType ?? SnowflakeAuthenticationType.PASSWORD;
+    // Keep SSO listed for a credential already saved as SSO, so an instance
+    // that later turned Snowflake OAuth off still labels the stored value
+    // instead of rendering an empty select.
+    const showSsoOption =
+        isSsoEnabled || authenticationType === SnowflakeAuthenticationType.SSO;
     const authenticationOptions = [
-        ...(isSsoEnabled
+        ...(showSsoOption
             ? [
                   {
                       value: SnowflakeAuthenticationType.SSO,
@@ -180,6 +186,7 @@ export const SnowflakeFormInput: FC<{
                                 accept=".p8"
                                 value={privateKeyFile}
                                 disabled={disabled}
+                                error={form.errors[PRIVATE_KEY_FIELD_PATH]}
                                 onChange={(file) => {
                                     setPrivateKeyFile(null);
                                     if (!file) {

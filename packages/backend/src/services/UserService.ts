@@ -3334,15 +3334,14 @@ export class UserService extends BaseService {
         user: SessionUser,
         refreshToken: string,
     ) {
-        const snowflakeCredentials: UpsertUserWarehouseCredentials = {
-            name: 'Default',
-            credentials: {
-                user: user.userUuid,
-                type: WarehouseTypes.SNOWFLAKE,
-                authenticationType: SnowflakeAuthenticationType.SSO,
-                refreshToken,
-            },
-        };
+        // Guard before writing: an OAuth callback without a refresh token must
+        // not overwrite the user's working credentials.
+        if (!refreshToken) {
+            throw new ParameterError(
+                'Cannot create Snowflake user credentials without a refresh token',
+            );
+        }
+
         const existingSsoCredentials = (
             await this.userWarehouseCredentialsModel.getAllByUserUuid(
                 user.userUuid,
@@ -3354,6 +3353,16 @@ export class UserService extends BaseService {
                 credentials.authenticationType ===
                     SnowflakeAuthenticationType.SSO,
         );
+
+        const snowflakeCredentials: UpsertUserWarehouseCredentials = {
+            name: existingSsoCredentials?.name ?? 'Default',
+            credentials: {
+                user: user.userUuid,
+                type: WarehouseTypes.SNOWFLAKE,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                refreshToken,
+            },
+        };
 
         if (existingSsoCredentials) {
             await this.updateWarehouseCredentials(

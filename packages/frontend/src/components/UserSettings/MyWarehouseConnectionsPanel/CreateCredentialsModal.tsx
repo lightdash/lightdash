@@ -1,6 +1,5 @@
 import {
     RedshiftAuthenticationType,
-    SnowflakeAuthenticationType,
     WarehouseTypes,
     type UpsertUserWarehouseCredentials,
     type UserWarehouseCredentials,
@@ -11,14 +10,17 @@ import { IconPlus } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { useIsDatabricksSsoEnabled } from '../../../hooks/useDatabricks';
 import { useUserWarehouseCredentialsCreateMutation } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
+import { useIsSnowflakeSsoEnabled } from '../../../hooks/useSnowflake';
 import MantineModal, {
     type MantineModalProps,
 } from '../../common/MantineModal';
 import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/utils';
 import {
     getDefaultDatabricksAuthenticationType,
+    getDefaultSnowflakeAuthenticationType,
     isDatabricksPersonalAccessToken,
     isSnowflakeSso,
+    validateUserWarehouseCredentials,
 } from './utils';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
@@ -34,7 +36,7 @@ type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
 
 const getDefaultCredentials = (
     warehouseType: WarehouseTypes,
-    isDatabricksSsoEnabled: boolean,
+    ssoEnabled: { databricks: boolean; snowflake: boolean },
 ): UpsertUserWarehouseCredentials['credentials'] => {
     const defaultCredentials: Record<
         WarehouseTypes,
@@ -55,7 +57,9 @@ const getDefaultCredentials = (
             type: WarehouseTypes.SNOWFLAKE,
             user: '',
             password: '',
-            authenticationType: SnowflakeAuthenticationType.PASSWORD,
+            authenticationType: getDefaultSnowflakeAuthenticationType(
+                ssoEnabled.snowflake,
+            ),
         },
         [WarehouseTypes.TRINO]: {
             type: WarehouseTypes.TRINO,
@@ -70,7 +74,7 @@ const getDefaultCredentials = (
             type: WarehouseTypes.DATABRICKS,
             personalAccessToken: '',
             authenticationType: getDefaultDatabricksAuthenticationType(
-                isDatabricksSsoEnabled,
+                ssoEnabled.databricks,
             ),
         },
         [WarehouseTypes.CLICKHOUSE]: {
@@ -112,14 +116,20 @@ export const CreateCredentialsModal: FC<Props> = ({
             onSuccess,
         });
     const isDatabricksSsoEnabled = useIsDatabricksSsoEnabled();
+    const isSnowflakeSsoEnabled = useIsSnowflakeSsoEnabled();
+    const ssoEnabled = {
+        databricks: isDatabricksSsoEnabled,
+        snowflake: isSnowflakeSsoEnabled,
+    };
     const form = useForm<UpsertUserWarehouseCredentials>({
         initialValues: {
             name: '',
             credentials: getDefaultCredentials(
                 warehouseType || WarehouseTypes.POSTGRES,
-                isDatabricksSsoEnabled,
+                ssoEnabled,
             ),
         },
+        validate: validateUserWarehouseCredentials,
     });
 
     const isRedshiftBrowserSso =
@@ -196,10 +206,7 @@ export const CreateCredentialsModal: FC<Props> = ({
                                 if (!type) return;
                                 form.setFieldValue(
                                     'credentials',
-                                    getDefaultCredentials(
-                                        type,
-                                        isDatabricksSsoEnabled,
-                                    ),
+                                    getDefaultCredentials(type, ssoEnabled),
                                 );
                             }}
                         />

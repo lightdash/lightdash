@@ -2052,6 +2052,72 @@ describe('ProjectService', () => {
             });
         });
 
+        test('should not leak project Snowflake secrets into a user private key credential', async () => {
+            service.warehouseClients = {};
+
+            const projectSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'test-account',
+                warehouse: 'test-warehouse',
+                database: 'test-db',
+                schema: 'test-schema',
+                user: 'project_user',
+                password: 'project-password',
+                privateKey: 'project-private-key',
+                privateKeyPass: 'project-passphrase',
+                authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+                requireUserCredentials: true,
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
+            ).mockImplementation(async () => projectSnowflakeCredentials);
+
+            // No passphrase: the user's key is not encrypted with one.
+            const userCredentials = {
+                uuid: 'user-snowflake-creds-uuid',
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    user: 'analyst',
+                    privateKey: 'user-private-key',
+                    authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+                },
+            };
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets = vi.fn(
+                async () => userCredentials,
+            );
+
+            const mergedCredentials = await (
+                service as unknown as {
+                    getWarehouseCredentials: (args: {
+                        projectUuid: string;
+                        userId: string;
+                        isRegisteredUser: boolean;
+                    }) => Promise<Record<string, unknown>>;
+                }
+            ).getWarehouseCredentials({
+                projectUuid,
+                userId: sessionAccount.user.id,
+                isRegisteredUser: true,
+            });
+
+            expect(mergedCredentials).toEqual(
+                expect.objectContaining({
+                    type: WarehouseTypes.SNOWFLAKE,
+                    user: 'analyst',
+                    privateKey: 'user-private-key',
+                    authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+                }),
+            );
+            expect(mergedCredentials.privateKeyPass).toBeUndefined();
+            expect(mergedCredentials.password).toBeUndefined();
+        });
+
         test('should use user Redshift IAM identity when requireUserCredentials is true', async () => {
             service.warehouseClients = {};
 
