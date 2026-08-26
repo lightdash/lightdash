@@ -162,6 +162,7 @@ import {
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
     normalizeIndexColumns,
+    normalizeWarehouseCredentials,
     NotFoundError,
     OpenIdIdentityIssuerType,
     ParameterError,
@@ -1456,7 +1457,15 @@ export class ProjectService extends BaseService {
             warehouseConnection: CreateWarehouseCredentials;
             organizationWarehouseCredentialsUuid?: string;
         },
-    >(args: T, userUuid: string, organizationUuid: string): Promise<T> {
+    >(rawArgs: T, userUuid: string, organizationUuid: string): Promise<T> {
+        // Normalize submitted credentials so in-flight connection tests and
+        // compiles never see legacy values that violate the credentials types
+        const args: T = {
+            ...rawArgs,
+            warehouseConnection: normalizeWarehouseCredentials(
+                rawArgs.warehouseConnection,
+            ),
+        };
         // If using organization credentials, load them from the organization table
         const organizationWarehouseCredentialsUuid =
             args.organizationWarehouseCredentialsUuid ||

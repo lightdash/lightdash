@@ -1284,8 +1284,15 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         );
         sessionParams.push(`QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE`);
 
-        // Default timeout to 300 seconds if not specified
-        const timeoutSeconds = this.credentials.timeoutSeconds ?? 300;
+        // Default timeout to 300 seconds if not specified. This value is
+        // interpolated into raw SQL, so reject anything non-numeric (legacy
+        // rows can hold '' or null) rather than emit an invalid statement.
+        const configuredTimeoutSeconds = this.credentials.timeoutSeconds;
+        const timeoutSeconds =
+            typeof configuredTimeoutSeconds === 'number' &&
+            Number.isFinite(configuredTimeoutSeconds)
+                ? configuredTimeoutSeconds
+                : 300;
         console.debug(
             `Setting Snowflake session STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds}`,
         );
