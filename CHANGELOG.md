@@ -1,3 +1,11 @@
+## [2.2.1](https://github.com/lightdash/lightdash/compare/2.2.0...2.2.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* compile joined custom dimensions from pre-aggregates ([#28040](https://github.com/lightdash/lightdash/issues/28040)) ([6d78144](https://github.com/lightdash/lightdash/commit/6d78144c5a2d36b30c64accffecdef4dc2563a3c)), closes [#28039](https://github.com/lightdash/lightdash/issues/28039)
+* **data-apps:** show latest scheduled delivery run ([#28044](https://github.com/lightdash/lightdash/issues/28044)) ([4d5627b](https://github.com/lightdash/lightdash/commit/4d5627b5667081a0f018b458aa1b02eb9354339a))
+
 # [2.2.0](https://github.com/lightdash/lightdash/compare/2.1.0...2.2.0) (2026-08-25)
 
 

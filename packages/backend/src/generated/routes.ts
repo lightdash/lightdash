@@ -68259,6 +68259,11 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
+        includeLatestRun: {
+            in: 'query',
+            name: 'includeLatestRun',
+            dataType: 'boolean',
+        },
     };
     app.get(
         '/api/v1/ee/projects/:projectUuid/apps/:appUuid/schedulers',
