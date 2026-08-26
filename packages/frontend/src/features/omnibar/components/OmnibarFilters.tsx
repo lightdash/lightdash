@@ -13,6 +13,7 @@ import {
     IconCalendar,
     IconChartBar,
     IconChevronDown,
+    IconCircleCheck,
     IconCodeCircle,
     IconFolder,
     IconLayoutDashboard,
@@ -33,6 +34,8 @@ import { getDateFilterLabel } from '../utils/getDateFilterLabel';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';
 import classes from './OmnibarFilters.module.css';
 import { getOmnibarItemColor } from './utils';
+
+const VERIFIED_FILTER_COLOR = 'green.6';
 
 const getOmnibarItemIcon = (itemType: SearchItemType) => {
     switch (itemType) {
@@ -128,14 +131,23 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
         }
     }, [isCreatedByExpanded]);
 
+    const hasItemTypeFilter = !!filters?.type || filters?.verifiedOnly === true;
+
     const canClearFilters = useMemo(() => {
         return (
             filters?.type ||
+            filters?.verifiedOnly ||
             filters?.fromDate ||
             filters?.toDate ||
             filters?.createdByUuid
         );
     }, [filters]);
+
+    const itemTypeButtonLabel = filters?.verifiedOnly
+        ? 'Verified'
+        : filters?.type
+          ? getSearchItemLabel(filters.type as SearchItemType)
+          : 'Item type';
 
     const userOptions = useMemo(
         () =>
@@ -166,7 +178,13 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                     <Button
                         size="compact-xs"
                         leftSection={
-                            filters?.type ? (
+                            filters?.verifiedOnly ? (
+                                <MantineIcon
+                                    icon={IconCircleCheck}
+                                    color={VERIFIED_FILTER_COLOR}
+                                    strokeWidth={1.5}
+                                />
+                            ) : filters?.type ? (
                                 <MantineIcon
                                     icon={getOmnibarItemIcon(
                                         filters.type as SearchItemType,
@@ -185,24 +203,50 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                         }
                         rightSection={
                             <FilterRightSection
-                                isActive={!!filters?.type}
+                                isActive={hasItemTypeFilter}
                                 onClear={() =>
                                     onSearchFilterChange({
                                         ...filters,
                                         type: undefined,
+                                        verifiedOnly: undefined,
                                     })
                                 }
                             />
                         }
-                        {...getFilterButtonProps(!!filters?.type)}
+                        {...getFilterButtonProps(hasItemTypeFilter)}
                     >
-                        {filters?.type
-                            ? getSearchItemLabel(filters.type as SearchItemType)
-                            : 'Item type'}
+                        {itemTypeButtonLabel}
                     </Button>
                 </Menu.Target>
 
                 <Menu.Dropdown>
+                    <Menu.Item
+                        leftSection={
+                            <MantineIcon
+                                icon={IconCircleCheck}
+                                color={VERIFIED_FILTER_COLOR}
+                            />
+                        }
+                        bg={
+                            filters?.verifiedOnly === true
+                                ? 'ldGray.1'
+                                : undefined
+                        }
+                        onClick={() => {
+                            onSearchFilterChange({
+                                ...filters,
+                                // Verified is a cross-cutting attribute, not a
+                                // SearchItemType — clear type when selecting it.
+                                type: undefined,
+                                verifiedOnly:
+                                    filters?.verifiedOnly === true
+                                        ? undefined
+                                        : true,
+                            });
+                        }}
+                    >
+                        Verified
+                    </Menu.Item>
                     {allSearchItemTypes.map((type) => (
                         <Menu.Item
                             key={type}
@@ -216,6 +260,7 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                             onClick={() => {
                                 onSearchFilterChange({
                                     ...filters,
+                                    verifiedOnly: undefined,
                                     type:
                                         type === filters?.type
                                             ? undefined

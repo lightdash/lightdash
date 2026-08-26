@@ -228,6 +228,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
         hasEnteredQuery && hasMinQueryLength(query);
     const hasActiveFilters = Boolean(
         searchFilters?.type ||
+        searchFilters?.verifiedOnly ||
         searchFilters?.fromDate ||
         searchFilters?.toDate ||
         searchFilters?.createdByUuid,
@@ -238,8 +239,11 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             ? getSearchResultsGroupsSorted(searchResults)
             : [];
 
+        // Settings are client-side; hide them when a content type is selected
+        // or when Verified is on (settings aren't verifiable content).
         const showSettings =
             settingsItems.length > 0 &&
+            !searchFilters?.verifiedOnly &&
             (!searchFilters?.type ||
                 searchFilters.type === SearchItemType.SETTINGS);
 
@@ -260,7 +264,12 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             totalCount: items.length,
             collapsed: false,
         }));
-    }, [searchResults, settingsItems, searchFilters?.type]);
+    }, [
+        searchResults,
+        settingsItems,
+        searchFilters?.type,
+        searchFilters?.verifiedOnly,
+    ]);
 
     const [collapsedGroupKeys, setCollapsedGroupKeys] = useState<string[]>([]);
 

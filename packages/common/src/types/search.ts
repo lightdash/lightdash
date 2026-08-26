@@ -308,4 +308,6 @@ export type SearchFilters = {
     fromDate?: string;
     toDate?: string;
     createdByUuid?: string;
+    /** When true, only verified charts and dashboards are returned. */
+    verifiedOnly?: boolean;
 };

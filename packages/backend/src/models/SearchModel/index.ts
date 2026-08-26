@@ -1790,6 +1790,46 @@ export class SearchModel {
         query: string,
         filters?: SearchFilters,
     ): Promise<SearchResults> {
+        const verifiedOnly = filters?.verifiedOnly === true;
+        const contentOptions: SearchContentOptions = { verifiedOnly };
+
+        // Verified is only meaningful for charts and dashboards — skip every
+        // other type so the Item type filter behaves as a verified-content view.
+        if (verifiedOnly) {
+            const [dashboards, savedCharts, sqlCharts] = await Promise.all([
+                this.searchDashboards(
+                    projectUuid,
+                    query,
+                    filters,
+                    contentOptions,
+                ),
+                this.searchSavedCharts(
+                    projectUuid,
+                    query,
+                    filters,
+                    contentOptions,
+                ),
+                this.searchSqlCharts(
+                    projectUuid,
+                    query,
+                    filters,
+                    contentOptions,
+                ),
+            ]);
+
+            return {
+                spaces: [],
+                dashboards,
+                savedCharts,
+                sqlCharts,
+                tables: [],
+                fields: [],
+                pages: [],
+                dashboardTabs: [],
+                dataApps: [],
+            };
+        }
+
         const spaces = await this.searchSpaces(projectUuid, query, filters);
         const [dashboards, savedCharts, sqlCharts] = await Promise.all([
             searchReservingVerified(false, (opts) =>

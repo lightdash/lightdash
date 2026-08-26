@@ -54,7 +54,8 @@ export type HomepageCollectionSource =
     | 'recently-updated'
     | 'pinned'
     | 'favorites'
-    | 'recently-viewed';
+    | 'recently-viewed'
+    | 'verified';
 
 /** Sources whose content differs for every viewer, so an admin previewing as
  * someone else must not see the target's data. */
