@@ -1,6 +1,15 @@
 import { subject } from '@casl/ability';
 import { type ContentVerificationInfo } from '../types/contentVerification';
-import { type MemberAbility } from './types';
+
+/**
+ * Structural can-check so both MemberAbility and CaslAuditWrapper are accepted.
+ * Bivariant hack matches CASL's method typing across Ability vs audit wrappers.
+ */
+type AbilityCanCheck = {
+    can: {
+        bivarianceHack(action: string, caslSubject: unknown): boolean;
+    }['bivarianceHack'];
+};
 
 /**
  * Whether the actor may mutate (update/delete/move) verified charts or
@@ -11,7 +20,7 @@ import { type MemberAbility } from './types';
  * can iterate without needing the scope (pairs with keep-badge-on-own-edit).
  */
 export const canMutateVerifiedContent = (
-    ability: MemberAbility,
+    ability: AbilityCanCheck,
     {
         organizationUuid,
         projectUuid,
