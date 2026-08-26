@@ -59,6 +59,38 @@ const baseOptions: ValidateOptions = {
 const TARGET_SKIP_WARNING =
     'Skipping warehouse column validation because --only does not include the tables validation target';
 
+const chartConfigurationWarning = {
+    validationUuid: 'warning-uuid',
+    validationId: null,
+    createdAt: new Date('2026-08-26T12:00:00Z'),
+    projectUuid: 'test-project-uuid',
+    name: 'Orders over time',
+    error: 'dimension is not used in the chart configuration',
+    errorType: ValidationErrorType.ChartConfiguration,
+    source: ValidationSourceType.Chart,
+    chartUuid: 'chart-uuid',
+    fieldName: 'orders.unused_dim',
+    chartViews: 3,
+    lastUpdatedBy: 'Ada Lovelace',
+    lastUpdatedAt: new Date('2026-08-06T15:30:00Z'),
+};
+
+const brokenChartError = {
+    validationUuid: 'error-uuid',
+    validationId: null,
+    createdAt: new Date('2026-08-26T12:00:00Z'),
+    projectUuid: 'test-project-uuid',
+    name: 'Broken chart',
+    error: 'Dimension does not exist',
+    errorType: ValidationErrorType.Dimension,
+    source: ValidationSourceType.Chart,
+    chartUuid: 'broken-chart-uuid',
+    fieldName: 'orders.missing',
+    chartViews: 1,
+    lastUpdatedBy: 'Ada Lovelace',
+    lastUpdatedAt: new Date('2026-08-06T15:30:00Z'),
+};
+
 describe('validateHandler warehouse column validation', () => {
     let errorOutput: string[];
     let validationResults: unknown[] = [];
@@ -354,38 +386,6 @@ describe('validateHandler warehouse column validation', () => {
         expect(output).toContain('1 warning');
     });
 });
-
-const chartConfigurationWarning = {
-    validationUuid: 'warning-uuid',
-    validationId: null,
-    createdAt: new Date('2026-08-26T12:00:00Z'),
-    projectUuid: 'test-project-uuid',
-    name: 'Orders over time',
-    error: 'dimension is not used in the chart configuration',
-    errorType: ValidationErrorType.ChartConfiguration,
-    source: ValidationSourceType.Chart,
-    chartUuid: 'chart-uuid',
-    fieldName: 'orders.unused_dim',
-    chartViews: 3,
-    lastUpdatedBy: 'Ada Lovelace',
-    lastUpdatedAt: new Date('2026-08-06T15:30:00Z'),
-};
-
-const brokenChartError = {
-    validationUuid: 'error-uuid',
-    validationId: null,
-    createdAt: new Date('2026-08-26T12:00:00Z'),
-    projectUuid: 'test-project-uuid',
-    name: 'Broken chart',
-    error: 'Dimension does not exist',
-    errorType: ValidationErrorType.Dimension,
-    source: ValidationSourceType.Chart,
-    chartUuid: 'broken-chart-uuid',
-    fieldName: 'orders.missing',
-    chartViews: 1,
-    lastUpdatedBy: 'Ada Lovelace',
-    lastUpdatedAt: new Date('2026-08-06T15:30:00Z'),
-};
 
 describe('resolveValidationSeverity', () => {
     test('defaults to error', () => {

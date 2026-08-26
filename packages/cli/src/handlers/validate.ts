@@ -349,7 +349,9 @@ export const validateHandler = async (
                 validationWithoutConfigWarnings.length - validation.length;
         }
         const warningIssues = validation.filter(isValidationWarning);
-        const blockingIssues = validation.filter((v) => !isValidationWarning(v));
+        const blockingIssues = validation.filter(
+            (v) => !isValidationWarning(v),
+        );
         const tableErrors = blockingIssues.filter(isTableValidationError);
         const chartErrors = blockingIssues.filter(isChartValidationError);
         const chartWarnings = warningIssues.filter(isChartValidationError);

@@ -55,10 +55,7 @@ import { setWarehouseHandler } from './handlers/setWarehouse';
 import { slugUpdateHandler } from './handlers/slugUpdate';
 import { sqlHandler } from './handlers/sql';
 import { registerUpgradeCheckCommand } from './handlers/upgradeCheck';
-import {
-    validateHandler,
-    VALIDATION_SEVERITIES,
-} from './handlers/validate';
+import { validateHandler, VALIDATION_SEVERITIES } from './handlers/validate';
 import { warehouseCatalogHandler } from './handlers/warehouseCatalog';
 import * as styles from './styles';
 // Trigger CLI tests
