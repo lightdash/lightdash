@@ -44,10 +44,11 @@ const EmbedDashboardChartEditorModal: FC<Props> = ({
             ...embedContext,
             onBackToDashboard: undefined,
             savedChart: undefined,
+            customSqlProvenanceChartUuid: editChart?.uuid,
             savedQueryUuid: undefined,
             onChartSaved,
         }),
-        [embedContext, onChartSaved],
+        [editChart?.uuid, embedContext, onChartSaved],
     );
 
     return (

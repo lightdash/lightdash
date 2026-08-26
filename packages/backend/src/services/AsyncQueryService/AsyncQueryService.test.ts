@@ -1690,7 +1690,7 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncMetricQuery', () => {
-        test('forwards the Data App preview token to custom SQL authorization', async () => {
+        test('forwards trusted provenance inputs to custom SQL authorization', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             const assertCustomSqlAuthorizedForQuery = vi
                 .spyOn(service as AnyType, 'assertCustomSqlAuthorizedForQuery')
@@ -1705,11 +1705,13 @@ describe('AsyncQueryService', () => {
                 metricQuery: metricQueryMock,
                 context: QueryExecutionContext.EXPLORE,
                 dataAppPreviewToken: 'signed-preview-token',
+                customSqlProvenanceChartUuid: 'chart-uuid',
             });
 
             expect(assertCustomSqlAuthorizedForQuery).toHaveBeenCalledWith(
                 expect.objectContaining({
                     dataAppPreviewToken: 'signed-preview-token',
+                    customSqlProvenanceChartUuid: 'chart-uuid',
                 }),
             );
         });

@@ -70,6 +70,11 @@ export const useExplorerQueryManager = ({
     );
 
     const embed = useEmbed();
+    const customSqlProvenanceChartUuid =
+        embed?.customSqlProvenanceChartUuid ??
+        (embed?.savedChart && 'uuid' in embed.savedChart
+            ? embed.savedChart.uuid
+            : undefined);
     const routeProjectUuid = useProjectUuid();
     const params = useParams<{
         savedQueryUuid: string;
@@ -181,6 +186,7 @@ export const useExplorerQueryManager = ({
             dateZoomGranularity,
             minimal,
             usePreAggregateCache: preAggCacheEnabled,
+            customSqlProvenanceChartUuid,
             savedChart: chartConfigForQuery,
         });
 
@@ -201,6 +207,7 @@ export const useExplorerQueryManager = ({
         dateZoomGranularity,
         minimal,
         preAggCacheEnabled,
+        customSqlProvenanceChartUuid,
         chartConfigForQuery,
         dispatch,
     ]);

@@ -52,6 +52,7 @@ import {
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
+    type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
@@ -822,6 +823,70 @@ export class SavedChartModel {
             tableCalculations,
             customSqlDimensions: customSqlDimensionMatches,
             additionalMetrics: additionalMetricMatches,
+        };
+    }
+
+    /**
+     * Gets only the persisted custom SQL needed to validate an embedded
+     * Explore. The caller authorizes the chart first; this lookup stays scoped
+     * to its project and latest version without hydrating the full chart.
+     */
+    async getCustomSqlProvenanceForChart({
+        projectUuid,
+        savedChartUuid,
+    }: {
+        projectUuid: UUID;
+        savedChartUuid: UUID;
+    }): Promise<{
+        exploreName: string;
+        tableCalculations: { sql: string }[];
+        customSqlDimensions: { sql: string; table: string }[];
+        additionalMetrics: { sql: string; table: string }[];
+    }> {
+        const version = await this.database(SavedChartsTableName)
+            .innerJoin(
+                SavedChartVersionsTableName,
+                `${SavedChartVersionsTableName}.saved_query_id`,
+                `${SavedChartsTableName}.saved_query_id`,
+            )
+            .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
+            .where(`${SavedChartsTableName}.saved_query_uuid`, savedChartUuid)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .orderBy(`${SavedChartVersionsTableName}.created_at`, 'desc')
+            .orderBy(
+                `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                'desc',
+            )
+            .first<{
+                versionId: number;
+                exploreName: string;
+            }>({
+                versionId: `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                exploreName: `${SavedChartVersionsTableName}.explore_name`,
+            });
+
+        if (!version) {
+            throw new NotFoundError('Saved chart not found');
+        }
+
+        const [tableCalculations, customSqlDimensions, additionalMetrics] =
+            await Promise.all([
+                this.database(SavedChartTableCalculationTableName)
+                    .where('saved_queries_version_id', version.versionId)
+                    .select<{ sql: string }[]>('calculation_raw_sql as sql'),
+                this.database(SavedChartCustomSqlDimensionsTableName)
+                    .where('saved_queries_version_id', version.versionId)
+                    .select<{ sql: string; table: string }[]>('sql', 'table'),
+                this.database(SavedChartAdditionalMetricTableName)
+                    .where('saved_queries_version_id', version.versionId)
+                    .select<{ sql: string; table: string }[]>('sql', 'table'),
+            ]);
+
+        return {
+            exploreName: version.exploreName,
+            tableCalculations,
+            customSqlDimensions,
+            additionalMetrics,
         };
     }
 

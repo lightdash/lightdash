@@ -883,6 +883,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectCompileLogModel: models.getProjectCompileLogModel(),
                     adminNotificationService:
                         repository.getAdminNotificationService(),
+                    permissionsService: repository.getPermissionsService(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
                     contentVerificationModel:
