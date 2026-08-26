@@ -119,7 +119,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .card {
+    .card,
+    .cardEdit {
         transition: none;
     }
 

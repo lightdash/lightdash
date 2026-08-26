@@ -6,7 +6,7 @@ import {
     IconSettings,
     IconX,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useEffect, useRef, type FC } from 'react';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import {
@@ -19,6 +19,7 @@ import {
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
+    CHART_GALLERY_SEARCH_ID,
     CHART_GALLERY_SIDEBAR_TITLE_ID,
     ChartGalleryContext,
 } from '../../common/ChartGallery/ChartGalleryContext';
@@ -47,6 +48,25 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
         dispatch(explorerActions.setChartSidebarStep('choose'));
     const showConfigure = () =>
         dispatch(explorerActions.setChartSidebarStep('configure'));
+
+    // The step swaps the panel's whole body, so whatever was clicked unmounts.
+    // Follow it: into the gallery's search, back onto the control that opened
+    // it. Only on a change, so restoring a step from the URL cannot steal
+    // focus on load.
+    const changeRef = useRef<HTMLButtonElement>(null);
+    const previousStep = useRef(step);
+    useEffect(() => {
+        if (previousStep.current === step) return;
+        previousStep.current = step;
+        if (step === 'choose') {
+            document.getElementById(CHART_GALLERY_SEARCH_ID)?.focus();
+        } else {
+            (
+                changeRef.current ??
+                document.getElementById(CHART_GALLERY_SIDEBAR_TITLE_ID)
+            )?.focus();
+        }
+    }, [step]);
     const handleClose = () => {
         showConfigure();
         onClose();
@@ -181,6 +201,7 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                 )}
                                 {!isAuthoring && (
                                     <Anchor
+                                        ref={changeRef}
                                         component="button"
                                         type="button"
                                         className={classes.buttonAnchor}

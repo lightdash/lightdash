@@ -1,6 +1,6 @@
 import { ChartKind, ChartType } from '@lightdash/common';
 import { IconTable } from '@tabler/icons-react';
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
@@ -11,6 +11,7 @@ import {
     explorerActions,
 } from '../../../features/explorer/store';
 import { renderWithProviders } from '../../../testing/testUtils';
+import { CHART_GALLERY_SEARCH_ID } from '../../common/ChartGallery/ChartGalleryContext';
 import ExplorerChartSidebar from './ExplorerChartSidebar';
 
 vi.mock('../VisualizationCard/VisualizationConfig', () => ({
@@ -18,7 +19,15 @@ vi.mock('../VisualizationCard/VisualizationConfig', () => ({
 }));
 vi.mock('./ChartTypeGallery', () => ({
     default: ({ onSelected }: { onSelected: () => void }) => (
-        <button onClick={onSelected}>Select chart</button>
+        <>
+            {/* The real gallery's search carries this id; the sidebar sends
+                focus to it by id when the step opens. */}
+            <input
+                id={CHART_GALLERY_SEARCH_ID}
+                aria-label="Search chart types"
+            />
+            <button onClick={onSelected}>Select chart</button>
+        </>
     ),
     ChartTypeThumbnail: () => <span>Table thumbnail</span>,
 }));
@@ -205,6 +214,51 @@ describe('ExplorerChartSidebar', () => {
         );
 
         expect(screen.getByText('Configure controls')).toBeInTheDocument();
+    });
+
+    it('follows the step into the gallery search and back onto Change', async () => {
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.TABLE}
+                onClose={vi.fn()}
+            />,
+        );
+
+        // Nothing is stolen on mount; Configure is where the panel opens.
+        expect(document.body).toHaveFocus();
+
+        await userEvent.click(screen.getByText('Change'));
+        expect(
+            screen.getByRole('textbox', { name: 'Search chart types' }),
+        ).toHaveFocus();
+
+        await userEvent.click(screen.getByText('Select chart'));
+        expect(screen.getByText('Change')).toHaveFocus();
+    });
+
+    it('falls back to the panel title when Change is not on screen', async () => {
+        const store = createExplorerStore();
+        store.dispatch(explorerActions.setIsEditMode(true));
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.TABLE}
+                onClose={vi.fn()}
+            />,
+            store,
+        );
+
+        await userEvent.click(screen.getByText('Change'));
+        // Authoring returns to Configure and takes Change away with it; the
+        // step still has somewhere to land.
+        await act(async () =>
+            store.dispatch(
+                explorerActions.startChartTypeAuthoring({
+                    dataAppVizUuid: null,
+                }),
+            ),
+        );
+
+        expect(screen.getByText('Generated options')).toHaveFocus();
     });
 
     it('reopens in Configure after closing from Choose', async () => {

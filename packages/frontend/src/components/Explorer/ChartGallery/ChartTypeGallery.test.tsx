@@ -1,6 +1,6 @@
 import { ChartType, type DataAppViz, type ItemsMap } from '@lightdash/common';
 import { IconChartBar } from '@tabler/icons-react';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -203,6 +203,77 @@ describe('ChartTypeGallery', () => {
         expect(
             screen.getByRole('button', { name: 'Create new chart type' }),
         ).toBeInTheDocument();
+    });
+
+    it('groups each shelf under its own label', () => {
+        renderWithProviders(
+            <ChartTypeGallery
+                search=""
+                onSearchChange={vi.fn()}
+                sections={[
+                    gallerySection({ items: [galleryItem('Bar chart')] }),
+                    gallerySection({
+                        label: 'Project',
+                        items: [galleryItem('Event pulse')],
+                    }),
+                ]}
+            />,
+        );
+
+        expect(
+            within(screen.getByRole('group', { name: 'Built in' })).getByRole(
+                'button',
+                { name: 'Bar chart' },
+            ),
+        ).toBeInTheDocument();
+        expect(
+            within(screen.getByRole('group', { name: 'Project' })).getByRole(
+                'button',
+                { name: 'Event pulse' },
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('marks the picked card as pressed, like the other card pickers', () => {
+        renderWithProviders(
+            <ChartTypeGallery
+                search=""
+                onSearchChange={vi.fn()}
+                sections={[
+                    gallerySection({
+                        items: [
+                            { ...galleryItem('Bar chart'), selected: true },
+                            galleryItem('Line chart'),
+                        ],
+                    }),
+                ]}
+            />,
+        );
+
+        expect(
+            screen.getByRole('button', { name: 'Bar chart', pressed: true }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Line chart', pressed: false }),
+        ).toBeInTheDocument();
+    });
+
+    it('flags a section that failed to load', () => {
+        renderWithProviders(
+            <ChartTypeGallery
+                search=""
+                onSearchChange={vi.fn()}
+                sections={[
+                    gallerySection({
+                        errorMessage: 'Failed to load project chart types',
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            'Failed to load project chart types',
+        );
     });
 
     it('shows the empty message when a section has no items', () => {
