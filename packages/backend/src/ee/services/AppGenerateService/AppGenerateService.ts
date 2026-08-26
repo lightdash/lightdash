@@ -8576,6 +8576,7 @@ export class AppGenerateService extends BaseService {
             appUuid: row.app_id,
             appName: row.app_name,
             appDeleted: row.app_deleted_at !== null,
+            template: row.app_template,
             version: row.version,
             status: row.status,
             prompt: row.prompt,

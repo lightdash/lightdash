@@ -123,6 +123,7 @@ export type DbAppActivityRow = Pick<
     | 'created_by_user_uuid'
 > & {
     app_name: string;
+    app_template: DbApp['template'];
     app_deleted_at: Date | null;
     project_uuid: string;
     project_name: string;

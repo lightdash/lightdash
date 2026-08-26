@@ -1,4 +1,5 @@
 import {
+    DATA_APP_VIZ_TEMPLATE,
     getAppDisplayName,
     type DataAppActivityEvent,
     type DataAppGenerationUsage,
@@ -12,6 +13,7 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
+import { IconAppWindow, IconPuzzle } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
 import { Link } from 'react-router';
@@ -21,6 +23,7 @@ import {
     type ContentTableColumnDef,
 } from '../../../components/common/ContentTable';
 import ErrorState from '../../../components/common/ErrorState';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useIsTruncated } from '../../../hooks/useIsTruncated/index';
 import { useInfiniteDataAppActivity } from '../hooks/useDataAppActivity';
@@ -194,8 +197,26 @@ export const DataAppActivityTable: FC = () => {
                         row.original.appName,
                         row.original.appUuid,
                     );
+                    const isChartType =
+                        row.original.template === DATA_APP_VIZ_TEMPLATE;
                     return (
                         <Group gap="xs" wrap="nowrap">
+                            <Tooltip
+                                label={
+                                    isChartType
+                                        ? 'Custom chart type'
+                                        : 'Data app'
+                                }
+                                withinPortal
+                            >
+                                <MantineIcon
+                                    icon={
+                                        isChartType ? IconPuzzle : IconAppWindow
+                                    }
+                                    color="ldGray.6"
+                                    style={{ flex: '0 0 auto' }}
+                                />
+                            </Tooltip>
                             {row.original.appDeleted ? (
                                 // Deleted apps have nothing to open.
                                 <Text fz="sm" c="ldGray.9" truncate>
@@ -204,7 +225,11 @@ export const DataAppActivityTable: FC = () => {
                             ) : (
                                 <Anchor
                                     component={Link}
-                                    to={`/projects/${row.original.projectUuid}/apps/${row.original.appUuid}`}
+                                    to={
+                                        isChartType
+                                            ? `/projects/${row.original.projectUuid}/chart-types/${row.original.appUuid}`
+                                            : `/projects/${row.original.projectUuid}/apps/${row.original.appUuid}`
+                                    }
                                     fz="sm"
                                     c="inherit"
                                     underline="hover"
@@ -372,10 +397,12 @@ export const DataAppActivityTable: FC = () => {
                 selectedUserUuids={filters.selectedUserUuids}
                 selectedModels={filters.selectedModels}
                 selectedPeriod={filters.selectedPeriod}
+                selectedKind={filters.selectedKind}
                 setSelectedProjectUuids={filters.setSelectedProjectUuids}
                 setSelectedUserUuids={filters.setSelectedUserUuids}
                 setSelectedModels={filters.setSelectedModels}
                 setSelectedPeriod={filters.setSelectedPeriod}
+                setSelectedKind={filters.setSelectedKind}
                 hasActiveFilters={filters.hasActiveFilters}
                 resetFilters={filters.resetFilters}
                 totalResults={totalResults}
