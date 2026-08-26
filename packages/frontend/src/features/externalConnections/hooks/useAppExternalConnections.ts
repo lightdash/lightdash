@@ -1,20 +1,16 @@
 import {
     type ApiError,
-    type AppExternalConnectionLink,
     type AppExternalConnectionLinked,
-} from '@lightdash/common';
+} from '@lightdash/common'; // pragma: allowlist secret
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { lightdashApi } from '../../../api'; // pragma: allowlist secret
 
 const getAppExternalConnections = async (
     projectUuid: string,
     appUuid: string,
 ) =>
-    lightdashApi<AppExternalConnectionLink[]>({
-        url: `/ee/projects/${projectUuid}/apps/${appUuid}/external-connections`,
-        method: 'GET',
-        body: undefined,
-    });
+    // oxfmt-ignore
+    lightdashApi<AppExternalConnectionLinked[]>({ url: `/ee/projects/${projectUuid}/apps/${appUuid}/external-connections`, method: 'GET', body: undefined }); // pragma: allowlist secret
 
 export const useAppExternalConnections = (
     projectUuid: string | undefined,
@@ -22,9 +18,6 @@ export const useAppExternalConnections = (
 ) =>
     useQuery<AppExternalConnectionLinked[], ApiError>({
         queryKey: ['app-external-connections', projectUuid, appUuid],
-        queryFn: () =>
-            getAppExternalConnections(projectUuid!, appUuid!) as Promise<
-                AppExternalConnectionLinked[]
-            >,
+        queryFn: () => getAppExternalConnections(projectUuid!, appUuid!),
         enabled: !!projectUuid && !!appUuid,
     });
