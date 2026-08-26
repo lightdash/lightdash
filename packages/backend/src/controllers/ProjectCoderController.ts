@@ -10,6 +10,9 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiContentAsCodeProposeResponse,
+    type ApiContentAsCodeSettingsResponse,
+    type ApiContentAsCodeWritebacksResponse,
     type ApiDashboardAsCodeListResponse,
     type ApiDashboardAsCodeUpsertResponse,
     type ApiErrorPayload,
@@ -59,6 +62,7 @@ import {
     CODE_READ_MIDDLEWARES,
     CODE_WRITE_MIDDLEWARES,
     codeSuccess,
+    toWritebackSummary,
 } from './CoderControllerUtils';
 
 type AiAgentCoder = {
@@ -116,6 +120,81 @@ export class ProjectCoderController extends BaseController {
             .getCoderService()
             .renameContentSlug(toSessionUser(req.account), projectUuid, body);
         return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * List this instance's content-as-code write-back PRs for the project.
+     * Pass refresh=true to also re-check open PRs against the git provider
+     * (a merged PR then reads as merged instead of a stale pending badge).
+     * @summary List content-as-code write-backs
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/writebacks')
+    @OperationId('listContentAsCodeWritebacks')
+    async listContentAsCodeWritebacks(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() refresh?: boolean,
+    ): Promise<ApiContentAsCodeWritebacksResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const rows = await this.services
+            .getContentAsCodeWritebackService()
+            .listWritebacks(toSessionUser(req.account), projectUuid, {
+                refresh,
+            });
+        return codeSuccess(rows.map(toWritebackSummary));
+    }
+
+    /**
+     * Propose the current instance version of a managed chart back to the
+     * connected repo: opens (or appends to) this instance's write-back PR
+     * for the slug. The retroactive migration path for drifted content.
+     * @summary Propose chart to git
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/writebacks/charts/{slug}/propose')
+    @OperationId('proposeChartToGit')
+    async proposeChartToGit(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentAsCodeProposeResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const row = await this.services
+            .getContentAsCodeWritebackService()
+            .proposeChart(toSessionUser(req.account), projectUuid, slug);
+        return codeSuccess(toWritebackSummary(row));
+    }
+
+    /**
+     * The content_as_code flags last stamped on this project by an upload
+     * @summary Get content-as-code settings
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/sync-settings')
+    @OperationId('getContentAsCodeSettings')
+    async getContentAsCodeSettings(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentAsCodeSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getCoderService()
+                .getContentAsCodeSettings(
+                    toSessionUser(req.account),
+                    projectUuid,
+                ),
+        );
     }
 
     /**

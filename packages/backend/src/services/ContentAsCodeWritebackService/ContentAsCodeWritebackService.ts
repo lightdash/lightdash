@@ -1,10 +1,15 @@
+import { subject } from '@casl/ability';
 import {
     ContentAsCodeType,
+    DbtProjectType,
+    ForbiddenError,
+    ParameterError,
     PullRequestSource,
     type ChartAsCode,
     type SessionUser,
 } from '@lightdash/common';
 import * as yaml from 'js-yaml';
+import * as GithubClient from '../../clients/github/Github';
 import { LightdashConfig } from '../../config/parseConfig';
 import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
 import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
@@ -12,22 +17,19 @@ import {
     ContentAsCodeWritebackModel,
     type ContentAsCodeWriteback,
 } from '../../models/ContentAsCodeWritebackModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
 import { CoderService } from '../CoderService/CoderService';
 import { GitIntegrationService } from '../GitIntegrationService/GitIntegrationService';
 
 type ContentAsCodeWritebackServiceArguments = {
     lightdashConfig: LightdashConfig;
+    projectModel: ProjectModel;
     gitIntegrationService: GitIntegrationService;
     coderService: CoderService;
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
     contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
     contentAsCodeWritebackModel: ContentAsCodeWritebackModel;
-};
-
-type ChartWritebackArgs = {
-    projectUuid: string;
-    savedChartUuid: string;
-    slug: string;
 };
 
 // Matches the CLI's writeContent (packages/cli/src/handlers/download.ts):
@@ -69,9 +71,13 @@ const buildCommitMessage = (
 export class ContentAsCodeWritebackService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
+    private readonly projectModel: ProjectModel;
+
     private readonly gitIntegrationService: GitIntegrationService;
 
     private readonly coderService: CoderService;
+
+    private readonly contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
 
     private readonly contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
 
@@ -80,8 +86,11 @@ export class ContentAsCodeWritebackService extends BaseService {
     constructor(args: ContentAsCodeWritebackServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
+        this.projectModel = args.projectModel;
         this.gitIntegrationService = args.gitIntegrationService;
         this.coderService = args.coderService;
+        this.contentAsCodeProjectSettingsModel =
+            args.contentAsCodeProjectSettingsModel;
         this.contentAsCodeSnapshotModel = args.contentAsCodeSnapshotModel;
         this.contentAsCodeWritebackModel = args.contentAsCodeWritebackModel;
     }
@@ -102,31 +111,136 @@ export class ContentAsCodeWritebackService extends BaseService {
         return prefix === '' ? base : `${prefix}/${base}`;
     }
 
-    /**
-     * Opens (or appends a commit to) this instance's write-back PR for the
-     * chart. One live branch and PR per slug per instance; later calls add
-     * commits to the same PR.
-     */
-    async writeChartToWritebackPr(
+    // The migration path: instances are already ahead today, so drifted
+    // content can be proposed back to the repo on demand using the same
+    // plumbing as save-time write-back. Runs inline (user-initiated).
+    async proposeChart(
         user: SessionUser,
-        args: ChartWritebackArgs,
-    ): Promise<void> {
-        const { projectUuid, savedChartUuid, slug } = args;
-
-        // Managed content only: never write back content that has no
-        // last-applied marker (that's the explicit add-to-git flow)
+        projectUuid: string,
+        slug: string,
+    ): Promise<ContentAsCodeWriteback> {
+        const settings =
+            await this.contentAsCodeProjectSettingsModel.get(projectUuid);
+        if (!settings?.syncEnabled) {
+            throw new ParameterError(
+                'Proposing content to git requires content_as_code.sync to be enabled in the repo and stamped by an upload',
+            );
+        }
+        // Permission (view) and slug resolution in one place
+        const { contentUuid } =
+            await this.coderService.getCurrentContentVersionBySlug(
+                user,
+                projectUuid,
+                'chart',
+                slug,
+            );
         const snapshot = await this.contentAsCodeSnapshotModel.get(
             projectUuid,
             ContentAsCodeType.CHART,
             slug,
         );
         if (snapshot === undefined) {
-            this.logger.debug(
-                `Skipping content-as-code write-back for ${slug}: not managed (no last-applied snapshot)`,
+            throw new ParameterError(
+                `Chart "${slug}" is not managed as code; adding new content to git is an explicit add-to-git action`,
+            );
+        }
+        return this.writeChartToWritebackPr(user, {
+            projectUuid,
+            savedChartUuid: contentUuid,
+            slug,
+        });
+    }
+
+    async listWritebacks(
+        user: SessionUser,
+        projectUuid: string,
+        options: { refresh?: boolean } = {},
+    ): Promise<ContentAsCodeWriteback[]> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const rows =
+            await this.contentAsCodeWritebackModel.listByProject(projectUuid);
+        if (options.refresh) {
+            await this.refreshOpenPullRequestStates(user, projectUuid, rows);
+            return this.contentAsCodeWritebackModel.listByProject(projectUuid);
+        }
+        return rows;
+    }
+
+    // A merged-but-not-yet-deployed PR should read "merged, applies on the
+    // next deploy" instead of a stale pending badge.
+    private async refreshOpenPullRequestStates(
+        user: SessionUser,
+        projectUuid: string,
+        rows: ContentAsCodeWriteback[],
+    ): Promise<void> {
+        const openRows = rows.filter(
+            (row) => row.status === 'open' && row.prNumber !== null,
+        );
+        if (openRows.length === 0) return;
+        let repo;
+        let creds;
+        try {
+            repo = await this.gitIntegrationService.getProjectRepo(projectUuid);
+            if (repo.type !== DbtProjectType.GITHUB) return;
+            creds = await this.gitIntegrationService.getGitCredentials(
+                user,
+                projectUuid,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Could not resolve git credentials to refresh write-back PR states on project ${projectUuid}`,
+                error,
             );
             return;
         }
+        await Promise.all(
+            openRows.map(async (row) => {
+                try {
+                    const pr = await GithubClient.getPullRequest({
+                        owner: creds.owner,
+                        repo: creds.repo,
+                        pullNumber: row.prNumber!,
+                        installationId: creds.installationId,
+                        token: creds.token,
+                    });
+                    if (pr.merged) {
+                        await this.contentAsCodeWritebackModel.update(
+                            row.uuid,
+                            { status: 'merged' },
+                        );
+                    } else if (pr.state === 'closed') {
+                        await this.contentAsCodeWritebackModel.update(
+                            row.uuid,
+                            { status: 'closed' },
+                        );
+                    }
+                } catch (error) {
+                    this.logger.warn(
+                        `Could not refresh write-back PR state for ${row.slug} on project ${projectUuid}`,
+                        error,
+                    );
+                }
+            }),
+        );
+    }
 
+    private async writeChartToWritebackPr(
+        user: SessionUser,
+        target: { projectUuid: string; savedChartUuid: string; slug: string },
+    ): Promise<ContentAsCodeWriteback> {
+        const { projectUuid, slug } = target;
         let row = await this.contentAsCodeWritebackModel.findLive(
             projectUuid,
             ContentAsCodeType.CHART,
@@ -156,7 +270,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         }
 
         try {
-            await this.pushChartToBranch(user, args, row);
+            await this.pushChartToBranch(user, target, row);
         } catch (error) {
             const message = error instanceof Error ? error.message : `${error}`;
             this.logger.error(
@@ -168,14 +282,20 @@ export class ContentAsCodeWritebackService extends BaseService {
             });
             throw error;
         }
+        const updated = await this.contentAsCodeWritebackModel.findLive(
+            projectUuid,
+            ContentAsCodeType.CHART,
+            slug,
+        );
+        return updated ?? row;
     }
 
     private async pushChartToBranch(
         user: SessionUser,
-        args: ChartWritebackArgs,
+        target: { projectUuid: string; savedChartUuid: string; slug: string },
         row: ContentAsCodeWriteback,
     ): Promise<void> {
-        const { projectUuid, savedChartUuid, slug } = args;
+        const { projectUuid, savedChartUuid, slug } = target;
         const repo =
             await this.gitIntegrationService.getProjectRepo(projectUuid);
 

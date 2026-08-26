@@ -6,12 +6,6 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import { ContentAsCodeWritebackService } from './ContentAsCodeWritebackService';
 
-const args = {
-    projectUuid: 'project-uuid',
-    savedChartUuid: 'chart-uuid',
-    slug: 'monthly-revenue',
-};
-
 const user = {
     userUuid: 'user-uuid',
     firstName: 'Demo',
@@ -27,6 +21,7 @@ const chartAsCode = {
 };
 
 type Overrides = {
+    settings?: object | undefined;
     snapshot?: object | undefined;
     liveRow?: object | undefined;
     existingFile?: object | 'missing';
@@ -55,6 +50,18 @@ const buildService = (overrides: Overrides = {}) => {
     };
     const coderService = {
         getPortableChartAsCode: vi.fn().mockResolvedValue(chartAsCode),
+        getCurrentContentVersionBySlug: vi
+            .fn()
+            .mockResolvedValue({ contentUuid: 'chart-uuid' }),
+    };
+    const contentAsCodeProjectSettingsModel = {
+        get: vi
+            .fn()
+            .mockResolvedValue(
+                'settings' in overrides
+                    ? overrides.settings
+                    : { syncEnabled: true },
+            ),
     };
     const contentAsCodeSnapshotModel = {
         get: vi
@@ -81,8 +88,15 @@ const buildService = (overrides: Overrides = {}) => {
     };
     const service = new ContentAsCodeWritebackService({
         lightdashConfig: { siteUrl: 'https://app.lightdash.dev' } as never,
+        projectModel: {
+            getSummary: vi
+                .fn()
+                .mockResolvedValue({ organizationUuid: 'org-uuid' }),
+        } as never,
         gitIntegrationService: gitIntegrationService as never,
         coderService: coderService as never,
+        contentAsCodeProjectSettingsModel:
+            contentAsCodeProjectSettingsModel as never,
         contentAsCodeSnapshotModel: contentAsCodeSnapshotModel as never,
         contentAsCodeWritebackModel: contentAsCodeWritebackModel as never,
     });
@@ -95,18 +109,10 @@ const buildService = (overrides: Overrides = {}) => {
 };
 
 describe('ContentAsCodeWritebackService', () => {
-    it('does nothing for unmanaged content (no last-applied snapshot)', async () => {
-        const { service, gitIntegrationService } = buildService({
-            snapshot: undefined,
-        });
-        await service.writeChartToWritebackPr(user, args);
-        expect(gitIntegrationService.getProjectRepo).not.toHaveBeenCalled();
-    });
-
     it('first save creates the instance branch, commits the YAML, and opens one PR', async () => {
         const { service, gitIntegrationService, contentAsCodeWritebackModel } =
             buildService();
-        await service.writeChartToWritebackPr(user, args);
+        await service.proposeChart(user, 'project-uuid', 'monthly-revenue');
 
         expect(
             gitIntegrationService.createBranchFromSource,
@@ -152,7 +158,7 @@ describe('ContentAsCodeWritebackService', () => {
 
     it('every commit names the acting user and instance', async () => {
         const { service, gitIntegrationService } = buildService();
-        await service.writeChartToWritebackPr(user, args);
+        await service.proposeChart(user, 'project-uuid', 'monthly-revenue');
         const message = gitIntegrationService.saveFile.mock.calls[0][6];
         expect(message).toContain(
             'Project: https://app.lightdash.dev/projects/project-uuid',
@@ -177,7 +183,7 @@ describe('ContentAsCodeWritebackService', () => {
                 path: 'lightdash/charts/monthly-revenue.yml',
             },
         });
-        await service.writeChartToWritebackPr(user, args);
+        await service.proposeChart(user, 'project-uuid', 'monthly-revenue');
 
         const [, , , , , sha] = gitIntegrationService.saveFile.mock.calls[0];
         expect(sha).toBe('old-sha');
@@ -209,8 +215,24 @@ describe('ContentAsCodeWritebackService', () => {
                 path: 'lightdash/charts/monthly-revenue.yml',
             },
         });
-        await service.writeChartToWritebackPr(user, args);
+        await service.proposeChart(user, 'project-uuid', 'monthly-revenue');
         expect(gitIntegrationService.saveFile).not.toHaveBeenCalled();
+    });
+
+    it('propose requires sync to be stamped on the project', async () => {
+        const { service } = buildService({
+            settings: undefined,
+        });
+        await expect(
+            service.proposeChart(user, 'project-uuid', 'monthly-revenue'),
+        ).rejects.toThrow('content_as_code.sync');
+    });
+
+    it('propose rejects unmanaged content', async () => {
+        const { service } = buildService({ snapshot: undefined });
+        await expect(
+            service.proposeChart(user, 'project-uuid', 'monthly-revenue'),
+        ).rejects.toThrow('not managed as code');
     });
 
     it('marks the row as error and rethrows when git fails', async () => {
@@ -220,7 +242,7 @@ describe('ContentAsCodeWritebackService', () => {
             new Error('github says no'),
         );
         await expect(
-            service.writeChartToWritebackPr(user, args),
+            service.proposeChart(user, 'project-uuid', 'monthly-revenue'),
         ).rejects.toThrow('github says no');
         expect(contentAsCodeWritebackModel.update).toHaveBeenCalledWith(
             'row-uuid',
