@@ -136,8 +136,10 @@ export type ApiChartAsCodeListResponse = {
     };
 };
 
-export type ChartAsCodeUpsertResult = PromotionChanges &
-    ContentAsCodeSyncStatus;
+// Interface extension (not intersection) so TSOA emits a flat object schema:
+// an allOf here erases the response's required properties in the OpenAPI spec.
+export interface ChartAsCodeUpsertResult
+    extends PromotionChanges, ContentAsCodeSyncStatus {}
 
 export type ApiChartAsCodeUpsertResponse = {
     status: 'ok';
