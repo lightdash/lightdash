@@ -1,3 +1,15 @@
+# [2.3.0](https://github.com/lightdash/lightdash/compare/2.2.2...2.3.0) (2026-08-26)
+
+
+### Bug Fixes
+
+* gate custom chart type screenshot-ready on iframe announce + viz context ([#28024](https://github.com/lightdash/lightdash/issues/28024)) ([6f4b3ad](https://github.com/lightdash/lightdash/commit/6f4b3ad93e53965116ecfa155e6bc23b60367ade))
+
+
+### Features
+
+* minimal AI-artifact page renders custom chart type answers ([#28033](https://github.com/lightdash/lightdash/issues/28033)) ([7e45be4](https://github.com/lightdash/lightdash/commit/7e45be47dd86d69f48650aa8e4def418745d18cc))
+
 ## [2.2.2](https://github.com/lightdash/lightdash/compare/2.2.1...2.2.2) (2026-08-26)
 
 
