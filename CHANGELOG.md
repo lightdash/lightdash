@@ -1,3 +1,10 @@
+## [2.13.1](https://github.com/lightdash/lightdash/compare/2.13.0...2.13.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* **frontend:** prevent dashboard scroll button overlap ([#28061](https://github.com/lightdash/lightdash/issues/28061)) ([0859c6d](https://github.com/lightdash/lightdash/commit/0859c6df0a8fcba4a99d0a6ae79753a5283bb4c5))
+
 # [2.13.0](https://github.com/lightdash/lightdash/compare/2.12.0...2.13.0) (2026-08-26)
 
 
