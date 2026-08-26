@@ -1,3 +1,10 @@
+## [2.17.1](https://github.com/lightdash/lightdash/compare/2.17.0...2.17.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* **data-apps:** pass sandbox environments separately ([#28151](https://github.com/lightdash/lightdash/issues/28151)) ([4f04bb2](https://github.com/lightdash/lightdash/commit/4f04bb219204d2ebc1b5d775c4fe748696d63566))
+
 # [2.17.0](https://github.com/lightdash/lightdash/compare/2.16.0...2.17.0) (2026-08-26)
 
 
