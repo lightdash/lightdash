@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import type {
     FindContentDashboardResult,
+    FindContentDataAppResult,
     FindContentResult,
 } from '../types/aiAgentDependencies';
 import { DASHBOARD_CHARTS_PREVIEW_COUNT } from '../utils/truncation';
@@ -124,6 +125,39 @@ const makeMockSpace = (): FindContentResult => ({
     },
 });
 
+const makeMockDataApp = (
+    overrides: Partial<FindContentDataAppResult> = {},
+): FindContentDataAppResult => ({
+    contentType: 'data_app',
+    uuid: 'app-uuid-1',
+    slug: 'sales-forecast',
+    name: 'Sales forecast',
+    description: 'Forecast revenue by region',
+    spaceUuid: 'space-uuid-1',
+    projectUuid: 'project-uuid-1',
+    search_rank: 0.75,
+    viewsCount: 12,
+    createdBy: {
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        userUuid: 'user-uuid-1',
+    },
+    space: {
+        uuid: 'space-uuid-1',
+        name: 'Marketing',
+        slug: 'marketing',
+        breadcrumbs: [
+            {
+                uuid: 'space-uuid-1',
+                name: 'Marketing',
+                slug: 'marketing',
+            },
+        ],
+    },
+    verification: null,
+    ...overrides,
+});
+
 describe('getFindContent', () => {
     const createTool = (
         content: FindContentResult[],
@@ -143,6 +177,45 @@ describe('getFindContent', () => {
         };
     };
     const toolOf = (content: FindContentResult[]) => createTool(content).tool;
+
+    it('renders Data App discovery metadata and canonical viewer link', async () => {
+        const tool = toolOf([makeMockDataApp()]);
+        const output = await executeFindContent(tool, {
+            searchQueries: [{ label: 'forecast revenue' }],
+            spaceSlug: null,
+        });
+
+        expect(output.result).toContain('<dataApp');
+        expect(output.result).toContain('dataAppUuid="app-uuid-1"');
+        expect(output.result).toContain('slug="sales-forecast"');
+        expect(output.result).toContain('searchRank="0.75"');
+        expect(output.result).toContain('spaceUuid="space-uuid-1"');
+        expect(output.result).toContain('viewsCount="12"');
+        expect(output.result).toContain(
+            'href="/projects/project-uuid-1/apps/app-uuid-1/view"',
+        );
+        expect(output.result).toContain('<name>Sales forecast</name>');
+        expect(output.result).toContain(
+            '<description>Forecast revenue by region</description>',
+        );
+        expect(output.result).toContain('<createdby>Ada Lovelace</createdby>');
+        expect(output.result).toContain('breadcrumb="Marketing"');
+    });
+
+    it('keeps Data Apps in verified-only search without empty guidance', async () => {
+        const tool = toolOf([
+            makeMockDataApp({ spaceUuid: null, space: null }),
+        ]);
+        const output = await executeFindContent(tool, {
+            searchQueries: [{ label: 'forecast revenue' }],
+            spaceSlug: null,
+            verifiedOnly: true,
+        });
+
+        expect(output.result).toContain('<dataApp');
+        expect(output.result).not.toContain('No verified content matched');
+        expect(output.result).not.toContain('<space ');
+    });
 
     it('renders spaces and forwards the space filter', async () => {
         const { tool, mockFindContent } = createTool([makeMockSpace()]);

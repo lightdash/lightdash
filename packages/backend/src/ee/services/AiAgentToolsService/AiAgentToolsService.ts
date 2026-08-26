@@ -147,6 +147,14 @@ type AgentListContentResult = Awaited<ReturnType<ListContentFn>>;
 type AgentListContentItem = AgentListContentResult['items'][number];
 type ProjectSpace = Awaited<ReturnType<ProjectService['getSpaces']>>[number];
 type ContentAsCodeType = Parameters<ReadContentFn>[0]['type'];
+type SearchContentResult = Awaited<
+    ReturnType<SearchService['findContent']>
+>['content'][number];
+
+const isDataAppSearchResult = (
+    item: SearchContentResult,
+): item is Extract<SearchContentResult, { contentType: 'data_app' }> =>
+    item.contentType === 'data_app';
 
 const CONTENT_AS_CODE_TYPE_LABELS = {
     dashboard: 'Dashboard',
@@ -1267,21 +1275,59 @@ export class AiAgentToolsService extends BaseService {
                     args.searchQuery.label,
                     verifiedOnly,
                 );
+                const unrestrictedProjectSearch =
+                    scopedSpaceUuids === null &&
+                    (!context.spaceAccess || context.spaceAccess.length === 0);
+                const hasFindContentSpaceScope = (spaceUuid: string) =>
+                    AiAgentToolsService.hasAgentSpaceAccess(
+                        context.spaceAccess,
+                        spaceUuid,
+                    ) &&
+                    (scopedSpaceUuids === null ||
+                        scopedSpaceUuids.has(spaceUuid));
 
                 const contentResults = content.flatMap(
                     (item): FindContentResult[] => {
-                        if (
-                            !AiAgentToolsService.hasAgentSpaceAccess(
-                                context.spaceAccess,
-                                item.spaceUuid,
-                            ) ||
-                            (scopedSpaceUuids !== null &&
-                                !scopedSpaceUuids.has(item.spaceUuid))
-                        ) {
+                        if (isDataAppSearchResult(item)) {
+                            if (item.spaceUuid === null) {
+                                return unrestrictedProjectSearch
+                                    ? [
+                                          {
+                                              ...item,
+                                              space: null,
+                                              verification: null,
+                                          },
+                                      ]
+                                    : [];
+                            }
+
+                            if (!hasFindContentSpaceScope(item.spaceUuid)) {
+                                return [];
+                            }
+
+                            const appSpace = spacesByUuid.get(item.spaceUuid);
+                            if (!appSpace) {
+                                return [];
+                            }
+
+                            return [
+                                {
+                                    ...item,
+                                    space: AiAgentToolsService.getSpaceMetadata(
+                                        appSpace,
+                                        spacesByPath,
+                                    ),
+                                    verification: null,
+                                },
+                            ];
+                        }
+
+                        const { spaceUuid } = item;
+                        if (!hasFindContentSpaceScope(spaceUuid)) {
                             return [];
                         }
 
-                        const space = spacesByUuid.get(item.spaceUuid);
+                        const space = spacesByUuid.get(spaceUuid);
                         if (!space) {
                             return [];
                         }
@@ -1291,7 +1337,7 @@ export class AiAgentToolsService extends BaseService {
                                 space,
                                 spacesByPath,
                             );
-                        if ('charts' in item) {
+                        if (item.contentType === 'dashboard') {
                             return [
                                 {
                                     ...item,

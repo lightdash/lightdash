@@ -19,6 +19,7 @@ import {
     CustomChartTypeLibrary,
     DashboardAsCode,
     DashboardSearchResult,
+    DataAppSearchResult,
     DataAppVizSchema,
     DbtProjectType,
     Explore,
@@ -227,10 +228,17 @@ export type FindContentSpaceResult = {
     verification: null;
 };
 
+export type FindContentDataAppResult = DataAppSearchResult & {
+    contentType: 'data_app';
+    space: FindContentSpaceMetadata | null;
+    verification: null;
+};
+
 export type FindContentResult =
     | FindContentChartResult
     | FindContentDashboardResult
-    | FindContentSpaceResult;
+    | FindContentSpaceResult
+    | FindContentDataAppResult;
 
 export type FindContentFn = (args: {
     searchQuery: ToolFindContentArgs['searchQueries'][number];

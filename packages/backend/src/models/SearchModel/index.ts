@@ -1145,10 +1145,11 @@ export class SearchModel {
         }));
     }
 
-    private async searchApps(
+    async searchDataApps(
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
+        { fullTextSearchOperator = 'AND' }: SearchContentOptions = {},
     ): Promise<DataAppSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.DATA_APP, filters?.type)) {
             return [];
@@ -1161,12 +1162,14 @@ export class SearchModel {
                 searchQuery: query,
             },
             nameColumn: `${AppsTableName}.name`,
+            fullTextSearchOperator,
         });
 
         const searchFilterSql = getFullTextSearchFilterSql({
             database: this.database,
             searchVectorColumn: `${AppsTableName}.search_vector`,
             searchQuery: query,
+            fullTextSearchOperator,
         });
 
         // Only surface apps that have at least one ready version — apps that
@@ -1187,6 +1190,7 @@ export class SearchModel {
             )
             .column(
                 { uuid: `${AppsTableName}.app_id` },
+                `${AppsTableName}.slug`,
                 `${AppsTableName}.name`,
                 `${AppsTableName}.description`,
                 { spaceUuid: `${AppsTableName}.space_uuid` },
@@ -1224,6 +1228,7 @@ export class SearchModel {
 
         return apps.map((app) => ({
             uuid: app.uuid,
+            slug: app.slug,
             name: app.name,
             description: app.description,
             spaceUuid: app.spaceUuid,
@@ -1847,7 +1852,7 @@ export class SearchModel {
             query,
             filters,
         );
-        const dataApps = await this.searchApps(projectUuid, query, filters);
+        const dataApps = await this.searchDataApps(projectUuid, query, filters);
 
         const explores = await this.getProjectExplores(projectUuid);
         const tableErrors = await this.searchTableErrors(

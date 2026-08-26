@@ -17,6 +17,7 @@ import {
     SourceQuery,
     UnitOfTime,
     WarehouseTypes,
+    type DataAppSearchResult,
 } from '@lightdash/common';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
@@ -106,6 +107,7 @@ const makeService = ({
     projectService = {},
     querySourceService = {},
     contentService = {},
+    searchService = {},
 }: {
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
@@ -128,6 +130,7 @@ const makeService = ({
     projectService?: Record<string, unknown>;
     querySourceService?: Record<string, unknown>;
     contentService?: Record<string, unknown>;
+    searchService?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
         builtInSkills: {
@@ -181,7 +184,7 @@ const makeService = ({
                 .mockResolvedValue(verifiedFieldUsage),
         },
         searchModel: {},
-        searchService: {},
+        searchService,
         spaceService: {},
         spaceModel,
         dashboardService,
@@ -223,6 +226,272 @@ function makeRuntimeContext(
 }
 
 describe('AiAgentToolsService', () => {
+    const makeProjectSpace = (uuid: string, path: string, name: string) => ({
+        uuid,
+        path,
+        name,
+        chartCount: 0,
+        dashboardCount: 0,
+        childSpaceCount: 0,
+        appCount: 1,
+        userAccess: undefined,
+    });
+
+    const makeDataAppSearchResult = (
+        overrides: Partial<
+            DataAppSearchResult & { contentType: 'data_app' }
+        > = {},
+    ): DataAppSearchResult & { contentType: 'data_app' } => ({
+        contentType: 'data_app',
+        uuid: 'app-uuid',
+        slug: 'sales-forecast',
+        name: 'Sales forecast',
+        description: 'Forecast revenue by region',
+        spaceUuid: 'sales-space-uuid',
+        projectUuid,
+        search_rank: 0.8,
+        viewsCount: 12,
+        createdBy: {
+            firstName: 'Ada',
+            lastName: 'Lovelace',
+            userUuid,
+        },
+        ...overrides,
+    });
+
+    it('finds Space and personal Data Apps in unrestricted project search', async () => {
+        const searchService = {
+            findContent: vi.fn().mockResolvedValue({
+                content: [
+                    makeDataAppSearchResult(),
+                    makeDataAppSearchResult({
+                        uuid: 'personal-app-uuid',
+                        slug: 'personal-forecast',
+                        name: 'Personal forecast',
+                        spaceUuid: null,
+                    }),
+                ],
+            }),
+        };
+        const service = makeService({
+            projectSpaces: [
+                makeProjectSpace('sales-space-uuid', 'sales', 'Sales'),
+            ],
+            searchService,
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .findContent({
+                searchQuery: { label: 'forecast revenue' },
+                spaceSlug: null,
+                verifiedOnly: true,
+            });
+
+        expect(result.content).toEqual([
+            expect.objectContaining({
+                contentType: 'data_app',
+                uuid: 'app-uuid',
+                space: expect.objectContaining({ slug: 'sales' }),
+                verification: null,
+            }),
+            expect.objectContaining({
+                contentType: 'data_app',
+                uuid: 'personal-app-uuid',
+                space: null,
+                verification: null,
+            }),
+        ]);
+        expect(searchService.findContent).toHaveBeenCalledWith(
+            user,
+            projectUuid,
+            'forecast revenue',
+            true,
+        );
+    });
+
+    it('drops apps whose Space is not caller-visible, like charts and dashboards', async () => {
+        const searchService = {
+            findContent: vi.fn().mockResolvedValue({
+                content: [
+                    makeDataAppSearchResult({
+                        uuid: 'creator-app-uuid',
+                        spaceUuid: 'hidden-space-uuid',
+                    }),
+                ],
+            }),
+        };
+        const service = makeService({ searchService });
+
+        const args = {
+            searchQuery: { label: 'forecast' },
+            spaceSlug: null,
+            verifiedOnly: false,
+        } as const;
+        const [unrestrictedResult, scopedResult] = await Promise.all([
+            service.createRuntime(makeRuntimeContext()).findContent(args),
+            service
+                .createRuntime(
+                    makeRuntimeContext({
+                        spaceAccess: ['hidden-space-uuid'],
+                    }),
+                )
+                .findContent(args),
+        ]);
+
+        for (const result of [unrestrictedResult, scopedResult]) {
+            expect(result.content).toEqual([]);
+        }
+    });
+
+    it('keeps Data Apps alongside verified dashboards in verified-only search', async () => {
+        const searchService = {
+            findContent: vi.fn().mockResolvedValue({
+                content: [
+                    {
+                        contentType: 'dashboard',
+                        uuid: 'verified-dashboard-uuid',
+                        name: 'Verified dashboard',
+                        spaceUuid: 'sales-space-uuid',
+                        verification: {
+                            verifiedBy: {
+                                userUuid,
+                                firstName: 'Ada',
+                                lastName: 'Lovelace',
+                            },
+                            verifiedAt: new Date('2026-01-01'),
+                        },
+                    },
+                    makeDataAppSearchResult(),
+                ],
+            }),
+        };
+        const service = makeService({
+            projectSpaces: [
+                makeProjectSpace('sales-space-uuid', 'sales', 'Sales'),
+            ],
+            searchService,
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .findContent({
+                searchQuery: { label: 'forecast' },
+                spaceSlug: null,
+                verifiedOnly: true,
+            });
+
+        expect(
+            result.content.map(({ contentType, uuid }) => ({
+                contentType,
+                uuid,
+            })),
+        ).toEqual([
+            {
+                contentType: 'dashboard',
+                uuid: 'verified-dashboard-uuid',
+            },
+            { contentType: 'data_app', uuid: 'app-uuid' },
+        ]);
+        expect(searchService.findContent).toHaveBeenCalledWith(
+            user,
+            projectUuid,
+            'forecast',
+            true,
+        );
+    });
+
+    it('limits Data Apps to an explicit Space and descendants', async () => {
+        const searchService = {
+            findContent: vi.fn().mockResolvedValue({
+                content: [
+                    makeDataAppSearchResult(),
+                    makeDataAppSearchResult({
+                        uuid: 'child-app-uuid',
+                        spaceUuid: 'child-space-uuid',
+                    }),
+                    makeDataAppSearchResult({
+                        uuid: 'other-app-uuid',
+                        spaceUuid: 'other-space-uuid',
+                    }),
+                    makeDataAppSearchResult({
+                        uuid: 'personal-app-uuid',
+                        spaceUuid: null,
+                    }),
+                ],
+            }),
+        };
+        const service = makeService({
+            projectSpaces: [
+                makeProjectSpace('sales-space-uuid', 'sales', 'Sales'),
+                makeProjectSpace(
+                    'child-space-uuid',
+                    'sales.pipeline',
+                    'Pipeline',
+                ),
+                makeProjectSpace('other-space-uuid', 'finance', 'Finance'),
+            ],
+            searchService,
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .findContent({
+                searchQuery: { label: 'forecast' },
+                spaceSlug: 'sales',
+                verifiedOnly: false,
+            });
+
+        expect(result.content.map(({ uuid }) => uuid)).toEqual([
+            'app-uuid',
+            'child-app-uuid',
+        ]);
+        expect(result.content).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ contentType: 'data_app' }),
+            ]),
+        );
+    });
+
+    it('does not let creator visibility bypass agent Space scope', async () => {
+        const searchService = {
+            findContent: vi.fn().mockResolvedValue({
+                content: [
+                    makeDataAppSearchResult(),
+                    makeDataAppSearchResult({
+                        uuid: 'blocked-app-uuid',
+                        spaceUuid: 'blocked-space-uuid',
+                    }),
+                    makeDataAppSearchResult({
+                        uuid: 'creator-personal-app-uuid',
+                        spaceUuid: null,
+                    }),
+                ],
+            }),
+        };
+        const service = makeService({
+            projectSpaces: [
+                makeProjectSpace('sales-space-uuid', 'sales', 'Sales'),
+            ],
+            searchService,
+        });
+
+        const result = await service
+            .createRuntime(
+                makeRuntimeContext({ spaceAccess: ['sales-space-uuid'] }),
+            )
+            .findContent({
+                searchQuery: { label: 'forecast' },
+                spaceSlug: null,
+                verifiedOnly: false,
+            });
+
+        expect(result.content.map(({ uuid }) => uuid)).toEqual(['app-uuid']);
+        expect(result.content[0]).toEqual(
+            expect.objectContaining({ contentType: 'data_app' }),
+        );
+    });
+
     it('returns canonical viewer URLs when listing space content', async () => {
         const contentService = {
             find: vi.fn().mockResolvedValue({
