@@ -14,6 +14,7 @@ import {
     AiAgentSummary,
     AiAgentThread,
     AiAgentThreadFilters,
+    AiAgentThreadLiveStatus,
     AiAgentThreadPullRequest,
     AiAgentThreadSummary,
     AiAgentThreadWorkstream,
@@ -414,6 +415,7 @@ import {
     resolveAgentSelectionPrompt,
 } from './agentSelectionPrompt';
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
+import { deriveAiAgentThreadLiveStatus } from './aiAgentThreadLiveStatus';
 import {
     canGeneratePostResponseSuggestions,
     filterSuggestionsByEnabledTools,
@@ -2721,6 +2723,13 @@ export class AiAgentService extends BaseService {
             userUuid: canViewAllThreads ? undefined : user.userUuid,
             createdFrom: ['web_app', 'slack'],
         });
+        const liveStatuses = await this.getLiveStatusesForVisibleThreads(
+            organizationUuid,
+            threads.map((thread) => thread.uuid),
+        );
+        const liveStatusesByThreadUuid = new Map(
+            liveStatuses.map((status) => [status.threadUuid, status]),
+        );
 
         const slackUserIds = _.uniq(
             threads
@@ -2736,8 +2745,12 @@ export class AiAgentService extends BaseService {
         );
 
         return threads.map((thread) => {
+            const threadWithLiveStatus = {
+                ...thread,
+                liveStatus: liveStatusesByThreadUuid.get(thread.uuid) ?? null,
+            };
             if (thread.createdFrom !== 'slack') {
-                return thread;
+                return threadWithLiveStatus;
             }
 
             const slackUser = slackUsers.find(
@@ -2747,7 +2760,7 @@ export class AiAgentService extends BaseService {
             );
 
             return {
-                ...thread,
+                ...threadWithLiveStatus,
                 user: {
                     name: slackUser?.name ?? thread.user.name,
                     uuid: thread.user.uuid,
@@ -2820,6 +2833,13 @@ export class AiAgentService extends BaseService {
                 search: filters?.search,
                 paginateArgs,
             });
+        const liveStatuses = await this.getLiveStatusesForVisibleThreads(
+            organizationUuid,
+            threads.map((thread) => thread.uuid),
+        );
+        const liveStatusesByThreadUuid = new Map(
+            liveStatuses.map((status) => [status.threadUuid, status]),
+        );
 
         const slackUserIds = _.uniq(
             threads
@@ -2854,8 +2874,12 @@ export class AiAgentService extends BaseService {
         ).filter((slackUser) => slackUser !== null);
 
         const data = threads.map((thread) => {
+            const threadWithLiveStatus = {
+                ...thread,
+                liveStatus: liveStatusesByThreadUuid.get(thread.uuid) ?? null,
+            };
             if (thread.createdFrom !== 'slack') {
-                return thread;
+                return threadWithLiveStatus;
             }
 
             const slackUser = slackUsers.find(
@@ -2865,7 +2889,7 @@ export class AiAgentService extends BaseService {
             );
 
             return {
-                ...thread,
+                ...threadWithLiveStatus,
                 user: {
                     ...thread.user,
                     name: slackUser?.name ?? thread.user.name,
@@ -2874,6 +2898,60 @@ export class AiAgentService extends BaseService {
         });
 
         return { data, pagination };
+    }
+
+    private async getLiveStatusesForVisibleThreads(
+        organizationUuid: string,
+        threadUuids: string[],
+    ): Promise<AiAgentThreadLiveStatus[]> {
+        const signals = await this.aiAgentModel.findThreadLiveStateSignals({
+            organizationUuid,
+            threadUuids,
+            projectUuid: null,
+            userUuid: null,
+            agentUuids: null,
+        });
+        const now = new Date();
+        return signals.map((threadSignals) =>
+            deriveAiAgentThreadLiveStatus(threadSignals, now),
+        );
+    }
+
+    async getAgentThreadLiveStatuses(
+        user: SessionUser,
+        projectUuid: string,
+        threadUuids: string[],
+    ): Promise<AiAgentThreadLiveStatus[]> {
+        if (threadUuids.length === 0 || threadUuids.length > 100) {
+            throw new ParameterError(
+                'threadUuids must contain between 1 and 100 UUIDs',
+            );
+        }
+
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        const accessibleAgents = await this.listAgents(user, projectUuid);
+        const accessibleAgentUuids = accessibleAgents.map(
+            (agent) => agent.uuid,
+        );
+        if (accessibleAgentUuids.length === 0) {
+            return [];
+        }
+
+        const signals = await this.aiAgentModel.findThreadLiveStateSignals({
+            organizationUuid,
+            threadUuids: _.uniq(threadUuids),
+            projectUuid,
+            userUuid: user.userUuid,
+            agentUuids: accessibleAgentUuids,
+        });
+        const now = new Date();
+        return signals.map((threadSignals) =>
+            deriveAiAgentThreadLiveStatus(threadSignals, now),
+        );
     }
 
     async getAgentThread(

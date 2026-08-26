@@ -212,6 +212,9 @@ import {
 } from '../database/entities/aiEvals';
 import { ServiceAccountsTableName } from '../database/entities/serviceAccounts';
 import { type SqlApprovalDecision } from '../services/ai/tools/sqlApprovals';
+import { type AiAgentThreadLiveStateSignals } from '../services/AiAgentService/aiAgentThreadLiveStatus';
+import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from '../services/AiDeepResearchService/constants';
+import { AI_AGENT_THREAD_PENDING_TIMEOUT_MS } from './aiAgentConstants';
 import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
 import { claimAiPromptExecutionMode } from './claimAiPromptExecutionMode';
 
@@ -398,6 +401,23 @@ type AiThreadSummaryRow = Pick<
         agent_name: string | null;
         agent_image_url: string | null;
     };
+
+type AiAgentThreadLiveStateRow = {
+    thread_uuid: string;
+    thread_created_at: Date;
+    prompt_created_at: Date | null;
+    prompt_responded_at: Date | null;
+    prompt_response: string | null;
+    prompt_error_message: string | null;
+    prompt_interrupted_at: Date | null;
+    run_sql_tool_call_created_at: Date | null;
+    run_sql_tool_result_uuid: string | null;
+    run_sql_approval_decision: AiSqlApprovalDecision | null;
+    pending_writeback_created_at: Date | null;
+    deep_research_status: 'queued' | 'running' | null;
+    deep_research_created_at: Date | null;
+    deep_research_started_at: Date | null;
+};
 
 // Tool names persisted before a tool was renamed. Normalised at the read
 // boundary so historical rows parse as the current tool name and everything
@@ -3006,7 +3026,182 @@ export class AiAgentModel {
                 name: row.user_name || 'Unknown user',
                 slackUserId: row.slack_user_id,
             },
+            liveStatus: null,
         };
+    }
+
+    async findThreadLiveStateSignals({
+        organizationUuid,
+        threadUuids,
+        projectUuid,
+        userUuid,
+        agentUuids,
+    }: {
+        organizationUuid: string;
+        threadUuids: string[];
+        projectUuid: string | null;
+        userUuid: string | null;
+        agentUuids: string[] | null;
+    }): Promise<AiAgentThreadLiveStateSignals[]> {
+        if (threadUuids.length === 0) {
+            return [];
+        }
+
+        const writebackTerminalStatusPlaceholders =
+            AI_WRITEBACK_RUN_TERMINAL_STATUSES.map(() => '?').join(', ');
+        const query = this.database(`${AiThreadTableName} as live_thread`)
+            .joinRaw(
+                `LEFT JOIN LATERAL (
+                    SELECT first_prompt.created_by_user_uuid
+                    FROM ${AiPromptTableName} as first_prompt
+                    WHERE first_prompt.ai_thread_uuid = live_thread.ai_thread_uuid
+                    ORDER BY first_prompt.created_at ASC
+                    LIMIT 1
+                ) as owner_prompt ON true`,
+            )
+            .joinRaw(
+                `LEFT JOIN LATERAL (
+                    SELECT
+                        latest_prompt.ai_prompt_uuid,
+                        latest_prompt.created_at,
+                        latest_prompt.responded_at,
+                        latest_prompt.response,
+                        latest_prompt.error_message,
+                        prompt_interrupt.created_at as interrupted_at,
+                        latest_prompt.created_by_user_uuid
+                    FROM ${AiPromptTableName} as latest_prompt
+                    LEFT JOIN ${AiPromptInterruptTableName} as prompt_interrupt
+                        ON prompt_interrupt.ai_prompt_uuid = latest_prompt.ai_prompt_uuid
+                    WHERE latest_prompt.ai_thread_uuid = live_thread.ai_thread_uuid
+                    ORDER BY latest_prompt.created_at DESC
+                    LIMIT 1
+                ) as latest_prompt ON true`,
+            )
+            .joinRaw(
+                `LEFT JOIN LATERAL (
+                    SELECT
+                        tool_call.created_at,
+                        tool_result.ai_agent_tool_result_uuid,
+                        sql_approval.decision
+                    FROM ${AiAgentToolCallTableName} as tool_call
+                    LEFT JOIN ${AiAgentToolResultTableName} as tool_result
+                        ON tool_result.ai_prompt_uuid = tool_call.ai_prompt_uuid
+                        AND tool_result.tool_call_id = tool_call.tool_call_id
+                    LEFT JOIN ${AiSqlApprovalTableName} as sql_approval
+                        ON sql_approval.tool_call_id = tool_call.tool_call_id
+                    WHERE tool_call.ai_prompt_uuid = latest_prompt.ai_prompt_uuid
+                        AND tool_call.tool_name = 'runSql'
+                    ORDER BY tool_call.created_at DESC
+                ) as run_sql_tool_calls ON true`,
+            )
+            .joinRaw(
+                `LEFT JOIN LATERAL (
+                    SELECT
+                        deep_research_run.status,
+                        deep_research_run.created_at,
+                        deep_research_run.started_at
+                    FROM ${AiDeepResearchRunsTableName} as deep_research_run
+                    WHERE deep_research_run.ai_thread_uuid = live_thread.ai_thread_uuid
+                        AND (
+                            deep_research_run.status = 'queued'
+                            OR (
+                                deep_research_run.status = 'running'
+                                AND deep_research_run.updated_at >= now() - (? * interval '1 minute')
+                            )
+                        )
+                    ORDER BY deep_research_run.created_at DESC
+                    LIMIT 1
+                ) as active_deep_research ON true`,
+                [AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES],
+            )
+            .joinRaw(
+                `LEFT JOIN LATERAL (
+                    SELECT tool_result.created_at
+                    FROM ${AiAgentToolResultTableName} as tool_result
+                    INNER JOIN ${AiWritebackRunTableName} as writeback_run
+                        ON writeback_run.ai_writeback_run_uuid::text = tool_result.metadata->>'aiWritebackRunUuid'
+                        AND writeback_run.tool_call_id = tool_result.tool_call_id
+                    WHERE tool_result.ai_prompt_uuid = latest_prompt.ai_prompt_uuid
+                        AND tool_result.tool_name IN ('editDbtProject', 'proposeWriteback')
+                        AND tool_result.metadata->>'status' = 'pending'
+                        AND writeback_run.status NOT IN (${writebackTerminalStatusPlaceholders})
+                    ORDER BY tool_result.created_at DESC
+                    LIMIT 1
+                ) as pending_writeback ON true`,
+                [...AI_WRITEBACK_RUN_TERMINAL_STATUSES],
+            )
+            .select<AiAgentThreadLiveStateRow[]>(
+                'live_thread.ai_thread_uuid as thread_uuid',
+                'live_thread.created_at as thread_created_at',
+                'latest_prompt.created_at as prompt_created_at',
+                'latest_prompt.responded_at as prompt_responded_at',
+                'latest_prompt.response as prompt_response',
+                'latest_prompt.error_message as prompt_error_message',
+                'latest_prompt.interrupted_at as prompt_interrupted_at',
+                'run_sql_tool_calls.created_at as run_sql_tool_call_created_at',
+                'run_sql_tool_calls.ai_agent_tool_result_uuid as run_sql_tool_result_uuid',
+                'run_sql_tool_calls.decision as run_sql_approval_decision',
+                'pending_writeback.created_at as pending_writeback_created_at',
+                'active_deep_research.status as deep_research_status',
+                'active_deep_research.created_at as deep_research_created_at',
+                'active_deep_research.started_at as deep_research_started_at',
+            )
+            .where('live_thread.organization_uuid', organizationUuid)
+            .whereIn('live_thread.ai_thread_uuid', threadUuids);
+
+        if (projectUuid !== null) {
+            void query.where('live_thread.project_uuid', projectUuid);
+        }
+        if (userUuid !== null) {
+            void query.where('owner_prompt.created_by_user_uuid', userUuid);
+        }
+        if (agentUuids !== null) {
+            void query.whereIn('live_thread.agent_uuid', agentUuids);
+        }
+
+        const rows = await query;
+
+        const signalsByThreadUuid = new Map<
+            string,
+            AiAgentThreadLiveStateSignals
+        >();
+        rows.forEach((row) => {
+            const signals = signalsByThreadUuid.get(row.thread_uuid) ?? {
+                threadUuid: row.thread_uuid,
+                threadCreatedAt: row.thread_created_at,
+                latestPrompt:
+                    row.prompt_created_at === null
+                        ? null
+                        : {
+                              createdAt: row.prompt_created_at,
+                              respondedAt: row.prompt_responded_at,
+                              response: row.prompt_response,
+                              errorMessage: row.prompt_error_message,
+                              interruptedAt: row.prompt_interrupted_at,
+                          },
+                runSqlToolCalls: [],
+                pendingWritebackCreatedAt: row.pending_writeback_created_at,
+                activeDeepResearchRun:
+                    row.deep_research_status === null ||
+                    row.deep_research_created_at === null
+                        ? null
+                        : {
+                              status: row.deep_research_status,
+                              createdAt: row.deep_research_created_at,
+                              startedAt: row.deep_research_started_at,
+                          },
+            };
+            if (row.run_sql_tool_call_created_at !== null) {
+                signals.runSqlToolCalls.push({
+                    createdAt: row.run_sql_tool_call_created_at,
+                    toolResultUuid: row.run_sql_tool_result_uuid,
+                    approvalDecision: row.run_sql_approval_decision,
+                });
+            }
+            signalsByThreadUuid.set(row.thread_uuid, signals);
+        });
+
+        return [...signalsByThreadUuid.values()];
     }
 
     async findPinnedThreadContextUuids(threadUuid: string): Promise<string[]> {
@@ -4733,7 +4928,11 @@ export class AiAgentModel {
 
         if (row.responded_at == null || row.response == null) {
             // if the message was created more than 5 minutes ago, return error
-            if (moment(row.created_at).add(5, 'minutes').isBefore(moment())) {
+            if (
+                moment(row.created_at)
+                    .add(AI_AGENT_THREAD_PENDING_TIMEOUT_MS, 'milliseconds')
+                    .isBefore(moment())
+            ) {
                 return 'error';
             }
             return 'pending';

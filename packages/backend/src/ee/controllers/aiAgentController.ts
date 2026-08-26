@@ -28,6 +28,7 @@ import {
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadGenerateResponse,
     ApiAiAgentThreadGenerateTitleResponse,
+    ApiAiAgentThreadLiveStatusesResponse,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageInterruptResponse,
@@ -479,6 +480,32 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: { data, pagination },
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/threads/live-statuses')
+    @OperationId('getAgentThreadLiveStatuses')
+    async getAgentThreadLiveStatuses(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() threadUuids: UUID[],
+    ): Promise<ApiAiAgentThreadLiveStatusesResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: {
+                statuses:
+                    await this.getAiAgentService().getAgentThreadLiveStatuses(
+                        toSessionUser(req.account),
+                        projectUuid,
+                        threadUuids,
+                    ),
+                generatedAt: new Date().toISOString(),
+            },
         };
     }
 

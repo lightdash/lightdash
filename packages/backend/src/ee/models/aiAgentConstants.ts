@@ -1,0 +1,1 @@
+export const AI_AGENT_THREAD_PENDING_TIMEOUT_MS = 5 * 60 * 1000;
