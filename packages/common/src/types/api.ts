@@ -143,6 +143,7 @@ import {
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
     type ApiContentAsCodeProposeResponse,
+    type ApiContentAsCodePullResponse,
     type ApiContentAsCodeSettingsResponse,
     type ApiContentAsCodeWritebacksResponse,
     type ApiContentDraftReviewResponse,
@@ -1370,6 +1371,7 @@ type ApiResults =
     | ApiContentDraftReviewResponse['results']
     | ApiContentDraftWriteBackResponse['results']
     | ApiContentAsCodeProposeResponse['results']
+    | ApiContentAsCodePullResponse['results']
     | ApiContentAsCodeSettingsResponse['results']
     | ApiGetMetricsTree['results']
     | ApiGetMetricsTreeResponse['results']

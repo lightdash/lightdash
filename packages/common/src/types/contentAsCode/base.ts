@@ -68,6 +68,37 @@ export type ApiContentAsCodeUpsertResponse<
     status: 'ok';
     results: { action: ContentAsCodeUpsertAction } & Extra;
 };
+export enum ContentAsCodeSkipReason {
+    SKIPPED_AHEAD = 'skipped_ahead',
+}
+
+export type ContentAsCodeSkip = {
+    contentType: 'chart' | 'dashboard';
+    slug: string;
+    reason: ContentAsCodeSkipReason;
+    message: string;
+};
+
+/**
+ * Drift outcome of an upsert against the last-applied snapshot: `skips` is
+ * populated when content_as_code.sync enforcement rejected the write.
+ */
+export type ContentAsCodeSyncStatus = {
+    skips?: ContentAsCodeSkip[];
+};
+
+/** Outcome of a server-side pull of content-as-code from the project's repo. */
+export type ContentAsCodePullSummary = {
+    charts: number;
+    dashboards: number;
+    skips: ContentAsCodeSkip[];
+};
+
+export type ApiContentAsCodePullResponse = {
+    status: 'ok';
+    results: ContentAsCodePullSummary;
+};
+
 export type ContentAsCodeWritebackStatus =
     | 'pending'
     | 'open'
