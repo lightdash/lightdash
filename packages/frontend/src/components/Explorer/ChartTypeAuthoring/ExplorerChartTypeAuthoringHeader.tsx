@@ -74,6 +74,7 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
     return (
         <Group className={classes.header} gap="sm" wrap="nowrap">
             <Button
+                className={classes.exit}
                 size="xs"
                 variant="default"
                 leftSection={<MantineIcon icon={IconChevronLeft} size={15} />}

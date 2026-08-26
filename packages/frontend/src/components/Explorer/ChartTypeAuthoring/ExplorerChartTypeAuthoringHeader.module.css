@@ -6,6 +6,12 @@
     background: var(--mantine-color-background-0);
 }
 
+/* The only way out of authoring; the name beside it absorbs the squeeze
+   instead, where an ellipsis costs nothing. */
+.exit {
+    flex: 0 0 auto;
+}
+
 .divider {
     width: 1px;
     height: 22px;
