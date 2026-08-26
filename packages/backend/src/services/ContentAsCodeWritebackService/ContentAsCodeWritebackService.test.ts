@@ -1,15 +1,9 @@
-import {
-    DbtProjectType,
-    type ContentAsCodeWritebackPayload,
-    type SessionUser,
-} from '@lightdash/common';
+import { DbtProjectType, type SessionUser } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import { ContentAsCodeWritebackService } from './ContentAsCodeWritebackService';
 
-const payload: ContentAsCodeWritebackPayload = {
-    organizationUuid: 'org-uuid',
+const args = {
     projectUuid: 'project-uuid',
-    userUuid: 'user-uuid',
     savedChartUuid: 'chart-uuid',
     slug: 'monthly-revenue',
 };
@@ -29,7 +23,6 @@ const chartAsCode = {
 };
 
 type Overrides = {
-    settings?: object | undefined;
     snapshot?: object | undefined;
     liveRow?: object | undefined;
     existingFile?: object | 'missing';
@@ -59,15 +52,6 @@ const buildService = (overrides: Overrides = {}) => {
     const coderService = {
         getCurrentChartAsCode: vi.fn().mockResolvedValue(chartAsCode),
     };
-    const contentAsCodeProjectSettingsModel = {
-        get: vi
-            .fn()
-            .mockResolvedValue(
-                'settings' in overrides
-                    ? overrides.settings
-                    : { syncEnabled: true, writeBackEnabled: true },
-            ),
-    };
     const contentAsCodeSnapshotModel = {
         get: vi
             .fn()
@@ -95,8 +79,6 @@ const buildService = (overrides: Overrides = {}) => {
         lightdashConfig: { siteUrl: 'https://app.lightdash.dev' } as never,
         gitIntegrationService: gitIntegrationService as never,
         coderService: coderService as never,
-        contentAsCodeProjectSettingsModel:
-            contentAsCodeProjectSettingsModel as never,
         contentAsCodeSnapshotModel: contentAsCodeSnapshotModel as never,
         contentAsCodeWritebackModel: contentAsCodeWritebackModel as never,
     });
@@ -109,26 +91,18 @@ const buildService = (overrides: Overrides = {}) => {
 };
 
 describe('ContentAsCodeWritebackService', () => {
-    it('does nothing when write-back is not enabled on the project', async () => {
-        const { service, gitIntegrationService } = buildService({
-            settings: { syncEnabled: true, writeBackEnabled: false },
-        });
-        await service.runChartWriteback(user, payload);
-        expect(gitIntegrationService.getProjectRepo).not.toHaveBeenCalled();
-    });
-
     it('does nothing for unmanaged content (no last-applied snapshot)', async () => {
         const { service, gitIntegrationService } = buildService({
             snapshot: undefined,
         });
-        await service.runChartWriteback(user, payload);
+        await service.writeChartToWritebackPr(user, args);
         expect(gitIntegrationService.getProjectRepo).not.toHaveBeenCalled();
     });
 
     it('first save creates the instance branch, commits the YAML, and opens one PR', async () => {
         const { service, gitIntegrationService, contentAsCodeWritebackModel } =
             buildService();
-        await service.runChartWriteback(user, payload);
+        await service.writeChartToWritebackPr(user, args);
 
         expect(
             gitIntegrationService.createBranchFromSource,
@@ -170,7 +144,7 @@ describe('ContentAsCodeWritebackService', () => {
 
     it('every commit names the acting user and instance', async () => {
         const { service, gitIntegrationService } = buildService();
-        await service.runChartWriteback(user, payload);
+        await service.writeChartToWritebackPr(user, args);
         const message = gitIntegrationService.saveFile.mock.calls[0][6];
         expect(message).toContain(
             'Project: https://app.lightdash.dev/projects/project-uuid',
@@ -195,7 +169,7 @@ describe('ContentAsCodeWritebackService', () => {
                 path: 'lightdash/charts/monthly-revenue.yml',
             },
         });
-        await service.runChartWriteback(user, payload);
+        await service.writeChartToWritebackPr(user, args);
 
         const [, , , , , sha] = gitIntegrationService.saveFile.mock.calls[0];
         expect(sha).toBe('old-sha');
@@ -227,7 +201,7 @@ describe('ContentAsCodeWritebackService', () => {
                 path: 'lightdash/charts/monthly-revenue.yml',
             },
         });
-        await service.runChartWriteback(user, payload);
+        await service.writeChartToWritebackPr(user, args);
         expect(gitIntegrationService.saveFile).not.toHaveBeenCalled();
     });
 
@@ -237,7 +211,7 @@ describe('ContentAsCodeWritebackService', () => {
         gitIntegrationService.saveFile.mockRejectedValue(
             new Error('github says no'),
         );
-        await expect(service.runChartWriteback(user, payload)).rejects.toThrow(
+        await expect(service.writeChartToWritebackPr(user, args)).rejects.toThrow(
             'github says no',
         );
         expect(contentAsCodeWritebackModel.update).toHaveBeenCalledWith(

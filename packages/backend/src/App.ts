@@ -140,8 +140,6 @@ const schedulerWorkerFactory = (context: {
         catalogService: context.serviceRepository.getCatalogService(),
         encryptionUtil: context.utils.getEncryptionUtil(),
         renameService: context.serviceRepository.getRenameService(),
-        contentAsCodeWritebackService:
-            context.serviceRepository.getContentAsCodeWritebackService(),
         asyncQueryService: context.serviceRepository.getAsyncQueryService(),
         featureFlagService: context.serviceRepository.getFeatureFlagService(),
         persistentDownloadFileService:

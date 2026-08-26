@@ -104,11 +104,6 @@ export type CustomGranularity = {
 export type ContentAsCodeConfig = {
     /** Track uploaded content as Git-backed for review/write-back workflows. */
     sync?: boolean;
-    /**
-     * When true (requires sync), UI saves of managed content open or update
-     * a pull request against the connected repo instead of drifting.
-     */
-    write_back?: boolean;
 };
 
 export type LightdashProjectConfig = {

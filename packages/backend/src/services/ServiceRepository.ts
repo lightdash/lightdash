@@ -1026,8 +1026,6 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     lightdashConfig: this.context.lightdashConfig,
                     projectModel: this.models.getProjectModel(),
-                    contentAsCodeProjectSettingsModel:
-                        this.models.getContentAsCodeProjectSettingsModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),
                     analyticsModel: this.models.getAnalyticsModel(),
@@ -1289,8 +1287,6 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     gitIntegrationService: this.getGitIntegrationService(),
                     coderService: this.getCoderService(),
-                    contentAsCodeProjectSettingsModel:
-                        this.models.getContentAsCodeProjectSettingsModel(),
                     contentAsCodeSnapshotModel:
                         this.models.getContentAsCodeSnapshotModel(),
                     contentAsCodeWritebackModel:

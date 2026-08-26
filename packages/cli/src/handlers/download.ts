@@ -3615,9 +3615,8 @@ export const uploadHandler = async (
         .then(() => true)
         .catch(() => false);
     if (configExists) {
-        let projectConfig;
         try {
-            projectConfig = await readAndLoadLightdashProjectConfig(
+            const projectConfig = await readAndLoadLightdashProjectConfig(
                 process.cwd(),
                 projectId,
             );
@@ -3636,8 +3635,6 @@ export const uploadHandler = async (
                 url: `/api/v1/projects/${projectId}/code/sync-settings`,
                 body: JSON.stringify({
                     sync: syncEnabled,
-                    writeBack:
-                        projectConfig.content_as_code?.write_back === true,
                 }),
             });
         } catch (error) {

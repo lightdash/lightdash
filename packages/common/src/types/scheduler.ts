@@ -629,11 +629,6 @@ export type PublishAnnouncementPayload = TraceTaskBase & {
     announcementUuid: string;
 };
 
-export type ContentAsCodeWritebackPayload = TraceTaskBase & {
-    savedChartUuid: string;
-    slug: string;
-};
-
 export type IngestExternalSourceJobPayload = TraceTaskBase & {
     attemptUuid: string;
     sourceUuid: string;

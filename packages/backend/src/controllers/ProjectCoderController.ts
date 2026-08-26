@@ -132,7 +132,7 @@ export class ProjectCoderController extends BaseController {
     async stampContentAsCodeSettings(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Body() body: { sync: boolean; writeBack: boolean },
+        @Body() body: { sync: boolean },
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);

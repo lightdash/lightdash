@@ -27,7 +27,6 @@ import { type RenameResourcesPayload } from './rename';
 import {
     type BackfillDefaultUserSpacesPayload,
     type CompileProjectPayload,
-    type ContentAsCodeWritebackPayload,
     type DownloadAsyncQueryResultsPayload,
     type EmailBatchNotificationPayload,
     type EmailNotificationPayload,
@@ -229,7 +228,6 @@ export const SCHEDULER_TASKS = {
     POLL_EMAIL_WHITELABEL: 'pollEmailWhitelabelVerification',
     CLEAN_WAREHOUSE_CONNECT_CODES: 'cleanWarehouseConnectCodes',
     BACKFILL_DEFAULT_USER_SPACES: 'backfillDefaultUserSpaces',
-    CONTENT_AS_CODE_WRITEBACK: 'contentAsCodeWriteback',
     ...EE_SCHEDULER_TASKS,
 } as const;
 
@@ -278,7 +276,6 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: TraceTaskBase;
     [SCHEDULER_TASKS.BACKFILL_DEFAULT_USER_SPACES]: BackfillDefaultUserSpacesPayload;
-    [SCHEDULER_TASKS.CONTENT_AS_CODE_WRITEBACK]: ContentAsCodeWritebackPayload;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: AiAgentReviewClassifierJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: AiAgentReviewWritebackJobPayload;

@@ -2,7 +2,6 @@ import {
     ContentAsCodeType,
     PullRequestSource,
     type ChartAsCode,
-    type ContentAsCodeWritebackPayload,
     type SessionUser,
 } from '@lightdash/common';
 import * as yaml from 'js-yaml';
@@ -21,9 +20,14 @@ type ContentAsCodeWritebackServiceArguments = {
     lightdashConfig: LightdashConfig;
     gitIntegrationService: GitIntegrationService;
     coderService: CoderService;
-    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
     contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
     contentAsCodeWritebackModel: ContentAsCodeWritebackModel;
+};
+
+type ChartWritebackArgs = {
+    projectUuid: string;
+    savedChartUuid: string;
+    slug: string;
 };
 
 // Matches the CLI's writeContent (packages/cli/src/handlers/download.ts):
@@ -68,8 +72,6 @@ export class ContentAsCodeWritebackService extends BaseService {
 
     private readonly coderService: CoderService;
 
-    private readonly contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
-
     private readonly contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
 
     private readonly contentAsCodeWritebackModel: ContentAsCodeWritebackModel;
@@ -79,8 +81,6 @@ export class ContentAsCodeWritebackService extends BaseService {
         this.lightdashConfig = args.lightdashConfig;
         this.gitIntegrationService = args.gitIntegrationService;
         this.coderService = args.coderService;
-        this.contentAsCodeProjectSettingsModel =
-            args.contentAsCodeProjectSettingsModel;
         this.contentAsCodeSnapshotModel = args.contentAsCodeSnapshotModel;
         this.contentAsCodeWritebackModel = args.contentAsCodeWritebackModel;
     }
@@ -101,20 +101,16 @@ export class ContentAsCodeWritebackService extends BaseService {
         return prefix === '' ? base : `${prefix}/${base}`;
     }
 
-    async runChartWriteback(
+    /**
+     * Opens (or appends a commit to) this instance's write-back PR for the
+     * chart. One live branch and PR per slug per instance; later calls add
+     * commits to the same PR.
+     */
+    async writeChartToWritebackPr(
         user: SessionUser,
-        payload: ContentAsCodeWritebackPayload,
+        args: ChartWritebackArgs,
     ): Promise<void> {
-        const { projectUuid, savedChartUuid, slug } = payload;
-
-        const settings =
-            await this.contentAsCodeProjectSettingsModel.get(projectUuid);
-        if (!settings?.writeBackEnabled) {
-            this.logger.debug(
-                `Skipping content-as-code write-back for ${slug}: write-back not enabled on project ${projectUuid}`,
-            );
-            return;
-        }
+        const { projectUuid, savedChartUuid, slug } = args;
 
         // Managed content only: never write back content that has no
         // last-applied marker (that's the explicit add-to-git flow)
@@ -147,7 +143,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         }
 
         try {
-            await this.pushChartToBranch(user, payload, row);
+            await this.pushChartToBranch(user, args, row);
         } catch (error) {
             const message = error instanceof Error ? error.message : `${error}`;
             this.logger.error(
@@ -163,10 +159,10 @@ export class ContentAsCodeWritebackService extends BaseService {
 
     private async pushChartToBranch(
         user: SessionUser,
-        payload: ContentAsCodeWritebackPayload,
+        args: ChartWritebackArgs,
         row: ContentAsCodeWriteback,
     ): Promise<void> {
-        const { projectUuid, savedChartUuid, slug } = payload;
+        const { projectUuid, savedChartUuid, slug } = args;
         const repo =
             await this.gitIntegrationService.getProjectRepo(projectUuid);
 
