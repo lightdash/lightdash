@@ -50,6 +50,7 @@ import { PullRequestsModel } from './PullRequestsModel';
 import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { RolesModel } from './RolesModel';
+import { SavedChartAccessModel } from './SavedChartAccessModel';
 import { SavedChartModel } from './SavedChartModel';
 import { SavedSqlModel } from './SavedSqlModel';
 import { SchedulerModel } from './SchedulerModel';
@@ -85,6 +86,7 @@ export type ModelManifest = {
     commentModel: CommentModel;
     dashboardModel: DashboardModel;
     dashboardAccessModel: DashboardAccessModel;
+    savedChartAccessModel: SavedChartAccessModel;
     deploySessionModel: DeploySessionModel;
     downloadFileModel: DownloadFileModel;
     downloadAuditModel: DownloadAuditModel;
@@ -310,6 +312,13 @@ export class ModelRepository
         return this.getModel(
             'dashboardAccessModel',
             () => new DashboardAccessModel(this.database),
+        );
+    }
+
+    public getSavedChartAccessModel(): SavedChartAccessModel {
+        return this.getModel(
+            'savedChartAccessModel',
+            () => new SavedChartAccessModel(this.database),
         );
     }
 
