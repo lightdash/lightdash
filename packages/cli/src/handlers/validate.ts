@@ -11,10 +11,10 @@ import {
     isDashboardValidationError,
     isDataAppValidationError,
     isTableValidationError,
+    isValidationWarning,
     ParameterError,
     SchedulerJobStatus,
     UnexpectedServerError,
-    ValidationErrorType,
     ValidationTarget,
 } from '@lightdash/common';
 import columnify from 'columnify';
@@ -77,7 +77,21 @@ function styleTotalErrors(total: number) {
     return styles.success(`${styles.bold(total)} errors`);
 }
 
+function styleIssueCounts(errorCount: number, warningCount: number) {
+    const errorLabel = styleTotalErrors(errorCount);
+    if (warningCount === 0) {
+        return errorLabel;
+    }
+    const warningLabel = styles.warning(
+        `${styles.bold(warningCount)} warning${warningCount === 1 ? '' : 's'}`,
+    );
+    return `${errorLabel}, ${warningLabel}`;
+}
+
 const REFETCH_JOB_INTERVAL = 3000;
+
+export const VALIDATION_SEVERITIES = ['error', 'warning'] as const;
+export type ValidationSeverity = (typeof VALIDATION_SEVERITIES)[number];
 
 type ValidateHandlerOptions = CompileHandlerOptions & {
     project?: string;
@@ -86,9 +100,36 @@ type ValidateHandlerOptions = CompileHandlerOptions & {
     only: ValidationTarget[];
     validateWarehouseColumns: boolean;
     showChartConfigurationWarnings: boolean;
+    severity?: ValidationSeverity;
+    warningsAsErrors?: boolean;
     includeSpaces?: string[];
     excludeSpaces?: string[];
 };
+
+export const resolveValidationSeverity = ({
+    severity,
+    warningsAsErrors,
+}: {
+    severity?: ValidationSeverity;
+    warningsAsErrors?: boolean;
+}): ValidationSeverity => {
+    if (warningsAsErrors) {
+        return 'warning';
+    }
+    return severity ?? 'error';
+};
+
+export const shouldTreatWarningsAsErrors = ({
+    severity,
+    warningsAsErrors,
+    showChartConfigurationWarnings,
+}: {
+    severity?: ValidationSeverity;
+    warningsAsErrors?: boolean;
+    showChartConfigurationWarnings?: boolean;
+}): boolean =>
+    resolveValidationSeverity({ severity, warningsAsErrors }) === 'warning' ||
+    showChartConfigurationWarnings === true;
 
 type WaitUntilFinishedOptions = {
     jobUuid: string;
@@ -213,6 +254,9 @@ export const validateHandler = async (
         );
     }
 
+    const severity = resolveValidationSeverity(options);
+    const treatWarningsAsErrors = shouldTreatWarningsAsErrors(options);
+
     await LightdashAnalytics.track({
         event: 'validate.started',
         properties: {
@@ -223,6 +267,8 @@ export const validateHandler = async (
             validateWarehouseColumns: options.validateWarehouseColumns,
             includedSpacesCount: options.includeSpaces?.length ?? 0,
             excludedSpacesCount: options.excludeSpaces?.length ?? 0,
+            severity,
+            treatWarningsAsErrors,
         },
     });
 
@@ -283,16 +329,10 @@ export const validateHandler = async (
 
         const allValidation = await getValidation(projectUuid, jobId);
 
-        // Filter out chart configuration warnings unless explicitly requested
-        const validationWithoutConfigWarnings =
-            options.showChartConfigurationWarnings
-                ? allValidation
-                : allValidation.filter(
-                      (v) =>
-                          !isChartValidationError(v) ||
-                          v.errorType !==
-                              ValidationErrorType.ChartConfiguration,
-                  );
+        // Hide chart configuration warnings unless shown or treated as errors
+        const validationWithoutConfigWarnings = treatWarningsAsErrors
+            ? allValidation
+            : allValidation.filter((v) => !isValidationWarning(v));
 
         const hiddenWarningsCount =
             allValidation.length - validationWithoutConfigWarnings.length;
@@ -308,10 +348,18 @@ export const validateHandler = async (
             spaceFilteredCount =
                 validationWithoutConfigWarnings.length - validation.length;
         }
-        const tableErrors = validation.filter(isTableValidationError);
-        const chartErrors = validation.filter(isChartValidationError);
-        const dashboardErrors = validation.filter(isDashboardValidationError);
-        const appErrors = validation.filter(isDataAppValidationError);
+        const warningIssues = validation.filter(isValidationWarning);
+        const blockingIssues = validation.filter((v) => !isValidationWarning(v));
+        const tableErrors = blockingIssues.filter(isTableValidationError);
+        const chartErrors = blockingIssues.filter(isChartValidationError);
+        const chartWarnings = warningIssues.filter(isChartValidationError);
+        const dashboardErrors = blockingIssues.filter(
+            isDashboardValidationError,
+        );
+        const appErrors = blockingIssues.filter(isDataAppValidationError);
+        const hasBlockingErrors = blockingIssues.length > 0;
+        const hasFailingWarnings =
+            treatWarningsAsErrors && warningIssues.length > 0;
 
         await LightdashAnalytics.track({
             event: 'validate.completed',
@@ -324,22 +372,28 @@ export const validateHandler = async (
                 includedSpacesCount: options.includeSpaces?.length ?? 0,
                 excludedSpacesCount: options.excludeSpaces?.length ?? 0,
                 durationMs: Date.now() - startTime,
-                success: validation.length === 0,
-                totalErrors: validation.length,
+                success: !hasBlockingErrors && !hasFailingWarnings,
+                totalErrors: blockingIssues.length,
+                totalWarnings: warningIssues.length,
                 tableErrors: tableErrors.length,
                 chartErrors: chartErrors.length,
                 dashboardErrors: dashboardErrors.length,
                 appErrors: appErrors.length,
+                severity,
+                treatWarningsAsErrors,
             },
         });
 
-        if (validation.length === 0) {
+        const hiddenWarningHint =
+            'use --show-chart-configuration-warnings or --severity warning to show';
+
+        if (!hasBlockingErrors && !hasFailingWarnings) {
             const elapsedMs = Date.now() - startTime;
             const hiddenMessage =
                 hiddenWarningsCount > 0
                     ? ` (${hiddenWarningsCount} chart configuration warning${
                           hiddenWarningsCount > 1 ? 's' : ''
-                      } hidden, use --show-chart-configuration-warnings to show)`
+                      } hidden, ${hiddenWarningHint})`
                     : '';
             const spaceFilteredMessage =
                 spaceFilteredCount > 0
@@ -357,7 +411,15 @@ export const validateHandler = async (
             spinner?.fail(
                 `  Validation finished in ${Math.trunc(
                     elapsedMs / 1000,
-                )}s with ${validation.length} errors`,
+                )}s with ${
+                    warningIssues.length > 0
+                        ? `${blockingIssues.length} error${
+                              blockingIssues.length === 1 ? '' : 's'
+                          } and ${warningIssues.length} warning${
+                              warningIssues.length === 1 ? '' : 's'
+                          }`
+                        : `${blockingIssues.length} errors`
+                }`,
             );
 
             const validationTargetsSet = new Set(validationTargets);
@@ -379,7 +441,10 @@ export const validateHandler = async (
                 validationTargetsSet.has(ValidationTarget.CHARTS)
             ) {
                 console.error(
-                    `- Charts: ${styleTotalErrors(chartErrors.length)}`,
+                    `- Charts: ${styleIssueCounts(
+                        chartErrors.length,
+                        chartWarnings.length,
+                    )}`,
                 );
             }
 
@@ -414,12 +479,11 @@ export const validateHandler = async (
             console.error('\n');
 
             const validationOutput = validation.map((v) => ({
-                name: styles.error(v.name),
+                name: isValidationWarning(v)
+                    ? styles.warning(v.name)
+                    : styles.error(v.name),
                 error: styles.warning(
-                    isChartValidationError(v) &&
-                        v.errorType ===
-                            ValidationErrorType.ChartConfiguration &&
-                        v.fieldName
+                    isValidationWarning(v) && v.fieldName
                         ? `Chart configuration warning: '${v.fieldName}' - ${v.error}`
                         : v.error,
                 ),
@@ -463,7 +527,7 @@ export const validateHandler = async (
                     `\n${styles.secondary(
                         `Note: ${hiddenWarningsCount} chart configuration warning${
                             hiddenWarningsCount > 1 ? 's' : ''
-                        } hidden. Use --show-chart-configuration-warnings to show.`,
+                        } hidden. Use --show-chart-configuration-warnings or --severity warning to show.`,
                     )}`,
                 );
             }

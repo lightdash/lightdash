@@ -6,7 +6,11 @@ import {
 } from '@lightdash/common';
 import { compile } from './compile';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
-import { validateHandler } from './validate';
+import {
+    resolveValidationSeverity,
+    shouldTreatWarningsAsErrors,
+    validateHandler,
+} from './validate';
 
 vi.mock('../analytics/analytics');
 vi.mock('../config', () => ({
@@ -24,6 +28,8 @@ const baseOptions: ValidateOptions = {
     only: Object.values(ValidationTarget),
     validateWarehouseColumns: false,
     showChartConfigurationWarnings: false,
+    severity: 'error',
+    warningsAsErrors: false,
     projectDir: '.',
     profilesDir: '.',
     target: undefined,
@@ -55,6 +61,7 @@ const TARGET_SKIP_WARNING =
 
 describe('validateHandler warehouse column validation', () => {
     let errorOutput: string[];
+    let validationResults: unknown[] = [];
 
     const skipWarnings = () =>
         errorOutput.filter((line) =>
@@ -73,12 +80,13 @@ describe('validateHandler warehouse column validation', () => {
                 return { status: SchedulerJobStatus.COMPLETED, details: null };
             }
             if (url.includes('/validate?jobId=')) {
-                return [];
+                return validationResults;
             }
             throw new Error(`Unexpected API call: ${method} ${url}`);
         });
 
         errorOutput = [];
+        validationResults = [];
         vi.spyOn(console, 'error').mockImplementation((...args) => {
             errorOutput.push(args.map(String).join(' '));
         });
@@ -260,5 +268,161 @@ describe('validateHandler warehouse column validation', () => {
         const output = errorOutput.join('\n');
         expect(output).toContain('Ada Lovelace');
         expect(output).toContain('2026-08-06');
+    });
+
+    test('succeeds when only chart configuration warnings exist at default severity', async () => {
+        validationResults = [chartConfigurationWarning];
+        const exitSpy = vi
+            .spyOn(process, 'exit')
+            .mockImplementation(() => undefined as never);
+
+        await validateHandler({ ...baseOptions });
+
+        expect(exitSpy).not.toHaveBeenCalled();
+        expect(errorOutput.join('\n')).not.toContain('orders.unused_dim');
+    });
+
+    test('fails when --severity warning is set and warnings exist', async () => {
+        validationResults = [chartConfigurationWarning];
+        vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+        await validateHandler({
+            ...baseOptions,
+            severity: 'warning',
+        });
+
+        expect(process.exit).toHaveBeenCalledWith(1);
+        const output = errorOutput.join('\n');
+        expect(output).toContain('Chart configuration warning');
+        expect(output).toContain('orders.unused_dim');
+        expect(output).toContain('1 warning');
+    });
+
+    test('fails when --warnings-as-errors is set and warnings exist', async () => {
+        validationResults = [chartConfigurationWarning];
+        vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+        await validateHandler({
+            ...baseOptions,
+            warningsAsErrors: true,
+        });
+
+        expect(process.exit).toHaveBeenCalledWith(1);
+        expect(errorOutput.join('\n')).toContain('Chart configuration warning');
+    });
+
+    test('still fails on --show-chart-configuration-warnings', async () => {
+        validationResults = [chartConfigurationWarning];
+        vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+        await validateHandler({
+            ...baseOptions,
+            showChartConfigurationWarnings: true,
+        });
+
+        expect(process.exit).toHaveBeenCalledWith(1);
+        expect(errorOutput.join('\n')).toContain('Chart configuration warning');
+    });
+
+    test('fails on blocking errors even when warnings stay hidden', async () => {
+        validationResults = [brokenChartError, chartConfigurationWarning];
+        vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+        await validateHandler({ ...baseOptions });
+
+        expect(process.exit).toHaveBeenCalledWith(1);
+        const output = errorOutput.join('\n');
+        expect(output).toContain('Broken chart');
+        expect(output).not.toContain('orders.unused_dim');
+        expect(output).toContain('chart configuration warning hidden');
+    });
+
+    test('reports errors and warnings together when severity is warning', async () => {
+        validationResults = [brokenChartError, chartConfigurationWarning];
+        vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+        await validateHandler({
+            ...baseOptions,
+            severity: 'warning',
+        });
+
+        expect(process.exit).toHaveBeenCalledWith(1);
+        const output = errorOutput.join('\n');
+        expect(output).toContain('Broken chart');
+        expect(output).toContain('orders.unused_dim');
+        expect(output).toContain('1 error');
+        expect(output).toContain('1 warning');
+    });
+});
+
+const chartConfigurationWarning = {
+    validationUuid: 'warning-uuid',
+    validationId: null,
+    createdAt: new Date('2026-08-26T12:00:00Z'),
+    projectUuid: 'test-project-uuid',
+    name: 'Orders over time',
+    error: 'dimension is not used in the chart configuration',
+    errorType: ValidationErrorType.ChartConfiguration,
+    source: ValidationSourceType.Chart,
+    chartUuid: 'chart-uuid',
+    fieldName: 'orders.unused_dim',
+    chartViews: 3,
+    lastUpdatedBy: 'Ada Lovelace',
+    lastUpdatedAt: new Date('2026-08-06T15:30:00Z'),
+};
+
+const brokenChartError = {
+    validationUuid: 'error-uuid',
+    validationId: null,
+    createdAt: new Date('2026-08-26T12:00:00Z'),
+    projectUuid: 'test-project-uuid',
+    name: 'Broken chart',
+    error: 'Dimension does not exist',
+    errorType: ValidationErrorType.Dimension,
+    source: ValidationSourceType.Chart,
+    chartUuid: 'broken-chart-uuid',
+    fieldName: 'orders.missing',
+    chartViews: 1,
+    lastUpdatedBy: 'Ada Lovelace',
+    lastUpdatedAt: new Date('2026-08-06T15:30:00Z'),
+};
+
+describe('resolveValidationSeverity', () => {
+    test('defaults to error', () => {
+        expect(resolveValidationSeverity({})).toBe('error');
+        expect(resolveValidationSeverity({ severity: 'error' })).toBe('error');
+    });
+
+    test('uses warning when --severity warning is set', () => {
+        expect(resolveValidationSeverity({ severity: 'warning' })).toBe(
+            'warning',
+        );
+    });
+
+    test('treats --warnings-as-errors as warning even if severity is error', () => {
+        expect(
+            resolveValidationSeverity({
+                severity: 'error',
+                warningsAsErrors: true,
+            }),
+        ).toBe('warning');
+    });
+});
+
+describe('shouldTreatWarningsAsErrors', () => {
+    test('is off by default', () => {
+        expect(shouldTreatWarningsAsErrors({})).toBe(false);
+    });
+
+    test('is on for --severity warning, --warnings-as-errors, and the show flag', () => {
+        expect(shouldTreatWarningsAsErrors({ severity: 'warning' })).toBe(true);
+        expect(shouldTreatWarningsAsErrors({ warningsAsErrors: true })).toBe(
+            true,
+        );
+        expect(
+            shouldTreatWarningsAsErrors({
+                showChartConfigurationWarnings: true,
+            }),
+        ).toBe(true);
     });
 });

@@ -55,7 +55,10 @@ import { setWarehouseHandler } from './handlers/setWarehouse';
 import { slugUpdateHandler } from './handlers/slugUpdate';
 import { sqlHandler } from './handlers/sql';
 import { registerUpgradeCheckCommand } from './handlers/upgradeCheck';
-import { validateHandler } from './handlers/validate';
+import {
+    validateHandler,
+    VALIDATION_SEVERITIES,
+} from './handlers/validate';
 import { warehouseCatalogHandler } from './handlers/warehouseCatalog';
 import * as styles from './styles';
 // Trigger CLI tests
@@ -1434,7 +1437,20 @@ program
     )
     .option(
         '--show-chart-configuration-warnings',
-        'Show chart configuration warnings (e.g., unused dimensions). These are hidden by default.',
+        'Show chart configuration warnings (e.g., unused dimensions). These are hidden by default. Also fails the command when any are present.',
+        false,
+    )
+    .addOption(
+        new Option(
+            '--severity <level>',
+            'Minimum issue level that fails the command. "error" (default) only fails on errors. "warning" shows chart configuration warnings and treats them as errors.',
+        )
+            .choices([...VALIDATION_SEVERITIES])
+            .default('error'),
+    )
+    .option(
+        '--warnings-as-errors',
+        'Treat chart configuration warnings as errors. Equivalent to --severity warning.',
         false,
     )
     .addOption(
