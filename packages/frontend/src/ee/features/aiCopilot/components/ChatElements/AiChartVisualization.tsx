@@ -26,7 +26,7 @@ import {
     useAiArtifactCompiledSql,
 } from '../../hooks/useAiArtifactChart';
 import { useAiAgentArtifactVizQuery } from '../../hooks/useProjectAiAgents';
-import { clearArtifact } from '../../store/aiArtifactSlice';
+import { clearPreview } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import {
@@ -126,7 +126,7 @@ export const AiChartVisualization: FC<Props> = ({
                         size="sm"
                         variant="subtle"
                         color="ldGray.9"
-                        onClick={() => dispatch(clearArtifact())}
+                        onClick={() => dispatch(clearPreview())}
                     >
                         <MantineIcon icon={IconX} />
                     </ActionIcon>
@@ -179,7 +179,7 @@ export const AiChartVisualization: FC<Props> = ({
                             size="sm"
                             variant="subtle"
                             color="ldGray.4"
-                            onClick={() => dispatch(clearArtifact())}
+                            onClick={() => dispatch(clearPreview())}
                         >
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
@@ -238,7 +238,7 @@ export const AiChartVisualization: FC<Props> = ({
                         size="sm"
                         variant="subtle"
                         color="ldGray.4"
-                        onClick={() => dispatch(clearArtifact())}
+                        onClick={() => dispatch(clearPreview())}
                     >
                         <MantineIcon icon={IconX} />
                     </ActionIcon>

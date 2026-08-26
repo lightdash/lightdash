@@ -20,7 +20,7 @@ import { useAppPreviewToken } from '../../../../../features/apps/hooks/useAppPre
 import { useGetApp } from '../../../../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../../../../features/apps/previewOrigin';
 import {
-    clearDataAppPreview,
+    clearPreview,
     type DataAppPreviewData,
 } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
@@ -70,7 +70,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({ dataAppPreview }) => {
             size="sm"
             variant="subtle"
             color="ldGray.6"
-            onClick={() => dispatch(clearDataAppPreview())}
+            onClick={() => dispatch(clearPreview())}
             aria-label="Close"
         >
             <MantineIcon icon={IconX} />

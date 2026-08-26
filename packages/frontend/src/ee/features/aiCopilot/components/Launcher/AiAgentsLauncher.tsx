@@ -9,6 +9,10 @@ import {
     setActiveAgent,
 } from '../../store/aiAgentLauncherSlice';
 import {
+    selectDataAppPreview,
+    selectSavedChartPreview,
+} from '../../store/aiArtifactSlice';
+import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
@@ -60,12 +64,8 @@ const AiAgentsLauncherInner: FC = () => {
     const activeAgentUuid = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.activeAgentUuid,
     );
-    const savedChartPreview = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.savedChart,
-    );
-    const dataAppPreview = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.dataApp,
-    );
+    const savedChartPreview = useAiAgentStoreSelector(selectSavedChartPreview);
+    const dataAppPreview = useAiAgentStoreSelector(selectDataAppPreview);
     const currentDashboard = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.currentDashboard,
     );

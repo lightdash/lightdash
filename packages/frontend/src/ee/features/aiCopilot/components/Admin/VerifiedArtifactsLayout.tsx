@@ -7,7 +7,11 @@ import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
-import { clearArtifact, setArtifact } from '../../store/aiArtifactSlice';
+import {
+    clearPreview,
+    selectArtifactPreview,
+    setPreview,
+} from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -21,15 +25,14 @@ export const VerifiedArtifactsLayout: FC = () => {
     const { agentUuid } = useParams();
     const projectUuid = useProjectUuid();
     const dispatch = useAiAgentStoreDispatch();
-    const artifact = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.artifact,
-    );
+    const artifact = useAiAgentStoreSelector(selectArtifactPreview);
 
     const handleArtifactSelect = (
         selectedArtifact: AiAgentVerifiedArtifact,
     ) => {
         dispatch(
-            setArtifact({
+            setPreview({
+                type: 'artifact',
                 projectUuid: projectUuid!,
                 agentUuid: agentUuid!,
                 artifactUuid: selectedArtifact.artifactUuid,
@@ -42,7 +45,7 @@ export const VerifiedArtifactsLayout: FC = () => {
 
     useEffect(() => {
         return () => {
-            dispatch(clearArtifact());
+            dispatch(clearPreview());
         };
     }, [dispatch]);
 

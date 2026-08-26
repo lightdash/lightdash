@@ -12,11 +12,7 @@ import {
 import { type FC, type MouseEvent, type ReactNode } from 'react';
 import { Link, createPath, useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import {
-    setArtifact,
-    setDataAppPreview,
-    setSavedChartPreview,
-} from '../../store/aiArtifactSlice';
+import { selectPreview, setPreview } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -70,15 +66,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
     const resourceHref = typeof props.href === 'string' ? props.href : '';
     const title = typeof props.title === 'string' ? props.title : undefined;
     const dispatch = useAiAgentStoreDispatch();
-    const currentArtifact = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.artifact,
-    );
-    const currentSavedChart = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.savedChart,
-    );
-    const currentDataApp = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.dataApp,
-    );
+    const currentPreview = useAiAgentStoreSelector(selectPreview);
 
     const handleResourceClick = (e: MouseEvent<HTMLAnchorElement>) => {
         if (!resourceHref || !isPlainLeftClick(e)) {
@@ -130,7 +118,10 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 typeof props['data-app-uuid'] === 'string'
                     ? props['data-app-uuid']
                     : undefined;
-            const isActive = !!appUuid && currentDataApp?.appUuid === appUuid;
+            const isActive =
+                !!appUuid &&
+                currentPreview?.type === 'dataApp' &&
+                currentPreview.appUuid === appUuid;
 
             // Modified clicks fall through to the anchor and open the full
             // page in a new tab.
@@ -141,7 +132,8 @@ export const ContentLink: FC<ContentLinkProps> = ({
 
                 e.preventDefault();
                 dispatch(
-                    setDataAppPreview({
+                    setPreview({
+                        type: 'dataApp',
                         appUuid,
                         messageUuid: message.uuid,
                         threadUuid: message.threadUuid,
@@ -191,7 +183,9 @@ export const ContentLink: FC<ContentLinkProps> = ({
             const href = typeof props.href === 'string' ? props.href : '';
             const isSavedChart = chartSource !== 'sql-runner' && !!chartUuid;
             const isActive =
-                isSavedChart && currentSavedChart?.savedChartUuid === chartUuid;
+                isSavedChart &&
+                currentPreview?.type === 'savedChart' &&
+                currentPreview.savedChartUuid === chartUuid;
 
             const handleChartClick = (e: MouseEvent<HTMLAnchorElement>) => {
                 if (!isSavedChart || !chartUuid || !isPlainLeftClick(e)) {
@@ -200,7 +194,8 @@ export const ContentLink: FC<ContentLinkProps> = ({
 
                 e.preventDefault();
                 dispatch(
-                    setSavedChartPreview({
+                    setPreview({
+                        type: 'savedChart',
                         savedChartUuid: chartUuid,
                         messageUuid: message.uuid,
                         threadUuid: message.threadUuid,
@@ -251,9 +246,9 @@ export const ContentLink: FC<ContentLinkProps> = ({
                       : IconChartBar;
 
             const isActive =
-                currentArtifact &&
-                currentArtifact.artifactUuid === artifactUuid &&
-                currentArtifact.versionUuid === versionUuid;
+                currentPreview?.type === 'artifact' &&
+                currentPreview.artifactUuid === artifactUuid &&
+                currentPreview.versionUuid === versionUuid;
 
             return (
                 <Anchor
@@ -271,7 +266,8 @@ export const ContentLink: FC<ContentLinkProps> = ({
                         e.preventDefault();
                         if (artifactUuid && versionUuid) {
                             dispatch(
-                                setArtifact({
+                                setPreview({
+                                    type: 'artifact',
                                     artifactUuid,
                                     versionUuid,
                                     messageUuid: message.uuid,

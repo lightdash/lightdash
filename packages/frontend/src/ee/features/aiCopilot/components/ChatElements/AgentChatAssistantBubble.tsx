@@ -48,7 +48,11 @@ import {
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useProjectAiAgents';
 import { type StreamPart } from '../../store/aiAgentThreadStreamSlice';
-import { clearArtifact, setArtifact } from '../../store/aiArtifactSlice';
+import {
+    clearPreview,
+    selectArtifactPreview,
+    setPreview,
+} from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -960,9 +964,7 @@ export const AssistantBubble: FC<Props> = memo(
         mcpServers,
         onDashboardLinkClick,
     }) => {
-        const artifact = useAiAgentStoreSelector(
-            (state) => state.aiArtifact.artifact,
-        );
+        const artifact = useAiAgentStoreSelector(selectArtifactPreview);
         const dispatch = useAiAgentStoreDispatch();
 
         if (!projectUuid) throw new Error(`Project Uuid not found`);
@@ -1084,11 +1086,12 @@ export const AssistantBubble: FC<Props> = memo(
                                               artifact?.versionUuid ===
                                                   messageArtifact.versionUuid;
                                           if (isThisArtifactOpen) {
-                                              dispatch(clearArtifact());
+                                              dispatch(clearPreview());
                                               return;
                                           }
                                           dispatch(
-                                              setArtifact({
+                                              setPreview({
+                                                  type: 'artifact',
                                                   artifactUuid:
                                                       messageArtifact.artifactUuid,
                                                   versionUuid:

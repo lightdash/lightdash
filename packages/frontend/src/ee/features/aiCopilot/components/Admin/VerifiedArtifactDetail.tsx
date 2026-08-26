@@ -5,7 +5,11 @@ import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
-import { clearArtifact, setArtifact } from '../../store/aiArtifactSlice';
+import {
+    clearPreview,
+    selectArtifactPreview,
+    setPreview,
+} from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -18,9 +22,7 @@ export const VerifiedArtifactDetail: FC = () => {
     const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
     const dispatch = useAiAgentStoreDispatch();
-    const artifact = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.artifact,
-    );
+    const artifact = useAiAgentStoreSelector(selectArtifactPreview);
 
     const versionUuid = searchParams.get('versionUuid');
     const threadUuid = searchParams.get('threadUuid');
@@ -51,7 +53,8 @@ export const VerifiedArtifactDetail: FC = () => {
             promptUuid
         ) {
             dispatch(
-                setArtifact({
+                setPreview({
+                    type: 'artifact',
                     projectUuid,
                     agentUuid,
                     artifactUuid,
@@ -63,7 +66,7 @@ export const VerifiedArtifactDetail: FC = () => {
         }
 
         return () => {
-            dispatch(clearArtifact());
+            dispatch(clearPreview());
         };
     }, [
         dispatch,
