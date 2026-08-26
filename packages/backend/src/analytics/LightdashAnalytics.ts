@@ -667,6 +667,10 @@ type UpdateSavedChartEvent = BaseTrack & {
         tableCalculationFunctions: string[];
         hasAverageDistinctAdditionalMetric: boolean;
         numCustomGroupBinCustomDimensions: number;
+        // True when a direct dashboard grant was present in the authorizing
+        // context; grantOnly when it was the user's only access path.
+        viaDashboardGrant: boolean;
+        grantOnly: boolean;
     };
 };
 
@@ -685,6 +689,8 @@ type DeleteSavedChartEvent = BaseTrack & {
         projectId: string;
         savedQueryId: string;
         softDelete: boolean;
+        viaDashboardGrant: boolean;
+        grantOnly: boolean;
     };
 };
 
@@ -840,6 +846,10 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
         customColumnWidthsCount: number;
         tableCalculationFunctions: string[];
         hasAverageDistinctAdditionalMetric: boolean;
+        // True when a direct dashboard grant was present in the authorizing
+        // context; grantOnly when it was the user's only access path.
+        viaDashboardGrant: boolean;
+        grantOnly: boolean;
     };
 };
 

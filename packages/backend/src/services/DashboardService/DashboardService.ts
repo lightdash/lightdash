@@ -447,6 +447,8 @@ export class DashboardService
                             savedQueryId: deletedChart.uuid,
                             projectId: deletedChart.projectUuid,
                             softDelete: false,
+                            viaDashboardGrant: false,
+                            grantOnly: false,
                         },
                     });
                 } catch (error) {
@@ -572,7 +574,12 @@ export class DashboardService
             event: 'saved_chart.created',
             userId: user.userUuid,
             properties: {
-                ...SavedChartService.getCreateEventProperties(duplicatedChart),
+                ...SavedChartService.getCreateEventProperties(duplicatedChart, {
+                    viaDashboardGrant: sourceContext.access.some(
+                        (row) => row.grantedVia === 'dashboard',
+                    ),
+                    grantOnly: sourceContext.directOnly,
+                }),
                 dashboardId: duplicatedChart.dashboardUuid ?? undefined,
                 duplicated: true,
                 virtualViewId:
