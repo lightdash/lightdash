@@ -81,11 +81,9 @@ export type ContentAsCodeSkip = {
 };
 
 /**
- * Drift outcome of an upsert against the last-applied snapshot.
- * `skips` is populated when sync enforcement rejected the write;
- * `driftWarnings` when enforcement is off and the write proceeded.
+ * Drift outcome of an upsert against the last-applied snapshot: `skips` is
+ * populated when content_as_code.sync enforcement rejected the write.
  */
 export type ContentAsCodeSyncStatus = {
     skips?: ContentAsCodeSkip[];
-    driftWarnings?: string[];
 };

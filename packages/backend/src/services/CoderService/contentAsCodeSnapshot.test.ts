@@ -176,13 +176,6 @@ describe('resolveDriftGate', () => {
         expect(resolveDriftGate({ ...base, verdict: 'in_sync' })).toEqual({
             outcome: 'proceed',
         });
-        expect(
-            resolveDriftGate({
-                ...base,
-                verdict: 'in_sync',
-                syncEnforced: true,
-            }),
-        ).toEqual({ outcome: 'proceed' });
     });
 
     it('fast-forwards when instance matches incoming, unless forced', () => {
@@ -194,51 +187,33 @@ describe('resolveDriftGate', () => {
         ).toEqual({ outcome: 'proceed' });
     });
 
-    it.each(['ahead', 'no_marker'] as const)(
-        'skips %s content when sync is enforced',
-        (verdict) => {
-            const gate = resolveDriftGate({
-                ...base,
-                verdict,
-                syncEnforced: true,
+    it.each(['ahead', 'no_marker'] as const)('skips %s content', (verdict) => {
+        const gate = resolveDriftGate({ ...base, verdict });
+        expect(gate.outcome).toBe('skip');
+        if (gate.outcome === 'skip') {
+            expect(gate.skip).toMatchObject({
+                contentType: 'chart',
+                slug: 'monthly-revenue',
+                reason: ContentAsCodeSkipReason.SKIPPED_AHEAD,
             });
-            expect(gate.outcome).toBe('skip');
-            if (gate.outcome === 'skip') {
-                expect(gate.skip).toMatchObject({
-                    contentType: 'chart',
-                    slug: 'monthly-revenue',
-                    reason: ContentAsCodeSkipReason.SKIPPED_AHEAD,
-                });
-            }
-        },
-    );
+        }
+    });
 
-    it('force does not bypass the ahead skip; only --overwrite-drifted does', () => {
+    it('force does not bypass the ahead skip', () => {
         expect(
             resolveDriftGate({
                 ...base,
                 verdict: 'ahead',
-                syncEnforced: true,
                 force: true,
             }).outcome,
         ).toBe('skip');
-        const gate = resolveDriftGate({
-            ...base,
-            verdict: 'ahead',
-            syncEnforced: true,
-            overwriteDrifted: true,
-        });
-        expect(gate.outcome).toBe('proceed');
-        if (gate.outcome === 'proceed') {
-            expect(gate.driftWarning).toContain('--overwrite-drifted');
-        }
     });
 
-    it('proceeds with a warning when sync is not enforced', () => {
+    it('skip messages point at resolving in Lightdash, not a CLI override', () => {
         const gate = resolveDriftGate({ ...base, verdict: 'ahead' });
-        expect(gate.outcome).toBe('proceed');
-        if (gate.outcome === 'proceed') {
-            expect(gate.driftWarning).toContain('content_as_code.sync');
+        if (gate.outcome === 'skip') {
+            expect(gate.skip.message).toContain('Review the changes');
+            expect(gate.skip.message).not.toContain('--');
         }
     });
 });

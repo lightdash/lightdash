@@ -554,8 +554,7 @@ export class ProjectCoderController extends BaseController {
             publicSpaceCreate?: boolean;
             force?: boolean;
             spaceNames?: Record<string, string>;
-            syncEnforced?: boolean;
-            overwriteDrifted?: boolean;
+            syncEnabled?: boolean;
             chartConfig: AnyType;
             description?: string | null;
         },
@@ -574,8 +573,7 @@ export class ProjectCoderController extends BaseController {
                     publicSpaceCreate: chart.publicSpaceCreate,
                     force: chart.force,
                     spaceNames: chart.spaceNames,
-                    syncEnforced: chart.syncEnforced,
-                    overwriteDrifted: chart.overwriteDrifted,
+                    syncEnabled: chart.syncEnabled,
                 },
             ),
         );
@@ -640,8 +638,7 @@ export class ProjectCoderController extends BaseController {
             publicSpaceCreate?: boolean;
             force?: boolean;
             spaceNames?: Record<string, string>;
-            syncEnforced?: boolean;
-            overwriteDrifted?: boolean;
+            syncEnabled?: boolean;
             tiles: AnyType;
             description?: string | null;
         },
@@ -663,8 +660,7 @@ export class ProjectCoderController extends BaseController {
                     publicSpaceCreate: dashboard.publicSpaceCreate,
                     force: dashboard.force,
                     spaceNames: dashboard.spaceNames,
-                    syncEnforced: dashboard.syncEnforced,
-                    overwriteDrifted: dashboard.overwriteDrifted,
+                    syncEnabled: dashboard.syncEnabled,
                 },
             ),
         );

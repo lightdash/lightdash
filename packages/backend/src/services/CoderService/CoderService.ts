@@ -200,12 +200,9 @@ type UpsertContentAsCodeOptions = {
     spaceNames?: Record<string, string>;
     mode?: 'upsert' | 'create';
     // Mirrors content_as_code.sync from the caller's lightdash.config.yml.
-    // Gates snapshot recording: a project that never opts into sync has no
-    // use for a last-applied baseline.
+    // Gates the whole sync contract: snapshot recording and instance-ahead
+    // skip enforcement. Off means uploads behave as before the feature.
     syncEnabled?: boolean;
-    // content_as_code.sync in lightdash.config.yml: skip instance-ahead content
-    syncEnforced?: boolean;
-    overwriteDrifted?: boolean;
 };
 
 export class CoderService extends BaseService {
@@ -2900,8 +2897,6 @@ export class CoderService extends BaseService {
                         : 'chart',
                 slug,
                 force: options.force,
-                syncEnforced: options.syncEnforced,
-                overwriteDrifted: options.overwriteDrifted,
             });
         } catch (error) {
             this.logger.warn(
@@ -3365,7 +3360,7 @@ export class CoderService extends BaseService {
         }
 
         const driftGate =
-            mode === 'upsert'
+            mode === 'upsert' && options.syncEnabled
                 ? await this.runDriftGate({
                       projectUuid,
                       contentType: ContentAsCodeType.CHART,
@@ -3432,7 +3427,13 @@ export class CoderService extends BaseService {
                     action: PromotionAction.NO_CHANGES,
                 })),
             };
-            await this.stampAppliedChartSnapshot(user, projectUuid, chart.uuid);
+            // The gate only runs with sync enabled, so always restamp here
+            await this.stampAppliedChartSnapshot(
+                user,
+                projectUuid,
+                chart.uuid,
+                true,
+            );
             console.info(
                 `Fast-forwarded chart "${chartWithDefaults.name}" on project ${projectUuid}: instance already matches incoming content`,
             );
@@ -3480,9 +3481,7 @@ export class CoderService extends BaseService {
             `Finished updating chart "${chartWithDefaults.name}" on project ${projectUuid}: ${promotionChanges.charts[0].action}`,
         );
 
-        return driftGate?.outcome === 'proceed' && driftGate.driftWarning
-            ? { ...promotionChanges, driftWarnings: [driftGate.driftWarning] }
-            : promotionChanges;
+        return promotionChanges;
     }
 
     async renameContentSlug(
@@ -4397,7 +4396,7 @@ export class CoderService extends BaseService {
         }
 
         const driftGate =
-            mode === 'upsert'
+            mode === 'upsert' && options.syncEnabled
                 ? await this.runDriftGate({
                       projectUuid,
                       contentType: ContentAsCodeType.DASHBOARD,
@@ -4499,10 +4498,12 @@ export class CoderService extends BaseService {
                     action: PromotionAction.NO_CHANGES,
                 })),
             };
+            // The gate only runs with sync enabled, so always restamp here
             await this.stampAppliedDashboardSnapshot(
                 user,
                 projectUuid,
                 dashboard.uuid,
+                true,
             );
             console.info(
                 `Fast-forwarded dashboard "${dashboard.name}" on project ${projectUuid}: instance already matches incoming content`,
@@ -4557,9 +4558,6 @@ export class CoderService extends BaseService {
         return withTileWarnings(promotionChanges, [
             ...tileWarnings,
             ...ownerWarnings,
-            ...(driftGate?.outcome === 'proceed' && driftGate.driftWarning
-                ? [driftGate.driftWarning]
-                : []),
         ]);
     }
 }

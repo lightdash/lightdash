@@ -100,26 +100,19 @@ export const resolveDriftVerdict = (args: {
 };
 
 export type DriftGateOutcome =
-    | { outcome: 'proceed'; driftWarning?: string }
+    | { outcome: 'proceed' }
     | { outcome: 'fast_forward' }
     | { outcome: 'skip'; skip: ContentAsCodeSkip };
 
+// Only evaluated for repos with content_as_code.sync enabled; without sync
+// there is no snapshot baseline, so uploads apply unconditionally.
 export const resolveDriftGate = (args: {
     verdict: ContentDriftVerdict;
     contentType: 'chart' | 'dashboard';
     slug: string;
     force?: boolean;
-    syncEnforced?: boolean;
-    overwriteDrifted?: boolean;
 }): DriftGateOutcome => {
-    const {
-        verdict,
-        contentType,
-        slug,
-        force,
-        syncEnforced,
-        overwriteDrifted,
-    } = args;
+    const { verdict, contentType, slug, force } = args;
     switch (verdict) {
         case 'in_sync':
             return { outcome: 'proceed' };
@@ -133,26 +126,14 @@ export const resolveDriftGate = (args: {
                 verdict === 'ahead'
                     ? `changed in the Lightdash project since the last upload`
                     : `exists in the Lightdash project but has no record of a previous upload`;
-            if (overwriteDrifted) {
-                return {
-                    outcome: 'proceed',
-                    driftWarning: `${label} "${slug}" ${cause}; overwritten because --overwrite-drifted is set.`,
-                };
-            }
-            if (syncEnforced) {
-                return {
-                    outcome: 'skip',
-                    skip: {
-                        contentType,
-                        slug,
-                        reason: ContentAsCodeSkipReason.SKIPPED_AHEAD,
-                        message: `${label} "${slug}" ${cause}; skipped to avoid overwriting those changes. Use --overwrite-drifted to make git win.`,
-                    },
-                };
-            }
             return {
-                outcome: 'proceed',
-                driftWarning: `${label} "${slug}" ${cause} and was overwritten. Set content_as_code.sync: true in lightdash.config.yml to protect changes made in Lightdash.`,
+                outcome: 'skip',
+                skip: {
+                    contentType,
+                    slug,
+                    reason: ContentAsCodeSkipReason.SKIPPED_AHEAD,
+                    message: `${label} "${slug}" ${cause}; skipped to avoid overwriting those changes. Review the changes in Lightdash and propose them to git, or update the file to match the Lightdash project.`,
+                },
             };
         }
         default:

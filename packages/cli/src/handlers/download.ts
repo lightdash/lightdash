@@ -213,7 +213,6 @@ export type DownloadHandlerOptions = {
     chartTypesOnly?: boolean; // download: implies skipCharts + skipDashboards + skipSpaces; upload: chart-types-only filtered run
     stripPivotSeries: boolean; // Strip per-value pivot series config for portable chart YAML
     validate?: boolean; // Validate charts and dashboards after upload
-    overwriteDrifted?: boolean; // Upload only: overwrite content the instance is ahead on (git wins)
     concurrency: number;
     gzip?: boolean;
     organization: boolean;
@@ -3030,11 +3029,6 @@ const printSkipDiff = async (
     }
 };
 
-type UploadSyncOptions = {
-    syncEnforced?: boolean;
-    overwriteDrifted?: boolean;
-};
-
 const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
     item: T & { needsUpdating: boolean },
     type: 'charts' | 'dashboards',
@@ -3046,8 +3040,7 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
     publicSpaceCreate?: boolean,
     validate?: boolean,
     spaceNames?: Record<string, string>,
-    spaceNames?: Record<string, string>,
-    syncOptions?: UploadSyncOptions,
+    syncEnabled?: boolean,
 ): Promise<'upserted' | 'skipped' | 'failed'> => {
     try {
         if (!force && !item.needsUpdating) {
@@ -3077,10 +3070,7 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
                 publicSpaceCreate,
                 force,
                 // The sqlCharts route doesn't support drift detection yet
-                ...(!isSqlChartItem && {
-                    syncEnforced: syncOptions?.syncEnforced,
-                    overwriteDrifted: syncOptions?.overwriteDrifted,
-                }),
+                ...(!isSqlChartItem && { syncEnabled }),
                 ...(spaceNames &&
                     Object.keys(spaceNames).length > 0 && { spaceNames }),
             }),
@@ -3096,10 +3086,6 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
                 upsertData.skips.length;
             return 'skipped';
         }
-        (upsertData.driftWarnings ?? []).forEach((warning) =>
-            GlobalState.log(styles.warning(`  ⚠ ${warning}`)),
-        );
-
         GlobalState.debug(
             `${type} "${item.name}": ${upsertData[type]?.[0]?.action}`,
         );
@@ -3243,9 +3229,8 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     concurrency: number = 1,
     extraItems: (T & { needsUpdating: boolean })[] = [],
     spaceNames?: Record<string, string>,
-    spaceNames?: Record<string, string>,
     skipSlugs?: ReadonlySet<string>,
-    syncOptions?: UploadSyncOptions,
+    syncEnabled?: boolean,
 ): Promise<{
     changes: Record<string, number>;
     total: number;
@@ -3330,7 +3315,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 publicSpaceCreate,
                 validate,
                 spaceNames,
-                syncOptions,
+                syncEnabled,
             );
             trackOutcome(item, outcome);
         }
@@ -3414,7 +3399,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 publicSpaceCreate,
                 validate,
                 spaceNames,
-                syncOptions,
+                syncEnabled,
             );
             trackOutcome(item, outcome);
         }
@@ -3435,7 +3420,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                         publicSpaceCreate,
                         validate,
                         spaceNames,
-                        syncOptions,
+                        syncEnabled,
                     );
                     trackOutcome(item, outcome);
                 }),
@@ -3681,10 +3666,7 @@ export const uploadHandler = async (
         process.cwd(),
         projectId,
     );
-    const syncOptions: UploadSyncOptions = {
-        syncEnforced: projectConfig.content_as_code?.sync === true,
-        overwriteDrifted: options.overwriteDrifted === true,
-    };
+    const syncEnabled = projectConfig.content_as_code?.sync === true;
 
     let changes: Record<string, number> = {};
     const counts: ProjectContentAsCodeCounts = {};
@@ -4519,8 +4501,9 @@ export const uploadHandler = async (
                     concurrency,
                     looseFiles.charts,
                     spaceNames,
+                    spaceNames,
                     undefined,
-                    syncOptions,
+                    syncEnabled,
                 );
                 result.failedSlugs.forEach((slug) =>
                     failedChartSlugs.add(slug),
@@ -4575,8 +4558,9 @@ export const uploadHandler = async (
                     concurrency,
                     looseFiles.dashboards,
                     spaceNames,
+                    spaceNames,
                     dashboardsToSkip,
-                    syncOptions,
+                    syncEnabled,
                 );
                 counts.dashboardsNum = result.total;
                 return result.changes;
@@ -4717,7 +4701,7 @@ export const uploadHandler = async (
         if (skippedAhead > 0) {
             GlobalState.log(
                 styles.error(
-                    `${skippedAhead} item(s) skipped because the Lightdash project is ahead of git — see messages above. Use --overwrite-drifted to make git win.`,
+                    `${skippedAhead} item(s) skipped because the Lightdash project is ahead of git — see messages above. Review and publish those changes in Lightdash, or update the files to match.`,
                 ),
             );
             process.exitCode = 1;
