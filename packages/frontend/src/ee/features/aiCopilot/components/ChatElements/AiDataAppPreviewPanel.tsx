@@ -1,0 +1,208 @@
+import { getAppDisplayName } from '@lightdash/common';
+import {
+    ActionIcon,
+    Box,
+    Center,
+    Group,
+    Loader,
+    Menu,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { IconDots, IconExternalLink, IconX } from '@tabler/icons-react';
+import { type FC, type ReactNode } from 'react';
+import MantineIcon from '../../../../../components/common/MantineIcon';
+import TruncatedText from '../../../../../components/common/TruncatedText';
+import AppIframePreview from '../../../../../features/apps/AppIframePreview';
+import { getVisiblePreviewTokenError } from '../../../../../features/apps/hooks/previewTokenQueryOptions';
+import { useAppPreviewToken } from '../../../../../features/apps/hooks/useAppPreviewToken';
+import { useGetApp } from '../../../../../features/apps/hooks/useGetApp';
+import { usePreviewOrigin } from '../../../../../features/apps/previewOrigin';
+import {
+    clearDataAppPreview,
+    type DataAppPreviewData,
+} from '../../store/aiArtifactSlice';
+import { useAiAgentStoreDispatch } from '../../store/hooks';
+import artifactStyles from './AiArtifactPanel.module.css';
+
+type Props = {
+    dataAppPreview: DataAppPreviewData;
+};
+
+export const AiDataAppPreviewPanel: FC<Props> = ({ dataAppPreview }) => {
+    const dispatch = useAiAgentStoreDispatch();
+    const { appUuid, projectUuid } = dataAppPreview;
+
+    const previewOrigin = usePreviewOrigin();
+    const appQuery = useGetApp(projectUuid, appUuid);
+    const app = appQuery.data?.pages[0];
+
+    // Authoritative across ALL versions — the ready version may be older than
+    // the fetched page of versions, so never scan `versions` for it.
+    const latestReadyVersion = app?.latestReadyVersion ?? undefined;
+
+    const {
+        data: token,
+        isLoading: isTokenLoading,
+        error: tokenError,
+    } = useAppPreviewToken(projectUuid, appUuid, latestReadyVersion);
+    const visibleTokenError = getVisiblePreviewTokenError(tokenError, !!token);
+
+    const isForbidden =
+        appQuery.error?.error?.statusCode === 403 ||
+        visibleTokenError?.error?.statusCode === 403;
+    const isNotFound =
+        appQuery.error?.error?.statusCode === 404 ||
+        visibleTokenError?.error?.statusCode === 404;
+    const hasNoReadyVersion =
+        !appQuery.isLoading && !appQuery.error && !latestReadyVersion;
+    const otherError =
+        !isForbidden && !isNotFound && (appQuery.error || visibleTokenError);
+
+    const previewUrl =
+        token && latestReadyVersion
+            ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/t/${token}/#transport=postMessage&projectUuid=${projectUuid}`
+            : undefined;
+
+    const closeButton = (
+        <ActionIcon
+            size="sm"
+            variant="subtle"
+            color="ldGray.6"
+            onClick={() => dispatch(clearDataAppPreview())}
+            aria-label="Close"
+        >
+            <MantineIcon icon={IconX} />
+        </ActionIcon>
+    );
+
+    const renderMessage = (message: string) => (
+        <div className={artifactStyles.floatingPanel}>
+            <Center className={artifactStyles.loading}>
+                <Stack gap="xs" align="center">
+                    <Text size="xs" c="dimmed" ta="center">
+                        {message}
+                    </Text>
+                    {closeButton}
+                </Stack>
+            </Center>
+        </div>
+    );
+
+    if (isNotFound) {
+        return renderMessage('This data app no longer exists.');
+    }
+    if (isForbidden) {
+        return renderMessage(
+            "You don't have permission to view this data app.",
+        );
+    }
+    if (hasNoReadyVersion) {
+        return renderMessage("This data app hasn't finished building yet.");
+    }
+    if (otherError) {
+        return renderMessage('Failed to load data app. Please try again.');
+    }
+
+    if (appQuery.isLoading || !app) {
+        return (
+            <div className={artifactStyles.floatingPanel}>
+                <Center className={artifactStyles.loading}>
+                    <Stack gap="xs" align="center">
+                        <Loader
+                            type="dots"
+                            color="gray"
+                            delayedMessage="Loading data app..."
+                        />
+                        {closeButton}
+                    </Stack>
+                </Center>
+            </div>
+        );
+    }
+
+    let body: ReactNode;
+    if (isTokenLoading || !previewUrl || !token) {
+        body = (
+            <Center h="100%">
+                <Loader
+                    type="dots"
+                    color="gray"
+                    delayedMessage="Loading data app..."
+                />
+            </Center>
+        );
+    } else {
+        body = (
+            <AppIframePreview
+                src={previewUrl}
+                previewToken={token}
+                expectedPreviewOrigin={previewOrigin}
+                projectUuid={projectUuid}
+                appUuid={appUuid}
+                identityKey={`${appUuid}:${latestReadyVersion}`}
+                capabilities={{ gsheetExport: true }}
+            />
+        );
+    }
+
+    const appUrl = `/projects/${projectUuid}/apps/${appUuid}/view`;
+
+    return (
+        <div className={artifactStyles.floatingPanel}>
+            <div className={artifactStyles.floatingContent}>
+                <div className={artifactStyles.head}>
+                    <Stack gap={0} flex={1} miw={0}>
+                        <TruncatedText fz="sm" fw={600} maxWidth="100%">
+                            {getAppDisplayName(app.name, appUuid)}
+                        </TruncatedText>
+                        {app.description && (
+                            <TruncatedText fz="xs" c="dimmed" maxWidth="100%">
+                                {app.description}
+                            </TruncatedText>
+                        )}
+                    </Stack>
+
+                    <Group gap={2} className={artifactStyles.headRight}>
+                        <Menu withinPortal position="bottom-end">
+                            <Menu.Target>
+                                <Tooltip withinPortal label="More options">
+                                    <ActionIcon
+                                        size="sm"
+                                        variant="subtle"
+                                        color="ldGray.6"
+                                        aria-label="More options"
+                                    >
+                                        <MantineIcon icon={IconDots} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                <Menu.Item
+                                    component="a"
+                                    href={appUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconExternalLink}
+                                            size="sm"
+                                        />
+                                    }
+                                >
+                                    Open in new tab
+                                </Menu.Item>
+                            </Menu.Dropdown>
+                        </Menu>
+                        {closeButton}
+                    </Group>
+                </div>
+
+                <Box flex={1} mih={0}>
+                    {body}
+                </Box>
+            </div>
+        </div>
+    );
+};

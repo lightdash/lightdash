@@ -26,6 +26,7 @@ import {
     useAiAgentStoreSelector,
 } from '../../store/hooks';
 import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
+import { AiDataAppPreviewPanel } from '../ChatElements/AiDataAppPreviewPanel';
 import { AiSavedChartPreviewPanel } from '../ChatElements/AiSavedChartPreviewPanel';
 import styles from './aiAgentPageLayout.module.css';
 import { SidebarButton } from './SidebarButton';
@@ -57,7 +58,10 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     const savedChart = useAiAgentStoreSelector(
         (state) => state.aiArtifact.savedChart,
     );
-    const preview = artifact || savedChart;
+    const dataApp = useAiAgentStoreSelector(
+        (state) => state.aiArtifact.dataApp,
+    );
+    const preview = artifact || savedChart || dataApp;
     const isMobile = useMediaQuery('(max-width: 768px)');
 
     const toggleSidebar = useCallback(() => {
@@ -198,6 +202,10 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                                         <AiSavedChartPreviewPanel
                                             savedChartPreview={savedChart}
                                         />
+                                    ) : dataApp ? (
+                                        <AiDataAppPreviewPanel
+                                            dataAppPreview={dataApp}
+                                        />
                                     ) : null}
                                 </Box>
                             </Panel>
@@ -233,6 +241,8 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         <AiSavedChartPreviewPanel
                             savedChartPreview={savedChart}
                         />
+                    ) : dataApp ? (
+                        <AiDataAppPreviewPanel dataAppPreview={dataApp} />
                     ) : null}
                 </Drawer>
             )}

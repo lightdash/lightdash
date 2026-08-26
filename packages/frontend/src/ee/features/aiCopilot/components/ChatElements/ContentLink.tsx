@@ -12,7 +12,11 @@ import {
 import { type FC, type MouseEvent, type ReactNode } from 'react';
 import { Link, createPath, useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { setArtifact, setSavedChartPreview } from '../../store/aiArtifactSlice';
+import {
+    setArtifact,
+    setDataAppPreview,
+    setSavedChartPreview,
+} from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -63,6 +67,9 @@ export const ContentLink: FC<ContentLinkProps> = ({
     );
     const currentSavedChart = useAiAgentStoreSelector(
         (state) => state.aiArtifact.savedChart,
+    );
+    const currentDataApp = useAiAgentStoreSelector(
+        (state) => state.aiArtifact.dataApp,
     );
 
     const handleResourceClick = (e: MouseEvent<HTMLAnchorElement>) => {
@@ -117,13 +124,48 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 </ContentReferenceLink>
             );
 
-        case 'data-app-link':
-            // Apps are full-page experiences — open in a new tab so the chat
-            // thread stays put.
+        case 'data-app-link': {
+            const appUuid =
+                'data-app-uuid' in props &&
+                typeof props['data-app-uuid'] === 'string'
+                    ? props['data-app-uuid']
+                    : undefined;
+            const isActive = !!appUuid && currentDataApp?.appUuid === appUuid;
+
+            // Plain left-click previews the app in the thread panel; modified
+            // clicks fall through to the anchor and open the full page in a
+            // new tab.
+            const handleDataAppClick = (e: MouseEvent<HTMLAnchorElement>) => {
+                if (
+                    !appUuid ||
+                    e.defaultPrevented ||
+                    e.button !== 0 ||
+                    e.metaKey ||
+                    e.altKey ||
+                    e.ctrlKey ||
+                    e.shiftKey
+                ) {
+                    return;
+                }
+
+                e.preventDefault();
+                dispatch(
+                    setDataAppPreview({
+                        appUuid,
+                        messageUuid: message.uuid,
+                        threadUuid: message.threadUuid,
+                        projectUuid,
+                        agentUuid,
+                    }),
+                );
+            };
+
             return (
                 <ContentReferenceLink
                     to={resourceHref || undefined}
                     kind={REFERENCE_LINK_KINDS[contentType]}
+                    data-app-active={isActive || undefined}
+                    onClick={handleDataAppClick}
                     target="_blank"
                     rel="noreferrer"
                     title={title}
@@ -131,6 +173,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     {children}
                 </ContentReferenceLink>
             );
+        }
 
         case 'chart-link': {
             const chartUuid =
