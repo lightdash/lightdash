@@ -441,6 +441,8 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     contentAsCodeProjectSettingsModel:
                         this.models.getContentAsCodeProjectSettingsModel(),
+                    contentAsCodeSnapshotModel:
+                        this.models.getContentAsCodeSnapshotModel(),
                     contentDraftModel: this.models.getContentDraftModel(),
                     slackClient: this.clients.getSlackClient(),
                     catalogModel: this.models.getCatalogModel(),

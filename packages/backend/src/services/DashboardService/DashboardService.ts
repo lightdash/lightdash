@@ -4,6 +4,7 @@ import {
     assertRegisteredAccount,
     BulkActionable,
     canMutateVerifiedContent,
+    ContentAsCodeType,
     ContentType,
     CreateDashboard,
     CreateDashboardWithCharts,
@@ -80,6 +81,7 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
+import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
 import { ContentDraftModel } from '../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -119,6 +121,7 @@ type DashboardServiceArguments = {
     savedChartService: SavedChartService;
     schedulerClient: SchedulerClient;
     contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+    contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
     contentDraftModel: ContentDraftModel;
     slackClient: SlackClient;
     projectModel: ProjectModel;
@@ -168,6 +171,8 @@ export class DashboardService
     schedulerClient: SchedulerClient;
 
     contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+
+    contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
 
     contentDraftModel: ContentDraftModel;
 
@@ -286,6 +291,7 @@ export class DashboardService
         savedChartService,
         schedulerClient,
         contentAsCodeProjectSettingsModel,
+        contentAsCodeSnapshotModel,
         contentDraftModel,
         slackClient,
         projectModel,
@@ -315,6 +321,7 @@ export class DashboardService
         this.schedulerClient = schedulerClient;
         this.contentAsCodeProjectSettingsModel =
             contentAsCodeProjectSettingsModel;
+        this.contentAsCodeSnapshotModel = contentAsCodeSnapshotModel;
         this.contentDraftModel = contentDraftModel;
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
@@ -1631,9 +1638,12 @@ export class DashboardService
         };
     }
 
-    // Drafts mode: a business user's save becomes an unpublished draft that
-    // only they see; reviewers later write it back to the repo. The
-    // published dashboard is untouched.
+    // Drafts mode: with content_as_code.sync on, a business user's save of
+    // GIT-BACKED content becomes an unpublished draft that only they see;
+    // reviewers later write it back to the repo. The published dashboard is
+    // untouched. Content never uploaded as code (no last-applied snapshot
+    // row) publishes normally — drafts exist to protect the repo contract,
+    // not to intercept every save in the project.
     private async maybeStoreDraft(
         user: SessionUser,
         existingDashboardDao: DashboardDAO,
@@ -1642,7 +1652,13 @@ export class DashboardService
         const settings = await this.contentAsCodeProjectSettingsModel.get(
             existingDashboardDao.projectUuid,
         );
-        if (!settings?.draftsEnabled) return undefined;
+        if (!settings?.syncEnabled) return undefined;
+        const snapshot = await this.contentAsCodeSnapshotModel.get(
+            existingDashboardDao.projectUuid,
+            ContentAsCodeType.DASHBOARD,
+            existingDashboardDao.slug,
+        );
+        if (snapshot === undefined) return undefined;
         if (
             await this.canManageContentAsCode(
                 user,
@@ -1683,7 +1699,7 @@ export class DashboardService
             const settings = await this.contentAsCodeProjectSettingsModel.get(
                 dashboard.projectUuid,
             );
-            if (!settings?.draftsEnabled) return dashboard;
+            if (!settings?.syncEnabled) return dashboard;
             const draft = await this.contentDraftModel.findOpenDraft(
                 dashboard.projectUuid,
                 'dashboard',
@@ -1720,7 +1736,6 @@ export class DashboardService
             return dashboard;
         }
     }
-
 
     async update(
         user: SessionUser,

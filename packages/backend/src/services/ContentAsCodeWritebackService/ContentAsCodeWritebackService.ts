@@ -7,7 +7,6 @@ import {
     ParameterError,
     PullRequestSource,
     type ChartAsCode,
-    type ContentAsCodePullSummary,
     type DashboardAsCode,
     type SessionUser,
 } from '@lightdash/common';
@@ -217,166 +216,11 @@ export class ContentAsCodeWritebackService extends BaseService {
         return rows;
     }
 
-    private async assertCanReviewDrafts(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<void> {
-        const project = await this.projectModel.get(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('ContentAsCode', {
-                    projectUuid: project.projectUuid,
-                    organizationUuid: project.organizationUuid,
-                    upstreamProjectUuid: project.upstreamProjectUuid,
-                    type: project.type,
-                    createdByUserUuid: project.createdByUserUuid,
-                    metadata: { slug: '' },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'Reviewing drafts requires content-as-code access',
-            );
-        }
-    }
-
-    /**
-     * Pulls charts and dashboards as code from the project's repo and applies
-     * them — `lightdash upload` without leaving the app. Runs with sync
-     * enforcement so project-ahead content is skipped, never overwritten.
-     * Spaces are deliberately not pulled: space-as-code re-applies access
-     * rules, which is too destructive for a one-click refresh.
-     */
-    async pullFromGit(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<ContentAsCodePullSummary> {
-        await this.assertCanReviewDrafts(user, projectUuid);
-        const { branch, path } =
-            await this.gitIntegrationService.getProjectRepo(projectUuid);
-        const prefix = path.replace(/^\/+|\/+$/g, '');
-        const dirFor = (folder: 'charts' | 'dashboards') =>
-            prefix === ''
-                ? `lightdash/${folder}`
-                : `${prefix}/lightdash/${folder}`;
-
-        const readYmlFiles = async (
-            folder: 'charts' | 'dashboards',
-        ): Promise<{ name: string; content: string }[]> => {
-            let listing;
-            try {
-                listing = await this.gitIntegrationService.getFileOrDirectory(
-                    user,
-                    projectUuid,
-                    branch,
-                    dirFor(folder),
-                );
-            } catch (error) {
-                const isNotFound =
-                    error instanceof NotFoundError ||
-                    (typeof error === 'object' &&
-                        error !== null &&
-                        'status' in error &&
-                        (error as { status?: unknown }).status === 404);
-                if (isNotFound) return []; // the repo has no such folder
-                throw error;
-            }
-            if (listing.type !== 'directory') return [];
-            const files = listing.entries.filter(
-                (entry) => entry.type === 'file' && entry.name.endsWith('.yml'),
-            );
-            const contents = await Promise.all(
-                files.map(async (file) => {
-                    const result =
-                        await this.gitIntegrationService.getFileOrDirectory(
-                            user,
-                            projectUuid,
-                            branch,
-                            file.path,
-                        );
-                    return result.type === 'file'
-                        ? { name: file.name, content: result.content }
-                        : null;
-                }),
-            );
-            return contents.filter(
-                (file): file is { name: string; content: string } =>
-                    file !== null,
-            );
-        };
-
-        const [chartFiles, dashboardFiles] = await Promise.all([
-            readYmlFiles('charts'),
-            readYmlFiles('dashboards'),
-        ]);
-
-        const summary: ContentAsCodePullSummary = {
-            charts: 0,
-            dashboards: 0,
-            skips: [],
-        };
-
-        const parseDoc = (file: {
-            name: string;
-            content: string;
-        }): { slug: string; doc: unknown } | null => {
-            try {
-                const doc = yaml.load(file.content);
-                if (doc === null || typeof doc !== 'object') return null;
-                const slug =
-                    'slug' in doc && typeof doc.slug === 'string'
-                        ? doc.slug
-                        : file.name.replace(/\.yml$/, '');
-                return { slug, doc };
-            } catch (error) {
-                this.logger.warn(
-                    `Skipping unparseable content-as-code file ${file.name}: ${error}`,
-                );
-                return null;
-            }
-        };
-
-        // Charts before dashboards — dashboard tiles reference chart slugs.
-        // Sequential per type so slug/space creation never races itself.
-        await chartFiles.map(parseDoc).reduce(async (previous, parsed) => {
-            await previous;
-            if (!parsed || 'sql' in (parsed.doc as Record<string, unknown>))
-                return; // SQL charts are outside the sync contract
-            const result = await this.coderService.upsertChart(
-                user,
-                projectUuid,
-                parsed.slug,
-                parsed.doc as ChartAsCode,
-                { syncEnforced: true },
-            );
-            if (result.skips?.length) summary.skips.push(...result.skips);
-            else summary.charts += 1;
-        }, Promise.resolve());
-
-        await dashboardFiles.map(parseDoc).reduce(async (previous, parsed) => {
-            await previous;
-            if (!parsed) return;
-            const result = await this.coderService.upsertDashboard(
-                user,
-                projectUuid,
-                parsed.slug,
-                parsed.doc as DashboardAsCode,
-                { syncEnforced: true },
-            );
-            if (result.skips?.length) summary.skips.push(...result.skips);
-            else summary.dashboards += 1;
-        }, Promise.resolve());
-
-        return summary;
-    }
-
     async listDrafts(
         user: SessionUser,
         projectUuid: string,
     ): Promise<ContentDraft[]> {
-        await this.assertCanReviewDrafts(user, projectUuid);
+        await this.assertCanManageContentAsCode(user, projectUuid);
         return this.contentDraftModel.listByProject(projectUuid);
     }
 
@@ -391,7 +235,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         publishedYaml: string;
         draftYaml: string;
     }> {
-        await this.assertCanReviewDrafts(user, projectUuid);
+        await this.assertCanManageContentAsCode(user, projectUuid);
         const draft = await this.contentDraftModel.get(draftUuid);
         if (!draft || draft.projectUuid !== projectUuid) {
             throw new ParameterError('Draft not found');
@@ -417,7 +261,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         projectUuid: string,
         draftUuid: string,
     ): Promise<ContentDraft> {
-        await this.assertCanReviewDrafts(user, projectUuid);
+        await this.assertCanManageContentAsCode(user, projectUuid);
         const draft = await this.contentDraftModel.get(draftUuid);
         if (!draft || draft.projectUuid !== projectUuid) {
             throw new ParameterError('Draft not found');
@@ -445,7 +289,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         projectUuid: string,
         draftUuid: string,
     ): Promise<void> {
-        await this.assertCanReviewDrafts(user, projectUuid);
+        await this.assertCanManageContentAsCode(user, projectUuid);
         const draft = await this.contentDraftModel.get(draftUuid);
         if (!draft || draft.projectUuid !== projectUuid) {
             throw new ParameterError('Draft not found');

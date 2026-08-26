@@ -87,18 +87,6 @@ export type ContentAsCodeSyncStatus = {
     skips?: ContentAsCodeSkip[];
 };
 
-/** Outcome of a server-side pull of content-as-code from the project's repo. */
-export type ContentAsCodePullSummary = {
-    charts: number;
-    dashboards: number;
-    skips: ContentAsCodeSkip[];
-};
-
-export type ApiContentAsCodePullResponse = {
-    status: 'ok';
-    results: ContentAsCodePullSummary;
-};
-
 export type ContentAsCodeWritebackStatus =
     | 'pending'
     | 'open'
@@ -130,7 +118,6 @@ export type ApiContentAsCodeProposeResponse = {
 
 export type ContentAsCodeProjectSettings = {
     syncEnabled: boolean;
-    draftsEnabled: boolean;
     stampedAt: Date;
 };
 
@@ -138,7 +125,6 @@ export type ApiContentAsCodeSettingsResponse = {
     status: 'ok';
     results: ContentAsCodeProjectSettings | null;
 };
-
 
 export type ContentDraftSummary = {
     uuid: string;

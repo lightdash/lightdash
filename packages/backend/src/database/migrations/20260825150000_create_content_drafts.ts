@@ -55,17 +55,10 @@ export async function up(knex: Knex): Promise<void> {
         ON ${CONTENT_DRAFTS_TABLE} (project_uuid, content_type, content_uuid, author_user_uuid)
         WHERE status = 'open'
     `);
-
-    await knex.schema.alterTable(SETTINGS_TABLE, (table) => {
-        table.boolean('drafts_enabled').notNullable().defaultTo(false);
-    });
 }
 
 export async function down(knex: Knex): Promise<void> {
     await knex.raw(`SET LOCAL lock_timeout = '${LOCK_TIMEOUT}'`);
 
-    await knex.schema.alterTable(SETTINGS_TABLE, (table) => {
-        table.dropColumn('drafts_enabled');
-    });
     await knex.schema.dropTableIfExists(CONTENT_DRAFTS_TABLE);
 }

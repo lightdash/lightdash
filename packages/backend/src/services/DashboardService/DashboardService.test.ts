@@ -226,6 +226,7 @@ describe('DashboardService', () => {
         slackClient: slackClient as unknown as SlackClient,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
         contentAsCodeProjectSettingsModel: { get: vi.fn() } as never,
+        contentAsCodeSnapshotModel: { get: vi.fn() } as never,
         contentDraftModel: { findOpenDraft: vi.fn() } as never,
         catalogModel: {} as CatalogModel,
         organizationModel: {
