@@ -354,7 +354,13 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 className={`${classes.stackRow} ${classes.buildingStatus}`}
                             >
                                 <Loader size={13} color="ldGray.6" />
-                                <Text fz="xs" fw={600} c="ldGray.9" inherit>
+                                <Text
+                                    className={classes.buildingLabel}
+                                    fz="xs"
+                                    fw={600}
+                                    c="ldGray.9"
+                                    inherit
+                                >
                                     Reading your prompt…
                                 </Text>
                                 <Text
@@ -384,7 +390,13 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 data-has-narration={hasNarration || undefined}
                             >
                                 <Loader size={13} color="ldGray.6" />
-                                <Text fz="xs" fw={600} c="ldGray.9" inherit>
+                                <Text
+                                    className={classes.buildingLabel}
+                                    fz="xs"
+                                    fw={600}
+                                    c="ldGray.9"
+                                    inherit
+                                >
                                     Building…{elapsed ? ` ${elapsed}` : ''}
                                 </Text>
                                 {build.cancelError ? (
