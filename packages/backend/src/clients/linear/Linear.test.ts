@@ -1,4 +1,4 @@
-import { ForbiddenError } from '@lightdash/common'; // pragma: allowlist secret
+import { ForbiddenError, NotFoundError } from '@lightdash/common'; // pragma: allowlist secret
 import {
     createLinearIssue,
     exchangeLinearCodeForToken,
@@ -98,6 +98,10 @@ describe('Linear client', () => {
                                 nodes: [
                                     { id: 'team-1', name: 'Product', key: 'PRD' },
                                 ],
+                                pageInfo: {
+                                    hasNextPage: false,
+                                    endCursor: null,
+                                },
                             },
                         },
                     }),
@@ -107,19 +111,14 @@ describe('Linear client', () => {
                 ok: true,
                 json: async () => ({
                     data: {
-                        projects: {
-                            nodes: [
-                                {
-                                    id: 'project-1',
-                                    name: 'Fix data',
-                                    teams: { nodes: [{ id: 'team-1' }] },
+                        team: {
+                            projects: {
+                                nodes: [{ id: 'project-1', name: 'Fix data' }],
+                                pageInfo: {
+                                    hasNextPage: false,
+                                    endCursor: null,
                                 },
-                                {
-                                    id: 'project-2',
-                                    name: 'Other',
-                                    teams: { nodes: [{ id: 'team-2' }] },
-                                },
-                            ],
+                            },
                         },
                     },
                 }),
@@ -136,8 +135,55 @@ describe('Linear client', () => {
             { id: 'team-1', name: 'Product', key: 'PRD' },
         ]);
         await expect(getLinearProjects('token', 'team-1')).resolves.toEqual([
-            { id: 'project-1', name: 'Fix data', teamIds: ['team-1'] },
+            { id: 'project-1', name: 'Fix data' },
         ]);
+    });
+
+    it('follows pagination until the last page of teams', async () => {
+        const fetchMock = vi.fn().mockImplementation(async (_url, options) => {
+            const { variables } = JSON.parse(options.body) as {
+                variables: { after: string | null };
+            };
+            const isFirstPage = variables.after === null;
+
+            return {
+                ok: true,
+                json: async () => ({
+                    data: {
+                        teams: {
+                            nodes: isFirstPage
+                                ? [{ id: 'team-1', name: 'Product', key: 'PRD' }]
+                                : [{ id: 'team-2', name: 'Data', key: 'DAT' }],
+                            pageInfo: {
+                                hasNextPage: isFirstPage,
+                                endCursor: isFirstPage ? 'cursor-1' : null,
+                            },
+                        },
+                    },
+                }),
+            };
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(getLinearTeams('token')).resolves.toEqual([
+            { id: 'team-1', name: 'Product', key: 'PRD' },
+            { id: 'team-2', name: 'Data', key: 'DAT' },
+        ]);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects projects for a team the integration cannot see', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockResolvedValue({
+                ok: true,
+                json: async () => ({ data: { team: null } }),
+            }),
+        );
+
+        await expect(
+            getLinearProjects('token', 'team-missing'),
+        ).rejects.toBeInstanceOf(NotFoundError);
     });
 
     it('creates an issue and returns the Linear URL', async () => {

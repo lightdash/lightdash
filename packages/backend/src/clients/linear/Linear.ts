@@ -14,6 +14,10 @@ const LINEAR_TOKEN_URL = 'https://api.linear.app/oauth/token';
 const LINEAR_GRAPHQL_URL = 'https://api.linear.app/graphql';
 const LINEAR_SCOPES = ['read', 'issues:create'];
 
+// Linear pages every connection and caps `first` at 250. Without an explicit
+// page size it returns 50, silently truncating the pickers on large workspaces.
+const LINEAR_PAGE_SIZE = 250;
+
 export class LinearApiError extends LightdashError { // pragma: allowlist secret
     constructor(message: string, statusCode: number = 500) {
         super({
@@ -40,6 +44,14 @@ type LinearGraphqlError = {
 type LinearGraphqlResponse<T> = {
     data?: T;
     errors?: LinearGraphqlError[];
+};
+
+type LinearConnection<T> = {
+    nodes: T[];
+    pageInfo: {
+        hasNextPage: boolean;
+        endCursor: string | null;
+    };
 };
 
 export type LinearOrganization = {
@@ -206,66 +218,79 @@ export const getLinearOrganization = async (
     return data.organization;
 };
 
-export const getLinearTeams = async (token: string): Promise<LinearTeam[]> => {
-    const data = await linearGraphql<{
-        teams: { nodes: LinearTeam[] };
-    }>(
-        token,
-        `query LinearTeams {
-            teams {
-                nodes {
-                    id
-                    name
-                    key
-                }
-            }
-        }`,
-    );
+const collectPages = async <T>(
+    getPage: (cursor: string | null) => Promise<LinearConnection<T>>,
+): Promise<T[]> => {
+    const nodes: T[] = [];
+    let cursor: string | null = null;
 
-    return data.teams.nodes;
+    do {
+        // eslint-disable-next-line no-await-in-loop
+        const page = await getPage(cursor);
+        nodes.push(...page.nodes);
+        cursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
+    } while (cursor !== null);
+
+    return nodes;
 };
+
+export const getLinearTeams = async (token: string): Promise<LinearTeam[]> =>
+    collectPages(async (after) => {
+        const data = await linearGraphql<{
+            teams: LinearConnection<LinearTeam>;
+        }>(
+            token,
+            `query LinearTeams($first: Int!, $after: String) {
+                teams(first: $first, after: $after) {
+                    nodes {
+                        id
+                        name
+                        key
+                    }
+                    pageInfo {
+                        hasNextPage
+                        endCursor
+                    }
+                }
+            }`,
+            { first: LINEAR_PAGE_SIZE, after },
+        );
+
+        return data.teams;
+    });
 
 export const getLinearProjects = async (
     token: string,
-    teamId?: string,
-): Promise<LinearProject[]> => {
-    const data = await linearGraphql<{
-        projects: {
-            nodes: Array<{
-                id: string;
-                name: string;
-                teams: { nodes: Array<{ id: string }> };
-            }>;
-        };
-    }>(
-        token,
-        `query LinearProjects {
-            projects {
-                nodes {
-                    id
-                    name
-                    teams {
+    teamId: string,
+): Promise<LinearProject[]> =>
+    collectPages(async (after) => {
+        const data = await linearGraphql<{
+            team: { projects: LinearConnection<LinearProject> } | null;
+        }>(
+            token,
+            `query LinearTeamProjects($teamId: String!, $first: Int!, $after: String) {
+                team(id: $teamId) {
+                    projects(first: $first, after: $after) {
                         nodes {
                             id
+                            name
+                        }
+                        pageInfo {
+                            hasNextPage
+                            endCursor
                         }
                     }
                 }
-            }
-        }`,
-    );
+            }`,
+            { teamId, first: LINEAR_PAGE_SIZE, after },
+        );
 
-    const projects = data.projects.nodes.map((project) => ({
-        id: project.id,
-        name: project.name,
-        teamIds: project.teams.nodes.map((team) => team.id),
-    }));
+        if (!data.team) {
+            throw new NotFoundError(`Linear team ${teamId} not found`);
+        }
 
-    if (!teamId) {
-        return projects;
-    }
-
-    return projects.filter((project) => project.teamIds.includes(teamId));
-};
+        return data.team.projects;
+    });
 
 export const createLinearIssue = async (
     token: string,

@@ -64,26 +64,25 @@ export const useLinearTeams = (options?: { enabled?: boolean }) => {
     });
 };
 
-const getLinearProjects = async (teamId?: string): Promise<LinearProject[]> =>
+const getLinearProjects = async (teamId: string): Promise<LinearProject[]> =>
     lightdashApi<LinearProject[]>({ // pragma: allowlist secret
-        url: `/linear/projects${
-            teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''
-        }`,
+        url: `/linear/projects?teamId=${encodeURIComponent(teamId)}`,
         method: 'GET',
         body: undefined,
     });
 
-export const useLinearProjects = (options?: {
+export const useLinearProjects = (options: {
     enabled?: boolean;
-    teamId?: string;
+    teamId: string | null;
 }) => {
     const { showToastApiError } = useToaster();
+    const { teamId } = options;
 
     return useQuery<LinearProject[], ApiError>({
-        queryKey: [...LINEAR_PROJECTS_QUERY_KEY, options?.teamId ?? null],
-        queryFn: () => getLinearProjects(options?.teamId),
+        queryKey: [...LINEAR_PROJECTS_QUERY_KEY, teamId],
+        queryFn: () => getLinearProjects(teamId!),
         retry: false,
-        enabled: options?.enabled ?? true,
+        enabled: !!teamId && (options.enabled ?? true),
         onError: ({ error }) => {
             if (error.statusCode === 404 || error.statusCode === 401) return;
 
