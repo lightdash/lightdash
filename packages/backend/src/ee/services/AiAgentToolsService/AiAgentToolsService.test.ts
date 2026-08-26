@@ -1504,7 +1504,7 @@ describe('AiAgentToolsService', () => {
             spaceModel: denySpaceAccessModel(),
             dashboardService,
             coderService: {
-                getDashboards: vi.fn().mockResolvedValue({
+                getDashboardsForRead: vi.fn().mockResolvedValue({
                     dashboards: [makeDashboardContent('blocked-space')],
                 }),
             },
@@ -1778,7 +1778,7 @@ describe('AiAgentToolsService', () => {
                     .mockResolvedValue({ uuid: 'dashboard-uuid' }),
             },
             coderService: {
-                getDashboards: vi.fn().mockResolvedValue({
+                getDashboardsForRead: vi.fn().mockResolvedValue({
                     dashboards: [makeDashboardContent('allowed-space')],
                 }),
                 getCurrentContentVersionBySlug: vi.fn().mockResolvedValue({
@@ -1846,7 +1846,7 @@ describe('AiAgentToolsService', () => {
                 get: vi.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
             },
             coderService: {
-                getCharts: vi
+                getChartsForRead: vi
                     .fn()
                     .mockResolvedValue({ charts: [makeChartContent(null)] }),
                 getCurrentContentVersionBySlug: vi

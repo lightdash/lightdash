@@ -1637,11 +1637,12 @@ export class AiAgentToolsService extends BaseService {
     > {
         switch (type) {
             case 'dashboard': {
-                const { dashboards } = await this.coderService.getDashboards(
-                    context.user,
-                    context.projectUuid,
-                    [slug],
-                );
+                const { dashboards } =
+                    await this.coderService.getDashboardsForRead(
+                        context.user,
+                        context.projectUuid,
+                        [slug],
+                    );
                 const dashboard = dashboards[0];
                 if (!dashboard) {
                     throw new NotFoundError(
@@ -1670,7 +1671,7 @@ export class AiAgentToolsService extends BaseService {
                 };
             }
             case 'chart': {
-                const { charts } = await this.coderService.getCharts(
+                const { charts } = await this.coderService.getChartsForRead(
                     context.user,
                     context.projectUuid,
                     [slug],

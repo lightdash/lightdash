@@ -421,7 +421,7 @@ export class ProjectCoderController extends BaseController {
         return codeSuccess(
             await this.services
                 .getCoderService()
-                .getCharts(
+                .getChartsForExport(
                     toSessionUser(req.account),
                     projectUuid,
                     ids,
@@ -452,7 +452,7 @@ export class ProjectCoderController extends BaseController {
         return codeSuccess(
             await this.services
                 .getCoderService()
-                .getDashboards(
+                .getDashboardsForExport(
                     toSessionUser(req.account),
                     projectUuid,
                     ids,

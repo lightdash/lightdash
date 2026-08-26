@@ -2063,3 +2063,47 @@ describe('CoderService', () => {
         });
     });
 });
+
+describe('content-as-code access split', () => {
+    const viewer = {
+        userUuid: 'user-uuid',
+        organizationUuid: 'org-uuid',
+        ability: {
+            can: vi.fn(() => false),
+            cannot: vi.fn(() => true),
+            relevantRuleFor: vi.fn(() => ({ inverted: true })),
+            rules: [],
+        },
+    } as AnyType;
+
+    const service = new CoderService({
+        projectModel: {
+            get: vi.fn().mockResolvedValue({
+                projectUuid: 'project-uuid',
+                organizationUuid: 'org-uuid',
+            }),
+            getSummary: vi.fn().mockResolvedValue({
+                projectUuid: 'project-uuid',
+                organizationUuid: 'org-uuid',
+            }),
+        },
+    } as AnyType);
+
+    it('blocks export without view:ContentAsCode', async () => {
+        await expect(
+            service.getChartsForExport(viewer, 'project-uuid', []),
+        ).rejects.toThrow('You are not allowed to download charts');
+        await expect(
+            service.getDashboardsForExport(viewer, 'project-uuid', []),
+        ).rejects.toThrow('You are not allowed to download dashboards');
+    });
+
+    it('allows read without view:ContentAsCode', async () => {
+        await expect(
+            service.getChartsForRead(viewer, 'project-uuid', []),
+        ).resolves.toMatchObject({ charts: [] });
+        await expect(
+            service.getDashboardsForRead(viewer, 'project-uuid', []),
+        ).resolves.toMatchObject({ dashboards: [] });
+    });
+});
