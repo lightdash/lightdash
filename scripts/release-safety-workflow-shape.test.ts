@@ -191,7 +191,7 @@ assert.ok(
     "the preview job's setup-node must cache the pnpm store (SPK-1021)",
 );
 assert.ok(
-    previewJob.indexOf('pnpm/action-setup') < previewJob.indexOf('actions/setup-node'),
+    previewJob.indexOf('pnpm/setup') < previewJob.indexOf('actions/setup-node'),
     'pnpm must be set up before setup-node, or cache: pnpm cannot resolve the store path (SPK-1021)',
 );
 
