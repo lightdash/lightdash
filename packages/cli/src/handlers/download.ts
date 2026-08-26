@@ -4276,6 +4276,7 @@ export const uploadHandler = async (
             if (uploadFilter) {
                 const unmatchedWarning = unmatchedUploadRefsWarning(
                     [...uploadFilter].filter((ref) => !matchedRefs.has(ref)),
+                    phase.noun,
                 );
                 if (unmatchedWarning) {
                     GlobalState.log(styles.warning(unmatchedWarning));
