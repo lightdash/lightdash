@@ -12105,6 +12105,10 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        linkedChartTypeCount: {
+                            dataType: 'double',
+                            required: true,
+                        },
                         linkedDataAppCount: {
                             dataType: 'double',
                             required: true,

@@ -1,3 +1,10 @@
+## [2.9.3](https://github.com/lightdash/lightdash/compare/2.9.2...2.9.3) (2026-08-26)
+
+
+### Bug Fixes
+
+* **apps:** make direct data-app endpoints chart-type-aware ([#28095](https://github.com/lightdash/lightdash/issues/28095)) ([e3541bb](https://github.com/lightdash/lightdash/commit/e3541bba743e9cc55d66e186f0f09562bc55f03c)), closes [#28091](https://github.com/lightdash/lightdash/issues/28091)
+
 ## [2.9.2](https://github.com/lightdash/lightdash/compare/2.9.1...2.9.2) (2026-08-26)
 
 
