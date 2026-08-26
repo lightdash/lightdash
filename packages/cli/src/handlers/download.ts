@@ -811,6 +811,22 @@ const extractAppSlugsFromDashboards = (
     ),
 ];
 
+/**
+ * Custom chart type refs bound by DATA_APP_VIZ charts — the portable slug,
+ * or the legacy uuid for files written before slug bindings.
+ */
+const extractChartTypeRefsFromCharts = (charts: ChartAsCode[]): string[] => [
+    ...new Set(
+        charts.reduce<string[]>((acc, chart) => {
+            if (chart.chartConfig.type !== ChartType.DATA_APP_VIZ) return acc;
+            const ref =
+                chart.chartConfig.config?.dataAppVizSlug ??
+                chart.chartConfig.config?.dataAppVizUuid;
+            return ref ? [...acc, ref] : acc;
+        }, []),
+    ),
+];
+
 // A virtual view's slug is the explore name charts store in tableName, so
 // these names double as virtual view slug candidates.
 const extractChartTableNames = (charts: ChartAsCode[]): string[] => [
@@ -826,6 +842,9 @@ export type DownloadContentResult = {
     chartSlugs: string[];
     chartTableNames: string[];
     appSlugs: string[];
+    // Custom chart types the downloaded charts render with (slug or legacy
+    // uuid refs), for the Linked custom chart types step.
+    chartTypeRefs: string[];
     metadataEntries: MetadataEntry[];
     spaces: SpaceAsCode[];
 };
@@ -852,6 +871,7 @@ export const downloadContent = async (
     let chartSlugs: string[] = [];
     let chartTableNames: string[] = [];
     let appSlugs: string[] = [];
+    let chartTypeRefs: string[] = [];
     let allMetadataEntries: MetadataEntry[] = [];
     let allSpaces: SpaceAsCode[] = [];
 
@@ -959,6 +979,10 @@ export const downloadContent = async (
                 ...chartTableNames,
                 ...extractChartTableNames(results.charts),
             ];
+            chartTypeRefs = [
+                ...chartTypeRefs,
+                ...extractChartTypeRefsFromCharts(results.charts),
+            ];
         }
 
         // Accumulate space metadata from each page
@@ -990,6 +1014,7 @@ export const downloadContent = async (
         chartSlugs: [...new Set(chartSlugs)],
         chartTableNames: [...new Set(chartTableNames)],
         appSlugs: [...new Set(appSlugs)],
+        chartTypeRefs: [...new Set(chartTypeRefs)],
         metadataEntries: allMetadataEntries,
         spaces: allSpaces,
     };
@@ -1971,6 +1996,15 @@ export const downloadHandler = async (
                 getDataAppReference,
             ),
         );
+        // Chart-type refs bound by downloaded charts, populated by the
+        // Charts and Linked charts steps and consumed by the Linked custom
+        // chart types step.
+        let downloadedChartVizRefs: string[] = [];
+        const explicitChartTypeRefs = new Set(
+            (Array.isArray(options.chartTypes) ? options.chartTypes : []).map(
+                getDataAppReference,
+            ),
+        );
 
         if (shouldDownloadSpaces) {
             output.startItem('Spaces');
@@ -2038,6 +2072,7 @@ export const downloadHandler = async (
                 const {
                     total: regularChartTotal,
                     metadataEntries: regularChartMeta,
+                    chartTypeRefs: mainChartTypeRefs,
                 } = await output.runItem({
                     label: 'Charts',
                     action: () =>
@@ -2059,6 +2094,10 @@ export const downloadHandler = async (
                 allMetadataEntries = [
                     ...allMetadataEntries,
                     ...regularChartMeta,
+                ];
+                downloadedChartVizRefs = [
+                    ...downloadedChartVizRefs,
+                    ...mainChartTypeRefs,
                 ];
 
                 const { total: sqlChartTotal, metadataEntries: sqlChartMeta } =
@@ -2135,6 +2174,7 @@ export const downloadHandler = async (
                         total: regularCharts,
                         chartTableNames: linkedChartTableNames,
                         metadataEntries: linkedChartMeta,
+                        chartTypeRefs: linkedChartVizRefs,
                     } = await downloadContent(
                         chartSlugs,
                         'charts',
@@ -2151,6 +2191,10 @@ export const downloadHandler = async (
                     allMetadataEntries = [
                         ...allMetadataEntries,
                         ...linkedChartMeta,
+                    ];
+                    downloadedChartVizRefs = [
+                        ...downloadedChartVizRefs,
+                        ...linkedChartVizRefs,
                     ];
 
                     const { total: sqlCharts, metadataEntries: linkedSqlMeta } =
@@ -2480,6 +2524,10 @@ export const downloadHandler = async (
                 : undefined,
             includeApps: includeChartTypes,
         });
+        // Refs (slug AND uuid) covered by a possibly-truncated
+        // --include-chart-types listing, so the Linked custom chart types
+        // step knows what was already downloaded.
+        let cappedChartTypeRefs = new Set<string>();
         if (chartTypesSelection.mode !== 'none') {
             output.startItem('Custom chart types');
             let chartTypeRefsToDownload: string[];
@@ -2534,6 +2582,17 @@ export const downloadHandler = async (
                         ),
                     );
                 }
+                const cappedChartTypeUuidSet = new Set(cappedChartTypeUuids);
+                cappedChartTypeRefs = new Set(
+                    listedChartTypes
+                        .filter((chartType) =>
+                            cappedChartTypeUuidSet.has(chartType.appUuid),
+                        )
+                        .flatMap((chartType) => [
+                            chartType.slug,
+                            chartType.appUuid,
+                        ]),
+                );
                 chartTypeRefsToDownload = [
                     ...new Set([
                         ...cappedChartTypeUuids,
@@ -2673,6 +2732,77 @@ export const downloadHandler = async (
             );
             if (!linkedSummary.ok) {
                 linkedSummary.failureLines.forEach((line) =>
+                    GlobalState.log(styles.warning(line)),
+                );
+            }
+        }
+
+        // Custom chart types the downloaded charts render with, not already
+        // covered by an explicit --chart-types ref or a (non-truncated)
+        // --include-chart-types listing — a chart file without its chart
+        // type cannot be uploaded elsewhere.
+        const linkedChartTypeRefs = computeLinkedAppSlugs({
+            appSlugs: [...new Set(downloadedChartVizRefs)],
+            explicitRefs: explicitChartTypeRefs,
+            includeApps: includeChartTypes,
+            cappedAppSlugs: cappedChartTypeRefs,
+        });
+        if (linkedChartTypeRefs.length > 0) {
+            output.startItem('Linked custom chart types');
+            const chartTypesDir = path.join(
+                getDownloadFolder(options.path),
+                'chart-types',
+            );
+            const linkedChartTypesOutcome = await downloadAppsToDir({
+                appRefs: linkedChartTypeRefs,
+                projectId,
+                appsDir: chartTypesDir,
+                takenFolders: downloadedChartTypeFolders,
+                cliVersion: CLI_VERSION,
+                fetchApp: (fetchProjectId, appRef) =>
+                    lightdashApi<DataAppCodeDownload>({
+                        method: 'GET',
+                        url: `/api/v1/ee/projects/${fetchProjectId}/apps/${encodeURIComponent(
+                            appRef,
+                        )}/download`,
+                        body: undefined,
+                    }),
+                // Chart configs reference chart types, never data apps.
+                skipBundle: (manifest) =>
+                    manifest.template !== DATA_APP_VIZ_TEMPLATE
+                        ? 'this is a data app — chart configs cannot reference it'
+                        : null,
+                onProgress: (processed, total) =>
+                    output.updateActive(`${processed} of ${total} processed`),
+            });
+            const linkedChartTypesSkipped =
+                linkedChartTypesOutcome.skippedNotBuiltCount +
+                linkedChartTypesOutcome.skippedWrongKindCount;
+            const linkedChartTypesSummary = appsDownloadSummary(
+                linkedChartTypesOutcome.successCount,
+                linkedChartTypeRefs.length,
+                linkedChartTypesOutcome.failures,
+                chartTypesDir,
+                linkedChartTypesSkipped,
+                'custom chart type',
+            );
+            counts.chartTypesNum =
+                (counts.chartTypesNum ?? 0) +
+                linkedChartTypesOutcome.successCount;
+            output.completeItem(
+                `${linkedChartTypesOutcome.successCount} downloaded${
+                    linkedChartTypesSkipped > 0
+                        ? `, ${linkedChartTypesSkipped} skipped`
+                        : ''
+                }${
+                    linkedChartTypesOutcome.failures.length > 0
+                        ? `, ${linkedChartTypesOutcome.failures.length} failed`
+                        : ''
+                }`,
+                linkedChartTypesSummary.ok ? undefined : 'warning',
+            );
+            if (!linkedChartTypesSummary.ok) {
+                linkedChartTypesSummary.failureLines.forEach((line) =>
                     GlobalState.log(styles.warning(line)),
                 );
             }
@@ -4424,6 +4554,7 @@ export const testHelpers = {
     downloadSpaces,
     extractAppSlugsFromDashboards,
     extractChartTableNames,
+    extractChartTypeRefsFromCharts,
     getFlatSpaceFileNames,
     getDashboardAppSlugs,
     getDashboardChartSlugs,
