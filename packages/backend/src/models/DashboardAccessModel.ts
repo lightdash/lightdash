@@ -12,17 +12,12 @@ import { ProjectTableName } from '../database/entities/projects';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import {
-    assertCanGrantDirectAccess,
-    assertCanResetDirectAccess,
-    assertCanRevokeDirectAccess,
     getActiveGrantedGroupPredicate,
     getActiveProjectMemberPredicate,
     groupDirectAccessRows,
     validateDirectAccessGroup,
     validateDirectAccessUser,
     type DirectAccess,
-    type DirectAccessModel,
-    type DirectAccessModelActorRoleResolver,
     type DirectAccessMutationContext,
     type DirectAccessMutationResult,
     type DirectAccessResetResult,
@@ -31,7 +26,12 @@ import {
 
 export type DashboardDirectAccess = DirectAccess;
 
-export class DashboardAccessModel implements DirectAccessModel {
+/**
+ * Pure data access for dashboard direct grants. Authorization (CASL, role
+ * delegation) is the calling service's responsibility; the model enforces
+ * tenant safety only: organization scoping and current-membership checks.
+ */
+export class DashboardAccessModel {
     constructor(private readonly database: Knex) {}
 
     private static async getMutationContext(
@@ -80,31 +80,21 @@ export class DashboardAccessModel implements DirectAccessModel {
         resourceUuid,
         userUuid,
         role,
-        actorRole: preflightActorRole,
-        actorRoleResolver,
         organizationUuid,
         grantedByUserUuid,
     }: {
         resourceUuid: string;
         userUuid: string;
         role: SpaceMemberRole;
-        actorRole: SpaceMemberRole | undefined;
-        actorRoleResolver: DirectAccessModelActorRoleResolver;
         organizationUuid: string;
         grantedByUserUuid: string;
     }): Promise<DirectAccessMutationResult> {
-        assertCanGrantDirectAccess(preflightActorRole, role);
         return this.database.transaction(async (trx) => {
             const context = await DashboardAccessModel.getMutationContext(
                 trx,
                 resourceUuid,
                 organizationUuid,
             );
-            const actorRole = await actorRoleResolver({
-                transaction: trx,
-                context,
-            });
-            assertCanGrantDirectAccess(actorRole, role);
             if (!(await validateDirectAccessUser(trx, context, userUuid))) {
                 throw new NotFoundError('Direct access target not found');
             }
@@ -112,11 +102,6 @@ export class DashboardAccessModel implements DirectAccessModel {
                 .where({ dashboard_uuid: resourceUuid, user_uuid: userUuid })
                 .first<{ space_role: SpaceMemberRole }>('space_role')
                 .forUpdate();
-            assertCanRevokeDirectAccess({
-                actorRole,
-                existingRole: existing?.space_role,
-                isSelfRevoke: grantedByUserUuid === userUuid,
-            });
             await trx(DashboardUserAccessTableName)
                 .insert({
                     dashboard_uuid: resourceUuid,
@@ -142,31 +127,21 @@ export class DashboardAccessModel implements DirectAccessModel {
         resourceUuid,
         groupUuid,
         role,
-        actorRole: preflightActorRole,
-        actorRoleResolver,
         organizationUuid,
         grantedByUserUuid,
     }: {
         resourceUuid: string;
         groupUuid: string;
         role: SpaceMemberRole;
-        actorRole: SpaceMemberRole | undefined;
-        actorRoleResolver: DirectAccessModelActorRoleResolver;
         organizationUuid: string;
         grantedByUserUuid: string;
     }): Promise<DirectAccessMutationResult> {
-        assertCanGrantDirectAccess(preflightActorRole, role);
         return this.database.transaction(async (trx) => {
             const context = await DashboardAccessModel.getMutationContext(
                 trx,
                 resourceUuid,
                 organizationUuid,
             );
-            const actorRole = await actorRoleResolver({
-                transaction: trx,
-                context,
-            });
-            assertCanGrantDirectAccess(actorRole, role);
             if (!(await validateDirectAccessGroup(trx, context, groupUuid))) {
                 throw new NotFoundError('Direct access target not found');
             }
@@ -174,11 +149,6 @@ export class DashboardAccessModel implements DirectAccessModel {
                 .where({ dashboard_uuid: resourceUuid, group_uuid: groupUuid })
                 .first<{ space_role: SpaceMemberRole }>('space_role')
                 .forUpdate();
-            assertCanRevokeDirectAccess({
-                actorRole,
-                existingRole: existing?.space_role,
-                isSelfRevoke: false,
-            });
             await trx(DashboardGroupAccessTableName)
                 .insert({
                     dashboard_uuid: resourceUuid,
@@ -200,48 +170,31 @@ export class DashboardAccessModel implements DirectAccessModel {
         });
     }
 
+    // Revokes are idempotent: revoking a grant that does not exist succeeds
+    // as a no-op ({ beforeRole: null, afterRole: null }). A missing or
+    // cross-organization dashboard still fails with NotFoundError.
     async revokeUserAccess({
         resourceUuid,
         userUuid,
-        actorRole: preflightActorRole,
-        actorRoleResolver,
         organizationUuid,
-        actorUserUuid,
     }: {
         resourceUuid: string;
         userUuid: string;
-        actorRole: SpaceMemberRole | undefined;
-        actorRoleResolver: DirectAccessModelActorRoleResolver;
         organizationUuid: string;
-        actorUserUuid: string;
     }): Promise<DirectAccessMutationResult> {
-        const isSelfRevoke = actorUserUuid === userUuid;
-        assertCanRevokeDirectAccess({
-            actorRole: preflightActorRole,
-            isSelfRevoke,
-        });
         return this.database.transaction(async (trx) => {
             const context = await DashboardAccessModel.getMutationContext(
                 trx,
                 resourceUuid,
                 organizationUuid,
             );
-            const actorRole = await actorRoleResolver({
-                transaction: trx,
-                context,
-            });
             const existing = await trx(DashboardUserAccessTableName)
                 .where({ dashboard_uuid: resourceUuid, user_uuid: userUuid })
                 .first<{ space_role: SpaceMemberRole }>('space_role')
                 .forUpdate();
             if (existing === undefined) {
-                throw new NotFoundError('Direct access target not found');
+                return { ...context, beforeRole: null, afterRole: null };
             }
-            assertCanRevokeDirectAccess({
-                actorRole,
-                existingRole: existing.space_role,
-                isSelfRevoke,
-            });
             await trx(DashboardUserAccessTableName)
                 .where({ dashboard_uuid: resourceUuid, user_uuid: userUuid })
                 .delete();
@@ -256,42 +209,25 @@ export class DashboardAccessModel implements DirectAccessModel {
     async revokeGroupAccess({
         resourceUuid,
         groupUuid,
-        actorRole: preflightActorRole,
-        actorRoleResolver,
         organizationUuid,
     }: {
         resourceUuid: string;
         groupUuid: string;
-        actorRole: SpaceMemberRole | undefined;
-        actorRoleResolver: DirectAccessModelActorRoleResolver;
         organizationUuid: string;
     }): Promise<DirectAccessMutationResult> {
-        assertCanRevokeDirectAccess({
-            actorRole: preflightActorRole,
-            isSelfRevoke: false,
-        });
         return this.database.transaction(async (trx) => {
             const context = await DashboardAccessModel.getMutationContext(
                 trx,
                 resourceUuid,
                 organizationUuid,
             );
-            const actorRole = await actorRoleResolver({
-                transaction: trx,
-                context,
-            });
             const existing = await trx(DashboardGroupAccessTableName)
                 .where({ dashboard_uuid: resourceUuid, group_uuid: groupUuid })
                 .first<{ space_role: SpaceMemberRole }>('space_role')
                 .forUpdate();
             if (existing === undefined) {
-                throw new NotFoundError('Direct access target not found');
+                return { ...context, beforeRole: null, afterRole: null };
             }
-            assertCanRevokeDirectAccess({
-                actorRole,
-                existingRole: existing.space_role,
-                isSelfRevoke: false,
-            });
             await trx(DashboardGroupAccessTableName)
                 .where({ dashboard_uuid: resourceUuid, group_uuid: groupUuid })
                 .delete();
@@ -305,27 +241,17 @@ export class DashboardAccessModel implements DirectAccessModel {
 
     async resetAccess({
         resourceUuid,
-        actorRole: preflightActorRole,
-        actorRoleResolver,
         organizationUuid,
     }: {
         resourceUuid: string;
-        actorRole: SpaceMemberRole | undefined;
-        actorRoleResolver: DirectAccessModelActorRoleResolver;
         organizationUuid: string;
     }): Promise<DirectAccessResetResult> {
-        assertCanResetDirectAccess(preflightActorRole);
         return this.database.transaction(async (trx) => {
             const context = await DashboardAccessModel.getMutationContext(
                 trx,
                 resourceUuid,
                 organizationUuid,
             );
-            const actorRole = await actorRoleResolver({
-                transaction: trx,
-                context,
-            });
-            assertCanResetDirectAccess(actorRole);
             const [revokedUsers, revokedGroups] = await Promise.all([
                 trx(DashboardUserAccessTableName)
                     .where('dashboard_uuid', resourceUuid)
@@ -359,6 +285,7 @@ export class DashboardAccessModel implements DirectAccessModel {
                 resourceUuid: `${DashboardUserAccessTableName}.dashboard_uuid`,
                 organizationUuid: `${OrganizationTableName}.organization_uuid`,
                 projectUuid: `${ProjectTableName}.project_uuid`,
+                spaceUuid: `${SpaceTableName}.space_uuid`,
                 role: `${DashboardUserAccessTableName}.space_role`,
                 groupUuid: trx.raw('NULL'),
             })
@@ -416,6 +343,7 @@ export class DashboardAccessModel implements DirectAccessModel {
                         resourceUuid: `${DashboardGroupAccessTableName}.dashboard_uuid`,
                         organizationUuid: `${OrganizationTableName}.organization_uuid`,
                         projectUuid: `${ProjectTableName}.project_uuid`,
+                        spaceUuid: `${SpaceTableName}.space_uuid`,
                         role: `${DashboardGroupAccessTableName}.space_role`,
                         groupUuid: `${DashboardGroupAccessTableName}.group_uuid`,
                     })

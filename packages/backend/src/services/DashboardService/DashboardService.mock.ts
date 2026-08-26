@@ -38,6 +38,10 @@ export const user: SessionUser = {
             action: ['view', 'update', 'delete', 'create'],
         },
         {
+            subject: 'SavedChart',
+            action: ['view'],
+        },
+        {
             subject: 'Project',
             action: ['manage'],
         },

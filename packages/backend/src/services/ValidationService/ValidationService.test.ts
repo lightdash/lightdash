@@ -107,6 +107,11 @@ const spacePermissionService = {
         inheritsFromOrgOrProject: false,
         access: [],
     })),
+    getDashboardAccessContext: vi.fn(async () => ({
+        inheritsFromOrgOrProject: false,
+        access: [],
+        directOnly: false,
+    })),
     getSpacesAccessContext: vi.fn(async () => ({})),
     getAccessibleSpaceUuids: vi.fn(async () => []),
 };

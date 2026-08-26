@@ -7,6 +7,7 @@ import {
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
+    SpaceMemberRole,
     UnexpectedGoogleSheetsError,
     type ChartScheduler,
     type CreateSchedulerAndTargets,
@@ -132,6 +133,11 @@ const spacePermissionService = {
     getSpaceAccessContext: vi.fn(async () => ({
         inheritsFromOrgOrProject: false,
         access: [],
+    })),
+    getDashboardAccessContext: vi.fn(async () => ({
+        inheritsFromOrgOrProject: false,
+        access: [],
+        directOnly: false,
     })),
 };
 
@@ -515,6 +521,87 @@ describe('SchedulerService', () => {
             expect(
                 schedulerModel.getSchedulerAndTargets,
             ).not.toHaveBeenCalled();
+        });
+
+        test('views a dashboard-owned chart scheduler through the dashboard grant', async () => {
+            const chartScheduler = {
+                ...dashboardScheduler,
+                dashboardUuid: null,
+                savedChartUuid,
+            } as unknown as SchedulerAndTargets;
+            schedulerModel.getSchedulerAndTargets.mockResolvedValueOnce(
+                chartScheduler,
+            );
+            savedChartModel.getSummary.mockResolvedValueOnce({
+                organizationUuid,
+                projectUuid,
+                spaceUuid: privateSpaceUuid,
+                dashboardUuid: 'owningDashboardUuid',
+            } as never);
+            // Grant-only user: no space access, only a viewer grant row.
+            spacePermissionService.getDashboardAccessContext.mockResolvedValueOnce(
+                {
+                    inheritsFromOrgOrProject: false,
+                    access: [
+                        {
+                            userUuid: 'userUuid',
+                            role: SpaceMemberRole.VIEWER,
+                            hasDirectAccess: true,
+                            grantedVia: 'dashboard',
+                        },
+                    ],
+                    directOnly: true,
+                } as never,
+            );
+            const user = buildUser([
+                {
+                    subject: 'SavedChart',
+                    action: ['view'],
+                    conditions: {
+                        access: { $elemMatch: { userUuid: 'userUuid' } },
+                    },
+                },
+            ]);
+
+            await expect(
+                service.getScheduler(user, 'schedulerUuid'),
+            ).resolves.toEqual(chartScheduler);
+            expect(
+                spacePermissionService.getDashboardAccessContext,
+            ).toHaveBeenCalledWith('userUuid', {
+                uuid: 'owningDashboardUuid',
+                spaceUuid: privateSpaceUuid,
+            });
+        });
+
+        test('denies a dashboard-owned chart scheduler without a grant', async () => {
+            const chartScheduler = {
+                ...dashboardScheduler,
+                dashboardUuid: null,
+                savedChartUuid,
+            } as unknown as SchedulerAndTargets;
+            schedulerModel.getSchedulerAndTargets.mockResolvedValueOnce(
+                chartScheduler,
+            );
+            savedChartModel.getSummary.mockResolvedValueOnce({
+                organizationUuid,
+                projectUuid,
+                spaceUuid: privateSpaceUuid,
+                dashboardUuid: 'owningDashboardUuid',
+            } as never);
+            const user = buildUser([
+                {
+                    subject: 'SavedChart',
+                    action: ['view'],
+                    conditions: {
+                        access: { $elemMatch: { userUuid: 'userUuid' } },
+                    },
+                },
+            ]);
+
+            await expect(
+                service.getScheduler(user, 'schedulerUuid'),
+            ).rejects.toThrowError(ForbiddenError);
         });
     });
 
