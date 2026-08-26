@@ -1,3 +1,16 @@
+# [2.13.0](https://github.com/lightdash/lightdash/compare/2.12.0...2.13.0) (2026-08-26)
+
+
+### Bug Fixes
+
+* **credentials:** support Snowflake personal auth methods ([#27929](https://github.com/lightdash/lightdash/issues/27929)) ([32ef524](https://github.com/lightdash/lightdash/commit/32ef524cf3b869f88ccce436f14f362692c601b6))
+* resolve project slugs in minimal dashboards ([#28102](https://github.com/lightdash/lightdash/issues/28102)) ([52c0c21](https://github.com/lightdash/lightdash/commit/52c0c21af22e83b11c3cfdbeefe03a2eb9d734ff))
+
+
+### Features
+
+* **cli:** fail validate on warnings via --severity ([#28109](https://github.com/lightdash/lightdash/issues/28109)) ([bc6de52](https://github.com/lightdash/lightdash/commit/bc6de525bfa0ce017eadc56412be8bff3a60a028))
+
 # [2.12.0](https://github.com/lightdash/lightdash/compare/2.11.0...2.12.0) (2026-08-26)
 
 

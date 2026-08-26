@@ -37871,7 +37871,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_':
+    'Pick_CreatePostgresCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_':
         {
             dataType: 'refAlias',
             type: {
@@ -37881,7 +37881,6 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { ref: 'WarehouseTypes.POSTGRES' },
-                            { ref: 'WarehouseTypes.SNOWFLAKE' },
                             { ref: 'WarehouseTypes.TRINO' },
                             { ref: 'WarehouseTypes.CLICKHOUSE' },
                         ],
@@ -37892,6 +37891,25 @@ const models: TsoaRoute.Models = {
                 validators: {},
             },
         },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CreateSnowflakeCredentials.type-or-user-or-authenticationType_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                type: { ref: 'WarehouseTypes.SNOWFLAKE', required: true },
+                user: { dataType: 'string', required: true },
+                authenticationType: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'SnowflakeAuthenticationType' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CreateBigqueryCredentials.type_': {
         dataType: 'refAlias',
@@ -37975,7 +37993,10 @@ const models: TsoaRoute.Models = {
                             ref: 'Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-assumeRoleArn_',
                         },
                         {
-                            ref: 'Pick_CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_',
+                            ref: 'Pick_CreatePostgresCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_',
+                        },
+                        {
+                            ref: 'Pick_CreateSnowflakeCredentials.type-or-user-or-authenticationType_',
                         },
                         { ref: 'Pick_CreateBigqueryCredentials.type_' },
                         { ref: 'Pick_CreateDatabricksCredentials.type_' },
@@ -38097,6 +38118,40 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                     refreshToken: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    authenticationType: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'SnowflakeAuthenticationType' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CreateSnowflakeCredentials.type-or-user-or-privateKey-or-privateKeyPass-or-authenticationType_':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    type: { ref: 'WarehouseTypes.SNOWFLAKE', required: true },
+                    user: { dataType: 'string', required: true },
+                    privateKey: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    privateKeyPass: {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
@@ -38294,6 +38349,9 @@ const models: TsoaRoute.Models = {
                         },
                         {
                             ref: 'Pick_CreateSnowflakeCredentials.type-or-user-or-password-or-authenticationType-or-refreshToken_',
+                        },
+                        {
+                            ref: 'Pick_CreateSnowflakeCredentials.type-or-user-or-privateKey-or-privateKeyPass-or-authenticationType_',
                         },
                         {
                             ref: 'Pick_CreateTrinoCredentials.type-or-user-or-password_',

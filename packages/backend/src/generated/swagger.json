@@ -37960,15 +37960,12 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Pick_CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_": {
+            "Pick_CreatePostgresCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_": {
                 "properties": {
                     "type": {
                         "anyOf": [
                             {
                                 "$ref": "#/components/schemas/WarehouseTypes.POSTGRES"
-                            },
-                            {
-                                "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
                             },
                             {
                                 "$ref": "#/components/schemas/WarehouseTypes.TRINO"
@@ -37980,6 +37977,22 @@
                     },
                     "user": {
                         "type": "string"
+                    }
+                },
+                "required": ["type", "user"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateSnowflakeCredentials.type-or-user-or-authenticationType_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/SnowflakeAuthenticationType"
                     }
                 },
                 "required": ["type", "user"],
@@ -38061,7 +38074,10 @@
                                 "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-assumeRoleArn_"
                             },
                             {
-                                "$ref": "#/components/schemas/Pick_CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_"
+                                "$ref": "#/components/schemas/Pick_CreatePostgresCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateSnowflakeCredentials.type-or-user-or-authenticationType_"
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.type_"
@@ -38181,6 +38197,28 @@
                         "type": "string"
                     },
                     "refreshToken": {
+                        "type": "string"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/SnowflakeAuthenticationType"
+                    }
+                },
+                "required": ["type", "user"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateSnowflakeCredentials.type-or-user-or-privateKey-or-privateKeyPass-or-authenticationType_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "privateKey": {
+                        "type": "string"
+                    },
+                    "privateKeyPass": {
                         "type": "string"
                     },
                     "authenticationType": {
@@ -38324,6 +38362,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateSnowflakeCredentials.type-or-user-or-password-or-authenticationType-or-refreshToken_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateSnowflakeCredentials.type-or-user-or-privateKey-or-privateKeyPass-or-authenticationType_"
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateTrinoCredentials.type-or-user-or-password_"
@@ -56377,7 +56418,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.12.0",
+        "version": "2.13.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
