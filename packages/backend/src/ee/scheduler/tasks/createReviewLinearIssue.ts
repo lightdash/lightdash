@@ -29,16 +29,15 @@ const buildIssueDescription = (args: {
     reviewUrl: string;
 }): string =>
     [
-        args.description,
-        '',
-        `**Root cause:** ${args.rootCause}`,
-        `**Project:** ${args.projectName}`,
-        '',
+        args.description.trim(),
+        [
+            `**Root cause:** ${args.rootCause}`,
+            `**Project:** ${args.projectName}`,
+        ].join('\n'),
         `[Open in Lightdash](${args.reviewUrl})`, // pragma: allowlist secret
     ]
-        .filter((line, index, lines) => line !== '' || lines[index - 1] !== '')
-        .join('\n')
-        .trim();
+        .filter((section) => section !== '')
+        .join('\n\n');
 
 export const createReviewLinearIssue =
     (deps: CreateReviewLinearIssueDeps) =>
@@ -49,7 +48,11 @@ export const createReviewLinearIssue =
         }
 
         const project = await deps.projectModel.get(payload.projectUuid);
+        const failedFingerprints: string[] = [];
 
+        // Issues are created one at a time on purpose: Linear rate limits the
+        // API, and a partial failure must not lose the items already created.
+        /* eslint-disable no-await-in-loop */
         for (const fingerprint of payload.fingerprints) {
             try {
                 const reviewItem =
@@ -57,54 +60,53 @@ export const createReviewLinearIssue =
                         payload.organizationUuid,
                         fingerprint,
                     );
+
                 if (!reviewItem) {
                     Logger.warn(
                         'Skipping Linear issue creation for missing review item',
                         { fingerprint },
                     );
-                    continue;
-                }
-                if (reviewItem.linkedIssueUrl) {
-                    continue;
-                }
-
-                const reviewUrl = `${deps.siteUrl}${REVIEWS_BOARD_PATH}?${buildReviewDrawerSearchParams(
-                    payload.projectUuid,
-                    fingerprint,
-                    reviewItem,
-                )}`;
-                const created = await deps.linearAppService.createIssueForOrganization(
-                    payload.organizationUuid,
-                    {
-                        title: reviewItem.title,
-                        description: buildIssueDescription({
-                            description: reviewItem.description,
-                            rootCause: reviewItem.primaryRootCause,
-                            projectName: project.name,
-                            reviewUrl,
-                        }),
-                        teamId: settings.linearTeamId,
-                        projectId: settings.linearProjectId,
-                    },
-                );
-
-                await deps.aiAgentReviewClassifierModel.updateReviewItemLinkedIssueUrl(
-                    {
-                        organizationUuid: payload.organizationUuid,
+                } else if (reviewItem.linkedIssueUrl === null) {
+                    const reviewUrl = `${deps.siteUrl}${REVIEWS_BOARD_PATH}?${buildReviewDrawerSearchParams(
+                        payload.projectUuid,
                         fingerprint,
-                        linkedIssueUrl: created.url,
-                    },
-                );
+                        reviewItem,
+                    )}`;
+                    const created =
+                        await deps.linearAppService.createIssueForOrganization(
+                            payload.organizationUuid,
+                            {
+                                title: reviewItem.title,
+                                description: buildIssueDescription({
+                                    description: reviewItem.description,
+                                    rootCause: reviewItem.primaryRootCause,
+                                    projectName: project.name,
+                                    reviewUrl,
+                                }),
+                                teamId: settings.linearTeamId,
+                                projectId: settings.linearProjectId,
+                            },
+                        );
 
-                deps.analytics.track({
-                    event: 'ai_review_linear_issue.created',
-                    anonymousId: payload.organizationUuid,
-                    properties: {
-                        organizationId: payload.organizationUuid,
-                        projectId: payload.projectUuid,
-                    },
-                });
+                    await deps.aiAgentReviewClassifierModel.updateReviewItemLinkedIssueUrl(
+                        {
+                            organizationUuid: payload.organizationUuid,
+                            fingerprint,
+                            linkedIssueUrl: created.url,
+                        },
+                    );
+
+                    deps.analytics.track({
+                        event: 'ai_review_linear_issue.created',
+                        anonymousId: payload.organizationUuid,
+                        properties: {
+                            organizationId: payload.organizationUuid,
+                            projectId: payload.projectUuid,
+                        },
+                    });
+                }
             } catch (error) {
+                failedFingerprints.push(fingerprint);
                 Logger.error(
                     `Failed to create Linear issue for review item ${fingerprint}: ${getErrorMessage(
                         error,
@@ -120,5 +122,16 @@ export const createReviewLinearIssue =
                     },
                 });
             }
+        }
+        /* eslint-enable no-await-in-loop */
+
+        // Fail the job so Graphile retries. Items that succeeded already carry a
+        // linked issue URL, so a retry only reattempts the ones that failed.
+        if (failedFingerprints.length > 0) {
+            throw new Error(
+                `Failed to create Linear issues for review items: ${failedFingerprints.join(
+                    ', ',
+                )}`,
+            );
         }
     };
