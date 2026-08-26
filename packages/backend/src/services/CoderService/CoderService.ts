@@ -3818,7 +3818,6 @@ export class CoderService extends BaseService {
         const {
             skipSpaceCreate,
             publicSpaceCreate,
-            force,
             spaceNames,
             mode = 'upsert',
         } = options;
@@ -4066,16 +4065,10 @@ export class CoderService extends BaseService {
         // TODO: Right now dashboards on promote service always update dashboards
         // See isDashboardUpdated for more details
 
-        if (force) {
-            promotionChanges = {
-                ...promotionChanges,
-                charts: promotionChanges.charts.map((c) =>
-                    c.action === PromotionAction.NO_CHANGES
-                        ? { ...c, action: PromotionAction.UPDATE }
-                        : c,
-                ),
-            };
-        }
+        // Unlike upsertChart, force must not flip NO_CHANGES tile charts to
+        // UPDATE here: promoted and upstream both resolve to this project's
+        // DB rows, so a forced update writes an identical duplicate chart
+        // version. Chart file changes are applied by the chart upload path.
 
         promotionChanges = await this.promoteService.getOrCreateDashboard(
             user,

@@ -1357,3 +1357,100 @@ describe('CoderService content-as-code space permissions', () => {
         ).toHaveBeenCalledTimes(1);
     });
 });
+
+describe('CoderService upsertDashboard tile chart versions', () => {
+    it('does not re-version unchanged tile charts on a forced dashboard upload', async () => {
+        const service = buildService();
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([
+            { uuid: 'dashboard-uuid' } as AnyType,
+        ]);
+        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+            uuid: 'dashboard-uuid',
+            slug: 'dashboard',
+            name: 'Dashboard',
+            spaceUuid: SPACE_UUID,
+            filters: { dimensions: [], metrics: [], tableCalculations: [] },
+        } as AnyType);
+        vi.mocked(
+            service.promoteService.getPromotedDashboard,
+        ).mockResolvedValue({
+            promotedDashboard: {
+                dashboard: { uuid: 'dashboard-uuid', name: 'Dashboard' },
+                projectUuid: PROJECT_UUID,
+                space: { name: 'Space' },
+                spaceAccessContext: {
+                    organizationUuid: ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                    access: [],
+                },
+            },
+            upstreamDashboard: {
+                dashboard: { uuid: 'dashboard-uuid', name: 'Dashboard' },
+                projectUuid: PROJECT_UUID,
+                space: { name: 'Space' },
+                spaceAccessContext: {
+                    organizationUuid: ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                    access: [],
+                },
+            },
+        } as AnyType);
+        vi.mocked(
+            service.promoteService.getPromotionDashboardChanges,
+        ).mockResolvedValue([
+            {
+                dashboards: [
+                    {
+                        action: PromotionAction.UPDATE,
+                        data: { uuid: 'dashboard-uuid' },
+                    },
+                ],
+                charts: [
+                    {
+                        action: PromotionAction.NO_CHANGES,
+                        data: { uuid: 'chart-uuid' },
+                    },
+                ],
+                spaces: [],
+            },
+            [],
+        ] as AnyType);
+        const user = makeUser([
+            { subject: 'ContentAsCode', action: 'create' },
+            {
+                subject: 'Dashboard',
+                action: 'update',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+            {
+                subject: 'Dashboard',
+                action: 'promote',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+        ]);
+
+        await expect(
+            service.upsertDashboard(
+                user,
+                PROJECT_UUID,
+                dashboardAsCode.slug,
+                dashboardAsCode,
+                { force: true },
+            ),
+        ).resolves.toMatchObject({
+            dashboards: [{ action: PromotionAction.UPDATE }],
+        });
+
+        // The forced upload updates the dashboard but must not write a second
+        // version of tile charts already handled by the chart upload path.
+        expect(service.promoteService.upsertCharts).toHaveBeenCalledTimes(1);
+        const upsertChartsChanges = vi.mocked(
+            service.promoteService.upsertCharts,
+        ).mock.calls[0][1] as AnyType;
+        expect(upsertChartsChanges.charts).toEqual([
+            expect.objectContaining({
+                action: PromotionAction.NO_CHANGES,
+            }),
+        ]);
+    });
+});
