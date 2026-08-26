@@ -84,8 +84,7 @@ projectRouter.get(
                         fromDate: fromDate?.toString(),
                         toDate: toDate?.toString(),
                         createdByUuid: createdByUuid?.toString(),
-                        verifiedOnly:
-                            verifiedOnly === 'true' || verifiedOnly === true,
+                        verifiedOnly: verifiedOnly === 'true',
                     },
                 );
             res.json({ status: 'ok', results });
