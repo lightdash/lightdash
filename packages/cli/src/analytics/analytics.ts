@@ -385,6 +385,7 @@ type CliValidateStarted = BaseTrack & {
         validateWarehouseColumns: boolean;
         includedSpacesCount: number;
         excludedSpacesCount: number;
+        severity: 'error' | 'warning';
     };
 };
 /** `success` indicates whether 0 validation errors were found, not whether the process ran without crashing (crashes fire `validate.error` instead). */
@@ -401,10 +402,12 @@ type CliValidateCompleted = BaseTrack & {
         durationMs: number;
         success: boolean;
         totalErrors: number;
+        totalWarnings: number;
         tableErrors: number;
         chartErrors: number;
         dashboardErrors: number;
         appErrors: number;
+        severity: 'error' | 'warning';
     };
 };
 type CliValidateError = BaseTrack & {

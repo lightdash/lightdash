@@ -213,6 +213,13 @@ export const isChartValidationError = (
 ): error is ValidationErrorChartResponse | CreateChartValidation =>
     error.source === ValidationSourceType.Chart;
 
+/** Advisory issues that do not break content, e.g. unused chart fields. */
+export const isValidationWarning = (
+    error: ValidationResponse | CreateValidation,
+): error is ValidationErrorChartResponse | CreateChartValidation =>
+    isChartValidationError(error) &&
+    error.errorType === ValidationErrorType.ChartConfiguration;
+
 export const isDashboardValidationError = (
     error: ValidationResponse | CreateValidation,
 ): error is ValidationErrorDashboardResponse | CreateDashboardValidation =>

@@ -55,7 +55,7 @@ import { setWarehouseHandler } from './handlers/setWarehouse';
 import { slugUpdateHandler } from './handlers/slugUpdate';
 import { sqlHandler } from './handlers/sql';
 import { registerUpgradeCheckCommand } from './handlers/upgradeCheck';
-import { validateHandler } from './handlers/validate';
+import { validateHandler, VALIDATION_SEVERITIES } from './handlers/validate';
 import { warehouseCatalogHandler } from './handlers/warehouseCatalog';
 import * as styles from './styles';
 // Trigger CLI tests
@@ -1432,10 +1432,13 @@ program
             .argParser(parseDisableTimestampConversionOption)
             .hideHelp(),
     )
-    .option(
-        '--show-chart-configuration-warnings',
-        'Show chart configuration warnings (e.g., unused dimensions). These are hidden by default.',
-        false,
+    .addOption(
+        new Option(
+            '--severity <level>',
+            'Minimum issue level that fails the command. "error" (default) only fails on errors. "warning" shows chart configuration warnings and treats them as errors.',
+        )
+            .choices([...VALIDATION_SEVERITIES])
+            .default('error'),
     )
     .addOption(
         new Option('--only <elems...>', 'Specify project elements to validate')
