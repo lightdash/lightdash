@@ -9,7 +9,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
@@ -90,6 +90,9 @@ const LinearSettingsPanel: FC = () => {
                 {isValidLinearInstallation ? (
                     <Stack align="end">
                         <Group>
+                            {/* The install callback upserts, so reconnecting must
+                                not delete first — an abandoned OAuth flow would
+                                otherwise leave the organization disconnected. */}
                             <Button
                                 size="xs"
                                 component="a"
@@ -97,19 +100,6 @@ const LinearSettingsPanel: FC = () => {
                                 variant="default"
                                 href={LINEAR_INSTALL_URL}
                                 leftSection={<MantineIcon icon={IconRefresh} />}
-                                onClick={() => {
-                                    deleteLinearInstallationMutation.mutate(
-                                        undefined,
-                                        {
-                                            onSuccess: () => {
-                                                window.open(
-                                                    LINEAR_INSTALL_URL,
-                                                    '_blank',
-                                                );
-                                            },
-                                        },
-                                    );
-                                }}
                             >
                                 Reconnect
                             </Button>
