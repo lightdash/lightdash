@@ -11,6 +11,8 @@ describeContentAsCodeSchemaContract({
         'deletedBy',
         'firstViewedAt',
         'organizationUuid',
+        // Represented as `ownerEmail` on the document for portability
+        'owner',
         'pinnedListOrder',
         'pinnedListUuid',
         'projectUuid',
@@ -24,6 +26,8 @@ describeContentAsCodeSchemaContract({
     documentOnlyFields: [
         'contentType',
         'downloadedAt',
+        // Portable representation of the model's `owner`
+        'ownerEmail',
         'spaceSlug',
         'verified',
         'version',

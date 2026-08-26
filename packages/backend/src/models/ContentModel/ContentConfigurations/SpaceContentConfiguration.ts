@@ -34,6 +34,8 @@ type SpaceContentRow = SummaryContentRow<{
 export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
     {
         shouldQueryBeIncluded: (filters: ContentFilters) => {
+            // Only dashboards have owners
+            if (filters.ownerUserUuids) return false;
             if (filters.contentTypes?.includes(ContentType.SPACE)) {
                 return true;
             }
@@ -117,6 +119,10 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     knex.raw(`null::uuid as verified_by_user_uuid`),
                     knex.raw(`null as verified_by_user_first_name`),
                     knex.raw(`null as verified_by_user_last_name`),
+                    knex.raw(`null::uuid as owner_user_uuid`),
+                    knex.raw(`null as owner_user_first_name`),
+                    knex.raw(`null as owner_user_last_name`),
+                    knex.raw(`null as owner_user_email`),
                     knex.raw(`json_build_object(
                         'dashboardCount', (${
                             filters.includeDescendantCounts

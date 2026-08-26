@@ -1,5 +1,6 @@
 import { type AppVersionStatus, type DataAppTemplate } from '../ee/apps/types';
 import { type ContentVerificationInfo } from './contentVerification';
+import { type DashboardOwner } from './dashboard';
 import type { KnexPaginatedData } from './knex-paginate';
 import { type ChartKind } from './savedCharts';
 import { type SessionUser } from './user';
@@ -77,6 +78,7 @@ export interface ChartContent extends Content {
 
 export interface DashboardContent extends Content {
     contentType: ContentType.DASHBOARD;
+    owner: DashboardOwner | null;
 }
 
 // Data App types

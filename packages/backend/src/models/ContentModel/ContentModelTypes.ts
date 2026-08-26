@@ -37,6 +37,12 @@ export type ContentFilters = {
     };
     deleted?: boolean;
     deletedByUserUuids?: string[];
+    /**
+     * Only dashboards have owners, so this filter restricts results to
+     * dashboards owned by one of these users (other content types are
+     * excluded entirely while it is set).
+     */
+    ownerUserUuids?: string[];
     includeDescendantCounts?: boolean;
     // Client opt-in (set by the "All data apps" browse) to surface personal
     // (space-less) apps. The service resolves it into `dataApps` below.
@@ -94,6 +100,10 @@ export type SummaryContentRow<
     verified_by_user_uuid: string | null;
     verified_by_user_first_name: string | null;
     verified_by_user_last_name: string | null;
+    owner_user_uuid: string | null;
+    owner_user_first_name: string | null;
+    owner_user_last_name: string | null;
+    owner_user_email: string | null;
     metadata: T;
 };
 

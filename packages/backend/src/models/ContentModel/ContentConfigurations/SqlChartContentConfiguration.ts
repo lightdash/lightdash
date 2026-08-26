@@ -37,6 +37,8 @@ const coerceChartKind = (value: string): ChartKind =>
 export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> =
     {
         shouldQueryBeIncluded: (filters: ContentFilters) => {
+            // Only dashboards have owners
+            if (filters.ownerUserUuids) return false;
             const contentTypeMatch =
                 !filters.contentTypes ||
                 filters.contentTypes?.includes(ContentType.CHART);
@@ -155,6 +157,10 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     `verifiedByUser.user_uuid as verified_by_user_uuid`,
                     `verifiedByUser.first_name as verified_by_user_first_name`,
                     `verifiedByUser.last_name as verified_by_user_last_name`,
+                    knex.raw(`null::uuid as owner_user_uuid`),
+                    knex.raw(`null as owner_user_first_name`),
+                    knex.raw(`null as owner_user_last_name`),
+                    knex.raw(`null as owner_user_email`),
                     knex.raw(`json_build_object(
                     'source','${ChartSourceType.SQL}',
                     'chart_kind', ${SavedSqlTableName}.last_version_chart_kind,

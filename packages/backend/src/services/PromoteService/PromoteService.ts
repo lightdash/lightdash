@@ -1670,6 +1670,7 @@ export class PromoteService extends BaseService {
             promotedDashboard.spaceUuid,
             {
                 ...promotedDashboard,
+                ownerUserUuid: promotedDashboard.owner?.userUuid ?? null,
                 forceSlug: true,
             },
             user,
@@ -1728,6 +1729,7 @@ export class PromoteService extends BaseService {
                 name: promotedDashboard.name,
                 description: promotedDashboard.description,
                 spaceUuid: promotedDashboard.spaceUuid,
+                ownerUserUuid: promotedDashboard.owner?.userUuid ?? null,
             });
         }
 
