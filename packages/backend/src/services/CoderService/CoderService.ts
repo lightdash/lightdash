@@ -2833,6 +2833,31 @@ export class CoderService extends BaseService {
         );
     }
 
+    async getContentAsCodeSettings(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{
+        syncEnabled: boolean;
+        stampedAt: Date;
+    } | null> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const settings =
+            await this.contentAsCodeProjectSettingsModel.get(projectUuid);
+        return settings ?? null;
+    }
+
     // The repo's content_as_code flags travel with uploads; stamping them as
     // project-level state is how the instance (settings UI, write-back)
     // learns what the repo has opted into.

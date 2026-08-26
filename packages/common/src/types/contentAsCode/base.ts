@@ -89,3 +89,42 @@ export type ContentAsCodeSyncStatus = {
     skips?: ContentAsCodeSkip[];
     driftWarnings?: string[];
 };
+
+export type ContentAsCodeWritebackStatus =
+    | 'pending'
+    | 'open'
+    | 'merged'
+    | 'closed'
+    | 'error';
+
+export type ContentAsCodeWritebackSummary = {
+    contentType: string;
+    slug: string;
+    branch: string;
+    prNumber: number | null;
+    prUrl: string | null;
+    status: ContentAsCodeWritebackStatus;
+    error: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type ApiContentAsCodeWritebacksResponse = {
+    status: 'ok';
+    results: ContentAsCodeWritebackSummary[];
+};
+
+export type ApiContentAsCodeProposeResponse = {
+    status: 'ok';
+    results: ContentAsCodeWritebackSummary;
+};
+
+export type ContentAsCodeProjectSettings = {
+    syncEnabled: boolean;
+    stampedAt: Date;
+};
+
+export type ApiContentAsCodeSettingsResponse = {
+    status: 'ok';
+    results: ContentAsCodeProjectSettings | null;
+};

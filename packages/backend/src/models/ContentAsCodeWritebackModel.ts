@@ -1,3 +1,4 @@
+import type { ContentAsCodeWritebackStatus } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     ContentAsCodeWritebacksTableName,
@@ -12,7 +13,7 @@ export type ContentAsCodeWriteback = {
     branch: string;
     prNumber: number | null;
     prUrl: string | null;
-    status: string;
+    status: ContentAsCodeWritebackStatus;
     error: string | null;
     createdByUserUuid: string | null;
     createdAt: Date;
@@ -20,12 +21,7 @@ export type ContentAsCodeWriteback = {
 };
 
 // 'pending' = job queued or PR not opened yet; 'open' = PR live on the repo.
-// 'closed' rows are history; a new save then starts a fresh row.
-export type ContentAsCodeWritebackStatus =
-    | 'pending'
-    | 'open'
-    | 'closed'
-    | 'error';
+// 'merged'/'closed' rows are history; a new save then starts a fresh row.
 
 type ContentAsCodeWritebackModelArguments = {
     database: Knex;
@@ -39,7 +35,7 @@ const parseRow = (row: DbContentAsCodeWriteback): ContentAsCodeWriteback => ({
     branch: row.branch,
     prNumber: row.pr_number,
     prUrl: row.pr_url,
-    status: row.status,
+    status: row.status as ContentAsCodeWritebackStatus,
     error: row.error,
     createdByUserUuid: row.created_by_user_uuid,
     createdAt: row.created_at,

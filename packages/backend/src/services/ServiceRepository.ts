@@ -1260,8 +1260,11 @@ export class ServiceRepository
             () =>
                 new ContentAsCodeWritebackService({
                     lightdashConfig: this.context.lightdashConfig,
+                    projectModel: this.models.getProjectModel(),
                     gitIntegrationService: this.getGitIntegrationService(),
                     coderService: this.getCoderService(),
+                    contentAsCodeProjectSettingsModel:
+                        this.models.getContentAsCodeProjectSettingsModel(),
                     contentAsCodeSnapshotModel:
                         this.models.getContentAsCodeSnapshotModel(),
                     contentAsCodeWritebackModel:
