@@ -1,4 +1,10 @@
-import { DimensionType, FieldType, type Dimension } from '@lightdash/common';
+import {
+    DimensionType,
+    FieldType,
+    MetricType,
+    type Dimension,
+    type Metric,
+} from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
@@ -17,7 +23,53 @@ const item = {
     hidden: false,
 } as Dimension;
 
+const metric = {
+    table: 'payments',
+    tableLabel: 'Payments',
+    name: 'unique_payment_count',
+    label: 'Unique payment count',
+    description: 'Count of all payments',
+    fieldType: FieldType.METRIC,
+    type: MetricType.COUNT_DISTINCT,
+    hidden: false,
+    sql: '${TABLE}.payment_id',
+    compiledSql: 'payments.payment_id',
+    filters: [],
+} as Metric;
+
 describe('SelectedFieldsSection source-aware actions', () => {
+    it('shows field details for a selected metric on hover', async () => {
+        const user = userEvent.setup();
+
+        renderWithProviders(
+            <Provider store={createExplorerStore()}>
+                <SelectedFieldsSection
+                    fields={[
+                        {
+                            fieldId: 'payments_unique_payment_count',
+                            item: metric,
+                            tableLabel: 'Payments',
+                            isDimension: false,
+                        },
+                    ]}
+                    onDeselect={vi.fn()}
+                />
+            </Provider>,
+        );
+
+        await user.hover(screen.getByTitle('Unique payment count'));
+
+        expect(await screen.findByText('Count of all payments')).toBeVisible();
+        expect(screen.getByText('${TABLE}.payment_id')).toBeVisible();
+
+        await user.click(screen.getByRole('button', { name: 'Compiled SQL' }));
+
+        expect(screen.getByText('payments.payment_id')).toBeVisible();
+        expect(
+            screen.getByTestId('selected-field-payments_unique_payment_count'),
+        ).toBeInTheDocument();
+    });
+
     it('shows filter and basic overflow actions for a merged source field', async () => {
         const user = userEvent.setup();
         const onAddFilter = vi.fn();
@@ -44,6 +96,12 @@ describe('SelectedFieldsSection source-aware actions', () => {
         await user.hover(
             screen.getByTestId('selected-field-b:subscriptions_customer_id'),
         );
+        await user.hover(screen.getByTitle('Customer id'));
+
+        expect(
+            await screen.findByText('The customer identifier'),
+        ).toBeVisible();
+
         await user.click(screen.getByRole('button', { name: 'Add filter' }));
 
         expect(onAddFilter).toHaveBeenCalledWith(item);
