@@ -8,6 +8,7 @@ import {
     ContentType,
     FeatureFlags,
     isResourceViewDataAppItem,
+    isResourceViewItemDashboard,
     isResourceViewSpaceItem,
     type ApiContentBulkActionBody,
     type ResourceViewItem,
@@ -58,6 +59,7 @@ import {
 } from '../ContentTable';
 import MantineIcon from '../MantineIcon';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
+import { UserSelect } from '../UserSelect';
 import AdminContentViewFilter from './AdminContentViewFilter';
 import ContentTypeFilter from './ContentTypeFilter';
 import classes from './InfiniteResourceTable.module.css';
@@ -89,6 +91,8 @@ type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
         defaultValue: ContentType | undefined;
         options: ContentType[];
     };
+    /** Show a dashboard-owner filter in the toolbar (dashboard lists only) */
+    ownerFilter?: boolean;
     columnVisibility?: ColumnVisibilityConfig;
     adminContentView?: boolean;
     initialAdminContentViewValue?: 'all' | 'shared';
@@ -174,6 +178,7 @@ DebouncedSearchInput.displayName = 'DebouncedSearchInput';
 const InfiniteResourceTable = ({
     filters,
     contentTypeFilter,
+    ownerFilter = false,
     columnVisibility,
     adminContentView = false,
     initialAdminContentViewValue = 'shared',
@@ -301,6 +306,34 @@ const InfiniteResourceTable = ({
             },
         },
         {
+            accessorKey: ColumnVisibility.OWNER,
+            enableSorting: false,
+            enableEditing: false,
+            header: 'Owner',
+            size: 160,
+            Cell: ({ row }) => {
+                const item = row.original;
+                if (
+                    !isResourceViewItemDashboard(item) ||
+                    !item.data.owner
+                ) {
+                    return (
+                        <Text fz={12} fw={500} c="dimmed">
+                            -
+                        </Text>
+                    );
+                }
+                const { firstName, lastName, email } = item.data.owner;
+                const ownerName =
+                    `${firstName} ${lastName}`.trim() || email || '-';
+                return (
+                    <Text fz={12} fw={500} c="ldGray.7">
+                        {ownerName}
+                    </Text>
+                );
+            },
+        },
+        {
             accessorKey: ColumnVisibility.VIEWS,
             enableSorting: true,
             enableEditing: false,
@@ -395,6 +428,9 @@ const InfiniteResourceTable = ({
     const [selectedContentType, setSelectedContentType] = useState<
         ContentType | undefined
     >(contentTypeFilter?.defaultValue);
+    const [selectedOwnerUserUuid, setSelectedOwnerUserUuid] = useState<
+        string | null
+    >(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -447,6 +483,9 @@ const InfiniteResourceTable = ({
                 sortDirection: sortBy?.sortDirection,
                 includePersonalDataApps: filters.includePersonalDataApps,
                 dataAppVizsFilter: filters.dataAppVizsFilter,
+                ownerUserUuids: selectedOwnerUserUuid
+                    ? [selectedOwnerUserUuid]
+                    : undefined,
             },
             { keepPreviousData: true },
         );
@@ -502,6 +541,7 @@ const InfiniteResourceTable = ({
             [ColumnVisibility.NAME]: true,
             [ColumnVisibility.SPACE]: true,
             [ColumnVisibility.UPDATED_AT]: true,
+            [ColumnVisibility.OWNER]: false,
             [ColumnVisibility.VIEWS]: true,
             [ColumnVisibility.ACCESS]: false,
             [ColumnVisibility.CONTENT]: false,
@@ -675,6 +715,28 @@ const InfiniteResourceTable = ({
                                     value={selectedAdminContentType}
                                     onChange={setSelectedAdminContentType}
                                 />
+                            ) : null}
+
+                            {ownerFilter ? (
+                                <>
+                                    <Divider
+                                        orientation="vertical"
+                                        w={1}
+                                        h={20}
+                                        color="#DEE2E6"
+                                        style={{
+                                            alignSelf: 'center',
+                                        }}
+                                    />
+                                    <Box w={220}>
+                                        <UserSelect
+                                            placeholder="Filter by owner"
+                                            value={selectedOwnerUserUuid}
+                                            onChange={setSelectedOwnerUserUuid}
+                                            clearable
+                                        />
+                                    </Box>
+                                </>
                             ) : null}
                         </Group>
 

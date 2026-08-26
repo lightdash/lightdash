@@ -5,7 +5,10 @@ import {
     type ChartSourceType,
     type SummaryContent,
 } from './content';
-import { type DashboardBasicDetails } from './dashboard';
+import {
+    type DashboardBasicDetails,
+    type DashboardOwner,
+} from './dashboard';
 import { type SpaceQuery } from './savedCharts';
 import { type Space, type SpaceSummary } from './space';
 
@@ -59,7 +62,10 @@ export type ResourceViewDashboardItem = {
         | 'updatedByUser'
         | 'validationErrors'
         | 'verification'
-    >;
+    > & {
+        /** Only populated by the v2 content API */
+        owner?: DashboardOwner | null;
+    };
     category?: ResourceItemCategory;
 };
 
@@ -245,6 +251,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                     userUuid: updatedByUser.uuid,
                 },
                 verification: content.verification,
+                owner: content.owner,
                 projectUuid: content.project.uuid,
                 organizationUuid: content.organization.uuid,
             };
