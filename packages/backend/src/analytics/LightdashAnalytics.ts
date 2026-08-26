@@ -3096,6 +3096,22 @@ export type AiAgentThreadDumpDownloadedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentPromptInputRequestClassifiedEvent = BaseTrack & {
+    event: 'ai_agent.prompt_input_request_classified';
+    userId: string;
+    properties: {
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string;
+        threadUuid: string;
+        promptUuid: string;
+        gateFired: boolean;
+        classified: boolean | null;
+        model: string | null;
+        durationMs: number;
+    };
+};
+
 export type AiAgentReviewEvent =
     | AiAgentReviewItemsListedEvent
     | AiAgentReviewItemStatusChangedEvent
@@ -3506,6 +3522,7 @@ type TypedEvent =
     | AiAgentPullRequestViewedEvent
     | AiAgentReviewEvent
     | AiAgentThreadDumpDownloadedEvent
+    | AiAgentPromptInputRequestClassifiedEvent
     | AiAgentMemoryEvent
     | AiRouterConfigUpdatedEvent
     | AiRouterInstructionsUpdatedEvent

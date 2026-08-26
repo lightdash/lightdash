@@ -51,6 +51,22 @@ describe('mobile login config', () => {
     });
 });
 
+describe('AI prompt input request classifier config', () => {
+    it('is disabled by default', () => {
+        expect(parseConfig().ai.promptInputRequestClassifier.enabled).toBe(
+            false,
+        );
+    });
+
+    it('is enabled explicitly', () => {
+        process.env.AI_AGENT_PROMPT_INPUT_REQUEST_CLASSIFIER_ENABLED = 'true';
+
+        expect(parseConfig().ai.promptInputRequestClassifier.enabled).toBe(
+            true,
+        );
+    });
+});
+
 describe('Query phase metrics config', () => {
     it('defaults to an empty project allowlist', () => {
         expect(parseConfig().queryPhaseMetrics).toEqual({ projectUuids: [] });

@@ -158,6 +158,7 @@ import {
     DbAiThreadShare,
     DbAiWebAppPrompt,
     DbAiWritebackRun,
+    type AiPromptNeedsUserInputMetadata,
     type AiSqlApprovalDecision,
 } from '../database/entities/ai';
 import {
@@ -410,6 +411,7 @@ type AiAgentThreadLiveStateRow = {
     prompt_response: string | null;
     prompt_error_message: string | null;
     prompt_interrupted_at: Date | null;
+    prompt_needs_user_input: boolean | null;
     run_sql_tool_call_created_at: Date | null;
     run_sql_tool_result_uuid: string | null;
     run_sql_approval_decision: AiSqlApprovalDecision | null;
@@ -3067,6 +3069,7 @@ export class AiAgentModel {
                         latest_prompt.responded_at,
                         latest_prompt.response,
                         latest_prompt.error_message,
+                        latest_prompt.needs_user_input,
                         prompt_interrupt.created_at as interrupted_at,
                         latest_prompt.created_by_user_uuid
                     FROM ${AiPromptTableName} as latest_prompt
@@ -3144,6 +3147,7 @@ export class AiAgentModel {
                 'latest_prompt.response as prompt_response',
                 'latest_prompt.error_message as prompt_error_message',
                 'latest_prompt.interrupted_at as prompt_interrupted_at',
+                'latest_prompt.needs_user_input as prompt_needs_user_input',
                 'run_sql_tool_calls.created_at as run_sql_tool_call_created_at',
                 'run_sql_tool_calls.ai_agent_tool_result_uuid as run_sql_tool_result_uuid',
                 'run_sql_tool_calls.decision as run_sql_approval_decision',
@@ -3184,6 +3188,7 @@ export class AiAgentModel {
                               response: row.prompt_response,
                               errorMessage: row.prompt_error_message,
                               interruptedAt: row.prompt_interrupted_at,
+                              needsUserInput: row.prompt_needs_user_input,
                           },
                 runSqlToolCalls: [],
                 pendingWritebackCreatedAt: row.pending_writeback_created_at,
@@ -5540,6 +5545,27 @@ export class AiAgentModel {
         }
 
         await query.returning('ai_prompt_uuid');
+    }
+
+    async updatePromptNeedsUserInput({
+        promptUuid,
+        needsUserInput,
+        metadata,
+    }: {
+        promptUuid: string;
+        needsUserInput: boolean;
+        metadata: AiPromptNeedsUserInputMetadata;
+    }): Promise<boolean> {
+        const rows = await this.database(AiPromptTableName)
+            .update({
+                needs_user_input: needsUserInput,
+                needs_user_input_metadata: metadata,
+            })
+            .where('ai_prompt_uuid', promptUuid)
+            .whereNull('needs_user_input')
+            .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
+
+        return rows.length > 0;
     }
 
     async resetPromptResponseForRetry(

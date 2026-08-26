@@ -417,6 +417,11 @@ import {
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
 import { deriveAiAgentThreadLiveStatus } from './aiAgentThreadLiveStatus';
 import {
+    responseMatchesPromptInputRequestGate,
+    runPromptInputRequestClassification,
+    shouldClassifyPromptInputRequestForUpdate,
+} from './promptInputRequestClassifier';
+import {
     canGeneratePostResponseSuggestions,
     filterSuggestionsByEnabledTools,
     getEnabledSuggestionTools,
@@ -658,9 +663,6 @@ function cleanupOAuthCache(): void {
     });
 }
 
-const CLARIFYING_QUESTION_RE =
-    /(\?\s*$)|(could you clarify)|(did you mean)|(which (one|of these))|(let me know which)|(what would you like)/i;
-
 const REFUSAL_RE =
     /(doesn't have)|(does not have)|(couldn't (find|locate))|(could not (find|locate))|(no .{0,40}(field|data|column|metric|dimension))|(not available)|(doesn't seem to)|(does not seem to)|(unable to)|(i can't)|(i cannot)|(this dataset)/i;
 
@@ -684,7 +686,7 @@ If the user asks to set up Lightdash preview deploys / preview projects for pull
 After a writeback, tell the user which Lightdash project and which GitHub repository the change was made against (the tool result includes both), so they can confirm it went to the right place.`;
 
 function detectClarifyingQuestion(text: string): boolean {
-    return CLARIFYING_QUESTION_RE.test(text);
+    return responseMatchesPromptInputRequestGate(text);
 }
 
 function detectRefusal(text: string): boolean {
@@ -1386,6 +1388,31 @@ export class AiAgentService extends BaseService {
                     error,
                 );
             });
+    }
+
+    private classifyPromptInputRequestAfterResponse(args: {
+        response: string;
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string;
+        threadUuid: string;
+        promptUuid: string;
+        userUuid: string;
+    }): void {
+        void runPromptInputRequestClassification({
+            ...args,
+            enabled:
+                this.lightdashConfig.ai.promptInputRequestClassifier.enabled,
+            orgAiCopilotConfigResolver: this.orgAiCopilotConfigResolver,
+            instanceCopilotConfig: this.lightdashConfig.ai.copilot,
+            aiAgentModel: this.aiAgentModel,
+            analytics: this.analytics,
+        }).catch((error) => {
+            Logger.error(
+                'Failed to persist AI agent prompt input request classification',
+                error,
+            );
+        });
     }
 
     /**
@@ -10946,6 +10973,32 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         .catch((error) => {
                             Logger.error(
                                 'Failed to enqueue AI agent review classifier after response save',
+                                error,
+                            );
+                        });
+                }
+
+                const completedResponse = update.response;
+                if (
+                    completedResponse !== undefined &&
+                    shouldClassifyPromptInputRequestForUpdate(update)
+                ) {
+                    void updatePromise
+                        .then(() => {
+                            this.classifyPromptInputRequestAfterResponse({
+                                response: completedResponse,
+                                organizationUuid:
+                                    agentSettings.organizationUuid,
+                                projectUuid: prompt.projectUuid,
+                                agentUuid: agentSettings.uuid,
+                                threadUuid: prompt.threadUuid,
+                                promptUuid: update.promptUuid,
+                                userUuid: user.userUuid,
+                            });
+                        })
+                        .catch((error) => {
+                            Logger.error(
+                                'Failed to start AI agent prompt input request classification',
                                 error,
                             );
                         });

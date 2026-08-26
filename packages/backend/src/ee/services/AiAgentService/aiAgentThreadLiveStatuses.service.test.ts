@@ -68,6 +68,7 @@ describe('AiAgentService.getAgentThreadLiveStatuses', () => {
                     response: 'Done',
                     errorMessage: null,
                     interruptedAt: null,
+                    needsUserInput: null,
                 },
                 runSqlToolCalls: [],
                 pendingWritebackCreatedAt: null,

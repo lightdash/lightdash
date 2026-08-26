@@ -14,6 +14,7 @@ export type AiAgentThreadLiveStateSignals = {
         response: string | null;
         errorMessage: string | null;
         interruptedAt: Date | null;
+        needsUserInput: boolean | null;
     } | null;
     runSqlToolCalls: {
         createdAt: Date;
@@ -107,6 +108,22 @@ export const deriveAiAgentThreadLiveStatus = (
                 signals.activeDeepResearchRun.createdAt
             ).toISOString(),
             source: 'deterministic',
+        };
+    }
+
+    if (
+        latestPrompt !== null &&
+        latestPrompt.response !== null &&
+        latestPrompt.errorMessage === null &&
+        latestPrompt.interruptedAt === null &&
+        latestPrompt.respondedAt !== null &&
+        latestPrompt.needsUserInput === true
+    ) {
+        return {
+            threadUuid: signals.threadUuid,
+            state: 'waiting_for_you',
+            stateChangedAt: latestPrompt.respondedAt.toISOString(),
+            source: 'classified',
         };
     }
 

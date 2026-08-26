@@ -13,6 +13,7 @@ const liveStateSignals = () => ({
         response: null,
         errorMessage: null,
         interruptedAt: null,
+        needsUserInput: null,
     },
     runSqlToolCalls: [],
     pendingWritebackCreatedAt: null,
@@ -239,6 +240,88 @@ describe('deriveAiAgentThreadLiveStatus', () => {
         ).toMatchObject({
             state: 'idle',
             stateChangedAt: '2026-08-26T11:59:00.000Z',
+        });
+    });
+
+    it('reports a classified terminal response as waiting for the user', () => {
+        expect(
+            deriveAiAgentThreadLiveStatus(
+                {
+                    ...liveStateSignals(),
+                    latestPrompt: {
+                        ...liveStateSignals().latestPrompt,
+                        response: 'Which project did you mean?',
+                        respondedAt: new Date('2026-08-26T11:59:00.000Z'),
+                        needsUserInput: true,
+                    },
+                },
+                NOW,
+            ),
+        ).toEqual({
+            threadUuid: 'thread-uuid',
+            state: 'waiting_for_you',
+            stateChangedAt: '2026-08-26T11:59:00.000Z',
+            source: 'classified',
+        });
+    });
+
+    it('keeps a classified non-terminal response working', () => {
+        expect(
+            deriveAiAgentThreadLiveStatus(
+                {
+                    ...liveStateSignals(),
+                    latestPrompt: {
+                        ...liveStateSignals().latestPrompt,
+                        needsUserInput: true,
+                    },
+                },
+                NOW,
+            ).state,
+        ).toBe('working');
+    });
+
+    it.each([false, null])(
+        'reports a terminal response classified as %s as idle',
+        (needsUserInput) => {
+            expect(
+                deriveAiAgentThreadLiveStatus(
+                    {
+                        ...liveStateSignals(),
+                        latestPrompt: {
+                            ...liveStateSignals().latestPrompt,
+                            response: 'Done',
+                            respondedAt: new Date('2026-08-26T11:59:00.000Z'),
+                            needsUserInput,
+                        },
+                    },
+                    NOW,
+                ).state,
+            ).toBe('idle');
+        },
+    );
+
+    it('prioritizes deterministic SQL approval over classification', () => {
+        expect(
+            deriveAiAgentThreadLiveStatus(
+                {
+                    ...liveStateSignals(),
+                    latestPrompt: {
+                        ...liveStateSignals().latestPrompt,
+                        needsUserInput: true,
+                    },
+                    runSqlToolCalls: [
+                        {
+                            createdAt: new Date('2026-08-26T11:59:00.000Z'),
+                            toolResultUuid: null,
+                            approvalDecision: null,
+                        },
+                    ],
+                },
+                NOW,
+            ),
+        ).toMatchObject({
+            state: 'waiting_for_you',
+            source: 'deterministic',
         });
     });
 

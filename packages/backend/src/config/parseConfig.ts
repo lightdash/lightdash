@@ -1590,6 +1590,9 @@ export type LightdashConfig = {
             /** Consolidation computes and records its operations, applying none. */
             consolidationDryRun: boolean;
         };
+        promptInputRequestClassifier: {
+            enabled: boolean;
+        };
     };
     embedding: {
         enabled: boolean;
@@ -3300,6 +3303,12 @@ export const parseConfig = (): LightdashConfig => {
             agentMemory: {
                 consolidationDryRun:
                     process.env.AI_AGENT_MEMORY_CONSOLIDATION_DRY_RUN ===
+                    'true',
+            },
+            promptInputRequestClassifier: {
+                enabled:
+                    process.env
+                        .AI_AGENT_PROMPT_INPUT_REQUEST_CLASSIFIER_ENABLED ===
                     'true',
             },
         },
