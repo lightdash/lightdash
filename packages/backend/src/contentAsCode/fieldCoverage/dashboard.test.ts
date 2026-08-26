@@ -9,7 +9,10 @@ describeContentAsCodeSchemaContract({
         'dashboardVersionId',
         'deletedAt',
         'deletedBy',
+        // Overlay flags for unpublished drafts; not part of the as-code document.
+        'draftsAwaitingReview',
         'firstViewedAt',
+        'hasUnpublishedChanges',
         'organizationUuid',
         // Represented as `ownerEmail` on the document for portability
         'owner',
