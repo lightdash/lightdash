@@ -62,6 +62,10 @@ const ConnectionRow: FC<
         <Table.Td>
             <Text fz="sm" c="ldGray.6">
                 {connection.linkedDataAppCount}
+                {connection.linkedChartTypeCount > 0 &&
+                    ` (+${connection.linkedChartTypeCount} chart type${
+                        connection.linkedChartTypeCount !== 1 ? 's' : ''
+                    })`}
             </Text>
         </Table.Td>
         <Table.Td>

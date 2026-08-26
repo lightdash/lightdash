@@ -7245,12 +7245,23 @@ export class AppGenerateService extends BaseService {
         const resources = AppGenerateService.buildCopiedResources(
             sourceVersion.resources ?? null,
         );
+        // Custom chart types promote like data apps, deliberately: template
+        // and viz_schema are copied below (so the promoted viz appears in the
+        // upstream picker) and vizs are spaceless, so targetSpaceUuid stays
+        // null. Note charts BOUND to a viz do not remap their dataAppVizUuid
+        // when promoted — that's the chart-binding portability gap, tracked
+        // separately.
+        const isChartType = sourceApp.template === DATA_APP_VIZ_TEMPLATE;
         // Frame the production version's chat bubble like a duplicate's: the
         // verb "Promote" plus a markdown link (rendered as an anchor by
         // ChatMessageContent) back to the preview version it came from, for
         // provenance.
-        const sourceDisplayName = sourceApp.name || 'untitled app';
-        const sourcePreviewPath = `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/view`;
+        const sourceDisplayName =
+            sourceApp.name ||
+            (isChartType ? 'untitled chart type' : 'untitled app');
+        const sourcePreviewPath = isChartType
+            ? `/projects/${projectUuid}/chart-types/${sourceApp.app_id}`
+            : `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/view`;
         const prompt = `Promote [${sourceDisplayName}](${sourcePreviewPath})`;
         const { client: s3Client, bucket } = this.getS3Client();
 

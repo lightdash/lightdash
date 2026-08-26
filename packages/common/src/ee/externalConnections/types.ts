@@ -88,6 +88,9 @@ export type ExternalConnection = {
 
 export type ExternalConnectionListItem = ExternalConnection & {
     linkedDataAppCount: number;
+    // Custom chart types linking this connection, counted apart from data
+    // apps so the two products' usage stays distinguishable.
+    linkedChartTypeCount: number;
 };
 
 /** WRITE shape — includes the secret. */
