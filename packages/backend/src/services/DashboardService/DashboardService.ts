@@ -484,18 +484,17 @@ export class DashboardService
             undefined,
             { projectUuid },
         );
-        if (!chartToDuplicate.dashboardUuid) {
-            throw new ParameterError(
-                'We cannot duplicate a chart that is not part of a dashboard',
-            );
-        }
         // Tile payloads can name any chart uuid; require view access on the
-        // source chart before copying it into the target dashboard.
+        // source chart before copying it into the target dashboard. Dashboard
+        // grants only count while the copy stays inside the owning dashboard:
+        // a grant must never move content beyond the dashboard it covers.
+        const staysInOwningDashboard =
+            chartToDuplicate.dashboardUuid === dashboardUuid;
         const sourceContext =
             await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
                 {
-                    uuid: chartToDuplicate.dashboardUuid,
+                    uuid: staysInOwningDashboard ? dashboardUuid : null,
                     spaceUuid: chartToDuplicate.spaceUuid,
                 },
             );
@@ -517,6 +516,11 @@ export class DashboardService
         ) {
             throw new ForbiddenError(
                 "You don't have access to the chart being duplicated",
+            );
+        }
+        if (!chartToDuplicate.dashboardUuid) {
+            throw new ParameterError(
+                'We cannot duplicate a chart that is not part of a dashboard',
             );
         }
         const duplicatedChart = await this.savedChartModel.create(
@@ -637,7 +641,7 @@ export class DashboardService
             },
         );
 
-        const { inheritsFromOrgOrProject, access, directOnly } =
+        const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
                 { uuid: dashboardDao.uuid, spaceUuid: dashboardDao.spaceUuid },
@@ -646,9 +650,6 @@ export class DashboardService
             ...dashboardDao,
             inheritsFromOrgOrProject,
             access,
-            // Grant-only readers can open the dashboard but must not learn
-            // the private space's name.
-            spaceName: directOnly ? '' : dashboardDao.spaceName,
         };
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -1713,9 +1714,6 @@ export class DashboardService
 
         return {
             ...updatedNewDashboard,
-            spaceName: updatedSpace.directOnly
-                ? ''
-                : updatedNewDashboard.spaceName,
             inheritsFromOrgOrProject: updatedSpace.inheritsFromOrgOrProject,
             access: updatedSpace.access,
         };
@@ -1930,9 +1928,6 @@ export class DashboardService
                     );
                 return {
                     ...dashboard,
-                    spaceName: dashboardSpaceContext.directOnly
-                        ? ''
-                        : dashboard.spaceName,
                     inheritsFromOrgOrProject:
                         dashboardSpaceContext.inheritsFromOrgOrProject,
                     access: dashboardSpaceContext.access,
@@ -2568,7 +2563,7 @@ export class DashboardService
     ): Promise<DashboardVersion> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
-        const { inheritsFromOrgOrProject, access, directOnly } =
+        const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
                 { uuid: dashboardDao.uuid, spaceUuid: dashboardDao.spaceUuid },
@@ -2620,7 +2615,6 @@ export class DashboardService
             updatedByUser: dashboard.updatedByUser,
             inheritsFromOrgOrProject,
             access,
-            spaceName: directOnly ? '' : dashboardDao.spaceName,
         };
 
         // Check if this is the current version

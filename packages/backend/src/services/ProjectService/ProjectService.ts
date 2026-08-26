@@ -6577,18 +6577,13 @@ export class ProjectService extends BaseService {
         const { organizationUuid, projectUuid } = savedChart;
 
         const [spaceCtx, explore] = await Promise.all([
-            savedChart.dashboardUuid
-                ? this.spacePermissionService.getDashboardAccessContext(
-                      account.user.id,
-                      {
-                          uuid: savedChart.dashboardUuid,
-                          spaceUuid: savedChart.spaceUuid,
-                      },
-                  )
-                : this.spacePermissionService.getSpaceAccessContext(
-                      account.user.id,
-                      savedChart.spaceUuid,
-                  ),
+            this.spacePermissionService.getDashboardAccessContext(
+                account.user.id,
+                {
+                    uuid: savedChart.dashboardUuid,
+                    spaceUuid: savedChart.spaceUuid,
+                },
+            ),
             this.getExplore(
                 account,
                 projectUuid,
@@ -6685,18 +6680,13 @@ export class ProjectService extends BaseService {
         const { organizationUuid, projectUuid } = savedChart;
 
         const [spaceCtx, explore] = await Promise.all([
-            savedChart.dashboardUuid
-                ? this.spacePermissionService.getDashboardAccessContext(
-                      account.user.id,
-                      {
-                          uuid: savedChart.dashboardUuid,
-                          spaceUuid: savedChart.spaceUuid,
-                      },
-                  )
-                : this.spacePermissionService.getSpaceAccessContext(
-                      account.user.id,
-                      savedChart.spaceUuid,
-                  ),
+            this.spacePermissionService.getDashboardAccessContext(
+                account.user.id,
+                {
+                    uuid: savedChart.dashboardUuid,
+                    spaceUuid: savedChart.spaceUuid,
+                },
+            ),
             this.getExplore(
                 account,
                 projectUuid,

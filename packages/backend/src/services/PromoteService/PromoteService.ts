@@ -126,6 +126,8 @@ type SavedSqlChart = Awaited<ReturnType<SavedSqlModel['getByUuid']>>;
 const isChartWithinDashboard = (chart: Pick<SavedChartDAO, 'dashboardUuid'>) =>
     chart.dashboardUuid !== null;
 
+// Promotion copies content across projects, so every access check in this
+// service is deliberately space-only: direct content grants must never count.
 export class PromoteService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 

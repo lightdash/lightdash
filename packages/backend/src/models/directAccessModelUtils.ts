@@ -16,6 +16,9 @@ import { UserTableName } from '../database/entities/users';
 export type DirectAccess = {
     organizationUuid: UUID;
     projectUuid: UUID;
+    // Space the granted resource actually lives in; lets callers verify the
+    // grant belongs to the space context they are extending.
+    spaceUuid: UUID;
     userRole: SpaceMemberRole | null;
     groupRoles: SpaceMemberRole[];
 };
@@ -24,6 +27,7 @@ export type DirectAccessRow = {
     resourceUuid: UUID;
     organizationUuid: UUID;
     projectUuid: UUID;
+    spaceUuid: UUID;
     role: SpaceMemberRole;
     groupUuid: UUID | null;
 };
@@ -206,6 +210,7 @@ export const groupDirectAccessRows = (
         const access = accessByResource[row.resourceUuid] ?? {
             organizationUuid: row.organizationUuid,
             projectUuid: row.projectUuid,
+            spaceUuid: row.spaceUuid,
             userRole: null,
             groupRoles: [],
         };

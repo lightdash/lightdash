@@ -261,6 +261,9 @@ export class SavedChartService
         return savedChart;
     }
 
+    // Deliberately space-only: used by pinning and standalone-chart
+    // scheduled-delivery creation, neither of which applies to
+    // dashboard-owned charts, so direct grants must never count here.
     async hasChartSpaceAccess(
         user: SessionUser,
         spaceUuid: string,
@@ -1258,9 +1261,12 @@ export class SavedChartService
         const savedChart =
             await this.savedChartModel.getSummary(savedChartUuid);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                savedChart.spaceUuid,
+                {
+                    uuid: savedChart.dashboardUuid,
+                    spaceUuid: savedChart.spaceUuid,
+                },
             );
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -1291,11 +1297,9 @@ export class SavedChartService
     ): Promise<{
         access: SpaceAccess[];
         inheritsFromOrgOrProject: boolean;
-        directOnly: boolean;
     }> {
         let access;
         let inheritsFromOrgOrProject: boolean;
-        let directOnly = false;
         let permissionActor: Account | SessionUser = account;
         if (isJwtUser(account)) {
             const { embedWriteUser } = account;
@@ -1329,7 +1333,7 @@ export class SavedChartService
                     );
                 inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
             }
-        } else if (savedChart.dashboardUuid) {
+        } else {
             const ctx =
                 await this.spacePermissionService.getDashboardAccessContext(
                     account.user.userUuid,
@@ -1338,14 +1342,6 @@ export class SavedChartService
                         spaceUuid: savedChart.spaceUuid,
                     },
                 );
-            access = ctx.access;
-            inheritsFromOrgOrProject = ctx.inheritsFromOrgOrProject;
-            directOnly = ctx.directOnly;
-        } else {
-            const ctx = await this.spacePermissionService.getSpaceAccessContext(
-                account.user.userUuid,
-                savedChart.spaceUuid,
-            );
             access = ctx.access;
             inheritsFromOrgOrProject = ctx.inheritsFromOrgOrProject;
         }
@@ -1373,7 +1369,6 @@ export class SavedChartService
         return {
             access: isJwtUser(account) ? [] : (access as SpaceAccess[]),
             inheritsFromOrgOrProject,
-            directOnly,
         };
     }
 
@@ -1391,7 +1386,7 @@ export class SavedChartService
             savedChart.spaceUuid,
         );
 
-        const { access, inheritsFromOrgOrProject, directOnly } =
+        const { access, inheritsFromOrgOrProject } =
             await this.checkPermissions(account, space, savedChart);
 
         try {
@@ -1428,7 +1423,6 @@ export class SavedChartService
 
         return {
             ...savedChart,
-            spaceName: directOnly ? '' : savedChart.spaceName,
             inheritsFromOrgOrProject,
             access,
         };
@@ -2145,9 +2139,9 @@ export class SavedChartService
     ): Promise<ChartHistory> {
         const chart = await this.savedChartModel.getSummary(chartUuid);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                chart.spaceUuid,
+                { uuid: chart.dashboardUuid, spaceUuid: chart.spaceUuid },
             );
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -2192,9 +2186,9 @@ export class SavedChartService
     ): Promise<ChartVersion> {
         const chart = await this.savedChartModel.getSummary(chartUuid);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                chart.spaceUuid,
+                { uuid: chart.dashboardUuid, spaceUuid: chart.spaceUuid },
             );
         const auditedAbility = this.createAuditedAbility(user);
         if (

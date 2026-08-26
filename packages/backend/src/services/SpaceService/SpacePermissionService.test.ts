@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     DirectSpaceAccessOrigin,
     NotFoundError,
+    ParameterError,
     ProjectSpaceAccessOrigin,
     SpaceMemberRole,
     type DirectSpaceAccess,
@@ -9,6 +10,7 @@ import {
     type PossibleAbilities,
     type ProjectMemberRole,
     type SessionUser,
+    type SpaceAccess,
     type SpaceInheritanceChain,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -1760,6 +1762,14 @@ describe('SpacePermissionService', () => {
     });
 });
 
+// Boundary-crossing operations must receive contexts free of synthesized
+// grant rows; assert it wherever a space-only context is expected.
+const expectNoGrantRows = (context: { access: SpaceAccess[] }) => {
+    expect(
+        context.access.filter((row) => row.grantedVia !== undefined),
+    ).toEqual([]);
+};
+
 describe('getDashboardAccessContext', () => {
     const spaceContext: SpaceAccessContextForCasl = {
         organizationUuid: 'organization-uuid',
@@ -1823,6 +1833,7 @@ describe('getDashboardAccessContext', () => {
                 'dashboard-uuid': {
                     organizationUuid: 'organization-uuid',
                     projectUuid: 'project-uuid',
+                    spaceUuid: 'space-uuid',
                     userRole: SpaceMemberRole.VIEWER,
                     groupRoles: [SpaceMemberRole.EDITOR],
                 },
@@ -1841,6 +1852,7 @@ describe('getDashboardAccessContext', () => {
                     projectRole: undefined,
                     inheritedRole: undefined,
                     inheritedFrom: undefined,
+                    grantedVia: 'dashboard',
                 },
                 {
                     userUuid: 'user-uuid',
@@ -1849,6 +1861,7 @@ describe('getDashboardAccessContext', () => {
                     projectRole: undefined,
                     inheritedRole: undefined,
                     inheritedFrom: undefined,
+                    grantedVia: 'dashboard',
                 },
             ],
             directOnly: true,
@@ -1881,6 +1894,7 @@ describe('getDashboardAccessContext', () => {
                 'dashboard-uuid': {
                     organizationUuid: 'organization-uuid',
                     projectUuid: 'project-uuid',
+                    spaceUuid: 'space-uuid',
                     userRole: SpaceMemberRole.EDITOR,
                     groupRoles: [],
                 },
@@ -1904,6 +1918,7 @@ describe('getDashboardAccessContext', () => {
                 'dashboard-uuid': {
                     organizationUuid: 'organization-uuid',
                     projectUuid: 'project-uuid',
+                    spaceUuid: 'space-uuid',
                     userRole: SpaceMemberRole.EDITOR,
                     groupRoles: [],
                 },
@@ -1912,5 +1927,39 @@ describe('getDashboardAccessContext', () => {
         await expect(
             adminService.getDashboardAccessContext('user-uuid', dashboardRef),
         ).resolves.toMatchObject({ directOnly: false });
+    });
+
+    test('a null dashboard uuid returns the space-only context without any grant lookup', async () => {
+        const { service, dashboardAccessModel, directAccessFeatureGate } =
+            createService({ enabled: true });
+
+        const result = await service.getDashboardAccessContext('user-uuid', {
+            uuid: null,
+            spaceUuid: 'space-uuid',
+        });
+
+        expect(result).toEqual({ ...spaceContext, directOnly: false });
+        expectNoGrantRows(result);
+        expect(directAccessFeatureGate.isEnabledForUser).not.toHaveBeenCalled();
+        expect(dashboardAccessModel.getUserAccess).not.toHaveBeenCalled();
+    });
+
+    test('throws when the granted dashboard does not belong to the given space', async () => {
+        const { service } = createService({
+            enabled: true,
+            grants: {
+                'dashboard-uuid': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid: 'another-space-uuid',
+                    userRole: SpaceMemberRole.EDITOR,
+                    groupRoles: [],
+                },
+            },
+        });
+
+        await expect(
+            service.getDashboardAccessContext('user-uuid', dashboardRef),
+        ).rejects.toThrow(ParameterError);
     });
 });

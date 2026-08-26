@@ -386,6 +386,14 @@ const getMockedAsyncQueryService = (
                 inheritsFromOrgOrProject: true,
                 access: [],
             })),
+            getDashboardAccessContext: vi.fn(async () => ({
+                organizationUuid: projectSummary.organizationUuid,
+                projectUuid,
+                inheritsFromOrgOrProject: true,
+                access: [],
+                admins: [],
+                directOnly: false,
+            })),
         } as unknown as SpacePermissionService,
         organizationSettingsModel: {
             get: vi.fn(async () => ({
@@ -5113,10 +5121,10 @@ describe('checkDashboardChartQueryPermissions', () => {
             ),
         ).rejects.toThrow(ForbiddenError);
         expect(
-            spacePermissionService.getSpaceAccessContext,
-        ).toHaveBeenCalledWith(account.user.id, chartSpace.uuid);
-        expect(
             spacePermissionService.getDashboardAccessContext,
-        ).not.toHaveBeenCalled();
+        ).toHaveBeenCalledWith(account.user.id, {
+            uuid: null,
+            spaceUuid: chartSpace.uuid,
+        });
     });
 });

@@ -388,13 +388,13 @@ export class SchedulerService extends BaseService {
     ) {
         const auditedAbility = this.createAuditedAbility(user);
         if (scheduler.savedChartUuid) {
-            const { organizationUuid, spaceUuid, projectUuid } =
+            const { organizationUuid, spaceUuid, projectUuid, dashboardUuid } =
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
 
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getSpaceAccessContext(
+                await this.spacePermissionService.getDashboardAccessContext(
                     user.userUuid,
-                    spaceUuid,
+                    { uuid: dashboardUuid, spaceUuid },
                 );
             if (
                 auditedAbility.cannot(

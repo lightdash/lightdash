@@ -285,6 +285,7 @@ export class DashboardAccessModel {
                 resourceUuid: `${DashboardUserAccessTableName}.dashboard_uuid`,
                 organizationUuid: `${OrganizationTableName}.organization_uuid`,
                 projectUuid: `${ProjectTableName}.project_uuid`,
+                spaceUuid: `${SpaceTableName}.space_uuid`,
                 role: `${DashboardUserAccessTableName}.space_role`,
                 groupUuid: trx.raw('NULL'),
             })
@@ -342,6 +343,7 @@ export class DashboardAccessModel {
                         resourceUuid: `${DashboardGroupAccessTableName}.dashboard_uuid`,
                         organizationUuid: `${OrganizationTableName}.organization_uuid`,
                         projectUuid: `${ProjectTableName}.project_uuid`,
+                        spaceUuid: `${SpaceTableName}.space_uuid`,
                         role: `${DashboardGroupAccessTableName}.space_role`,
                         groupUuid: `${DashboardGroupAccessTableName}.group_uuid`,
                     })

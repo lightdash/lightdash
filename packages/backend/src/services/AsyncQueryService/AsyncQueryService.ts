@@ -742,23 +742,12 @@ export class AsyncQueryService extends ProjectService {
             project: Pick<Project, 'projectUuid'>;
             organization: Pick<Organization, 'organizationUuid'>;
             space: Pick<SpaceSummaryBase, 'uuid'>;
-            // Charts owned by a dashboard are covered by that dashboard's
-            // direct grants.
-            dashboard: { uuid: string } | null;
         },
     ) {
-        const ctx = savedChart.dashboard?.uuid
-            ? await this.spacePermissionService.getDashboardAccessContext(
-                  account.user.id,
-                  {
-                      uuid: savedChart.dashboard.uuid,
-                      spaceUuid: savedChart.space.uuid,
-                  },
-              )
-            : await this.spacePermissionService.getSpaceAccessContext(
-                  account.user.id,
-                  savedChart.space.uuid,
-              );
+        const ctx = await this.spacePermissionService.getSpaceAccessContext(
+            account.user.id,
+            savedChart.space.uuid,
+        );
 
         const auditedAbility = this.createAuditedAbility(account);
         if (
@@ -5713,10 +5702,14 @@ export class AsyncQueryService extends ProjectService {
                 );
             inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
         } else {
-            const ctx = await this.spacePermissionService.getSpaceAccessContext(
-                account.user.id,
-                savedChartSpaceUuid,
-            );
+            const ctx =
+                await this.spacePermissionService.getDashboardAccessContext(
+                    account.user.id,
+                    {
+                        uuid: savedChart.dashboardUuid,
+                        spaceUuid: savedChartSpaceUuid,
+                    },
+                );
             access = ctx.access;
             inheritsFromOrgOrProject = ctx.inheritsFromOrgOrProject;
         }
@@ -6048,15 +6041,11 @@ export class AsyncQueryService extends ProjectService {
             );
         } else {
             const auditedAbility = this.createAuditedAbility(account);
-            const ctx = owningDashboardUuid
-                ? await this.spacePermissionService.getDashboardAccessContext(
-                      account.user.id,
-                      { uuid: owningDashboardUuid, spaceUuid: space.uuid },
-                  )
-                : await this.spacePermissionService.getSpaceAccessContext(
-                      account.user.id,
-                      space.uuid,
-                  );
+            const ctx =
+                await this.spacePermissionService.getDashboardAccessContext(
+                    account.user.id,
+                    { uuid: owningDashboardUuid, spaceUuid: space.uuid },
+                );
 
             if (
                 auditedAbility.cannot(

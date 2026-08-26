@@ -185,6 +185,9 @@ type UpsertContentAsCodeOptions = {
     mode?: 'upsert' | 'create';
 };
 
+// Content-as-code moves content wholesale in and out of the instance, so
+// every access check in this service is deliberately space-only: direct
+// content grants must never count.
 export class CoderService extends BaseService {
     lightdashConfig: LightdashConfig;
 

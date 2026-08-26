@@ -5,10 +5,12 @@ import {
     getProjectRoleForRoleSetSpaceAccess,
     NotFoundError,
     OrganizationMemberRole,
+    ParameterError,
     ProjectMemberRole,
     resolveSpaceAccess,
     SpaceMemberRole,
     type AbilityAction,
+    type GrantSource,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type OrganizationSpaceAccess,
@@ -48,9 +50,9 @@ export type SpaceAccessContextForCasl = {
 
 export type DashboardAccessContextForCasl = SpaceAccessContextForCasl & {
     /**
-     * True when the requester reaches the dashboard only through direct
-     * grants: no space access path and no org/project admin standing.
-     * Callers use it to suppress private space names in responses.
+     * True when the requester has no space-derived access path (membership,
+     * inheritance, or admin standing) and reaches the content only through
+     * direct content grants.
      */
     directOnly: boolean;
 };
@@ -195,16 +197,24 @@ export class SpacePermissionService extends BaseService {
      * so the existing `access` elemMatch ability rules interpret them with
      * no dashboard-specific rules. Behind the direct-access feature gate;
      * with the flag off the result equals the plain space context.
+     *
+     * Pass `uuid: null` for content without an owning dashboard, or when a
+     * boundary-crossing operation (copying or moving content out of the
+     * dashboard) must not honor grants: the space-only context is returned
+     * and no grant lookup runs.
      */
     async getDashboardAccessContext(
         userUuid: string,
-        dashboard: { uuid: string; spaceUuid: string },
+        dashboard: { uuid: string | null; spaceUuid: string },
     ): Promise<DashboardAccessContextForCasl> {
         const spaceContext = await this.getSpaceAccessContext(
             userUuid,
             dashboard.spaceUuid,
         );
         const spaceOnlyContext = { ...spaceContext, directOnly: false };
+        if (dashboard.uuid === null) {
+            return spaceOnlyContext;
+        }
         if (
             !(await this.directAccessFeatureGate.isEnabledForUser({
                 userUuid,
@@ -220,14 +230,38 @@ export class SpacePermissionService extends BaseService {
             { organizationUuid: spaceContext.organizationUuid },
         );
         const grant = grants[dashboard.uuid];
+        if (grant === undefined) {
+            return spaceOnlyContext;
+        }
         const grantRoles = [
-            ...(grant?.userRole ? [grant.userRole] : []),
-            ...(grant?.groupRoles ?? []),
+            ...(grant.userRole ? [grant.userRole] : []),
+            ...grant.groupRoles,
         ];
         if (grantRoles.length === 0) {
             return spaceOnlyContext;
         }
+        // Grants must never extend a context for a space the dashboard does
+        // not live in; a mismatch is a caller bug, so fail loudly.
+        if (grant.spaceUuid !== dashboard.spaceUuid) {
+            throw new ParameterError(
+                `Dashboard ${dashboard.uuid} does not belong to space ${dashboard.spaceUuid}`,
+            );
+        }
 
+        return SpacePermissionService.withGrantAccess(
+            spaceContext,
+            userUuid,
+            grantRoles,
+            'dashboard',
+        );
+    }
+
+    private static withGrantAccess(
+        spaceContext: SpaceAccessContextForCasl,
+        userUuid: string,
+        grantRoles: SpaceMemberRole[],
+        grantedVia: GrantSource,
+    ): DashboardAccessContextForCasl {
         const hasSpacePath =
             spaceContext.access.some(
                 (access) => access.userUuid === userUuid,
@@ -244,6 +278,7 @@ export class SpacePermissionService extends BaseService {
                     projectRole: undefined,
                     inheritedRole: undefined,
                     inheritedFrom: undefined,
+                    grantedVia,
                 })),
             ],
             directOnly: !hasSpacePath,
