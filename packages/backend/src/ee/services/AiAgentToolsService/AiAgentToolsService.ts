@@ -1434,7 +1434,7 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         uuid: string,
     ) {
-        return `/projects/${context.projectUuid}/apps/${uuid}`;
+        return `/projects/${context.projectUuid}/apps/${uuid}/view`;
     }
 
     private static getContentTypeLabel(type: ContentAsCodeType) {

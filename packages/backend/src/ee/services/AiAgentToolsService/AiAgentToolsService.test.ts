@@ -1,6 +1,7 @@
 import {
     Account,
     CatalogType,
+    ContentType,
     DimensionType,
     Explore,
     FieldType,
@@ -104,6 +105,7 @@ const makeService = ({
     projectModel = {},
     projectService = {},
     querySourceService = {},
+    contentService = {},
 }: {
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
@@ -125,6 +127,7 @@ const makeService = ({
     projectModel?: Record<string, unknown>;
     projectService?: Record<string, unknown>;
     querySourceService?: Record<string, unknown>;
+    contentService?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
         builtInSkills: {
@@ -184,7 +187,7 @@ const makeService = ({
         dashboardService,
         savedChartService,
         coderService,
-        contentService: {},
+        contentService,
         aiAgentContentValidation,
         projectContextModel: {},
         aiAgentDocumentModel,
@@ -220,6 +223,86 @@ function makeRuntimeContext(
 }
 
 describe('AiAgentToolsService', () => {
+    it('returns canonical viewer URLs when listing space content', async () => {
+        const contentService = {
+            find: vi.fn().mockResolvedValue({
+                data: [
+                    {
+                        contentType: ContentType.DASHBOARD,
+                        uuid: 'dashboard-uuid',
+                        name: 'Dashboard',
+                        slug: 'dashboard',
+                    },
+                    {
+                        contentType: ContentType.CHART,
+                        uuid: 'chart-uuid',
+                        name: 'Chart',
+                        slug: 'chart',
+                    },
+                    {
+                        contentType: ContentType.DATA_APP,
+                        uuid: 'app-uuid',
+                        name: 'Data app',
+                        slug: 'data-app',
+                    },
+                    {
+                        contentType: ContentType.SPACE,
+                        uuid: 'child-space-uuid',
+                        name: 'Child space',
+                        path: 'parent.child',
+                        chartCount: 0,
+                        dashboardCount: 0,
+                        childSpaceCount: 0,
+                        appCount: 0,
+                        access: [userUuid],
+                    },
+                ],
+                pagination: {
+                    page: 1,
+                    pageSize: 25,
+                    totalResults: 4,
+                    totalPageCount: 1,
+                },
+            }),
+        };
+        const service = makeService({
+            spaceModel: {
+                find: vi.fn().mockResolvedValue([{ uuid: 'space-uuid' }]),
+            },
+            contentService,
+        });
+        const runtime = service.createRuntime(makeRuntimeContext());
+
+        const result = await runtime.listContent({
+            spaceSlug: 'parent',
+            page: 1,
+        });
+
+        expect(
+            result.items.map(({ contentType, href }) => ({
+                contentType,
+                href,
+            })),
+        ).toEqual([
+            {
+                contentType: ContentType.DASHBOARD,
+                href: `/projects/${projectUuid}/dashboards/dashboard-uuid/view#dashboard-link`,
+            },
+            {
+                contentType: ContentType.CHART,
+                href: `/projects/${projectUuid}/saved/chart-uuid/view#chart-link`,
+            },
+            {
+                contentType: ContentType.DATA_APP,
+                href: `/projects/${projectUuid}/apps/app-uuid/view`,
+            },
+            {
+                contentType: ContentType.SPACE,
+                href: `/projects/${projectUuid}/spaces/child-space-uuid`,
+            },
+        ]);
+    });
+
     it('blocks unbounded dimension-only scans before warehouse execution', async () => {
         const executeMetricQueryAndGetResults = vi.fn();
         const service = makeService({
