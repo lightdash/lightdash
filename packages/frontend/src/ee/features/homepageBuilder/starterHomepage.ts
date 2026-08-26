@@ -94,6 +94,18 @@ export const buildStarterHomepage = (
         }),
     );
 
+    rows.push(
+        row({
+            id: uuidv4(),
+            type: 'collection',
+            config: {
+                title: 'Verified',
+                source: 'verified',
+                items: [],
+            },
+        }),
+    );
+
     if (pinnedItems.length > 0) {
         rows.push(
             row({

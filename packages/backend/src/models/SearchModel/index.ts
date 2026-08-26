@@ -782,7 +782,10 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
-        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
+        {
+            fullTextSearchOperator = 'AND',
+            verifiedOnly = false,
+        }: SearchContentOptions = {},
     ) {
         const { name: tableName, uuidColumnName } = searchTable;
 
@@ -886,6 +889,16 @@ export class SearchModel {
             filters,
         );
 
+        if (verifiedOnly) {
+            subquery = subquery.whereExists(
+                this.verifiedContentExists(
+                    projectUuid,
+                    ContentType.CHART,
+                    `${tableName}.${uuidColumnName}`,
+                ),
+            );
+        }
+
         const charts = await this.database(tableName)
             .select()
             .from(subquery.as('saved_charts_with_rank'))
@@ -918,7 +931,10 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
-        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
+        {
+            fullTextSearchOperator = 'AND',
+            verifiedOnly = false,
+        }: SearchContentOptions = {},
     ): Promise<SqlChartSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.SQL_CHART, filters?.type)) {
             return [];
@@ -932,7 +948,7 @@ export class SearchModel {
             projectUuid,
             query,
             filters,
-            fullTextSearchOperator,
+            { fullTextSearchOperator, verifiedOnly },
         );
     }
 
@@ -940,7 +956,10 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
-        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
+        {
+            fullTextSearchOperator = 'AND',
+            verifiedOnly = false,
+        }: SearchContentOptions = {},
     ): Promise<SavedChartSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.CHART, filters?.type)) {
             return [];
@@ -1036,6 +1055,16 @@ export class SearchModel {
             },
             filters,
         );
+
+        if (verifiedOnly) {
+            subquery = subquery.whereExists(
+                this.verifiedContentExists(
+                    projectUuid,
+                    ContentType.CHART,
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                ),
+            );
+        }
 
         const savedCharts = await this.database(SavedChartsTableName)
             .select()
@@ -1729,6 +1758,46 @@ export class SearchModel {
         query: string,
         filters?: SearchFilters,
     ): Promise<SearchResults> {
+        const verifiedOnly = filters?.verifiedOnly === true;
+        const contentOptions: SearchContentOptions = { verifiedOnly };
+
+        // Verified is only meaningful for charts and dashboards — skip every
+        // other type so the Item type filter behaves as a verified-content view.
+        if (verifiedOnly) {
+            const [dashboards, savedCharts, sqlCharts] = await Promise.all([
+                this.searchDashboards(
+                    projectUuid,
+                    query,
+                    filters,
+                    contentOptions,
+                ),
+                this.searchSavedCharts(
+                    projectUuid,
+                    query,
+                    filters,
+                    contentOptions,
+                ),
+                this.searchSqlCharts(
+                    projectUuid,
+                    query,
+                    filters,
+                    contentOptions,
+                ),
+            ]);
+
+            return {
+                spaces: [],
+                dashboards,
+                savedCharts,
+                sqlCharts,
+                tables: [],
+                fields: [],
+                pages: [],
+                dashboardTabs: [],
+                dataApps: [],
+            };
+        }
+
         const spaces = await this.searchSpaces(projectUuid, query, filters);
         const dashboards = await this.searchDashboards(
             projectUuid,

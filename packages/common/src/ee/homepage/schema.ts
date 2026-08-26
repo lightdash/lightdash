@@ -53,6 +53,7 @@ const collectionBlockSchema = z.object({
                 'pinned',
                 'favorites',
                 'recently-viewed',
+                'verified',
             ])
             .optional(),
         verifiedOnly: z.boolean().optional(),

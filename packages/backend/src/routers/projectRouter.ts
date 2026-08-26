@@ -70,7 +70,8 @@ projectRouter.get(
     isAuthenticated,
     async (req, res, next) => {
         try {
-            const { type, fromDate, toDate, createdByUuid } = req.query;
+            const { type, fromDate, toDate, createdByUuid, verifiedOnly } =
+                req.query;
             const results = await req.services
                 .getSearchService()
                 .getSearchResults(
@@ -83,6 +84,8 @@ projectRouter.get(
                         fromDate: fromDate?.toString(),
                         toDate: toDate?.toString(),
                         createdByUuid: createdByUuid?.toString(),
+                        verifiedOnly:
+                            verifiedOnly === 'true' || verifiedOnly === true,
                     },
                 );
             res.json({ status: 'ok', results });
