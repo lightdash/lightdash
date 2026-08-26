@@ -121,6 +121,9 @@
         "filters.apply": "გამოყენება",
         "filters.isAnyValue": "ნებისმიერი მნიშვნელობაა",
         "filters.autocomplete.loading": "იტვირთება...",
-        "filters.autocomplete.noResults": "შედეგები ვერ მოიძებნა"
+        "filters.autocomplete.noResults": "შედეგები ვერ მოიძებნა",
+        "filters.resetAll": "ყველა ფილტრის გადაყენება",
+        "filters.summary.hideFilters": "ფილტრების დამალვა",
+        "filters.summary.hide": "დამალვა"
     }
 }

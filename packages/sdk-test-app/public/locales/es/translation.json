@@ -146,6 +146,12 @@
         "filters.autocomplete.maxResultsContinue": "Mostrando los primeros {n} resultados. Sigue escribiendo...",
         "filters.autocomplete.maxResultsStart": "Mostrando los primeros {n} resultados. Empieza a escribir...",
         "filters.autocomplete.editValuesTooltip": "Editar valores del filtro",
-        "filters.autocomplete.filterNotAvailable": "Filtro no disponible"
+        "filters.autocomplete.filterNotAvailable": "Filtro no disponible",
+        "filters.resetAll": "Restablecer todos los filtros",
+        "filters.unsavedFiltersTooltip": "Los filtros que añadas no se guardan",
+        "filters.summary.hideFilters": "Ocultar filtros",
+        "filters.summary.hide": "Ocultar",
+        "dashboard.exportAllTiles": "Exportar todos los mosaicos",
+        "dashboard.printPage": "Imprimir esta página"
     }
 }
