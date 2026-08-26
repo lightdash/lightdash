@@ -71,6 +71,7 @@ const connection: ExternalConnection = {
 const listedConnection: ExternalConnectionListItem = {
     ...connection,
     linkedDataAppCount: 2,
+    linkedChartTypeCount: 0,
 };
 
 const sampleRequest = {
@@ -283,6 +284,7 @@ describe('ExternalConnectionService reads (view, not manage)', () => {
             externalConnectionUuid: 'private-connection',
             allowDataAppBuilderLinking: false,
             linkedDataAppCount: 1,
+            linkedChartTypeCount: 0,
         };
         const { service } = buildService({
             connections: [listedConnection, privateConnection],
@@ -300,6 +302,7 @@ describe('ExternalConnectionService reads (view, not manage)', () => {
             externalConnectionUuid: 'private-connection',
             allowDataAppBuilderLinking: false,
             linkedDataAppCount: 1,
+            linkedChartTypeCount: 0,
         };
         const { service } = buildService({
             connections: [listedConnection, privateConnection],

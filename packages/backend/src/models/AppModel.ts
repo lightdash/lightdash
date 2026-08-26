@@ -994,7 +994,7 @@ export class AppModel {
                 Pick<DbAppVersion, 'data_references'>
         >
     > {
-        return this.joinLatestReadyVersion(this.database(AppsTableName))
+        const query = this.joinLatestReadyVersion(this.database(AppsTableName))
             .where(`${AppsTableName}.project_uuid`, projectUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
             .whereNotNull(`${AppVersionsTableName}.app_version_id`)
@@ -1003,6 +1003,11 @@ export class AppModel {
                 `${AppsTableName}.name`,
                 `${AppVersionsTableName}.data_references`,
             );
+        // Chart types don't run queries of their own (fields arrive via the
+        // host chart's binding), so validating them as data apps would only
+        // report a broken viz as a broken *app*.
+        AppModel.applyDataAppVizsFilter(query, 'exclude');
+        return query;
     }
 
     /**

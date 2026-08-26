@@ -1,5 +1,6 @@
 import {
     AlreadyExistsError,
+    DATA_APP_VIZ_TEMPLATE,
     EXTERNAL_CONNECTION_DEFAULTS,
     generateSlug,
     NotFoundError,
@@ -343,10 +344,26 @@ export class ExternalConnectionModel {
         )
             .select(
                 `${AppExternalConnectionsTableName}.external_connection_uuid`,
-                this.database.raw('COUNT(DISTINCT ??) AS ??', [
-                    `${AppsTableName}.app_id`,
-                    'linked_data_app_count',
-                ]),
+                // Chart types can link connections too — count them apart so
+                // the "linked apps" column doesn't lump them in as data apps.
+                this.database.raw(
+                    'COUNT(DISTINCT ??) FILTER (WHERE ??.template IS DISTINCT FROM ?) AS ??',
+                    [
+                        `${AppsTableName}.app_id`,
+                        AppsTableName,
+                        DATA_APP_VIZ_TEMPLATE,
+                        'linked_data_app_count',
+                    ],
+                ),
+                this.database.raw(
+                    'COUNT(DISTINCT ??) FILTER (WHERE ??.template = ?) AS ??',
+                    [
+                        `${AppsTableName}.app_id`,
+                        AppsTableName,
+                        DATA_APP_VIZ_TEMPLATE,
+                        'linked_chart_type_count',
+                    ],
+                ),
             )
             .innerJoin(
                 AppsTableName,
@@ -382,6 +399,7 @@ export class ExternalConnectionModel {
                     DbExternalConnection & {
                         encrypted_payload: Buffer | null;
                         linked_data_app_count: string;
+                        linked_chart_type_count: string;
                     }
                 >
             >(
@@ -391,6 +409,10 @@ export class ExternalConnectionModel {
                     'linked_data_app_counts.linked_data_app_count',
                     'linked_data_app_count',
                 ]),
+                this.database.raw('COALESCE(??, 0) AS ??', [
+                    'linked_data_app_counts.linked_chart_type_count',
+                    'linked_chart_type_count',
+                ]),
             );
 
         return rows.map((row) => ({
@@ -399,6 +421,7 @@ export class ExternalConnectionModel {
                 row.encrypted_payload !== null,
             ),
             linkedDataAppCount: Number(row.linked_data_app_count),
+            linkedChartTypeCount: Number(row.linked_chart_type_count),
         }));
     }
 

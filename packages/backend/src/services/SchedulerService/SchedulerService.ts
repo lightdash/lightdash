@@ -3,6 +3,7 @@ import {
     assertIsAccountWithOrg,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
+    DATA_APP_VIZ_TEMPLATE,
     ForbiddenError,
     getErrorMessage,
     getSchedulerResourceTypeAndId,
@@ -710,6 +711,15 @@ export class SchedulerService extends BaseService {
         },
     ): Promise<SchedulerAndTargets> {
         const app = await this.checkAppScheduledDeliveryAccess(user, appUuid);
+
+        // Chart types render inside charts, so chart/dashboard schedulers
+        // already cover them — a standalone delivery of a chart type has
+        // nothing to deliver. The UI never offers this; guard the API too.
+        if (app.template === DATA_APP_VIZ_TEMPLATE) {
+            throw new ParameterError(
+                'Custom chart types cannot have scheduled deliveries',
+            );
+        }
 
         SchedulerService.validateAppSchedulerDelivery(newScheduler);
         if (!isValidFrequency(newScheduler.cron)) {
