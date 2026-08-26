@@ -152,6 +152,17 @@
         "filters.summary.hideFilters": "Ocultar filtros",
         "filters.summary.hide": "Ocultar",
         "dashboard.exportAllTiles": "Exportar todos los mosaicos",
-        "dashboard.printPage": "Imprimir esta página"
+        "dashboard.printPage": "Imprimir esta página",
+        "filters.values.true": "Verdadero",
+        "filters.values.false": "Falso",
+        "filters.config.filterSettingsTab": "Configuración del filtro",
+        "filters.config.filterSettingsTabTooltip": "Selecciona el valor por el que filtrar tu dimensión",
+        "filters.config.tilesTab": "Mosaicos",
+        "filters.config.tilesTabTooltip": "Selecciona los mosaicos a los que aplicar el filtro y el campo por el que filtrar",
+        "filters.config.tabsAndTilesTab": "Pestañas y mosaicos",
+        "filters.config.tabsAndTilesTabTooltip": "Selecciona a qué pestañas y mosaicos se aplica este filtro",
+        "filters.config.selectField": "Selecciona un campo para filtrar",
+        "filters.config.selectFilterPlaceholder": "Selecciona un filtro",
+        "filters.config.searchFieldPlaceholder": "Buscar campo..."
     }
 }

@@ -15,15 +15,15 @@ const EMPTY_DISPLAY: TruncatedValuesDisplay = {
     hasMore: false,
 };
 
-// Date values carry units (e.g. "2 months") and null operators take no value at
-// all, so both defer to the rule label instead of listing raw values.
+// Date values carry units (e.g. "2 months"), booleans have localized labels,
+// and null operators take no value, so all defer to the composed rule label.
 export const getTruncatedValuesDisplay = (
     values: DashboardFilterRule['values'],
-    isDateFilter: boolean,
+    showsComposedValue: boolean,
     operator: FilterOperator,
 ): TruncatedValuesDisplay => {
     if (
-        isDateFilter ||
+        showsComposedValue ||
         operator === FilterOperator.NULL ||
         operator === FilterOperator.NOT_NULL
     ) {

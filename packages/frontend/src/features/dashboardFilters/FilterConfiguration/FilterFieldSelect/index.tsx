@@ -21,6 +21,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import FieldIcon from '../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import styles from './FilterFieldSelect.module.css';
 import { useFilterFieldSections } from './useFilterFieldSections';
 
@@ -59,6 +60,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
     onChange,
     popoverProps,
 }) => {
+    const getUiString = useUiStrings();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 150);
     const searchRef = useRef<HTMLInputElement>(null);
@@ -220,7 +222,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
     return (
         <div>
             <Text size="sm" mb={4}>
-                Select a field to filter{' '}
+                {getUiString('filters.config.selectField')}{' '}
                 <Text component="span" c="red">
                     *
                 </Text>
@@ -259,7 +261,9 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                             </Text>
                         ) : (
                             <Text size="xs" truncate="end">
-                                Select a filter
+                                {getUiString(
+                                    'filters.config.selectFilterPlaceholder',
+                                )}
                             </Text>
                         )}
                     </InputBase>
@@ -272,7 +276,9 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                         onChange={(event) =>
                             setSearch(event.currentTarget.value)
                         }
-                        placeholder="Search field..."
+                        placeholder={getUiString(
+                            'filters.config.searchFieldPlaceholder',
+                        )}
                         size="xs"
                         radius="md"
                         leftSection={

@@ -431,27 +431,35 @@ const FilterConfiguration: FC<Props> = ({
                 {isCreatingNew || isEditMode || isTemporary ? (
                     <Tabs.List mb="md">
                         <Tooltip
-                            label="Select the value you want to filter your dimension by"
+                            label={getUiString(
+                                'filters.config.filterSettingsTabTooltip',
+                            )}
                             position="top-start"
                         >
                             <Tabs.Tab value={FilterTabs.SETTINGS}>
-                                Filter Settings
+                                {getUiString(
+                                    'filters.config.filterSettingsTab',
+                                )}
                             </Tabs.Tab>
                         </Tooltip>
 
                         <Tooltip
-                            label={
+                            label={getUiString(
                                 tabs.length > 1
-                                    ? 'Select which tabs and tiles this filter applies to'
-                                    : 'Select tiles to apply filter to and which field to filter by'
-                            }
+                                    ? 'filters.config.tabsAndTilesTabTooltip'
+                                    : 'filters.config.tilesTabTooltip',
+                            )}
                             position="top-start"
                         >
                             <Tabs.Tab
                                 value={FilterTabs.TILES}
                                 disabled={!draftFilterRule}
                             >
-                                {tabs.length > 1 ? 'Tabs & tiles' : 'Tiles'}
+                                {getUiString(
+                                    tabs.length > 1
+                                        ? 'filters.config.tabsAndTilesTab'
+                                        : 'filters.config.tilesTab',
+                                )}
                             </Tabs.Tab>
                         </Tooltip>
                     </Tabs.List>

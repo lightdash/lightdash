@@ -213,14 +213,18 @@ const Filter: FC<Props> = ({
         return getFilterRuleTables(filterRule, field, allFilterableFields);
     }, [filterRule, field, allFilterableFields]);
 
-    // Determine if this is a date/timestamp filter that shouldn't use truncated display
-    // Date filters have formatted values like "2 months" that shouldn't be truncated
-    const isDateFilter = useMemo(() => {
+    // Date values carry units ("2 months") and boolean values have localized
+    // labels, so both render the composed rule label instead of raw values
+    const showsComposedValue = useMemo(() => {
         const type =
             field?.type ??
             filterRule.target.fallbackType ??
             DimensionType.STRING;
-        return type === DimensionType.DATE || type === DimensionType.TIMESTAMP;
+        return (
+            type === DimensionType.DATE ||
+            type === DimensionType.TIMESTAMP ||
+            type === DimensionType.BOOLEAN
+        );
     }, [field?.type, filterRule.target.fallbackType]);
 
     // Truncated values display - show max 2 values with "+N" badge
@@ -228,10 +232,10 @@ const Filter: FC<Props> = ({
         () =>
             getTruncatedValuesDisplay(
                 filterRule.values,
-                isDateFilter,
+                showsComposedValue,
                 filterRule.operator,
             ),
-        [filterRule.values, filterRule.operator, isDateFilter],
+        [filterRule.values, filterRule.operator, showsComposedValue],
     );
 
     const { showRequirementIcon, isRequirementUnmet, requirementTooltip } =

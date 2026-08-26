@@ -124,6 +124,23 @@
         "filters.autocomplete.noResults": "შედეგები ვერ მოიძებნა",
         "filters.resetAll": "ყველა ფილტრის გადაყენება",
         "filters.summary.hideFilters": "ფილტრების დამალვა",
-        "filters.summary.hide": "დამალვა"
+        "filters.summary.hide": "დამალვა",
+        "filters.values.true": "ჭეშმარიტი",
+        "filters.values.false": "მცდარი",
+        "filters.config.filterSettingsTab": "ფილტრის პარამეტრები",
+        "filters.config.filterSettingsTabTooltip": "აირჩიეთ მნიშვნელობა, რომლითაც გსურთ გაფილტვრა",
+        "filters.config.tilesTab": "ფილები",
+        "filters.config.tilesTabTooltip": "აირჩიეთ ფილები და ველი გასაფილტრად",
+        "filters.config.tabsAndTilesTab": "ჩანართები და ფილები",
+        "filters.config.tabsAndTilesTabTooltip": "აირჩიეთ რომელ ჩანართებსა და ფილებს ეხება ეს ფილტრი",
+        "filters.config.selectField": "აირჩიეთ ველი გასაფილტრად",
+        "filters.config.selectFilterPlaceholder": "აირჩიეთ ფილტრი",
+        "filters.config.searchFieldPlaceholder": "ველის ძებნა...",
+        "filters.unitsOfTime.days.completedSingular": "დასრულებული დღე",
+        "filters.unitsOfTime.days.completedPlural": "დასრულებული დღეები",
+        "filters.unitsOfTime.months.completedSingular": "დასრულებული თვე",
+        "filters.unitsOfTime.months.completedPlural": "დასრულებული თვეები",
+        "filters.unitsOfTime.years.completedSingular": "დასრულებული წელი",
+        "filters.unitsOfTime.years.completedPlural": "დასრულებული წლები"
     }
 }

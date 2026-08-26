@@ -131,6 +131,20 @@ export const DEFAULT_UI_STRINGS = {
         'Showing first {n} results. Start typing...',
     'filters.autocomplete.editValuesTooltip': 'Edit filter values',
     'filters.autocomplete.filterNotAvailable': 'Filter not available',
+    'filters.values.true': 'True',
+    'filters.values.false': 'False',
+    'filters.config.filterSettingsTab': 'Filter Settings',
+    'filters.config.filterSettingsTabTooltip':
+        'Select the value you want to filter your dimension by',
+    'filters.config.tilesTab': 'Tiles',
+    'filters.config.tilesTabTooltip':
+        'Select tiles to apply filter to and which field to filter by',
+    'filters.config.tabsAndTilesTab': 'Tabs & tiles',
+    'filters.config.tabsAndTilesTabTooltip':
+        'Select which tabs and tiles this filter applies to',
+    'filters.config.selectField': 'Select a field to filter',
+    'filters.config.selectFilterPlaceholder': 'Select a filter',
+    'filters.config.searchFieldPlaceholder': 'Search field...',
     'filters.resetAll': 'Reset all filters',
     'filters.unsavedFiltersTooltip': 'Filters you add are not saved',
     'filters.summary.hideFilters': 'Hide filters',
