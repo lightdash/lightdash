@@ -147,7 +147,12 @@ describe('WarehouseFormInputs - Snowflake', () => {
 
 describe('validateUserWarehouseCredentials', () => {
     const credentials = (
-        overrides: Partial<{ privateKey: string }>,
+        overrides: Partial<{
+            user: string;
+            privateKey: string;
+            password: string;
+            authenticationType: SnowflakeAuthenticationType;
+        }>,
     ): UpsertUserWarehouseCredentials => ({
         name: 'my snowflake',
         credentials: {
@@ -176,6 +181,51 @@ describe('validateUserWarehouseCredentials', () => {
         expect(
             validateUserWarehouseCredentials(
                 credentials({ privateKey: '-----BEGIN PRIVATE KEY-----' }),
+            ),
+        ).toEqual({});
+    });
+
+    it('blocks renaming a password credential without re-entering the password', () => {
+        expect(
+            validateUserWarehouseCredentials(
+                credentials({
+                    authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                    password: '',
+                }),
+            ),
+        ).toEqual({ 'credentials.password': expect.any(String) });
+    });
+
+    it('accepts a password credential with a password', () => {
+        expect(
+            validateUserWarehouseCredentials(
+                credentials({
+                    authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                    password: 'hunter2',
+                }),
+            ),
+        ).toEqual({});
+    });
+
+    it('flags a blank username', () => {
+        expect(
+            validateUserWarehouseCredentials(
+                credentials({
+                    authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                    user: '   ',
+                    password: 'hunter2',
+                }),
+            ),
+        ).toEqual({ 'credentials.user': expect.any(String) });
+    });
+
+    it('leaves the SSO credential to its OAuth popup', () => {
+        expect(
+            validateUserWarehouseCredentials(
+                credentials({
+                    authenticationType: SnowflakeAuthenticationType.SSO,
+                    user: '',
+                }),
             ),
         ).toEqual({});
     });

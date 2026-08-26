@@ -8,6 +8,8 @@ import { type FormErrors } from '@mantine/form';
 
 /** The private key file input is controlled, so it renders this error itself. */
 export const PRIVATE_KEY_FIELD_PATH = 'credentials.privateKey';
+const USER_FIELD_PATH = 'credentials.user';
+const PASSWORD_FIELD_PATH = 'credentials.password';
 
 /**
  * "Sign in with Databricks" (OAuth U2M) is enterprise-only, so instances
@@ -51,26 +53,39 @@ export const getDefaultSnowflakeAuthenticationType = (
         : SnowflakeAuthenticationType.PASSWORD;
 
 /**
- * A private key is write-only: reopening a saved credential can't prefill the
- * file, so saving without re-uploading would persist an empty key.
+ * Reopening a saved credential can't prefill a secret, so every editable
+ * Snowflake field is checked here rather than letting the masked placeholder
+ * reach the server and come back as an unattributed 400.
  */
 export const validateUserWarehouseCredentials = (
     values: UpsertUserWarehouseCredentials,
 ): FormErrors => {
     const { credentials } = values;
-    if (
-        credentials.type === WarehouseTypes.SNOWFLAKE &&
-        credentials.authenticationType ===
-            SnowflakeAuthenticationType.PRIVATE_KEY
-    ) {
+    if (credentials.type !== WarehouseTypes.SNOWFLAKE) return {};
+
+    const { authenticationType } = credentials;
+    // The OAuth popup owns the SSO credential; nothing here is editable.
+    if (authenticationType === SnowflakeAuthenticationType.SSO) return {};
+
+    const errors: FormErrors = {};
+    if (!credentials.user.trim()) {
+        errors[USER_FIELD_PATH] = 'Enter your Snowflake username or email.';
+    }
+
+    if (authenticationType === SnowflakeAuthenticationType.PRIVATE_KEY) {
         const privateKey =
             'privateKey' in credentials ? credentials.privateKey : undefined;
         if (!privateKey) {
-            return {
-                [PRIVATE_KEY_FIELD_PATH]:
-                    'Upload your Snowflake private key file.',
-            };
+            errors[PRIVATE_KEY_FIELD_PATH] =
+                'Upload your Snowflake private key file.';
         }
+        return errors;
     }
-    return {};
+
+    const password =
+        'password' in credentials ? credentials.password : undefined;
+    if (!password) {
+        errors[PASSWORD_FIELD_PATH] = 'Enter your Snowflake password.';
+    }
+    return errors;
 };

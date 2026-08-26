@@ -4,6 +4,7 @@ import {
     AnyType,
     ForbiddenError,
     OpenIdIdentityIssuerType,
+    ParameterError,
 } from '@lightdash/common';
 import { Strategy as OAuth2Strategy, VerifyCallback } from 'passport-oauth2';
 import { URL } from 'url';
@@ -51,6 +52,15 @@ export const snowflakePassportStrategy = !(
                   const loggedUser = req.user;
                   if (loggedUser === undefined) {
                       throw new ForbiddenError('User not authenticated');
+                  }
+
+                  // Bail before any write: upsertGrant overwrites the stored
+                  // refresh token unconditionally, so a callback without one
+                  // would corrupt the grant the user is still relying on.
+                  if (!refreshToken) {
+                      throw new ParameterError(
+                          'Snowflake did not return a refresh token. Please try signing in again.',
+                      );
                   }
 
                   const userService = req.services.getUserService();

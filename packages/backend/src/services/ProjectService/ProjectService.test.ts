@@ -2118,6 +2118,68 @@ describe('ProjectService', () => {
             expect(mergedCredentials.password).toBeUndefined();
         });
 
+        test('should not give a legacy Snowflake password credential the project SSO mode', async () => {
+            service.warehouseClients = {};
+
+            const projectSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'test-account',
+                warehouse: 'test-warehouse',
+                database: 'test-db',
+                schema: 'test-schema',
+                user: 'project_user',
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                refreshToken: 'project-refresh-token',
+                requireUserCredentials: true,
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
+            ).mockImplementation(async () => projectSnowflakeCredentials);
+
+            // Stored before authenticationType was persisted: no auth type.
+            const userCredentials = {
+                uuid: 'legacy-snowflake-creds-uuid',
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    user: 'analyst',
+                    password: 'analyst-password',
+                },
+            };
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets = vi.fn(
+                async () => userCredentials,
+            );
+
+            const mergedCredentials = await (
+                service as unknown as {
+                    getWarehouseCredentials: (args: {
+                        projectUuid: string;
+                        userId: string;
+                        isRegisteredUser: boolean;
+                    }) => Promise<Record<string, unknown>>;
+                }
+            ).getWarehouseCredentials({
+                projectUuid,
+                userId: sessionAccount.user.id,
+                isRegisteredUser: true,
+            });
+
+            // Absent, not 'sso': the client then falls back to password auth.
+            expect(mergedCredentials.authenticationType).toBeUndefined();
+            expect(mergedCredentials).toEqual(
+                expect.objectContaining({
+                    user: 'analyst',
+                    password: 'analyst-password',
+                }),
+            );
+            expect(mergedCredentials.refreshToken).toBeUndefined();
+        });
+
         test('should use user Redshift IAM identity when requireUserCredentials is true', async () => {
             service.warehouseClients = {};
 
