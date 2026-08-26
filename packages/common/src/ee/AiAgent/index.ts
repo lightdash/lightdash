@@ -315,6 +315,17 @@ export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
     | AiAgentMessageUser<TUser>
     | AiAgentMessageAssistant;
 
+export type AiAgentThreadLiveState = 'working' | 'waiting_for_you' | 'idle';
+
+export type AiAgentThreadStateSource = 'deterministic' | 'classified';
+
+export type AiAgentThreadLiveStatus = {
+    threadUuid: string;
+    state: AiAgentThreadLiveState;
+    stateChangedAt: string | null;
+    source: AiAgentThreadStateSource;
+};
+
 export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     uuid: string;
     agentUuid: string;
@@ -327,6 +338,7 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
         message: string;
     };
     user: TUser;
+    liveStatus: AiAgentThreadLiveStatus | null;
 };
 
 export type AiAgentThreadShare = {
@@ -703,6 +715,14 @@ export type ApiAiMcpGithubAvailabilityResponse =
 export type ApiAiAgentThreadSummaryListResponse = {
     status: 'ok';
     results: AiAgentThreadSummary[];
+};
+
+export type ApiAiAgentThreadLiveStatusesResponse = {
+    status: 'ok';
+    results: {
+        statuses: AiAgentThreadLiveStatus[];
+        generatedAt: string;
+    };
 };
 
 export type AiAgentThreadFilters = {

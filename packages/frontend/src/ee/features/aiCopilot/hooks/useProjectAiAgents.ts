@@ -1014,6 +1014,7 @@ export const useCreateAgentThreadMutation = (
                         uuid: thread.uuid,
                         title: null,
                         titleGeneratedAt: null,
+                        liveStatus: null,
                         compactions: [],
                         messages: createOptimisticMessages(
                             thread.uuid,
