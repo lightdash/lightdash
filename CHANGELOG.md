@@ -1,3 +1,22 @@
+# [2.14.0](https://github.com/lightdash/lightdash/compare/2.13.2...2.14.0) (2026-08-26)
+
+
+### Bug Fixes
+
+* **cli:** create download output root before writing metadata file ([#28117](https://github.com/lightdash/lightdash/issues/28117)) ([5943402](https://github.com/lightdash/lightdash/commit/5943402291a793fb80541cc5c4e8bdc4e3865f41))
+* **cli:** describe custom chart types correctly in apps validate output ([#28116](https://github.com/lightdash/lightdash/issues/28116)) ([b89f02e](https://github.com/lightdash/lightdash/commit/b89f02e8f60b6b5adc73fd003dc16a75b6900599))
+* **cli:** exit non-zero when selected content-as-code resources fail ([#28118](https://github.com/lightdash/lightdash/issues/28118)) ([30594f5](https://github.com/lightdash/lightdash/commit/30594f5ef451a13c52cde1a772e204af8223a676))
+* **cli:** reject option-like values for variadic reference options ([#28115](https://github.com/lightdash/lightdash/issues/28115)) ([3a361ae](https://github.com/lightdash/lightdash/commit/3a361ae810201e0068631254f028c2342dec87aa))
+* **cli:** skip dashboards whose dependent charts failed to upload ([#28119](https://github.com/lightdash/lightdash/issues/28119)) ([a390a35](https://github.com/lightdash/lightdash/commit/a390a3554823ea9d60900da1f9fccf06c961ef78))
+* **coder:** stop forced dashboard uploads writing duplicate tile chart versions ([#28120](https://github.com/lightdash/lightdash/issues/28120)) ([2d6aab7](https://github.com/lightdash/lightdash/commit/2d6aab7a5a2c797fd3311e16a6b3189a9952efa7))
+* **coder:** validate legacy uuid-only custom chart type bindings against the target project ([#28121](https://github.com/lightdash/lightdash/issues/28121)) ([25f5e51](https://github.com/lightdash/lightdash/commit/25f5e5193c9eb2bf741956373af73a0c4ba7554c))
+* **credentials:** refresh the Snowflake SSO credential queries resolve ([#28126](https://github.com/lightdash/lightdash/issues/28126)) ([a14b24d](https://github.com/lightdash/lightdash/commit/a14b24d06ea90f8638efbbcca5938bcc472ea368))
+
+
+### Features
+
+* expose AI agent thread live statuses ([#28090](https://github.com/lightdash/lightdash/issues/28090)) ([cc19306](https://github.com/lightdash/lightdash/commit/cc1930604d22d964bd94482abaf07ac3bd0dc162))
+
 ## [2.13.2](https://github.com/lightdash/lightdash/compare/2.13.1...2.13.2) (2026-08-26)
 
 

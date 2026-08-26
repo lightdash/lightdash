@@ -20041,11 +20041,65 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiAgentThreadLiveState: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['working'] },
+                { dataType: 'enum', enums: ['waiting_for_you'] },
+                { dataType: 'enum', enums: ['idle'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiAgentThreadStateSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['deterministic'] },
+                { dataType: 'enum', enums: ['classified'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiAgentThreadLiveStatus: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                source: { ref: 'AiAgentThreadStateSource', required: true },
+                stateChangedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                state: { ref: 'AiAgentThreadLiveState', required: true },
+                threadUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentThreadSummary_AiAgentUser_: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                liveStatus: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiAgentThreadLiveStatus' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 user: { ref: 'AiAgentUser', required: true },
                 firstMessage: {
                     dataType: 'nestedObjectLiteral',
@@ -20161,6 +20215,32 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             ref: 'ApiSuccess_KnexPaginatedData_AiAgentProjectThreadSummary-Array__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiAgentThreadLiveStatusesResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        generatedAt: { dataType: 'string', required: true },
+                        statuses: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'AiAgentThreadLiveStatus',
+                            },
+                            required: true,
+                        },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
             validators: {},
         },
     },
@@ -21338,6 +21418,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                liveStatus: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiAgentThreadLiveStatus' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 user: { ref: 'AiAgentUser', required: true },
                 firstMessage: {
                     dataType: 'nestedObjectLiteral',
@@ -71030,6 +71118,72 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'listProjectThreads',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentController_getAgentThreadLiveStatuses: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        threadUuids: {
+            in: 'query',
+            name: 'threadUuids',
+            required: true,
+            dataType: 'array',
+            array: { dataType: 'refAlias', ref: 'UUID' },
+        },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/aiAgents/threads/live-statuses',
+        ...fetchMiddlewares<RequestHandler>(AiAgentController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentController.prototype.getAgentThreadLiveStatuses,
+        ),
+
+        async function AiAgentController_getAgentThreadLiveStatuses(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentController_getAgentThreadLiveStatuses,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getAgentThreadLiveStatuses',
                     controller,
                     response,
                     next,

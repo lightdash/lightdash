@@ -21744,8 +21744,43 @@
                 "required": ["name", "uuid"],
                 "type": "object"
             },
+            "AiAgentThreadLiveState": {
+                "type": "string",
+                "enum": ["working", "waiting_for_you", "idle"]
+            },
+            "AiAgentThreadStateSource": {
+                "type": "string",
+                "enum": ["deterministic", "classified"]
+            },
+            "AiAgentThreadLiveStatus": {
+                "properties": {
+                    "source": {
+                        "$ref": "#/components/schemas/AiAgentThreadStateSource"
+                    },
+                    "stateChangedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "state": {
+                        "$ref": "#/components/schemas/AiAgentThreadLiveState"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["source", "stateChangedAt", "state", "threadUuid"],
+                "type": "object"
+            },
             "AiAgentThreadSummary_AiAgentUser_": {
                 "properties": {
+                    "liveStatus": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentThreadLiveStatus"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "user": {
                         "$ref": "#/components/schemas/AiAgentUser"
                     },
@@ -21783,6 +21818,7 @@
                     }
                 },
                 "required": [
+                    "liveStatus",
                     "user",
                     "firstMessage",
                     "titleGeneratedAt",
@@ -21863,6 +21899,32 @@
             },
             "ApiAiAgentProjectThreadSummaryListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentProjectThreadSummary-Array__"
+            },
+            "ApiAiAgentThreadLiveStatusesResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "generatedAt": {
+                                "type": "string"
+                            },
+                            "statuses": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AiAgentThreadLiveStatus"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["generatedAt", "statuses"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version-or-threadRetentionHours_": {
                 "properties": {
@@ -22997,6 +23059,14 @@
             },
             "AiAgentThreadSummary": {
                 "properties": {
+                    "liveStatus": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentThreadLiveStatus"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "user": {
                         "$ref": "#/components/schemas/AiAgentUser"
                     },
@@ -23034,6 +23104,7 @@
                     }
                 },
                 "required": [
+                    "liveStatus",
                     "user",
                     "firstMessage",
                     "titleGeneratedAt",
@@ -56418,7 +56489,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.13.2",
+        "version": "2.14.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -62953,6 +63024,55 @@
                         "required": false,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/threads/live-statuses": {
+            "get": {
+                "operationId": "getAgentThreadLiveStatuses",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadLiveStatusesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "threadUuids",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/UUID"
+                            }
                         }
                     }
                 ]
