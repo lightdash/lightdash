@@ -1432,11 +1432,6 @@ program
             .argParser(parseDisableTimestampConversionOption)
             .hideHelp(),
     )
-    .option(
-        '--show-chart-configuration-warnings',
-        'Show chart configuration warnings (e.g., unused dimensions). These are hidden by default. Also fails the command when any are present.',
-        false,
-    )
     .addOption(
         new Option(
             '--severity <level>',

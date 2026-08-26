@@ -99,7 +99,6 @@ type ValidateHandlerOptions = CompileHandlerOptions & {
     preview: boolean;
     only: ValidationTarget[];
     validateWarehouseColumns: boolean;
-    showChartConfigurationWarnings: boolean;
     severity?: ValidationSeverity;
     includeSpaces?: string[];
     excludeSpaces?: string[];
@@ -109,15 +108,9 @@ export const resolveValidationSeverity = (
     severity?: ValidationSeverity,
 ): ValidationSeverity => severity ?? 'error';
 
-export const shouldTreatWarningsAsErrors = ({
-    severity,
-    showChartConfigurationWarnings,
-}: {
-    severity?: ValidationSeverity;
-    showChartConfigurationWarnings?: boolean;
-}): boolean =>
-    resolveValidationSeverity(severity) === 'warning' ||
-    showChartConfigurationWarnings === true;
+export const shouldTreatWarningsAsErrors = (
+    severity?: ValidationSeverity,
+): boolean => resolveValidationSeverity(severity) === 'warning';
 
 type WaitUntilFinishedOptions = {
     jobUuid: string;
@@ -243,7 +236,7 @@ export const validateHandler = async (
     }
 
     const severity = resolveValidationSeverity(options.severity);
-    const treatWarningsAsErrors = shouldTreatWarningsAsErrors(options);
+    const treatWarningsAsErrors = shouldTreatWarningsAsErrors(severity);
 
     await LightdashAnalytics.track({
         event: 'validate.started',
@@ -374,8 +367,7 @@ export const validateHandler = async (
             },
         });
 
-        const hiddenWarningHint =
-            'use --show-chart-configuration-warnings or --severity warning to show';
+        const hiddenWarningHint = 'use --severity warning to show';
 
         if (!hasBlockingErrors && !hasFailingWarnings) {
             const elapsedMs = Date.now() - startTime;
@@ -517,7 +509,7 @@ export const validateHandler = async (
                     `\n${styles.secondary(
                         `Note: ${hiddenWarningsCount} chart configuration warning${
                             hiddenWarningsCount > 1 ? 's' : ''
-                        } hidden. Use --show-chart-configuration-warnings or --severity warning to show.`,
+                        } hidden. Use --severity warning to show.`,
                     )}`,
                 );
             }

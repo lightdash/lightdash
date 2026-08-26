@@ -27,7 +27,6 @@ const baseOptions: ValidateOptions = {
     preview: false,
     only: Object.values(ValidationTarget),
     validateWarehouseColumns: false,
-    showChartConfigurationWarnings: false,
     severity: 'error',
     projectDir: '.',
     profilesDir: '.',
@@ -329,19 +328,6 @@ describe('validateHandler warehouse column validation', () => {
         expect(output).toContain('1 warning');
     });
 
-    test('still fails on --show-chart-configuration-warnings', async () => {
-        validationResults = [chartConfigurationWarning];
-        vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
-
-        await validateHandler({
-            ...baseOptions,
-            showChartConfigurationWarnings: true,
-        });
-
-        expect(process.exit).toHaveBeenCalledWith(1);
-        expect(errorOutput.join('\n')).toContain('Chart configuration warning');
-    });
-
     test('fails on blocking errors even when warnings stay hidden', async () => {
         validationResults = [brokenChartError, chartConfigurationWarning];
         vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
@@ -386,15 +372,11 @@ describe('resolveValidationSeverity', () => {
 
 describe('shouldTreatWarningsAsErrors', () => {
     test('is off by default', () => {
-        expect(shouldTreatWarningsAsErrors({})).toBe(false);
+        expect(shouldTreatWarningsAsErrors()).toBe(false);
+        expect(shouldTreatWarningsAsErrors('error')).toBe(false);
     });
 
-    test('is on for --severity warning and the show flag', () => {
-        expect(shouldTreatWarningsAsErrors({ severity: 'warning' })).toBe(true);
-        expect(
-            shouldTreatWarningsAsErrors({
-                showChartConfigurationWarnings: true,
-            }),
-        ).toBe(true);
+    test('is on for --severity warning', () => {
+        expect(shouldTreatWarningsAsErrors('warning')).toBe(true);
     });
 });
