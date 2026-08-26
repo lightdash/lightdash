@@ -1,0 +1,19 @@
+.page {
+    background-color: var(--mantine-color-pink-3);
+    min-height: 100vh;
+}
+
+.page :global([class*='brandPanel']),
+.page :global([class*='formPanel']) {
+    background-color: var(--mantine-color-pink-3);
+}
+
+.page :global([class*='brandName']),
+.page :global([class*='headline']),
+.page :global([class*='highlight']) {
+    color: var(--mantine-color-ldDark-8);
+}
+
+.page :global([class*='subcopy']) {
+    color: var(--mantine-color-ldDark-6);
+}

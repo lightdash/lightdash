@@ -4,11 +4,12 @@ import { type FC } from 'react';
 import AuthLayout from '../components/common/AuthLayout';
 import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import LoginLanding from '../features/users/components/LoginLanding';
+import classes from './Login.module.css';
 
 const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
     if (minimal) {
         return (
-            <Stack m="xl">
+            <Stack m="xl" className={classes.page}>
                 <Box mx="auto" my="lg">
                     <LightdashLogo />
                 </Box>
@@ -29,15 +30,17 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
     }
 
     return (
-        <AuthLayout
-            pageTitle="Login"
-            title="Log in"
-            subtitle="Welcome back — pick up where you left off."
-            legacyTitle="Sign in"
-            cardId={LOGIN_PAGE_ID}
-        >
-            <LoginLanding />
-        </AuthLayout>
+        <Box className={classes.page}>
+            <AuthLayout
+                pageTitle="Login"
+                title="Log in"
+                subtitle="Welcome back — pick up where you left off."
+                legacyTitle="Sign in"
+                cardId={LOGIN_PAGE_ID}
+            >
+                <LoginLanding />
+            </AuthLayout>
+        </Box>
     );
 };
 
