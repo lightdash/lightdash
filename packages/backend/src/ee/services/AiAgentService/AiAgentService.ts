@@ -13653,7 +13653,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         organizationUuid: string;
         userUuid: string;
         channelId: string;
-        threadTs: string;
+        // The mention's own ts, used as the thread anchor for replies.
+        messageTs: string;
+        // Set only when the mention happened inside an existing thread.
+        threadTs: string | undefined;
         say: SayFn;
         client: WebClient;
         slackUserId: string;
@@ -13664,6 +13667,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             organizationUuid,
             userUuid,
             channelId,
+            messageTs,
             threadTs,
             say,
             client,
@@ -13671,16 +13675,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             promptText,
             visibleProjectUuids,
         } = args;
+        const threadAnchorTs = threadTs ?? messageTs;
 
         if (
             await this.aiOrganizationSettingsService.isExplicitSlackChannelLinkingRequired(
                 organizationUuid,
             )
         ) {
+            // Slack only renders ephemeral thread replies in an already-active
+            // thread; for a top-level mention post to the channel instead.
             await client.chat.postEphemeral({
                 channel: channelId,
                 user: slackUserId,
-                thread_ts: threadTs,
+                ...(threadTs ? { thread_ts: threadTs } : {}),
                 text: this.getExplicitSlackChannelLinkingMessage(),
             });
             return 'handled';
@@ -13692,7 +13699,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             projectUuids: undefined,
             say,
             slackChannelId: channelId,
-            threadTs,
+            threadTs: threadAnchorTs,
             promptText,
         });
         if (fallback === 'handled') {
@@ -13706,7 +13713,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             organizationUuid,
             userUuid,
             channelId,
-            threadTs,
+            threadTs: threadAnchorTs,
             say,
             visibleProjectUuids,
         });
@@ -15590,7 +15597,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         organizationUuid,
                         userUuid,
                         channelId,
-                        threadTs: threadTs || messageTs,
+                        messageTs,
+                        threadTs: threadTs || undefined,
                         say,
                         client,
                         slackUserId,
@@ -15854,7 +15862,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             organizationUuid,
                             userUuid,
                             channelId: event.channel,
-                            threadTs: event.thread_ts ?? event.ts,
+                            messageTs: event.ts,
+                            threadTs: event.thread_ts,
                             say,
                             client,
                             slackUserId: event.user,
