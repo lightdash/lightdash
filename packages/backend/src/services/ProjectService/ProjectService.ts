@@ -6636,13 +6636,11 @@ export class ProjectService extends BaseService {
         const { organizationUuid, projectUuid } = savedChart;
 
         const [spaceCtx, explore] = await Promise.all([
-            this.spacePermissionService.getDashboardAccessContext(
-                account.user.id,
-                {
-                    uuid: savedChart.dashboardUuid,
-                    spaceUuid: savedChart.spaceUuid,
-                },
-            ),
+            this.spacePermissionService.getChartAccessContext(account.user.id, {
+                uuid: savedChart.uuid,
+                dashboardUuid: savedChart.dashboardUuid,
+                spaceUuid: savedChart.spaceUuid,
+            }),
             this.getExplore(
                 account,
                 projectUuid,
@@ -6739,13 +6737,11 @@ export class ProjectService extends BaseService {
         const { organizationUuid, projectUuid } = savedChart;
 
         const [spaceCtx, explore] = await Promise.all([
-            this.spacePermissionService.getDashboardAccessContext(
-                account.user.id,
-                {
-                    uuid: savedChart.dashboardUuid,
-                    spaceUuid: savedChart.spaceUuid,
-                },
-            ),
+            this.spacePermissionService.getChartAccessContext(account.user.id, {
+                uuid: savedChart.uuid,
+                dashboardUuid: savedChart.dashboardUuid,
+                spaceUuid: savedChart.spaceUuid,
+            }),
             this.getExplore(
                 account,
                 projectUuid,
@@ -9766,10 +9762,11 @@ export class ProjectService extends BaseService {
                     ]);
 
                 const spaceCtx =
-                    await this.spacePermissionService.getDashboardAccessContext(
+                    await this.spacePermissionService.getChartAccessContext(
                         account.user.id,
                         {
-                            uuid: savedChart.dashboardUuid,
+                            uuid: savedChart.uuid,
+                            dashboardUuid: savedChart.dashboardUuid,
                             spaceUuid: savedChart.spaceUuid,
                         },
                     );
@@ -9839,10 +9836,11 @@ export class ProjectService extends BaseService {
                 }
 
                 const [chartContexts, exploresMap] = await Promise.all([
-                    this.spacePermissionService.getDashboardsAccessContext(
+                    this.spacePermissionService.getChartsAccessContext(
                         account.user.id,
                         savedCharts.map((chart) => ({
-                            uuid: chart.dashboardUuid,
+                            uuid: chart.uuid,
+                            dashboardUuid: chart.dashboardUuid,
                             spaceUuid: chart.spaceUuid,
                         })),
                     ),

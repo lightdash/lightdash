@@ -282,6 +282,69 @@ export class SpacePermissionService extends BaseService {
     }
 
     /**
+     * Access context for a chart, routed by ownership: a dashboard-owned chart
+     * (`dashboardUuid` set) resolves through the owning dashboard's grants; a
+     * space-saved chart resolves through its own grants. Callers pass the
+     * chart's own uuid, its dashboardUuid, and its space; this is the entry
+     * point every chart read/write path should use.
+     */
+    async getChartAccessContext(
+        userUuid: string,
+        chart: {
+            uuid: string;
+            dashboardUuid: string | null;
+            spaceUuid: string;
+        },
+    ): Promise<DashboardAccessContextForCasl> {
+        return chart.dashboardUuid
+            ? this.getDashboardAccessContext(userUuid, {
+                  uuid: chart.dashboardUuid,
+                  spaceUuid: chart.spaceUuid,
+              })
+            : this.getSavedChartAccessContext(userUuid, {
+                  uuid: chart.uuid,
+                  spaceUuid: chart.spaceUuid,
+              });
+    }
+
+    /**
+     * Batched `getChartAccessContext`, aligned with the input. Owned charts
+     * resolve in one dashboard-grant batch and space charts in one
+     * chart-grant batch (non-applicable entries take the no-lookup null path),
+     * so a mixed dashboard load costs two grant queries, never N+1.
+     */
+    async getChartsAccessContext(
+        userUuid: string,
+        charts: {
+            uuid: string;
+            dashboardUuid: string | null;
+            spaceUuid: string;
+        }[],
+    ): Promise<(DashboardAccessContextForCasl | undefined)[]> {
+        const [dashboardContexts, chartContexts] = await Promise.all([
+            this.getDashboardsAccessContext(
+                userUuid,
+                charts.map((chart) => ({
+                    uuid: chart.dashboardUuid,
+                    spaceUuid: chart.spaceUuid,
+                })),
+            ),
+            this.getSavedChartsAccessContext(
+                userUuid,
+                charts.map((chart) => ({
+                    uuid: chart.dashboardUuid ? null : chart.uuid,
+                    spaceUuid: chart.spaceUuid,
+                })),
+            ),
+        ]);
+        return charts.map((chart, index) =>
+            chart.dashboardUuid
+                ? dashboardContexts[index]
+                : chartContexts[index],
+        );
+    }
+
+    /**
      * Batched `getDashboardAccessContext` for hot paths that resolve many
      * (dashboard, space) refs at once. Returns contexts aligned with the input;
      * undefined where the space context could not be resolved. Doubtful refs
