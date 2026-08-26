@@ -177,3 +177,26 @@ grep -r "ability.cannot.*'manage'.*'YourSubject'" packages/backend/src/services/
 ```
 
 Please describe what you're trying to accomplish, or ask me to explain any aspect of the permissions system.
+
+## Dashboard direct grants — the boundary rule
+
+Direct grants let a user be shared a **dashboard** and gain access to the charts that dashboard *owns*, without being a member of the space the dashboard lives in. This is enforced through the CASL access array, not through special rules, and is gated behind the direct-access feature flag (off → behaves exactly like a plain space check).
+
+**The rule:** a direct grant authorizes operations whose effect stays **inside** the owning dashboard. Anything that reads, moves, or copies content **beyond** the dashboard requires real space access.
+
+It turns on one distinction:
+
+- A chart **owned by** a dashboard (`saved_queries.dashboard_uuid` set, `space_id` null) inherits the dashboard's grants — sharing the dashboard shares its own charts.
+- A chart that merely **lives in a space** (`space_id` set) is governed by space access only — sharing a dashboard that *references* it grants nothing over it.
+
+Why: the grant means "you may work within this dashboard", so it must never become a lever to read a chart's private space or relocate content into a space the granter never saw.
+
+**The single choke point is `SpacePermissionService.getDashboardAccessContext(userUuid, { uuid, spaceUuid })`** — read its doc comment before touching any grant call site. It returns the space context plus the requester's grants appended as `access` rows tagged `grantedVia: 'dashboard'`.
+
+**When you add or change a chart/dashboard access check:**
+
+- Owned-chart read/edit/create/delete that stays inside the dashboard → call `getDashboardAccessContext` with the chart's **owning** `dashboardUuid`.
+- Boundary-crossing op (move to space, promote, content-as-code, pin, copy into a *different* dashboard) → pass `uuid: null` (or use `getSpaceAccessContext`) so grants never count. The `expectNoGrantRows` test tripwire guards these — if you route a boundary op through a grant, that test fails.
+- Never resolve a grant against a `spaceUuid` the granting dashboard does not belong to; the helper asserts this pairing.
+
+The write-vs-boundary split lives in `SavedChartService` (grant-aware: `update`, `createVersion`, `create`, `delete`, `softDelete`, `duplicate`; space-only: `moveToSpace`, the move half of `updateMultiple`, pinning). See also `packages/backend/src/services/SpaceService/CLAUDE.md`.

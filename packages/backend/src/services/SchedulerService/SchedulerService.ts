@@ -389,13 +389,13 @@ export class SchedulerService extends BaseService {
     ) {
         const auditedAbility = this.createAuditedAbility(user);
         if (scheduler.savedChartUuid) {
-            const { organizationUuid, spaceUuid, projectUuid } =
+            const { organizationUuid, spaceUuid, projectUuid, dashboardUuid } =
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
 
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getSpaceAccessContext(
+                await this.spacePermissionService.getDashboardAccessContext(
                     user.userUuid,
-                    spaceUuid,
+                    { uuid: dashboardUuid, spaceUuid },
                 );
             if (
                 auditedAbility.cannot(
@@ -413,14 +413,18 @@ export class SchedulerService extends BaseService {
             )
                 throw new ForbiddenError();
         } else if (scheduler.dashboardUuid) {
-            const { organizationUuid, spaceUuid, projectUuid } =
-                await this.dashboardModel.getByIdOrSlug(
-                    scheduler.dashboardUuid,
-                );
+            const {
+                uuid: dashboardUuid,
+                organizationUuid,
+                spaceUuid,
+                projectUuid,
+            } = await this.dashboardModel.getByIdOrSlug(
+                scheduler.dashboardUuid,
+            );
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getSpaceAccessContext(
+                await this.spacePermissionService.getDashboardAccessContext(
                     user.userUuid,
-                    spaceUuid,
+                    { uuid: dashboardUuid, spaceUuid },
                 );
 
             if (

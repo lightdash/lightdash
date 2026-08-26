@@ -263,6 +263,9 @@ export class SavedChartService
         return savedChart;
     }
 
+    // Deliberately space-only: used by pinning and standalone-chart
+    // scheduled-delivery creation, neither of which applies to
+    // dashboard-owned charts, so direct grants must never count here.
     async hasChartSpaceAccess(
         user: SessionUser,
         spaceUuid: string,
@@ -1331,9 +1334,12 @@ export class SavedChartService
         const savedChart =
             await this.savedChartModel.getSummary(savedChartUuid);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                savedChart.spaceUuid,
+                {
+                    uuid: savedChart.dashboardUuid,
+                    spaceUuid: savedChart.spaceUuid,
+                },
             );
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -1361,7 +1367,10 @@ export class SavedChartService
         account: Account,
         space: SpaceSummaryBase,
         savedChart: SavedChartDAO,
-    ): Promise<{ access: SpaceAccess[]; inheritsFromOrgOrProject: boolean }> {
+    ): Promise<{
+        access: SpaceAccess[];
+        inheritsFromOrgOrProject: boolean;
+    }> {
         let access;
         let inheritsFromOrgOrProject: boolean;
         let permissionActor: Account | SessionUser = account;
@@ -1398,10 +1407,14 @@ export class SavedChartService
                 inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
             }
         } else {
-            const ctx = await this.spacePermissionService.getSpaceAccessContext(
-                account.user.userUuid,
-                savedChart.spaceUuid,
-            );
+            const ctx =
+                await this.spacePermissionService.getDashboardAccessContext(
+                    account.user.userUuid,
+                    {
+                        uuid: savedChart.dashboardUuid,
+                        spaceUuid: savedChart.spaceUuid,
+                    },
+                );
             access = ctx.access;
             inheritsFromOrgOrProject = ctx.inheritsFromOrgOrProject;
         }
@@ -2206,9 +2219,9 @@ export class SavedChartService
     ): Promise<ChartHistory> {
         const chart = await this.savedChartModel.getSummary(chartUuid);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                chart.spaceUuid,
+                { uuid: chart.dashboardUuid, spaceUuid: chart.spaceUuid },
             );
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -2253,9 +2266,9 @@ export class SavedChartService
     ): Promise<ChartVersion> {
         const chart = await this.savedChartModel.getSummary(chartUuid);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                chart.spaceUuid,
+                { uuid: chart.dashboardUuid, spaceUuid: chart.spaceUuid },
             );
         const auditedAbility = this.createAuditedAbility(user);
         if (

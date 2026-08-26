@@ -2096,9 +2096,9 @@ export class ValidationService extends BaseService {
 
         // Check user permissions
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 user.userUuid,
-                dashboard.spaceUuid,
+                { uuid: dashboard.uuid, spaceUuid: dashboard.spaceUuid },
             );
 
         if (

@@ -71,6 +71,21 @@ describe('direct access audit events', () => {
         );
     });
 
+    it('skips auditing a no-op revoke of a grant that never existed', () => {
+        const auditLogger = vi.fn();
+        auditDirectAccessMutation({
+            actor,
+            context: { requestId: 'request-id' },
+            resourceType: 'Dashboard',
+            resourceUuid: 'dashboard-uuid',
+            principal: { type: 'user', uuid: 'principal-uuid' },
+            result: { ...mutationResult, beforeRole: null, afterRole: null },
+            auditLogger,
+        });
+
+        expect(auditLogger).not.toHaveBeenCalled();
+    });
+
     it('emits reset counts', () => {
         const auditLogger = vi.fn();
         auditDirectAccessReset({

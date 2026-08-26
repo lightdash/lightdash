@@ -12,6 +12,7 @@ import {
     SCHEDULER_TASKS,
     SchedulerFormat,
     SessionUser,
+    SpaceMemberRole,
     type Account,
     type ContentVerificationInfo,
     type Dashboard,
@@ -161,17 +162,28 @@ const spaceContexts = {
     },
 };
 
+const lookupSpaceContext = (spaceUuid: string) => {
+    if (spaceUuid === space.space_uuid) {
+        return spaceContexts[space.space_uuid];
+    }
+    if (spaceUuid === privateSpace.uuid) {
+        return spaceContexts[privateSpace.uuid];
+    }
+    return spaceContexts[publicSpace.uuid];
+};
+
 const spacePermissionService = {
-    getSpaceAccessContext: vi.fn(
-        async (_userUuid: string, spaceUuid: string) => {
-            if (spaceUuid === space.space_uuid) {
-                return spaceContexts[space.space_uuid];
-            }
-            if (spaceUuid === privateSpace.uuid) {
-                return spaceContexts[privateSpace.uuid];
-            }
-            return spaceContexts[publicSpace.uuid];
-        },
+    getSpaceAccessContext: vi.fn(async (_userUuid: string, spaceUuid: string) =>
+        lookupSpaceContext(spaceUuid),
+    ),
+    getDashboardAccessContext: vi.fn(
+        async (
+            _userUuid: string,
+            dashboardRef: { uuid: string | null; spaceUuid: string },
+        ) => ({
+            ...lookupSpaceContext(dashboardRef.spaceUuid),
+            directOnly: false,
+        }),
     ),
     getSpacesAccessContext: vi.fn(
         async (_userUuid: string, spaceUuids: string[]) => spaceContexts,
@@ -221,6 +233,11 @@ describe('DashboardService', () => {
             user,
         });
 
+        expect(savedChartModel.get).toHaveBeenCalledWith(
+            chart.uuid,
+            undefined,
+            { projectUuid },
+        );
         expect(savedChartModel.create).toHaveBeenCalledWith(
             projectUuid,
             user.userUuid,
@@ -229,6 +246,130 @@ describe('DashboardService', () => {
                 dashboardUuid,
             }),
         );
+    });
+
+    test('refuses to duplicate a source chart the user cannot view', async () => {
+        const userWithoutChartAccess = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Dashboard', action: ['view', 'update'] },
+            ]),
+        };
+
+        await expect(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (service as any).duplicateChartForDashboard({
+                chartUuid: chart.uuid,
+                projectUuid,
+                dashboardUuid,
+                user: userWithoutChartAccess,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(savedChartModel.create).not.toHaveBeenCalled();
+    });
+
+    test('a dashboard grant does not authorize copying the chart into a different dashboard', async () => {
+        const grantOnlyUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                {
+                    subject: 'SavedChart',
+                    action: ['view'],
+                    conditions: {
+                        access: { $elemMatch: { userUuid: user.userUuid } },
+                    },
+                },
+            ]),
+        };
+        savedChartModel.get.mockResolvedValueOnce({
+            ...chart,
+            dashboardUuid: 'other-dashboard-uuid',
+            spaceUuid: privateSpace.uuid,
+        });
+        // The user holds a viewer grant on the chart's owning dashboard; the
+        // grant must still not authorize copying it into another dashboard.
+        spacePermissionService.getDashboardAccessContext.mockImplementationOnce(
+            async (_userUuid: string, ref: { uuid: string | null }) =>
+                ({
+                    ...spaceContexts[privateSpace.uuid],
+                    access:
+                        ref.uuid === 'other-dashboard-uuid'
+                            ? [
+                                  {
+                                      userUuid: user.userUuid,
+                                      role: SpaceMemberRole.VIEWER,
+                                      hasDirectAccess: true,
+                                      grantedVia: 'dashboard',
+                                  },
+                              ]
+                            : [],
+                    directOnly: ref.uuid === 'other-dashboard-uuid',
+                }) as never,
+        );
+
+        await expect(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (service as any).duplicateChartForDashboard({
+                chartUuid: chart.uuid,
+                projectUuid,
+                dashboardUuid,
+                user: grantOnlyUser,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            spacePermissionService.getDashboardAccessContext,
+        ).toHaveBeenCalledWith(user.userUuid, {
+            uuid: null,
+            spaceUuid: privateSpace.uuid,
+        });
+        expect(savedChartModel.create).not.toHaveBeenCalled();
+    });
+
+    test('a dashboard grant authorizes duplication within the owning dashboard', async () => {
+        const grantOnlyUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                {
+                    subject: 'SavedChart',
+                    action: ['view'],
+                    conditions: {
+                        access: { $elemMatch: { userUuid: user.userUuid } },
+                    },
+                },
+            ]),
+        };
+        savedChartModel.get.mockResolvedValueOnce({
+            ...chart,
+            spaceUuid: privateSpace.uuid,
+        });
+        spacePermissionService.getDashboardAccessContext.mockResolvedValueOnce({
+            ...spaceContexts[privateSpace.uuid],
+            access: [
+                {
+                    userUuid: user.userUuid,
+                    role: SpaceMemberRole.VIEWER,
+                    hasDirectAccess: true,
+                    grantedVia: 'dashboard',
+                },
+            ],
+            directOnly: true,
+        } as never);
+
+        await expect(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (service as any).duplicateChartForDashboard({
+                chartUuid: chart.uuid,
+                projectUuid,
+                dashboardUuid,
+                user: grantOnlyUser,
+            }),
+        ).resolves.toBe('duplicated-chart-uuid');
+        expect(
+            spacePermissionService.getDashboardAccessContext,
+        ).toHaveBeenCalledWith(user.userUuid, {
+            uuid: dashboardUuid,
+            spaceUuid: privateSpace.uuid,
+        });
     });
 
     test('should get dashboard by uuid', async () => {
@@ -243,6 +384,96 @@ describe('DashboardService', () => {
             dashboard.uuid,
             { projectUuid: undefined },
         );
+    });
+
+    test('loads a private dashboard through a direct grant without exposing its space name', async () => {
+        const directViewer = {
+            ...user,
+            ability: defineUserAbility(
+                { ...user, organizationUuid: 'another-org-uuid' },
+                [
+                    {
+                        projectUuid: dashboard.projectUuid,
+                        role: ProjectMemberRole.VIEWER,
+                        userUuid: user.userUuid,
+                        roleUuid: undefined,
+                    },
+                ],
+            ),
+        };
+        const privateDashboard = {
+            ...dashboard,
+            spaceUuid: privateSpace.uuid,
+            spaceName: 'Private finance',
+        };
+        dashboardModel.getByIdOrSlug.mockResolvedValueOnce(privateDashboard);
+        spacePermissionService.getDashboardAccessContext.mockResolvedValueOnce({
+            ...spaceContexts[privateSpace.uuid],
+            access: [
+                {
+                    userUuid: user.userUuid,
+                    role: SpaceMemberRole.VIEWER,
+                    hasDirectAccess: true,
+                    projectRole: undefined,
+                    inheritedRole: undefined,
+                    inheritedFrom: undefined,
+                },
+            ],
+            directOnly: true,
+        } as never);
+
+        const result = await service.getByIdOrSlug(
+            directViewer,
+            privateDashboard.uuid,
+        );
+
+        expect(result).toMatchObject({
+            uuid: privateDashboard.uuid,
+            spaceUuid: privateSpace.uuid,
+            spaceName: 'Private finance',
+            access: [
+                expect.objectContaining({
+                    userUuid: user.userUuid,
+                    role: SpaceMemberRole.VIEWER,
+                    hasDirectAccess: true,
+                }),
+            ],
+        });
+        expect(
+            spacePermissionService.getDashboardAccessContext,
+        ).toHaveBeenCalledWith(user.userUuid, {
+            uuid: privateDashboard.uuid,
+            spaceUuid: privateSpace.uuid,
+        });
+    });
+
+    test('denies the same private dashboard without a direct grant', async () => {
+        const outsider = {
+            ...user,
+            ability: defineUserAbility(
+                { ...user, organizationUuid: 'another-org-uuid' },
+                [
+                    {
+                        projectUuid: dashboard.projectUuid,
+                        role: ProjectMemberRole.VIEWER,
+                        userUuid: user.userUuid,
+                        roleUuid: undefined,
+                    },
+                ],
+            ),
+        };
+        dashboardModel.getByIdOrSlug.mockResolvedValueOnce({
+            ...dashboard,
+            spaceUuid: privateSpace.uuid,
+        });
+        spacePermissionService.getDashboardAccessContext.mockResolvedValueOnce({
+            ...spaceContexts[privateSpace.uuid],
+            directOnly: false,
+        });
+
+        await expect(
+            service.getByIdOrSlug(outsider, dashboard.uuid),
+        ).rejects.toThrow(ForbiddenError);
     });
 
     test('should forward the applied parameter values when exporting content', async () => {
@@ -366,6 +597,24 @@ describe('DashboardService', () => {
         ).rejects.toThrowError(ForbiddenError);
 
         expect(dashboardModel.update).not.toHaveBeenCalled();
+    });
+
+    test('keeps the space name in the update response for a grant-only editor', async () => {
+        spacePermissionService.getDashboardAccessContext
+            .mockResolvedValueOnce({
+                ...lookupSpaceContext(dashboard.spaceUuid),
+                directOnly: true,
+            })
+            .mockResolvedValueOnce({
+                ...lookupSpaceContext(dashboard.spaceUuid),
+                directOnly: true,
+            });
+
+        const result = await service.update(user, dashboard.uuid, {
+            name: 'renamed',
+        });
+
+        expect(result.spaceName).toBe(dashboard.spaceName);
     });
 
     test('should get dashboard charts after dashboard access check', async () => {

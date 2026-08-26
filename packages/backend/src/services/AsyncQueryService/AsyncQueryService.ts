@@ -5702,10 +5702,14 @@ export class AsyncQueryService extends ProjectService {
                 );
             inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
         } else {
-            const ctx = await this.spacePermissionService.getSpaceAccessContext(
-                account.user.id,
-                savedChartSpaceUuid,
-            );
+            const ctx =
+                await this.spacePermissionService.getDashboardAccessContext(
+                    account.user.id,
+                    {
+                        uuid: savedChart.dashboardUuid,
+                        spaceUuid: savedChartSpaceUuid,
+                    },
+                );
             access = ctx.access;
             inheritsFromOrgOrProject = ctx.inheritsFromOrgOrProject;
         }
@@ -5994,6 +5998,9 @@ export class AsyncQueryService extends ProjectService {
         projectUuid: string,
         savedChartUuid: string,
         space: SpaceSummaryBase,
+        // Set when the chart is owned by a dashboard, whose direct grants
+        // then cover running it.
+        owningDashboardUuid: string | null,
     ) {
         if (isJwtUser(account)) {
             const embedWriteActions = account.authentication.data.writeActions;
@@ -6034,10 +6041,11 @@ export class AsyncQueryService extends ProjectService {
             );
         } else {
             const auditedAbility = this.createAuditedAbility(account);
-            const ctx = await this.spacePermissionService.getSpaceAccessContext(
-                account.user.id,
-                space.uuid,
-            );
+            const ctx =
+                await this.spacePermissionService.getDashboardAccessContext(
+                    account.user.id,
+                    { uuid: owningDashboardUuid, spaceUuid: space.uuid },
+                );
 
             if (
                 auditedAbility.cannot(
@@ -6179,6 +6187,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             savedChart.uuid,
             space,
+            savedChart.dashboardUuid,
         );
 
         // Fire-and-forget: analytics tracking is non-critical and shouldn't block query execution
@@ -9579,9 +9588,12 @@ export class AsyncQueryService extends ProjectService {
             : savedChart.metricQuery;
 
         const spaceCtx =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 account.user.id,
-                savedChart.spaceUuid,
+                {
+                    uuid: savedChart.dashboardUuid,
+                    spaceUuid: savedChart.spaceUuid,
+                },
             );
 
         const auditedAbility = this.createAuditedAbility(account);
