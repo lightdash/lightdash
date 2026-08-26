@@ -151,6 +151,8 @@ export type CreateDashboard = {
     tabs: DashboardTab[];
     config?: DashboardConfig;
     colorPaletteUuid?: string | null;
+    /** Set to a user uuid to assign an owner, null or omitted for no owner */
+    ownerUserUuid?: string | null;
 };
 
 export type DashboardTile =
@@ -315,11 +317,8 @@ export type SpaceDashboard = DashboardBasicDetails;
 
 export type DashboardUnversionedFields = Pick<
     CreateDashboard,
-    'name' | 'description' | 'spaceUuid' | 'colorPaletteUuid'
-> & {
-    /** Set to a user uuid to assign an owner, null to unassign, omit to leave unchanged */
-    ownerUserUuid?: string | null;
-};
+    'name' | 'description' | 'spaceUuid' | 'colorPaletteUuid' | 'ownerUserUuid'
+>;
 
 export type DashboardVersionedFields = Pick<
     CreateDashboard,

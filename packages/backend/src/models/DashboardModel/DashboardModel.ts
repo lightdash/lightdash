@@ -1440,11 +1440,7 @@ export class DashboardModel {
 
     async create(
         spaceUuid: string,
-        dashboard: CreateDashboard & {
-            slug: string;
-            forceSlug?: boolean;
-            ownerUserUuid?: string | null;
-        },
+        dashboard: CreateDashboard & { slug: string; forceSlug?: boolean },
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
     ): Promise<DashboardDAO> {

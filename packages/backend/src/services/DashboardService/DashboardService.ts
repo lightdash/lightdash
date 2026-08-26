@@ -1151,6 +1151,14 @@ export class DashboardService
                 "You don't have access to the space this dashboard belongs to",
             );
         }
+        if (dashboard.ownerUserUuid) {
+            // Throws NotFoundError when the user is not an org member
+            await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
+                space.organizationUuid,
+                dashboard.ownerUserUuid,
+            );
+        }
+
         const createDashboard = {
             ...dashboard,
             slug: generateSlug(dashboard.name),
