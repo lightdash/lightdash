@@ -1,8 +1,39 @@
-import { render, waitFor } from '@testing-library/react';
+import { fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 let mockEmbedWriteContext: { canUpdateSavedChart: boolean } | undefined;
+
+vi.mock('../src/ee/pages/EmbedDashboard', async () => {
+    const { default: useEmbed } =
+        await import('../src/ee/providers/Embed/useEmbed');
+
+    return {
+        default: function MockEmbedDashboard() {
+            const { onExplore } = useEmbed();
+            return (
+                <div data-testid="embed-dashboard">
+                    <button
+                        data-testid="saved-chart-explore"
+                        onClick={() =>
+                            onExplore({
+                                chart: { uuid: 'saved-chart-uuid' } as never,
+                            })
+                        }
+                    />
+                    <button
+                        data-testid="drill-down-explore"
+                        onClick={() =>
+                            onExplore({
+                                chart: { tableName: 'orders' } as never,
+                            })
+                        }
+                    />
+                </div>
+            );
+        },
+    };
+});
 
 vi.mock('../src/components/MonacoEditor', () => ({
     default: () => null,
@@ -25,7 +56,9 @@ vi.mock('../src/ee/pages/EmbedExplore', () => ({
         chartView?: boolean;
     }) => (
         <div
-            data-testid="embed-chart-edit"
+            data-testid={
+                chartView === undefined ? 'embed-explore' : 'embed-chart-edit'
+            }
             data-allow-chart-update={allowChartUpdate}
             data-edit-mode={isEditMode}
             data-chart-view={chartView}
@@ -354,7 +387,7 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
     it('should handle explore navigation without syncing URL', async () => {
         const mockOnExplore = vi.fn();
 
-        render(
+        const { getByTestId } = render(
             <Dashboard
                 token={mockToken}
                 instanceUrl={mockInstanceUrl}
@@ -363,11 +396,37 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             />,
         );
 
-        // Simulate explore navigation
-        // In SDK mode, this should call onExplore callback but not update browser URL
+        await waitFor(() => {
+            expect(getByTestId('embed-dashboard')).toBeTruthy();
+        });
+
+        fireEvent.click(getByTestId('saved-chart-explore'));
 
         await waitFor(() => {
-            // Browser URL should not change
+            expect(mockOnExplore).toHaveBeenCalledWith({
+                chart: { uuid: 'saved-chart-uuid' },
+            });
+            expect(window.location.pathname).toBe('/test');
+        });
+    });
+
+    it('should render drill-down explores inside the SDK dashboard', async () => {
+        const { getByTestId } = render(
+            <Dashboard
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                filters={[]}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('embed-dashboard')).toBeTruthy();
+        });
+
+        fireEvent.click(getByTestId('drill-down-explore'));
+
+        await waitFor(() => {
+            expect(getByTestId('embed-explore')).toBeTruthy();
             expect(window.location.pathname).toBe('/test');
         });
     });

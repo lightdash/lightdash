@@ -161,6 +161,7 @@ import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import LightdashVisualization from '../LightdashVisualization';
+import { type EmbeddedDashboardInteractivity } from '../LightdashVisualization/context';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
@@ -171,6 +172,9 @@ import { getDataFromChartClick } from '../MetricQueryData/utils';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import { DashboardExportImage } from './DashboardExportImage';
 import EditChartMenuItem from './EditChartMenuItem';
+import EmbeddedDashboardChartInteractions, {
+    type EmbeddedDashboardInteractions,
+} from './EmbeddedDashboardChartInteractions';
 import ExportDataModal from './ExportDataModal';
 import ExportImageModal from './ExportImageModal';
 import TileBase from './TileBase';
@@ -445,6 +449,7 @@ const ValidDashboardChartTileMinimal: FC<{
     ) => void;
     resultsData: InfiniteQueryResults;
     setEchartsRef?: (ref: RefObject<EChartsReact | null> | undefined) => void;
+    embeddedDashboardInteractivity?: EmbeddedDashboardInteractivity;
 }> = ({
     tileUuid,
     chart,
@@ -455,6 +460,7 @@ const ValidDashboardChartTileMinimal: FC<{
     isTitleHidden = false,
     onSeriesContextMenu,
     setEchartsRef,
+    embeddedDashboardInteractivity,
 }) => {
     const { health } = useApp();
     const { data: org } = useOrganization();
@@ -567,6 +573,7 @@ const ValidDashboardChartTileMinimal: FC<{
             containerWidth={containerWidth}
             containerHeight={containerHeight}
             isDashboard
+            embeddedDashboardInteractivity={embeddedDashboardInteractivity}
             dateZoom={chartDateZoom}
         >
             <LightdashVisualization
@@ -1864,7 +1871,13 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
     },
 );
 
-const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
+type DashboardChartTileMinimalProps = DashboardChartTileMainProps & {
+    embeddedDashboardInteractions?: EmbeddedDashboardInteractions;
+};
+
+const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
+    props,
+) => {
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -1885,12 +1898,14 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         canViewExplore: canViewExploreOverride,
         onExplore,
         onEditChart,
+        embeddedDashboardInteractions,
         colorPaletteOverride,
         darkColorPaletteOverride,
     } = props;
     const {
         colorPaletteOverride: _colorPaletteOverride,
         darkColorPaletteOverride: _darkColorPaletteOverride,
+        embeddedDashboardInteractions: _embeddedDashboardInteractions,
         ...tileBaseProps
     } = props;
 
@@ -2012,6 +2027,30 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         [chart.chartConfig.type, chart.chartConfig.config],
     );
 
+    const renderVisualization = (
+        contextMenuHandler:
+            | ((
+                  event: EchartsSeriesClickEvent,
+                  series: EChartsSeries[],
+              ) => void)
+            | undefined,
+        embeddedInteractivity?: EmbeddedDashboardInteractivity,
+    ) => (
+        <ValidDashboardChartTileMinimal
+            tileUuid={tileUuid}
+            isTitleHidden={hideTitle}
+            chart={chart}
+            dashboardChartReadyQuery={dashboardChartReadyQuery}
+            colorPaletteOverride={colorPaletteOverride}
+            darkColorPaletteOverride={darkColorPaletteOverride}
+            onSeriesContextMenu={contextMenuHandler}
+            resultsData={resultsData}
+            title={title || chart.name}
+            setEchartsRef={setEchartRef}
+            embeddedDashboardInteractivity={embeddedInteractivity}
+        />
+    );
+
     return (
         <>
             <TileBase
@@ -2123,18 +2162,33 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                             </Menu.Dropdown>
                         </Can>
                     </Menu>
-                    <ValidDashboardChartTileMinimal
-                        tileUuid={tileUuid}
-                        isTitleHidden={hideTitle}
-                        chart={chart}
-                        dashboardChartReadyQuery={dashboardChartReadyQuery}
-                        colorPaletteOverride={colorPaletteOverride}
-                        darkColorPaletteOverride={darkColorPaletteOverride}
-                        onSeriesContextMenu={onSeriesContextMenu}
-                        resultsData={resultsData}
-                        title={title || chart.name}
-                        setEchartsRef={setEchartRef}
-                    />
+                    {embeddedDashboardInteractions ? (
+                        <EmbeddedDashboardChartInteractions
+                            tileUuid={tileUuid}
+                            isEditMode={props.isEditMode}
+                            chart={chart}
+                            explore={explore}
+                            dateZoom={dashboardChartReadyQuery.dateZoom}
+                            dateDimension={
+                                metricQuery?.metadata?.hasADateDimension
+                            }
+                            interactions={embeddedDashboardInteractions}
+                        >
+                            {(embeddedOnSeriesContextMenu) =>
+                                renderVisualization(
+                                    embeddedOnSeriesContextMenu,
+                                    {
+                                        canDrillDown:
+                                            embeddedDashboardInteractions.canDrillDown,
+                                        canCrossFilter:
+                                            embeddedDashboardInteractions.canCrossFilter,
+                                    },
+                                )
+                            }
+                        </EmbeddedDashboardChartInteractions>
+                    ) : (
+                        renderVisualization(onSeriesContextMenu)
+                    )}
                 </>
             </TileBase>
             {canExportCsv && (
@@ -2184,6 +2238,7 @@ type DashboardChartTileProps = Omit<
     dashboardChartReadyQuery?: DashboardChartReadyQuery;
     resultsData?: InfiniteQueryResults;
     onExplore?: (options: { chart: SavedChart }) => void;
+    embeddedDashboardInteractions?: EmbeddedDashboardInteractions;
     queryContextOverride?: QueryExecutionContext;
 };
 
@@ -2206,6 +2261,7 @@ export const GenericDashboardChartTile: FC<
     canExportImages = false,
     canViewExplore,
     onExplore,
+    embeddedDashboardInteractions,
     colorPaletteOverride,
     darkColorPaletteOverride,
     ...rest
@@ -2347,6 +2403,9 @@ export const GenericDashboardChartTile: FC<
                     canExportImages={canExportImages}
                     canViewExplore={canViewExplore}
                     onExplore={onExplore}
+                    embeddedDashboardInteractions={
+                        embeddedDashboardInteractions
+                    }
                     colorPaletteOverride={effectiveColorPaletteOverride}
                     darkColorPaletteOverride={effectiveDarkColorPaletteOverride}
                 />
@@ -2363,7 +2422,9 @@ export const GenericDashboardChartTile: FC<
                 />
             )}
             <UnderlyingDataModal />
-            <DrillDownModal />
+            <DrillDownModal
+                onExplore={embeddedDashboardInteractions?.onDrillDownExplore}
+            />
         </MetricQueryDataProvider>
     );
 };

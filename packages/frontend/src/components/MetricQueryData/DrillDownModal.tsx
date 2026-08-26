@@ -135,7 +135,7 @@ export const combineFilters = ({
     };
 };
 
-type DrillDownExploreUrlArgs = {
+type DrillDownExploreArgs = {
     fieldValues: Record<string, ResultValue>;
     projectUuid: string;
     tableName: string;
@@ -148,7 +148,7 @@ type DrillDownExploreUrlArgs = {
     timezone?: string;
 };
 
-const drillDownExploreUrl = ({
+const getDrillDownExplore = ({
     fieldValues,
     projectUuid,
     tableName,
@@ -159,7 +159,7 @@ const drillDownExploreUrl = ({
     pivotReference,
     explore,
     timezone,
-}: DrillDownExploreUrlArgs) => {
+}: DrillDownExploreArgs) => {
     const createSavedChartVersion: CreateSavedChartVersion = {
         tableName,
         metricQuery: {
@@ -198,10 +198,17 @@ const drillDownExploreUrl = ({
         projectUuid,
         createSavedChartVersion,
     );
-    return `${pathname}?${search}`;
+    return {
+        chart: createSavedChartVersion,
+        url: `${pathname}?${search}`,
+    };
 };
 
-export const DrillDownModal: FC = () => {
+type DrillDownModalProps = {
+    onExplore?: (options: { chart: CreateSavedChartVersion }) => void;
+};
+
+export const DrillDownModal: FC<DrillDownModalProps> = ({ onExplore }) => {
     const projectUuid = useProjectUuid();
 
     const [selectedDimension, setSelectedDimension] =
@@ -239,7 +246,7 @@ export const DrillDownModal: FC = () => {
         }
     }, [drillDownConfig]);
 
-    const url = useMemo(() => {
+    const drillDownExplore = useMemo(() => {
         if (
             selectedDimension &&
             metricQuery &&
@@ -247,7 +254,7 @@ export const DrillDownModal: FC = () => {
             drillDownConfig &&
             projectUuid
         ) {
-            return drillDownExploreUrl({
+            return getDrillDownExplore({
                 projectUuid,
                 tableName: explore.name,
                 metricQuery,
@@ -281,16 +288,31 @@ export const DrillDownModal: FC = () => {
             size="md"
             icon={IconArrowBarToDown}
             actions={
-                <Button
-                    component="a"
-                    target="_blank"
-                    href={url}
-                    leftSection={<MantineIcon icon={IconExternalLink} />}
-                    disabled={!selectedDimension}
-                    onClick={() => setTimeout(onClose, 500)}
-                >
-                    Open in new tab
-                </Button>
+                onExplore ? (
+                    <Button
+                        leftSection={<MantineIcon icon={IconArrowBarToDown} />}
+                        disabled={!drillDownExplore}
+                        onClick={() => {
+                            if (drillDownExplore) {
+                                onExplore({ chart: drillDownExplore.chart });
+                                onClose();
+                            }
+                        }}
+                    >
+                        Drill down
+                    </Button>
+                ) : (
+                    <Button
+                        component="a"
+                        target="_blank"
+                        href={drillDownExplore?.url}
+                        leftSection={<MantineIcon icon={IconExternalLink} />}
+                        disabled={!drillDownExplore}
+                        onClick={() => setTimeout(onClose, 500)}
+                    >
+                        Open in new tab
+                    </Button>
+                )
             }
         >
             <FieldSelect

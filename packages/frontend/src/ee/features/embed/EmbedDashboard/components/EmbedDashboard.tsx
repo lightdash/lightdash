@@ -3,6 +3,7 @@ import {
     DashboardTileTypes,
     QueryExecutionContext,
     assertUnreachable,
+    canAddDashboardFiltersInEmbed,
     getDefaultChartTileSize,
     isDashboardContent,
     type DashboardTile,
@@ -149,6 +150,16 @@ const EmbedDashboardGrid: FC<{
                                         onEdit={onEditTile}
                                         onEditChart={onEditChart}
                                         onExplore={onExplore}
+                                        embeddedDashboardInteractions={{
+                                            canDrillDown:
+                                                dashboard.canExplore &&
+                                                onExplore !== undefined,
+                                            canCrossFilter:
+                                                canAddDashboardFiltersInEmbed(
+                                                    dashboard.dashboardFiltersInteractivity,
+                                                ),
+                                            onDrillDownExplore: onExplore,
+                                        }}
                                         canExportCsv={dashboard.canExportCsv}
                                         canExportImages={
                                             dashboard.canExportImages
@@ -179,6 +190,16 @@ const EmbedDashboardGrid: FC<{
                                             dashboard.canExportImages
                                         }
                                         canViewExplore={dashboard.canExplore}
+                                        embeddedDashboardInteractions={{
+                                            canDrillDown:
+                                                dashboard.canExplore &&
+                                                onExplore !== undefined,
+                                            canCrossFilter:
+                                                canAddDashboardFiltersInEmbed(
+                                                    dashboard.dashboardFiltersInteractivity,
+                                                ),
+                                            onDrillDownExplore: onExplore,
+                                        }}
                                         locked={hasUnmetFilterRequirements}
                                         tileIndex={index}
                                     />

@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import { ModalsProvider } from '@mantine/modals';
 import {
+    useCallback,
     useEffect,
     useRef,
     useState,
@@ -207,6 +208,28 @@ const getSavedChartExploreHandler = (onExplore: BaseProps['onExplore']) =>
           }
         : undefined;
 
+const useDashboardExploreNavigation = (onExplore: BaseProps['onExplore']) => {
+    const [exploreChart, setExploreChart] = useState<EmbedExploreChart>();
+
+    const handleExplore = useCallback(
+        ({ chart }: { chart: EmbedExploreChart }) => {
+            if ('uuid' in chart) {
+                onExplore?.({ chart });
+            } else {
+                setExploreChart(chart);
+            }
+        },
+        [onExplore],
+    );
+
+    const handleBackToDashboard = useCallback(
+        () => setExploreChart(undefined),
+        [],
+    );
+
+    return { exploreChart, handleExplore, handleBackToDashboard };
+};
+
 const getAiAgentEmbedUrl = ({
     agentUuid,
     instanceUrl,
@@ -344,6 +367,8 @@ const Dashboard: FC<DashboardProps> = ({
     onEditModeChange,
 }) => {
     const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const { exploreChart, handleExplore, handleBackToDashboard } =
+        useDashboardExploreNavigation(onExplore);
 
     if (!tokenContext) {
         return null;
@@ -361,13 +386,28 @@ const Dashboard: FC<DashboardProps> = ({
                 filters={filters}
                 paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
-                onExplore={getSavedChartExploreHandler(onExplore)}
+                onExplore={handleExplore}
+                onBackToDashboard={handleBackToDashboard}
             >
-                <EmbedDashboard
-                    containerStyles={getDashboardContainerStyles(styles, theme)}
-                    isEditMode={isEditMode}
-                    onEditModeChange={onEditModeChange}
-                />
+                {exploreChart ? (
+                    <EmbedExplore
+                        exploreId={exploreChart.tableName}
+                        savedChart={exploreChart}
+                        containerStyles={getDashboardContainerStyles(
+                            styles,
+                            theme,
+                        )}
+                    />
+                ) : (
+                    <EmbedDashboard
+                        containerStyles={getDashboardContainerStyles(
+                            styles,
+                            theme,
+                        )}
+                        isEditMode={isEditMode}
+                        onEditModeChange={onEditModeChange}
+                    />
+                )}
             </EmbedProvider>
         </SdkProviders>
     );
@@ -490,6 +530,8 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
     onDashboardReady,
 }) => {
     const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const { exploreChart, handleExplore, handleBackToDashboard } =
+        useDashboardExploreNavigation(onExplore);
 
     if (!tokenContext) {
         return null;
@@ -507,14 +549,29 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
                 filters={filters}
                 paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
-                onExplore={getSavedChartExploreHandler(onExplore)}
+                onExplore={handleExplore}
+                onBackToDashboard={handleBackToDashboard}
             >
-                <DashboardBuilderContent
-                    containerStyles={getDashboardContainerStyles(styles, theme)}
-                    isEditMode={isEditMode}
-                    onEditModeChange={onEditModeChange}
-                    onDashboardReady={onDashboardReady}
-                />
+                {exploreChart ? (
+                    <EmbedExplore
+                        exploreId={exploreChart.tableName}
+                        savedChart={exploreChart}
+                        containerStyles={getDashboardContainerStyles(
+                            styles,
+                            theme,
+                        )}
+                    />
+                ) : (
+                    <DashboardBuilderContent
+                        containerStyles={getDashboardContainerStyles(
+                            styles,
+                            theme,
+                        )}
+                        isEditMode={isEditMode}
+                        onEditModeChange={onEditModeChange}
+                        onDashboardReady={onDashboardReady}
+                    />
+                )}
             </EmbedProvider>
         </SdkProviders>
     );

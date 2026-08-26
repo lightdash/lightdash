@@ -39,7 +39,7 @@ import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
-import Context from './context';
+import Context, { type EmbeddedDashboardInteractivity } from './context';
 import { type useVisualizationContext } from './useVisualizationContext';
 import VisualizationBigNumberConfig from './VisualizationBigNumberConfig';
 import VisualizationCartesianConfig from './VisualizationConfigCartesian';
@@ -87,6 +87,7 @@ export type VisualizationProviderProps = {
     containerHeight?: number;
     isDashboard?: boolean;
     isEditMode?: boolean;
+    embeddedDashboardInteractivity?: EmbeddedDashboardInteractivity;
     hasExplorerStore?: boolean;
     dateZoom?: DateZoom;
 };
@@ -121,6 +122,7 @@ const VisualizationProvider: FC<
     containerHeight,
     isDashboard,
     isEditMode,
+    embeddedDashboardInteractivity,
     hasExplorerStore = true,
     dateZoom,
 }) => {
@@ -367,6 +369,7 @@ const VisualizationProvider: FC<
         containerHeight,
         isDashboard,
         isEditMode,
+        embeddedDashboardInteractivity,
         hasExplorerStore,
         isTouchDevice,
         resolvedTimezone: lastValidResultsData?.resolvedTimezone,
