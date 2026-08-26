@@ -1,3 +1,10 @@
+## [2.9.2](https://github.com/lightdash/lightdash/compare/2.9.1...2.9.2) (2026-08-26)
+
+
+### Bug Fixes
+
+* **activity:** distinguish custom chart type builds in the data app activity log ([#28091](https://github.com/lightdash/lightdash/issues/28091)) ([a8c6d80](https://github.com/lightdash/lightdash/commit/a8c6d80fbea55b00f7bd06d0ff735715f8753d1e))
+
 ## [2.9.1](https://github.com/lightdash/lightdash/compare/2.9.0...2.9.1) (2026-08-26)
 
 

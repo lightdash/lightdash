@@ -18359,6 +18359,14 @@ const models: TsoaRoute.Models = {
                 prompt: { dataType: 'string', required: true },
                 status: { ref: 'AppVersionStatus', required: true },
                 version: { dataType: 'double', required: true },
+                template: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Exclude_DataAppTemplate.custom_' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 appDeleted: { dataType: 'boolean', required: true },
                 appName: { dataType: 'string', required: true },
                 appUuid: { dataType: 'string', required: true },
@@ -68506,6 +68514,15 @@ export function RegisterRoutes(app: Router) {
         },
         dateFrom: { in: 'query', name: 'dateFrom', dataType: 'string' },
         dateTo: { in: 'query', name: 'dateTo', dataType: 'string' },
+        dataAppVizsFilter: {
+            in: 'query',
+            name: 'dataAppVizsFilter',
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['exclude'] },
+                { dataType: 'enum', enums: ['only'] },
+            ],
+        },
     };
     app.get(
         '/api/v1/ee/org/apps/activity',
