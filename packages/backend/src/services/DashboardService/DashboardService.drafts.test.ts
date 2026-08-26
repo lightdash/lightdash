@@ -195,8 +195,8 @@ describe('DashboardService draft overlay is opt-in', () => {
         const findOpenDraft = vi
             .fn()
             .mockResolvedValue({ draft: { name: 'Weekly KPIs (drafted)' } });
-        const service = buildService().service;
-        // Replace the two collaborators the read path needs
+        const { service } = buildService();
+        // Replace the collaborators the read path needs
         (service as AnyType).contentDraftModel = { findOpenDraft };
         (service as AnyType).dashboardModel = {
             getByIdOrSlug: vi.fn().mockResolvedValue(dashboardDao),
