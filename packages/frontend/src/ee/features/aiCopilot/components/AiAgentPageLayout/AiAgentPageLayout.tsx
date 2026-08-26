@@ -1,5 +1,5 @@
 import { assertUnreachable } from '@lightdash/common';
-import { Box, Drawer, Flex, Group } from '@mantine/core';
+import { Box, Drawer, Flex, Group, Text } from '@mantine/core';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
@@ -269,7 +269,11 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                     onClose={closeMobileSidebar}
                     position="left"
                     size="85%"
-                    title="Threads"
+                    title={
+                        <Text fw={600} fz="sm">
+                            Threads
+                        </Text>
+                    }
                     classNames={{
                         content: styles.mobileSidebarContent,
                         header: styles.mobileSidebarHeader,

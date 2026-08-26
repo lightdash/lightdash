@@ -28,6 +28,7 @@ import {
     IconPaperclip,
     IconPlayerStop,
     IconPlus,
+    IconTelescope,
     IconTerminal2,
 } from '@tabler/icons-react';
 import Mention from '@tiptap/extension-mention';
@@ -602,8 +603,14 @@ export const AgentChatInput = ({
     );
     // The mobile toolbar has no room for these inline, so they move into a
     // single overflow menu and the send button keeps its place.
+    const showDeepResearchInMobileMenu = Boolean(
+        isMobile && canStartDeepResearch,
+    );
     const showMobileToolsMenu = Boolean(
-        isMobile && (showSqlModeControl || canShowAttachControl),
+        isMobile &&
+        (showSqlModeControl ||
+            canShowAttachControl ||
+            showDeepResearchInMobileMenu),
     );
 
     const handleStartDeepResearch = async () => {
@@ -745,7 +752,9 @@ export const AgentChatInput = ({
     const shouldShowDeepResearchBelowComposer =
         isThreadInput || showDeepResearchBelowComposer;
     const deepResearchControl =
-        canStartDeepResearch && !shouldShowDeepResearchBelowComposer ? (
+        canStartDeepResearch &&
+        !shouldShowDeepResearchBelowComposer &&
+        !showDeepResearchInMobileMenu ? (
             <DeepResearchModeControl
                 mode={composerMode}
                 onModeChange={setComposerMode}
@@ -755,7 +764,9 @@ export const AgentChatInput = ({
             />
         ) : null;
     const compactDeepResearchControl =
-        canStartDeepResearch && shouldShowDeepResearchBelowComposer ? (
+        canStartDeepResearch &&
+        shouldShowDeepResearchBelowComposer &&
+        !showDeepResearchInMobileMenu ? (
             <DeepResearchModeControl
                 mode={composerMode}
                 onModeChange={setComposerMode}
@@ -969,6 +980,40 @@ export const AgentChatInput = ({
                             }
                         >
                             SQL Runner
+                        </Menu.Item>
+                    )}
+                    {showDeepResearchInMobileMenu && (
+                        <Menu.Item
+                            disabled={hasActiveDeepResearchRun}
+                            onClick={() =>
+                                setComposerMode(
+                                    composerMode === 'deep_research'
+                                        ? 'ask'
+                                        : 'deep_research',
+                                )
+                            }
+                            leftSection={
+                                <MantineIcon
+                                    icon={IconTelescope}
+                                    size={14}
+                                    color={
+                                        composerMode === 'deep_research'
+                                            ? 'indigo.5'
+                                            : 'ldGray.6'
+                                    }
+                                />
+                            }
+                            rightSection={
+                                composerMode === 'deep_research' ? (
+                                    <MantineIcon
+                                        icon={IconCheck}
+                                        size={14}
+                                        color="indigo.5"
+                                    />
+                                ) : null
+                            }
+                        >
+                            Deep research
                         </Menu.Item>
                     )}
                 </Menu.Dropdown>
