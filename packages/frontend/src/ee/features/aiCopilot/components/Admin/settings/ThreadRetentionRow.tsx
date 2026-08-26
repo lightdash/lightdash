@@ -4,7 +4,6 @@ import { IconAlertTriangle } from '@tabler/icons-react';
 import { useState } from 'react';
 import Callout from '../../../../../../components/common/Callout';
 import MantineModal from '../../../../../../components/common/MantineModal';
-import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import {
     useAiThreadRetentionPreview,
     useUpdateAiOrganizationSettings,
@@ -12,7 +11,7 @@ import {
 import { formatRetentionHours } from '../../../utils/threadRetention';
 import { ThreadRetentionSelect } from '../../ThreadRetentionSelect';
 
-export const ThreadRetentionCard = ({
+export const ThreadRetentionRow = ({
     current,
 }: {
     current: RetentionWindowHours;
@@ -27,7 +26,7 @@ export const ThreadRetentionCard = ({
     const previewQuery = useAiThreadRetentionPreview(pendingRetentionHours);
 
     return (
-        <SettingsCard>
+        <>
             <Group
                 justify="space-between"
                 wrap="nowrap"
@@ -105,6 +104,6 @@ export const ThreadRetentionCard = ({
                     ) : null}
                 </Stack>
             </MantineModal>
-        </SettingsCard>
+        </>
     );
 };
