@@ -13,7 +13,7 @@ import {
     type DbtSemanticModel,
 } from '../types/dbtSemanticLayer';
 import { MetricType } from '../types/field';
-import { qualifyMergedManifestNames } from './qualifiedName';
+import { getManifestNamespaceKey, qualifyManifestNames } from './qualifiedName';
 
 /**
  * Translation for dbt's MetricFlow semantic layer as it appears in the dbt
@@ -268,27 +268,129 @@ export const translateMetricFlowMetrics = ({
     let translatedCount = 0;
     let skippedCount = 0;
     const semanticMetrics = Object.values(metrics).filter(isSemanticMetric);
-    const resolvedMetricNamesByUniqueId = qualifyMergedManifestNames(
-        semanticMetrics.map((metric) => ({
-            uniqueId: metric.unique_id,
-            name: metric.name,
-            sourceName: metric.lightdash_source_name,
-        })),
+    const getAutoMetricUniqueId = (
+        semanticModel: DbtSemanticModel,
+        measure: DbtSemanticMeasure,
+    ): string =>
+        `${semanticModel.unique_id}\u0000create_metric\u0000${measure.name}`;
+    const explicitMetricNamespaceKeys = new Set(
+        semanticMetrics
+            .map((metric) => getManifestNamespaceKey(metric, metric.name))
+            .filter((key): key is string => key !== undefined),
+    );
+    const unnamespacedExplicitMetricNames = new Set(
+        semanticMetrics
+            .filter(
+                (metric) =>
+                    getManifestNamespaceKey(metric, metric.name) === undefined,
+            )
+            .map((metric) => metric.name),
+    );
+    const autoMetricCandidates = Object.values(semanticModels).flatMap(
+        (semanticModel) =>
+            measuresOf(semanticModel)
+                .filter((measure) => {
+                    if (!measure.create_metric) return false;
+                    const namespaceKey = getManifestNamespaceKey(
+                        semanticModel,
+                        measure.name,
+                    );
+                    return namespaceKey !== undefined
+                        ? !explicitMetricNamespaceKeys.has(namespaceKey)
+                        : !unnamespacedExplicitMetricNames.has(measure.name);
+                })
+                .map((measure) => ({ semanticModel, measure })),
+    );
+    const resolvedMetricNamesByUniqueId = qualifyManifestNames(
+        [
+            ...semanticMetrics.map((metric) => ({
+                uniqueId: metric.unique_id,
+                name: metric.name,
+                lightdash_source_name: metric.lightdash_source_name,
+                package_name: metric.package_name,
+            })),
+            ...autoMetricCandidates.map(({ semanticModel, measure }) => ({
+                uniqueId: getAutoMetricUniqueId(semanticModel, measure),
+                name: measure.name,
+                lightdash_source_name: semanticModel.lightdash_source_name,
+                package_name: semanticModel.package_name,
+            })),
+        ],
         'metric',
     );
     const getMetricName = (metric: DbtSemanticMetric): string =>
         resolvedMetricNamesByUniqueId.get(metric.unique_id) ?? metric.name;
+    const getAutoMetricName = (
+        semanticModel: DbtSemanticModel,
+        measure: DbtSemanticMeasure,
+    ): string =>
+        resolvedMetricNamesByUniqueId.get(
+            getAutoMetricUniqueId(semanticModel, measure),
+        ) ?? measure.name;
+
+    const autoMetricNamesByName = new Map<string, string>();
+    const autoMetricNamesByNamespaceAndName = new Map<string, string>();
+    autoMetricCandidates.forEach(({ semanticModel, measure }) => {
+        const resolvedName = getAutoMetricName(semanticModel, measure);
+        autoMetricNamesByName.set(measure.name, resolvedName);
+        const namespaceKey = getManifestNamespaceKey(
+            semanticModel,
+            measure.name,
+        );
+        if (namespaceKey !== undefined) {
+            autoMetricNamesByNamespaceAndName.set(namespaceKey, resolvedName);
+        }
+    });
+    const resolveAutoMetricName = (
+        parentMetric: DbtSemanticMetric,
+        metricName: string,
+    ): string | undefined => {
+        const namespaceKey = getManifestNamespaceKey(parentMetric, metricName);
+        return (
+            (namespaceKey !== undefined
+                ? autoMetricNamesByNamespaceAndName.get(namespaceKey)
+                : undefined) ?? autoMetricNamesByName.get(metricName)
+        );
+    };
 
     // Index measures by name and remember which semantic model owns each one.
     const measureIndex = new Map<
         string,
         { semanticModel: DbtSemanticModel; measure: DbtSemanticMeasure }
     >();
+    const measureIndexByNamespaceAndName = new Map<
+        string,
+        { semanticModel: DbtSemanticModel; measure: DbtSemanticMeasure }
+    >();
     const semanticModelsByName = new Map<string, DbtSemanticModel>();
+    const semanticModelsByNamespaceAndName = new Map<
+        string,
+        DbtSemanticModel
+    >();
     Object.values(semanticModels).forEach((semanticModel) => {
         semanticModelsByName.set(semanticModel.name, semanticModel);
+        const semanticModelKey = getManifestNamespaceKey(
+            semanticModel,
+            semanticModel.name,
+        );
+        if (semanticModelKey !== undefined) {
+            semanticModelsByNamespaceAndName.set(
+                semanticModelKey,
+                semanticModel,
+            );
+        }
         measuresOf(semanticModel).forEach((measure) => {
             measureIndex.set(measure.name, { semanticModel, measure });
+            const measureKey = getManifestNamespaceKey(
+                semanticModel,
+                measure.name,
+            );
+            if (measureKey !== undefined) {
+                measureIndexByNamespaceAndName.set(measureKey, {
+                    semanticModel,
+                    measure,
+                });
+            }
         });
     });
 
@@ -296,25 +398,25 @@ export const translateMetricFlowMetrics = ({
     // these are owned by the metrics pass — translating the bare measure would
     // silently drop metric-level config such as filters.
     const metricDefsByName = new Map<string, DbtSemanticMetric>();
-    const metricDefsBySourceAndName = new Map<string, DbtSemanticMetric>();
+    const metricDefsByNamespaceAndName = new Map<string, DbtSemanticMetric>();
     semanticMetrics.forEach((metric) => {
         metricDefsByName.set(metric.name, metric);
-        if (metric.lightdash_source_name !== undefined) {
-            metricDefsBySourceAndName.set(
-                `${metric.lightdash_source_name}\u0000${metric.name}`,
-                metric,
-            );
+        const namespaceKey = getManifestNamespaceKey(metric, metric.name);
+        if (namespaceKey !== undefined) {
+            metricDefsByNamespaceAndName.set(namespaceKey, metric);
         }
     });
     const resolveMetricDefinition = (
         parentMetric: DbtSemanticMetric,
         metricName: string,
-    ): DbtSemanticMetric | undefined =>
-        (parentMetric.lightdash_source_name !== undefined
-            ? metricDefsBySourceAndName.get(
-                  `${parentMetric.lightdash_source_name}\u0000${metricName}`,
-              )
-            : undefined) ?? metricDefsByName.get(metricName);
+    ): DbtSemanticMetric | undefined => {
+        const namespaceKey = getManifestNamespaceKey(parentMetric, metricName);
+        return (
+            (namespaceKey !== undefined
+                ? metricDefsByNamespaceAndName.get(namespaceKey)
+                : undefined) ?? metricDefsByName.get(metricName)
+        );
+    };
 
     // Which model each successfully translated metric landed on — ratio and
     // derived metrics reference their inputs through this.
@@ -430,7 +532,14 @@ export const translateMetricFlowMetrics = ({
             if (measureRef.filter !== null && measureRef.filter !== undefined) {
                 filters.push(measureRef.filter);
             }
-            const indexed = measureIndex.get(measureRef.name);
+            const namespaceKey = getManifestNamespaceKey(
+                metric,
+                measureRef.name,
+            );
+            const indexed =
+                (namespaceKey !== undefined
+                    ? measureIndexByNamespaceAndName.get(namespaceKey)
+                    : undefined) ?? measureIndex.get(measureRef.name);
             if (!indexed) {
                 return {
                     error: `referenced measure "${measureRef.name}" was not found in any semantic model`,
@@ -439,9 +548,15 @@ export const translateMetricFlowMetrics = ({
             return { ...indexed, filters };
         }
         if (inlineAggParams) {
-            const semanticModel = semanticModelsByName.get(
+            const namespaceKey = getManifestNamespaceKey(
+                metric,
                 inlineAggParams.semantic_model,
             );
+            const semanticModel =
+                (namespaceKey !== undefined
+                    ? semanticModelsByNamespaceAndName.get(namespaceKey)
+                    : undefined) ??
+                semanticModelsByName.get(inlineAggParams.semantic_model);
             if (!semanticModel) {
                 return {
                     error: `semantic model "${inlineAggParams.semantic_model}" was not found`,
@@ -538,7 +653,15 @@ export const translateMetricFlowMetrics = ({
             if (!measure.create_metric) {
                 return;
             }
-            if (metricDefsByName.has(measure.name)) {
+            const namespaceKey = getManifestNamespaceKey(
+                semanticModel,
+                measure.name,
+            );
+            const hasExplicitMetric =
+                namespaceKey !== undefined
+                    ? metricDefsByNamespaceAndName.has(namespaceKey)
+                    : metricDefsByName.has(measure.name);
+            if (hasExplicitMetric) {
                 // An explicit manifest metric owns this name — the metrics
                 // pass above already translated or skipped it.
                 return;
@@ -551,11 +674,12 @@ export const translateMetricFlowMetrics = ({
                 skip(measure.name, built.error);
                 return;
             }
-            if (metricsByModel[built.modelName]?.[measure.name]) {
+            const metricName = getAutoMetricName(semanticModel, measure);
+            if (metricsByModel[built.modelName]?.[metricName]) {
                 // Already translated as an explicit metric.
                 return;
             }
-            addMetric(built.modelName, measure.name, built.definition);
+            addMetric(built.modelName, metricName, built.definition);
             translatedCount += 1;
         });
     });
@@ -599,7 +723,8 @@ export const translateMetricFlowMetrics = ({
             );
             const inputMetricName = inputMetric
                 ? getMetricName(inputMetric)
-                : input.name;
+                : (resolveAutoMetricName(parentMetric, input.name) ??
+                  input.name);
             const modelName = modelByTranslatedMetric.get(inputMetricName);
             if (!modelName) {
                 return {
@@ -633,7 +758,14 @@ export const translateMetricFlowMetrics = ({
             }
             resolved = resolvedSimple;
         } else {
-            const indexed = measureIndex.get(input.name);
+            const namespaceKey = getManifestNamespaceKey(
+                parentMetric,
+                input.name,
+            );
+            const indexed =
+                (namespaceKey !== undefined
+                    ? measureIndexByNamespaceAndName.get(namespaceKey)
+                    : undefined) ?? measureIndex.get(input.name);
             if (!indexed) {
                 return {
                     error: `input metric "${input.name}" was not found in the manifest`,
@@ -885,12 +1017,24 @@ export const applyMetricFlowMetricsToModels = (
         return noop;
     }
 
-    const modelNamesByUniqueId = Object.fromEntries(
-        models.map((model) => [model.unique_id, model.name]),
-    );
-
+    let modelNamesByUniqueId: Record<string, string>;
     let translation: TranslateMetricFlowResult;
     try {
+        const resolvedModelNamesByUniqueId = qualifyManifestNames(
+            models.map((model) => ({
+                uniqueId: model.unique_id,
+                name: model.name,
+                lightdash_source_name: model.lightdash_source_name,
+                package_name: model.package_name,
+            })),
+            'model',
+        );
+        modelNamesByUniqueId = Object.fromEntries(
+            models.map((model) => [
+                model.unique_id,
+                resolvedModelNamesByUniqueId.get(model.unique_id) ?? model.name,
+            ]),
+        );
         translation = translateMetricFlowMetrics({
             semanticModels,
             metrics: manifest.metrics ?? {},
@@ -908,7 +1052,9 @@ export const applyMetricFlowMetricsToModels = (
 
     return {
         models: models.map((model) => {
-            const modelMetrics = metricsByModel[model.name];
+            const resolvedModelName =
+                modelNamesByUniqueId[model.unique_id] ?? model.name;
+            const modelMetrics = metricsByModel[resolvedModelName];
             if (!modelMetrics) {
                 return model;
             }
