@@ -1,3 +1,16 @@
+# [2.8.0](https://github.com/lightdash/lightdash/compare/2.7.0...2.8.0) (2026-08-26)
+
+
+### Bug Fixes
+
+* **apps:** drop deprecated baseUrl from the data app scaffold tsconfig ([#28079](https://github.com/lightdash/lightdash/issues/28079)) ([7ba1884](https://github.com/lightdash/lightdash/commit/7ba188492451ba8fff4b79a8d940018247129a77))
+* **explorer:** persist chart sidebar state in URL ([#28074](https://github.com/lightdash/lightdash/issues/28074)) ([b5f2f5f](https://github.com/lightdash/lightdash/commit/b5f2f5fa1fd6ddea108672d45105e9896b4fdaaf))
+
+
+### Features
+
+* add embedded dashboard interactions ([#28027](https://github.com/lightdash/lightdash/issues/28027)) ([f2c6828](https://github.com/lightdash/lightdash/commit/f2c682817676f33ef583f38465a2513fafd24525))
+
 # [2.7.0](https://github.com/lightdash/lightdash/compare/2.6.0...2.7.0) (2026-08-26)
 
 
