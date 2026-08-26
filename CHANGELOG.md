@@ -1,3 +1,10 @@
+# [2.4.0](https://github.com/lightdash/lightdash/compare/2.3.0...2.4.0) (2026-08-26)
+
+
+### Features
+
+* headless export of AI artifacts to hosted images ([#28038](https://github.com/lightdash/lightdash/issues/28038)) ([f593cc4](https://github.com/lightdash/lightdash/commit/f593cc4f42c6a30467b29514465a538487bb82e8))
+
 # [2.3.0](https://github.com/lightdash/lightdash/compare/2.2.2...2.3.0) (2026-08-26)
 
 
