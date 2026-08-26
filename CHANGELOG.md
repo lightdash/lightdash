@@ -1,3 +1,10 @@
+## [2.13.2](https://github.com/lightdash/lightdash/compare/2.13.1...2.13.2) (2026-08-26)
+
+
+### Bug Fixes
+
+* **frontend:** make agent thread sidebar work on mobile ([#28076](https://github.com/lightdash/lightdash/issues/28076)) ([b22a776](https://github.com/lightdash/lightdash/commit/b22a776c01f36424fb0c501f77de026babde781e)), closes [#34](https://github.com/lightdash/lightdash/issues/34) [#34](https://github.com/lightdash/lightdash/issues/34)
+
 ## [2.13.1](https://github.com/lightdash/lightdash/compare/2.13.0...2.13.1) (2026-08-26)
 
 
