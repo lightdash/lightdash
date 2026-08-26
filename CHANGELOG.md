@@ -1,3 +1,10 @@
+## [2.9.4](https://github.com/lightdash/lightdash/compare/2.9.3...2.9.4) (2026-08-26)
+
+
+### Bug Fixes
+
+* **promote:** promote and remap chart-bound custom chart types ([#28096](https://github.com/lightdash/lightdash/issues/28096)) ([d29e05f](https://github.com/lightdash/lightdash/commit/d29e05fb506c32711faf6e643f56f962f56a4bcf)), closes [#28095](https://github.com/lightdash/lightdash/issues/28095) [#28095](https://github.com/lightdash/lightdash/issues/28095)
+
 ## [2.9.3](https://github.com/lightdash/lightdash/compare/2.9.2...2.9.3) (2026-08-26)
 
 
