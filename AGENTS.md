@@ -6,20 +6,26 @@ General development guidance for this repository lives in `CLAUDE.md` (architect
 
 Lightdash is a pnpm/Turbo monorepo (backend API, Vite frontend, `common`/`warehouses`/`formula` build-dep packages) that runs on Postgres + MinIO + a headless browser, all started via Docker.
 
-The VM startup update script only refreshes Node deps and the dbt venv. Docker, its daemon, and the app processes are NOT started automatically — bring them up yourself as below.
+The environment `start` script already launches `dockerd` and `./scripts/dev-fast-start.sh` in the background. Do **not** re-run that path at the beginning of a session. Check whether start already finished, then continue working.
 
-### Bringing the stack up (do this at the start of a session)
+### Bringing the stack up
 
-1. Start the Docker daemon (it does not auto-start; there is no systemd here):
+1. Inspect `/tmp/cursor/start-user/start-user.log` (and `start-user.status` if present).
+   - If the log contains a `READY:` line, the API is healthy. Use those URLs.
+   - If `start-user.status` exists and is `0`, start already succeeded even if you missed the log tail.
+   - If the log exists and is still growing (no `READY:` yet), wait on that start — do not start a second `dockerd` or a second `dev-fast-start.sh`.
+2. Only if start never ran (no log, no status) bring the stack up yourself:
    ```bash
    sudo dockerd > /tmp/dockerd.log 2>&1 &
    ```
-   Wait a few seconds, then confirm with `docker info`. `docker` works without `sudo` (the `ubuntu` user is in the `docker` group). Docker is configured with the `fuse-overlayfs` storage driver and `containerd-snapshotter` disabled (`/etc/docker/daemon.json`) — required for Docker 29 in this nested-container VM.
-2. Run the canonical, idempotent bootstrap:
+   Wait until `docker info` works. `docker` works without `sudo` (the `ubuntu` user is in the `docker` group). Docker is configured with the `fuse-overlayfs` storage driver and `containerd-snapshotter` disabled (`/etc/docker/daemon.json`) — required for Docker 29 in this nested-container VM.
+   Then:
    ```bash
    ./scripts/dev-fast-start.sh
    ```
-   It claims a port slot, starts the shared + instance Docker services (Postgres, MinIO, headless-browser, mailpit, nats), reconciles `.env.development.local`, runs migrations, seeds Lightdash + the jaffle-shop dbt demo, starts PM2, and blocks until `GET /api/v1/health` returns 200. On a snapshotted VM the DB bootstraps from a base volume, so it finishes in a few minutes. It ends with a `READY:` line listing the URLs.
+   It claims a port slot, starts the shared + instance Docker services (Postgres, MinIO, headless-browser, mailpit, nats), reconciles `.env.development.local`, runs pending migrations, seeds Lightdash + the jaffle-shop dbt demo when needed, starts PM2, and exits 0 only after `GET /api/v1/health` returns 200. On a snapshotted VM the DB bootstraps from a base volume. It ends with a `READY:` line listing the URLs.
+
+Do not block the first prompt on a full health wait unless the task needs the running app or browser.
 
 Default instance URLs: frontend http://localhost:3000, API http://localhost:8080. Test login: `demo@lightdash.com` / `demo_password!` (seeded "Jaffle shop" project). Mailpit UI: http://localhost:8025.
 
