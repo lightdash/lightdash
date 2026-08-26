@@ -74,6 +74,7 @@ const buildService = () => {
         promoteService: {} as AnyType,
         spacePermissionService: {} as AnyType,
         contentAsCodeSnapshotModel: { upsert: snapshotUpsert } as AnyType,
+        contentAsCodeProjectSettingsModel: { upsert: vi.fn() } as AnyType,
         contentVerificationModel: {
             getByContentUuids: vi.fn(async () => new Map()),
         } as AnyType,
