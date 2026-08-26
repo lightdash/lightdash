@@ -280,10 +280,8 @@ describe('UnfurlService', () => {
             );
             mockSlackUnfurlImageModel.create.mockResolvedValue(undefined);
 
-            const imageUrl = await service.exportAiAgentArtifact(
-                ACTING_USER,
-                EXPORT_ARGS,
-            );
+            const { imageBuffer, imageUrl } =
+                await service.exportAiAgentArtifact(ACTING_USER, EXPORT_ARGS);
 
             // App-style launch: window sizing + secure-context for the
             // sandboxed viz iframe SDK.
@@ -331,6 +329,7 @@ describe('UnfurlService', () => {
             expect(imageUrl).toMatch(
                 /^https:\/\/app\.lightdash\.cloud\/api\/v1\/slack\/preview\//,
             );
+            expect(imageBuffer).toEqual(Buffer.from('png-bytes'));
         });
 
         it('fails closed when the ready indicator never mounts', async () => {

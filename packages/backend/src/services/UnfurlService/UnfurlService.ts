@@ -1122,7 +1122,9 @@ export class UnfurlService extends BaseService {
      * the acting user's identity (one-time login grant). The caller must
      * resolve `artifact` — and the project/agent refs it passes — via
      * AiAgentService.getArtifact for the same user, which enforces the
-     * agent + thread access chain.
+     * agent + thread access chain. Returns the buffer beside the hosted URL
+     * so callers with their own delivery path (e.g. Slack file send) don't
+     * need to fetch the image back.
      */
     async exportAiAgentArtifact(
         user: SessionUser,
@@ -1135,7 +1137,7 @@ export class UnfurlService extends BaseService {
             agentUuid: UUID;
             artifact: AiArtifact;
         },
-    ): Promise<string> {
+    ): Promise<{ imageBuffer: Buffer; imageUrl: string }> {
         const { artifactUuid, versionUuid } = artifact;
         if (artifact.chartConfig?.source !== 'customChartType') {
             throw new ParameterError(
@@ -1191,7 +1193,7 @@ export class UnfurlService extends BaseService {
             artifactUuid,
             versionUuid,
         });
-        return imageUrl;
+        return { imageBuffer: result.imageBuffer, imageUrl };
     }
 
     /**

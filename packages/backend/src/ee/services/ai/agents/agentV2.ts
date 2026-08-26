@@ -861,6 +861,7 @@ export const getAgentTools = (
         projectParameterDefinitions,
         enableMergeQueries: args.enableMergeQueries,
         resolveCustomChartType: dependencies.resolveCustomChartType,
+        exportCustomChartTypeImage: dependencies.exportCustomChartTypeImage,
     });
 
     const runSavedChart = getRunSavedChart({

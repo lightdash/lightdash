@@ -27,7 +27,8 @@ export const getRunQueryEchartsConfig = async (
     const { chartConfig } = queryTool;
 
     // Custom chart types have no echarts image render (iframe-based) —
-    // callers fall back to sending results as CSV.
+    // callers render them via the headless artifact export, or fall back
+    // to sending results as CSV.
     if (isCustomChartTypeSlugChartConfig(chartConfig)) {
         return Promise.resolve(null);
     }

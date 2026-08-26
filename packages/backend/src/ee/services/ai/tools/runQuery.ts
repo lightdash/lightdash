@@ -26,6 +26,7 @@ import { tool } from 'ai';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     CreateOrUpdateArtifactFn,
+    ExportCustomChartTypeImageFn,
     GetPromptFn,
     ResolveCustomChartTypeFn,
     RunAsyncMergeQueryFn,
@@ -84,6 +85,7 @@ type Dependencies = {
     enableMergeQueries: boolean;
     runAsyncMergeQuery: RunAsyncMergeQueryFn;
     resolveCustomChartType: ResolveCustomChartTypeFn;
+    exportCustomChartTypeImage: ExportCustomChartTypeImageFn;
 };
 
 // The parameter state a query actually ran with — explicit vs
@@ -244,6 +246,51 @@ export const validateRunQueryTool = (
     );
 };
 
+const CUSTOM_CHART_TYPE_IMAGE_BUDGET_MS = 60_000;
+const CUSTOM_CHART_TYPE_IMAGE_ATTEMPTS = 2;
+
+// One retry inside a total wall-clock budget. An image failure must never
+// fail the answer — null means fall back to CSV.
+const exportCustomChartTypeImageBounded = async (
+    exportImage: () => Promise<Buffer>,
+): Promise<Buffer | null> => {
+    const deadline = Date.now() + CUSTOM_CHART_TYPE_IMAGE_BUDGET_MS;
+    for (
+        let attempt = 0;
+        attempt < CUSTOM_CHART_TYPE_IMAGE_ATTEMPTS;
+        attempt += 1
+    ) {
+        const remainingMs = deadline - Date.now();
+        if (remainingMs <= 0) break;
+        let timer: NodeJS.Timeout | undefined;
+        try {
+            const attemptPromise = exportImage();
+            // Swallow a late failure after the timeout wins the race.
+            attemptPromise.catch(() => {});
+            // eslint-disable-next-line no-await-in-loop
+            return await Promise.race([
+                attemptPromise,
+                new Promise<never>((_, reject) => {
+                    timer = setTimeout(
+                        () =>
+                            reject(
+                                new Error(
+                                    'Custom chart type image export timed out',
+                                ),
+                            ),
+                        remainingMs,
+                    );
+                }),
+            ]);
+        } catch {
+            // Retry, or fall through to the CSV fallback.
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+    return null;
+};
+
 // Renders the chart as an image for Slack, or sends the results as a CSV for
 // table visualizations. Returns the chart image URL when one was sent.
 const sendSlackVisualization = async ({
@@ -251,11 +298,15 @@ const sendSlackVisualization = async ({
     queryTool,
     queryResults,
     sendFile,
+    exportImage,
 }: {
     prompt: SlackPrompt;
     queryTool: ToolRunQueryArgsTransformed;
     queryResults: { rows: Record<string, unknown>[]; fields: ItemsMap };
     sendFile: SendFileFn;
+    // Pre-bound export of the answer's artifact; null when no artifact
+    // can be exported (merge branch).
+    exportImage: (() => Promise<Buffer>) | null;
 }): Promise<string | undefined> => {
     const echartsOptions = await getSlackAiEchartsConfig({
         toolArgs: {
@@ -265,8 +316,16 @@ const sendSlackVisualization = async ({
         queryResults,
         getPivotedResults,
     });
+    let chartImage: Buffer | null = null;
     if (echartsOptions) {
-        const chartImage = await renderEcharts(echartsOptions);
+        chartImage = await renderEcharts(echartsOptions);
+    } else if (
+        isCustomChartTypeSlugChartConfig(queryTool.chartConfig) &&
+        exportImage
+    ) {
+        chartImage = await exportCustomChartTypeImageBounded(exportImage);
+    }
+    if (chartImage) {
         return sendFile({
             channelId: prompt.slackChannelId,
             threadTs: prompt.slackThreadTs,
@@ -303,6 +362,7 @@ export const getRunQuery = ({
     enableMergeQueries,
     runAsyncMergeQuery,
     resolveCustomChartType,
+    exportCustomChartTypeImage,
 }: Dependencies) =>
     tool({
         ...(enableMergeQueries
@@ -467,6 +527,8 @@ export const getRunQuery = ({
                             queryTool,
                             queryResults,
                             sendFile,
+                            // Merge × custom chart type is rejected above.
+                            exportImage: null,
                         });
                     }
 
@@ -642,7 +704,7 @@ export const getRunQuery = ({
                     };
                 }
 
-                await createOrUpdateArtifactHook();
+                const artifact = await createOrUpdateArtifactHook();
 
                 let chartImageUrl: string | undefined;
                 if (isSlackPrompt(prompt)) {
@@ -651,6 +713,7 @@ export const getRunQuery = ({
                         queryTool,
                         queryResults,
                         sendFile,
+                        exportImage: () => exportCustomChartTypeImage(artifact),
                     });
                 }
 

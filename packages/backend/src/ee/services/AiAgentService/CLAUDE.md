@@ -69,7 +69,8 @@ if (botUserId && event.text?.includes(`<@${botUserId}>`)) {
 
 Query results in Slack (from `ai/tools/runQuery.ts`):
 
-| Type  | Output              |
-| ----- | ------------------- |
-| Chart | PNG image (echarts) |
-| Table | CSV file attachment |
+| Type              | Output                                                        |
+| ----------------- | ------------------------------------------------------------- |
+| Chart             | PNG image (echarts)                                           |
+| Custom chart type | PNG image (headless artifact export; CSV fallback on failure) |
+| Table             | CSV file attachment                                           |

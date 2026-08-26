@@ -8,9 +8,11 @@ import {
     validExplore,
 } from '../../../../services/ProjectService/ProjectService.mock';
 import type {
+    ExportCustomChartTypeImageFn,
     ResolveCustomChartTypeFn,
     RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
+    SendFileFn,
 } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { renderEcharts } from '../utils/renderEcharts';
@@ -97,6 +99,7 @@ const executeTool = async (
         exposeQueryUuid,
         enableDataAccess,
         resolveCustomChartType: vi.fn().mockResolvedValue(null),
+        exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
     });
 
     const output = await queryTool.execute!(toolInput, {
@@ -137,6 +140,7 @@ describe('getRunQuery', () => {
             exposeQueryUuid: false,
             enableDataAccess: true,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
+            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
         const mergeInput = {
             ...toolInput,
@@ -326,10 +330,12 @@ describe('getRunQuery custom chart types', () => {
         runAsyncQuery = vi
             .fn()
             .mockResolvedValue(makeQueryResults()) as RunAsyncQueryFn,
+        exportCustomChartTypeImage = vi.fn() as ExportCustomChartTypeImageFn,
     }: {
         chartConfig: ToolRunQueryCustomChartTypeConfig;
         resolveCustomChartType?: ResolveCustomChartTypeFn;
         runAsyncQuery?: RunAsyncQueryFn;
+        exportCustomChartTypeImage?: ExportCustomChartTypeImageFn;
     }) => {
         const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
         const queryTool = getRunQuery({
@@ -346,6 +352,7 @@ describe('getRunQuery custom chart types', () => {
             exposeQueryUuid: false,
             enableDataAccess: true,
             resolveCustomChartType,
+            exportCustomChartTypeImage,
         });
         const input = { ...toolInput, chartConfig };
         const output = await queryTool.execute!(input, {
@@ -497,6 +504,7 @@ describe('getRunQuery custom chart types', () => {
                 dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
                 schema: vizSchema,
             }) as ResolveCustomChartTypeFn,
+            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
 
         const mergeCustomInput = {
@@ -551,6 +559,174 @@ describe('getRunQuery custom chart types', () => {
         expect(runAsyncMergeQuery).not.toHaveBeenCalled();
         expect(runAsyncQuery).not.toHaveBeenCalled();
         expect(createOrUpdateArtifact).not.toHaveBeenCalled();
+    });
+
+    it('does not call the image exporter for web prompts', async () => {
+        const exportCustomChartTypeImage =
+            vi.fn() as ExportCustomChartTypeImageFn;
+
+        const { output } = await executeCustom({
+            chartConfig: customChartConfig,
+            exportCustomChartTypeImage,
+        });
+
+        expect(exportCustomChartTypeImage).not.toHaveBeenCalled();
+        expect(output.metadata).toMatchObject({ status: 'success' });
+    });
+
+    describe('in Slack', () => {
+        beforeEach(() => {
+            vi.mocked(renderEcharts).mockClear();
+        });
+
+        const artifact = {
+            artifactUuid: 'artifact-uuid',
+            versionUuid: 'version-uuid',
+        };
+
+        const executeCustomSlack = async ({
+            exportCustomChartTypeImage,
+            sendFile = vi
+                .fn()
+                .mockResolvedValue(
+                    'https://lightdash.example/api/v1/slack/card-image/abc',
+                ) as SendFileFn,
+        }: {
+            exportCustomChartTypeImage: ExportCustomChartTypeImageFn;
+            sendFile?: SendFileFn;
+        }) => {
+            const queryTool = getRunQuery({
+                updateProgress: vi.fn().mockResolvedValue(undefined),
+                runAsyncQuery: vi
+                    .fn()
+                    .mockResolvedValue(makeQueryResults()) as RunAsyncQueryFn,
+                runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
+                enableMergeQueries: false,
+                projectParameterDefinitions: {},
+                getPrompt: vi.fn().mockResolvedValue(makeSlackPrompt()),
+                sendFile,
+                createOrUpdateArtifact: vi.fn().mockResolvedValue(artifact),
+                maxLimit: 500,
+                maxContextRows: Number.POSITIVE_INFINITY,
+                exposeQueryUuid: false,
+                enableDataAccess: true,
+                resolveCustomChartType: vi.fn().mockResolvedValue({
+                    dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                    schema: vizSchema,
+                }) as ResolveCustomChartTypeFn,
+                exportCustomChartTypeImage,
+            });
+            const output = await queryTool.execute!(
+                { ...toolInput, chartConfig: customChartConfig },
+                {
+                    messages: [],
+                    toolCallId: 'tool-call-1',
+                    experimental_context: new AgentContext([validExplore]),
+                },
+            );
+            if (Symbol.asyncIterator in output) {
+                throw new Error('Expected a non-streaming tool result');
+            }
+            return { output, sendFile };
+        };
+
+        it('attaches the rendered image through the file-send path on success', async () => {
+            const image = Buffer.from('custom-chart-png');
+            const exportCustomChartTypeImage = vi
+                .fn()
+                .mockResolvedValue(image) as ExportCustomChartTypeImageFn;
+
+            const { output, sendFile } = await executeCustomSlack({
+                exportCustomChartTypeImage,
+            });
+
+            expect(exportCustomChartTypeImage).toHaveBeenCalledWith(artifact);
+            expect(sendFile).toHaveBeenCalledTimes(1);
+            expect(sendFile).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    filename: 'lightdash-chart.png',
+                    file: image,
+                }),
+            );
+            expect(output.metadata).toMatchObject({
+                status: 'success',
+                chartImageUrl:
+                    'https://lightdash.example/api/v1/slack/card-image/abc',
+            });
+            // Custom chart types never take the builtin echarts render path.
+            expect(vi.mocked(renderEcharts)).not.toHaveBeenCalled();
+        });
+
+        it('retries once and attaches the image when the second attempt succeeds', async () => {
+            const image = Buffer.from('custom-chart-png');
+            const exportCustomChartTypeImage = vi
+                .fn()
+                .mockRejectedValueOnce(new Error('render crashed'))
+                .mockResolvedValueOnce(image) as ExportCustomChartTypeImageFn;
+
+            const { output, sendFile } = await executeCustomSlack({
+                exportCustomChartTypeImage,
+            });
+
+            expect(exportCustomChartTypeImage).toHaveBeenCalledTimes(2);
+            expect(sendFile).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    filename: 'lightdash-chart.png',
+                    file: image,
+                }),
+            );
+            expect(output.metadata).toMatchObject({ status: 'success' });
+        });
+
+        it('falls back to CSV without failing the answer when the export keeps failing', async () => {
+            const exportCustomChartTypeImage = vi
+                .fn()
+                .mockRejectedValue(
+                    new Error('render crashed'),
+                ) as ExportCustomChartTypeImageFn;
+
+            const { output, sendFile } = await executeCustomSlack({
+                exportCustomChartTypeImage,
+            });
+
+            expect(exportCustomChartTypeImage).toHaveBeenCalledTimes(2);
+            expect(sendFile).toHaveBeenCalledTimes(1);
+            expect(sendFile).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    filename: 'lightdash-results.csv',
+                }),
+            );
+            expect(output.metadata).toMatchObject({ status: 'success' });
+            expect(output.metadata.chartImageUrl).toBeUndefined();
+        });
+
+        it('falls back to CSV when the export exhausts the time budget', async () => {
+            vi.useFakeTimers();
+            try {
+                const exportCustomChartTypeImage = vi
+                    .fn()
+                    .mockReturnValue(
+                        new Promise<never>(() => {}),
+                    ) as ExportCustomChartTypeImageFn;
+
+                const pending = executeCustomSlack({
+                    exportCustomChartTypeImage,
+                });
+                await vi.advanceTimersByTimeAsync(60_000);
+                const { output, sendFile } = await pending;
+
+                // Budget exhausted on the first attempt — no retry.
+                expect(exportCustomChartTypeImage).toHaveBeenCalledTimes(1);
+                expect(sendFile).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        filename: 'lightdash-results.csv',
+                    }),
+                );
+                expect(output.metadata).toMatchObject({ status: 'success' });
+            } finally {
+                vi.useRealTimers();
+            }
+        });
     });
 });
 
@@ -646,6 +822,7 @@ describe('getRunQuery parameters', () => {
             exposeQueryUuid: false,
             enableDataAccess: true,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
+            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
         const output = await queryTool.execute!(
             {
@@ -767,6 +944,7 @@ describe('getRunQuery parameters', () => {
             exposeQueryUuid: false,
             enableDataAccess: true,
             resolveCustomChartType: vi.fn().mockResolvedValue(null),
+            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
         });
         const output = await queryTool.execute!(
             {

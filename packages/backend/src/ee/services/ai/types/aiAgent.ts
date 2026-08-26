@@ -45,6 +45,7 @@ import {
     EditProjectContextFn,
     EditRepoFn,
     ExploreRepoFn,
+    ExportCustomChartTypeImageFn,
     FindContentFn,
     FindCustomChartTypesFn,
     FindExploresFn,
@@ -326,6 +327,7 @@ export type AiAgentDependencies = {
     getSavedChart: GetSavedChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
+    exportCustomChartTypeImage: ExportCustomChartTypeImageFn;
     sendSlackBlocks: SendSlackBlocksFn;
     updateSlackMessage: UpdateSlackMessageFn;
     updatePrompt: UpdatePromptFn;
