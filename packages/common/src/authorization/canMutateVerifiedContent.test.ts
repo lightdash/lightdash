@@ -1,4 +1,4 @@
-import { AbilityBuilder, Ability } from '@casl/ability';
+import { Ability, AbilityBuilder } from '@casl/ability';
 import { describe, expect, it } from 'vitest';
 import { type ContentVerificationInfo } from '../types/contentVerification';
 import { canMutateVerifiedContent } from './canMutateVerifiedContent';
