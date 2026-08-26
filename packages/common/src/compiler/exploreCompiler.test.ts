@@ -6,6 +6,7 @@ import {
     FieldType,
     friendlyName,
     MetricType,
+    type CompiledDimension,
 } from '../types/field';
 import { FilterOperator, UnitOfTime } from '../types/filter';
 import { TimeFrames } from '../types/timeFrames';
@@ -850,6 +851,33 @@ describe('Compiled custom dimensions', () => {
                 [],
             ),
         ).toStrictEqual(expectedCompiledCustomSqlDimensionWithReferences);
+    });
+
+    test('should preserve precompiled joined dimension table references', () => {
+        expect(
+            compiler.compileCustomDimension(
+                customSqlDimensionWithReferences,
+                {
+                    ...simpleJoinedExplore.tables,
+                    b: {
+                        ...simpleJoinedExplore.tables.b,
+                        dimensions: {
+                            dim1: {
+                                ...simpleJoinedExplore.tables.b.dimensions.dim1,
+                                sql: '"a".b_dim1',
+                                compiledSql: '"a".b_dim1',
+                                tablesReferences: ['a'],
+                            } as CompiledDimension,
+                        },
+                    },
+                },
+                [],
+            ),
+        ).toStrictEqual({
+            ...expectedCompiledCustomSqlDimensionWithReferences,
+            compiledSql: '("a".dim1) + ("a".b_dim1)',
+            tablesReferences: ['a'],
+        });
     });
 });
 
