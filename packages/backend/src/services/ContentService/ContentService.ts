@@ -646,6 +646,7 @@ export class ContentService extends BaseService {
                 contentTypes,
                 search: filters.search,
                 deletedByUserUuids,
+                dataAppVizsFilter: filters.dataAppVizsFilter,
             },
             paginateArgs,
         );

@@ -7,6 +7,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     SummaryContentBase,
+    type DeletedDataAppContentSummary,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import KnexPaginate from '../../database/pagination';
@@ -247,6 +248,10 @@ export class ContentModel {
                 return {
                     ...base,
                     contentType: ContentType.DATA_APP,
+                    template:
+                        (row.metadata.template as
+                            | DeletedDataAppContentSummary['template']
+                            | null) ?? null,
                 };
             default:
                 throw new Error(
