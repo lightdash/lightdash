@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.5.2",
-  "previousVersion": "2.5.1",
-  "releaseDate": "2026-08-26T09:27:16.198Z",
+  "version": "2.6.0",
+  "previousVersion": "2.5.2",
+  "releaseDate": "2026-08-26T09:47:22.481Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,12 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "POST /api/v1/scim/v2/Groups — removed the request property `displayName`",
-        "POST /api/v1/scim/v2/Groups — removed the request property `members`",
-        "POST /api/v1/scim/v2/Groups — removed the request property `schemas`"
-      ],
-      "advisoryCount": 3
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

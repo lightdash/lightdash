@@ -1,3 +1,10 @@
+# [2.6.0](https://github.com/lightdash/lightdash/compare/2.5.2...2.6.0) (2026-08-26)
+
+
+### Features
+
+* **cli:** download linked custom chart types with their charts ([#28058](https://github.com/lightdash/lightdash/issues/28058)) ([8aba1ba](https://github.com/lightdash/lightdash/commit/8aba1ba06f07f7371915ef52945cb3ca294fb2e9))
+
 ## [2.5.2](https://github.com/lightdash/lightdash/compare/2.5.1...2.5.2) (2026-08-26)
 
 
