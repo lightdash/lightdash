@@ -13,6 +13,7 @@ import {
 import { memo, useState, type FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
+import useCreateInAnySpaceAccess from '../../hooks/user/useCreateInAnySpaceAccess';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
@@ -44,6 +45,11 @@ const ExploreMenu: FC<Props> = memo((props) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] = useState(false);
+    const userCanCreateDashboards = useCreateInAnySpaceAccess(
+        projectUuid,
+        'Dashboard',
+        { enabled: isOpen },
+    );
 
     return (
         <>
@@ -60,6 +66,8 @@ const ExploreMenu: FC<Props> = memo((props) => {
                     position="bottom-start"
                     arrowOffset={16}
                     offset={-2}
+                    opened={isOpen}
+                    onChange={setIsOpen}
                     zIndex={getDefaultZIndex('max')}
                     portalProps={{ target: '#navbar-header' }}
                 >
@@ -74,7 +82,6 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                     icon={IconSquareRoundedPlus}
                                 />
                             }
-                            onClick={() => setIsOpen(!isOpen)}
                             data-testid="ExploreMenu/NewButton"
                         >
                             New
@@ -120,13 +127,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                 icon={IconTerminal2}
                             />
                         </Can>
-                        <Can
-                            I="create"
-                            this={subject('Dashboard', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
+                        {userCanCreateDashboards && (
                             <LargeMenuItem
                                 title="Dashboard"
                                 description="Arrange multiple charts into a single view."
@@ -134,7 +135,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                 icon={IconLayoutDashboard}
                                 data-testid="ExploreMenu/NewDashboardButton"
                             />
-                        </Can>
+                        )}
 
                         {dataAppsFlag.data?.enabled && (
                             <Can

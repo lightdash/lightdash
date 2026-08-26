@@ -312,6 +312,15 @@ describe('Editor can create content', () => {
         cy.loginAsEditor();
     });
 
+    it('can create a dashboard from the global New menu', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
+
+        cy.get('[data-testid="ExploreMenu/NewButton"]').click();
+        cy.get('[data-testid="ExploreMenu/NewDashboardButton"]').should(
+            'be.visible',
+        );
+    });
+
     it('can create a new space', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
         // Parent Space 1/Child Space 1.1
