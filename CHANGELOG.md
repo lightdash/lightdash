@@ -1,3 +1,10 @@
+# [2.5.0](https://github.com/lightdash/lightdash/compare/2.4.0...2.5.0) (2026-08-26)
+
+
+### Features
+
+* Slack agent answers attach the custom chart type image ([#28042](https://github.com/lightdash/lightdash/issues/28042)) ([f9cab10](https://github.com/lightdash/lightdash/commit/f9cab10ea5c00c1585c41b168b599b233ec12966))
+
 # [2.4.0](https://github.com/lightdash/lightdash/compare/2.3.0...2.4.0) (2026-08-26)
 
 
