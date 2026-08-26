@@ -1,3 +1,10 @@
+## [2.9.1](https://github.com/lightdash/lightdash/compare/2.9.0...2.9.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* resolve project slugs in minimal saved charts ([#28037](https://github.com/lightdash/lightdash/issues/28037)) ([07998be](https://github.com/lightdash/lightdash/commit/07998be07a10968569a4b03c2a8b4252a28fafb1))
+
 # [2.9.0](https://github.com/lightdash/lightdash/compare/2.8.0...2.9.0) (2026-08-26)
 
 
