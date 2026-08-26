@@ -119,6 +119,7 @@ export class AiOrganizationSettingsModel {
             deepResearchLimits: db.deep_research_limits,
             deepResearchRawSqlEnabled: db.deep_research_raw_sql_enabled,
             mcpContentWritesEnabled: db.mcp_content_writes_enabled,
+            mcpAgentsEnabled: db.mcp_agents_enabled,
             requireExplicitSlackChannelLinking:
                 db.require_explicit_slack_channel_linking,
             defaultAiAgentModelConfig: db.default_ai_agent_model_config,
@@ -199,6 +200,7 @@ export class AiOrganizationSettingsModel {
                 deep_research_limits: data.deepResearchLimits,
                 deep_research_raw_sql_enabled: data.deepResearchRawSqlEnabled,
                 mcp_content_writes_enabled: data.mcpContentWritesEnabled,
+                mcp_agents_enabled: data.mcpAgentsEnabled,
                 require_explicit_slack_channel_linking:
                     data.requireExplicitSlackChannelLinking,
                 default_ai_agent_model_config: data.defaultAiAgentModelConfig,
@@ -226,6 +228,7 @@ export class AiOrganizationSettingsModel {
                 | 'deep_research_limits'
                 | 'deep_research_raw_sql_enabled'
                 | 'mcp_content_writes_enabled'
+                | 'mcp_agents_enabled'
                 | 'require_explicit_slack_channel_linking'
                 | 'default_ai_agent_model_config'
                 | 'model_visibility'
@@ -251,6 +254,9 @@ export class AiOrganizationSettingsModel {
         if (data.mcpContentWritesEnabled !== undefined) {
             updateData.mcp_content_writes_enabled =
                 data.mcpContentWritesEnabled;
+        }
+        if (data.mcpAgentsEnabled !== undefined) {
+            updateData.mcp_agents_enabled = data.mcpAgentsEnabled;
         }
         if (data.requireExplicitSlackChannelLinking !== undefined) {
             updateData.require_explicit_slack_channel_linking =
@@ -361,6 +367,7 @@ export class AiOrganizationSettingsModel {
                 deepResearchRawSqlEnabled:
                     data.deepResearchRawSqlEnabled ?? false,
                 mcpContentWritesEnabled: data.mcpContentWritesEnabled ?? true,
+                mcpAgentsEnabled: data.mcpAgentsEnabled ?? true,
                 requireExplicitSlackChannelLinking:
                     data.requireExplicitSlackChannelLinking ?? false,
                 defaultAiAgentModelConfig:

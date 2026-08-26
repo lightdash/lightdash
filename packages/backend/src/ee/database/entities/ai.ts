@@ -491,6 +491,7 @@ export type DbAiOrganizationSettings = {
     deep_research_limits: AiDeepResearchLimits;
     deep_research_raw_sql_enabled: boolean;
     mcp_content_writes_enabled: boolean;
+    mcp_agents_enabled: boolean;
     require_explicit_slack_channel_linking: boolean;
     default_ai_agent_model_config: AiAgentModelConfig | null;
     model_visibility: AiOrgModelVisibility | null;
@@ -512,6 +513,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
                 | 'deep_research_limits'
                 | 'deep_research_raw_sql_enabled'
                 | 'mcp_content_writes_enabled'
+                | 'mcp_agents_enabled'
                 | 'require_explicit_slack_channel_linking'
                 | 'default_ai_agent_model_config'
                 | 'model_visibility'
@@ -529,6 +531,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'deep_research_limits'
             | 'deep_research_raw_sql_enabled'
             | 'mcp_content_writes_enabled'
+            | 'mcp_agents_enabled'
             | 'require_explicit_slack_channel_linking'
             | 'default_ai_agent_model_config'
             | 'model_visibility'
