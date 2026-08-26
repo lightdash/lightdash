@@ -40,7 +40,7 @@ import { AiProvidersCard } from './AiProvidersCard';
 import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
 import { AiSurfacesCard } from './AiSurfacesCard';
 import { ReviewNotificationsSettings } from './ReviewNotificationsSettings';
-import { ThreadRetentionCard } from './ThreadRetentionCard';
+import { ThreadRetentionRow } from './ThreadRetentionRow';
 
 const Section: FC<
     PropsWithChildren<{ label: string; description?: string }>
@@ -305,91 +305,20 @@ export const AiGeneralSettingsPage = () => {
                                         </Group>
                                     </>
                                 )}
+
+                                {threadRetentionFlag.data?.enabled && (
+                                    <>
+                                        <Divider />
+                                        <ThreadRetentionRow
+                                            current={
+                                                settings.threadRetentionHours ??
+                                                null
+                                            }
+                                        />
+                                    </>
+                                )}
                             </Stack>
                         </SettingsCard>
-
-                        {threadRetentionFlag.data?.enabled && (
-                            <ThreadRetentionCard
-                                current={settings.threadRetentionHours ?? null}
-                            />
-                        )}
-
-                        <SettingsCard>
-                            <Group
-                                justify="space-between"
-                                wrap="nowrap"
-                                align="flex-start"
-                                gap="md"
-                            >
-                                <Box maw={620}>
-                                    <Group gap="xs" mb={4}>
-                                        <Title order={5}>
-                                            Enable AI agent memories
-                                        </Title>
-                                        <BetaBadge />
-                                    </Group>
-                                    <Text c="ldGray.6" fz="xs">
-                                        Let Ask AI learn from each user&apos;s
-                                        agent conversations and reuse those
-                                        memories in future answers. Disable to
-                                        stop learning from and using memories
-                                        while keeping existing data intact.
-                                        {aiAgentMemoryEnabled && (
-                                            <>
-                                                {' '}
-                                                Manage them in{' '}
-                                                <Anchor
-                                                    component={Link}
-                                                    to="/generalSettings/ai/memories"
-                                                >
-                                                    Ask AI &gt; Memories
-                                                </Anchor>
-                                                .
-                                            </>
-                                        )}
-                                    </Text>
-                                </Box>
-                                <Switch
-                                    size="md"
-                                    checked={aiAgentMemoryEnabled}
-                                    disabled={isUpdatingSettings}
-                                    onChange={(event) =>
-                                        updateSettings({
-                                            aiAgentMemoryEnabled:
-                                                event.currentTarget.checked,
-                                        })
-                                    }
-                                />
-                            </Group>
-                        </SettingsCard>
-
-                        {(settings.isCopilotEnabled || settings.isTrial) && (
-                            <SettingsCard>
-                                <Group
-                                    justify="space-between"
-                                    wrap="nowrap"
-                                    align="flex-start"
-                                    gap="md"
-                                >
-                                    <Box maw={620}>
-                                        <Title order={5} mb={4}>
-                                            Deep research
-                                        </Title>
-                                        <Text c="ldGray.6" fz="xs">
-                                            Run limits and raw SQL access.
-                                        </Text>
-                                    </Box>
-                                    <Anchor
-                                        component={Link}
-                                        to="/generalSettings/ai/deep-research"
-                                        fz="xs"
-                                        fw={500}
-                                    >
-                                        Open settings &rarr;
-                                    </Anchor>
-                                </Group>
-                            </SettingsCard>
-                        )}
                     </Section>
 
                     {orgAiProviderKeysFlag.data?.enabled &&
@@ -504,6 +433,55 @@ export const AiGeneralSettingsPage = () => {
                                     <ReviewNotificationsSettings />
                                 )}
                             </Stack>
+                        </SettingsCard>
+
+                        <SettingsCard>
+                            <Group
+                                justify="space-between"
+                                wrap="nowrap"
+                                align="flex-start"
+                                gap="md"
+                            >
+                                <Box maw={620}>
+                                    <Group gap="xs" mb={4}>
+                                        <Title order={5}>
+                                            Enable AI agent memories
+                                        </Title>
+                                        <BetaBadge />
+                                    </Group>
+                                    <Text c="ldGray.6" fz="xs">
+                                        Let Ask AI learn from each user&apos;s
+                                        agent conversations and reuse those
+                                        memories in future answers. Disable to
+                                        stop learning from and using memories
+                                        while keeping existing data intact.
+                                        {aiAgentMemoryEnabled && (
+                                            <>
+                                                {' '}
+                                                Manage them in{' '}
+                                                <Anchor
+                                                    component={Link}
+                                                    to="/generalSettings/ai/memories"
+                                                >
+                                                    Ask AI &gt; Memories
+                                                </Anchor>
+                                                .
+                                            </>
+                                        )}
+                                    </Text>
+                                </Box>
+                                <Switch
+                                    size="md"
+                                    checked={aiAgentMemoryEnabled}
+                                    disabled={isUpdatingSettings}
+                                    onChange={(event) =>
+                                        updateSettings({
+                                            aiAgentMemoryEnabled:
+                                                event.currentTarget.checked,
+                                        })
+                                    }
+                                />
+                            </Group>
                         </SettingsCard>
                     </Section>
 
