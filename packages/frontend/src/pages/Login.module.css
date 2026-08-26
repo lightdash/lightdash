@@ -1,0 +1,4 @@
+.pinkPage {
+    min-height: 100vh;
+    background-color: var(--mantine-color-pink-1);
+}

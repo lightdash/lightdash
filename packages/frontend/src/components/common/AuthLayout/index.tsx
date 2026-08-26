@@ -1,5 +1,6 @@
 import { Box, Card, Group, Stack, Text, Title } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import { type FC, type PropsWithChildren, type ReactNode } from 'react';
 import LightdashLogo from '../../LightdashLogo/LightdashLogo';
 import PageSpinner from '../../PageSpinner';
@@ -29,6 +30,7 @@ type Props = {
     /** Pages that bring their own cards (Invite) opt out of the legacy card. */
     withLegacyCard?: boolean;
     footer?: ReactNode;
+    withPinkBackground?: boolean;
 };
 
 const AuthLayout: FC<PropsWithChildren<Props>> = ({
@@ -39,16 +41,18 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     cardId,
     withLegacyCard = true,
     footer,
+    withPinkBackground = false,
     children,
 }) => {
     const { isNewLayout, isInitialLoading } = useAuthLayoutVariant();
+    const pinkPageClass = withPinkBackground ? classes.pinkPage : undefined;
 
     if (isInitialLoading) {
         return <PageSpinner />;
     }
 
     if (!isNewLayout) {
-        return (
+        const legacyPage = (
             <Page title={pageTitle} withCenteredContent withNavbar={false}>
                 <Stack w={400} mt="4xl">
                     <Box mx="auto" my="lg">
@@ -76,13 +80,19 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                 </Stack>
             </Page>
         );
+
+        if (withPinkBackground) {
+            return <Box className={classes.pinkPage}>{legacyPage}</Box>;
+        }
+
+        return legacyPage;
     }
 
     return (
         <>
             <DocumentTitle title={pageTitle} />
 
-            <Box className={classes.root}>
+            <Box className={clsx(classes.root, pinkPageClass)}>
                 <Box className={classes.brandPanel}>
                     <Box className={classes.decorationTop} aria-hidden />
                     <Box className={classes.decorationBottom} aria-hidden />

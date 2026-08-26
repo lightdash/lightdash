@@ -3,6 +3,19 @@
     min-height: 100vh;
 }
 
+.pinkPage {
+    min-height: 100vh;
+    background-color: var(--mantine-color-pink-1);
+}
+
+.pinkPage .brandPanel {
+    background-color: var(--mantine-color-pink-6);
+}
+
+.pinkPage .formPanel {
+    background-color: var(--mantine-color-pink-1);
+}
+
 .brandPanel {
     position: relative;
     overflow: hidden;
