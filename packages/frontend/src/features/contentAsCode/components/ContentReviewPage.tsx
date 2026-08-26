@@ -107,14 +107,7 @@ const SectionLabel: FC<{ label: string; count?: number }> = ({
     label,
     count,
 }) => (
-    <Text
-        size="xs"
-        fw={500}
-        tt="uppercase"
-        c="dimmed"
-        px={10}
-        style={{ letterSpacing: '0.06em' }}
-    >
+    <Text size="xs" c="dimmed" px={8}>
         {label}
         {count !== undefined ? ` · ${count}` : ''}
     </Text>
@@ -214,10 +207,10 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
     }
 
     return (
-        <Group align="flex-start" gap="xl" wrap="nowrap">
-            <Stack w={300} gap="sm" style={{ flexShrink: 0 }}>
+        <Group align="flex-start" gap="md" wrap="nowrap">
+            <Stack w={280} gap="sm" style={{ flexShrink: 0 }}>
                 <ScrollArea.Autosize mah="72vh">
-                    <Stack gap="lg">
+                    <Stack gap="md">
                         {openDrafts.length > 0 && (
                             <Stack gap={4}>
                                 <SectionLabel
@@ -257,7 +250,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
 
             <Divider orientation="vertical" />
 
-            <Stack style={{ flex: 1, minWidth: 0 }} gap="md">
+            <Stack style={{ flex: 1, minWidth: 0 }} gap="xs">
                 {active && review ? (
                     <>
                         <Group
@@ -392,7 +385,10 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                 radius="md"
                                 style={{ overflow: 'hidden' }}
                             >
-                                <Virtualizer style={viewportStyle}>
+                                <Virtualizer
+                                    key={active.uuid}
+                                    style={viewportStyle}
+                                >
                                     <MultiFileDiff
                                         oldFile={{
                                             name: `lightdash/dashboards/${active.slug}.yml`,

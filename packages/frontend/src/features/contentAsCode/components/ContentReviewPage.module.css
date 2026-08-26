@@ -1,6 +1,6 @@
 .row {
     width: 100%;
-    padding: 8px 10px;
+    padding: 6px 8px;
     border-radius: var(--mantine-radius-md);
     transition:
         background-color 100ms ease,
