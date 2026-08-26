@@ -22,11 +22,21 @@ type CanonicalJsonValue =
     | { [key: string]: CanonicalJsonValue };
 
 // updatedAt/downloadedAt are transport metadata and verification is runtime
-// instance state; the snapshot records only the declarative document.
+// instance state; the snapshot records only the declarative document. The
+// remaining keys are upload options and CLI bookkeeping that ride the same
+// POST body as the document — the controller strips them, but hashing must
+// stay correct for any direct API caller too, or fast_forward/in_sync
+// verdicts become unreachable and every upload reads as drifted.
 const STRIPPED_KEYS: ReadonlySet<string> = new Set([
     'updatedAt',
     'downloadedAt',
     'verification',
+    'needsUpdating',
+    'skipSpaceCreate',
+    'publicSpaceCreate',
+    'force',
+    'spaceNames',
+    'syncEnabled',
 ]);
 
 // Deep-sorts keys, drops undefined values, and serialises dates so that

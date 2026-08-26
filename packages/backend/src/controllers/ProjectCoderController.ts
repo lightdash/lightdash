@@ -562,18 +562,28 @@ export class ProjectCoderController extends BaseController {
     ): Promise<ApiChartAsCodeUpsertResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
+        // Options must not travel inside the document: the drift gate hashes
+        // it against the instance's canonical form.
+        const {
+            skipSpaceCreate,
+            publicSpaceCreate,
+            force,
+            spaceNames,
+            syncEnabled,
+            ...chartDoc
+        } = chart;
         return codeSuccess(
             await this.services.getCoderService().upsertChart(
                 toSessionUser(req.account),
                 projectUuid,
                 slug,
-                { ...chart, description: chart.description ?? undefined },
+                { ...chartDoc, description: chart.description ?? undefined },
                 {
-                    skipSpaceCreate: chart.skipSpaceCreate,
-                    publicSpaceCreate: chart.publicSpaceCreate,
-                    force: chart.force,
-                    spaceNames: chart.spaceNames,
-                    syncEnabled: chart.syncEnabled,
+                    skipSpaceCreate,
+                    publicSpaceCreate,
+                    force,
+                    spaceNames,
+                    syncEnabled,
                 },
             ),
         );
@@ -646,21 +656,31 @@ export class ProjectCoderController extends BaseController {
     ): Promise<ApiDashboardAsCodeUpsertResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
+        // Options must not travel inside the document: the drift gate hashes
+        // it against the instance's canonical form.
+        const {
+            skipSpaceCreate,
+            publicSpaceCreate,
+            force,
+            spaceNames,
+            syncEnabled,
+            ...dashboardDoc
+        } = dashboard;
         return codeSuccess(
             await this.services.getCoderService().upsertDashboard(
                 toSessionUser(req.account),
                 projectUuid,
                 slug,
                 {
-                    ...dashboard,
+                    ...dashboardDoc,
                     description: dashboard.description ?? undefined,
                 },
                 {
-                    skipSpaceCreate: dashboard.skipSpaceCreate,
-                    publicSpaceCreate: dashboard.publicSpaceCreate,
-                    force: dashboard.force,
-                    spaceNames: dashboard.spaceNames,
-                    syncEnabled: dashboard.syncEnabled,
+                    skipSpaceCreate,
+                    publicSpaceCreate,
+                    force,
+                    spaceNames,
+                    syncEnabled,
                 },
             ),
         );

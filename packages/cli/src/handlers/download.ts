@@ -3058,6 +3058,8 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
             ? `/api/v1/projects/${projectId}/code/sqlCharts/${item.slug}`
             : `/api/v1/projects/${projectId}/code/${type}/${item.slug}`;
 
+        // needsUpdating is local CLI bookkeeping, not part of the document
+        const { needsUpdating, ...itemDoc } = item;
         const upsertData = await lightdashApi<
             ApiChartAsCodeUpsertResponse['results'] &
                 Pick<DashboardAsCodeUpsertResult, 'warnings'>
@@ -3065,7 +3067,7 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
             method: 'POST',
             url: endpoint,
             body: JSON.stringify({
-                ...item,
+                ...itemDoc,
                 skipSpaceCreate,
                 publicSpaceCreate,
                 force,
@@ -3662,11 +3664,30 @@ export const uploadHandler = async (
 
     // content_as_code.sync in lightdash.config.yml opts this repo into
     // instance-ahead protection; the flag travels with the repo like force.
-    const projectConfig = await readAndLoadLightdashProjectConfig(
-        process.cwd(),
-        projectId,
-    );
-    const syncEnabled = projectConfig.content_as_code?.sync === true;
+    // No file here (e.g. running from outside the repo root) means the
+    // opt-in state is unknown, not an opt-out: send nothing so the server
+    // decides from the project's stamped settings.
+    let syncEnabled: boolean | undefined;
+    const configExists = await fs
+        .access(path.join(process.cwd(), 'lightdash.config.yml'))
+        .then(() => true)
+        .catch(() => false);
+    if (configExists) {
+        try {
+            const projectConfig = await readAndLoadLightdashProjectConfig(
+                process.cwd(),
+                projectId,
+            );
+            syncEnabled = projectConfig.content_as_code?.sync === true;
+        } catch (error) {
+            throw new LightdashError({
+                message: `Upload aborted: lightdash.config.yml exists but could not be read, so the repo's content_as_code.sync opt-in cannot be honoured. Fix the config and retry. ${getErrorMessage(error)}`,
+                name: 'ParseError',
+                statusCode: 400,
+                data: {},
+            });
+        }
+    }
 
     let changes: Record<string, number> = {};
     const counts: ProjectContentAsCodeCounts = {};

@@ -76,6 +76,20 @@ describe('buildContentAsCodeSnapshot', () => {
         );
     });
 
+    it('hashes identically when upload options ride the same body', () => {
+        const base = buildContentAsCodeSnapshot(chartAsCode());
+        const polluted = buildContentAsCodeSnapshot({
+            ...chartAsCode(),
+            needsUpdating: true,
+            skipSpaceCreate: false,
+            publicSpaceCreate: true,
+            force: true,
+            spaceNames: { finance: 'Finance' },
+            syncEnabled: true,
+        } as unknown as ChartAsCode);
+        expect(polluted.snapshotHash).toEqual(base.snapshotHash);
+    });
+
     it('hashes identically for different timestamps', () => {
         const first = buildContentAsCodeSnapshot(
             chartAsCode({ updatedAt: new Date('2026-01-01T00:00:00Z') }),

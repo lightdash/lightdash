@@ -3338,27 +3338,8 @@ export class CoderService extends BaseService {
             });
         }
 
-        const { space } = await this.getOrCreateSpace(
-            projectUuid,
-            chartWithDefaults.spaceSlug,
-            user,
-            skipSpaceCreate,
-            undefined,
-            spaceNames,
-            allowSpaceCreate,
-        );
-        if (!canUploadAnyContent && space.uuid !== targetSpace?.uuid) {
-            await this.assertSpaceContentAccess({
-                userUuid: user.userUuid,
-                auditedAbility,
-                action: 'update',
-                subjectType: 'SavedChart',
-                spaceUuids: [space.uuid],
-                metadata: { savedChartUuid: chart.uuid },
-                errorMessage: `You don't have access to update chart "${slug}"`,
-            });
-        }
-
+        // Gate before getOrCreateSpace: a skipped upload must not create a
+        // space as a side effect (mirrors the dashboard path's ordering)
         const driftGate =
             mode === 'upsert' && options.syncEnabled
                 ? await this.runDriftGate({
@@ -3378,6 +3359,27 @@ export class CoderService extends BaseService {
                 dashboards: [],
                 skips: [driftGate.skip],
             };
+        }
+
+        const { space } = await this.getOrCreateSpace(
+            projectUuid,
+            chartWithDefaults.spaceSlug,
+            user,
+            skipSpaceCreate,
+            undefined,
+            spaceNames,
+            allowSpaceCreate,
+        );
+        if (!canUploadAnyContent && space.uuid !== targetSpace?.uuid) {
+            await this.assertSpaceContentAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                action: 'update',
+                subjectType: 'SavedChart',
+                spaceUuids: [space.uuid],
+                metadata: { savedChartUuid: chart.uuid },
+                errorMessage: `You don't have access to update chart "${slug}"`,
+            });
         }
 
         const { promotedChart, upstreamChart } =
