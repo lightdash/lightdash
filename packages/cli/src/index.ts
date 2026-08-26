@@ -1239,7 +1239,7 @@ appsProgram
 appsProgram
     .command('validate [paths...]')
     .description(
-        'Validate data app source, manifests, dependencies, and semantic-layer references locally.',
+        'Validate data app and custom chart type source, manifests, dependencies, and semantic-layer references locally.',
     )
     .option(
         '--live',

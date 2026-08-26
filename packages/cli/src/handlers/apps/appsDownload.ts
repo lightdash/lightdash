@@ -122,9 +122,10 @@ export const resolveUploadFilterUuids = (
  */
 export const unmatchedUploadRefsWarning = (
     unmatched: string[],
+    noun: string = 'app',
 ): string | null => {
     if (unmatched.length === 0) return null;
-    const base = `No local app folder matched: ${unmatched.join(', ')}.`;
+    const base = `No local ${noun} folder matched: ${unmatched.join(', ')}.`;
     return unmatched.some((ref) => isUuid(ref))
         ? `${base} Bundles downloaded with slug identity carry no uuid — select them by slug (the folder name) instead of a UUID or app URL.`
         : base;
