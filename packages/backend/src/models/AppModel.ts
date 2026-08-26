@@ -1561,6 +1561,10 @@ export class AppModel {
                         filters.dateTo,
                     );
                 }
+                AppModel.applyDataAppVizsFilter(
+                    queryBuilder,
+                    filters?.dataAppVizsFilter,
+                );
             })
             .select<DbAppActivityRow[]>(
                 `${AppVersionsTableName}.app_id`,
@@ -1572,6 +1576,7 @@ export class AppModel {
                 `${AppVersionsTableName}.created_at`,
                 `${AppVersionsTableName}.created_by_user_uuid`,
                 `${AppsTableName}.name as app_name`,
+                `${AppsTableName}.template as app_template`,
                 `${AppsTableName}.deleted_at as app_deleted_at`,
                 `${AppsTableName}.project_uuid`,
                 `${ProjectTableName}.name as project_name`,

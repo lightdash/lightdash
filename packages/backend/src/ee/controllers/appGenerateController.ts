@@ -1110,6 +1110,7 @@ export class OrgAppsController extends BaseController {
         @Query() models?: DataAppActivityFilters['models'],
         @Query() dateFrom?: DataAppActivityFilters['dateFrom'],
         @Query() dateTo?: DataAppActivityFilters['dateTo'],
+        @Query() dataAppVizsFilter?: 'exclude' | 'only',
     ): Promise<ApiDataAppActivityResponse> {
         assertRegisteredAccount(req.account);
         validateUuidFilter('projectUuids', projectUuids);
@@ -1129,6 +1130,7 @@ export class OrgAppsController extends BaseController {
             ...(models && { models }),
             ...(dateFrom && { dateFrom }),
             ...(dateTo && { dateTo }),
+            ...(dataAppVizsFilter && { dataAppVizsFilter }),
         };
         const results = await this.services
             .getAppGenerateService<AppGenerateService>()

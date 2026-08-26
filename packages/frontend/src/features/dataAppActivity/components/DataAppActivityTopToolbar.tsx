@@ -25,7 +25,9 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjects } from '../../../hooks/useProjects';
 import {
+    DATA_APP_ACTIVITY_KINDS,
     DATA_APP_ACTIVITY_PERIODS,
+    type DataAppActivityKind,
     type useDataAppActivityFilters,
 } from '../hooks/useDataAppActivityFilters';
 
@@ -39,16 +41,24 @@ const PERIOD_LABELS: Record<
     '90d': '90 days',
 };
 
+const KIND_LABELS: Record<DataAppActivityKind, string> = {
+    all: 'All builds',
+    apps: 'Apps',
+    chartTypes: 'Chart types',
+};
+
 type DataAppActivityTopToolbarProps = Pick<
     ReturnType<typeof useDataAppActivityFilters>,
     | 'selectedProjectUuids'
     | 'selectedUserUuids'
     | 'selectedModels'
     | 'selectedPeriod'
+    | 'selectedKind'
     | 'setSelectedProjectUuids'
     | 'setSelectedUserUuids'
     | 'setSelectedModels'
     | 'setSelectedPeriod'
+    | 'setSelectedKind'
     | 'hasActiveFilters'
     | 'resetFilters'
 > & {
@@ -63,10 +73,12 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
     selectedUserUuids,
     selectedModels,
     selectedPeriod,
+    selectedKind,
     setSelectedProjectUuids,
     setSelectedUserUuids,
     setSelectedModels,
     setSelectedPeriod,
+    setSelectedKind,
     hasActiveFilters,
     resetFilters,
     totalResults,
@@ -178,6 +190,24 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                         data={DATA_APP_ACTIVITY_PERIODS.map((period) => ({
                             label: PERIOD_LABELS[period],
                             value: period,
+                        }))}
+                    />
+                    <Divider
+                        orientation="vertical"
+                        w={1}
+                        h={20}
+                        style={{ alignSelf: 'center' }}
+                    />
+                    <SegmentedControl
+                        size="xs"
+                        radius="md"
+                        value={selectedKind}
+                        onChange={(value) =>
+                            setSelectedKind(value as DataAppActivityKind)
+                        }
+                        data={DATA_APP_ACTIVITY_KINDS.map((kind) => ({
+                            label: KIND_LABELS[kind],
+                            value: kind,
                         }))}
                     />
                     {hasActiveFilters && (

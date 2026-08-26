@@ -733,6 +733,10 @@ export type DataAppActivityEvent = {
     // Activity outlives the app: a deleted app's generations still show, so the
     // log stays a complete record of what the org spent effort on.
     appDeleted: boolean;
+    // 'data_app_viz' marks a custom chart type build rather than a data app,
+    // so admins can tell the two products' spend apart. Null for "Custom" or
+    // pre-template apps.
+    template: Exclude<DataAppTemplate, 'custom'> | null;
     // Version 1 created the app; every later version iterated on it.
     version: number;
     status: AppVersionStatus;
@@ -766,6 +770,9 @@ export type DataAppActivityFilters = {
     // ISO-8601, inclusive.
     dateFrom?: string;
     dateTo?: string;
+    // 'exclude' = data app builds only, 'only' = custom chart type builds
+    // only. Omitted = both.
+    dataAppVizsFilter?: DataAppVizsFilter;
 };
 
 export type ApiDataAppActivityResponse = ApiSuccess<{
