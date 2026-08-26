@@ -1,5 +1,5 @@
 import { MantineProvider } from '@mantine/core';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mirrors the real hook's failSilently contract: TrackingContextType | undefined.
@@ -139,6 +139,7 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
     }),
 }));
 
+import { SCREENSHOT_READY_FALLBACK_MS } from './constants';
 import DataAppVizRenderer from './index';
 
 function apiError(statusCode: number) {
@@ -153,10 +154,10 @@ function apiError(statusCode: number) {
     };
 }
 
-const renderRenderer = () =>
+const renderRenderer = (props?: Parameters<typeof DataAppVizRenderer>[0]) =>
     render(
         <MantineProvider env="test">
-            <DataAppVizRenderer />
+            <DataAppVizRenderer {...props} />
         </MantineProvider>,
     );
 
@@ -384,6 +385,180 @@ describe('DataAppVizRenderer', () => {
                 savedChartUuid: 'saved-chart-uuid',
             },
         );
+    });
+});
+
+describe('DataAppVizRenderer screenshot-ready contract', () => {
+    const lastIframeProps = () =>
+        (
+            mocks.iframePreview.mock.calls.at(-1) as unknown[] | undefined
+        )?.[0] as {
+            onScreenshotAvailabilityChange?: (available: boolean) => void;
+        };
+
+    const announceScreenshotAvailable = () => {
+        act(() => {
+            lastIframeProps().onScreenshotAvailabilityChange?.(true);
+        });
+    };
+
+    beforeEach(() => {
+        mocks.metadata.current = readyMetadata();
+        mocks.metadataError.current = undefined;
+        mocks.token.current = 'preview-token';
+        mocks.tokenError.current = undefined;
+        mocks.embedToken.current = undefined;
+        mocks.dataAppVizUuid.current = 'viz-uuid';
+        mocks.iframePreview.mockClear();
+        mocks.canViewUnderlyingData.current = true;
+        mocks.explore.current = undefined;
+        mocks.vizContextOverrides.current = {};
+        mocks.trackingContext.current = { track: mocks.track };
+    });
+
+    it('does not signal ready on mount, and signals once the iframe announces with context delivered', () => {
+        const onScreenshotReady = vi.fn();
+
+        renderRenderer({ onScreenshotReady });
+
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+
+        announceScreenshotAvailable();
+
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not signal on announce while the viz context is missing, then signals once it arrives', () => {
+        const onScreenshotReady = vi.fn();
+        mocks.vizContextOverrides.current = {
+            resultsData: { rows: undefined, setFetchAll: mocks.setFetchAll },
+        };
+
+        const view = renderRenderer({ onScreenshotReady });
+        announceScreenshotAvailable();
+
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+
+        mocks.vizContextOverrides.current = {};
+        view.rerender(
+            <MantineProvider env="test">
+                <DataAppVizRenderer onScreenshotReady={onScreenshotReady} />
+            </MantineProvider>,
+        );
+
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+    });
+
+    it('signals after the fallback timeout when the sandbox never announces', () => {
+        vi.useFakeTimers();
+        try {
+            const onScreenshotReady = vi.fn();
+
+            renderRenderer({ onScreenshotReady });
+
+            act(() => {
+                vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS - 1);
+            });
+            expect(onScreenshotReady).not.toHaveBeenCalled();
+
+            act(() => {
+                vi.advanceTimersByTime(1);
+            });
+            expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+
+            // A late announce must not fire the callback a second time.
+            announceScreenshotAvailable();
+            expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('re-renders with a new callback identity do not reset the fallback timeout', () => {
+        vi.useFakeTimers();
+        try {
+            const first = vi.fn();
+            const view = renderRenderer({ onScreenshotReady: first });
+
+            act(() => {
+                vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS - 1000);
+            });
+            const second = vi.fn();
+            view.rerender(
+                <MantineProvider env="test">
+                    <DataAppVizRenderer onScreenshotReady={second} />
+                </MantineProvider>,
+            );
+            act(() => {
+                vi.advanceTimersByTime(1000);
+            });
+
+            expect(second).toHaveBeenCalledTimes(1);
+            expect(first).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    // Terminal placeholders never mount the iframe — waiting on the announce
+    // or the fallback would stall delivery for an already-final frame.
+    it.each([
+        [
+            'no viz selected',
+            () => {
+                mocks.dataAppVizUuid.current = null;
+            },
+        ],
+        [
+            'metadata failed state',
+            () => {
+                mocks.metadata.current = {
+                    state: 'failed',
+                    latestBuildInProgress: false,
+                };
+            },
+        ],
+        [
+            'metadata building state',
+            () => {
+                mocks.metadata.current = {
+                    state: 'building',
+                    latestBuildInProgress: true,
+                };
+            },
+        ],
+        [
+            'metadata unavailable state',
+            () => {
+                mocks.metadata.current = {
+                    state: 'unavailable',
+                    latestBuildInProgress: false,
+                };
+            },
+        ],
+        [
+            'terminal 403 on metadata',
+            () => {
+                mocks.metadata.current = undefined;
+                mocks.metadataError.current = apiError(403);
+            },
+        ],
+    ])('%s: signals ready for the placeholder frame', (_label, arrange) => {
+        const onScreenshotReady = vi.fn();
+        arrange();
+
+        renderRenderer({ onScreenshotReady });
+
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not treat a pending metadata fetch as a terminal placeholder', () => {
+        const onScreenshotReady = vi.fn();
+        mocks.metadata.current = undefined;
+
+        renderRenderer({ onScreenshotReady });
+
+        expect(onScreenshotReady).not.toHaveBeenCalled();
     });
 });
 
