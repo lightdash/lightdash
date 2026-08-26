@@ -195,6 +195,10 @@ type UpsertContentAsCodeOptions = {
     force?: boolean;
     spaceNames?: Record<string, string>;
     mode?: 'upsert' | 'create';
+    // Mirrors content_as_code.sync from the caller's lightdash.config.yml.
+    // Gates snapshot recording: a project that never opts into sync has no
+    // use for a last-applied baseline.
+    syncEnabled?: boolean;
 };
 
 export class CoderService extends BaseService {
@@ -2779,11 +2783,15 @@ export class CoderService extends BaseService {
 
     // Snapshot stamping is bookkeeping for drift detection; it must never
     // fail an upload, so each stamp method swallows and logs its errors.
+    // Recording only happens for repos that opted into content_as_code.sync
+    // - there is nothing to detect drift against otherwise.
     private async stampAppliedChartSnapshot(
         user: SessionUser,
         projectUuid: string,
         chartUuid: string,
+        syncEnabled: boolean,
     ): Promise<void> {
+        if (!syncEnabled) return;
         try {
             const chart = await this.savedChartModel.get(chartUuid);
             const spaces = await this.spaceModel.find({
@@ -2822,7 +2830,9 @@ export class CoderService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         dashboardUuid: string,
+        syncEnabled: boolean,
     ): Promise<void> {
+        if (!syncEnabled) return;
         try {
             const dashboard =
                 await this.dashboardModel.getByIdOrSlug(dashboardUuid);
@@ -2856,7 +2866,9 @@ export class CoderService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         slug: string,
+        syncEnabled: boolean,
     ): Promise<void> {
+        if (!syncEnabled) return;
         try {
             const [row] = await this.savedSqlModel.find({
                 projectUuid,
@@ -3105,6 +3117,7 @@ export class CoderService extends BaseService {
                     user,
                     projectUuid,
                     newChart.uuid,
+                    options.syncEnabled ?? false,
                 );
             }
 
@@ -3258,7 +3271,12 @@ export class CoderService extends BaseService {
         });
 
         if (mode === 'upsert') {
-            await this.stampAppliedChartSnapshot(user, projectUuid, chart.uuid);
+            await this.stampAppliedChartSnapshot(
+                user,
+                projectUuid,
+                chart.uuid,
+                options.syncEnabled ?? false,
+            );
         }
 
         console.info(
@@ -3461,10 +3479,14 @@ export class CoderService extends BaseService {
                 `Finished creating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
             );
 
+            // SQL charts don't support content_as_code.sync drift detection
+            // yet (positional-args upsert needs an options refactor first),
+            // so there is no baseline to gate recording on here.
             await this.stampAppliedSqlChartSnapshot(
                 user,
                 projectUuid,
                 sqlChartAsCode.slug,
+                false,
             );
 
             // Note: We use a minimal object for the promotion changes since SQL charts
@@ -3515,7 +3537,8 @@ export class CoderService extends BaseService {
             `Finished updating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
         );
 
-        await this.stampAppliedSqlChartSnapshot(user, projectUuid, slug);
+        // See the create-path comment above: no sync support for SQL charts yet.
+        await this.stampAppliedSqlChartSnapshot(user, projectUuid, slug, false);
 
         const promotionChanges: PromotionChanges = {
             charts: [
@@ -4109,6 +4132,7 @@ export class CoderService extends BaseService {
                     user,
                     projectUuid,
                     newDashboard.uuid,
+                    options.syncEnabled ?? false,
                 );
             }
 
@@ -4271,6 +4295,7 @@ export class CoderService extends BaseService {
                 user,
                 projectUuid,
                 dashboard.uuid,
+                options.syncEnabled ?? false,
             );
         }
 
