@@ -146,13 +146,14 @@ runcmd:
       fnm default 24.18
     '
 
-  # -- Install pnpm 11.17.0 ---------------------------------------------------
+  # -- Install pnpm 11.20.0 ---------------------------------------------------
   - |
     su - lightdash -c '
       export PATH="/home/lightdash/.local/share/fnm:$PATH"
       eval "$(fnm env --shell bash)"
-      corepack enable
-      corepack prepare pnpm@11.17.0 --activate
+      export PNPM_HOME="/home/lightdash/.local/share/pnpm"
+      export PATH="$PNPM_HOME/bin:$PATH"
+      curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=11.20.0 sh -
     '
 
   # -- Install PM2 globally ----------------------------------------------------
@@ -207,14 +208,14 @@ runcmd:
 
     # .profile.d/agent-harness.sh
     cat > /home/lightdash/.profile.d/agent-harness.sh << 'PROFILE'
-    # fnm (Fast Node Manager) - must be first to get node/npm/pnpm
+    # fnm (Fast Node Manager) - must be first to get node/npm
     export PATH="/home/lightdash/.local/share/fnm:$PATH"
     if command -v fnm &> /dev/null; then
       eval "$(fnm env --shell bash)"
     fi
     # pnpm
     export PNPM_HOME="/home/lightdash/.local/share/pnpm"
-    export PATH="$PNPM_HOME:$PATH"
+    export PATH="$PNPM_HOME/bin:$PATH"
     # dbt venvs
     if [ -d /opt/lightdash/.venvs/bin ]; then
       export PATH="/opt/lightdash/.venvs/bin:$PATH"

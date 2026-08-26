@@ -5,6 +5,8 @@
 FROM duckdb/duckdb:1.5.2@sha256:5658472bf45cce867048a17201b9d38d4632507e7df4a69994f8236599f69d45 AS duckdb-extensions
 RUN ["/duckdb", "-c", "INSTALL httpfs; INSTALL aws;"]
 
+FROM ghcr.io/pnpm/pnpm:11.20.0@sha256:d77573aba1649491010d3d252214be47197c0706417793cf393ac47cc324f315 AS pnpm-cli
+
 # Optimized Multi-Stage Build for PR Previews
 # Uses parallel build stages and cache mounts for maximum caching
 # Okteto uses a cluster of buildkit instances to persist caches across PRs
@@ -17,10 +19,9 @@ RUN ["/duckdb", "-c", "INSTALL httpfs; INSTALL aws;"]
 FROM node:24-bookworm-slim AS pnpm-base
 
 ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN npm i -g corepack@latest
-RUN corepack enable
-RUN corepack prepare pnpm@11.17.0 --activate
+ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
+COPY --from=pnpm-cli /opt/pnpm /opt/pnpm
+COPY --from=pnpm-cli /pnpm /pnpm
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app

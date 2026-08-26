@@ -80,25 +80,35 @@ git checkout main
 git pull upstream main
 ```
 
-4. Install the dependencies with pnpm (npm/yarn isn't supported):
+4. Install pnpm directly using one of the [official installation methods](https://pnpm.io/installation). Do not use
+   Corepack. For example, on supported POSIX systems:
+
+```sh
+curl -fsSL https://get.pnpm.io/install.sh | sh -
+```
+
+When run inside this repository, pnpm reads the root `packageManager` field and switches to the exact version pinned
+there.
+
+5. Install the dependencies with pnpm (npm/yarn isn't supported):
 
 ```sh
 pnpm install
 ```
 
-5. Create a new topic branch:
+6. Create a new topic branch:
 
 ```sh
 git checkout -b my-topic-branch
 ```
 
-6. Make changes, commit and push to your fork:
+7. Make changes, commit and push to your fork:
 
 ```sh
 git push -u origin HEAD
 ```
 
-7. Go to [the repository](https://github.com/lightdash/lightdash/pulls) and make a Pull Request.
+8. Go to [the repository](https://github.com/lightdash/lightdash/pulls) and make a Pull Request.
 
 The core team is monitoring for Pull Requests. We will review your Pull Request and either merge it, request changes to
 it, or close it with an explanation.

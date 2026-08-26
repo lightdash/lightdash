@@ -5,18 +5,17 @@
 FROM duckdb/duckdb:1.5.2@sha256:5658472bf45cce867048a17201b9d38d4632507e7df4a69994f8236599f69d45 AS duckdb-extensions
 RUN ["/duckdb", "-c", "INSTALL httpfs; INSTALL aws;"]
 
+FROM ghcr.io/pnpm/pnpm:11.20.0@sha256:d77573aba1649491010d3d252214be47197c0706417793cf393ac47cc324f315 AS pnpm-cli
+
 # -----------------------------
 # Stage 0: pnpm setup base
 # -----------------------------
 FROM node:24-bookworm-slim AS pnpm-base
 
 ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-# Fixed world-readable path so the pnpm cache resolves under any runtime UID (non-root securityContexts)
-ENV COREPACK_HOME="/usr/local/corepack"
-RUN npm i -g corepack@latest
-RUN corepack enable
-RUN corepack prepare pnpm@11.20.0 --activate && chmod -R a+rX "$COREPACK_HOME"
+ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
+COPY --from=pnpm-cli /opt/pnpm /opt/pnpm
+COPY --from=pnpm-cli /pnpm /pnpm
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
@@ -394,8 +393,7 @@ FROM pnpm-base AS runtime-base
 
 ENV NODE_ENV production
 ENV PLAYGROUND_DATA_DIR=/usr/app/packages/backend/assets/playground
-# Boot must work fully offline: pnpm is baked in, never fetch it from npmjs at runtime
-ENV COREPACK_ENABLE_NETWORK=0
+# Boot works fully offline because the standalone pnpm binary is baked in.
 
 WORKDIR /usr/app
 

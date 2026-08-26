@@ -171,7 +171,7 @@ pnpm -F backend rollback-last
 
 ## Development Workflow
 
-1. **Package Management**: Use `pnpm` (v11.17.0+, pinned via `packageManager` in the root `package.json` — let Corepack pick it up) - never use npm or yarn
+1. **Package Management**: Use `pnpm` (pinned via `packageManager` in the root `package.json`, which pnpm reads directly). Install pnpm directly; do not use Corepack, npm, or yarn for workspace commands.
 2. **Database**: Uses Knex.js for migrations and query building
 3. **API**: TSOA generates OpenAPI specs from TypeScript controllers
 4. **Authentication**: CASL-based authorization with multiple auth providers
