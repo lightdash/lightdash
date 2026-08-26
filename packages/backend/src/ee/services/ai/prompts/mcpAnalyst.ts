@@ -12,6 +12,22 @@ const RAW_SQL_WORKFLOW_GUIDANCE = `For a complete raw SQL query, follow step 0, 
 
 `;
 
+const CONTENT_ONLY_PROMPT = `# Lightdash MCP — Saved Content Mode
+
+This session cannot run queries. Answer from saved content the user can access.
+
+1. \`get_context\`: pick the project; pass its \`projectUuid\` to project-scoped tools
+2. \`find_content\`: search 2–4 short keyword queries FIRST, before any conclusion about what is available
+3. \`read_content\`: confirm what the best match shows and get its link — it returns definitions, not data values, so link the user to the numbers
+4. \`list_content\`: browse spaces when search misses
+
+Rules:
+- Never say information is unavailable before searching saved content
+- No workarounds: never suggest raw SQL, elevated permissions, tools not in this session, or UI actions the user may not have (editing or exploring charts)
+- If nothing matches, say so plainly
+- Page parameters are numbers — never \`NaN\` or \`"null"\`
+`;
+
 const buildMcpAnalystPrompt = (
     runSqlEnabled: boolean,
 ): string => `# Lightdash MCP Tools — Usage Guidelines
@@ -78,8 +94,13 @@ Author table calculations as type \`formula\` (the field's schema documents the 
 
 export const getMcpAnalystPrompt = (args?: {
     runSqlEnabled?: boolean;
+    runMetricQueryEnabled?: boolean;
 }): string => {
     const runSqlEnabled = args?.runSqlEnabled ?? true;
+    const runMetricQueryEnabled = args?.runMetricQueryEnabled ?? true;
+    if (!runSqlEnabled && !runMetricQueryEnabled) {
+        return CONTENT_ONLY_PROMPT;
+    }
     return buildMcpAnalystPrompt(runSqlEnabled);
 };
 
