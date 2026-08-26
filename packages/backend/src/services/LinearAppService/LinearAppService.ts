@@ -5,7 +5,6 @@ import {
     getErrorMessage,
     isUserWithOrg,
     MissingConfigError,
-    NotFoundError,
     ParameterError,
     SessionUser,
     type LinearCreatedIssue,
@@ -229,17 +228,17 @@ export class LinearAppService extends BaseService {
 
     async getTeams(user: SessionUser): Promise<LinearTeam[]> {
         this.canManageOrg(user);
-        const token = await this.getValidToken(user.organizationUuid!);
-        return getLinearTeams(token);
+        return this.withValidToken(user.organizationUuid!, getLinearTeams);
     }
 
     async getProjects(
         user: SessionUser,
-        teamId?: string,
+        teamId: string,
     ): Promise<LinearProject[]> {
         this.canManageOrg(user);
-        const token = await this.getValidToken(user.organizationUuid!);
-        return getLinearProjects(token, teamId);
+        return this.withValidToken(user.organizationUuid!, (token) =>
+            getLinearProjects(token, teamId),
+        );
     }
 
     /**
@@ -255,43 +254,44 @@ export class LinearAppService extends BaseService {
             projectId: string | null;
         },
     ): Promise<LinearCreatedIssue> {
-        const installation =
-            await this.linearAppInstallationsModel.findInstallation(
-                organizationUuid,
-            );
-        if (!installation) {
-            throw new NotFoundError('Linear installation not found');
-        }
-
-        const token = await this.getValidToken(organizationUuid);
-        return createLinearIssue(token, input);
+        return this.withValidToken(organizationUuid, (token) =>
+            createLinearIssue(token, input),
+        );
     }
 
-    private async getValidToken(organizationUuid: string): Promise<string> {
-        const { clientId, clientSecret } = this.getOAuthCredentials();
+    /**
+     * Linear access tokens are long lived, so spend the stored one directly and
+     * refresh only once Linear rejects it. Probing the token before every call
+     * would double the request count against a rate-limited API.
+     */
+    private async withValidToken<T>(
+        organizationUuid: string,
+        run: (token: string) => Promise<T>,
+    ): Promise<T> {
         const auth = await this.linearAppInstallationsModel.getAuth(
             organizationUuid,
         );
 
         try {
-            await getLinearOrganization(auth.token);
-            return auth.token;
+            return await run(auth.token);
         } catch (error) {
-            if (!(error instanceof ForbiddenError) || !auth.refreshToken) {
+            if (!(error instanceof ForbiddenError) || auth.refreshToken === null) {
                 throw error;
             }
-        }
 
-        const refreshed = await refreshLinearToken(
-            auth.refreshToken,
-            clientId,
-            clientSecret,
-        );
-        await this.linearAppInstallationsModel.updateAuth(
-            organizationUuid,
-            refreshed.token,
-            refreshed.refreshToken,
-        );
-        return refreshed.token;
+            const { clientId, clientSecret } = this.getOAuthCredentials();
+            const refreshed = await refreshLinearToken(
+                auth.refreshToken,
+                clientId,
+                clientSecret,
+            );
+            await this.linearAppInstallationsModel.updateAuth(
+                organizationUuid,
+                refreshed.token,
+                refreshed.refreshToken,
+            );
+
+            return run(refreshed.token);
+        }
     }
 }

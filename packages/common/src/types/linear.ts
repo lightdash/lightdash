@@ -15,7 +15,6 @@ export type LinearTeam = {
 export type LinearProject = {
     id: string;
     name: string;
-    teamIds: string[];
 };
 
 export type LinearCreatedIssue = {

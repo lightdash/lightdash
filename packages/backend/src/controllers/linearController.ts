@@ -163,7 +163,7 @@ export class LinearController extends BaseController {
     }
 
     /**
-     * List Linear projects accessible via the integration
+     * List the Linear projects belonging to a team
      * @summary List Linear projects
      */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
@@ -172,7 +172,7 @@ export class LinearController extends BaseController {
     @OperationId('getLinearProjects')
     async getLinearProjects(
         @Request() req: express.Request,
-        @Query() teamId?: string,
+        @Query() teamId: string,
     ): Promise<{
         status: 'ok';
         results: Array<LinearProject>;

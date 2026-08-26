@@ -9,7 +9,7 @@ import {
     Switch,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { Link } from 'react-router';
 import { SlackChannelSelect } from '../../../../../../components/common/SlackChannelSelect';
 import {
@@ -53,8 +53,8 @@ export const ReviewNotificationsSettings = () => {
         useUpdateReviewNotificationSettings();
     const { data: linearProjects, isInitialLoading: isLinearProjectsLoading } =
         useLinearProjects({
-            enabled: hasLinear && !!settings?.linearTeamId,
-            teamId: settings?.linearTeamId ?? undefined,
+            enabled: hasLinear,
+            teamId: settings?.linearTeamId ?? null,
         });
 
     if (!hasSlack && !hasLinearConfig) {
