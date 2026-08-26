@@ -1,3 +1,10 @@
+## [2.5.1](https://github.com/lightdash/lightdash/compare/2.5.0...2.5.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* **frontend:** show dashboard action for editors ([#28067](https://github.com/lightdash/lightdash/issues/28067)) ([5d94eaa](https://github.com/lightdash/lightdash/commit/5d94eaa951615876690c2de507fd3536a41eae81))
+
 # [2.5.0](https://github.com/lightdash/lightdash/compare/2.4.0...2.5.0) (2026-08-26)
 
 
