@@ -1,5 +1,6 @@
 import {
     type ContentType,
+    type DataAppVizsFilter,
     type DeletedContentItem,
     type DeletedContentWithDescendants,
     type KnexPaginatedData,
@@ -13,6 +14,7 @@ export type DeletedContentApiParams = {
     search?: string;
     contentTypes?: ContentType[];
     deletedByUserUuids?: string[];
+    dataAppVizsFilter?: DataAppVizsFilter;
 };
 
 type DeletedContentApiResponse = KnexPaginatedData<
@@ -50,6 +52,10 @@ export async function getDeletedContent(
         params.deletedByUserUuids.forEach((uuid) =>
             searchParams.append('deletedByUserUuids', uuid),
         );
+    }
+
+    if (params.dataAppVizsFilter) {
+        searchParams.set('dataAppVizsFilter', params.dataAppVizsFilter);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

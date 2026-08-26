@@ -235,6 +235,7 @@ export class ContentController extends BaseController {
         @Query() search?: string,
         @Query() contentTypes?: ContentType[],
         @Query() deletedByUserUuids?: string[],
+        @Query() dataAppVizsFilter?: 'exclude' | 'only',
     ): Promise<ApiDeletedContentResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -247,6 +248,7 @@ export class ContentController extends BaseController {
                     search,
                     contentTypes,
                     deletedByUserUuids,
+                    dataAppVizsFilter,
                 },
                 {
                     page: page || 1,

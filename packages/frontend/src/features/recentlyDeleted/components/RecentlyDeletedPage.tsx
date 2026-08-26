@@ -2,7 +2,9 @@ import {
     assertUnreachable,
     ChartSourceType,
     ContentType,
+    DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
+    type DataAppVizsFilter,
     type DeletedContentWithDescendants,
 } from '@lightdash/common';
 import {
@@ -23,6 +25,7 @@ import {
     IconClock,
     IconFolder,
     IconLayoutDashboard,
+    IconPuzzle,
     IconRefresh,
     IconSearch,
     IconTextCaption,
@@ -48,6 +51,10 @@ import {
     useRestoreDeletedContent,
 } from '../hooks/useDeletedContent';
 import { useDeletedContentFilters } from '../hooks/useDeletedContentFilters';
+import {
+    CHART_TYPES_FILTER_VALUE,
+    type DeletedContentTypeFilter,
+} from '../types';
 import { ContentTypeFilter } from './ContentTypeFilter';
 import { DeletedByFilter } from './DeletedByFilter';
 import DeletedContentActionMenu from './DeletedContentActionMenu';
@@ -132,13 +139,8 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
 
-    const [selectedContentType, setSelectedContentType] = useState<
-        | 'all'
-        | ContentType.CHART
-        | ContentType.DASHBOARD
-        | ContentType.SPACE
-        | ContentType.DATA_APP
-    >('all');
+    const [selectedContentType, setSelectedContentType] =
+        useState<DeletedContentTypeFilter>('all');
 
     const {
         search,
@@ -158,12 +160,28 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         300,
     );
 
-    // Convert selectedContentType to array format for API
+    // Convert selectedContentType to array format for API. Custom chart
+    // types share ContentType.DATA_APP; the dataAppVizsFilter splits them.
     const contentTypesFilter = useMemo(() => {
-        if (debouncedSearchAndFilters.selectedContentType === 'all') {
+        const selected = debouncedSearchAndFilters.selectedContentType;
+        if (selected === 'all') {
             return debouncedSearchAndFilters.apiFilters.contentTypes;
         }
-        return [debouncedSearchAndFilters.selectedContentType];
+        if (selected === CHART_TYPES_FILTER_VALUE) {
+            return [ContentType.DATA_APP];
+        }
+        return [selected];
+    }, [debouncedSearchAndFilters]);
+
+    const dataAppVizsFilter = useMemo<DataAppVizsFilter | undefined>(() => {
+        switch (debouncedSearchAndFilters.selectedContentType) {
+            case ContentType.DATA_APP:
+                return 'exclude';
+            case CHART_TYPES_FILTER_VALUE:
+                return 'only';
+            default:
+                return undefined;
+        }
     }, [debouncedSearchAndFilters]);
 
     const { data, fetchNextPage, isError, isFetching, isLoading, refetch } =
@@ -174,6 +192,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
             contentTypes: contentTypesFilter,
             deletedByUserUuids:
                 debouncedSearchAndFilters.apiFilters.deletedByUserUuids,
+            dataAppVizsFilter,
         });
 
     const flatData = useMemo<DeletedContentWithDescendants[]>(
@@ -247,7 +266,15 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                     />
                                 );
                             case ContentType.DATA_APP:
-                                return (
+                                // Custom chart types share the content type;
+                                // give them their own icon so rows read right.
+                                return row.original.template ===
+                                    DATA_APP_VIZ_TEMPLATE ? (
+                                    <IconBox
+                                        icon={IconPuzzle}
+                                        color="indigo.6"
+                                    />
+                                ) : (
                                     <IconBox
                                         icon={IconAppWindow}
                                         color="orange.6"
@@ -398,6 +425,9 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                         restoreContent({
                                             uuid: item.uuid,
                                             contentType: item.contentType,
+                                            isChartType:
+                                                item.template ===
+                                                DATA_APP_VIZ_TEMPLATE,
                                         });
                                         break;
                                     default:

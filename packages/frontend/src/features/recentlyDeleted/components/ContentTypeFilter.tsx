@@ -5,18 +5,16 @@ import {
     IconChartBar,
     IconFolder,
     IconLayoutDashboard,
+    IconPuzzle,
 } from '@tabler/icons-react';
 import type { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import {
+    CHART_TYPES_FILTER_VALUE,
+    type DeletedContentTypeFilter,
+} from '../types';
 import classes from './ContentTypeFilter.module.css';
-
-type DeletedContentTypeFilter =
-    | 'all'
-    | ContentType.CHART
-    | ContentType.DASHBOARD
-    | ContentType.SPACE
-    | ContentType.DATA_APP;
 
 type ContentTypeFilterProps = {
     selectedContentType: DeletedContentTypeFilter;
@@ -88,6 +86,22 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
                               <Box>
                                   <MantineIcon
                                       icon={IconAppWindow}
+                                      {...iconProps}
+                                  />
+                              </Box>
+                          </Tooltip>
+                      ),
+                  },
+                  {
+                      value: CHART_TYPES_FILTER_VALUE,
+                      label: (
+                          <Tooltip
+                              label="Show only deleted custom chart types"
+                              withinPortal
+                          >
+                              <Box>
+                                  <MantineIcon
+                                      icon={IconPuzzle}
                                       {...iconProps}
                                   />
                               </Box>
