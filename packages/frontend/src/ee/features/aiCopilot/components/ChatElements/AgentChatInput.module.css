@@ -28,6 +28,21 @@
     display: none;
 }
 
+/* Everything to the left of the send button. It shrinks so the send button
+   stays in view when the toolbar runs out of room on narrow viewports. */
+.toolbarSelectors {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+}
+
+@media (max-width: 48em) {
+    .toolbarSelectors {
+        overflow: hidden;
+    }
+}
+
 .controlsReveal {
     transition:
         opacity 160ms ease,
