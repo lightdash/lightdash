@@ -6,11 +6,7 @@ import {
 } from '@lightdash/common';
 import { compile } from './compile';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
-import {
-    resolveValidationSeverity,
-    shouldTreatWarningsAsErrors,
-    validateHandler,
-} from './validate';
+import { validateHandler } from './validate';
 
 vi.mock('../analytics/analytics');
 vi.mock('../config', () => ({
@@ -356,27 +352,5 @@ describe('validateHandler warehouse column validation', () => {
         expect(output).toContain('orders.unused_dim');
         expect(output).toContain('1 error');
         expect(output).toContain('1 warning');
-    });
-});
-
-describe('resolveValidationSeverity', () => {
-    test('defaults to error', () => {
-        expect(resolveValidationSeverity()).toBe('error');
-        expect(resolveValidationSeverity('error')).toBe('error');
-    });
-
-    test('uses warning when --severity warning is set', () => {
-        expect(resolveValidationSeverity('warning')).toBe('warning');
-    });
-});
-
-describe('shouldTreatWarningsAsErrors', () => {
-    test('is off by default', () => {
-        expect(shouldTreatWarningsAsErrors()).toBe(false);
-        expect(shouldTreatWarningsAsErrors('error')).toBe(false);
-    });
-
-    test('is on for --severity warning', () => {
-        expect(shouldTreatWarningsAsErrors('warning')).toBe(true);
     });
 });

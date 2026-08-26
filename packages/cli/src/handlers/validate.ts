@@ -104,14 +104,6 @@ type ValidateHandlerOptions = CompileHandlerOptions & {
     excludeSpaces?: string[];
 };
 
-export const resolveValidationSeverity = (
-    severity?: ValidationSeverity,
-): ValidationSeverity => severity ?? 'error';
-
-export const shouldTreatWarningsAsErrors = (
-    severity?: ValidationSeverity,
-): boolean => resolveValidationSeverity(severity) === 'warning';
-
 type WaitUntilFinishedOptions = {
     jobUuid: string;
     refetchIntervalMs: number;
@@ -235,8 +227,7 @@ export const validateHandler = async (
         );
     }
 
-    const severity = resolveValidationSeverity(options.severity);
-    const treatWarningsAsErrors = shouldTreatWarningsAsErrors(severity);
+    const severity = options.severity ?? 'error';
 
     await LightdashAnalytics.track({
         event: 'validate.started',
@@ -249,7 +240,6 @@ export const validateHandler = async (
             includedSpacesCount: options.includeSpaces?.length ?? 0,
             excludedSpacesCount: options.excludeSpaces?.length ?? 0,
             severity,
-            treatWarningsAsErrors,
         },
     });
 
@@ -310,10 +300,10 @@ export const validateHandler = async (
 
         const allValidation = await getValidation(projectUuid, jobId);
 
-        // Hide chart configuration warnings unless shown or treated as errors
-        const validationWithoutConfigWarnings = treatWarningsAsErrors
-            ? allValidation
-            : allValidation.filter((v) => !isValidationWarning(v));
+        const validationWithoutConfigWarnings =
+            severity === 'warning'
+                ? allValidation
+                : allValidation.filter((v) => !isValidationWarning(v));
 
         const hiddenWarningsCount =
             allValidation.length - validationWithoutConfigWarnings.length;
@@ -335,14 +325,10 @@ export const validateHandler = async (
         );
         const tableErrors = blockingIssues.filter(isTableValidationError);
         const chartErrors = blockingIssues.filter(isChartValidationError);
-        const chartWarnings = warningIssues.filter(isChartValidationError);
         const dashboardErrors = blockingIssues.filter(
             isDashboardValidationError,
         );
         const appErrors = blockingIssues.filter(isDataAppValidationError);
-        const hasBlockingErrors = blockingIssues.length > 0;
-        const hasFailingWarnings =
-            treatWarningsAsErrors && warningIssues.length > 0;
 
         await LightdashAnalytics.track({
             event: 'validate.completed',
@@ -355,7 +341,7 @@ export const validateHandler = async (
                 includedSpacesCount: options.includeSpaces?.length ?? 0,
                 excludedSpacesCount: options.excludeSpaces?.length ?? 0,
                 durationMs: Date.now() - startTime,
-                success: !hasBlockingErrors && !hasFailingWarnings,
+                success: validation.length === 0,
                 totalErrors: blockingIssues.length,
                 totalWarnings: warningIssues.length,
                 tableErrors: tableErrors.length,
@@ -363,19 +349,16 @@ export const validateHandler = async (
                 dashboardErrors: dashboardErrors.length,
                 appErrors: appErrors.length,
                 severity,
-                treatWarningsAsErrors,
             },
         });
 
-        const hiddenWarningHint = 'use --severity warning to show';
-
-        if (!hasBlockingErrors && !hasFailingWarnings) {
+        if (validation.length === 0) {
             const elapsedMs = Date.now() - startTime;
             const hiddenMessage =
                 hiddenWarningsCount > 0
                     ? ` (${hiddenWarningsCount} chart configuration warning${
                           hiddenWarningsCount > 1 ? 's' : ''
-                      } hidden, ${hiddenWarningHint})`
+                      } hidden, use --severity warning to show)`
                     : '';
             const spaceFilteredMessage =
                 spaceFilteredCount > 0
@@ -425,7 +408,7 @@ export const validateHandler = async (
                 console.error(
                     `- Charts: ${styleIssueCounts(
                         chartErrors.length,
-                        chartWarnings.length,
+                        warningIssues.length,
                     )}`,
                 );
             }
