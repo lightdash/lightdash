@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import {
+    canMutateVerifiedContent,
     ContentType,
     ResourceViewItemType,
-    canMutateVerifiedContent,
     type Dashboard,
 } from '@lightdash/common';
 import {

@@ -1,11 +1,11 @@
 import { subject } from '@casl/ability';
 import {
     ChartSourceType,
+    canMutateVerifiedContent,
     ContentType,
     DashboardTileTypes,
     FeatureFlags,
     ResourceViewItemType,
-    canMutateVerifiedContent,
     type ResourceViewChartItem,
 } from '@lightdash/common';
 import {
