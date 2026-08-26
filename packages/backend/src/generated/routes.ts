@@ -13067,11 +13067,17 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GrantSource: {
+        dataType: 'refAlias',
+        type: { dataType: 'enum', enums: ['dashboard'], validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SpaceAccess: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                grantedVia: { ref: 'GrantSource' },
                 inheritedFrom: {
                     dataType: 'union',
                     subSchemas: [

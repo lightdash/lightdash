@@ -1,3 +1,15 @@
+# [2.15.0](https://github.com/lightdash/lightdash/compare/2.14.0...2.15.0) (2026-08-26)
+
+
+### Bug Fixes
+
+* normalize warehouse credentials on write and guard snowflake timeout SQL ([#27970](https://github.com/lightdash/lightdash/issues/27970)) ([17a3960](https://github.com/lightdash/lightdash/commit/17a396034d26a3b880aab83e636068a7f412dfd7))
+
+
+### Features
+
+* **dashboards:** route dashboard-owned charts through direct grants ([#28122](https://github.com/lightdash/lightdash/issues/28122)) ([1b8c2ca](https://github.com/lightdash/lightdash/commit/1b8c2cabe004e8108e3fe23cddcc6eac48540747))
+
 # [2.14.0](https://github.com/lightdash/lightdash/compare/2.13.2...2.14.0) (2026-08-26)
 
 
