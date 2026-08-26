@@ -1,3 +1,10 @@
+## [2.2.2](https://github.com/lightdash/lightdash/compare/2.2.1...2.2.2) (2026-08-26)
+
+
+### Bug Fixes
+
+* open listed data apps in viewer ([#28063](https://github.com/lightdash/lightdash/issues/28063)) ([0f7c9d4](https://github.com/lightdash/lightdash/commit/0f7c9d4dfb6aff98bfd52b0eb1f75041bd8e1062))
+
 ## [2.2.1](https://github.com/lightdash/lightdash/compare/2.2.0...2.2.1) (2026-08-26)
 
 
