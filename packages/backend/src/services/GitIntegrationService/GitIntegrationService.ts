@@ -1741,6 +1741,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         branch: string,
         title: string,
         description: string,
+        source: PullRequestSource = PullRequestSource.SOURCE_EDITOR,
     ): Promise<PullRequestCreated> {
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -1812,7 +1813,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             repo: creds.repo,
             prNumber: pullRequest.number,
             prUrl: pullRequest.html_url,
-            source: PullRequestSource.SOURCE_EDITOR,
+            source,
         });
 
         return {

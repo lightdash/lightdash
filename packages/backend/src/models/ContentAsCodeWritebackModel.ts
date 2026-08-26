@@ -19,8 +19,8 @@ export type ContentAsCodeWriteback = {
     updatedAt: Date;
 };
 
-// 'pending' = job queued or PR not opened yet; 'open' = PR live on the repo.
-// 'closed' rows are history; a new save then starts a fresh row.
+// 'pending' = row created, PR not opened yet; 'open' = PR live on the repo.
+// 'closed' rows are history; a new write-back then starts a fresh row.
 export type ContentAsCodeWritebackStatus =
     | 'pending'
     | 'open'

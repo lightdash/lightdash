@@ -2837,6 +2837,30 @@ export class CoderService extends BaseService {
         );
     }
 
+    // The repo form uses portable dataAppVizSlug bindings rather than
+    // instance-local UUIDs.
+    async getPortableChartAsCode(
+        projectUuid: string,
+        chartUuid: string,
+    ): Promise<ChartAsCode> {
+        const chartAsCode = await this.getCurrentChartAsCode(chartUuid);
+        const dataAppVizUuid =
+            chartAsCode.chartConfig.type === ChartType.DATA_APP_VIZ
+                ? chartAsCode.chartConfig.config?.dataAppVizUuid
+                : undefined;
+        if (dataAppVizUuid === undefined) return chartAsCode;
+        const dataAppVizRows = await this.appModel.findAppsByUuids(
+            projectUuid,
+            [dataAppVizUuid],
+            { dataAppVizsFilter: 'only' },
+        );
+        const [transformed] = CoderService.withDataAppVizSlugs(
+            [chartAsCode],
+            new Map(dataAppVizRows.map((row) => [row.app_id, row.slug])),
+        );
+        return transformed;
+    }
+
     private async getCurrentDashboardAsCode(
         dashboardUuid: string,
     ): Promise<DashboardAsCode> {
@@ -2890,10 +2914,28 @@ export class CoderService extends BaseService {
         });
     }
 
-    // Snapshot stamping is bookkeeping for drift detection; it must never
-    // fail an upload, so each stamp method swallows and logs its errors.
-    // Recording only happens for repos that opted into content_as_code.sync
-    // - there is nothing to detect drift against otherwise.
+    // Stamped project settings keep snapshot recording consistent for callers
+    // that do not send the repo-owned sync flag on every request.
+    private async resolveSyncEnabled(
+        projectUuid: string,
+        options: UpsertContentAsCodeOptions,
+    ): Promise<boolean> {
+        if (options.syncEnabled === true) return true;
+        try {
+            const settings =
+                await this.contentAsCodeProjectSettingsModel.get(projectUuid);
+            return settings?.syncEnabled === true;
+        } catch (error) {
+            this.logger.warn(
+                `Could not read content-as-code settings for project ${projectUuid}; treating sync as request-flag only`,
+                error,
+            );
+            return false;
+        }
+    }
+
+    // Snapshot stamping marks uploaded content as Git-backed. It never fails
+    // an upload and only runs for repos opted into content_as_code.sync.
     private async stampAppliedChartSnapshot(
         user: SessionUser,
         projectUuid: string,
@@ -3072,6 +3114,7 @@ export class CoderService extends BaseService {
         } = options;
         const shouldUpdateExistingContent = mode === 'upsert';
         const shouldUseExactSlug = mode === 'upsert';
+        const syncEnabled = await this.resolveSyncEnabled(projectUuid, options);
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -3272,7 +3315,7 @@ export class CoderService extends BaseService {
                     user,
                     projectUuid,
                     newChart.uuid,
-                    options.syncEnabled ?? false,
+                    syncEnabled,
                 );
             }
 
@@ -3430,7 +3473,7 @@ export class CoderService extends BaseService {
                 user,
                 projectUuid,
                 chart.uuid,
-                options.syncEnabled ?? false,
+                syncEnabled,
             );
         }
 
@@ -4157,6 +4200,7 @@ export class CoderService extends BaseService {
         } = options;
         const shouldUpdateExistingContent = mode === 'upsert';
         const shouldUseExactSlug = mode === 'upsert';
+        const syncEnabled = await this.resolveSyncEnabled(projectUuid, options);
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -4293,7 +4337,7 @@ export class CoderService extends BaseService {
                     user,
                     projectUuid,
                     newDashboard.uuid,
-                    options.syncEnabled ?? false,
+                    syncEnabled,
                 );
             }
 
@@ -4457,7 +4501,7 @@ export class CoderService extends BaseService {
                 user,
                 projectUuid,
                 dashboard.uuid,
-                options.syncEnabled ?? false,
+                syncEnabled,
             );
         }
 

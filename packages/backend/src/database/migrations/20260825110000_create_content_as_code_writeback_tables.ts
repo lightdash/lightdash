@@ -54,7 +54,8 @@ export async function up(knex: Knex): Promise<void> {
             .nullable()
             .references('user_uuid')
             .inTable(USERS_TABLE)
-            .onDelete('SET NULL');
+            .onDelete('SET NULL')
+            .index();
         table
             .timestamp('created_at', { useTz: false })
             .notNullable()

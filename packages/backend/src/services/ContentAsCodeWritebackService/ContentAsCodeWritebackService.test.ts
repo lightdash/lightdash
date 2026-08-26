@@ -1,4 +1,8 @@
-import { DbtProjectType, type SessionUser } from '@lightdash/common';
+import {
+    DbtProjectType,
+    PullRequestSource,
+    type SessionUser,
+} from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import { ContentAsCodeWritebackService } from './ContentAsCodeWritebackService';
 
@@ -50,7 +54,7 @@ const buildService = (overrides: Overrides = {}) => {
         recordPullRequest: vi.fn().mockResolvedValue(undefined),
     };
     const coderService = {
-        getCurrentChartAsCode: vi.fn().mockResolvedValue(chartAsCode),
+        getPortableChartAsCode: vi.fn().mockResolvedValue(chartAsCode),
     };
     const contentAsCodeSnapshotModel = {
         get: vi
@@ -137,9 +141,13 @@ describe('ContentAsCodeWritebackService', () => {
                 status: 'open',
             }),
         );
-        expect(gitIntegrationService.recordPullRequest).toHaveBeenCalledTimes(
-            1,
-        );
+        // The PR is recorded inside createPullRequestFromBranch with the
+        // content-as-code source; a second record call would hit the
+        // (provider, owner, repo, pr_number) unique constraint
+        const prSource =
+            gitIntegrationService.createPullRequestFromBranch.mock.calls[0][5];
+        expect(prSource).toBe(PullRequestSource.CONTENT_AS_CODE);
+        expect(gitIntegrationService.recordPullRequest).not.toHaveBeenCalled();
     });
 
     it('every commit names the acting user and instance', async () => {
@@ -211,9 +219,9 @@ describe('ContentAsCodeWritebackService', () => {
         gitIntegrationService.saveFile.mockRejectedValue(
             new Error('github says no'),
         );
-        await expect(service.writeChartToWritebackPr(user, args)).rejects.toThrow(
-            'github says no',
-        );
+        await expect(
+            service.writeChartToWritebackPr(user, args),
+        ).rejects.toThrow('github says no');
         expect(contentAsCodeWritebackModel.update).toHaveBeenCalledWith(
             'row-uuid',
             { status: 'error', error: 'github says no' },

@@ -31,9 +31,10 @@ type ChartWritebackArgs = {
 };
 
 // Matches the CLI's writeContent (packages/cli/src/handlers/download.ts):
-// updatedAt/downloadedAt are transport metadata and never land in the repo.
+// updatedAt/downloadedAt are transport metadata and verification is runtime
+// instance state — none of them land in the repo.
 const dumpContentAsCode = (content: ChartAsCode): string => {
-    const { updatedAt, downloadedAt, ...cleanContent } = content;
+    const { updatedAt, downloadedAt, verification, ...cleanContent } = content;
     return yaml.dump(cleanContent, { quotingType: '"', sortKeys: true });
 };
 
@@ -133,13 +134,25 @@ export class ContentAsCodeWritebackService extends BaseService {
         );
         if (row === undefined) {
             const branch = `lightdash/write-back/${this.getInstanceSlug()}/${slug}`;
-            row = await this.contentAsCodeWritebackModel.create({
-                projectUuid,
-                contentType: ContentAsCodeType.CHART,
-                slug,
-                branch,
-                createdByUserUuid: user.userUuid,
-            });
+            try {
+                row = await this.contentAsCodeWritebackModel.create({
+                    projectUuid,
+                    contentType: ContentAsCodeType.CHART,
+                    slug,
+                    branch,
+                    createdByUserUuid: user.userUuid,
+                });
+            } catch (error) {
+                // A concurrent save won the race on the live-unique index;
+                // append to its row instead of surfacing a database error
+                const raced = await this.contentAsCodeWritebackModel.findLive(
+                    projectUuid,
+                    ContentAsCodeType.CHART,
+                    slug,
+                );
+                if (raced === undefined) throw error;
+                row = raced;
+            }
         }
 
         try {
@@ -182,8 +195,10 @@ export class ContentAsCodeWritebackService extends BaseService {
             }
         }
 
-        const chartAsCode =
-            await this.coderService.getCurrentChartAsCode(savedChartUuid);
+        const chartAsCode = await this.coderService.getPortableChartAsCode(
+            projectUuid,
+            savedChartUuid,
+        );
         const content = dumpContentAsCode(chartAsCode);
         const filePath = ContentAsCodeWritebackService.getChartFilePath(
             repo.path,
@@ -249,21 +264,12 @@ export class ContentAsCodeWritebackService extends BaseService {
                     `- Project: ${new URL(`/projects/${projectUuid}`, this.lightdashConfig.siteUrl).href}`,
                     `- Content: ${contentUrl}`,
                 ].join('\n'),
+                PullRequestSource.CONTENT_AS_CODE,
             );
         await this.contentAsCodeWritebackModel.update(row.uuid, {
             prNumber: parsePullRequestNumber(pullRequest.prUrl),
             prUrl: pullRequest.prUrl,
             status: 'open',
-        });
-        await this.gitIntegrationService.recordPullRequest({
-            user,
-            projectUuid,
-            type: repo.type,
-            owner: repo.owner,
-            repo: repo.repo,
-            prNumber: parsePullRequestNumber(pullRequest.prUrl) ?? 0,
-            prUrl: pullRequest.prUrl,
-            source: PullRequestSource.CONTENT_AS_CODE,
         });
     }
 }
