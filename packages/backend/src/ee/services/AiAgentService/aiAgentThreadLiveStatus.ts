@@ -3,6 +3,7 @@ import {
     type AiDeepResearchRunStatus,
 } from '@lightdash/common';
 import { AI_AGENT_THREAD_PENDING_TIMEOUT_MS } from '../../models/aiAgentConstants';
+import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from '../AiDeepResearchService/constants';
 
 export type AiAgentThreadLiveStateSignals = {
     threadUuid: string;
@@ -35,6 +36,13 @@ const isLatestPromptNonTerminal = (
     latestPrompt.errorMessage === null &&
     latestPrompt.interruptedAt === null;
 
+const isLatestPromptAwaitingSqlApproval = (
+    latestPrompt: AiAgentThreadLiveStateSignals['latestPrompt'],
+): latestPrompt is NonNullable<AiAgentThreadLiveStateSignals['latestPrompt']> =>
+    latestPrompt !== null &&
+    latestPrompt.errorMessage === null &&
+    latestPrompt.interruptedAt === null;
+
 export const deriveAiAgentThreadLiveStatus = (
     signals: AiAgentThreadLiveStateSignals,
     now: Date = new Date(),
@@ -52,7 +60,7 @@ export const deriveAiAgentThreadLiveStatus = (
         )[0];
 
     if (
-        isLatestPromptNonTerminal(latestPrompt) &&
+        isLatestPromptAwaitingSqlApproval(latestPrompt) &&
         pendingSqlApproval !== undefined
     ) {
         return {
@@ -85,7 +93,12 @@ export const deriveAiAgentThreadLiveStatus = (
         };
     }
 
-    if (signals.activeDeepResearchRun !== null) {
+    if (
+        signals.activeDeepResearchRun !== null &&
+        (signals.activeDeepResearchRun.status === 'running' ||
+            now.getTime() - signals.activeDeepResearchRun.createdAt.getTime() <=
+                AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES * 60 * 1000)
+    ) {
         return {
             threadUuid: signals.threadUuid,
             state: 'working',
@@ -101,7 +114,9 @@ export const deriveAiAgentThreadLiveStatus = (
         threadUuid: signals.threadUuid,
         state: 'idle',
         stateChangedAt: (
-            signals.latestPrompt?.respondedAt ?? signals.threadCreatedAt
+            signals.latestPrompt?.respondedAt ??
+            signals.latestPrompt?.interruptedAt ??
+            signals.threadCreatedAt
         ).toISOString(),
         source: 'deterministic',
     };

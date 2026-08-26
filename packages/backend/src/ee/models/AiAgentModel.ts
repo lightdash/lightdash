@@ -3103,7 +3103,10 @@ export class AiAgentModel {
                     FROM ${AiDeepResearchRunsTableName} as deep_research_run
                     WHERE deep_research_run.ai_thread_uuid = live_thread.ai_thread_uuid
                         AND (
-                            deep_research_run.status = 'queued'
+                            (
+                                deep_research_run.status = 'queued'
+                                AND deep_research_run.created_at >= now() - (? * interval '1 minute')
+                            )
                             OR (
                                 deep_research_run.status = 'running'
                                 AND deep_research_run.updated_at >= now() - (? * interval '1 minute')
@@ -3112,7 +3115,10 @@ export class AiAgentModel {
                     ORDER BY deep_research_run.created_at DESC
                     LIMIT 1
                 ) as active_deep_research ON true`,
-                [AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES],
+                [
+                    AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES,
+                    AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES,
+                ],
             )
             .joinRaw(
                 `LEFT JOIN LATERAL (
