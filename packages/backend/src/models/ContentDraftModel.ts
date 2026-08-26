@@ -71,6 +71,7 @@ export class ContentDraftModel {
                 .returning('*');
             return parseRow(row);
         }
+        const now = new Date();
         const [row] = await this.database(ContentDraftsTableName)
             .insert({
                 project_uuid: args.projectUuid,
@@ -79,6 +80,9 @@ export class ContentDraftModel {
                 slug: args.slug,
                 author_user_uuid: args.authorUserUuid,
                 draft: args.draft,
+                // Same clock as updates, so relative times stay consistent
+                created_at: now,
+                updated_at: now,
             })
             .returning('*');
         return parseRow(row);

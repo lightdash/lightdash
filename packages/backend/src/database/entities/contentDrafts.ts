@@ -24,7 +24,8 @@ export type CreateDbContentDraft = Pick<
     | 'slug'
     | 'author_user_uuid'
     | 'draft'
->;
+> &
+    Partial<Pick<DbContentDraft, 'created_at' | 'updated_at'>>;
 
 export type UpdateDbContentDraft = Partial<
     Pick<DbContentDraft, 'draft' | 'status' | 'pr_url' | 'updated_at'>
