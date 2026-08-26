@@ -1,3 +1,10 @@
+## [2.10.1](https://github.com/lightdash/lightdash/compare/2.10.0...2.10.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* **ai-agents:** show strict-channel warning on first top-level Slack mention ([#28105](https://github.com/lightdash/lightdash/issues/28105)) ([f941ba1](https://github.com/lightdash/lightdash/commit/f941ba1d020f39b9c4bc6abf083f1651c8b741d9))
+
 # [2.10.0](https://github.com/lightdash/lightdash/compare/2.9.5...2.10.0) (2026-08-26)
 
 
