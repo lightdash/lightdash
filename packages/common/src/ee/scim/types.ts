@@ -147,6 +147,12 @@ export interface ScimUpsertGroup {
     members?: ScimGroupMember[];
 }
 
+export interface ScimCreateGroup {
+    schemas: string[];
+    displayName: string;
+    members?: ScimGroupMember[];
+}
+
 export type ScimUpsertUser = Omit<ScimUser, 'id'> & {
     password?: string; // optional for create
     title?: string; // okta sends this on create

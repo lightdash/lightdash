@@ -18,6 +18,7 @@ import {
     ParameterError,
     ProjectType,
     Role,
+    ScimCreateGroup,
     ScimError,
     ScimGroup,
     ScimListResponse,
@@ -1471,7 +1472,7 @@ export class ScimService extends BaseService {
     async createGroup(
         account: Account,
         organizationUuid: string,
-        groupToCreate: ScimUpsertGroup,
+        groupToCreate: ScimCreateGroup,
     ): Promise<ScimGroup> {
         this.logger.info('SCIM: Creating group', {
             organizationUuid,
@@ -1497,6 +1498,13 @@ export class ScimService extends BaseService {
             if (!groupToCreate.displayName) {
                 throw new ScimError({
                     detail: 'displayName is required',
+                    status: 400,
+                    scimType: 'invalidValue',
+                });
+            }
+            if (!groupToCreate.schemas.includes(ScimSchemaType.GROUP)) {
+                throw new ScimError({
+                    detail: `schemas must include ${ScimSchemaType.GROUP}`,
                     status: 400,
                     scimType: 'invalidValue',
                 });

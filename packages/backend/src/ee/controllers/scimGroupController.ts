@@ -1,4 +1,5 @@
 import {
+    ScimCreateGroup,
     ScimErrorPayload,
     ScimGroup,
     ScimListResponse,
@@ -145,7 +146,7 @@ export class ScimGroupController extends BaseController {
     @Post('/')
     async createScimGroup(
         @Request() req: express.Request,
-        @Body() body: ScimUpsertGroup,
+        @Body() body: ScimCreateGroup,
     ): Promise<ScimGroup> {
         const organizationUuid = req.serviceAccount?.organizationUuid as string;
         return this.getScimService().createGroup(
