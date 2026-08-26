@@ -284,6 +284,21 @@ export class ContentAsCodeWritebackService extends BaseService {
             snapshotType,
             slug,
         );
+        if (
+            row !== undefined &&
+            row.status === 'open' &&
+            row.prNumber !== null
+        ) {
+            // The PR may have been merged or closed on the provider since the
+            // row was stamped; refresh first so a new edit opens a fresh PR
+            // instead of committing to a branch no open PR tracks.
+            await this.refreshOpenPullRequestStates(user, projectUuid, [row]);
+            row = await this.contentAsCodeWritebackModel.findLive(
+                projectUuid,
+                snapshotType,
+                slug,
+            );
+        }
         if (row === undefined) {
             const branch = `lightdash/write-back/${this.getInstanceSlug()}/${slug}`;
             try {

@@ -79,7 +79,6 @@ import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
-import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
@@ -117,7 +116,6 @@ type DashboardServiceArguments = {
     savedSqlModel: SavedSqlModel;
     savedChartService: SavedChartService;
     schedulerClient: SchedulerClient;
-    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
     slackClient: SlackClient;
     projectModel: ProjectModel;
     catalogModel: CatalogModel;
@@ -164,8 +162,6 @@ export class DashboardService
     organizationMemberProfileModel: OrganizationMemberProfileModel;
 
     schedulerClient: SchedulerClient;
-
-    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
 
     slackClient: SlackClient;
 
@@ -281,7 +277,6 @@ export class DashboardService
         savedSqlModel,
         savedChartService,
         schedulerClient,
-        contentAsCodeProjectSettingsModel,
         slackClient,
         projectModel,
         catalogModel,
@@ -308,8 +303,6 @@ export class DashboardService
         this.organizationModel = organizationModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.schedulerClient = schedulerClient;
-        this.contentAsCodeProjectSettingsModel =
-            contentAsCodeProjectSettingsModel;
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
@@ -1859,7 +1852,6 @@ export class DashboardService
                     spaceUuid: updatedNewDashboard.spaceUuid,
                 },
             );
-
 
         return {
             ...updatedNewDashboard,
