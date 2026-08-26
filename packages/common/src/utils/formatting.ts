@@ -1304,6 +1304,15 @@ export function getFieldFormatOverrideProps(formatOptions: CustomFormat): {
     };
 }
 
+// Whether a format expression carries `${ld.parameters.*}` placeholders that
+// must be resolved against parameter values before it can be rendered.
+export function formatExpressionHasParameters(format: string): boolean {
+    return (
+        format.includes(`\${${LightdashParameters.PREFIX_SHORT}`) ||
+        format.includes(`\${${LightdashParameters.PREFIX}`)
+    );
+}
+
 export function getFormatExpression(
     item: Item | AdditionalMetric,
 ): string | undefined {
@@ -1365,11 +1374,9 @@ export function formatItemValue(
             // numfmt otherwise renders with US separators regardless of locale.
             const separatorLocale = getFormatExpressionLocale(item);
 
-            // Check if format uses parameter placeholders
-            const hasParameterPlaceholders =
-                item.format.includes(
-                    `\${${LightdashParameters.PREFIX_SHORT}`,
-                ) || item.format.includes(`\${${LightdashParameters.PREFIX}`);
+            const hasParameterPlaceholders = formatExpressionHasParameters(
+                item.format,
+            );
 
             // NEW: Handle parameter-based formats separately
             if (hasParameterPlaceholders) {

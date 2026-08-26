@@ -2381,6 +2381,9 @@ export class AsyncQueryService extends ProjectService {
         displayTimezone: string | null;
     }): Promise<{
         columns: ResultColumns;
+        /** Pre-pivot columns, so pivoted queries keep a record of the
+         *  original result shape (original_columns). */
+        unpivotedColumns: ResultColumns;
         warehouseResults: WarehouseExecuteAsyncQuery;
         pivotDetails: {
             valuesColumns: Map<string, PivotValuesColumn>;
@@ -2425,6 +2428,7 @@ export class AsyncQueryService extends ProjectService {
                   unpivotedColumns = getUnpivotedColumns(
                       unpivotedColumns,
                       fields,
+                      itemsMap,
                   );
 
                   const {
@@ -2629,6 +2633,7 @@ export class AsyncQueryService extends ProjectService {
                   unpivotedColumns = getUnpivotedColumns(
                       unpivotedColumns,
                       fields,
+                      itemsMap,
                   );
                   await write?.(rows);
               };
@@ -2667,7 +2672,8 @@ export class AsyncQueryService extends ProjectService {
             ? getPivotedColumns(
                   unpivotedColumns,
                   pivotConfiguration,
-                  Array.from(valuesColumnData.keys()),
+                  Array.from(valuesColumnData.values()),
+                  itemsMap,
               )
             : unpivotedColumns;
 
@@ -2703,6 +2709,7 @@ export class AsyncQueryService extends ProjectService {
                 ),
             },
             columns,
+            unpivotedColumns,
             pivotDetails: pivotConfiguration
                 ? {
                       valuesColumns: valuesColumnData,
@@ -3378,6 +3385,7 @@ export class AsyncQueryService extends ProjectService {
                 },
                 pivotDetails,
                 columns,
+                unpivotedColumns,
             } = await traceSpan(
                 {
                     op: 'query.execute',
@@ -3563,7 +3571,12 @@ export class AsyncQueryService extends ProjectService {
                     results_updated_at: stream ? new Date() : null,
                     results_expires_at: stream ? newExpiresAt : null,
                     columns,
-                    original_columns: originalColumns,
+                    // Metric-path pivots don't receive originalColumns from
+                    // preparation, so persist the pre-pivot columns captured
+                    // during streaming — consumers need the pre-pivot shape.
+                    original_columns:
+                        originalColumns ??
+                        (pivotDetails ? unpivotedColumns : undefined),
                 },
                 queryHistoryAccount,
             );
