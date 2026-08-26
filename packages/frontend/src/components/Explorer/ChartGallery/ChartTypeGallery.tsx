@@ -100,49 +100,85 @@ export type ChartTypeGallerySection = {
     onCreateNew: (() => void) | null;
 };
 
-const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => (
-    <Box className={classes.cardWrapper}>
-        <Tooltip
-            label={item.description}
-            withinPortal
-            position="top"
-            withArrow
-            openDelay={500}
-            color="dark"
-            events={{ hover: true, focus: true, touch: false }}
-            disabled={item.description === null}
-            maw={300}
-            multiline
-        >
-            <UnstyledButton
-                className={classes.card}
-                data-selected={item.selected}
-                aria-pressed={item.selected}
-                disabled={item.disabled}
-                onClick={item.select}
+const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
+    // A clamped name has nowhere else to go: the card face is the only place
+    // it appears, so the tooltip carries it whenever the card cannot.
+    const labelRef = useRef<HTMLParagraphElement>(null);
+    const [isLabelClamped, setIsLabelClamped] = useState(false);
+    useEffect(() => {
+        const label = labelRef.current;
+        if (!label) return;
+        const measure = () =>
+            setIsLabelClamped(label.scrollHeight > label.clientHeight + 1);
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(label);
+        return () => observer.disconnect();
+    }, [item.label]);
+
+    const clampedLabel = isLabelClamped ? item.label : null;
+
+    return (
+        <Box className={classes.cardWrapper}>
+            <Tooltip
+                label={
+                    <>
+                        {clampedLabel !== null ? (
+                            <Text fz="xs" fw={600}>
+                                {clampedLabel}
+                            </Text>
+                        ) : null}
+                        {item.description !== null ? (
+                            <Text fz="xs">{item.description}</Text>
+                        ) : null}
+                    </>
+                }
+                withinPortal
+                position="top"
+                withArrow
+                openDelay={500}
+                color="dark"
+                events={{ hover: true, focus: true, touch: false }}
+                disabled={clampedLabel === null && item.description === null}
+                maw={300}
+                multiline
             >
-                <ChartTypeIcon
-                    icon={item.icon}
-                    rotatedIcon={item.rotatedIcon}
-                />
-                <Text fz="xs" fw={500} lh={1.2} lineClamp={2}>
-                    {item.label}
-                </Text>
-            </UnstyledButton>
-        </Tooltip>
-        {item.onEdit !== null ? (
-            <ActionIcon
-                className={classes.cardEdit}
-                variant="default"
-                size="sm"
-                aria-label={`Edit ${item.label}`}
-                onClick={item.onEdit}
-            >
-                <MantineIcon icon={IconFilePencil} size={14} />
-            </ActionIcon>
-        ) : null}
-    </Box>
-);
+                <UnstyledButton
+                    className={classes.card}
+                    data-selected={item.selected}
+                    aria-pressed={item.selected}
+                    disabled={item.disabled}
+                    onClick={item.select}
+                >
+                    <ChartTypeIcon
+                        icon={item.icon}
+                        rotatedIcon={item.rotatedIcon}
+                    />
+                    <Text
+                        ref={labelRef}
+                        fz="xs"
+                        fw={500}
+                        lh={1.2}
+                        lineClamp={2}
+                    >
+                        {item.label}
+                    </Text>
+                </UnstyledButton>
+            </Tooltip>
+            {item.onEdit !== null ? (
+                <ActionIcon
+                    className={classes.cardEdit}
+                    variant="default"
+                    size="sm"
+                    aria-label={`Edit ${item.label}`}
+                    onClick={item.onEdit}
+                >
+                    <MantineIcon icon={IconFilePencil} size={14} />
+                </ActionIcon>
+            ) : null}
+        </Box>
+    );
+};
 
 const SectionEmpty: FC<{ message: string }> = ({ message }) => (
     <Text fz="xs" c="dimmed">

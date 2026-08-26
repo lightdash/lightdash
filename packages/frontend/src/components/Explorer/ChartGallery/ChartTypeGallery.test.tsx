@@ -213,6 +213,68 @@ describe('ChartTypeGallery', () => {
         ).toBeInTheDocument();
     });
 
+    it('carries a name the card had to clamp into the tooltip', async () => {
+        // jsdom has no layout, so stand in for the clamp the CSS applies.
+        const clientHeight = vi
+            .spyOn(HTMLElement.prototype, 'clientHeight', 'get')
+            .mockReturnValue(20);
+        const scrollHeight = vi
+            .spyOn(HTMLElement.prototype, 'scrollHeight', 'get')
+            .mockReturnValue(60);
+
+        renderWithProviders(
+            <ChartTypeGallery
+                search=""
+                onSearchChange={vi.fn()}
+                disabledReason={null}
+                sections={[
+                    gallerySection({
+                        items: [
+                            galleryItem(
+                                'Revenue changes over time',
+                                'Reusable ranked bars',
+                            ),
+                        ],
+                    }),
+                ]}
+            />,
+        );
+
+        await userEvent.hover(
+            screen.getByRole('button', {
+                name: 'Revenue changes over time',
+            }),
+        );
+        // Both lines of the tooltip: the name the card had to cut, then what
+        // the card never showed.
+        const tooltip = await screen.findByRole('tooltip');
+        expect(tooltip).toHaveTextContent('Revenue changes over time');
+        expect(tooltip).toHaveTextContent('Reusable ranked bars');
+
+        clientHeight.mockRestore();
+        scrollHeight.mockRestore();
+    });
+
+    it('leaves a name the card shows in full out of the tooltip', async () => {
+        renderWithProviders(
+            <ChartTypeGallery
+                search=""
+                onSearchChange={vi.fn()}
+                disabledReason={null}
+                sections={[
+                    gallerySection({
+                        items: [galleryItem('Bar', 'Reusable ranked bars')],
+                    }),
+                ]}
+            />,
+        );
+
+        await userEvent.hover(screen.getByRole('button', { name: 'Bar' }));
+        expect(
+            await screen.findByText('Reusable ranked bars'),
+        ).toBeInTheDocument();
+    });
+
     it('groups each shelf under its own label', () => {
         renderWithProviders(
             <ChartTypeGallery
