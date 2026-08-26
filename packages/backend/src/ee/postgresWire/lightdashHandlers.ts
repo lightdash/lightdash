@@ -504,13 +504,22 @@ export const createLightdashPgWireHandlers = (
         },
 
         describe: async (session, sql) => {
-            const resolved = resolveStatement(session, sql);
-            if (resolved.kind === 'result') {
-                return resolved.result.type === 'rows'
-                    ? resolved.result.fields
-                    : null;
+            try {
+                const resolved = resolveStatement(session, sql);
+                if (resolved.kind === 'result') {
+                    return resolved.result.type === 'rows'
+                        ? resolved.result.fields
+                        : null;
+                }
+                return fieldsOf(resolved.compiled);
+            } catch (e) {
+                // Parse/Describe failures never reach the query handler, so
+                // extended-protocol clients (pgjdbc) would fail invisibly
+                Logger.warn(
+                    `pgwire: describe failed (${e instanceof PgWireServerError ? e.code : 'unexpected'}: ${e instanceof Error ? redactLiterals(e.message).slice(0, 300) : e}) sql: ${redactLiterals(sql).slice(0, 300)}`,
+                );
+                throw e;
             }
-            return fieldsOf(resolved.compiled);
         },
 
         query: async (session, sql) => {
@@ -523,7 +532,7 @@ export const createLightdashPgWireHandlers = (
                 // failures are otherwise only visible to the client; log the
                 // shape (literals redacted) so production issues are diagnosable
                 Logger.warn(
-                    `pgwire: query failed (${e instanceof PgWireServerError ? e.code : 'unexpected'}: ${e instanceof Error ? e.message.slice(0, 200) : e}) sql: ${redactLiterals(sql).slice(0, 300)}`,
+                    `pgwire: query failed (${e instanceof PgWireServerError ? e.code : 'unexpected'}: ${e instanceof Error ? redactLiterals(e.message).slice(0, 200) : e}) sql: ${redactLiterals(sql).slice(0, 300)}`,
                 );
                 throw e;
             }

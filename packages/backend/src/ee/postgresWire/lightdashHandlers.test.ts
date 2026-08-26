@@ -108,6 +108,26 @@ describe('lightdash pgwire handlers: describe vs query', () => {
         expect(runExploreQuery).toHaveBeenCalledTimes(1);
     });
 
+    it('logs describe failures with redacted sql so extended-protocol errors are visible', async () => {
+        const Logger = (await import('../../logging/logger')).default;
+        const warn = vi.spyOn(Logger, 'warn');
+        try {
+            await expect(
+                handlers.describe(
+                    session,
+                    "SELECT (i.keys).n FROM orders WHERE orders_status = 'secret'",
+                ),
+            ).rejects.toThrow();
+            expect(warn).toHaveBeenCalledWith(
+                expect.stringMatching(/pgwire: describe failed \(/),
+            );
+            const logged = String(warn.mock.calls.at(-1)?.[0]);
+            expect(logged).not.toContain('secret');
+        } finally {
+            warn.mockRestore();
+        }
+    });
+
     it('describes the placeholder shapes Describe(S) produces before Bind', async () => {
         runExploreQuery.mockClear();
         await expect(
