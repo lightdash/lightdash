@@ -3,7 +3,6 @@ import { ContentAsCodeProjectSettingsTableName } from '../database/entities/cont
 
 export type ContentAsCodeProjectSettings = {
     syncEnabled: boolean;
-    writeBackEnabled: boolean;
     stampedAt: Date;
 };
 
@@ -27,7 +26,6 @@ export class ContentAsCodeProjectSettingsModel {
         if (row === undefined) return undefined;
         return {
             syncEnabled: row.sync_enabled,
-            writeBackEnabled: row.write_back_enabled,
             stampedAt: row.stamped_at,
         };
     }
@@ -35,18 +33,15 @@ export class ContentAsCodeProjectSettingsModel {
     async upsert(args: {
         projectUuid: string;
         syncEnabled: boolean;
-        writeBackEnabled: boolean;
     }): Promise<void> {
         await this.database(ContentAsCodeProjectSettingsTableName)
             .insert({
                 project_uuid: args.projectUuid,
                 sync_enabled: args.syncEnabled,
-                write_back_enabled: args.writeBackEnabled,
             })
             .onConflict('project_uuid')
             .merge({
                 sync_enabled: args.syncEnabled,
-                write_back_enabled: args.writeBackEnabled,
                 stamped_at: this.database.fn.now(),
             });
     }

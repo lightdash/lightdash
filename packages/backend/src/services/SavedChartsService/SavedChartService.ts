@@ -42,7 +42,6 @@ import {
     ParameterError,
     SavedChart,
     SavedChartDAO,
-    SCHEDULER_TASKS,
     SchedulerAndTargets,
     SchedulerFormat,
     SchedulerRun,
@@ -77,7 +76,6 @@ import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
-import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -108,7 +106,6 @@ type SavedChartServiceArguments = {
     schedulerModel: SchedulerModel;
     schedulerService: SchedulerService;
     schedulerClient: SchedulerClient;
-    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
     slackClient: SlackClient;
     dashboardModel: DashboardModel;
     catalogModel: CatalogModel;
@@ -159,8 +156,6 @@ export class SavedChartService
 
     private readonly schedulerClient: SchedulerClient;
 
-    private readonly contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
-
     private readonly slackClient: SlackClient;
 
     private readonly dashboardModel: DashboardModel;
@@ -191,8 +186,6 @@ export class SavedChartService
         this.schedulerModel = args.schedulerModel;
         this.schedulerService = args.schedulerService;
         this.schedulerClient = args.schedulerClient;
-        this.contentAsCodeProjectSettingsModel =
-            args.contentAsCodeProjectSettingsModel;
         this.slackClient = args.slackClient;
         this.dashboardModel = args.dashboardModel;
         this.catalogModel = args.catalogModel;
@@ -617,41 +610,6 @@ export class SavedChartService
         );
     }
 
-    // A UI save of managed content becomes a PR proposal instead of silent
-    // drift. Enqueued best-effort: the save must succeed even when git fails.
-    private async maybeEnqueueContentAsCodeWriteback(args: {
-        userUuid: string;
-        organizationUuid: string;
-        projectUuid: string;
-        savedChartUuid: string;
-        slug: string;
-        inheritsFromOrgOrProject: boolean;
-    }): Promise<void> {
-        try {
-            // Personal/restricted spaces never write back
-            if (!args.inheritsFromOrgOrProject) return;
-            const settings = await this.contentAsCodeProjectSettingsModel.get(
-                args.projectUuid,
-            );
-            if (!settings?.writeBackEnabled) return;
-            await this.schedulerClient.scheduleTask(
-                SCHEDULER_TASKS.CONTENT_AS_CODE_WRITEBACK,
-                {
-                    userUuid: args.userUuid,
-                    organizationUuid: args.organizationUuid,
-                    projectUuid: args.projectUuid,
-                    savedChartUuid: args.savedChartUuid,
-                    slug: args.slug,
-                },
-            );
-        } catch (error) {
-            this.logger.error(
-                `Error enqueueing content-as-code write-back for chart ${args.savedChartUuid}`,
-                error,
-            );
-        }
-    }
-
     async createVersion(
         account: Account,
         savedChartUuid: string,
@@ -860,15 +818,6 @@ export class SavedChartService
             );
         }
 
-        await this.maybeEnqueueContentAsCodeWriteback({
-            userUuid: user.userUuid,
-            organizationUuid,
-            projectUuid,
-            savedChartUuid,
-            slug: savedChart.slug,
-            inheritsFromOrgOrProject,
-        });
-
         return {
             ...savedChart,
             verification: verificationAfterUpdate,
@@ -978,15 +927,6 @@ export class SavedChartService
                 },
             });
         }
-        await this.maybeEnqueueContentAsCodeWriteback({
-            userUuid: user.userUuid,
-            organizationUuid,
-            projectUuid,
-            savedChartUuid,
-            slug: savedChart.slug,
-            inheritsFromOrgOrProject,
-        });
-
         return {
             ...savedChart,
             verification: verificationAfterUpdate,

@@ -1290,8 +1290,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 msTeamsClient: context.clients.getMsTeamsClient(),
                 googleChatClient: context.clients.getGoogleChatClient(),
                 renameService: context.serviceRepository.getRenameService(),
-                contentAsCodeWritebackService:
-                    context.serviceRepository.getContentAsCodeWritebackService(),
                 asyncQueryService:
                     context.serviceRepository.getAsyncQueryService(),
                 embedService: context.serviceRepository.getEmbedService(),

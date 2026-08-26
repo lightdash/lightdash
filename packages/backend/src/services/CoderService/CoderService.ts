@@ -2839,7 +2839,7 @@ export class CoderService extends BaseService {
     async stampContentAsCodeSettings(
         user: SessionUser,
         projectUuid: string,
-        settings: { sync: boolean; writeBack: boolean },
+        settings: { sync: boolean },
     ): Promise<void> {
         const project = await this.projectModel.get(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
@@ -2863,7 +2863,6 @@ export class CoderService extends BaseService {
         await this.contentAsCodeProjectSettingsModel.upsert({
             projectUuid,
             syncEnabled: settings.sync,
-            writeBackEnabled: settings.sync && settings.writeBack,
         });
     }
 

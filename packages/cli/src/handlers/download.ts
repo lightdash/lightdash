@@ -3495,7 +3495,6 @@ export const uploadHandler = async (
             url: `/api/v1/projects/${projectId}/code/sync-settings`,
             body: JSON.stringify({
                 sync: projectConfig.content_as_code?.sync === true,
-                writeBack: projectConfig.content_as_code?.write_back === true,
             }),
         });
     } catch (error) {

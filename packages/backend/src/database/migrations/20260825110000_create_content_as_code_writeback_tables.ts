@@ -23,7 +23,6 @@ export async function up(knex: Knex): Promise<void> {
             .inTable(PROJECTS_TABLE)
             .onDelete('CASCADE');
         table.boolean('sync_enabled').notNullable().defaultTo(false);
-        table.boolean('write_back_enabled').notNullable().defaultTo(false);
         table
             .timestamp('stamped_at', { useTz: false })
             .notNullable()
