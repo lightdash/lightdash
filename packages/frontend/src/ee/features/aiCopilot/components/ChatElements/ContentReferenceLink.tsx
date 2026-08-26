@@ -2,6 +2,7 @@ import { ChartKind } from '@lightdash/common';
 import { Anchor, Box, Text, type AnchorProps } from '@mantine/core';
 import {
     IconArrowRight,
+    IconAppWindow,
     IconBrandGithub,
     IconChartBar,
     IconFile,
@@ -25,6 +26,7 @@ type ContentReferenceKind =
     | 'artifact'
     | 'chart'
     | 'dashboard'
+    | 'data_app'
     | 'thread'
     | 'file'
     | 'repository'
@@ -63,6 +65,12 @@ const getIconMeta = ({
                 color: 'green.7',
                 fill: 'green.6',
                 icon: IconLayoutDashboard,
+            };
+        case 'data_app':
+            return {
+                color: 'orange.7',
+                fill: 'orange.6',
+                icon: IconAppWindow,
             };
         case 'artifact':
             return {
