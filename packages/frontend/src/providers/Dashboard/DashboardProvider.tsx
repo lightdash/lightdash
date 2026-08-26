@@ -100,6 +100,10 @@ type DashboardProviderProps = React.PropsWithChildren<{
     dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
     defaultInvalidateCache?: boolean;
     sdkFilters?: SdkFilter[];
+    // Interactive dashboard page only. The /minimal render used for exports
+    // and scheduled deliveries must leave this off so a viewer's unpublished
+    // draft never reaches a delivered image, PDF or spreadsheet.
+    includeUnpublishedDraft?: boolean;
 }>;
 
 const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
@@ -112,6 +116,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     embedToken,
     dashboardCommentsCheck,
     defaultInvalidateCache,
+    includeUnpublishedDraft = false,
     children,
 }) => {
     const { search, pathname } = useLocation();
@@ -156,6 +161,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     } = useDashboardQuery({
         uuidOrSlug: dashboardIdentifier,
         projectUuid,
+        includeUnpublishedDraft,
         useQueryOptions: {
             select: (d) => {
                 if (schedulerDashboardFilters) {

@@ -188,6 +188,57 @@ describe('DashboardService drafts gating (sync + git-backed only)', () => {
     });
 });
 
+describe('DashboardService draft overlay is opt-in', () => {
+    afterEach(() => vi.clearAllMocks());
+
+    const buildReadService = () => {
+        const findOpenDraft = vi
+            .fn()
+            .mockResolvedValue({ draft: { name: 'Weekly KPIs (drafted)' } });
+        const service = buildService().service;
+        // Replace the two collaborators the read path needs
+        (service as AnyType).contentDraftModel = { findOpenDraft };
+        (service as AnyType).dashboardModel = {
+            getByIdOrSlug: vi.fn().mockResolvedValue(dashboardDao),
+        };
+        (service as AnyType).analyticsModel = {
+            addDashboardViewEvent: vi.fn().mockResolvedValue(undefined),
+        };
+        (service as AnyType).logDashboardLoadedEvent = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const viewer = {
+            userUuid: 'author-uuid',
+            ability: new Ability<PossibleAbilities>([
+                { action: 'view', subject: 'Dashboard' },
+            ]),
+        } as unknown as SessionUser;
+        return { service, viewer, findOpenDraft };
+    };
+
+    it('getByIdOrSlug returns the published dashboard and never reads drafts', async () => {
+        const { service, viewer, findOpenDraft } = buildReadService();
+
+        const dashboard = await service.getByIdOrSlug(viewer, 'weekly-kpis');
+
+        expect(dashboard.name).toBe('Weekly KPIs');
+        expect(dashboard.hasUnpublishedChanges).toBeUndefined();
+        expect(findOpenDraft).not.toHaveBeenCalled();
+    });
+
+    it('getByIdOrSlugForViewer applies the caller own draft', async () => {
+        const { service, viewer } = buildReadService();
+
+        const dashboard = await service.getByIdOrSlugForViewer(
+            viewer,
+            'weekly-kpis',
+        );
+
+        expect(dashboard.name).toBe('Weekly KPIs (drafted)');
+        expect(dashboard.hasUnpublishedChanges).toBe(true);
+    });
+});
+
 describe('DashboardService orphan chart sweep', () => {
     afterEach(() => vi.clearAllMocks());
 

@@ -36,9 +36,15 @@ import { useProjectUuid } from '../useProjectUuid';
 import useQueryError from '../useQueryError';
 import useDashboardStorage from './useDashboardStorage';
 
-export const getDashboard = async (id: string, projectUuid: string) =>
+export const getDashboard = async (
+    id: string,
+    projectUuid: string,
+    includeUnpublishedDraft: boolean = false,
+) =>
     lightdashApi<Dashboard>({
-        url: `/projects/${projectUuid}/dashboards/${id}`,
+        url: `/projects/${projectUuid}/dashboards/${id}${
+            includeUnpublishedDraft ? '?includeUnpublishedDraft=true' : ''
+        }`,
         version: 'v2',
         method: 'GET',
         body: undefined,
@@ -136,17 +142,31 @@ export const useDashboardQuery = ({
     uuidOrSlug,
     projectUuid,
     useQueryOptions,
+    // Opt in from interactive editing surfaces only. Rendered pages (the
+    // /minimal routes the headless browser exports) must stay published, or a
+    // draft ends up in a scheduled delivery.
+    includeUnpublishedDraft = false,
 }: {
     uuidOrSlug?: string;
     projectUuid?: string;
     useQueryOptions?: UseQueryOptions<Dashboard, ApiError>;
+    includeUnpublishedDraft?: boolean;
 } = {}) => {
     const setErrorResponse = useQueryError();
     return useQuery<Dashboard, ApiError>({
-        queryKey: ['saved_dashboard_query', uuidOrSlug, projectUuid],
+        queryKey: [
+            'saved_dashboard_query',
+            uuidOrSlug,
+            projectUuid,
+            includeUnpublishedDraft,
+        ],
         queryFn: async () => {
             if (!projectUuid) throw new Error('projectUuid is required');
-            return getDashboard(uuidOrSlug || '', projectUuid);
+            return getDashboard(
+                uuidOrSlug || '',
+                projectUuid,
+                includeUnpublishedDraft,
+            );
         },
         enabled: !!uuidOrSlug && !!projectUuid,
         retry: false,

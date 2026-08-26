@@ -778,6 +778,24 @@ export class DashboardService
             });
         });
 
+        return dashboard;
+    }
+
+    // The published dashboard with the caller's own unpublished draft applied
+    // on top. Only interactive read paths should use this: `getByIdOrSlug`
+    // stays published-only so machine consumers — scheduled deliveries,
+    // exports, Google Sheets syncs, AI tools — cannot serve one user's draft
+    // to everyone by forgetting to opt out.
+    async getByIdOrSlugForViewer(
+        user: SessionUser,
+        dashboardUuidOrSlug: UuidOrSlug,
+        options?: { projectUuid?: string },
+    ): Promise<Dashboard> {
+        const dashboard = await this.getByIdOrSlug(
+            user,
+            dashboardUuidOrSlug,
+            options,
+        );
         return this.applyOpenDraftOverlay(user, dashboard);
     }
 
