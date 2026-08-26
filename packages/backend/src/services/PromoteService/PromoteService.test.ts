@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ChartType,
     DashboardTileTypes,
     OrganizationMemberRole,
     PossibleAbilities,
@@ -1731,5 +1732,63 @@ describe('PromoteService data app promotion', () => {
                 promotedDashboard.projectUuid,
             ),
         ).rejects.toThrow(/Data apps are not available/);
+    });
+
+    const vizChartChanges = (): PromotionChanges => ({
+        spaces: [],
+        dashboards: [],
+        charts: [
+            {
+                action: PromotionAction.CREATE,
+                data: {
+                    uuid: 'chart-uuid',
+                    chartConfig: {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: {
+                            dataAppVizUuid: promotedAppUuid,
+                            fieldMapping: {},
+                        },
+                    },
+                } as unknown as PromotionChanges['charts'][number]['data'],
+            },
+        ],
+    });
+
+    test('promotes the chart-bound custom chart type and remaps dataAppVizUuid', async () => {
+        const newChanges = await serviceWithApps.upsertDataApps(
+            user,
+            vizChartChanges(),
+            promotedDashboard.projectUuid,
+        );
+
+        expect(appGenerateService.promoteAppsForDashboard).toHaveBeenCalledWith(
+            user,
+            promotedDashboard.projectUuid,
+            [promotedAppUuid],
+        );
+
+        const { chartConfig } = newChanges.charts[0].data;
+        expect(
+            chartConfig.type === ChartType.DATA_APP_VIZ
+                ? chartConfig.config?.dataAppVizUuid
+                : undefined,
+        ).toBe(upstreamAppUuid);
+    });
+
+    test('keeps the chart binding when the referenced viz was skipped (soft-deleted)', async () => {
+        appGenerateService.promoteAppsForDashboard.mockResolvedValueOnce([]);
+
+        const newChanges = await serviceWithApps.upsertDataApps(
+            user,
+            vizChartChanges(),
+            promotedDashboard.projectUuid,
+        );
+
+        const { chartConfig } = newChanges.charts[0].data;
+        expect(
+            chartConfig.type === ChartType.DATA_APP_VIZ
+                ? chartConfig.config?.dataAppVizUuid
+                : undefined,
+        ).toBe(promotedAppUuid);
     });
 });
