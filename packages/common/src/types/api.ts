@@ -203,6 +203,11 @@ import {
     type PullRequestPreview,
 } from './gitIntegration';
 import type {
+    LinearInstallation,
+    LinearProject,
+    LinearTeam,
+} from './linear';
+import type {
     ApiGroupAsCodeListResponse,
     ApiGroupAsCodeUpsertResponse,
     ApiGroupListResponse,
@@ -1277,6 +1282,9 @@ type ApiResults =
     | ApiGitFileContent
     | GitIntegrationConfiguration
     | GithubUserCredential
+    | LinearInstallation
+    | Array<LinearTeam>
+    | Array<LinearProject>
     | CiChecks
     | MergePullRequestResult
     | ClosePullRequestResult
