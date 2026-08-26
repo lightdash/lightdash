@@ -40,8 +40,13 @@ const projectChartType = {
 const itemsMap = { orders_status: { name: 'status' } } as unknown as ItemsMap;
 
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualizations');
+const { dataAppsEnabled } = vi.hoisted(() => ({
+    dataAppsEnabled: { current: true },
+}));
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: true } }),
+    useServerFeatureFlag: () => ({
+        data: { enabled: dataAppsEnabled.current },
+    }),
 }));
 vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
     useVisualizationContext: () => ({
@@ -120,6 +125,7 @@ describe('ChartTypeGallery', () => {
             <ChartTypeGallery
                 search=""
                 onSearchChange={vi.fn()}
+                disabledReason={null}
                 sections={[
                     gallerySection({
                         items: [galleryItem('Bar chart')],
@@ -162,6 +168,7 @@ describe('ChartTypeGallery', () => {
             <ChartTypeGallery
                 search=""
                 onSearchChange={vi.fn()}
+                disabledReason={null}
                 sections={[
                     gallerySection({
                         items: [
@@ -187,6 +194,7 @@ describe('ChartTypeGallery', () => {
             <ChartTypeGallery
                 search=""
                 onSearchChange={vi.fn()}
+                disabledReason={null}
                 sections={[
                     gallerySection({
                         label: 'Project',
@@ -210,6 +218,7 @@ describe('ChartTypeGallery', () => {
             <ChartTypeGallery
                 search=""
                 onSearchChange={vi.fn()}
+                disabledReason={null}
                 sections={[
                     gallerySection({ items: [galleryItem('Bar chart')] }),
                     gallerySection({
@@ -239,6 +248,7 @@ describe('ChartTypeGallery', () => {
             <ChartTypeGallery
                 search=""
                 onSearchChange={vi.fn()}
+                disabledReason={null}
                 sections={[
                     gallerySection({
                         items: [
@@ -263,6 +273,7 @@ describe('ChartTypeGallery', () => {
             <ChartTypeGallery
                 search=""
                 onSearchChange={vi.fn()}
+                disabledReason={null}
                 sections={[
                     gallerySection({
                         errorMessage: 'Failed to load project chart types',
@@ -281,6 +292,7 @@ describe('ChartTypeGallery', () => {
             <ChartTypeGallery
                 search="zzz"
                 onSearchChange={vi.fn()}
+                disabledReason={null}
                 sections={[
                     gallerySection({
                         emptyMessage:
@@ -334,6 +346,7 @@ const renderGallery = () => {
 describe('ExplorerChartTypeGallery', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        dataAppsEnabled.current = true;
         mocks.canCreateDataApp.mockReturnValue(true);
         setProjectQuery();
     });
@@ -530,6 +543,41 @@ describe('ExplorerChartTypeGallery', () => {
         );
 
         expect(mocks.fetchNextPage).toHaveBeenCalled();
+    });
+
+    it('says why nothing can be picked before a query has run', () => {
+        renderWithProviders(
+            <ChartTypeGallery
+                search=""
+                onSearchChange={vi.fn()}
+                disabledReason="Run your query to pick a chart type."
+                sections={[
+                    gallerySection({
+                        items: [{ ...galleryItem('Bar'), disabled: true }],
+                    }),
+                ]}
+            />,
+        );
+
+        expect(
+            screen.getByText('Run your query to pick a chart type.'),
+        ).toBeInTheDocument();
+    });
+
+    it('leaves the project shelf out entirely while data-apps is off', () => {
+        dataAppsEnabled.current = false;
+        renderGallery();
+
+        expect(screen.queryByText('Project')).not.toBeInTheDocument();
+        expect(screen.getByText('Built in')).toBeInTheDocument();
+        // No project shelf means no reason to ask the server for one.
+        expect(mockedUseDataAppVisualizations).toHaveBeenCalledWith(
+            undefined,
+            '',
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Create new chart type' }),
+        ).not.toBeInTheDocument();
     });
 
     it('keeps built-in choices usable when project types fail to load', async () => {

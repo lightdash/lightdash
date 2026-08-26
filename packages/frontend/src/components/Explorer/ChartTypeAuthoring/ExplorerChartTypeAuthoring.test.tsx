@@ -55,9 +55,12 @@ vi.mock('../VisualizationCard/useExplorerResultsData', () => ({
 vi.mock('../VisualizationCard/useExplorerChartColorPalette', () => ({
     useExplorerChartColorPalette: () => ['#explorer-1', '#explorer-2'],
 }));
+const { dataAppsEnabled } = vi.hoisted(() => ({
+    dataAppsEnabled: { current: true },
+}));
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({
-        data: { enabled: true },
+        data: { enabled: dataAppsEnabled.current },
         isLoading: false,
     }),
 }));
@@ -276,6 +279,7 @@ describe('ExplorerChartTypeAuthoring', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         previewContexts.length = 0;
+        dataAppsEnabled.current = true;
         vi.mocked(useCanCreateDataApp).mockReturnValue(true);
         vi.mocked(useCanEditDataApp).mockReturnValue(true);
         vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
@@ -579,6 +583,22 @@ describe('ExplorerChartTypeAuthoring', () => {
             newTypeWorkspace(),
         );
         const store = renderAuthoring({ dataAppVizUuid: null });
+
+        expect(showToastError).toHaveBeenCalled();
+        expect(store.getState().explorer.chartTypeAuthoring).toBeNull();
+    });
+
+    it('leaves authoring when the user may not edit this type', () => {
+        vi.mocked(useCanEditDataApp).mockReturnValue(false);
+        const store = renderAuthoring({ dataAppVizUuid: 'viz-1' });
+
+        expect(showToastError).toHaveBeenCalled();
+        expect(store.getState().explorer.chartTypeAuthoring).toBeNull();
+    });
+
+    it('leaves authoring when data-apps is switched off under it', () => {
+        dataAppsEnabled.current = false;
+        const store = renderAuthoring({ dataAppVizUuid: 'viz-1' });
 
         expect(showToastError).toHaveBeenCalled();
         expect(store.getState().explorer.chartTypeAuthoring).toBeNull();

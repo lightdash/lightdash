@@ -286,12 +286,15 @@ type GalleryProps = {
     search: string;
     onSearchChange: (search: string) => void;
     sections: ChartTypeGallerySection[];
+    /** Why nothing here can be picked; null while the gallery is usable. */
+    disabledReason: string | null;
 };
 
 export const ChartTypeGallery: FC<GalleryProps> = ({
     search,
     onSearchChange,
     sections,
+    disabledReason,
 }) => (
     <Stack className={classes.root} gap="md">
         <TextInput
@@ -303,6 +306,14 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
             leftSection={<MantineIcon icon={IconSearch} />}
             aria-label="Search chart types"
         />
+
+        {/* Disabled cards drop out of the tab order, so the reason has to
+            live outside the grid. */}
+        {disabledReason !== null ? (
+            <Text fz="xs" c="dimmed" role="status">
+                {disabledReason}
+            </Text>
+        ) : null}
 
         <ScrollArea
             className={classes.scrollArea}
@@ -485,6 +496,9 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             search={search}
             onSearchChange={setSearch}
             sections={sections}
+            disabledReason={
+                disabled ? 'Run your query to pick a chart type.' : null
+            }
         />
     );
 };
