@@ -5520,8 +5520,50 @@
                 "enum": ["virtual_view"],
                 "type": "string"
             },
+            "ResultColumnProvenance": {
+                "properties": {
+                    "sourceQueryUuid": {
+                        "type": "string",
+                        "description": "Which query in a multi-source pipeline the field belongs to. Omitted\nfor single-query results. Two composer nodes can both expose the same\nfield name, so a bare fieldId is ambiguous across sources."
+                    },
+                    "fieldId": {
+                        "type": "string",
+                        "description": "Key into the query's fields map (query_history.fields)."
+                    }
+                },
+                "required": ["fieldId"],
+                "type": "object"
+            },
             "ResultColumn": {
                 "properties": {
+                    "provenance": {
+                        "$ref": "#/components/schemas/ResultColumnProvenance",
+                        "description": "Absent ⇒ no semantic field behind this column (computed DuckDB column,\nraw SQL column, table calc, join key). Absence gates interaction\ncapabilities (drill, underlying data, URLs) off — by design."
+                    },
+                    "shiftsTimezone": {
+                        "type": "boolean",
+                        "description": "Resolved output of getFormatterTimezone: whether values shift into the\ndisplay timezone. Saves consumers from needing skipTimezoneConversion /\nbaseDimensionType."
+                    },
+                    "timeInterval": {
+                        "$ref": "#/components/schemas/TimeFrames",
+                        "description": "Temporal grain. Required for QUARTER (no ECMA-376 token) and for\nexport paths (GSheets) that branch on grain."
+                    },
+                    "formatOptions": {
+                        "$ref": "#/components/schemas/CustomFormat",
+                        "description": "Escape hatch for the non-expressible formats: Compact.AUTO and\nnegative round (magnitude rounding). Mirrors getFieldFormatOverrideProps."
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator",
+                        "description": "The expression cannot encode locale — carried beside it, mirroring\nField.separator / getFieldFormatOverrideProps."
+                    },
+                    "format": {
+                        "type": "string",
+                        "description": "Lightdash format expression: ECMA-376 with in-repo extensions (IEC\nbytes, tz-shift for date expressions). MUST be rendered with\nformatValueWithExpression, never raw numfmt."
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "Display label. Absent ⇒ consumers fall back to the reference."
+                    },
                     "type": {
                         "$ref": "#/components/schemas/DimensionType"
                     },
@@ -56497,7 +56539,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.15.0",
+        "version": "2.16.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
