@@ -1,6 +1,6 @@
 import { assertUnreachable } from '@lightdash/common';
-import { Box, Drawer, Flex } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
+import { Box, Drawer, Flex, Group } from '@mantine/core';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
@@ -8,6 +8,7 @@ import {
 import {
     Fragment,
     useCallback,
+    useEffect,
     useLayoutEffect,
     useRef,
     useState,
@@ -19,6 +20,7 @@ import {
     PanelResizeHandle,
     type ImperativePanelHandle,
 } from 'react-resizable-panels';
+import { useLocation } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import {
@@ -71,7 +73,20 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     const [isResizing, setIsResizing] = useState(false);
 
     const preview = useAiAgentStoreSelector(selectPreview);
-    const isMobile = useMediaQuery('(max-width: 768px)');
+    // Resolved on first render so the sidebar never flashes open on mobile
+    const isMobile = useMediaQuery('(max-width: 768px)', undefined, {
+        getInitialValueInEffect: false,
+    });
+    const [
+        isMobileSidebarOpened,
+        { close: closeMobileSidebar, toggle: toggleMobileSidebar },
+    ] = useDisclosure(false);
+    const { pathname } = useLocation();
+
+    // Navigating from a thread link inside the drawer should dismiss it
+    useEffect(() => {
+        closeMobileSidebar();
+    }, [pathname, closeMobileSidebar]);
 
     const toggleSidebar = useCallback(() => {
         setIsAgentSidebarCollapsed?.(!isAgentSidebarCollapsed);
@@ -83,7 +98,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     }, [setIsAgentSidebarCollapsed, isAgentSidebarCollapsed]);
 
     useLayoutEffect(() => {
-        if (!preview) return;
+        if (!preview || isMobile) return;
 
         const frame = requestAnimationFrame(() => {
             sidebarPanelRef.current?.collapse();
@@ -91,7 +106,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
         });
 
         return () => cancelAnimationFrame(frame);
-    }, [preview, setIsAgentSidebarCollapsed]);
+    }, [preview, isMobile, setIsAgentSidebarCollapsed]);
 
     return (
         <div
@@ -104,7 +119,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                 className={styles.panelGroup}
                 style={{ flex: 1, minWidth: 0 }}
             >
-                {Sidebar && (
+                {Sidebar && !isMobile && (
                     <Fragment>
                         <ErrorBoundary>
                             <Panel
@@ -176,8 +191,33 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         minSize={25}
                         order={2}
                     >
-                        {Header && (
-                            <Box className={styles.chatHeader}>{Header}</Box>
+                        {(Header || (isMobile && Sidebar)) && (
+                            <Box className={styles.chatHeader}>
+                                <Group gap="xs" wrap="nowrap" align="center">
+                                    {isMobile && Sidebar && (
+                                        <SidebarButton
+                                            aria-label="Open Ask AI sidebar"
+                                            size="sm"
+                                            leftSection={
+                                                <MantineIcon
+                                                    size="md"
+                                                    icon={
+                                                        IconLayoutSidebarLeftExpand
+                                                    }
+                                                    stroke={1.8}
+                                                    color="ldGray.7"
+                                                />
+                                            }
+                                            onClick={toggleMobileSidebar}
+                                        />
+                                    )}
+                                    {Header && (
+                                        <Box flex={1} miw={0}>
+                                            {Header}
+                                        </Box>
+                                    )}
+                                </Group>
+                            </Box>
                         )}
 
                         <Box className={styles.chatContent}>{children}</Box>
@@ -222,6 +262,23 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                     </Fragment>
                 )}
             </PanelGroup>
+
+            {isMobile && Sidebar && (
+                <Drawer
+                    opened={isMobileSidebarOpened}
+                    onClose={closeMobileSidebar}
+                    position="left"
+                    size="85%"
+                    title="Threads"
+                    classNames={{
+                        content: styles.mobileSidebarContent,
+                        header: styles.mobileSidebarHeader,
+                        body: styles.mobileSidebarBody,
+                    }}
+                >
+                    {Sidebar}
+                </Drawer>
+            )}
 
             {isMobile && (
                 <Drawer
