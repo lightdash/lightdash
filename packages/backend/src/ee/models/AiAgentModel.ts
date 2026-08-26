@@ -158,7 +158,8 @@ import {
     DbAiThreadShare,
     DbAiWebAppPrompt,
     DbAiWritebackRun,
-    type AiPromptNeedsUserInputMetadata,
+    type AiPromptClassifierNeedsUserInputMetadata,
+    type AiPromptStructuredNeedsUserInputMetadata,
     type AiSqlApprovalDecision,
 } from '../database/entities/ai';
 import {
@@ -407,6 +408,7 @@ type AiAgentThreadLiveStateRow = {
     thread_uuid: string;
     thread_created_at: Date;
     prompt_created_at: Date | null;
+    prompt_retried_at: Date | null;
     prompt_responded_at: Date | null;
     prompt_response: string | null;
     prompt_error_message: string | null;
@@ -3066,6 +3068,7 @@ export class AiAgentModel {
                     SELECT
                         latest_prompt.ai_prompt_uuid,
                         latest_prompt.created_at,
+                        latest_prompt.retried_at,
                         latest_prompt.responded_at,
                         latest_prompt.response,
                         latest_prompt.error_message,
@@ -3143,6 +3146,7 @@ export class AiAgentModel {
                 'live_thread.ai_thread_uuid as thread_uuid',
                 'live_thread.created_at as thread_created_at',
                 'latest_prompt.created_at as prompt_created_at',
+                'latest_prompt.retried_at as prompt_retried_at',
                 'latest_prompt.responded_at as prompt_responded_at',
                 'latest_prompt.response as prompt_response',
                 'latest_prompt.error_message as prompt_error_message',
@@ -3184,6 +3188,7 @@ export class AiAgentModel {
                         ? null
                         : {
                               createdAt: row.prompt_created_at,
+                              retriedAt: row.prompt_retried_at,
                               respondedAt: row.prompt_responded_at,
                               response: row.prompt_response,
                               errorMessage: row.prompt_error_message,
@@ -5504,7 +5509,13 @@ export class AiAgentModel {
 
     async updateModelResponse(
         data: UpdateSlackResponse | UpdateWebAppResponse,
-        { onlyIfPending = false }: { onlyIfPending?: boolean } = {},
+        {
+            onlyIfPending = false,
+            onlyIfUnfinalized = false,
+        }: {
+            onlyIfPending?: boolean;
+            onlyIfUnfinalized?: boolean;
+        } = {},
     ) {
         // A new response supersedes any previous error for this prompt
         const outcome: {
@@ -5543,8 +5554,16 @@ export class AiAgentModel {
                 .whereNull('response')
                 .whereNull('error_message');
         }
+        if (onlyIfUnfinalized) {
+            query.whereNull('token_usage').whereNull('error_message');
+        }
 
-        await query.returning('ai_prompt_uuid');
+        const rows =
+            await query.returning<{ ai_prompt_uuid: string }[]>(
+                'ai_prompt_uuid',
+            );
+
+        return rows.length > 0;
     }
 
     async updatePromptNeedsUserInput({
@@ -5554,7 +5573,7 @@ export class AiAgentModel {
     }: {
         promptUuid: string;
         needsUserInput: boolean;
-        metadata: AiPromptNeedsUserInputMetadata;
+        metadata: AiPromptClassifierNeedsUserInputMetadata;
     }): Promise<boolean> {
         const rows = await this.database(AiPromptTableName)
             .update({
@@ -5568,6 +5587,26 @@ export class AiAgentModel {
         return rows.length > 0;
     }
 
+    async setPromptNeedsUserInput({
+        promptUuid,
+        needsUserInput,
+        metadata,
+    }: {
+        promptUuid: string;
+        needsUserInput: boolean;
+        metadata: AiPromptStructuredNeedsUserInputMetadata;
+    }): Promise<boolean> {
+        const rows = await this.database(AiPromptTableName)
+            .update({
+                needs_user_input: needsUserInput,
+                needs_user_input_metadata: metadata,
+            })
+            .where('ai_prompt_uuid', promptUuid)
+            .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
+
+        return rows.length > 0;
+    }
+
     async resetPromptResponseForRetry(
         promptUuid: string,
         previousState: AiPromptResponseState,
@@ -5576,6 +5615,7 @@ export class AiAgentModel {
             .update({
                 responded_at: this.database.raw('NULL'),
                 error_message: null,
+                retried_at: this.database.fn.now(),
             })
             .where('ai_prompt_uuid', promptUuid)
             .modify((query) => wherePromptResponseState(query, previousState))

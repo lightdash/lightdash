@@ -203,12 +203,21 @@ export type AiWritebackRunTable = Knex.CompositeTableType<
 
 export const AiPromptTableName = 'ai_prompt';
 
-export type AiPromptNeedsUserInputMetadata = {
+export type AiPromptClassifierNeedsUserInputMetadata = {
     gate: 'match' | 'no_match';
     model: string | null;
     durationMs: number;
     confidence: number | null;
 };
+
+export type AiPromptStructuredNeedsUserInputMetadata = {
+    gate: 'structured';
+    reason: 'writeback_source_selection';
+};
+
+export type AiPromptNeedsUserInputMetadata =
+    | AiPromptClassifierNeedsUserInputMetadata
+    | AiPromptStructuredNeedsUserInputMetadata;
 
 export type DbAiPrompt = {
     ai_prompt_uuid: string;
@@ -219,6 +228,7 @@ export type DbAiPrompt = {
     response: string | null;
     error_message: string | null;
     responded_at: Date | null;
+    retried_at: Date | null;
     viz_config_output: object | null;
     filters_output: object | null;
     human_score: number | null;
@@ -260,6 +270,7 @@ export type AiPromptTable = Knex.CompositeTableType<
             | 'needs_user_input_metadata'
         > & {
             responded_at: Knex.Raw;
+            retried_at?: Date | Knex.Raw;
         }
     >
 >;

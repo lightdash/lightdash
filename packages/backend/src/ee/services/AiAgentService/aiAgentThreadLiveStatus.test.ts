@@ -9,6 +9,7 @@ const liveStateSignals = () => ({
     threadCreatedAt: THREAD_CREATED_AT,
     latestPrompt: {
         createdAt: PROMPT_CREATED_AT,
+        retriedAt: null,
         respondedAt: null,
         response: null,
         errorMessage: null,
@@ -64,6 +65,27 @@ describe('deriveAiAgentThreadLiveStatus', () => {
             threadUuid: 'thread-uuid',
             state: 'idle',
             stateChangedAt: '2026-08-26T10:00:00.000Z',
+            source: 'deterministic',
+        });
+    });
+
+    it('reports an old failed prompt as freshly working after retry', () => {
+        expect(
+            deriveAiAgentThreadLiveStatus(
+                {
+                    ...liveStateSignals(),
+                    latestPrompt: {
+                        ...liveStateSignals().latestPrompt,
+                        createdAt: new Date('2026-08-26T10:00:00.000Z'),
+                        retriedAt: new Date('2026-08-26T11:59:00.000Z'),
+                    },
+                },
+                NOW,
+            ),
+        ).toEqual({
+            threadUuid: 'thread-uuid',
+            state: 'working',
+            stateChangedAt: '2026-08-26T11:59:00.000Z',
             source: 'deterministic',
         });
     });
@@ -159,6 +181,9 @@ describe('deriveAiAgentThreadLiveStatus', () => {
                         latestPrompt: {
                             ...liveStateSignals().latestPrompt,
                             createdAt: new Date('2026-08-26T11:00:00.000Z'),
+                            response: 'Which source should I use?',
+                            respondedAt: new Date('2026-08-26T11:05:00.000Z'),
+                            needsUserInput: true,
                         },
                         activeDeepResearchRun: {
                             status,
@@ -173,6 +198,7 @@ describe('deriveAiAgentThreadLiveStatus', () => {
                 ),
             ).toMatchObject({
                 state: 'working',
+                source: 'deterministic',
                 stateChangedAt:
                     status === 'running'
                         ? '2026-08-26T11:31:00.000Z'
@@ -243,14 +269,15 @@ describe('deriveAiAgentThreadLiveStatus', () => {
         });
     });
 
-    it('reports a classified terminal response as waiting for the user', () => {
+    it('reports a completed writeback source-selection response as waiting for the user', () => {
         expect(
             deriveAiAgentThreadLiveStatus(
                 {
                     ...liveStateSignals(),
                     latestPrompt: {
                         ...liveStateSignals().latestPrompt,
-                        response: 'Which project did you mean?',
+                        response:
+                            "This project has more than one dbt source. Reply naming one and I'll try again.",
                         respondedAt: new Date('2026-08-26T11:59:00.000Z'),
                         needsUserInput: true,
                     },
@@ -403,6 +430,7 @@ describe('deriveAiAgentThreadLiveStatus', () => {
                         ...liveStateSignals().latestPrompt,
                         response: 'Started',
                         respondedAt: new Date('2026-08-26T11:58:10.000Z'),
+                        needsUserInput: true,
                     },
                     pendingWritebackCreatedAt: new Date(
                         '2026-08-26T11:58:05.000Z',
@@ -413,6 +441,7 @@ describe('deriveAiAgentThreadLiveStatus', () => {
         ).toMatchObject({
             state: 'working',
             stateChangedAt: '2026-08-26T11:58:05.000Z',
+            source: 'deterministic',
         });
     });
 });

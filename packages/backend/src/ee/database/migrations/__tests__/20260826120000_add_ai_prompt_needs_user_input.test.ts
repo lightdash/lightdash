@@ -14,17 +14,17 @@ describe('AI prompt needs-user-input migration', () => {
         tracker.reset();
     });
 
-    it('adds nullable classification columns', async () => {
+    it('adds nullable classification and retry freshness columns', async () => {
         tracker.on.any(() => true).response({});
 
         await up(database);
 
         expect(tracker.history.all.map(({ sql }) => sql)).toContain(
-            'alter table "ai_prompt" add column "needs_user_input" boolean null, add column "needs_user_input_metadata" jsonb null',
+            'alter table "ai_prompt" add column "needs_user_input" boolean null, add column "needs_user_input_metadata" jsonb null, add column "retried_at" timestamptz null',
         );
     });
 
-    it('drops both classification columns', async () => {
+    it('drops the classification and retry freshness columns', async () => {
         tracker.on.any(() => true).response({});
 
         await down(database);
@@ -36,6 +36,9 @@ describe('AI prompt needs-user-input migration', () => {
                 ),
                 expect.stringContaining(
                     'alter table "ai_prompt" drop column "needs_user_input_metadata"',
+                ),
+                expect.stringContaining(
+                    'alter table "ai_prompt" drop column "retried_at"',
                 ),
             ]),
         );

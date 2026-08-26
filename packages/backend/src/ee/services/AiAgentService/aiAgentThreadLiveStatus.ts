@@ -10,6 +10,7 @@ export type AiAgentThreadLiveStateSignals = {
     threadCreatedAt: Date;
     latestPrompt: {
         createdAt: Date;
+        retriedAt: Date | null;
         respondedAt: Date | null;
         response: string | null;
         errorMessage: string | null;
@@ -49,6 +50,9 @@ export const deriveAiAgentThreadLiveStatus = (
     now: Date = new Date(),
 ): AiAgentThreadLiveStatus => {
     const { latestPrompt } = signals;
+    const latestPromptStartedAt = latestPrompt
+        ? (latestPrompt.retriedAt ?? latestPrompt.createdAt)
+        : null;
     const pendingSqlApproval = signals.runSqlToolCalls
         .filter(
             (toolCall) =>
@@ -83,13 +87,14 @@ export const deriveAiAgentThreadLiveStatus = (
 
     if (
         isLatestPromptNonTerminal(latestPrompt) &&
-        now.getTime() - latestPrompt.createdAt.getTime() <=
+        latestPromptStartedAt !== null &&
+        now.getTime() - latestPromptStartedAt.getTime() <=
             AI_AGENT_THREAD_PENDING_TIMEOUT_MS
     ) {
         return {
             threadUuid: signals.threadUuid,
             state: 'working',
-            stateChangedAt: latestPrompt.createdAt.toISOString(),
+            stateChangedAt: latestPromptStartedAt.toISOString(),
             source: 'deterministic',
         };
     }

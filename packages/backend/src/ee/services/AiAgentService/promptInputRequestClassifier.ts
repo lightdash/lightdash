@@ -11,7 +11,7 @@ import {
 import type { AiAgentPromptInputRequestClassifiedEvent } from '../../../analytics/LightdashAnalytics';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
-import type { AiPromptNeedsUserInputMetadata } from '../../database/entities/ai';
+import type { AiPromptClassifierNeedsUserInputMetadata } from '../../database/entities/ai';
 import {
     resolveReviewJudgeModel,
     type ReviewJudgeConfigResolver,
@@ -61,7 +61,7 @@ type PromptInputRequestClassificationModel = {
     updatePromptNeedsUserInput: (args: {
         promptUuid: string;
         needsUserInput: boolean;
-        metadata: AiPromptNeedsUserInputMetadata;
+        metadata: AiPromptClassifierNeedsUserInputMetadata;
     }) => Promise<boolean>;
 };
 

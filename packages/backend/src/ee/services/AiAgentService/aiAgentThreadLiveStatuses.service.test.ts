@@ -64,6 +64,7 @@ describe('AiAgentService.getAgentThreadLiveStatuses', () => {
                 threadCreatedAt: new Date('2026-08-26T10:00:00.000Z'),
                 latestPrompt: {
                     createdAt: new Date('2026-08-26T11:58:00.000Z'),
+                    retriedAt: null,
                     respondedAt: new Date('2026-08-26T11:59:00.000Z'),
                     response: 'Done',
                     errorMessage: null,

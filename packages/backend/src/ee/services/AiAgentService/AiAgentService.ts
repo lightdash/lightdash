@@ -825,7 +825,10 @@ export class AiAgentService extends BaseService {
 
     private readonly shutdownFailedPromptUuids = new Set<string>();
 
-    private readonly terminalStreamUpdates = new Map<string, Promise<void>>();
+    private readonly terminalStreamUpdates = new Map<
+        string,
+        Promise<boolean>
+    >();
 
     private activeStreamPreparations = 0;
 
@@ -5978,7 +5981,14 @@ export class AiAgentService extends BaseService {
 
     private persistTrackedPromptUpdate(
         update: UpdateSlackResponse | UpdateWebAppResponse,
-    ): Promise<void> | undefined {
+        classificationContext?: {
+            organizationUuid: string;
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid: string;
+            userUuid: string;
+        },
+    ): Promise<boolean> | undefined {
         if (
             this.shutdownFailedPromptUuids.has(update.promptUuid) ||
             (this.isShuttingDown &&
@@ -5991,19 +6001,37 @@ export class AiAgentService extends BaseService {
             this.inFlightStreamPrompts.has(update.promptUuid) &&
             (update.response !== undefined ||
                 update.errorMessage !== undefined);
+        const isClassifiableTerminalUpdate =
+            shouldClassifyPromptInputRequestForUpdate(update);
         const modelUpdatePromise = this.aiAgentModel.updateModelResponse(
             update,
-            {
-                onlyIfPending: isTerminalStreamUpdate,
-            },
+            isClassifiableTerminalUpdate
+                ? { onlyIfUnfinalized: true }
+                : { onlyIfPending: isTerminalStreamUpdate },
         );
+        const persistedUpdatePromise = modelUpdatePromise.then((persisted) => {
+            if (
+                persisted &&
+                isClassifiableTerminalUpdate &&
+                classificationContext !== undefined &&
+                update.response !== undefined
+            ) {
+                this.classifyPromptInputRequestAfterResponse({
+                    ...classificationContext,
+                    promptUuid: update.promptUuid,
+                    response: update.response,
+                });
+            }
+            return persisted;
+        });
         if (!isTerminalStreamUpdate) {
-            return modelUpdatePromise;
+            return persistedUpdatePromise;
         }
 
-        const terminalUpdatePromise = modelUpdatePromise
-            .then(() => {
+        const terminalUpdatePromise = persistedUpdatePromise
+            .then((persisted) => {
                 this.inFlightStreamPrompts.delete(update.promptUuid);
+                return persisted;
             })
             .finally(() => {
                 if (
@@ -9185,6 +9213,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     ? `This project has more than one dbt source: ${sourceNames}. Reply naming one and I'll try again.`
                     : "This project has more than one dbt source, so I couldn't tell which one to change. Reply naming one and I'll try again.",
             });
+            await this.aiAgentModel.setPromptNeedsUserInput({
+                promptUuid,
+                needsUserInput: true,
+                metadata: {
+                    gate: 'structured',
+                    reason: 'writeback_source_selection',
+                },
+            });
         }
     }
 
@@ -10874,7 +10910,20 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
             ) => {
-                const updatePromise = this.persistTrackedPromptUpdate(update);
+                const completedResponse = update.response;
+                const updatePromise = this.persistTrackedPromptUpdate(
+                    update,
+                    completedResponse !== undefined &&
+                        shouldClassifyPromptInputRequestForUpdate(update)
+                        ? {
+                              organizationUuid: agentSettings.organizationUuid,
+                              projectUuid: prompt.projectUuid,
+                              agentUuid: agentSettings.uuid,
+                              threadUuid: prompt.threadUuid,
+                              userUuid: user.userUuid,
+                          }
+                        : undefined,
+                );
                 if (!updatePromise) {
                     return Promise.resolve();
                 }
@@ -10978,32 +11027,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         });
                 }
 
-                const completedResponse = update.response;
-                if (
-                    completedResponse !== undefined &&
-                    shouldClassifyPromptInputRequestForUpdate(update)
-                ) {
-                    void updatePromise
-                        .then(() => {
-                            this.classifyPromptInputRequestAfterResponse({
-                                response: completedResponse,
-                                organizationUuid:
-                                    agentSettings.organizationUuid,
-                                projectUuid: prompt.projectUuid,
-                                agentUuid: agentSettings.uuid,
-                                threadUuid: prompt.threadUuid,
-                                promptUuid: update.promptUuid,
-                                userUuid: user.userUuid,
-                            });
-                        })
-                        .catch((error) => {
-                            Logger.error(
-                                'Failed to start AI agent prompt input request classification',
-                                error,
-                            );
-                        });
-                }
-
                 // Error-only updates add no distillable content — distill only
                 // after a successful terminal turn write.
                 if (
@@ -11029,7 +11052,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         });
                 }
 
-                return updateWithCitationTelemetryPromise;
+                return updateWithCitationTelemetryPromise.then(() => undefined);
             },
             trackEvent: (
                 event:
