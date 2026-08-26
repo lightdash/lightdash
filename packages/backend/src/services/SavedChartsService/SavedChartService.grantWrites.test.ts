@@ -121,6 +121,22 @@ const spaceOnlyContext = {
     directOnly: false,
 };
 
+// A space-saved chart reachable only via its OWN direct grant (grantedVia
+// 'saved_chart'), the Stack 3A analogue of the dashboard-owned case above.
+const spaceChart = {
+    ...ownedChart,
+    uuid: 'space-chart-uuid',
+    name: 'Space chart',
+    slug: 'space-chart',
+    dashboardUuid: null,
+    dashboardName: null,
+};
+
+const chartGrantContext = {
+    ...grantContext,
+    access: [{ ...grantRow, grantedVia: 'saved_chart' as const }],
+};
+
 const savedChartModel = {
     getSummary: vi.fn(async () => ownedChart),
     get: vi.fn(async () => ownedChart),
@@ -148,6 +164,7 @@ const projectModel = {
 const spacePermissionService = {
     getSpaceAccessContext: vi.fn(async () => spaceOnlyContext),
     getDashboardAccessContext: vi.fn(async () => grantContext),
+    getChartAccessContext: vi.fn(async () => grantContext),
 };
 
 vi.spyOn(analyticsMock, 'track');
@@ -179,9 +196,11 @@ describe('SavedChartService direct-grant write parity', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
-        spacePermissionService.getDashboardAccessContext.mockResolvedValue(
+        spacePermissionService.getChartAccessContext.mockResolvedValue(
             grantContext,
         );
+        savedChartModel.getSummary.mockResolvedValue(ownedChart);
+        savedChartModel.get.mockResolvedValue(ownedChart);
     });
 
     it('lets a grant-only editor rename a dashboard-owned chart via the dashboard context', async () => {
@@ -192,11 +211,12 @@ describe('SavedChartService direct-grant write parity', () => {
                 description: undefined,
             } as never),
         ).resolves.toBeDefined();
-        // The switched call resolves the OWNING dashboard's grants.
+        // The router resolves the OWNING dashboard's grants for an owned chart.
         expect(
-            spacePermissionService.getDashboardAccessContext,
+            spacePermissionService.getChartAccessContext,
         ).toHaveBeenCalledWith(grantOnlyEditor.userUuid, {
-            uuid: OWNING_DASHBOARD,
+            uuid: ownedChart.uuid,
+            dashboardUuid: OWNING_DASHBOARD,
             spaceUuid: PRIVATE_SPACE,
         });
         // Audit records the grant provenance.
@@ -228,7 +248,7 @@ describe('SavedChartService direct-grant write parity', () => {
     });
 
     it('denies the update when the context carries no grant (space-only)', async () => {
-        spacePermissionService.getDashboardAccessContext.mockResolvedValue(
+        spacePermissionService.getChartAccessContext.mockResolvedValue(
             spaceOnlyContext,
         );
         await expect(
@@ -255,11 +275,80 @@ describe('SavedChartService direct-grant write parity', () => {
     });
 
     it('denies the delete when the context carries no grant (space-only)', async () => {
-        spacePermissionService.getDashboardAccessContext.mockResolvedValue(
+        spacePermissionService.getChartAccessContext.mockResolvedValue(
             spaceOnlyContext,
         );
         await expect(
             service.delete(grantOnlyEditor, ownedChart.uuid),
         ).rejects.toThrow();
+    });
+
+    it('lets a grant-only editor rename a space-saved chart via its own chart grant', async () => {
+        savedChartModel.getSummary.mockResolvedValue(spaceChart as never);
+        spacePermissionService.getChartAccessContext.mockResolvedValue(
+            chartGrantContext,
+        );
+        await expect(
+            service.update(grantOnlyEditor, spaceChart.uuid, {
+                name: 'Renamed in space',
+                description: undefined,
+            } as never),
+        ).resolves.toBeDefined();
+        // The router resolves the chart's OWN grant for a space chart.
+        expect(
+            spacePermissionService.getChartAccessContext,
+        ).toHaveBeenCalledWith(grantOnlyEditor.userUuid, {
+            uuid: spaceChart.uuid,
+            dashboardUuid: null,
+            spaceUuid: PRIVATE_SPACE,
+        });
+        // A saved_chart grant is grant-only but not a dashboard grant.
+        expect(analyticsMock.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'saved_chart.updated',
+                properties: expect.objectContaining({
+                    viaDashboardGrant: false,
+                    grantOnly: true,
+                }),
+            }),
+        );
+    });
+
+    it('denies moving a space-saved chart to another space via its chart grant (boundary)', async () => {
+        savedChartModel.getSummary.mockResolvedValue(spaceChart as never);
+        spacePermissionService.getChartAccessContext.mockResolvedValue(
+            chartGrantContext,
+        );
+        // The chart grant authorizes the edit, but relocating requires space
+        // access to the current space, which a grant-only editor lacks.
+        await expect(
+            service.update(grantOnlyEditor, spaceChart.uuid, {
+                name: 'Renamed',
+                description: undefined,
+                spaceUuid: 'attacker-space-uuid',
+            } as never),
+        ).rejects.toThrow('move this chart out of its space');
+        expect(
+            spacePermissionService.getSpaceAccessContext,
+        ).toHaveBeenCalledWith(grantOnlyEditor.userUuid, PRIVATE_SPACE);
+    });
+
+    it('lets a grant-only editor delete a space-saved chart via its chart grant', async () => {
+        savedChartModel.get.mockResolvedValue(spaceChart as never);
+        spacePermissionService.getChartAccessContext.mockResolvedValue(
+            chartGrantContext,
+        );
+        await expect(
+            service.delete(grantOnlyEditor, spaceChart.uuid),
+        ).resolves.toBeUndefined();
+        expect(analyticsMock.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'saved_chart.deleted',
+                properties: expect.objectContaining({
+                    viaDashboardGrant: false,
+                    grantOnly: true,
+                }),
+            }),
+        );
     });
 });
