@@ -4675,6 +4675,11 @@
                                 "type": "boolean",
                                 "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
                             },
+                            "ownerEmail": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Declarative dashboard owner, referenced by email so it is portable across projects.\nA string assigns the organization member with that email as owner, `null` unassigns\nthe owner, `undefined` leaves the current owner untouched. Download sets this to the\nowner's email when an owner is assigned."
+                            },
                             "filters": {
                                 "properties": {
                                     "tableCalculations": {
@@ -7486,6 +7491,25 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "DashboardOwner": {
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["email", "lastName", "firstName", "userUuid"],
+                "type": "object"
+            },
             "Pick_Dashboard.Exclude_keyofDashboard.inheritsFromOrgOrProject-or-access__": {
                 "properties": {
                     "name": {
@@ -7584,6 +7608,14 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardOwner"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "deletedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -7624,7 +7656,8 @@
                     "spaceName",
                     "views",
                     "firstViewedAt",
-                    "colorPaletteUuid"
+                    "colorPaletteUuid",
+                    "owner"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -8878,6 +8911,11 @@
                     "verified": {
                         "type": "boolean",
                         "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
+                    },
+                    "ownerEmail": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Declarative dashboard owner, referenced by email so it is portable across projects.\nA string assigns the organization member with that email as owner, `null` unassigns\nthe owner, `undefined` leaves the current owner untouched. Download sets this to the\nowner's email when an owner is assigned."
                     }
                 },
                 "required": ["name", "slug", "tabs", "version", "spaceSlug"],
@@ -13914,6 +13952,14 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardOwner"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "colorPaletteUuid": {
                         "type": "string",
                         "nullable": true
@@ -14022,6 +14068,7 @@
                     }
                 },
                 "required": [
+                    "owner",
                     "colorPaletteUuid",
                     "slug",
                     "access",
@@ -40714,6 +40761,15 @@
                     },
                     {
                         "properties": {
+                            "owner": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/DashboardOwner"
+                                    }
+                                ],
+                                "nullable": true,
+                                "description": "Only populated by the v2 content API"
+                            },
                             "verification": {
                                 "allOf": [
                                     {
@@ -44798,6 +44854,11 @@
             },
             "CreateDashboard": {
                 "properties": {
+                    "ownerUserUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Set to a user uuid to assign an owner, null or omitted for no owner"
+                    },
                     "colorPaletteUuid": {
                         "type": "string",
                         "nullable": true
@@ -46026,7 +46087,7 @@
                 "enum": ["dashboard"],
                 "type": "string"
             },
-            "Pick_DashboardBasicDetails.uuid-or-slug-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_": {
+            "Pick_DashboardBasicDetails.uuid-or-slug-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification-or-owner_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -46083,6 +46144,15 @@
                         ],
                         "nullable": true
                     },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardOwner"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Only populated by the v2 content API"
+                    },
                     "validationErrors": {
                         "items": {
                             "$ref": "#/components/schemas/ValidationSummary"
@@ -46121,7 +46191,7 @@
                         "$ref": "#/components/schemas/ResourceItemCategory"
                     },
                     "data": {
-                        "$ref": "#/components/schemas/Pick_DashboardBasicDetails.uuid-or-slug-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_"
+                        "$ref": "#/components/schemas/Pick_DashboardBasicDetails.uuid-or-slug-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification-or-owner_"
                     },
                     "type": {
                         "$ref": "#/components/schemas/ResourceViewItemType.DASHBOARD"
@@ -54535,7 +54605,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid_": {
+            "Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid-or-ownerUserUuid_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -54549,6 +54619,11 @@
                     "colorPaletteUuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "ownerUserUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Set to a user uuid to assign an owner, null or omitted for no owner"
                     }
                 },
                 "required": ["name"],
@@ -54556,7 +54631,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "DashboardUnversionedFields": {
-                "$ref": "#/components/schemas/Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid_"
+                "$ref": "#/components/schemas/Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid-or-ownerUserUuid_"
             },
             "Pick_CreateDashboard.tiles-or-filters-or-parameters-or-updatedByUser-or-tabs-or-config_": {
                 "properties": {
@@ -55183,6 +55258,14 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardOwner"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -55201,7 +55284,8 @@
                     "pinnedList",
                     "views",
                     "firstViewedAt",
-                    "verification"
+                    "verification",
+                    "owner"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -56539,7 +56623,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.17.1",
+        "version": "2.18.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -91804,6 +91888,17 @@
                         "schema": {
                             "type": "string",
                             "enum": ["exclude", "only"]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "ownerUserUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     }
                 ]
