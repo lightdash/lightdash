@@ -1,3 +1,15 @@
+# [2.17.0](https://github.com/lightdash/lightdash/compare/2.16.0...2.17.0) (2026-08-26)
+
+
+### Bug Fixes
+
+* keep builder status label on one line for long prompts ([#28140](https://github.com/lightdash/lightdash/issues/28140)) ([e787331](https://github.com/lightdash/lightdash/commit/e78733146dab6dba88cf816f881b028352414011))
+
+
+### Features
+
+* **dashboards:** include grant-covered charts in dashboard filters ([#28124](https://github.com/lightdash/lightdash/issues/28124)) ([932a1a5](https://github.com/lightdash/lightdash/commit/932a1a52629954200872e0975d235628aeab456f))
+
 # [2.16.0](https://github.com/lightdash/lightdash/compare/2.15.0...2.16.0) (2026-08-26)
 
 
