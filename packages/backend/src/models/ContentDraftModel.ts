@@ -65,9 +65,19 @@ export class ContentDraftModel {
             })
             .first();
         if (existing) {
+            // Saves carry partial payloads — the dashboard update modal sends
+            // only name, description and palette — so replacing the draft
+            // would silently discard tiles or filters the author drafted
+            // earlier. `||` merges shallowly in a single statement, so
+            // concurrent saves cannot lose a field between read and write.
             const [row] = await this.database(ContentDraftsTableName)
                 .where({ content_draft_uuid: existing.content_draft_uuid })
-                .update({ draft: args.draft, updated_at: new Date() })
+                .update({
+                    draft: this.database.raw('draft || ?::jsonb', [
+                        JSON.stringify(args.draft),
+                    ]),
+                    updated_at: new Date(),
+                })
                 .returning('*');
             return parseRow(row);
         }
