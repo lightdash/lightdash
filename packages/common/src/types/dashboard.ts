@@ -303,6 +303,8 @@ export type DashboardBasicDetails = Pick<
 > & {
     validationErrors?: ValidationSummary[];
     verification: ContentVerificationInfo | null;
+    /** Only populated by the v2 content API */
+    owner?: DashboardOwner | null;
 };
 
 export type DashboardBasicDetailsWithTileTypes = DashboardBasicDetails & {

@@ -313,10 +313,7 @@ const InfiniteResourceTable = ({
             size: 160,
             Cell: ({ row }) => {
                 const item = row.original;
-                if (
-                    !isResourceViewItemDashboard(item) ||
-                    !item.data.owner
-                ) {
+                if (!isResourceViewItemDashboard(item) || !item.data.owner) {
                     return (
                         <Text fz={12} fw={500} c="dimmed">
                             -
