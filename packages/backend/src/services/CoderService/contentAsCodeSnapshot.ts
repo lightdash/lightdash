@@ -26,22 +26,38 @@ const STRIPPED_KEYS: ReadonlySet<string> = new Set([
     'verification',
 ]);
 
-// Deep-sorts keys, drops undefined values, and serialises dates so that
-// structurally equal documents always canonicalize and hash identically.
-const canonicalize = (value: unknown): CanonicalJsonValue => {
-    if (value === null) return null;
+// Deep-sorts keys and serialises dates so that structurally equal documents
+// always canonicalize and hash identically.
+//
+// Absent, null and empty all collapse to absent, because the instance
+// materialises defaults that a hand-authored file omits: a chart with no
+// custom dimensions reads `customDimensions: []` from the API and
+// `customDimensions: null` from a downloaded file, while a file written by
+// hand has no such key at all. Without collapsing them, three spellings of
+// "not set" hash differently and fast_forward is unreachable, so every
+// unchanged upload reads as drifted.
+const canonicalize = (value: unknown): CanonicalJsonValue | undefined => {
+    if (value === null || value === undefined) return undefined;
     if (value instanceof Date) return value.toISOString();
-    if (Array.isArray(value)) return value.map(canonicalize);
+    if (Array.isArray(value)) {
+        const items = value
+            .map(canonicalize)
+            .filter((item): item is CanonicalJsonValue => item !== undefined);
+        return items.length === 0 ? undefined : items;
+    }
     if (typeof value === 'object') {
-        return Object.keys(value)
+        const entries = Object.keys(value)
             .sort()
             .reduce<Record<string, CanonicalJsonValue>>((acc, key) => {
-                const child = (value as Record<string, unknown>)[key];
+                const child = canonicalize(
+                    (value as Record<string, unknown>)[key],
+                );
                 if (child !== undefined) {
-                    acc[key] = canonicalize(child);
+                    acc[key] = child;
                 }
                 return acc;
             }, {});
+        return Object.keys(entries).length === 0 ? undefined : entries;
     }
     if (
         typeof value === 'string' ||
@@ -65,8 +81,9 @@ export const buildContentAsCodeSnapshot = (
     const snapshot = Object.keys(declarative)
         .sort()
         .reduce<Record<string, CanonicalJsonValue>>((acc, key) => {
-            if (declarative[key] !== undefined) {
-                acc[key] = canonicalize(declarative[key]);
+            const child = canonicalize(declarative[key]);
+            if (child !== undefined) {
+                acc[key] = child;
             }
             return acc;
         }, {});
