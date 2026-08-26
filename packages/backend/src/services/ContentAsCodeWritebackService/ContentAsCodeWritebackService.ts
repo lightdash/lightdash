@@ -119,6 +119,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         projectUuid: string,
         slug: string,
     ): Promise<ContentAsCodeWriteback> {
+        await this.assertCanManageContentAsCode(user, projectUuid);
         const settings =
             await this.contentAsCodeProjectSettingsModel.get(projectUuid);
         if (!settings?.syncEnabled) {
@@ -151,24 +152,37 @@ export class ContentAsCodeWritebackService extends BaseService {
         });
     }
 
-    async listWritebacks(
+    // Write-back visibility is a dev/admin surface (the sync panel), never
+    // something business users see; gate on the content-as-code ability.
+    private async assertCanManageContentAsCode(
         user: SessionUser,
         projectUuid: string,
-        options: { refresh?: boolean } = {},
-    ): Promise<ContentAsCodeWriteback[]> {
-        const project = await this.projectModel.getSummary(projectUuid);
+    ): Promise<void> {
+        const project = await this.projectModel.get(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
-                'view',
-                subject('Project', {
+                'manage',
+                subject('ContentAsCode', {
+                    projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
-                    projectUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
+                    metadata: { slug: '' },
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
+    }
+
+    async listWritebacks(
+        user: SessionUser,
+        projectUuid: string,
+        options: { refresh?: boolean } = {},
+    ): Promise<ContentAsCodeWriteback[]> {
+        await this.assertCanManageContentAsCode(user, projectUuid);
         const rows =
             await this.contentAsCodeWritebackModel.listByProject(projectUuid);
         if (options.refresh) {

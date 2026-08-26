@@ -1,5 +1,7 @@
+import { Ability } from '@casl/ability';
 import {
     DbtProjectType,
+    PossibleAbilities,
     PullRequestSource,
     type SessionUser,
 } from '@lightdash/common';
@@ -11,7 +13,10 @@ const user = {
     firstName: 'Demo',
     lastName: 'User',
     email: 'demo@lightdash.com',
-} as SessionUser;
+    ability: new Ability<PossibleAbilities>([
+        { action: 'manage', subject: 'ContentAsCode' },
+    ]),
+} as unknown as SessionUser;
 
 const chartAsCode = {
     name: 'Monthly revenue',
@@ -89,6 +94,10 @@ const buildService = (overrides: Overrides = {}) => {
     const service = new ContentAsCodeWritebackService({
         lightdashConfig: { siteUrl: 'https://app.lightdash.dev' } as never,
         projectModel: {
+            get: vi.fn().mockResolvedValue({
+                projectUuid: 'project-uuid',
+                organizationUuid: 'org-uuid',
+            }),
             getSummary: vi
                 .fn()
                 .mockResolvedValue({ organizationUuid: 'org-uuid' }),
