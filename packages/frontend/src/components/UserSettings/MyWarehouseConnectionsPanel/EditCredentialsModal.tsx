@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    SnowflakeAuthenticationType,
     WarehouseTypes,
     type UpsertUserWarehouseCredentials,
     type UserWarehouseCredentials,
@@ -16,6 +17,8 @@ import MantineModal, {
 import {
     getDefaultDatabricksAuthenticationType,
     isDatabricksPersonalAccessToken,
+    isSnowflakeSso,
+    validateUserWarehouseCredentials,
 } from './utils';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
@@ -33,6 +36,23 @@ const getCredentialsWithPlaceholders = (
                 sessionToken: '',
             };
         case WarehouseTypes.SNOWFLAKE:
+            if (
+                credentials.authenticationType ===
+                SnowflakeAuthenticationType.PRIVATE_KEY
+            ) {
+                return {
+                    ...credentials,
+                    privateKey: '',
+                    privateKeyPass: '',
+                };
+            }
+            return {
+                ...credentials,
+                authenticationType:
+                    credentials.authenticationType ??
+                    SnowflakeAuthenticationType.PASSWORD,
+                password: '',
+            };
         case WarehouseTypes.POSTGRES:
         case WarehouseTypes.TRINO:
             return {
@@ -96,18 +116,18 @@ export const EditCredentialsModal: FC<
                 isDatabricksSsoEnabled,
             ),
         },
+        validate: validateUserWarehouseCredentials,
     });
 
     // SSO-based credentials are only ever set through their OAuth popup. They
     // have no editable secret field, so a generic "Save" would persist the
     // masked placeholder and wipe the working credential.
     const showSaveButton =
-        isDatabricksPersonalAccessToken(form.values.credentials) ||
-        ![
-            WarehouseTypes.BIGQUERY,
-            WarehouseTypes.SNOWFLAKE,
-            WarehouseTypes.DATABRICKS,
-        ].includes(userCredentials.credentials.type);
+        !isSnowflakeSso(form.values.credentials) &&
+        (isDatabricksPersonalAccessToken(form.values.credentials) ||
+            ![WarehouseTypes.BIGQUERY, WarehouseTypes.DATABRICKS].includes(
+                userCredentials.credentials.type,
+            ));
 
     return (
         <MantineModal

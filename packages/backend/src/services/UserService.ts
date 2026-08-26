@@ -3334,14 +3334,28 @@ export class UserService extends BaseService {
         user: SessionUser,
         refreshToken: string,
     ) {
-        // Remove old Snowflake credentials to prevent duplicates on re-authentication
-        await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
-            user.userUuid,
-            WarehouseTypes.SNOWFLAKE,
+        // Guard before writing: an OAuth callback without a refresh token must
+        // not overwrite the user's working credentials.
+        if (!refreshToken) {
+            throw new ParameterError(
+                'Cannot create Snowflake user credentials without a refresh token',
+            );
+        }
+
+        const existingSsoCredentials = (
+            await this.userWarehouseCredentialsModel.getAllByUserUuid(
+                user.userUuid,
+            )
+        ).find(
+            ({ credentials, project }) =>
+                project === null &&
+                credentials.type === WarehouseTypes.SNOWFLAKE &&
+                credentials.authenticationType ===
+                    SnowflakeAuthenticationType.SSO,
         );
 
         const snowflakeCredentials: UpsertUserWarehouseCredentials = {
-            name: 'Default',
+            name: existingSsoCredentials?.name ?? 'Default',
             credentials: {
                 user: user.userUuid,
                 type: WarehouseTypes.SNOWFLAKE,
@@ -3349,7 +3363,16 @@ export class UserService extends BaseService {
                 refreshToken,
             },
         };
-        await this.createWarehouseCredentials(user, snowflakeCredentials);
+
+        if (existingSsoCredentials) {
+            await this.updateWarehouseCredentials(
+                user,
+                existingSsoCredentials.uuid,
+                snowflakeCredentials,
+            );
+        } else {
+            await this.createWarehouseCredentials(user, snowflakeCredentials);
+        }
     }
 
     async createDatabricksWarehouseCredentials(

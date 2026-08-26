@@ -42,6 +42,11 @@ const triggerSnowflakeLogin = async (siteUrl: string) => {
     });
 };
 
+export const useIsSnowflakeSsoEnabled = () => {
+    const health = useHealth();
+    return !!health.data?.auth.snowflake.enabled;
+};
+
 export function useSnowflakeLoginPopup({
     onLogin: _onLogin,
 }: {
