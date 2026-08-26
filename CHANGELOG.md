@@ -1,3 +1,15 @@
+# [2.12.0](https://github.com/lightdash/lightdash/compare/2.11.0...2.12.0) (2026-08-26)
+
+
+### Bug Fixes
+
+* **frontend:** make mobile sidebar follow the app colour scheme ([#28075](https://github.com/lightdash/lightdash/issues/28075)) ([ea8fa9f](https://github.com/lightdash/lightdash/commit/ea8fa9f84a4014cf416fab67616b7df741f59e7a)), closes [/linear.app/lightdash/issue/ZAP-944/fix-mobile-light-mode-sidebar-colors#agent-session-1cbcc5f3](https://github.com//linear.app/lightdash/issue/ZAP-944/fix-mobile-light-mode-sidebar-colors/issues/agent-session-1cbcc5f3) [/linear.app/lightdash/issue/ZAP-944/fix-mobile-light-mode-sidebar-colors#agent-session-1cbcc5f3](https://github.com//linear.app/lightdash/issue/ZAP-944/fix-mobile-light-mode-sidebar-colors/issues/agent-session-1cbcc5f3)
+
+
+### Features
+
+* open data app links in the agent thread preview panel ([#28110](https://github.com/lightdash/lightdash/issues/28110)) ([db90abc](https://github.com/lightdash/lightdash/commit/db90abcfdcf8a461a3311fb947f84a62499332d8))
+
 # [2.11.0](https://github.com/lightdash/lightdash/compare/2.10.1...2.11.0) (2026-08-26)
 
 
