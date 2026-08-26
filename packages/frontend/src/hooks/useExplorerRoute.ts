@@ -22,6 +22,8 @@ import {
 import { validate as isUuidString } from 'uuid';
 import {
     explorerActions,
+    selectChartSidebarStep,
+    selectIsVisualizationConfigOpen,
     selectMetricQuery,
     selectTableName,
     selectUnsavedChartVersion,
@@ -38,6 +40,8 @@ import {
     type ExplorerReduceState,
 } from '../providers/Explorer/types';
 import useToaster from './toaster/useToaster';
+
+const CHART_SIDEBAR_PARAM = 'chartSidebar';
 
 export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
     tableName: '',
@@ -174,6 +178,28 @@ export const parseDataAppVizUuidFromSearchParams = (
         : null;
 };
 
+// The param carries the open step, so its absence means a closed sidebar.
+const parseChartSidebarFromSearchParams = (
+    search: string,
+): Pick<
+    ExplorerReduceState,
+    'isVisualizationConfigOpen' | 'chartSidebarStep'
+> => {
+    const step = new URLSearchParams(search).get(CHART_SIDEBAR_PARAM);
+
+    if (step === 'choose' || step === 'configure') {
+        return {
+            isVisualizationConfigOpen: true,
+            chartSidebarStep: step,
+        };
+    }
+
+    return {
+        isVisualizationConfigOpen: false,
+        chartSidebarStep: defaultState.chartSidebarStep,
+    };
+};
+
 export const parseChartFromExplorerSearchParams = (
     search: string,
 ): CreateSavedChartVersion | undefined => {
@@ -264,6 +290,10 @@ export const useExplorerRoute = () => {
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const tableName = useExplorerSelector(selectTableName);
+    const isVisualizationConfigOpen = useExplorerSelector(
+        selectIsVisualizationConfigOpen,
+    );
+    const chartSidebarStep = useExplorerSelector(selectChartSidebarStep);
 
     // Update url params based on pristine state
     // Only sync URL when we're actually on a table page (pathParams.tableId exists)
@@ -275,6 +305,11 @@ export const useExplorerRoute = () => {
             );
             const searchParams = new URLSearchParams(explorerUrl.search);
             searchParams.delete('dataAppVizUuid');
+            if (isVisualizationConfigOpen) {
+                searchParams.set(CHART_SIDEBAR_PARAM, chartSidebarStep);
+            } else {
+                searchParams.delete(CHART_SIDEBAR_PARAM);
+            }
             void navigate(
                 {
                     ...explorerUrl,
@@ -290,6 +325,8 @@ export const useExplorerRoute = () => {
         pathParams.tableId,
         unsavedChartVersion,
         tableName,
+        isVisualizationConfigOpen,
+        chartSidebarStep,
     ]);
 
     useEffect(() => {
@@ -393,9 +430,9 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                     parameters: {},
                     fromDashboard: fromDashboard ?? undefined,
                     isExploreFromHere: isExploreFromHere,
+                    ...parseChartSidebarFromSearchParams(search),
                     queryExecution: defaultQueryExecution,
                     preAggregate: defaultState.preAggregate,
-                    chartSidebarStep: defaultState.chartSidebarStep,
                     chartTypeAuthoring: null,
                 };
             } catch (e: any) {
