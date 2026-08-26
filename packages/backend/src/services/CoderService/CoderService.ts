@@ -2176,9 +2176,11 @@ export class CoderService extends BaseService {
      * Convert a chart YAML's viz binding to the runtime shape: resolve the
      * portable dataAppVizSlug against the target project's chart types and
      * rewrite the config with the resolved uuid. A slug missing in the target
-     * fails loudly (upload the chart type first) unless the file also carries
-     * a legacy uuid to fall back to; uuid-only legacy files are accepted
-     * verbatim.
+     * fails loudly (upload the chart type first). A legacy dataAppVizUuid —
+     * whether it stands alone or backs up a missing slug — is accepted only
+     * when it resolves to a chart type in the target project; uuids are
+     * project-specific, so keeping a foreign one would create a dangling
+     * cross-project reference.
      */
     private async resolveDataAppVizBinding(
         projectUuid: string,
@@ -2192,6 +2194,16 @@ export class CoderService extends BaseService {
         }
         const { dataAppVizSlug, dataAppVizUuid, ...configRest } =
             chartConfig.config;
+        // The 'only' filter also rejects uuids pointing at regular data apps.
+        const uuidResolvesInTargetProject = async (): Promise<boolean> =>
+            dataAppVizUuid !== undefined &&
+            (
+                await this.appModel.findAppsByUuids(
+                    projectUuid,
+                    [dataAppVizUuid],
+                    { dataAppVizsFilter: 'only' },
+                )
+            ).length > 0;
         if (dataAppVizSlug !== undefined) {
             const [vizRow] = await this.appModel.findAppsBySlugs(
                 projectUuid,
@@ -2204,8 +2216,12 @@ export class CoderService extends BaseService {
                     config: { ...configRest, dataAppVizUuid: vizRow.app_id },
                 };
             }
-            // Interim files carry both identities — fall back to the uuid.
-            if (dataAppVizUuid !== undefined) {
+            // Interim files carry both identities — fall back to the uuid,
+            // but only when it names a chart type in this project.
+            if (
+                dataAppVizUuid !== undefined &&
+                (await uuidResolvesInTargetProject())
+            ) {
                 this.logger.warn(
                     `Chart type "${dataAppVizSlug}" was not found in project ${projectUuid}; keeping the chart's existing dataAppVizUuid reference.`,
                 );
@@ -2219,11 +2235,15 @@ export class CoderService extends BaseService {
             );
         }
         if (dataAppVizUuid !== undefined) {
-            // Legacy pre-slug file: accept the uuid verbatim.
-            return {
-                ...chartConfig,
-                config: { ...configRest, dataAppVizUuid },
-            };
+            if (await uuidResolvesInTargetProject()) {
+                return {
+                    ...chartConfig,
+                    config: { ...configRest, dataAppVizUuid },
+                };
+            }
+            throw new ParameterError(
+                `Custom chart type ${dataAppVizUuid} was not found in this project. Chart type uuids are project-specific: re-download the chart with a current CLI to get a portable dataAppVizSlug, upload the chart type into this project, then re-upload this chart.`,
+            );
         }
         throw new ParameterError(
             'Chart uses a custom chart type but carries neither dataAppVizSlug nor dataAppVizUuid.',
