@@ -9730,9 +9730,12 @@ export class ProjectService extends BaseService {
                     ]);
 
                 const spaceCtx =
-                    await this.spacePermissionService.getSpaceAccessContext(
+                    await this.spacePermissionService.getDashboardAccessContext(
                         account.user.id,
-                        savedChart.spaceUuid,
+                        {
+                            uuid: savedChart.dashboardUuid,
+                            spaceUuid: savedChart.spaceUuid,
+                        },
                     );
 
                 const auditedAbility = this.createAuditedAbility(account);
@@ -9794,18 +9797,18 @@ export class ProjectService extends BaseService {
                     await this.savedChartModel.getInfoForAvailableFilters(
                         savedQueryUuids,
                     );
-                const uniqueSpaceUuids = [
-                    ...new Set(savedCharts.map((chart) => chart.spaceUuid)),
-                ];
 
                 if (savedCharts.length === 0) {
                     return [];
                 }
 
-                const [spacesCtx, exploresMap] = await Promise.all([
-                    this.spacePermissionService.getSpacesAccessContext(
+                const [chartContexts, exploresMap] = await Promise.all([
+                    this.spacePermissionService.getDashboardsAccessContext(
                         account.user.id,
-                        uniqueSpaceUuids,
+                        savedCharts.map((chart) => ({
+                            uuid: chart.dashboardUuid,
+                            spaceUuid: chart.spaceUuid,
+                        })),
                     ),
                     this.findExplores({
                         account,
@@ -9818,8 +9821,8 @@ export class ProjectService extends BaseService {
                 ]);
 
                 const chartsWithSpaceContext = savedCharts.flatMap(
-                    (savedChart) => {
-                        const spaceCtx = spacesCtx[savedChart.spaceUuid];
+                    (savedChart, index) => {
+                        const spaceCtx = chartContexts[index];
                         return spaceCtx ? [{ savedChart, spaceCtx }] : [];
                     },
                 );
