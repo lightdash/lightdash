@@ -1140,6 +1140,69 @@ describe('Query builder', () => {
         expect(query).toContain('"table1_user_email_metric"');
     });
 
+    test('Should replace user attributes in a dimension used only as a filter target', () => {
+        const explore: Explore = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    dimensions: {
+                        ...EXPLORE.tables.table1.dimensions,
+                        localized_shared: {
+                            type: DimensionType.STRING,
+                            name: 'localized_shared',
+                            label: 'localized_shared',
+                            table: 'table1',
+                            tableLabel: 'table1',
+                            fieldType: FieldType.DIMENSION,
+                            sql: `CASE WHEN \${lightdash.attributes.department} = 'ops' THEN \${ld.user.email} ELSE \${TABLE}.shared END`,
+                            compiledSql: `CASE WHEN \${lightdash.attributes.department} = 'ops' THEN \${ld.user.email} ELSE "table1".shared END`,
+                            tablesReferences: ['table1'],
+                            hidden: false,
+                        },
+                    },
+                },
+            },
+        };
+        const compiledMetricQuery: CompiledMetricQuery = {
+            ...METRIC_QUERY,
+            filters: {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: 'filter',
+                            target: {
+                                fieldId: 'table1_localized_shared',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: ['mock@lightdash.com'],
+                        },
+                    ],
+                },
+            },
+        };
+        const buildFilteredQuery = (userAttributes: Record<string, string[]>) =>
+            buildQuery({
+                explore,
+                compiledMetricQuery,
+                warehouseSqlBuilder: warehouseClientMock,
+                userAttributes,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query;
+
+        const query = buildFilteredQuery({ department: ['ops'] });
+
+        expect(query).not.toContain('${lightdash.attributes.department}');
+        expect(query).not.toContain('${ld.user.email}');
+        expect(replaceWhitespace(query)).toContain(
+            `(CASE WHEN 'ops' = 'ops' THEN 'mock@lightdash.com' ELSE "table1".shared END) IN ('mock@lightdash.com')`,
+        );
+        expect(() => buildFilteredQuery({})).toThrow(ForbiddenError);
+    });
+
     it('buildQuery with row() table calculation should order by custom bin _order column', () => {
         const { query } = buildQuery({
             explore: EXPLORE,
