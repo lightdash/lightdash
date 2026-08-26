@@ -24,7 +24,7 @@ import { PublishedHomepage } from './PublishedHomepage';
 
 export type HomepageViewType = 'everyone' | 'user' | 'group' | 'role';
 
-const reasonLabel = (
+export const reasonLabel = (
     reason: HomepageViewAsReason,
     groupNames: Map<string, string>,
 ): string => {
@@ -34,7 +34,7 @@ const reasonLabel = (
         case 'role':
             return `via role ${ProjectMemberRoleLabels[reason.role]}`;
         case 'default':
-            return 'org default';
+            return 'project default';
         default:
             return assertUnreachable(reason, 'Unknown view-as reason');
     }

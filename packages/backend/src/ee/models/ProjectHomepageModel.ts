@@ -36,6 +36,57 @@ import {
 const RECENTLY_VIEWED_STATEMENT_TIMEOUT_MS = 10_000;
 const RECENTLY_VIEWED_WINDOW_DAYS = 90;
 
+type RankableGroupAssignment = {
+    groupUuid: string;
+    priority: number;
+    createdAt: Date;
+    assignmentUuid: string;
+};
+
+const compareGroupAssignmentPriority = (
+    left: RankableGroupAssignment,
+    right: RankableGroupAssignment,
+): number => {
+    if (left.priority !== right.priority) {
+        return left.priority - right.priority;
+    }
+    const createdDelta = left.createdAt.getTime() - right.createdAt.getTime();
+    if (createdDelta !== 0) {
+        return createdDelta;
+    }
+    return left.assignmentUuid.localeCompare(right.assignmentUuid);
+};
+
+// Always rewrite every group in the project so a partial reorder cannot
+// leave two groups sharing a priority.
+export const rankGroupPriorities = (
+    existing: RankableGroupAssignment[],
+    requestedOrder: string[],
+): { groupUuid: string; priority: number }[] => {
+    const existingByUuid = new Map(
+        existing.map((assignment) => [assignment.groupUuid, assignment]),
+    );
+    const ranked: string[] = [];
+    const seen = new Set<string>();
+
+    for (const groupUuid of requestedOrder) {
+        if (existingByUuid.has(groupUuid) && !seen.has(groupUuid)) {
+            ranked.push(groupUuid);
+            seen.add(groupUuid);
+        }
+    }
+
+    const remaining = existing
+        .filter((assignment) => !seen.has(assignment.groupUuid))
+        .sort(compareGroupAssignmentPriority)
+        .map((assignment) => assignment.groupUuid);
+
+    return [...ranked, ...remaining].map((groupUuid, priority) => ({
+        groupUuid,
+        priority,
+    }));
+};
+
 export class ProjectHomepageModel {
     private readonly database: Knex;
 
@@ -517,7 +568,20 @@ export class ProjectHomepageModel {
                 `${HomepageAssignmentsTableName}.group_uuid`,
             )
             .where(`${HomepageAssignmentsTableName}.project_uuid`, projectUuid)
-            .orderBy(`${HomepageAssignmentsTableName}.priority`, 'asc')
+            .orderBy([
+                {
+                    column: `${HomepageAssignmentsTableName}.priority`,
+                    order: 'asc',
+                },
+                {
+                    column: `${HomepageAssignmentsTableName}.created_at`,
+                    order: 'asc',
+                },
+                {
+                    column: `${HomepageAssignmentsTableName}.assignment_uuid`,
+                    order: 'asc',
+                },
+            ])
             .select(
                 `${HomepageAssignmentsTableName}.assignment_uuid`,
                 `${HomepageAssignmentsTableName}.homepage_uuid`,
@@ -545,15 +609,43 @@ export class ProjectHomepageModel {
         groupUuids: string[],
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
+            const existing = await trx(HomepageAssignmentsTableName)
+                .where({
+                    project_uuid: projectUuid,
+                    target_type: 'group',
+                })
+                .select(
+                    'group_uuid',
+                    'priority',
+                    'created_at',
+                    'assignment_uuid',
+                );
+
+            const ranked = rankGroupPriorities(
+                existing.flatMap((row) =>
+                    row.group_uuid
+                        ? [
+                              {
+                                  groupUuid: row.group_uuid,
+                                  priority: row.priority,
+                                  createdAt: row.created_at,
+                                  assignmentUuid: row.assignment_uuid,
+                              },
+                          ]
+                        : [],
+                ),
+                groupUuids,
+            );
+
             await Promise.all(
-                groupUuids.map((groupUuid, index) =>
+                ranked.map(({ groupUuid, priority }) =>
                     trx(HomepageAssignmentsTableName)
                         .where({
                             project_uuid: projectUuid,
                             target_type: 'group',
                             group_uuid: groupUuid,
                         })
-                        .update({ priority: index }),
+                        .update({ priority }),
                 ),
             );
         });
@@ -578,7 +670,20 @@ export class ProjectHomepageModel {
                     projectUuid,
                 )
                 .whereNotNull(`${HomepagesTableName}.published_config`)
-                .orderBy(`${HomepageAssignmentsTableName}.priority`, 'asc')
+                .orderBy([
+                    {
+                        column: `${HomepageAssignmentsTableName}.priority`,
+                        order: 'asc',
+                    },
+                    {
+                        column: `${HomepageAssignmentsTableName}.created_at`,
+                        order: 'asc',
+                    },
+                    {
+                        column: `${HomepageAssignmentsTableName}.assignment_uuid`,
+                        order: 'asc',
+                    },
+                ])
                 .select(
                     `${HomepagesTableName}.*`,
                     `${HomepageAssignmentsTableName}.group_uuid as assignment_group_uuid`,
