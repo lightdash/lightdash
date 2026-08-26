@@ -1,5 +1,6 @@
 import { IconReload } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
+import { markAppInitiatedReload } from '../../features/appReload/appInitiatedReload';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
 
@@ -22,7 +23,10 @@ const VersionAutoUpdater: FC = () => {
                     action: {
                         children: 'Use new version',
                         icon: IconReload,
-                        onClick: () => window.location.reload(),
+                        onClick: () => {
+                            markAppInitiatedReload();
+                            window.location.reload();
+                        },
                     },
                 });
             }

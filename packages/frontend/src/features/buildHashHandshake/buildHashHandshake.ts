@@ -1,4 +1,5 @@
 import { LightdashBuildHashHeader } from '@lightdash/common';
+import { markAppInitiatedReload } from '../appReload/appInitiatedReload';
 
 const BUILD_HASH_META_NAME = 'lightdash-build-hash';
 const SKEW_RELOAD_KEY = 'lightdash-build-skew-reload';
@@ -120,6 +121,7 @@ export const refreshForBuildSkew = (): boolean => {
         return false;
     }
 
+    markAppInitiatedReload();
     window.location.reload();
     return true;
 };

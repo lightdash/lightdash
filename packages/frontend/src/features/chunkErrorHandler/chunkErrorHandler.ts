@@ -1,3 +1,5 @@
+import { markAppInitiatedReload } from '../appReload/appInitiatedReload';
+
 const CHUNK_ERROR_RELOAD_KEY = 'lightdash-chunk-error-reload';
 const RELOAD_COOLDOWN_MS = 60_000; // 60 seconds before allowing another auto-reload
 
@@ -77,6 +79,7 @@ export const triggerChunkErrorReload = (): void => {
         // sessionStorage may throw in private browsing or when storage is disabled.
         // Proceed with reload anyway - worst case user sees manual refresh UI.
     }
+    markAppInitiatedReload();
     window.location.reload();
 };
 

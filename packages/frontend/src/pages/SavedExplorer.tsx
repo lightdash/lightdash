@@ -12,12 +12,20 @@ import { useChartGalleryRightSidebar } from '../components/Explorer/ChartGallery
 import LoadingSkeleton from '../components/Explorer/ExploreTree/LoadingSkeleton';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import {
+    chartVersionStamp,
+    clearExplorerDraft,
+    persistExplorerDraft,
+    readRestorableExplorerDraft,
+} from '../features/explorer/draftPersistence';
+import {
     buildInitialExplorerState,
     createExplorerStore,
     explorerActions,
+    selectHasVersionChanges,
 } from '../features/explorer/store';
 import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
+import useToaster from '../hooks/toaster/useToaster';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useSavedQuery } from '../hooks/useSavedQuery';
@@ -28,6 +36,8 @@ import { getCandidateExploreNames } from '../utils/exploreSplitError';
 const LazyExplorePanel = lazy(
     () => import('../components/Explorer/ExplorePanel'),
 );
+
+const DRAFT_PERSIST_DEBOUNCE_MS = 500;
 
 const SavedExplorerContent = memo(() => {
     const { mode } = useParams<{ mode?: string }>();
@@ -93,6 +103,8 @@ const SavedExplorer = () => {
     // Create store once with useState
     const [store] = useState(() => createExplorerStore());
 
+    const { showToastInfo } = useToaster();
+
     // Reset store state when data/mode changes
     useEffect(() => {
         if (!data) return;
@@ -109,11 +121,76 @@ const SavedExplorer = () => {
                 expandedSections: [ExplorerSection.VISUALIZATION],
                 defaultLimit: health.data?.query.defaultLimit,
             });
-            store.dispatch(explorerActions.reset(initialState));
+            const draft = isEditMode ? readRestorableExplorerDraft(data) : null;
+
+            if (draft) {
+                store.dispatch(
+                    explorerActions.reset({
+                        ...initialState,
+                        unsavedChartVersion: draft,
+                        cachedChartConfigs: {
+                            [draft.chartConfig.type]: {
+                                chartConfig: draft.chartConfig.config,
+                                pivotConfig: draft.pivotConfig,
+                            },
+                        },
+                    }),
+                );
+                showToastInfo({
+                    key: 'explorer-draft-restored',
+                    title: 'Your unsaved edits were restored',
+                    subtitle:
+                        'The page reloaded to apply a Lightdash update, so we kept your in-progress changes.',
+                    action: {
+                        children: 'Discard edits',
+                        onClick: () => {
+                            clearExplorerDraft(data.uuid);
+                            store.dispatch(explorerActions.reset(initialState));
+                        },
+                    },
+                });
+            } else {
+                store.dispatch(explorerActions.reset(initialState));
+            }
         } else {
             store.dispatch(explorerActions.setSavedChart(data));
         }
-    }, [data, store, isEditMode, health.data?.query.defaultLimit]);
+    }, [
+        data,
+        store,
+        isEditMode,
+        health.data?.query.defaultLimit,
+        showToastInfo,
+    ]);
+
+    // Keep a session-scoped draft of unsaved edits so an app-forced reload
+    // (deploy, chunk error) doesn't lose in-progress work
+    useEffect(() => {
+        let timeoutId: number | undefined;
+        const unsubscribe = store.subscribe(() => {
+            window.clearTimeout(timeoutId);
+            timeoutId = window.setTimeout(() => {
+                const state = store.getState();
+                const { savedChart } = state.explorer;
+                if (!savedChart || !state.explorer.isEditMode) return;
+
+                if (selectHasVersionChanges(state)) {
+                    persistExplorerDraft(
+                        savedChart.uuid,
+                        chartVersionStamp(savedChart.updatedAt),
+                        state.explorer.unsavedChartVersion,
+                    );
+                } else {
+                    clearExplorerDraft(savedChart.uuid);
+                }
+            }, DRAFT_PERSIST_DEBOUNCE_MS);
+        });
+
+        return () => {
+            window.clearTimeout(timeoutId);
+            unsubscribe();
+        };
+    }, [store]);
 
     useEffect(() => {
         store.dispatch(explorerActions.setIsEditMode(isEditMode));
