@@ -82,7 +82,10 @@ import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
 import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
-import { ContentDraftModel } from '../../models/ContentDraftModel';
+import {
+    ContentDraftModel,
+    type ContentDraft,
+} from '../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
@@ -456,15 +459,55 @@ export class DashboardService
         };
     }
 
+    // Draft payloads are untrusted JSON, so narrow instead of casting.
+    private static collectDraftSavedChartUuids(
+        drafts: ContentDraft[],
+    ): Set<string> {
+        const chartUuids = new Set<string>();
+        drafts.forEach(({ draft }) => {
+            const { tiles } = draft as { tiles?: unknown };
+            if (!Array.isArray(tiles)) return;
+            tiles.forEach((tile) => {
+                if (typeof tile !== 'object' || tile === null) return;
+                const { properties } = tile as { properties?: unknown };
+                if (typeof properties !== 'object' || properties === null)
+                    return;
+                const { savedChartUuid } = properties as {
+                    savedChartUuid?: unknown;
+                };
+                if (typeof savedChartUuid === 'string') {
+                    chartUuids.add(savedChartUuid);
+                }
+            });
+        });
+        return chartUuids;
+    }
+
     private async deleteOrphanedChartsInDashboards(
         user: SessionUser,
+        projectUuid: UUID,
         dashboardUuid: UUID,
     ) {
         const orphanedCharts =
             await this.dashboardModel.getOrphanedCharts(dashboardUuid);
 
+        // A chart saved into a dashboard exists before the dashboard version
+        // that references it. When the author's save was held back as a draft,
+        // no version references the chart, so the next published save would
+        // permanently delete a chart the draft still points at.
+        const draftChartUuids = DashboardService.collectDraftSavedChartUuids(
+            await this.contentDraftModel.listOpenForContent(
+                projectUuid,
+                'dashboard',
+                dashboardUuid,
+            ),
+        );
+        const deletableCharts = orphanedCharts.filter(
+            (chart) => !draftChartUuids.has(chart.uuid),
+        );
+
         await Promise.all(
-            orphanedCharts.map(async (chart) => {
+            deletableCharts.map(async (chart) => {
                 try {
                     const deletedChart =
                         await this.savedChartModel.permanentDelete(chart.uuid);
@@ -1993,6 +2036,7 @@ export class DashboardService
             });
             await this.deleteOrphanedChartsInDashboards(
                 user,
+                existingDashboardDao.projectUuid,
                 existingDashboardDao.uuid,
             );
         }

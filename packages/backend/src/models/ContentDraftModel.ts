@@ -106,6 +106,22 @@ export class ContentDraftModel {
         return row ? parseRow(row) : undefined;
     }
 
+    async listOpenForContent(
+        projectUuid: string,
+        contentType: string,
+        contentUuid: string,
+    ): Promise<ContentDraft[]> {
+        const rows = await this.database(ContentDraftsTableName)
+            .where({
+                project_uuid: projectUuid,
+                content_type: contentType,
+                content_uuid: contentUuid,
+                status: 'open',
+            })
+            .orderBy('updated_at', 'desc');
+        return rows.map(parseRow);
+    }
+
     async countOpenForContent(
         projectUuid: string,
         contentType: string,

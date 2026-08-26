@@ -33,6 +33,8 @@ const draftFields = { name: 'Weekly KPIs (edited)' };
 type Overrides = {
     settings?: object | undefined;
     snapshot?: object | undefined;
+    openDraftsForContent?: { draft: object }[];
+    orphanedCharts?: { uuid: string }[];
 };
 
 const buildService = (overrides: Overrides = {}) => {
@@ -51,17 +53,28 @@ const buildService = (overrides: Overrides = {}) => {
                 : { snapshotHash: 'abc' },
         );
     const upsertOpenDraft = vi.fn().mockResolvedValue(undefined);
+    const listOpenForContent = vi
+        .fn()
+        .mockResolvedValue(overrides.openDraftsForContent ?? []);
+    const getOrphanedCharts = vi
+        .fn()
+        .mockResolvedValue(overrides.orphanedCharts ?? []);
+    const permanentDelete = vi
+        .fn()
+        .mockImplementation((uuid: string) =>
+            Promise.resolve({ uuid, projectUuid: PROJECT_UUID }),
+        );
     const service = new DashboardService({
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
-        dashboardModel: {} as AnyType,
+        dashboardModel: { getOrphanedCharts } as AnyType,
         spaceModel: {} as AnyType,
         analyticsModel: {} as AnyType,
         pinnedListModel: {} as AnyType,
         schedulerModel: {} as AnyType,
         searchModel: {} as AnyType,
         schedulerService: {} as AnyType,
-        savedChartModel: {} as AnyType,
+        savedChartModel: { permanentDelete } as AnyType,
         savedSqlModel: {} as AnyType,
         savedChartService: {} as AnyType,
         projectModel: {
@@ -74,7 +87,7 @@ const buildService = (overrides: Overrides = {}) => {
         schedulerClient: {} as AnyType,
         contentAsCodeProjectSettingsModel: { get: settingsGet } as AnyType,
         contentAsCodeSnapshotModel: { get: snapshotGet } as AnyType,
-        contentDraftModel: { upsertOpenDraft } as AnyType,
+        contentDraftModel: { upsertOpenDraft, listOpenForContent } as AnyType,
         catalogModel: {} as AnyType,
         organizationModel: {} as AnyType,
         spacePermissionService: {
@@ -85,8 +98,26 @@ const buildService = (overrides: Overrides = {}) => {
         } as AnyType,
         contentVerificationModel: {} as AnyType,
     });
-    return { service, settingsGet, snapshotGet, upsertOpenDraft };
+    return {
+        service,
+        settingsGet,
+        snapshotGet,
+        upsertOpenDraft,
+        listOpenForContent,
+        permanentDelete,
+    };
 };
+
+const draftWithChartTile = (savedChartUuid: string) => ({
+    draft: {
+        tiles: [
+            {
+                type: 'saved_chart',
+                properties: { savedChartUuid, belongsToDashboard: true },
+            },
+        ],
+    },
+});
 
 describe('DashboardService drafts gating (sync + git-backed only)', () => {
     afterEach(() => vi.clearAllMocks());
@@ -154,5 +185,59 @@ describe('DashboardService drafts gating (sync + git-backed only)', () => {
         );
         expect(result).toBeUndefined();
         expect(upsertOpenDraft).not.toHaveBeenCalled();
+    });
+});
+
+describe('DashboardService orphan chart sweep', () => {
+    afterEach(() => vi.clearAllMocks());
+
+    it('keeps an orphan chart that an open draft still references', async () => {
+        const { service, permanentDelete } = buildService({
+            orphanedCharts: [{ uuid: 'chart-in-draft' }],
+            openDraftsForContent: [draftWithChartTile('chart-in-draft')],
+        });
+
+        await service['deleteOrphanedChartsInDashboards'](
+            editorUser,
+            PROJECT_UUID,
+            dashboardDao.uuid,
+        );
+
+        expect(permanentDelete).not.toHaveBeenCalled();
+    });
+
+    it('still deletes an orphan chart no draft references', async () => {
+        const { service, permanentDelete } = buildService({
+            orphanedCharts: [{ uuid: 'chart-in-draft' }, { uuid: 'abandoned' }],
+            openDraftsForContent: [draftWithChartTile('chart-in-draft')],
+        });
+
+        await service['deleteOrphanedChartsInDashboards'](
+            editorUser,
+            PROJECT_UUID,
+            dashboardDao.uuid,
+        );
+
+        expect(permanentDelete).toHaveBeenCalledTimes(1);
+        expect(permanentDelete).toHaveBeenCalledWith('abandoned');
+    });
+
+    it('ignores draft payloads whose tiles are not the expected shape', async () => {
+        const { service, permanentDelete } = buildService({
+            orphanedCharts: [{ uuid: 'abandoned' }],
+            openDraftsForContent: [
+                { draft: { tiles: 'not-an-array' } },
+                { draft: { tiles: [null, {}, { properties: null }] } },
+                { draft: { name: 'no tiles at all' } },
+            ],
+        });
+
+        await service['deleteOrphanedChartsInDashboards'](
+            editorUser,
+            PROJECT_UUID,
+            dashboardDao.uuid,
+        );
+
+        expect(permanentDelete).toHaveBeenCalledWith('abandoned');
     });
 });
