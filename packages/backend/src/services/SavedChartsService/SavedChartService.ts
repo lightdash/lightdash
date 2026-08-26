@@ -63,6 +63,7 @@ import {
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import { Knex } from 'knex';
+import { validate as isValidUuid } from 'uuid';
 import {
     ConditionalFormattingRuleSavedEvent,
     CreateSavedChartVersionEvent,
@@ -1436,10 +1437,17 @@ export class SavedChartService
         account: Account,
         options?: { projectUuid?: string },
     ): Promise<SavedChart> {
+        const projectUuid =
+            options?.projectUuid && !isValidUuid(options.projectUuid)
+                ? await this.projectModel.getUuidBySlug(
+                      account.organization.organizationUuid ?? '',
+                      options.projectUuid,
+                  )
+                : options?.projectUuid;
         const savedChart = await this.savedChartModel.get(
             savedChartUuidOrSlug,
             undefined,
-            { projectUuid: options?.projectUuid },
+            { projectUuid },
         );
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
