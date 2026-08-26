@@ -5,11 +5,7 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { store } from '../../store';
-import {
-    clearPreview,
-    setDataAppPreview,
-    setSavedChartPreview,
-} from '../../store/aiArtifactSlice';
+import { clearPreview, setPreview } from '../../store/aiArtifactSlice';
 import { ContentLink } from './ContentLink';
 
 const APP_UUID = 'app-uuid-1';
@@ -65,7 +61,8 @@ describe('ContentLink data-app chip', () => {
         const defaultNotPrevented = fireEvent.click(chip);
 
         expect(defaultNotPrevented).toBe(false);
-        expect(store.getState().aiArtifact.dataApp).toEqual({
+        expect(store.getState().aiArtifact.preview).toEqual({
+            type: 'dataApp',
             appUuid: APP_UUID,
             messageUuid: 'message-1',
             threadUuid: 'thread-1',
@@ -86,7 +83,7 @@ describe('ContentLink data-app chip', () => {
         const defaultNotPrevented = fireEvent.click(chip, eventInit);
 
         expect(defaultNotPrevented).toBe(true);
-        expect(store.getState().aiArtifact.dataApp).toBeNull();
+        expect(store.getState().aiArtifact.preview).toBeNull();
     });
 
     it('shows the active indicator only while its app is previewed', () => {
@@ -108,6 +105,7 @@ describe('ContentLink data-app chip', () => {
         renderDataAppChip();
 
         const chartPreview = {
+            type: 'savedChart' as const,
             savedChartUuid: 'chart-1',
             messageUuid: 'message-1',
             threadUuid: 'thread-1',
@@ -116,33 +114,15 @@ describe('ContentLink data-app chip', () => {
         };
 
         act(() => {
-            store.dispatch(setSavedChartPreview(chartPreview));
+            store.dispatch(setPreview(chartPreview));
         });
 
         fireEvent.click(screen.getByRole('link', { name: /Revenue explorer/ }));
-        expect(store.getState().aiArtifact.savedChart).toBeNull();
-        expect(store.getState().aiArtifact.dataApp).not.toBeNull();
+        expect(store.getState().aiArtifact.preview?.type).toBe('dataApp');
 
         act(() => {
-            store.dispatch(setSavedChartPreview(chartPreview));
+            store.dispatch(setPreview(chartPreview));
         });
-        expect(store.getState().aiArtifact.dataApp).toBeNull();
-        expect(store.getState().aiArtifact.savedChart).not.toBeNull();
-    });
-
-    it('clears the artifact preview when a data app opens', () => {
-        store.dispatch(
-            setDataAppPreview({
-                appUuid: APP_UUID,
-                messageUuid: 'message-1',
-                threadUuid: 'thread-1',
-                projectUuid: 'project-1',
-                agentUuid: 'agent-1',
-            }),
-        );
-
-        expect(store.getState().aiArtifact.artifact).toBeNull();
-        expect(store.getState().aiArtifact.savedChart).toBeNull();
-        expect(store.getState().aiArtifact.dataApp).not.toBeNull();
+        expect(store.getState().aiArtifact.preview?.type).toBe('savedChart');
     });
 });

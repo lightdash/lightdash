@@ -21,7 +21,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import { useSavedQuery } from '../../../../../hooks/useSavedQuery';
 import {
-    clearSavedChartPreview,
+    clearPreview,
     type SavedChartPreviewData,
 } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
@@ -71,7 +71,7 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
             size="sm"
             variant="subtle"
             color="ldGray.6"
-            onClick={() => dispatch(clearSavedChartPreview())}
+            onClick={() => dispatch(clearPreview())}
             aria-label="Close"
         >
             <MantineIcon icon={IconX} />

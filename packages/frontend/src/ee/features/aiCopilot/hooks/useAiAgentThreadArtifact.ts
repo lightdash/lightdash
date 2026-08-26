@@ -1,6 +1,10 @@
 import { type AiAgentThread } from '@lightdash/common';
 import { useEffect, useMemo, useRef } from 'react';
-import { clearPreview, setArtifact } from '../store/aiArtifactSlice';
+import {
+    clearPreview,
+    selectArtifactPreview,
+    setPreview,
+} from '../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -21,9 +25,7 @@ export const useAiAgentThreadArtifact = ({
     thread,
 }: UseAiAgentThreadArtifactOptions) => {
     const dispatch = useAiAgentStoreDispatch();
-    const artifact = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.artifact,
-    );
+    const artifact = useAiAgentStoreSelector(selectArtifactPreview);
     const {
         registrations: deepResearchRegistrations,
         isReady: isDeepResearchRegistrationLookupReady,
@@ -103,7 +105,8 @@ export const useAiAgentThreadArtifact = ({
         const latestArtifact = latestAssistantMessage.artifacts?.at(-1);
         if (!latestArtifact) return;
         dispatch(
-            setArtifact({
+            setPreview({
+                type: 'artifact',
                 artifactUuid: latestArtifact.artifactUuid,
                 versionUuid: latestArtifact.versionUuid,
                 messageUuid: latestAssistantMessage.uuid,
