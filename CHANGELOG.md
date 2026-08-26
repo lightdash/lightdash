@@ -1,3 +1,13 @@
+## [2.9.5](https://github.com/lightdash/lightdash/compare/2.9.4...2.9.5) (2026-08-26)
+
+
+### Bug Fixes
+
+* **explorer:** keep chart type names reachable at laptop widths ([#28099](https://github.com/lightdash/lightdash/issues/28099)) ([ada55b3](https://github.com/lightdash/lightdash/commit/ada55b37e6fb56c13c2332e14a15fa7921ad6a4e))
+* **explorer:** mark gallery selection and group its shelves ([#28097](https://github.com/lightdash/lightdash/issues/28097)) ([e676672](https://github.com/lightdash/lightdash/commit/e67667236d55fcca1b1a9a67bdd9ed6d95da7466))
+* **explorer:** name what the chart is missing on a field it cannot fill ([#28100](https://github.com/lightdash/lightdash/issues/28100)) ([53ef347](https://github.com/lightdash/lightdash/commit/53ef3477181c16d283e7607cccd76fb80a5fca1f))
+* **explorer:** say why the chart gallery is dead before a query runs ([#28098](https://github.com/lightdash/lightdash/issues/28098)) ([d1d12bb](https://github.com/lightdash/lightdash/commit/d1d12bb7c24469eece807a1669dd165c4cd996b4))
+
 ## [2.9.4](https://github.com/lightdash/lightdash/compare/2.9.3...2.9.4) (2026-08-26)
 
 
