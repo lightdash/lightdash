@@ -4,6 +4,7 @@ import {
     assertRegisteredAccount,
     BulkActionable,
     ContentType,
+    canMutateVerifiedContent,
     CreateDashboard,
     CreateDashboardWithCharts,
     CreateSavedChart,
@@ -1452,6 +1453,13 @@ export class DashboardService
             );
         }
 
+        await this.assertCanMutateVerifiedDashboard({
+            user,
+            dashboardUuid: existingDashboardDao.uuid,
+            projectUuid: existingDashboardDao.projectUuid,
+            organizationUuid: existingDashboardDao.organizationUuid,
+        });
+
         const verificationAfterUpdate =
             await this.getVerificationAfterDashboardUpdate({
                 user,
@@ -1716,6 +1724,35 @@ export class DashboardService
         return null;
     }
 
+    private async assertCanMutateVerifiedDashboard({
+        user,
+        dashboardUuid,
+        projectUuid,
+        organizationUuid,
+    }: {
+        user: SessionUser;
+        dashboardUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        const verification = await this.contentVerificationModel.getByContent(
+            ContentType.DASHBOARD,
+            dashboardUuid,
+        );
+        if (
+            !canMutateVerifiedContent(
+                this.createAuditedAbility(user),
+                { organizationUuid, projectUuid },
+                verification,
+                user.userUuid,
+            )
+        ) {
+            throw new ForbiddenError(
+                'This dashboard is verified. You need permission to edit verified content, or ask an admin to unverify it first.',
+            );
+        }
+    }
+
     async togglePinning(
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
@@ -1852,6 +1889,20 @@ export class DashboardService
             );
         }
 
+        await Promise.all(
+            dashboards.map(async (dashboardToUpdate) => {
+                const dashboard = await this.dashboardModel.getByIdOrSlug(
+                    dashboardToUpdate.uuid,
+                );
+                await this.assertCanMutateVerifiedDashboard({
+                    user,
+                    dashboardUuid: dashboard.uuid,
+                    projectUuid: dashboard.projectUuid,
+                    organizationUuid: dashboard.organizationUuid,
+                });
+            }),
+        );
+
         this.analytics.track({
             event: 'dashboard.updated_multiple',
             userId: user.userUuid,
@@ -1922,6 +1973,13 @@ export class DashboardService
                     "You don't have access to the space this dashboard belongs to",
                 );
             }
+
+            await this.assertCanMutateVerifiedDashboard({
+                user,
+                dashboardUuid: dashboardToDelete.uuid,
+                projectUuid,
+                organizationUuid,
+            });
         }
 
         if (hasChartsInDashboard(dashboardToDelete)) {
@@ -2031,6 +2089,13 @@ export class DashboardService
                     "You don't have access to the space this dashboard belongs to",
                 );
             }
+
+            await this.assertCanMutateVerifiedDashboard({
+                user,
+                dashboardUuid: dashboard.uuid,
+                projectUuid: dashboard.projectUuid,
+                organizationUuid: dashboard.organizationUuid,
+            });
         }
 
         const deletedDashboard = await this.dashboardModel.softDelete(
@@ -2803,6 +2868,15 @@ export class DashboardService
                 { user, projectUuid },
                 { dashboardUuid, spaceUuid: targetSpaceUuid },
             );
+
+            const dashboard =
+                await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.assertCanMutateVerifiedDashboard({
+                user,
+                dashboardUuid: dashboard.uuid,
+                projectUuid: dashboard.projectUuid,
+                organizationUuid: dashboard.organizationUuid,
+            });
         }
         await this.dashboardModel.moveToSpace(
             {

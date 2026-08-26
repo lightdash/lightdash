@@ -348,6 +348,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'ContentVerification', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'VerifiedContent', {
+            projectUuid: member.projectUuid,
+        });
         can('create', 'AiDeepResearch', {
             projectUuid: member.projectUuid,
         });

@@ -321,6 +321,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'ContentVerification', {
             organizationUuid,
         });
+        can('manage', 'VerifiedContent', {
+            organizationUuid,
+        });
         can('view', 'JobStatus', {
             organizationUuid,
         });

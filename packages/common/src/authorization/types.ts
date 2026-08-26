@@ -31,6 +31,7 @@ export type CaslSubjectNames =
     | 'CompileProject'
     | 'ContentAsCode'
     | 'ContentVerification'
+    | 'VerifiedContent'
     | 'CustomFields'
     | 'CustomSql'
     | 'CustomSqlTableCalculations'

@@ -451,6 +451,15 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:VerifiedContent',
+        description:
+            'Edit or delete verified charts and dashboards (without this, verified content is read-only)',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'promote:SavedChart',
         description: 'Promote saved charts to any space',
         isEnterprise: false,

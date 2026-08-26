@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ContentType,
     ResourceViewItemType,
+    canMutateVerifiedContent,
     type Dashboard,
 } from '@lightdash/common';
 import {
@@ -263,10 +264,20 @@ const DashboardHeader = memo(
         const { user, health } = useApp();
         const preAggregatesEnabled =
             health.data?.preAggregates.enabled ?? false;
-        const userCanManageDashboard = user.data?.ability.can(
-            'manage',
-            subject('Dashboard', dashboard),
-        );
+        const userCanManageDashboard =
+            !!user.data?.ability.can(
+                'manage',
+                subject('Dashboard', dashboard),
+            ) &&
+            canMutateVerifiedContent(
+                user.data.ability,
+                {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                },
+                dashboard.verification,
+                user.data.userUuid,
+            );
         const userCanRefreshPreAggregates =
             user.data?.ability.can(
                 'create',

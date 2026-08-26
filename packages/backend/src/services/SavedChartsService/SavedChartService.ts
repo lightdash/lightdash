@@ -9,6 +9,7 @@ import {
     ChartType,
     ChartVersion,
     ContentType,
+    canMutateVerifiedContent,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     CreateSavedChart,
@@ -658,6 +659,13 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
+        await this.assertCanMutateVerifiedChart({
+            user,
+            chartUuid: savedChartUuid,
+            projectUuid,
+            organizationUuid,
+        });
+
         const oldSqlDimensionsById = new Map(
             (oldCustomDimensions ?? [])
                 .filter(isCustomSqlDimension)
@@ -864,6 +872,13 @@ export class SavedChartService
             );
         }
 
+        await this.assertCanMutateVerifiedChart({
+            user,
+            chartUuid: savedChartUuid,
+            projectUuid,
+            organizationUuid,
+        });
+
         if (chartUpdate.colorPaletteUuid) {
             const palette = await this.organizationModel.findColorPalette(
                 organizationUuid,
@@ -976,6 +991,35 @@ export class SavedChartService
         return null;
     }
 
+    private async assertCanMutateVerifiedChart({
+        user,
+        chartUuid,
+        projectUuid,
+        organizationUuid,
+    }: {
+        user: SessionUser;
+        chartUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        const verification = await this.contentVerificationModel.getByContent(
+            ContentType.CHART,
+            chartUuid,
+        );
+        if (
+            !canMutateVerifiedContent(
+                this.createAuditedAbility(user),
+                { organizationUuid, projectUuid },
+                verification,
+                user.userUuid,
+            )
+        ) {
+            throw new ForbiddenError(
+                'This chart is verified. You need permission to edit verified content, or ask an admin to unverify it first.',
+            );
+        }
+    }
+
     async togglePinning(
         user: SessionUser,
         savedChartUuid: string,
@@ -1078,6 +1122,20 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
+        await Promise.all(
+            data.map(async (chart) => {
+                const summary = await this.savedChartModel.getSummary(
+                    chart.uuid,
+                );
+                await this.assertCanMutateVerifiedChart({
+                    user,
+                    chartUuid: chart.uuid,
+                    projectUuid: summary.projectUuid,
+                    organizationUuid: summary.organizationUuid,
+                });
+            }),
+        );
+
         const savedChartsDaos = await this.savedChartModel.updateMultiple(
             projectUuid,
             data,
@@ -1151,6 +1209,13 @@ export class SavedChartService
             ) {
                 throw new ForbiddenError();
             }
+
+            await this.assertCanMutateVerifiedChart({
+                user,
+                chartUuid: resolvedUuid,
+                projectUuid,
+                organizationUuid,
+            });
         }
 
         if (this.lightdashConfig.softDelete.enabled) {
@@ -1233,6 +1298,13 @@ export class SavedChartService
             ) {
                 throw new ForbiddenError();
             }
+
+            await this.assertCanMutateVerifiedChart({
+                user,
+                chartUuid: savedChartUuid,
+                projectUuid: chart.projectUuid,
+                organizationUuid: chart.organizationUuid,
+            });
         }
 
         const deletedChart = await this.savedChartModel.softDelete(
@@ -2423,6 +2495,15 @@ export class SavedChartService
                 { user, projectUuid },
                 { savedChartUuid, spaceUuid: targetSpaceUuid },
             );
+
+            const { organizationUuid } =
+                await this.savedChartModel.getSummary(savedChartUuid);
+            await this.assertCanMutateVerifiedChart({
+                user,
+                chartUuid: savedChartUuid,
+                projectUuid,
+                organizationUuid,
+            });
         }
 
         await this.savedChartModel.moveToSpace(

@@ -88,6 +88,7 @@ const adminUser = {
     role: OrganizationMemberRole.ADMIN,
     ability: new Ability<PossibleAbilities>([
         { subject: 'ContentVerification', action: 'manage' },
+        { subject: 'VerifiedContent', action: 'manage' },
         {
             subject: 'SavedChart',
             action: ['view', 'update', 'delete', 'create'],
@@ -410,8 +411,28 @@ describe('SavedChartService - Content Verification', () => {
             expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
         });
 
-        it('should auto-unverify chart when another editor edits metadata', async () => {
-            await service.update(editorUser, 'chart-uuid', {
+        it('should block editors without manage:VerifiedContent from editing verified charts', async () => {
+            await expect(
+                service.update(editorUser, 'chart-uuid', {
+                    name: 'updated chart name',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(savedChartModel.update).not.toHaveBeenCalled();
+            expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+        });
+
+        it('should allow developers with manage:VerifiedContent to edit and auto-unverify', async () => {
+            const developerUser = {
+                ...editorUser,
+                userUuid: 'developer-uuid',
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'VerifiedContent', action: 'manage' },
+                    { subject: 'SavedChart', action: ['view', 'update'] },
+                ]),
+            };
+
+            await service.update(developerUser, 'chart-uuid', {
                 name: 'updated chart name',
             });
 

@@ -156,6 +156,9 @@ const BASE_ROLE_SCOPES = {
         'manage:AiAgentDocument',
         'manage:AiAgentThread@self', // User's own threads
         'manage:ContentVerification',
+        // Edit lock for verified charts/dashboards — not on editor so
+        // custom roles can grant/withhold it independently of manage:Content.
+        'manage:VerifiedContent',
         'create:AiDeepResearch',
     ],
 
