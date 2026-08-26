@@ -1967,6 +1967,9 @@ export const downloadHandler = async (
     const projectName = generateSlug(project.name);
 
     const counts: ProjectContentAsCodeCounts = {};
+    // Per-resource app/chart-type failures are reported inline and tallied
+    // here so the process can exit non-zero without aborting the download.
+    let downloadFailures = 0;
     const start = Date.now();
 
     await LightdashAnalytics.track({
@@ -2495,6 +2498,7 @@ export const downloadHandler = async (
                     skippedNotBuiltCount + skippedWrongKindCount,
                 );
                 counts.appsNum = successCount;
+                downloadFailures += failures.length;
                 output.completeItem(
                     `${successCount} downloaded${
                         skippedNotBuiltCount + skippedWrongKindCount > 0
@@ -2654,6 +2658,7 @@ export const downloadHandler = async (
                     'custom chart type',
                 );
                 counts.chartTypesNum = chartTypesOutcome.successCount;
+                downloadFailures += chartTypesOutcome.failures.length;
                 const chartTypesSkipped =
                     chartTypesOutcome.skippedNotBuiltCount +
                     chartTypesOutcome.skippedWrongKindCount;
@@ -2720,6 +2725,7 @@ export const downloadHandler = async (
                 linkedSkipped,
             );
             counts.appsNum = (counts.appsNum ?? 0) + outcome.successCount;
+            downloadFailures += outcome.failures.length;
             output.completeItem(
                 `${outcome.successCount} downloaded${
                     linkedSkipped > 0 ? `, ${linkedSkipped} skipped` : ''
@@ -2789,6 +2795,7 @@ export const downloadHandler = async (
             counts.chartTypesNum =
                 (counts.chartTypesNum ?? 0) +
                 linkedChartTypesOutcome.successCount;
+            downloadFailures += linkedChartTypesOutcome.failures.length;
             output.completeItem(
                 `${linkedChartTypesOutcome.successCount} downloaded${
                     linkedChartTypesSkipped > 0
@@ -2841,6 +2848,14 @@ export const downloadHandler = async (
             GlobalState.log(
                 styles.success(`Downloaded content saved to ${downloadRoot}`),
             );
+        }
+        if (downloadFailures > 0) {
+            GlobalState.log(
+                styles.error(
+                    `${downloadFailures} resource(s) failed to download — see errors above.`,
+                ),
+            );
+            process.exitCode = 1;
         }
 
         await LightdashAnalytics.track({
@@ -2948,6 +2963,13 @@ const summarizeUploadChanges = (
     );
     return { detail, variant: hasFailures ? 'warning' : undefined };
 };
+
+const hasUploadFailures = (changes: Record<string, number>): boolean =>
+    Object.entries(changes).some(
+        ([key, value]) =>
+            value > 0 &&
+            (key.endsWith('with errors') || key.endsWith('failed')),
+    );
 
 const runUploadChangesPhase = async ({
     output,
@@ -3570,6 +3592,14 @@ export const uploadHandler = async (
             GlobalState.log(
                 styles.success(`Uploaded content from ${uploadRoot}`),
             );
+        }
+        if (hasUploadFailures(changes)) {
+            GlobalState.log(
+                styles.error(
+                    'Upload completed with failures — see errors above.',
+                ),
+            );
+            process.exitCode = 1;
         }
     };
 
