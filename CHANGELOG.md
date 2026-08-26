@@ -1,3 +1,11 @@
+# [2.11.0](https://github.com/lightdash/lightdash/compare/2.10.1...2.11.0) (2026-08-26)
+
+
+### Features
+
+* group AI org settings into per-surface sections ([#28104](https://github.com/lightdash/lightdash/issues/28104)) ([f39875b](https://github.com/lightdash/lightdash/commit/f39875bf2932ace170ba1acbb5a6f6bbb9f46dad))
+* org setting to disable agent access over MCP independently of Ask AI ([#28103](https://github.com/lightdash/lightdash/issues/28103)) ([5677fea](https://github.com/lightdash/lightdash/commit/5677fea933f28889fac48dcd414a52e47d219f5c)), closes [#27800](https://github.com/lightdash/lightdash/issues/27800)
+
 ## [2.10.1](https://github.com/lightdash/lightdash/compare/2.10.0...2.10.1) (2026-08-26)
 
 

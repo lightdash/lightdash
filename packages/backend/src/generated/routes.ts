@@ -36386,6 +36386,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 requireExplicitSlackChannelLinking: { dataType: 'boolean' },
+                mcpAgentsEnabled: { dataType: 'boolean', required: true },
                 mcpContentWritesEnabled: {
                     dataType: 'boolean',
                     required: true,
@@ -36570,6 +36571,7 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 requireExplicitSlackChannelLinking: { dataType: 'boolean' },
+                mcpAgentsEnabled: { dataType: 'boolean' },
                 mcpContentWritesEnabled: { dataType: 'boolean' },
                 deepResearchRawSqlEnabled: { dataType: 'boolean' },
                 deepResearchLimits: { ref: 'AiDeepResearchLimits' },
