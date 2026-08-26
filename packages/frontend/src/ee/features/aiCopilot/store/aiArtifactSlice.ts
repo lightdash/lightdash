@@ -12,15 +12,25 @@ export interface ArtifactData {
 export interface AiArtifactState {
     artifact: ArtifactData | null;
     savedChart: SavedChartPreviewData | null;
+    dataApp: DataAppPreviewData | null;
 }
 
 const initialState: AiArtifactState = {
     artifact: null,
     savedChart: null,
+    dataApp: null,
 };
 
 export interface SavedChartPreviewData {
     savedChartUuid: string;
+    messageUuid: string;
+    threadUuid: string;
+    projectUuid: string;
+    agentUuid: string;
+}
+
+export interface DataAppPreviewData {
+    appUuid: string;
     messageUuid: string;
     threadUuid: string;
     projectUuid: string;
@@ -59,6 +69,7 @@ export const aiArtifactSlice = createSlice({
                 agentUuid,
             };
             state.savedChart = null;
+            state.dataApp = null;
         },
         setSavedChartPreview: (
             state,
@@ -66,6 +77,15 @@ export const aiArtifactSlice = createSlice({
         ) => {
             state.savedChart = action.payload;
             state.artifact = null;
+            state.dataApp = null;
+        },
+        setDataAppPreview: (
+            state,
+            action: PayloadAction<DataAppPreviewData>,
+        ) => {
+            state.dataApp = action.payload;
+            state.artifact = null;
+            state.savedChart = null;
         },
         clearArtifact: (state) => {
             state.artifact = null;
@@ -73,9 +93,13 @@ export const aiArtifactSlice = createSlice({
         clearSavedChartPreview: (state) => {
             state.savedChart = null;
         },
+        clearDataAppPreview: (state) => {
+            state.dataApp = null;
+        },
         clearPreview: (state) => {
             state.artifact = null;
             state.savedChart = null;
+            state.dataApp = null;
         },
     },
 });
@@ -83,7 +107,9 @@ export const aiArtifactSlice = createSlice({
 export const {
     setArtifact,
     setSavedChartPreview,
+    setDataAppPreview,
     clearArtifact,
     clearSavedChartPreview,
+    clearDataAppPreview,
     clearPreview,
 } = aiArtifactSlice.actions;

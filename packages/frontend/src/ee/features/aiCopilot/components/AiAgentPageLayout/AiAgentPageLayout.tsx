@@ -26,6 +26,7 @@ import {
     useAiAgentStoreSelector,
 } from '../../store/hooks';
 import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
+import { AiDataAppPreviewPanel } from '../ChatElements/AiDataAppPreviewPanel';
 import { AiSavedChartPreviewPanel } from '../ChatElements/AiSavedChartPreviewPanel';
 import styles from './aiAgentPageLayout.module.css';
 import { SidebarButton } from './SidebarButton';
@@ -57,7 +58,10 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     const savedChart = useAiAgentStoreSelector(
         (state) => state.aiArtifact.savedChart,
     );
-    const preview = artifact || savedChart;
+    const dataApp = useAiAgentStoreSelector(
+        (state) => state.aiArtifact.dataApp,
+    );
+    const preview = artifact || savedChart || dataApp;
     const isMobile = useMediaQuery('(max-width: 768px)');
 
     const toggleSidebar = useCallback(() => {
@@ -183,9 +187,13 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         />
 
                         <ErrorBoundary>
+                            {/* Keyed by preview kind: interactive apps remount
+                                to a wider default; chart/artifact switches keep
+                                the user's size. */}
                             <Panel
+                                key={dataApp ? 'data-app' : 'chart-artifact'}
                                 className={styles.floatingArtifactRegion}
-                                defaultSize={46}
+                                defaultSize={dataApp ? 60 : 46}
                                 id="artifact"
                                 minSize={32}
                                 maxSize={64}
@@ -197,6 +205,10 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                                     ) : savedChart ? (
                                         <AiSavedChartPreviewPanel
                                             savedChartPreview={savedChart}
+                                        />
+                                    ) : dataApp ? (
+                                        <AiDataAppPreviewPanel
+                                            dataAppPreview={dataApp}
                                         />
                                     ) : null}
                                 </Box>
@@ -233,6 +245,8 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         <AiSavedChartPreviewPanel
                             savedChartPreview={savedChart}
                         />
+                    ) : dataApp ? (
+                        <AiDataAppPreviewPanel dataAppPreview={dataApp} />
                     ) : null}
                 </Drawer>
             )}
