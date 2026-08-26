@@ -1,4 +1,8 @@
-import { ChartKind, type AiAgentMessageAssistant } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ChartKind,
+    type AiAgentMessageAssistant,
+} from '@lightdash/common';
 import { Anchor, Button, Text } from '@mantine/core';
 import {
     IconChartBar,
@@ -15,14 +19,21 @@ import {
 } from '../../store/hooks';
 import styles from './ContentLink.module.css';
 import { ContentReferenceLink } from './ContentReferenceLink';
+import { type ContentType } from './rehypeContentLinks';
 
 export type SqlRunnerLinkState = {
     sql: string;
     limit?: number;
 };
 
+const REFERENCE_LINK_KINDS = {
+    'dashboard-link': 'dashboard',
+    'data-app-link': 'data_app',
+    'scheduled-delivery-link': 'scheduled_delivery',
+} as const;
+
 type ContentLinkProps = {
-    contentType: string | undefined;
+    contentType: ContentType | undefined;
     props: Record<string, unknown>;
     children: ReactNode;
     message: AiAgentMessageAssistant;
@@ -86,12 +97,19 @@ export const ContentLink: FC<ContentLinkProps> = ({
         }
     };
 
+    if (contentType === undefined) {
+        return <a {...props}>{children}</a>;
+    }
+
     switch (contentType) {
         case 'dashboard-link':
+        // Resource view URL with ?scheduler_uuid — navigating opens that
+        // delivery's edit modal on the chart/dashboard page.
+        case 'scheduled-delivery-link':
             return (
                 <ContentReferenceLink
                     to={resourceHref || undefined}
-                    kind="dashboard"
+                    kind={REFERENCE_LINK_KINDS[contentType]}
                     onClick={handleResourceClick}
                     title={title}
                 >
@@ -100,25 +118,14 @@ export const ContentLink: FC<ContentLinkProps> = ({
             );
 
         case 'data-app-link':
+            // Apps are full-page experiences — open in a new tab so the chat
+            // thread stays put.
             return (
                 <ContentReferenceLink
                     to={resourceHref || undefined}
-                    kind="data_app"
-                    onClick={handleResourceClick}
-                    title={title}
-                >
-                    {children}
-                </ContentReferenceLink>
-            );
-
-        // Resource view URL with ?scheduler_uuid — navigating opens that
-        // delivery's edit modal on the chart/dashboard page.
-        case 'scheduled-delivery-link':
-            return (
-                <ContentReferenceLink
-                    to={resourceHref || undefined}
-                    kind="scheduled_delivery"
-                    onClick={handleResourceClick}
+                    kind={REFERENCE_LINK_KINDS[contentType]}
+                    target="_blank"
+                    rel="noreferrer"
                     title={title}
                 >
                     {children}
@@ -328,6 +335,9 @@ export const ContentLink: FC<ContentLinkProps> = ({
         }
 
         default:
-            return <a {...props}>{children}</a>;
+            return assertUnreachable(
+                contentType,
+                `Unknown content type: ${contentType}`,
+            );
     }
 };

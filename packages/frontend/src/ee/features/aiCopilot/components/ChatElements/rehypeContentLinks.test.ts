@@ -103,15 +103,15 @@ describe('rehypeAiAgentContentLinks', () => {
         });
     });
 
-    it('marks data app scheduled delivery deep-links instead of data app links', () => {
+    it('keeps data app links classified as data app links despite a scheduler_uuid param', () => {
         expect(
             processHref(
                 '/projects/project-uuid/apps/app-uuid/view?scheduler_uuid=scheduler-uuid',
             ),
         ).toMatchObject({
             href: '/projects/project-uuid/apps/app-uuid/view?scheduler_uuid=scheduler-uuid',
-            'data-content-type': 'scheduled-delivery-link',
-            'data-scheduler-uuid': 'scheduler-uuid',
+            'data-content-type': 'data-app-link',
+            'data-app-uuid': 'app-uuid',
         });
     });
 

@@ -72,7 +72,7 @@ import {
     MessageSourcesToggle,
 } from './MessageMemorySources';
 import { MessageModelIndicator } from './MessageModelIndicator';
-import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
+import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 import { StreamRecoveryAlert } from './StreamRecoveryAlert';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
@@ -672,8 +672,9 @@ const AssistantBubbleContent: FC<{
                                 a: ({ node, children, ...props }) => {
                                     const contentType =
                                         'data-content-type' in props &&
-                                        typeof props['data-content-type'] ===
-                                            'string'
+                                        isContentType(
+                                            props['data-content-type'],
+                                        )
                                             ? props['data-content-type']
                                             : undefined;
                                     return (
@@ -865,9 +866,9 @@ const AssistantBubbleContent: FC<{
                                     a: ({ node, children, ...props }) => {
                                         const contentType =
                                             'data-content-type' in props &&
-                                            typeof props[
-                                                'data-content-type'
-                                            ] === 'string'
+                                            isContentType(
+                                                props['data-content-type'],
+                                            )
                                                 ? props['data-content-type']
                                                 : undefined;
 

@@ -1,14 +1,20 @@
 import { type Element, type Root } from 'hast';
 import { visit } from 'unist-util-visit';
 
-type ContentType =
-    | 'dashboard-link'
-    | 'chart-link'
-    | 'data-app-link'
-    | 'artifact-link'
-    | 'sql-runner-link'
-    | 'settings-link'
-    | 'scheduled-delivery-link';
+const CONTENT_TYPES = [
+    'dashboard-link',
+    'chart-link',
+    'data-app-link',
+    'artifact-link',
+    'sql-runner-link',
+    'settings-link',
+    'scheduled-delivery-link',
+] as const;
+
+export type ContentType = (typeof CONTENT_TYPES)[number];
+
+export const isContentType = (value: unknown): value is ContentType =>
+    typeof value === 'string' && CONTENT_TYPES.includes(value as ContentType);
 
 interface LinkProcessor {
     fragment: string;
@@ -71,75 +77,85 @@ const LINK_PROCESSORS: LinkProcessor[] = [
     },
 ];
 
+interface UrlMatcher {
+    pattern: RegExp;
+    contentType: ContentType;
+    // Whether the backend emits ?scheduler_uuid deep-links for this resource
+    // (only dashboard/chart view pages open the delivery's edit modal).
+    schedulable: boolean;
+    extractData: (match: RegExpMatchArray) => Record<string, string>;
+}
+
+const URL_MATCHERS: UrlMatcher[] = [
+    {
+        pattern: /\/projects\/[^/]+\/dashboards\/([^/]+)\/view/,
+        contentType: 'dashboard-link',
+        schedulable: true,
+        extractData: (match) => ({ 'data-dashboard-uuid': match[1] }),
+    },
+    {
+        pattern: /\/projects\/[^/]+\/saved\/([^/]+)\/view/,
+        contentType: 'chart-link',
+        schedulable: true,
+        extractData: (match) => ({
+            'data-chart-uuid': match[1],
+            'data-chart-source': 'saved-chart',
+        }),
+    },
+    {
+        pattern: /\/projects\/[^/]+\/apps\/([^/]+)\/view/,
+        contentType: 'data-app-link',
+        schedulable: false,
+        extractData: (match) => ({ 'data-app-uuid': match[1] }),
+    },
+    {
+        pattern: /\/projects\/[^/]+\/sql-runner\/([^/#?]+)/,
+        contentType: 'chart-link',
+        schedulable: false,
+        extractData: (match) => ({
+            'data-chart-uuid': match[1],
+            'data-chart-source': 'sql-runner',
+        }),
+    },
+    // Settings deep-links the agent emits (e.g. the "link your personal
+    // GitHub" nudge → /generalSettings/profile). Captured as a same-origin
+    // relative path so the click can route client-side instead of reloading.
+    {
+        pattern: /\/generalSettings\/[^\s)]*/,
+        contentType: 'settings-link',
+        schedulable: false,
+        extractData: (match) => ({ 'data-settings-path': match[0] }),
+    },
+];
+
 const processLink = (node: Element, href: string): void => {
     const processor = LINK_PROCESSORS.find((p) => href.includes(p.fragment));
     if (!processor) {
-        // Checked before the dashboard/chart matches: a scheduled delivery
-        // deep link is a resource view URL plus ?scheduler_uuid, so it would
-        // otherwise be misclassified as a chart/dashboard link and open the
-        // chart preview instead of the delivery's edit modal.
-        const schedulerMatch = href.match(/[?&]scheduler_uuid=([^&#]+)/);
-        const dashboardMatch = href.match(
-            /\/projects\/[^/]+\/dashboards\/([^/]+)\/view/,
-        );
-        const chartMatch = href.match(
-            /\/projects\/[^/]+\/saved\/([^/]+)\/view/,
-        );
-        const dataAppMatch = href.match(
-            /\/projects\/[^/]+\/apps\/([^/]+)\/view/,
-        );
-        const sqlRunnerMatch = href.match(
-            /\/projects\/[^/]+\/sql-runner\/([^/#?]+)/,
-        );
-        // Settings deep-links the agent emits (e.g. the "link your personal
-        // GitHub" nudge → /generalSettings/profile). Captured as a same-origin
-        // relative path so the click can route client-side instead of reloading.
-        const settingsMatch = href.match(/\/generalSettings\/[^\s)]*/);
+        for (const matcher of URL_MATCHERS) {
+            const match = href.match(matcher.pattern);
+            if (!match) continue;
 
-        if (schedulerMatch && (dashboardMatch || chartMatch || dataAppMatch)) {
-            node.properties = {
-                ...node.properties,
-                'data-content-type': 'scheduled-delivery-link',
-                'data-scheduler-uuid': schedulerMatch[1],
-                href,
-            };
-        } else if (dashboardMatch) {
-            node.properties = {
-                ...node.properties,
-                'data-content-type': 'dashboard-link',
-                'data-dashboard-uuid': dashboardMatch[1],
-                href,
-            };
-        } else if (chartMatch) {
-            node.properties = {
-                ...node.properties,
-                'data-content-type': 'chart-link',
-                'data-chart-uuid': chartMatch[1],
-                'data-chart-source': 'saved-chart',
-                href,
-            };
-        } else if (dataAppMatch) {
-            node.properties = {
-                ...node.properties,
-                'data-content-type': 'data-app-link',
-                'data-app-uuid': dataAppMatch[1],
-                href,
-            };
-        } else if (sqlRunnerMatch) {
-            node.properties = {
-                ...node.properties,
-                'data-content-type': 'chart-link',
-                'data-chart-uuid': sqlRunnerMatch[1],
-                'data-chart-source': 'sql-runner',
-                href,
-            };
-        } else if (settingsMatch) {
-            node.properties = {
-                ...node.properties,
-                'data-content-type': 'settings-link',
-                'data-settings-path': settingsMatch[0],
-                href,
-            };
+            // A schedulable resource view URL plus ?scheduler_uuid is a
+            // scheduled delivery deep link; classify it as such so the click
+            // opens the delivery's edit modal instead of the resource preview.
+            const schedulerMatch = matcher.schedulable
+                ? href.match(/[?&]scheduler_uuid=([^&#]+)/)
+                : null;
+
+            node.properties = schedulerMatch
+                ? {
+                      ...node.properties,
+                      'data-content-type': 'scheduled-delivery-link',
+                      'data-scheduler-uuid': schedulerMatch[1],
+                      href,
+                  }
+                : {
+                      ...node.properties,
+                      'data-content-type': matcher.contentType,
+                      ...matcher.extractData(match),
+                      href,
+                  };
+            return;
         }
 
         return;
