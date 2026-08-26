@@ -2111,7 +2111,9 @@ const successHandler = () => {
         process.exit(0);
     }
     console.error(`Done 🕶`);
-    process.exit(0);
+    // Handlers report partial failures (e.g. some uploads failed) via
+    // process.exitCode; an unconditional exit(0) would wipe it.
+    process.exit(process.exitCode ?? 0);
 };
 
 program.parseAsync().then(successHandler).catch(errorHandler);
