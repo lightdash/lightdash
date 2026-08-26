@@ -31,6 +31,9 @@ import PromptComposer, {
 import {
     ModelPicker,
     SelectedAttachmentSection,
+    SelectedConnectionChip,
+    ConnectionAttachButton,
+    type SelectedConnection,
 } from '../../apps/AppResourcePicker';
 import AppVersionNarration from '../../apps/components/AppVersionNarration';
 import { type ClarificationRound } from '../../apps/hooks/useClarificationRound';
@@ -175,6 +178,9 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const [interruptNext, setInterruptNext] = useState<QueuedPrompt | null>(
             null,
         );
+        const [selectedConnections, setSelectedConnections] = useState<
+            SelectedConnection[]
+        >([]);
 
         useImperativeHandle(ref, () => ({
             setPrompt: (text) => {
@@ -204,6 +210,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                         : (editing?.request.fileIds ?? []),
                 ...modelSelection.modelRequest,
                 clarifications: [],
+                externalConnections: selectedConnections,
             };
             const queuedPrompt: QueuedPrompt = {
                 id: editing?.id ?? nextQueueId.current++,
@@ -212,6 +219,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             editingPrompt.current = null;
             composerRef.current?.clear();
             attachments.clear();
+            setSelectedConnections([]);
 
             if (isBuilding) {
                 setQueuedPrompts((current) => [...current, queuedPrompt]);
@@ -238,6 +246,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             modelSelection.setModel(
                 item.request.codexModel ?? item.request.claudeModel,
             );
+            setSelectedConnections(item.request.externalConnections);
             composerRef.current?.clear();
             composerRef.current?.insertContent([
                 { type: 'text', text: item.request.description },
@@ -522,17 +531,47 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     onSubmit={handleSubmit}
                     onPaste={handlePaste}
                     attachments={
+                        selectedConnections.length > 0 ||
                         attachments.attachments.length > 0 ? (
-                            <SelectedAttachmentSection
-                                attachments={attachments.attachments.map(
-                                    (attachment) => ({
-                                        id: attachment.key,
-                                        previewUrl: attachment.previewUrl,
-                                        filename: attachment.filename,
-                                    }),
+                            <>
+                                {selectedConnections.length > 0 && (
+                                    <Group gap="xs">
+                                        {selectedConnections.map(
+                                            (connection) => (
+                                                <SelectedConnectionChip
+                                                    key={
+                                                        connection.externalConnectionUuid
+                                                    }
+                                                    name={connection.name}
+                                                    onRemove={() =>
+                                                        setSelectedConnections(
+                                                            (current) =>
+                                                                current.filter(
+                                                                    (item) =>
+                                                                        item.externalConnectionUuid !==
+                                                                        connection.externalConnectionUuid,
+                                                                ),
+                                                        )
+                                                    }
+                                                />
+                                            ),
+                                        )}
+                                    </Group>
                                 )}
-                                onRemove={attachments.remove}
-                            />
+                                {attachments.attachments.length > 0 && (
+                                    <SelectedAttachmentSection
+                                        attachments={attachments.attachments.map(
+                                            (attachment) => ({
+                                                id: attachment.key,
+                                                previewUrl:
+                                                    attachment.previewUrl,
+                                                filename: attachment.filename,
+                                            }),
+                                        )}
+                                        onRemove={attachments.remove}
+                                    />
+                                )}
+                            </>
                         ) : undefined
                     }
                     toolbarRight={
@@ -566,6 +605,26 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     codingAgent={modelSelection.codingAgent}
                                 />
                             )}
+                            <ConnectionAttachButton
+                                selectedConnections={selectedConnections}
+                                onSelect={(connection) =>
+                                    setSelectedConnections((current) => [
+                                        ...current,
+                                        connection,
+                                    ])
+                                }
+                                onDeselect={(uuid) =>
+                                    setSelectedConnections((current) =>
+                                        current.filter(
+                                            (connection) =>
+                                                connection.externalConnectionUuid !==
+                                                uuid,
+                                        ),
+                                    )
+                                }
+                                disabled={isComposerLocked}
+                                description="Let this chart type fetch from these APIs and display public images from allowed origins"
+                            />
                             <input
                                 ref={fileInputRef}
                                 type="file"

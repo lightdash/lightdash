@@ -123,6 +123,12 @@ export type AppExternalConnectionLink = {
     alias: string;
 };
 
+/** A connection currently linked to a data app or custom chart type. */
+export type AppExternalConnectionLinked = {
+    alias: string;
+    connection: ExternalConnection;
+};
+
 /** Server-applied defaults for the optional numeric limits. */
 export const EXTERNAL_CONNECTION_DEFAULTS = {
     responseMaxBytes: 1048576,

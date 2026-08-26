@@ -218,7 +218,7 @@ export const ExternalConnectionForm: FC<Props> = ({
 
             <Switch
                 label="Allow public images in linked apps"
-                description="App code can send data to this origin through image URLs. Enable only for trusted public image or tile hosts."
+                description="Linked apps and chart types can load public images from this origin. Enable only for trusted public image or tile hosts."
                 disabled={
                     disabled ||
                     (type !== 'none' && !form.values.allowBrowserImages)

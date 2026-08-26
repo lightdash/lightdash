@@ -10,6 +10,7 @@ import {
 import {
     ActionIcon,
     Anchor,
+    Badge,
     Box,
     Button,
     CloseButton,
@@ -61,6 +62,7 @@ import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
+import { aliasFromName } from '../externalConnections/utils/aliasFromName';
 import classes from './AppResourcePicker.module.css';
 import {
     useAttachResourceLink,
@@ -102,13 +104,6 @@ export type SelectedConnection = {
     /** Handle the generated app calls it by: client.externalFetch(alias, …). */
     alias: string;
 };
-
-/** Derive a stable, code-safe alias from a connection name. */
-const aliasFromName = (name: string): string =>
-    name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '');
 
 const SAMPLE_DATA_TOOLTIP =
     'Include sample data - runs this query and shares up to 10 rows with the app generator so it can see actual values (date ranges, labels, magnitudes). Off by default because rows can be sensitive.';
@@ -942,11 +937,11 @@ const DashboardPickerView: FC<{
 };
 
 /**
- * Internal: external-connection list with search. Mirrors `QueryPickerView`.
+ * External-connection list with search. Mirrors `QueryPickerView`.
  * Selecting a connection adds it to the parent and keeps the picker open so
  * multiple can be added in one flow.
  */
-const ConnectionPickerView: FC<{
+export const ConnectionPickerView: FC<{
     selectedConnections: SelectedConnection[];
     onSelect: (connection: SelectedConnection) => void;
     onDeselect: (uuid: string) => void;
@@ -1346,6 +1341,102 @@ export const AttachButton: FC<{
                         )}
                     </>
                 )}
+            </Popover.Dropdown>
+        </Popover>
+    );
+};
+
+/** A removable pill for a connection selected on this prompt. */
+export const SelectedConnectionChip: FC<{
+    name: string;
+    onRemove: () => void;
+}> = ({ name, onRemove }) => (
+    <Badge
+        variant="light"
+        color="gray"
+        size="md"
+        leftSection={<MantineIcon icon={IconPlugConnected} size={12} />}
+        rightSection={
+            <ActionIcon
+                size="xs"
+                variant="transparent"
+                color="gray"
+                onClick={onRemove}
+                aria-label={`Remove ${name}`}
+            >
+                <MantineIcon icon={IconX} size={10} />
+            </ActionIcon>
+        }
+    >
+        {name}
+    </Badge>
+);
+
+/**
+ * Opens the external-connection picker directly — used by surfaces that
+ * attach connections without the rest of the data-app resource menu.
+ */
+export const ConnectionAttachButton: FC<{
+    selectedConnections: SelectedConnection[];
+    onSelect: (connection: SelectedConnection) => void;
+    onDeselect: (uuid: string) => void;
+    disabled: boolean;
+    /** Picker subtitle; defaults to the data-app wording. */
+    description?: string;
+}> = ({
+    selectedConnections,
+    onSelect,
+    onDeselect,
+    disabled,
+    description = 'Let the app fetch from these external APIs',
+}) => {
+    const [opened, setOpened] = useState(false);
+
+    return (
+        <Popover
+            opened={opened}
+            onChange={setOpened}
+            position="top-start"
+            offset={8}
+            shadow="md"
+            trapFocus
+        >
+            <Popover.Target>
+                <Tooltip
+                    label="Add external connections"
+                    withArrow
+                    position="top"
+                >
+                    <ActionIcon
+                        variant="subtle"
+                        color="ldGray"
+                        size="sm"
+                        aria-label="Add external connections"
+                        onClick={() => setOpened((value) => !value)}
+                        disabled={disabled}
+                    >
+                        <MantineIcon icon={IconPlugConnected} />
+                    </ActionIcon>
+                </Tooltip>
+            </Popover.Target>
+            <Popover.Dropdown className={classes.queryDropdown} p={0}>
+                <Box p="xs" pb={0} className={classes.attachPickerHeader}>
+                    <Box>
+                        <Text size="sm" fw={500}>
+                            Add external connections
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                            {description}
+                        </Text>
+                    </Box>
+                </Box>
+                <ConnectionPickerView
+                    selectedConnections={selectedConnections}
+                    onSelect={onSelect}
+                    onDeselect={onDeselect}
+                    onDone={() => setOpened(false)}
+                    enabled={opened}
+                />
             </Popover.Dropdown>
         </Popover>
     );

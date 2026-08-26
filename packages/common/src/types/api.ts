@@ -92,6 +92,7 @@ import type {
     ApiUpdateAiOrganizationSettingsResponse,
     ApiUpdateUserAgentPreferencesResponse,
     AppExternalConnectionLink,
+    AppExternalConnectionLinked,
     DecodedEmbed,
     EmbedUrl,
     ExternalConnection,
@@ -1519,6 +1520,8 @@ type ApiResults =
     | ExternalConnectionSample[]
     | AppExternalConnectionLink
     | AppExternalConnectionLink[]
+    | AppExternalConnectionLinked
+    | AppExternalConnectionLinked[]
     | ExternalFetchResponse
     | ExternalSource
     | ExternalSource[]

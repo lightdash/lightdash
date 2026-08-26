@@ -62,7 +62,7 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
         <>
             <SettingsPage
                 title="Data app connections"
-                description="Manage external connections used by this project's data apps."
+                description="Manage external connections used by this project's data apps and chart types."
                 actions={addConnectionButton}
             >
                 <Stack gap="md">
@@ -95,7 +95,7 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
                             <SettingsEmptyState
                                 icon={IconPlug}
                                 title="No connections"
-                                description="Create a connection to let data apps call an external HTTP service."
+                                description="Create a connection to let data apps and chart types call an external HTTP service."
                             />
                         </Stack>
                     )}

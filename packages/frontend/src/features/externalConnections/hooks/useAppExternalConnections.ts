@@ -1,6 +1,7 @@
 import {
     type ApiError,
     type AppExternalConnectionLink,
+    type AppExternalConnectionLinked,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -19,8 +20,11 @@ export const useAppExternalConnections = (
     projectUuid: string | undefined,
     appUuid: string | undefined,
 ) =>
-    useQuery<AppExternalConnectionLink[], ApiError>({
+    useQuery<AppExternalConnectionLinked[], ApiError>({
         queryKey: ['app-external-connections', projectUuid, appUuid],
-        queryFn: () => getAppExternalConnections(projectUuid!, appUuid!),
+        queryFn: () =>
+            getAppExternalConnections(projectUuid!, appUuid!) as Promise<
+                AppExternalConnectionLinked[]
+            >,
         enabled: !!projectUuid && !!appUuid,
     });

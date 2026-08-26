@@ -193,6 +193,7 @@ describe('BuilderPromptBar', () => {
             fileIds: [],
             claudeModel: 'haiku',
             clarifications: [],
+            externalConnections: [],
         });
     });
 
@@ -222,6 +223,7 @@ describe('BuilderPromptBar', () => {
             fileIds: [],
             codexModel: 'gpt-5.6-sol',
             clarifications: [],
+            externalConnections: [],
         });
     });
 
@@ -263,6 +265,7 @@ describe('BuilderPromptBar', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
 
@@ -370,6 +373,7 @@ describe('BuilderPromptBar', () => {
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
+                externalConnections: [],
             }),
         );
     });
@@ -563,6 +567,7 @@ describe('BuilderPromptBar', () => {
             fileIds: [],
             claudeModel: 'sonnet',
             clarifications: [],
+            externalConnections: [],
         });
     });
 
@@ -663,5 +668,13 @@ describe('BuilderPromptBar', () => {
             'Could not cancel: Request timed out',
         );
         expect(screen.getByText('Cancel')).toBeEnabled();
+    });
+
+    it('offers attaching external connections from the composer', () => {
+        renderWithProviders(promptBar());
+
+        expect(
+            screen.getByLabelText('Add external connections'),
+        ).toBeInTheDocument();
     });
 });
