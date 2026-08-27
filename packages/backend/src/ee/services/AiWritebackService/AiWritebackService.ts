@@ -30,6 +30,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import type {
+    AiWritebackEventSource,
     AiWritebackFailureStage,
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
@@ -158,6 +159,20 @@ import {
 } from './utils';
 
 export type { AiWritebackRunArgs, AiWritebackSource } from './types';
+
+const AI_WRITEBACK_EVENT_SOURCES = {
+    slack: 'slack',
+    web: 'chat',
+    mcp: 'mcp',
+    api: 'api',
+    admin_review: 'review_item',
+    changeset: 'unknown',
+} satisfies Record<AiWritebackSource, AiWritebackEventSource>;
+
+export const getAiWritebackEventSource = (
+    source: AiWritebackSource | null | undefined,
+): AiWritebackEventSource =>
+    source ? (AI_WRITEBACK_EVENT_SOURCES[source] ?? 'unknown') : 'unknown';
 
 // What to snapshot between turns: the whole cloned repo at CWD (working tree +
 // .git feature branch + the agent's .claude session dir), minus re-derivable
@@ -697,6 +712,7 @@ export class AiWritebackService extends BaseService {
         let threadId: string | null = null;
         let promptId: string | null = null;
         let workstream: CodingAgentConfig['mode'] = 'dbt-writeback';
+        let source: AiWritebackEventSource = 'unknown';
         try {
             const thread =
                 await this.aiWritebackThreadModel.findByProjectUuidAndPrUrl(
@@ -711,8 +727,10 @@ export class AiWritebackService extends BaseService {
                     properties.prUrl,
                 );
             promptId = run?.prompt_uuid ?? null;
+            source = getAiWritebackEventSource(run?.source);
         } catch {
             workstream = 'dbt-writeback';
+            source = 'unknown';
         }
         this.analytics.track({
             event: 'ai_writeback.merged',
@@ -729,6 +747,7 @@ export class AiWritebackService extends BaseService {
                 mergeCommitSha: properties.mergeCommitSha,
                 compileScheduled: properties.compileScheduled,
                 workstream,
+                source,
             },
         });
     }
@@ -2159,6 +2178,7 @@ export class AiWritebackService extends BaseService {
             workstream: config.mode,
             aiThreadUuid,
             promptUuid: args.promptUuid,
+            source,
         });
 
         let failureStage: AiWritebackFailureStage = 'install';
@@ -3285,6 +3305,7 @@ export class AiWritebackService extends BaseService {
         workstream,
         aiThreadUuid,
         promptUuid,
+        source,
     }: {
         user: SessionUser;
         projectUuid: string;
@@ -3292,6 +3313,7 @@ export class AiWritebackService extends BaseService {
         workstream: CodingAgentConfig['mode'];
         aiThreadUuid: string | undefined;
         promptUuid: string | undefined;
+        source: AiWritebackSource;
     }) {
         const eventBase = {
             organizationId: turn.organizationUuid,
@@ -3302,6 +3324,7 @@ export class AiWritebackService extends BaseService {
             repo: turn.gitConnection.repo,
             isResume: turn.isResume,
             workstream,
+            source: getAiWritebackEventSource(source),
         };
         const startedAt = Date.now();
 

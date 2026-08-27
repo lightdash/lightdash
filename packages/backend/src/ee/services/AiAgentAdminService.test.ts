@@ -2398,6 +2398,7 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
                 toolHints: ['editDbtProject'],
                 forceToolHints: true,
                 suppressWritebackPreview: true,
+                writebackSource: 'admin_review',
             }),
         );
         // writeback_completed is emitted by the shared editDbtProject seam, not

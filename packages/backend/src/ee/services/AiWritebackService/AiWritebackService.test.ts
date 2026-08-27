@@ -34,6 +34,7 @@ import {
     AiWritebackService,
     auditReasonForError,
     computeWritableRepoKeys,
+    getAiWritebackEventSource,
     mergeSourceCodeRepoAccess,
     parseOwnerRepo,
     workstreamLockKey,
@@ -1921,6 +1922,7 @@ describe('AiWritebackService.mergePullRequest', () => {
             aiWritebackRunModel: {
                 findLatestByProjectUuidAndPrUrl: vi.fn().mockResolvedValue({
                     prompt_uuid: 'prompt-1',
+                    source: 'web',
                 }),
             } as AnyType,
         });
@@ -1941,6 +1943,7 @@ describe('AiWritebackService.mergePullRequest', () => {
                 mergeCommitSha: 'sha-7',
                 compileScheduled: true,
                 workstream: 'dbt-writeback',
+                source: 'chat',
             },
         });
     });
@@ -2001,6 +2004,49 @@ describe('AiWritebackService.mergePullRequest', () => {
 });
 
 describe('AiWritebackService.startTracking', () => {
+    it.each([
+        ['web', 'chat'],
+        ['slack', 'slack'],
+        ['api', 'api'],
+        ['mcp', 'mcp'],
+        ['admin_review', 'review_item'],
+        ['changeset', 'unknown'],
+    ] as const)(
+        'maps the %s run origin to %s on every run lifecycle event',
+        (source, expectedSource) => {
+            const track = vi.fn();
+            const service = buildService({ analytics: { track } as AnyType });
+            const tracker = (service as AnyType).startTracking({
+                user: { userUuid: 'u1' },
+                projectUuid: 'p1',
+                turn: turnContext(),
+                workstream: 'dbt-writeback',
+                aiThreadUuid: 'thread-1',
+                promptUuid: 'prompt-1',
+                source,
+            });
+
+            tracker.completed({
+                exitCode: 0,
+                hasChanges: true,
+                prCreated: true,
+                usage: null,
+                repoContext: null,
+            });
+            tracker.failed('agent', new Error('failed'), null);
+
+            expect(
+                track.mock.calls.map(([event]) => event.properties.source),
+            ).toEqual([expectedSource, expectedSource, expectedSource]);
+        },
+    );
+
+    it('maps missing and unrecognized origins to unknown', () => {
+        expect(getAiWritebackEventSource(undefined)).toBe('unknown');
+        expect(getAiWritebackEventSource(null)).toBe('unknown');
+        expect(getAiWritebackEventSource('future' as never)).toBe('unknown');
+    });
+
     it('assembles explicit thread and prompt properties for agent and API runs', () => {
         const track = vi.fn();
         const service = buildService({ analytics: { track } as AnyType });
@@ -2013,6 +2059,7 @@ describe('AiWritebackService.startTracking', () => {
             workstream: 'dbt-writeback',
             aiThreadUuid: 'thread-1',
             promptUuid: 'prompt-1',
+            source: 'web',
         });
         expect(track).toHaveBeenLastCalledWith({
             event: 'ai_writeback.started',
@@ -2030,6 +2077,7 @@ describe('AiWritebackService.startTracking', () => {
             workstream: 'dbt-writeback',
             aiThreadUuid: undefined,
             promptUuid: undefined,
+            source: 'api',
         });
         expect(track).toHaveBeenLastCalledWith({
             event: 'ai_writeback.started',
@@ -2051,6 +2099,7 @@ describe('AiWritebackService.startTracking', () => {
             workstream: 'dbt-writeback',
             aiThreadUuid: undefined,
             promptUuid: undefined,
+            source: 'web',
         });
         const listing = 'models/orders.sql\nREADME.md\n';
 
@@ -2083,6 +2132,7 @@ describe('AiWritebackService.startTracking', () => {
             workstream: 'general',
             aiThreadUuid: undefined,
             promptUuid: undefined,
+            source: 'web',
         });
 
         tracker.failed('agent', new Error('agent failed'), {
@@ -2113,6 +2163,7 @@ describe('AiWritebackService.startTracking', () => {
             workstream: 'general',
             aiThreadUuid: undefined,
             promptUuid: undefined,
+            source: 'web',
         });
 
         tracker.completed({
