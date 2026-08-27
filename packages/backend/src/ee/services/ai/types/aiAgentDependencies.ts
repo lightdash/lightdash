@@ -19,7 +19,6 @@ import {
     CustomChartTypeLibrary,
     DashboardAsCode,
     DashboardSearchResult,
-    DataAppRead,
     DataAppSearchResult,
     DataAppVizSchema,
     DbtProjectType,
@@ -55,6 +54,7 @@ import {
     AiAgentToolCallEvent,
 } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
+import type { DataAppRead } from '../../AiAgentToolsService/dataAppRead';
 import { AiAgentSkill } from '../skills/types';
 
 type Pagination = KnexPaginateArgs & {

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const TOOL_READ_CONTENT_DESCRIPTION =
-    'Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. A data app read is code-free: what the app shows, the context it was generated from, and its data references per explore (dimensions, metrics, filters, parameters, linked charts, external connections) with stats on how much of them resolved.';
+    'Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Data apps are read-only and returned without code.';
 
 export const toolReadContentArgsSchema = z.object({
     slug: z
