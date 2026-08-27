@@ -239,6 +239,91 @@ describe('AiAgentModel prompt activity', () => {
         });
     });
 
+    it('persists a successful terminal response after retrying a failed prompt with token usage', async () => {
+        const threadUuid = await createWebAppThread();
+        const promptUuid = await model.createWebAppPrompt({
+            threadUuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            prompt: 'Retry a failed response with recorded token usage',
+        });
+        const failedAttemptTokenUsage = {
+            totalTokens: 41,
+            finalStepTotalTokens: 17,
+        };
+        const retriedAttemptTokenUsage = {
+            totalTokens: 23,
+            finalStepTotalTokens: 23,
+        };
+        const readPromptState = async () =>
+            database(AiPromptTableName)
+                .select(['response', 'error_message', 'token_usage'])
+                .select(
+                    database.raw('responded_at::text as responded_at'),
+                    database.raw('retried_at::text as retried_at'),
+                )
+                .where('ai_prompt_uuid', promptUuid)
+                .first<{
+                    response: string | null;
+                    error_message: string | null;
+                    token_usage: typeof failedAttemptTokenUsage | null;
+                    responded_at: string | null;
+                    retried_at: string | null;
+                }>();
+
+        const failedAttemptPersisted = await model.updateModelResponse({
+            promptUuid,
+            errorMessage: 'The agent finished without writing a response.',
+            tokenUsage: failedAttemptTokenUsage,
+        });
+        const failedState = await readPromptState();
+
+        expect(failedAttemptPersisted).toBe(true);
+        expect(failedState).toMatchObject({
+            response: null,
+            error_message: 'The agent finished without writing a response.',
+            token_usage: failedAttemptTokenUsage,
+            retried_at: null,
+        });
+        expect(failedState?.responded_at).not.toBeNull();
+
+        const retryStarted = await model.resetPromptResponseForRetry(
+            promptUuid,
+            {
+                respondedAt: failedState!.responded_at,
+                response: failedState!.response,
+                errorMessage: failedState!.error_message,
+            },
+        );
+        const resetState = await readPromptState();
+
+        expect(retryStarted).toBe(true);
+        expect(resetState).toMatchObject({
+            response: null,
+            error_message: null,
+            responded_at: null,
+        });
+        expect(resetState?.retried_at).not.toBeNull();
+
+        const terminalResponsePersisted = await model.updateModelResponse(
+            {
+                promptUuid,
+                response: 'The retried response completed successfully.',
+                tokenUsage: retriedAttemptTokenUsage,
+            },
+            { onlyIfUnfinalized: true },
+        );
+        const terminalState = await readPromptState();
+
+        expect({ terminalResponsePersisted, ...terminalState }).toEqual({
+            terminalResponsePersisted: true,
+            response: 'The retried response completed successfully.',
+            error_message: null,
+            token_usage: retriedAttemptTokenUsage,
+            responded_at: expect.any(String),
+            retried_at: resetState?.retried_at,
+        });
+    });
+
     it('keeps reused tool call ids scoped to their prompts', async () => {
         const threadUuid = await createWebAppThread();
         const expectedResults = ['first prompt result', 'second prompt result'];

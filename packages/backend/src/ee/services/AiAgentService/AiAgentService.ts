@@ -6003,9 +6003,12 @@ export class AiAgentService extends BaseService {
                 update.errorMessage !== undefined);
         const isClassifiableTerminalUpdate =
             shouldClassifyPromptInputRequestForUpdate(update);
+        const shouldUseUnfinalizedGuard =
+            isClassifiableTerminalUpdate &&
+            this.lightdashConfig.ai.promptInputRequestClassifier.enabled;
         const modelUpdatePromise = this.aiAgentModel.updateModelResponse(
             update,
-            isClassifiableTerminalUpdate
+            shouldUseUnfinalizedGuard
                 ? { onlyIfUnfinalized: true }
                 : { onlyIfPending: isTerminalStreamUpdate },
         );
