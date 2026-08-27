@@ -266,6 +266,8 @@ export type Dashboard = {
     draftsAwaitingReview?: number;
     /** The author draft was preserved but could not be safely rendered */
     draftOverlayError?: DashboardDraftOverlayError;
+    /** The viewer authored a dismissed draft that can be reopened */
+    dismissedDraftUuid?: string;
     dashboardVersionId: number;
     versionUuid: string;
     uuid: string;

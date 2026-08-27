@@ -103,3 +103,34 @@ export const useDismissDraftMutation = (projectUuid: string | undefined) => {
         },
     );
 };
+
+export const useReopenDraftMutation = (projectUuid: string | undefined) => {
+    const { showToastSuccess, showToastError } = useToaster();
+    const queryClient = useQueryClient();
+    return useMutation<ContentDraftSummary, ApiError, string>(
+        (draftUuid) =>
+            lightdashApi<ContentDraftSummary>({
+                url: `/projects/${projectUuid}/code/drafts/${draftUuid}/reopen`,
+                method: 'POST',
+                body: undefined,
+            }),
+        {
+            onSuccess: () => {
+                void Promise.all([
+                    queryClient.invalidateQueries([
+                        'content-drafts',
+                        projectUuid,
+                    ]),
+                    queryClient.invalidateQueries(['saved_dashboard_query']),
+                ]);
+                showToastSuccess({ title: 'Draft reopened' });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: 'Failed to reopen draft',
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};

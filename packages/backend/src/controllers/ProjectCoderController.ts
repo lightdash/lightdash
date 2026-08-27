@@ -14,6 +14,7 @@ import {
     type ApiContentAsCodeSettingsResponse,
     type ApiContentAsCodeUploadAdvisoryResponse,
     type ApiContentAsCodeWritebacksResponse,
+    type ApiContentDraftReopenResponse,
     type ApiContentDraftReviewResponse,
     type ApiContentDraftsResponse,
     type ApiContentDraftWriteBackResponse,
@@ -347,6 +348,28 @@ export class ProjectCoderController extends BaseController {
             .getContentAsCodeWritebackService()
             .dismissDraft(toSessionUser(req.account), projectUuid, draftUuid);
         return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Reopen the caller's dismissed draft without creating another record
+     * @summary Reopen content draft
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/drafts/{draftUuid}/reopen')
+    @OperationId('reopenContentDraft')
+    async reopenContentDraft(
+        @Path() projectUuid: string,
+        @Path() draftUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentDraftReopenResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const draft = await this.services
+            .getContentAsCodeWritebackService()
+            .reopenDraft(toSessionUser(req.account), projectUuid, draftUuid);
+        return codeSuccess(toDraftSummary(draft));
     }
 
     /**

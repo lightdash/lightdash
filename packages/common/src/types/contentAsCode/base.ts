@@ -150,3 +150,8 @@ export type ApiContentDraftWriteBackResponse = {
     status: 'ok';
     results: ContentDraftSummary;
 };
+
+export type ApiContentDraftReopenResponse = {
+    status: 'ok';
+    results: ContentDraftSummary;
+};

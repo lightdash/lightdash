@@ -1857,6 +1857,16 @@ export class DashboardService
                     };
                 }
             }
+            const dismissedDraft =
+                await this.contentDraftModel.findLatestDismissedDraft(
+                    dashboard.projectUuid,
+                    'dashboard',
+                    dashboard.uuid,
+                    user.userUuid,
+                );
+            const dashboardForViewer = dismissedDraft
+                ? { ...dashboard, dismissedDraftUuid: dismissedDraft.uuid }
+                : dashboard;
             // Reviewers get an entry point when others have open drafts here
             if (
                 await this.canManageContentAsCode(user, dashboard.projectUuid)
@@ -1869,10 +1879,13 @@ export class DashboardService
                         user.userUuid,
                     );
                 if (awaiting > 0) {
-                    return { ...dashboard, draftsAwaitingReview: awaiting };
+                    return {
+                        ...dashboardForViewer,
+                        draftsAwaitingReview: awaiting,
+                    };
                 }
             }
-            return dashboard;
+            return dashboardForViewer;
         } catch (error) {
             this.logger.warn('Draft overlay failed', error);
             return dashboard;
