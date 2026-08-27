@@ -26,20 +26,36 @@ const unlinkAppExternalConnection = async ({
         body: undefined,
     });
 
-/** Unlinks optimistically: the app keeps calling the alias until it is
- *  rebuilt, so the toast points at the composer. */
+const linksQueryKey = (projectUuid: string, appUuid: string) => [
+    'app-external-connections',
+    projectUuid,
+    appUuid,
+];
+
+/** Unlinks optimistically and rolls back on failure. The app keeps calling
+ *  the alias until it is rebuilt, so the toast points at the composer. */
 export const useUnlinkAppExternalConnection = () => {
     const queryClient = useQueryClient();
     const { showToastInfo, showToastApiError } = useToaster();
-    return useMutation<undefined, ApiError, UnlinkParams>({
+    return useMutation<
+        undefined,
+        ApiError,
+        UnlinkParams,
+        { previousLinks: AppExternalConnectionLinked[] | undefined }
+    >({
         mutationFn: unlinkAppExternalConnection,
         onMutate: async ({ projectUuid, appUuid, alias }) => {
-            const queryKey = ['app-external-connections', projectUuid, appUuid];
+            const queryKey = linksQueryKey(projectUuid, appUuid);
             await queryClient.cancelQueries({ queryKey });
+            const previousLinks =
+                queryClient.getQueryData<AppExternalConnectionLinked[]>(
+                    queryKey,
+                );
             queryClient.setQueryData<AppExternalConnectionLinked[]>(
                 queryKey,
                 (links) => links?.filter((link) => link.alias !== alias),
             );
+            return { previousLinks };
         },
         onSuccess: (_data, { name }) => {
             showToastInfo({
@@ -48,7 +64,11 @@ export const useUnlinkAppExternalConnection = () => {
                     'The chart type still calls it until you ask for a change.',
             });
         },
-        onError: ({ error }) => {
+        onError: ({ error }, { projectUuid, appUuid }, context) => {
+            queryClient.setQueryData(
+                linksQueryKey(projectUuid, appUuid),
+                context?.previousLinks,
+            );
             showToastApiError({
                 title: 'Failed to unlink connection',
                 apiError: error,
@@ -56,7 +76,7 @@ export const useUnlinkAppExternalConnection = () => {
         },
         onSettled: async (_data, _error, { projectUuid, appUuid }) => {
             await queryClient.invalidateQueries({
-                queryKey: ['app-external-connections', projectUuid, appUuid],
+                queryKey: linksQueryKey(projectUuid, appUuid),
             });
         },
     });
