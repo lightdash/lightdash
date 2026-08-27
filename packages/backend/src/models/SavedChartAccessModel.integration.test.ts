@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    DirectAccessOrigin,
     OrganizationMemberRole,
     ProjectMemberRole,
     SEED_ORG_1_ADMIN,
@@ -525,6 +526,41 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
             .returning('saved_query_uuid');
         return chart.saved_query_uuid;
     };
+
+    it('lists direct principals for independently saved charts only', async () => {
+        await upsertUser(SpaceMemberRole.VIEWER);
+        await upsertGroup(SpaceMemberRole.EDITOR);
+
+        const { data } = await model.getDirectAccessList(
+            fixture.directChartUuid,
+            fixture.organizationUuid,
+            fixture.projectUuid,
+        );
+        expect(data).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    origin: DirectAccessOrigin.USER,
+                    principalUuid: fixture.userUuid,
+                    directRole: SpaceMemberRole.VIEWER,
+                }),
+                expect.objectContaining({
+                    origin: DirectAccessOrigin.GROUP,
+                    principalUuid: fixture.groupUuid,
+                    directRole: SpaceMemberRole.EDITOR,
+                }),
+            ]),
+        );
+        await expect(
+            model.getGroupRolesForUsers(
+                fixture.directChartUuid,
+                fixture.organizationUuid,
+                fixture.projectUuid,
+                [fixture.userUuid],
+            ),
+        ).resolves.toEqual({
+            [fixture.userUuid]: [SpaceMemberRole.EDITOR],
+        });
+    });
 
     it('accepts every current project-access path for user principals', async () => {
         const [role] = await transaction(RolesTableName)

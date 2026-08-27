@@ -16,6 +16,7 @@ import {
 } from '@lightdash/common';
 import { validate as isValidUuid } from 'uuid';
 import { createActorFromUser } from '../../logging/caslAuditWrapper';
+import type { DirectAccessListRow } from '../../models/directAccessAdminModelUtils';
 import type {
     DirectAccessMutationResult,
     DirectAccessResetResult,
@@ -36,23 +37,6 @@ import type {
     ResourceAccessHandler,
     ResourceAccessInput,
 } from './ResourceAccessHandler';
-
-export type DirectAccessListRow =
-    | {
-          origin: DirectAccessOrigin.USER;
-          principalUuid: string;
-          firstName: string;
-          lastName: string;
-          email: string;
-          isInternal: boolean;
-          directRole: SpaceMemberRole;
-      }
-    | {
-          origin: DirectAccessOrigin.GROUP;
-          principalUuid: string;
-          name: string;
-          directRole: SpaceMemberRole;
-      };
 
 export type DirectAccessTarget = {
     resourceUuid: string;

@@ -1,4 +1,5 @@
 import {
+    DirectAccessOrigin,
     OrganizationMemberRole,
     ProjectMemberRole,
     SEED_ORG_1_ADMIN,
@@ -174,10 +175,51 @@ describe('dashboard direct access model PostgreSQL integration', () => {
             [dashboardUuid]: {
                 organizationUuid,
                 projectUuid,
+                spaceUuid: expect.any(String),
                 userRole: SpaceMemberRole.VIEWER,
                 groupRoles: [SpaceMemberRole.ADMIN],
             },
         });
+    });
+
+    it('lists active direct principals and their resource group roles', async () => {
+        const { data } = await model.getDirectAccessList(
+            dashboardUuid,
+            organizationUuid,
+            projectUuid,
+        );
+
+        expect(data).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    origin: DirectAccessOrigin.USER,
+                    principalUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    directRole: SpaceMemberRole.VIEWER,
+                }),
+                expect.objectContaining({
+                    origin: DirectAccessOrigin.GROUP,
+                    principalUuid: groupUuid,
+                    directRole: SpaceMemberRole.ADMIN,
+                }),
+            ]),
+        );
+        await expect(
+            model.getGroupRolesForUsers(
+                dashboardUuid,
+                organizationUuid,
+                projectUuid,
+                [SEED_ORG_1_ADMIN.user_uuid],
+            ),
+        ).resolves.toEqual({
+            [SEED_ORG_1_ADMIN.user_uuid]: [SpaceMemberRole.ADMIN],
+        });
+        await expect(
+            model.getDirectAccessList(
+                dashboardUuid,
+                organizationUuid,
+                randomUUID(),
+            ),
+        ).resolves.toEqual({ data: [] });
     });
 
     it('makes a group grant inert immediately after membership removal', async () => {

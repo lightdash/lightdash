@@ -1,4 +1,9 @@
-import { NotFoundError, type SpaceMemberRole } from '@lightdash/common';
+import {
+    NotFoundError,
+    type DirectAccessOrigin,
+    type KnexPaginateArgs,
+    type SpaceMemberRole,
+} from '@lightdash/common';
 import { type Knex } from 'knex';
 import {
     DashboardGroupAccessTableName,
@@ -11,6 +16,10 @@ import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectTableName } from '../database/entities/projects';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
+import {
+    getDirectAccessGroupRolesForUsers,
+    getDirectAccessList,
+} from './directAccessAdminModelUtils';
 import {
     getActiveGrantedGroupPredicate,
     getActiveProjectMemberPredicate,
@@ -25,6 +34,12 @@ import {
 } from './directAccessModelUtils';
 
 export type DashboardDirectAccess = DirectAccess;
+
+const adminTableConfig = {
+    userAccessTable: DashboardUserAccessTableName,
+    groupAccessTable: DashboardGroupAccessTableName,
+    resourceColumn: 'dashboard_uuid',
+};
 
 /**
  * Pure data access for dashboard direct grants. Authorization (CASL, role
@@ -262,6 +277,41 @@ export class DashboardAccessModel {
             ]);
             return { ...context, revokedUsers, revokedGroups };
         });
+    }
+
+    async getDirectAccessList(
+        resourceUuid: string,
+        organizationUuid: string,
+        projectUuid: string,
+        options: {
+            paginateArgs?: KnexPaginateArgs;
+            searchQuery?: string;
+            principal?: {
+                origin: DirectAccessOrigin;
+                uuid: string;
+            };
+        } = {},
+    ) {
+        return getDirectAccessList(
+            this.database,
+            adminTableConfig,
+            { resourceUuid, organizationUuid, projectUuid },
+            options,
+        );
+    }
+
+    async getGroupRolesForUsers(
+        resourceUuid: string,
+        organizationUuid: string,
+        projectUuid: string,
+        userUuids: string[],
+    ): Promise<Record<string, SpaceMemberRole[]>> {
+        return getDirectAccessGroupRolesForUsers(
+            this.database,
+            adminTableConfig,
+            { resourceUuid, organizationUuid, projectUuid },
+            userUuids,
+        );
     }
 
     async getUserAccess(

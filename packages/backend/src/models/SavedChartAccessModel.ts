@@ -1,6 +1,8 @@
 import {
     NotFoundError,
     ParameterError,
+    type DirectAccessOrigin,
+    type KnexPaginateArgs,
     type SpaceMemberRole,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -17,6 +19,10 @@ import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import {
+    getDirectAccessGroupRolesForUsers,
+    getDirectAccessList,
+} from './directAccessAdminModelUtils';
+import {
     getActiveGrantedGroupPredicate,
     getActiveProjectMemberPredicate,
     groupDirectAccessRows,
@@ -30,6 +36,12 @@ import {
 } from './directAccessModelUtils';
 
 export type SavedChartDirectAccess = DirectAccess;
+
+const adminTableConfig = {
+    userAccessTable: SavedChartUserAccessTableName,
+    groupAccessTable: SavedChartGroupAccessTableName,
+    resourceColumn: 'saved_chart_uuid',
+};
 
 type SavedChartOwnership = {
     spaceId: number | null;
@@ -423,6 +435,41 @@ export class SavedChartAccessModel {
             ]);
             return { ...context, revokedUsers, revokedGroups };
         });
+    }
+
+    async getDirectAccessList(
+        resourceUuid: string,
+        organizationUuid: string,
+        projectUuid: string,
+        options: {
+            paginateArgs?: KnexPaginateArgs;
+            searchQuery?: string;
+            principal?: {
+                origin: DirectAccessOrigin;
+                uuid: string;
+            };
+        } = {},
+    ) {
+        return getDirectAccessList(
+            this.database,
+            adminTableConfig,
+            { resourceUuid, organizationUuid, projectUuid },
+            options,
+        );
+    }
+
+    async getGroupRolesForUsers(
+        resourceUuid: string,
+        organizationUuid: string,
+        projectUuid: string,
+        userUuids: string[],
+    ): Promise<Record<string, SpaceMemberRole[]>> {
+        return getDirectAccessGroupRolesForUsers(
+            this.database,
+            adminTableConfig,
+            { resourceUuid, organizationUuid, projectUuid },
+            userUuids,
+        );
     }
 
     async getUserAccess(
