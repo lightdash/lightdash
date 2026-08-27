@@ -86,7 +86,14 @@ function buildService(
     };
 
     const spacePermissionService = {
-        resolveAccess: vi.fn().mockResolvedValue({}),
+        resolveAccess: vi.fn().mockResolvedValue({
+            organizationUuid: USER_ORG_UUID,
+            projectUuid: PROJECT_UUID,
+            inheritsFromOrgOrProject: false,
+            access: [],
+            admins: [],
+            directOnly: false,
+        }),
     };
 
     const analytics = { track: vi.fn() };
@@ -103,6 +110,7 @@ function buildService(
         analytics: analytics as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: featureFlagModel as never,
         organizationDesignModel: {} as never,

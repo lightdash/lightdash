@@ -623,10 +623,13 @@ export class ExternalConnectionService extends BaseService {
             await assertCanViewApp(
                 {
                     auditedAbility: this.createAuditedAbility(user),
-                    resolveAccess: (userUuid, spaceUuid) =>
+                    resolveAccess: (userUuid, targetApp) =>
                         this.spacePermissionService.resolveAccess(userUuid, {
-                            type: 'space',
-                            spaceUuid,
+                            type: 'app',
+                            appUuid: targetApp.app_id,
+                            organizationUuid: targetApp.organization_uuid,
+                            projectUuid: targetApp.project_uuid,
+                            spaceUuid: targetApp.space_uuid,
                         }),
                     getProjectContext: (appProjectUuid) =>
                         this.getDataAppProjectContext(appProjectUuid),

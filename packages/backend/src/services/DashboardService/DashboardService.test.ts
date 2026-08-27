@@ -191,7 +191,7 @@ const lookupSpaceContext = (spaceUuid: string) => {
 
 const spacePermissionService = {
     resolveAccess: vi.fn(async (_userUuid: string, target: AccessTarget) => ({
-        ...lookupSpaceContext(target.spaceUuid),
+        ...lookupSpaceContext(target.spaceUuid ?? ''),
         directOnly: false,
     })),
     resolveAccessBatch: vi.fn(

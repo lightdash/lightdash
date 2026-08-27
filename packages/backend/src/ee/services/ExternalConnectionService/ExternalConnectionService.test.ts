@@ -175,7 +175,14 @@ function buildService(opts: {
         externalConnectionModel: model as never,
         appModel: {} as never,
         spacePermissionService: {
-            resolveAccess: vi.fn().mockResolvedValue({}),
+            resolveAccess: vi.fn().mockResolvedValue({
+                organizationUuid: orgUuid,
+                projectUuid,
+                inheritsFromOrgOrProject: false,
+                access: [],
+                admins: [],
+                directOnly: false,
+            }),
         } as never,
         analytics: { track: vi.fn() } as never,
         googleTokenProvider: {

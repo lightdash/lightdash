@@ -69,6 +69,7 @@ function buildService() {
         analytics: { track: vi.fn() } as never,
         analyticsModel: {} as never,
         catalogModel: { getCatalogItemsSummary } as never,
+        userModel: {} as never,
         appModel: {} as never,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),

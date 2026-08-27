@@ -157,6 +157,7 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SpaceModel } from '../../../models/SpaceModel';
+import { type UserModel } from '../../../models/UserModel';
 import {
     mintPreviewToken,
     verifyPreviewTokenClaims,
@@ -201,6 +202,10 @@ import {
 import {
     assertCanViewEmbeddedApp,
     assertCanViewApp as assertUserCanViewApp,
+    getAppViewAuthorizationContext,
+    type AppViewAuthorizationContext,
+    type AppViewAuthzApp,
+    type AppViewAuthzDeps,
     type DataAppProjectContext,
 } from './appAuthz';
 import { getBundleServableChecker } from './appBundleStorage';
@@ -340,6 +345,7 @@ type AppGenerateServiceDeps = {
     projectModel: ProjectModel;
     projectParametersModel: ProjectParametersModel;
     spaceModel: SpaceModel;
+    userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
     savedChartModel: SavedChartModel;
     schedulerClient: CommercialSchedulerClient;
     savedChartService: SavedChartService;
@@ -542,6 +548,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly spaceModel: SpaceModel;
 
+    private readonly userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
+
     private readonly savedChartModel: SavedChartModel;
 
     private readonly schedulerClient: CommercialSchedulerClient;
@@ -584,6 +592,7 @@ export class AppGenerateService extends BaseService {
         projectModel,
         projectParametersModel,
         spaceModel,
+        userModel,
         savedChartModel,
         schedulerClient,
         savedChartService,
@@ -608,6 +617,7 @@ export class AppGenerateService extends BaseService {
         this.projectModel = projectModel;
         this.projectParametersModel = projectParametersModel;
         this.spaceModel = spaceModel;
+        this.userModel = userModel;
         this.savedChartModel = savedChartModel;
         this.schedulerClient = schedulerClient;
         this.savedChartService = savedChartService;
@@ -730,29 +740,57 @@ export class AppGenerateService extends BaseService {
      *   `createdByUserUuid` lets the creator match the self rule. Project
      *   admins always match via the project-wide rule.
      */
-    private async assertCanViewApp(
+    private getAppViewAuthzDeps(
         user: SessionUser,
-        app: Pick<
-            DbApp,
-            'project_uuid' | 'space_uuid' | 'created_by_user_uuid'
-        > & {
-            organization_uuid: string;
-        },
-    ): Promise<void> {
-        await assertUserCanViewApp(
-            {
-                auditedAbility: this.createAuditedAbility(user),
-                resolveAccess: (userUuid, spaceUuid) =>
-                    this.spacePermissionService.resolveAccess(userUuid, {
-                        type: 'space',
-                        spaceUuid,
-                    }),
-                getProjectContext: (projectUuid) =>
-                    this.getDataAppProjectContext(projectUuid),
-            },
+        {
+            projectContext,
+            includeDeleted = false,
+        }: {
+            projectContext?: DataAppProjectContext;
+            includeDeleted?: boolean;
+        } = {},
+    ): AppViewAuthzDeps {
+        return {
+            auditedAbility: this.createAuditedAbility(user),
+            resolveAccess: (userUuid, targetApp) =>
+                this.spacePermissionService.resolveAccess(
+                    userUuid,
+                    {
+                        type: 'app',
+                        appUuid: targetApp.app_id,
+                        organizationUuid: targetApp.organization_uuid,
+                        projectUuid: targetApp.project_uuid,
+                        spaceUuid: targetApp.space_uuid,
+                    },
+                    { includeDeleted },
+                ),
+            getProjectContext: (projectUuid) =>
+                projectContext
+                    ? Promise.resolve(projectContext)
+                    : this.getDataAppProjectContext(projectUuid),
+        };
+    }
+
+    private async resolveAppAuthorizationContext(
+        user: SessionUser,
+        app: AppViewAuthzApp,
+        options: {
+            projectContext?: DataAppProjectContext;
+            includeDeleted?: boolean;
+        } = {},
+    ): Promise<AppViewAuthorizationContext> {
+        return getAppViewAuthorizationContext(
+            this.getAppViewAuthzDeps(user, options),
             user,
             app,
         );
+    }
+
+    private async assertCanViewApp(
+        user: SessionUser,
+        app: AppViewAuthzApp,
+    ): Promise<AppViewAuthorizationContext> {
+        return assertUserCanViewApp(this.getAppViewAuthzDeps(user), user, app);
     }
 
     /**
@@ -767,30 +805,72 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         app: Pick<
             DbApp,
-            'project_uuid' | 'space_uuid' | 'created_by_user_uuid'
+            'app_id' | 'project_uuid' | 'space_uuid' | 'created_by_user_uuid'
         > & {
             organization_uuid: string;
         },
         errorMessage: string,
         extraContext: Record<string, unknown> = {},
-    ): Promise<DataAppProjectContext> {
-        const spaceContext = app.space_uuid
-            ? await this.spacePermissionService.resolveAccess(user.userUuid, {
-                  type: 'space',
-                  spaceUuid: app.space_uuid,
-              })
-            : {};
-        return this.assertDataAppAbility(
+        { includeDeleted = false }: { includeDeleted?: boolean } = {},
+    ): Promise<AppViewAuthorizationContext> {
+        const appContext = await this.resolveAppAuthorizationContext(
+            user,
+            app,
+            {
+                includeDeleted,
+            },
+        );
+        await this.assertDataAppAbility(
             user,
             'manage',
             app.project_uuid,
             errorMessage,
             {
-                ...spaceContext,
-                createdByUserUuid: app.created_by_user_uuid,
+                ...appContext,
                 ...extraContext,
             },
         );
+        return appContext;
+    }
+
+    /**
+     * Re-authorize queued work as the principal recorded on the job. Payload
+     * snapshots are useful inputs, but never authorization evidence: the app
+     * must still be manageable by that same user when the worker starts.
+     */
+    private async authorizePipelineExecution(
+        payload: Pick<
+            AppGeneratePipelineJobPayload,
+            'appUuid' | 'organizationUuid' | 'projectUuid' | 'userUuid'
+        >,
+    ): Promise<SessionUser> {
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            payload.userUuid,
+            payload.organizationUuid,
+        );
+        if (!user.isActive) {
+            throw new ForbiddenError(
+                'The recorded data app principal is no longer active',
+            );
+        }
+        await this.assertDataAppsEnabled(user);
+
+        const app = await this.appModel.getApp(
+            payload.appUuid,
+            payload.projectUuid,
+        );
+        if (app.organization_uuid !== payload.organizationUuid) {
+            throw new ForbiddenError(
+                'Data app is not available in this organization',
+            );
+        }
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to build this data app',
+        );
+
+        return user;
     }
 
     private static getAnthropicApiKey(copilot: CopilotConfig): string {
@@ -1228,39 +1308,28 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         app: Pick<
             DbApp,
-            'project_uuid' | 'space_uuid' | 'created_by_user_uuid'
+            'app_id' | 'project_uuid' | 'space_uuid' | 'created_by_user_uuid'
         > & {
             organization_uuid: string;
         },
         projectContext?: DataAppProjectContext,
     ): Promise<boolean> {
-        const [spaceContext, resolvedProjectContext] = await Promise.all([
-            app.space_uuid
-                ? this.spacePermissionService.resolveAccess(user.userUuid, {
-                      type: 'space',
-                      spaceUuid: app.space_uuid,
-                  })
-                : Promise.resolve({}),
-            projectContext ?? this.getDataAppProjectContext(app.project_uuid),
-        ]);
-        const auditedAbility = this.createAuditedAbility(user);
-        return auditedAbility.can(
+        const context = await this.resolveAppAuthorizationContext(user, app, {
+            projectContext,
+        });
+        return this.createAuditedAbility(user).can(
             'view',
-            subject('DataApp', {
-                ...resolvedProjectContext,
-                ...spaceContext,
-                createdByUserUuid: app.created_by_user_uuid,
-            }),
+            subject('DataApp', context),
         );
     }
 
     /**
      * Bulk filter for callers that have a list of apps already loaded
-     * (e.g. SearchService). Resolves space access contexts in parallel —
-     * one `resolveAccess` call per app with a space.
+     * (e.g. SearchService).
      */
     async filterAppsUserCanView<
         T extends {
+            uuid: string;
             spaceUuid: string | null;
             createdBy: { userUuid: string } | null;
         },
@@ -1271,23 +1340,35 @@ export class AppGenerateService extends BaseService {
         apps: T[],
     ): Promise<T[]> {
         const projectContext = await this.getDataAppProjectContext(projectUuid);
-        const checks = await Promise.all(
-            apps.map((app) =>
-                this.canViewApp(
-                    user,
-                    {
-                        organization_uuid: organizationUuid,
-                        project_uuid: projectUuid,
-                        space_uuid: app.spaceUuid,
-                        // A null createdBy can never match the self rule — coerce
-                        // to a sentinel that won't equal any real userUuid.
-                        created_by_user_uuid: app.createdBy?.userUuid ?? '',
-                    },
-                    projectContext,
-                ),
-            ),
-        );
-        return apps.filter((_, i) => checks[i]);
+        const accessResults =
+            await this.spacePermissionService.resolveAccessBatch(
+                user.userUuid,
+                apps.map((app) => ({
+                    type: 'app' as const,
+                    appUuid: app.uuid,
+                    organizationUuid,
+                    projectUuid,
+                    spaceUuid: app.spaceUuid,
+                })),
+            );
+        const auditedAbility = this.createAuditedAbility(user);
+        return apps.flatMap((app, index) => {
+            const accessContext = accessResults[index]?.context;
+            if (accessContext === undefined) {
+                return [];
+            }
+            const context = {
+                ...projectContext,
+                ...accessContext,
+                // A null createdBy can never match the self rule — coerce to a
+                // sentinel that won't equal any real userUuid.
+                createdByUserUuid: app.createdBy?.userUuid ?? '',
+            };
+            if (auditedAbility.cannot('view', subject('DataApp', context))) {
+                return [];
+            }
+            return [context.directOnly ? { ...app, spaceUuid: null } : app];
+        });
     }
 
     /**
@@ -2029,6 +2110,7 @@ export class AppGenerateService extends BaseService {
     private async trackVersionFailed(
         payload: AppGeneratePipelineJobPayload,
         failureStage:
+            | 'authorization'
             | 'sandbox'
             | 'catalog'
             | 'generating'
@@ -4394,6 +4476,32 @@ export class AppGenerateService extends BaseService {
             return;
         }
 
+        try {
+            await this.authorizePipelineExecution(payload);
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: pipeline authorization failed for user ${payload.userUuid} on version ${version}: ${getErrorMessage(error)}`,
+            );
+            const marked = await this.markError(
+                appUuid,
+                version,
+                error,
+                'Build stopped because access is no longer available.',
+            );
+            if (marked) {
+                await this.trackVersionFailed(
+                    payload,
+                    'authorization',
+                    error,
+                    {},
+                    null,
+                    0,
+                    { schedulerWaitMs },
+                );
+            }
+            return;
+        }
+
         let codingAgentEnv: Record<string, string>;
         let copilot: ResolvedCopilotConfig;
         let s3Client: S3Client;
@@ -6755,7 +6863,6 @@ export class AppGenerateService extends BaseService {
                 `Cannot restore version ${sourceVersion}: status is ${source.status}, expected ready`,
             );
         }
-
         const newVersion = (latestVersion?.version ?? 0) + 1;
         const { client: s3Client, bucket } = this.getS3Client();
 
@@ -7185,7 +7292,7 @@ export class AppGenerateService extends BaseService {
     ): Promise<PromoteAppDiff> {
         await this.assertDataAppsEnabled(user);
         const sourceApp = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
+        const sourceAuthorization = await this.assertCanManageApp(
             user,
             sourceApp,
             'Insufficient permissions to promote this data app',
@@ -7198,10 +7305,10 @@ export class AppGenerateService extends BaseService {
             sourceApp,
             upstreamProjectUuid,
         );
-
-        const space = sourceApp.space_uuid
-            ? await this.spaceModel.getSpaceSummary(sourceApp.space_uuid)
-            : null;
+        const space =
+            !sourceAuthorization.directOnly && sourceApp.space_uuid
+                ? await this.spaceModel.getSpaceSummary(sourceApp.space_uuid)
+                : null;
 
         return {
             action: upstreamApp ? 'update' : 'create',
@@ -7237,7 +7344,7 @@ export class AppGenerateService extends BaseService {
         await this.assertDataAppsEnabled(user);
 
         const sourceApp = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
+        const sourceAuthorization = await this.assertCanManageApp(
             user,
             sourceApp,
             'Insufficient permissions to promote this data app',
@@ -7266,17 +7373,17 @@ export class AppGenerateService extends BaseService {
                 'Cannot promote an app that has no successful version',
             );
         }
-
         // Resolve the upstream space (creating it + ancestors if missing) so
         // the production app mirrors the preview app's placement. Spaceless
         // apps land at the project root.
-        const targetSpaceUuid = sourceApp.space_uuid
-            ? await this.promoteService.getOrCreateUpstreamSpace(
-                  user,
-                  sourceApp.space_uuid,
-                  upstreamProjectUuid,
-              )
-            : null;
+        const targetSpaceUuid =
+            !sourceAuthorization.directOnly && sourceApp.space_uuid
+                ? await this.promoteService.getOrCreateUpstreamSpace(
+                      user,
+                      sourceApp.space_uuid,
+                      upstreamProjectUuid,
+                  )
+                : null;
 
         // Designs are org-scoped and the preview shares the upstream org, so
         // the design carries over — but guard against a since-deleted design.
@@ -7604,7 +7711,6 @@ export class AppGenerateService extends BaseService {
                 'Cannot duplicate an app that has no successful version',
             );
         }
-
         const sourceLinks = await this.externalConnectionModel.listAppLinks(
             sourceApp.app_id,
         );
@@ -8150,7 +8256,8 @@ export class AppGenerateService extends BaseService {
             hasMore,
         } = await this.appModel.getAppWithVersions(appUuid, projectUuid, opts);
 
-        await this.assertCanViewApp(user, {
+        const appAuthorization = await this.assertCanViewApp(user, {
+            app_id: appUuid,
             project_uuid: projectUuid,
             space_uuid: spaceUuid,
             organization_uuid: organizationUuid,
@@ -8166,13 +8273,15 @@ export class AppGenerateService extends BaseService {
             name,
             description,
             createdByUserUuid,
-            spaceUuid,
-            spaceName,
+            spaceUuid: appAuthorization.directOnly ? null : spaceUuid,
+            spaceName: appAuthorization.directOnly ? null : spaceName,
             template,
             slug,
             views: viewsCount,
-            pinnedListUuid,
-            pinnedListOrder,
+            pinnedListUuid: appAuthorization.directOnly ? null : pinnedListUuid,
+            pinnedListOrder: appAuthorization.directOnly
+                ? null
+                : pinnedListOrder,
             versions: versions.map((v) => ({
                 version: v.version,
                 prompt: v.prompt,
@@ -8361,6 +8470,7 @@ export class AppGenerateService extends BaseService {
             );
         }
         await this.assertCanViewApp(user, {
+            app_id: dataAppViz.app_id,
             project_uuid: dataAppViz.project_uuid,
             space_uuid: dataAppViz.space_uuid,
             organization_uuid: dataAppViz.organization_uuid,
@@ -8918,11 +9028,12 @@ export class AppGenerateService extends BaseService {
             });
         } else {
             await this.assertDataAppsEnabled(user);
-            await this.assertDataAppAbility(
+            await this.assertCanManageApp(
                 user,
-                'manage',
-                projectUuid,
+                app,
                 'Insufficient permissions to restore data apps',
+                {},
+                { includeDeleted: true },
             );
         }
 
@@ -8963,11 +9074,12 @@ export class AppGenerateService extends BaseService {
             });
         } else {
             await this.assertDataAppsEnabled(user);
-            await this.assertDataAppAbility(
+            await this.assertCanManageApp(
                 user,
-                'manage',
-                projectUuid,
+                app,
                 'Insufficient permissions to delete data apps',
+                {},
+                { includeDeleted: true },
             );
         }
 
@@ -10099,13 +10211,14 @@ export class AppGenerateService extends BaseService {
 
         const app = await this.appModel.findApp(payload.appUuid, projectUuid);
         if (!app || app.organization_uuid !== organizationUuid) return empty();
-        const [spaceContext, projectContext] = await Promise.all([
-            app.space_uuid
-                ? this.spacePermissionService.resolveAccess(account.user.id, {
-                      type: 'space',
-                      spaceUuid: app.space_uuid,
-                  })
-                : Promise.resolve({}),
+        const [accessContext, projectContext] = await Promise.all([
+            this.spacePermissionService.resolveAccess(account.user.id, {
+                type: 'app',
+                appUuid: app.app_id,
+                organizationUuid: app.organization_uuid,
+                projectUuid: app.project_uuid,
+                spaceUuid: app.space_uuid,
+            }),
             this.getDataAppProjectContext(projectUuid),
         ]);
         const auditedAbility = this.createAuditedAbility(account);
@@ -10114,7 +10227,7 @@ export class AppGenerateService extends BaseService {
                 'view',
                 subject('DataApp', {
                     ...projectContext,
-                    ...spaceContext,
+                    ...accessContext,
                     createdByUserUuid: app.created_by_user_uuid,
                 }),
             )
@@ -10316,7 +10429,7 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             appUuidOrSlug,
         );
-        await this.assertCanViewApp(user, app);
+        const appAuthorization = await this.assertCanViewApp(user, app);
 
         let resolvedVersion: number;
         let versionRow: DbAppVersion | null;
@@ -10380,9 +10493,10 @@ export class AppGenerateService extends BaseService {
 
         // In-space apps emit the space as a content-as-code path so uploads
         // can recreate placement; personal apps omit the key.
-        const appSpace = app.space_uuid
-            ? await this.spaceModel.getSpaceSummary(app.space_uuid)
-            : null;
+        const appSpace =
+            !appAuthorization.directOnly && app.space_uuid
+                ? await this.spaceModel.getSpaceSummary(app.space_uuid)
+                : null;
 
         const manifest = buildManifest({
             slug: app.slug,
@@ -11355,6 +11469,20 @@ export class AppGenerateService extends BaseService {
         payload: AppBuildFromSourceJobPayload,
     ): Promise<void> {
         const { appUuid, version, organizationUuid, projectUuid } = payload;
+        try {
+            await this.authorizePipelineExecution(payload);
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: source-build authorization failed for user ${payload.userUuid} on version ${version}: ${getErrorMessage(error)}`,
+            );
+            await this.markError(
+                appUuid,
+                version,
+                error,
+                'Build stopped because access is no longer available.',
+            );
+            return;
+        }
         const { client, bucket } = this.getS3Client();
         const copilot = await this.getCodingAgentConfig(organizationUuid);
 

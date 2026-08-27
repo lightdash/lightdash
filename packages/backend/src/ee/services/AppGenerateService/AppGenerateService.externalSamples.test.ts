@@ -63,6 +63,7 @@ function buildService() {
             catalogModel: {
                 getChartUsageByTable: async () => new Map<string, number>(),
             } as never,
+            userModel: {} as never,
             appModel: {} as never,
             featureFlagModel: featureFlagModel as never,
             organizationDesignModel: {} as never,

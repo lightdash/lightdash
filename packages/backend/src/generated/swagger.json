@@ -14229,7 +14229,7 @@
             },
             "GrantSource": {
                 "type": "string",
-                "enum": ["dashboard", "saved_chart", "sql_chart"]
+                "enum": ["app", "dashboard", "saved_chart", "sql_chart"]
             },
             "SpaceAccess": {
                 "properties": {

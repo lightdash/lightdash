@@ -24,6 +24,7 @@ import {
     type SpaceShare,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { type AppAccessModel } from '../../models/AppAccessModel';
 import { type DashboardAccessModel } from '../../models/DashboardAccessModel';
 import { type DirectAccess } from '../../models/directAccessModelUtils';
 import { type SavedChartAccessModel } from '../../models/SavedChartAccessModel';
@@ -61,20 +62,31 @@ export type AccessTarget =
           dashboardUuid: string | null;
           spaceUuid: string;
       }
+    | {
+          type: 'app';
+          appUuid: string;
+          organizationUuid: string;
+          projectUuid: string;
+          spaceUuid: string | null;
+      }
     | { type: 'sqlChart'; savedSqlUuid: string; spaceUuid: string };
 
 // A content type's direct-grant lookup (e.g. DashboardAccessModel.getUserAccess
 // or SavedChartAccessModel.getUserAccess), pre-bound to the requesting user.
 type GrantLookup = (
     resourceUuids: string[],
-    opts: { organizationUuid: string; trx?: Knex },
+    opts: {
+        organizationUuid: string;
+        trx?: Knex;
+        includeDeleted?: boolean;
+    },
 ) => Promise<Record<string, DirectAccess>>;
 
 type DirectGrantTarget = {
     source: GrantSource;
     resourceUuid: string;
     resourceLabel: string;
-    spaceUuid: string;
+    spaceUuid: string | null;
 };
 
 export type AccessContextForCasl = SpaceAccessContextForCasl & {
@@ -108,6 +120,8 @@ export class SpacePermissionService extends BaseService {
 
     private readonly spacePermissionModel: SpacePermissionModel;
 
+    private readonly appAccessModel: AppAccessModel;
+
     private readonly dashboardAccessModel: DashboardAccessModel;
 
     private readonly savedChartAccessModel: SavedChartAccessModel;
@@ -119,6 +133,7 @@ export class SpacePermissionService extends BaseService {
     constructor({
         spaceModel,
         spacePermissionModel,
+        appAccessModel,
         dashboardAccessModel,
         savedChartAccessModel,
         savedSqlAccessModel,
@@ -126,6 +141,7 @@ export class SpacePermissionService extends BaseService {
     }: {
         spaceModel: SpaceModel;
         spacePermissionModel: SpacePermissionModel;
+        appAccessModel: AppAccessModel;
         dashboardAccessModel: DashboardAccessModel;
         savedChartAccessModel: SavedChartAccessModel;
         savedSqlAccessModel: SavedSqlAccessModel;
@@ -134,6 +150,7 @@ export class SpacePermissionService extends BaseService {
         super();
         this.spaceModel = spaceModel;
         this.spacePermissionModel = spacePermissionModel;
+        this.appAccessModel = appAccessModel;
         this.dashboardAccessModel = dashboardAccessModel;
         this.savedChartAccessModel = savedChartAccessModel;
         this.savedSqlAccessModel = savedSqlAccessModel;
@@ -254,11 +271,15 @@ export class SpacePermissionService extends BaseService {
     async resolveAccess(
         userUuid: string,
         target: AccessTarget,
-        { trx }: { trx?: Knex } = {},
+        {
+            trx,
+            includeDeleted = false,
+        }: { trx?: Knex; includeDeleted?: boolean } = {},
     ): Promise<AccessContextForCasl> {
         const [result] = await this.resolveAccessTargets(userUuid, [target], {
             onMismatch: 'throw',
             trx,
+            includeDeleted,
         });
         const context = result?.context;
         if (context === undefined) {
@@ -324,6 +345,13 @@ export class SpacePermissionService extends BaseService {
                     resourceLabel: 'Saved SQL chart',
                     spaceUuid: target.spaceUuid,
                 };
+            case 'app':
+                return {
+                    source: 'app',
+                    resourceUuid: target.appUuid,
+                    resourceLabel: 'Data app',
+                    spaceUuid: target.spaceUuid,
+                };
             default:
                 return assertUnreachable(
                     target,
@@ -355,6 +383,13 @@ export class SpacePermissionService extends BaseService {
                         userUuid,
                         opts,
                     );
+            case 'app':
+                return (resourceUuids, opts) =>
+                    this.appAccessModel.getUserAccess(
+                        resourceUuids,
+                        userUuid,
+                        opts,
+                    );
             default:
                 return assertUnreachable(
                     source,
@@ -369,9 +404,11 @@ export class SpacePermissionService extends BaseService {
         {
             onMismatch,
             trx,
+            includeDeleted = false,
         }: {
             onMismatch: 'throw' | 'fallback';
             trx?: Knex;
+            includeDeleted?: boolean;
         },
     ): Promise<AccessResult<T>[]> {
         if (targets.length === 0) {
@@ -379,37 +416,65 @@ export class SpacePermissionService extends BaseService {
         }
 
         const uniqueSpaceUuids = [
-            ...new Set(targets.map((target) => target.spaceUuid)),
+            ...new Set(
+                targets.flatMap((target) =>
+                    target.spaceUuid === null ? [] : [target.spaceUuid],
+                ),
+            ),
         ];
         const spaceContexts = await this.getSpacesCaslContext(
             uniqueSpaceUuids,
             { userUuid },
             { trx },
         );
-        const spaceOnly = (target: T): AccessContextForCasl | undefined => {
-            const context = spaceContexts[target.spaceUuid];
-            return context ? { ...context, directOnly: false } : undefined;
+        const baselineOnly = (target: T): AccessContextForCasl | undefined => {
+            if (target.spaceUuid === null) {
+                if (target.type !== 'app') {
+                    return undefined;
+                }
+                return {
+                    organizationUuid: target.organizationUuid,
+                    projectUuid: target.projectUuid,
+                    inheritsFromOrgOrProject: false,
+                    access: [],
+                    admins: [],
+                    directOnly: false,
+                };
+            }
+            const { spaceUuid } = target;
+            const context = spaceContexts[spaceUuid];
+            if (context === undefined) {
+                return undefined;
+            }
+            if (
+                target.type === 'app' &&
+                (context.organizationUuid !== target.organizationUuid ||
+                    context.projectUuid !== target.projectUuid)
+            ) {
+                return undefined;
+            }
+            return { ...context, directOnly: false };
         };
         const resultFor = (
             target: T,
             context: AccessContextForCasl | undefined,
         ): AccessResult<T> => ({ target, context });
         const grantTargets = targets.flatMap((target) => {
-            const spaceContext = spaceContexts[target.spaceUuid];
+            const baselineContext = baselineOnly(target);
             const grantTarget =
                 SpacePermissionService.getDirectGrantTarget(target);
-            return grantTarget && spaceContext
+            return grantTarget && baselineContext
                 ? [
                       {
                           ...grantTarget,
-                          organizationUuid: spaceContext.organizationUuid,
+                          organizationUuid: baselineContext.organizationUuid,
                       },
                   ]
                 : [];
         });
         if (grantTargets.length === 0) {
             return targets.map((target) =>
-                resultFor(target, spaceOnly(target)),
+                resultFor(target, baselineOnly(target)),
             );
         }
 
@@ -432,7 +497,7 @@ export class SpacePermissionService extends BaseService {
             });
         if (!directAccessEnabled) {
             return targets.map((target) =>
-                resultFor(target, spaceOnly(target)),
+                resultFor(target, baselineOnly(target)),
             );
         }
 
@@ -448,7 +513,13 @@ export class SpacePermissionService extends BaseService {
                 source,
                 grants: await this.getGrantLookup(userUuid, source)(
                     [...resourceUuids],
-                    trx ? { organizationUuid, trx } : { organizationUuid },
+                    {
+                        organizationUuid,
+                        ...(trx ? { trx } : {}),
+                        ...(source === 'app' && includeDeleted
+                            ? { includeDeleted: true }
+                            : {}),
+                    },
                 ),
             })),
         );
@@ -458,24 +529,24 @@ export class SpacePermissionService extends BaseService {
         >(grantResults.map(({ source, grants }) => [source, grants]));
 
         return targets.map((target) => {
-            const spaceContext = spaceContexts[target.spaceUuid];
+            const baselineContext = baselineOnly(target);
             const grantTarget =
                 SpacePermissionService.getDirectGrantTarget(target);
-            if (spaceContext === undefined || grantTarget === undefined) {
-                return resultFor(target, spaceOnly(target));
+            if (baselineContext === undefined || grantTarget === undefined) {
+                return resultFor(target, baselineContext);
             }
             const grant = grantsBySource.get(grantTarget.source)?.[
                 grantTarget.resourceUuid
             ];
             if (grant === undefined) {
-                return resultFor(target, spaceOnly(target));
+                return resultFor(target, baselineContext);
             }
             const grantRoles = [
                 ...(grant.userRole ? [grant.userRole] : []),
                 ...grant.groupRoles,
             ];
             if (grantRoles.length === 0) {
-                return resultFor(target, spaceOnly(target));
+                return resultFor(target, baselineContext);
             }
             const isMismatched = grant.spaceUuid !== target.spaceUuid;
             if (isMismatched && onMismatch === 'throw') {
@@ -484,12 +555,12 @@ export class SpacePermissionService extends BaseService {
                 );
             }
             if (isMismatched) {
-                return resultFor(target, spaceOnly(target));
+                return resultFor(target, baselineContext);
             }
             return resultFor(
                 target,
                 SpacePermissionService.withGrantAccess(
-                    spaceContext,
+                    baselineContext,
                     userUuid,
                     grantRoles,
                     grantTarget.source,
