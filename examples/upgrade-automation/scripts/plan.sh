@@ -63,6 +63,105 @@ create_commit() {
         }' | gh api graphql --input -
 }
 
+load_open_upgrade_prs() {
+    local number
+    local url
+    local head
+    local mapped
+    local version
+    local closed_url
+    local already_closed
+
+    open_upgrade_pr_numbers=()
+    open_upgrade_pr_urls=()
+    open_upgrade_pr_heads=()
+    open_upgrade_pr_mapped_versions=()
+    open_upgrade_pr_versions=()
+
+    while IFS=$'\t' read -r number url head; do
+        if [[ -z "$number" || -z "$url" || "$head" != "$branch_prefix-"* ]]; then
+            continue
+        fi
+        mapped=${head#"$branch_prefix-"}
+        if ! version=$(public_version "$mapped" "${TAG_SUFFIX:-}" 2>/dev/null); then
+            continue
+        fi
+        already_closed=false
+        for closed_url in "${closed_upgrade_pr_urls[@]}"; do
+            if [[ "$url" == "$closed_url" ]]; then
+                already_closed=true
+                break
+            fi
+        done
+        if [[ "$already_closed" == "true" ]]; then
+            continue
+        fi
+        open_upgrade_pr_numbers+=("$number")
+        open_upgrade_pr_urls+=("$url")
+        open_upgrade_pr_heads+=("$head")
+        open_upgrade_pr_mapped_versions+=("$mapped")
+        open_upgrade_pr_versions+=("$version")
+    done < <(
+        gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state open \
+            --limit 1000 \
+            --json number,url,headRefName \
+            --jq '.[] | [.number, .url, .headRefName] | @tsv'
+    )
+}
+
+select_authoritative_open_upgrade_pr() {
+    local index
+
+    authoritative_open_pr_number=
+    authoritative_open_pr_url=
+    authoritative_open_pr_head=
+    authoritative_open_pr_mapped_version=
+    authoritative_open_pr_version=
+
+    for ((index = 0; index < ${#open_upgrade_pr_versions[@]}; index++)); do
+        if [[ -z "$authoritative_open_pr_version" ]] \
+            || version_gt "${open_upgrade_pr_versions[$index]}" "$authoritative_open_pr_version"; then
+            authoritative_open_pr_number=${open_upgrade_pr_numbers[$index]}
+            authoritative_open_pr_url=${open_upgrade_pr_urls[$index]}
+            authoritative_open_pr_head=${open_upgrade_pr_heads[$index]}
+            authoritative_open_pr_mapped_version=${open_upgrade_pr_mapped_versions[$index]}
+            authoritative_open_pr_version=${open_upgrade_pr_versions[$index]}
+        fi
+    done
+}
+
+close_deployed_upgrade_prs() {
+    local deployed_public=$1
+    local deployed_mapped=$2
+    local index
+
+    load_open_upgrade_prs
+    for ((index = 0; index < ${#open_upgrade_pr_versions[@]}; index++)); do
+        if version_gte "$deployed_public" "${open_upgrade_pr_versions[$index]}"; then
+            gh pr close "${open_upgrade_pr_urls[$index]}" \
+                --comment "$default_branch already pins deployed Lightdash version $deployed_mapped."
+            closed_upgrade_pr_urls+=("${open_upgrade_pr_urls[$index]}")
+        fi
+    done
+}
+
+close_superseded_upgrade_prs() {
+    local replacement_head=$1
+    local replacement_url=$2
+    local replacement_mapped=$3
+    local index
+
+    for ((index = 0; index < ${#open_upgrade_pr_versions[@]}; index++)); do
+        if [[ "${open_upgrade_pr_heads[$index]}" != "$replacement_head" ]]; then
+            gh pr close "${open_upgrade_pr_urls[$index]}" \
+                --comment "Superseded by $replacement_url, which targets Lightdash version $replacement_mapped."
+            closed_upgrade_pr_urls+=("${open_upgrade_pr_urls[$index]}")
+        fi
+    done
+}
+
 write_output branch ''
 write_output pr_number ''
 write_output pr_url ''
@@ -89,6 +188,7 @@ fi
 
 current_mapped=$(read_bump_value)
 current_public=$(public_version "$current_mapped" "${TAG_SUFFIX:-}")
+default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch')
 index_file=$(mktemp)
 gate_error=$(mktemp)
 merge_error=$(mktemp)
@@ -98,6 +198,7 @@ fresh_file=$(mktemp ./plan-fresh.XXXXXX)
 head_file=$(mktemp ./plan-head.XXXXXX)
 scratch_ref_created=false
 scratch_expected_sha=
+closed_upgrade_pr_urls=()
 
 delete_scratch_ref() {
     if [[ "$scratch_ref_created" == "true" ]]; then
@@ -136,6 +237,15 @@ mapfile -t candidates < <(
         reverse[]
     ' "$index_file"
 )
+
+close_deployed_upgrade_prs "$current_public" "$current_mapped"
+select_authoritative_open_upgrade_pr
+if [[ -n "$authoritative_open_pr_version" ]]; then
+    close_superseded_upgrade_prs \
+        "$authoritative_open_pr_head" \
+        "$authoritative_open_pr_url" \
+        "$authoritative_open_pr_mapped_version"
+fi
 
 if [[ ${#candidates[@]} -eq 0 ]]; then
     echo "no release newer than $current_public in the index; already up to date"
@@ -283,12 +393,24 @@ if [[ -n "${REGISTRY_CHECK:-}" ]]; then
     fi
 fi
 
-default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch')
 upgrade_branch="${branch_prefix}-$(safe_branch_version "$mapped_version")"
 if [[ -z "$upgrade_branch" || "$upgrade_branch" == "$branch_prefix-" ]] \
     || ! git check-ref-format "refs/heads/$upgrade_branch" >/dev/null; then
     echo "upgrade branch is not a valid non-empty branch name" >&2
     exit 1
+fi
+load_open_upgrade_prs
+select_authoritative_open_upgrade_pr
+if [[ -n "$authoritative_open_pr_version" ]] && version_gt "$authoritative_open_pr_version" "$selected_version"; then
+    close_superseded_upgrade_prs \
+        "$authoritative_open_pr_head" \
+        "$authoritative_open_pr_url" \
+        "$authoritative_open_pr_mapped_version"
+    echo "newer upgrade target $authoritative_open_pr_mapped_version is already open at $authoritative_open_pr_url; not replacing it with $mapped_version"
+    write_output branch "$authoritative_open_pr_head"
+    write_output pr_number "$authoritative_open_pr_number"
+    write_output pr_url "$authoritative_open_pr_url"
+    exit 0
 fi
 bump_file=${BUMP_TARGET%%#*}
 bump_path=${BUMP_TARGET#*#}
@@ -325,11 +447,14 @@ for attempt in 1 2 3; do
         | base64 --decode >"$fresh_file"
 
     fresh_mapped=$(python3 "$ACTION_ROOT/scripts/bump-target.py" read "$fresh_file#$bump_path")
+    fresh_public=$(public_version "$fresh_mapped" "${TAG_SUFFIX:-}")
+    if [[ "$fresh_mapped" != "$current_mapped" ]]; then
+        close_deployed_upgrade_prs "$fresh_public" "$fresh_mapped"
+    fi
     if [[ "$fresh_mapped" == "$mapped_version" ]]; then
         echo "$bump_file already pins $mapped_version at $base_sha; nothing to commit"
         exit 0
     fi
-    fresh_public=$(public_version "$fresh_mapped" "${TAG_SUFFIX:-}")
     if version_gt "$fresh_public" "$selected_version"; then
         echo "$bump_file already pins newer version $fresh_mapped at $base_sha; not lowering it to $mapped_version"
         exit 0
@@ -458,6 +583,20 @@ else
 fi
 pr_number=$(jq -r '.number' <<<"$pr_json")
 pr_url=$(jq -r '.url' <<<"$pr_json")
+load_open_upgrade_prs
+select_authoritative_open_upgrade_pr
+if [[ -n "$authoritative_open_pr_version" ]] && version_gt "$authoritative_open_pr_version" "$selected_version"; then
+    close_superseded_upgrade_prs \
+        "$authoritative_open_pr_head" \
+        "$authoritative_open_pr_url" \
+        "$authoritative_open_pr_mapped_version"
+    echo "newer upgrade target $authoritative_open_pr_mapped_version is already open at $authoritative_open_pr_url; not replacing it with $mapped_version"
+    write_output branch "$authoritative_open_pr_head"
+    write_output pr_number "$authoritative_open_pr_number"
+    write_output pr_url "$authoritative_open_pr_url"
+    exit 0
+fi
+close_superseded_upgrade_prs "$upgrade_branch" "$pr_url" "$mapped_version"
 write_output branch "$upgrade_branch"
 write_output pr_number "$pr_number"
 write_output pr_url "$pr_url"
