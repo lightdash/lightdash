@@ -9,10 +9,12 @@ const liveStateSignals = () => ({
     threadCreatedAt: THREAD_CREATED_AT,
     latestPrompt: {
         createdAt: PROMPT_CREATED_AT,
+        retriedAt: null,
         respondedAt: null,
         response: null,
         errorMessage: null,
         interruptedAt: null,
+        needsUserInput: null,
     },
     runSqlToolCalls: [],
     pendingWritebackCreatedAt: null,
@@ -63,6 +65,27 @@ describe('deriveAiAgentThreadLiveStatus', () => {
             threadUuid: 'thread-uuid',
             state: 'idle',
             stateChangedAt: '2026-08-26T10:00:00.000Z',
+            source: 'deterministic',
+        });
+    });
+
+    it('reports an old failed prompt as freshly working after retry', () => {
+        expect(
+            deriveAiAgentThreadLiveStatus(
+                {
+                    ...liveStateSignals(),
+                    latestPrompt: {
+                        ...liveStateSignals().latestPrompt,
+                        createdAt: new Date('2026-08-26T10:00:00.000Z'),
+                        retriedAt: new Date('2026-08-26T11:59:00.000Z'),
+                    },
+                },
+                NOW,
+            ),
+        ).toEqual({
+            threadUuid: 'thread-uuid',
+            state: 'working',
+            stateChangedAt: '2026-08-26T11:59:00.000Z',
             source: 'deterministic',
         });
     });
@@ -158,6 +181,9 @@ describe('deriveAiAgentThreadLiveStatus', () => {
                         latestPrompt: {
                             ...liveStateSignals().latestPrompt,
                             createdAt: new Date('2026-08-26T11:00:00.000Z'),
+                            response: 'Which source should I use?',
+                            respondedAt: new Date('2026-08-26T11:05:00.000Z'),
+                            needsUserInput: true,
                         },
                         activeDeepResearchRun: {
                             status,
@@ -172,6 +198,7 @@ describe('deriveAiAgentThreadLiveStatus', () => {
                 ),
             ).toMatchObject({
                 state: 'working',
+                source: 'deterministic',
                 stateChangedAt:
                     status === 'running'
                         ? '2026-08-26T11:31:00.000Z'
@@ -239,6 +266,89 @@ describe('deriveAiAgentThreadLiveStatus', () => {
         ).toMatchObject({
             state: 'idle',
             stateChangedAt: '2026-08-26T11:59:00.000Z',
+        });
+    });
+
+    it('reports a completed writeback source-selection response as waiting for the user', () => {
+        expect(
+            deriveAiAgentThreadLiveStatus(
+                {
+                    ...liveStateSignals(),
+                    latestPrompt: {
+                        ...liveStateSignals().latestPrompt,
+                        response:
+                            "This project has more than one dbt source. Reply naming one and I'll try again.",
+                        respondedAt: new Date('2026-08-26T11:59:00.000Z'),
+                        needsUserInput: true,
+                    },
+                },
+                NOW,
+            ),
+        ).toEqual({
+            threadUuid: 'thread-uuid',
+            state: 'waiting_for_you',
+            stateChangedAt: '2026-08-26T11:59:00.000Z',
+            source: 'classified',
+        });
+    });
+
+    it('keeps a classified non-terminal response working', () => {
+        expect(
+            deriveAiAgentThreadLiveStatus(
+                {
+                    ...liveStateSignals(),
+                    latestPrompt: {
+                        ...liveStateSignals().latestPrompt,
+                        needsUserInput: true,
+                    },
+                },
+                NOW,
+            ).state,
+        ).toBe('working');
+    });
+
+    it.each([false, null])(
+        'reports a terminal response classified as %s as idle',
+        (needsUserInput) => {
+            expect(
+                deriveAiAgentThreadLiveStatus(
+                    {
+                        ...liveStateSignals(),
+                        latestPrompt: {
+                            ...liveStateSignals().latestPrompt,
+                            response: 'Done',
+                            respondedAt: new Date('2026-08-26T11:59:00.000Z'),
+                            needsUserInput,
+                        },
+                    },
+                    NOW,
+                ).state,
+            ).toBe('idle');
+        },
+    );
+
+    it('prioritizes deterministic SQL approval over classification', () => {
+        expect(
+            deriveAiAgentThreadLiveStatus(
+                {
+                    ...liveStateSignals(),
+                    latestPrompt: {
+                        ...liveStateSignals().latestPrompt,
+                        needsUserInput: true,
+                    },
+                    runSqlToolCalls: [
+                        {
+                            createdAt: new Date('2026-08-26T11:59:00.000Z'),
+                            toolResultUuid: null,
+                            approvalDecision: null,
+                        },
+                    ],
+                },
+                NOW,
+            ),
+        ).toMatchObject({
+            state: 'waiting_for_you',
+            source: 'deterministic',
         });
     });
 
@@ -320,6 +430,7 @@ describe('deriveAiAgentThreadLiveStatus', () => {
                         ...liveStateSignals().latestPrompt,
                         response: 'Started',
                         respondedAt: new Date('2026-08-26T11:58:10.000Z'),
+                        needsUserInput: true,
                     },
                     pendingWritebackCreatedAt: new Date(
                         '2026-08-26T11:58:05.000Z',
@@ -330,6 +441,7 @@ describe('deriveAiAgentThreadLiveStatus', () => {
         ).toMatchObject({
             state: 'working',
             stateChangedAt: '2026-08-26T11:58:05.000Z',
+            source: 'deterministic',
         });
     });
 });

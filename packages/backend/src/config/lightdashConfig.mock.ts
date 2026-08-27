@@ -293,6 +293,9 @@ export const lightdashConfigMock: LightdashConfig = {
         agentMemory: {
             consolidationDryRun: false,
         },
+        promptInputRequestClassifier: {
+            enabled: false,
+        },
     },
     embedding: {
         enabled: false,

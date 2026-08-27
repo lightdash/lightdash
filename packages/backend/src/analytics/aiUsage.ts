@@ -28,6 +28,7 @@ export type AiCallFeature =
     | 'project-router'
     | 'agent-selector'
     | 'review-classifier'
+    | 'prompt-input-classifier'
     | 'ai-agent-memory'
     | 'llm-judge'
     | 'data-app'

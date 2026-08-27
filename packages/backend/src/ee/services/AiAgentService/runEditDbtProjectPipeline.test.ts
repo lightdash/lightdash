@@ -73,6 +73,7 @@ const buildService = (overrides: {
     const promptFound = overrides.promptFound ?? true;
     const updateToolResult = vi.fn().mockResolvedValue(undefined);
     const updateModelResponse = vi.fn().mockResolvedValue(undefined);
+    const setPromptNeedsUserInput = vi.fn().mockResolvedValue(true);
     const addReaction = vi.fn().mockResolvedValue(undefined);
     const postMessage = vi.fn().mockResolvedValue(undefined);
     const hasToolResult = vi.fn().mockResolvedValue(true);
@@ -114,6 +115,7 @@ const buildService = (overrides: {
             ),
         updateToolResult,
         updateModelResponse,
+        setPromptNeedsUserInput,
         hasToolResult,
         getToolResultsForPrompt: vi
             .fn()
@@ -176,6 +178,7 @@ const buildService = (overrides: {
         service,
         updateToolResult,
         updateModelResponse,
+        setPromptNeedsUserInput,
         addReaction,
         postMessage,
         hasToolResult,
@@ -468,9 +471,12 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
             needsDbtSourceSelection: true,
             dbtSourceOptions: options,
         });
-        const { service, updateToolResult, updateModelResponse } = buildService(
-            { run, getRunStatus: getRunStatusMock('error') },
-        );
+        const {
+            service,
+            updateToolResult,
+            updateModelResponse,
+            setPromptNeedsUserInput,
+        } = buildService({ run, getRunStatus: getRunStatusMock('error') });
 
         await service.runEditDbtProjectPipeline(PAYLOAD);
 
@@ -491,6 +497,14 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
                 response: expect.stringContaining('jaffle-2'),
             }),
         );
+        expect(setPromptNeedsUserInput).toHaveBeenCalledWith({
+            promptUuid: 'prompt-1',
+            needsUserInput: true,
+            metadata: {
+                gate: 'structured',
+                reason: 'writeback_source_selection',
+            },
+        });
     });
 
     it('skips a stale success once the run was already finalized as an error', async () => {

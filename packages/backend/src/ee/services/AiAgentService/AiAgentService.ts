@@ -417,6 +417,11 @@ import {
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
 import { deriveAiAgentThreadLiveStatus } from './aiAgentThreadLiveStatus';
 import {
+    responseMatchesPromptInputRequestGate,
+    runPromptInputRequestClassification,
+    shouldClassifyPromptInputRequestForUpdate,
+} from './promptInputRequestClassifier';
+import {
     canGeneratePostResponseSuggestions,
     filterSuggestionsByEnabledTools,
     getEnabledSuggestionTools,
@@ -658,9 +663,6 @@ function cleanupOAuthCache(): void {
     });
 }
 
-const CLARIFYING_QUESTION_RE =
-    /(\?\s*$)|(could you clarify)|(did you mean)|(which (one|of these))|(let me know which)|(what would you like)/i;
-
 const REFUSAL_RE =
     /(doesn't have)|(does not have)|(couldn't (find|locate))|(could not (find|locate))|(no .{0,40}(field|data|column|metric|dimension))|(not available)|(doesn't seem to)|(does not seem to)|(unable to)|(i can't)|(i cannot)|(this dataset)/i;
 
@@ -684,7 +686,7 @@ If the user asks to set up Lightdash preview deploys / preview projects for pull
 After a writeback, tell the user which Lightdash project and which GitHub repository the change was made against (the tool result includes both), so they can confirm it went to the right place.`;
 
 function detectClarifyingQuestion(text: string): boolean {
-    return CLARIFYING_QUESTION_RE.test(text);
+    return responseMatchesPromptInputRequestGate(text);
 }
 
 function detectRefusal(text: string): boolean {
@@ -823,7 +825,10 @@ export class AiAgentService extends BaseService {
 
     private readonly shutdownFailedPromptUuids = new Set<string>();
 
-    private readonly terminalStreamUpdates = new Map<string, Promise<void>>();
+    private readonly terminalStreamUpdates = new Map<
+        string,
+        Promise<boolean>
+    >();
 
     private activeStreamPreparations = 0;
 
@@ -1386,6 +1391,31 @@ export class AiAgentService extends BaseService {
                     error,
                 );
             });
+    }
+
+    private classifyPromptInputRequestAfterResponse(args: {
+        response: string;
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string;
+        threadUuid: string;
+        promptUuid: string;
+        userUuid: string;
+    }): void {
+        void runPromptInputRequestClassification({
+            ...args,
+            enabled:
+                this.lightdashConfig.ai.promptInputRequestClassifier.enabled,
+            orgAiCopilotConfigResolver: this.orgAiCopilotConfigResolver,
+            instanceCopilotConfig: this.lightdashConfig.ai.copilot,
+            aiAgentModel: this.aiAgentModel,
+            analytics: this.analytics,
+        }).catch((error) => {
+            Logger.error(
+                'Failed to persist AI agent prompt input request classification',
+                error,
+            );
+        });
     }
 
     /**
@@ -5951,7 +5981,14 @@ export class AiAgentService extends BaseService {
 
     private persistTrackedPromptUpdate(
         update: UpdateSlackResponse | UpdateWebAppResponse,
-    ): Promise<void> | undefined {
+        classificationContext?: {
+            organizationUuid: string;
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid: string;
+            userUuid: string;
+        },
+    ): Promise<boolean> | undefined {
         if (
             this.shutdownFailedPromptUuids.has(update.promptUuid) ||
             (this.isShuttingDown &&
@@ -5964,19 +6001,40 @@ export class AiAgentService extends BaseService {
             this.inFlightStreamPrompts.has(update.promptUuid) &&
             (update.response !== undefined ||
                 update.errorMessage !== undefined);
+        const isClassifiableTerminalUpdate =
+            shouldClassifyPromptInputRequestForUpdate(update);
+        const shouldUseUnfinalizedGuard =
+            isClassifiableTerminalUpdate &&
+            this.lightdashConfig.ai.promptInputRequestClassifier.enabled;
         const modelUpdatePromise = this.aiAgentModel.updateModelResponse(
             update,
-            {
-                onlyIfPending: isTerminalStreamUpdate,
-            },
+            shouldUseUnfinalizedGuard
+                ? { onlyIfUnfinalized: true }
+                : { onlyIfPending: isTerminalStreamUpdate },
         );
+        const persistedUpdatePromise = modelUpdatePromise.then((persisted) => {
+            if (
+                persisted &&
+                isClassifiableTerminalUpdate &&
+                classificationContext !== undefined &&
+                update.response !== undefined
+            ) {
+                this.classifyPromptInputRequestAfterResponse({
+                    ...classificationContext,
+                    promptUuid: update.promptUuid,
+                    response: update.response,
+                });
+            }
+            return persisted;
+        });
         if (!isTerminalStreamUpdate) {
-            return modelUpdatePromise;
+            return persistedUpdatePromise;
         }
 
-        const terminalUpdatePromise = modelUpdatePromise
-            .then(() => {
+        const terminalUpdatePromise = persistedUpdatePromise
+            .then((persisted) => {
                 this.inFlightStreamPrompts.delete(update.promptUuid);
+                return persisted;
             })
             .finally(() => {
                 if (
@@ -9163,6 +9221,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     ? `This project has more than one dbt source: ${sourceNames}. Reply naming one and I'll try again.`
                     : "This project has more than one dbt source, so I couldn't tell which one to change. Reply naming one and I'll try again.",
             });
+            await this.aiAgentModel.setPromptNeedsUserInput({
+                promptUuid,
+                needsUserInput: true,
+                metadata: {
+                    gate: 'structured',
+                    reason: 'writeback_source_selection',
+                },
+            });
         }
     }
 
@@ -10858,7 +10924,20 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
             ) => {
-                const updatePromise = this.persistTrackedPromptUpdate(update);
+                const completedResponse = update.response;
+                const updatePromise = this.persistTrackedPromptUpdate(
+                    update,
+                    completedResponse !== undefined &&
+                        shouldClassifyPromptInputRequestForUpdate(update)
+                        ? {
+                              organizationUuid: agentSettings.organizationUuid,
+                              projectUuid: prompt.projectUuid,
+                              agentUuid: agentSettings.uuid,
+                              threadUuid: prompt.threadUuid,
+                              userUuid: user.userUuid,
+                          }
+                        : undefined,
+                );
                 if (!updatePromise) {
                     return Promise.resolve();
                 }
@@ -10987,7 +11066,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         });
                 }
 
-                return updateWithCitationTelemetryPromise;
+                return updateWithCitationTelemetryPromise.then(() => undefined);
             },
             trackEvent: (
                 event:

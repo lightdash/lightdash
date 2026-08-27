@@ -13,6 +13,7 @@ import {
     AiPromptTableName,
     AiThreadTableName,
     AiWritebackRunTableName,
+    type AiPromptNeedsUserInputMetadata,
 } from '../database/entities/ai';
 import { AiAgentModel } from './AiAgentModel';
 import { AiWritebackRunModel } from './AiWritebackRunModel';
@@ -236,6 +237,119 @@ describe('AiAgentModel prompt activity', () => {
         expect(shutdownFailedRetry).toMatchObject({
             response: null,
             error_message: 'Server restarted during retry',
+        });
+    });
+
+    it('persists a successful terminal response after retrying a failed prompt with token usage', async () => {
+        const threadUuid = await createWebAppThread();
+        const promptUuid = await model.createWebAppPrompt({
+            threadUuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            prompt: 'Retry a failed response with recorded token usage',
+        });
+        const failedAttemptTokenUsage = {
+            totalTokens: 41,
+            finalStepTotalTokens: 17,
+        };
+        const retriedAttemptTokenUsage = {
+            totalTokens: 23,
+            finalStepTotalTokens: 23,
+        };
+        const classificationMetadata = {
+            gate: 'match',
+            model: 'claude-haiku-4-5',
+            durationMs: 125,
+            confidence: 0.9,
+        } as const;
+        const readPromptState = async () =>
+            database(AiPromptTableName)
+                .select([
+                    'response',
+                    'error_message',
+                    'token_usage',
+                    'needs_user_input',
+                    'needs_user_input_metadata',
+                ])
+                .select(
+                    database.raw('responded_at::text as responded_at'),
+                    database.raw('retried_at::text as retried_at'),
+                )
+                .where('ai_prompt_uuid', promptUuid)
+                .first<{
+                    response: string | null;
+                    error_message: string | null;
+                    token_usage: typeof failedAttemptTokenUsage | null;
+                    needs_user_input: boolean | null;
+                    needs_user_input_metadata: AiPromptNeedsUserInputMetadata | null;
+                    responded_at: string | null;
+                    retried_at: string | null;
+                }>();
+
+        const failedAttemptPersisted = await model.updateModelResponse({
+            promptUuid,
+            errorMessage: 'The agent finished without writing a response.',
+            tokenUsage: failedAttemptTokenUsage,
+        });
+        const classificationPersisted = await model.updatePromptNeedsUserInput({
+            promptUuid,
+            needsUserInput: true,
+            metadata: classificationMetadata,
+        });
+        const failedState = await readPromptState();
+
+        expect({ failedAttemptPersisted, classificationPersisted }).toEqual({
+            failedAttemptPersisted: true,
+            classificationPersisted: true,
+        });
+        expect(failedState).toMatchObject({
+            response: null,
+            error_message: 'The agent finished without writing a response.',
+            token_usage: failedAttemptTokenUsage,
+            needs_user_input: true,
+            needs_user_input_metadata: classificationMetadata,
+            retried_at: null,
+        });
+        expect(failedState?.responded_at).not.toBeNull();
+
+        const retryStarted = await model.resetPromptResponseForRetry(
+            promptUuid,
+            {
+                respondedAt: failedState!.responded_at,
+                response: failedState!.response,
+                errorMessage: failedState!.error_message,
+            },
+        );
+        const resetState = await readPromptState();
+
+        expect(retryStarted).toBe(true);
+        expect(resetState).toMatchObject({
+            response: null,
+            error_message: null,
+            responded_at: null,
+            needs_user_input: null,
+            needs_user_input_metadata: null,
+        });
+        expect(resetState?.retried_at).not.toBeNull();
+
+        const terminalResponsePersisted = await model.updateModelResponse(
+            {
+                promptUuid,
+                response: 'The retried response completed successfully.',
+                tokenUsage: retriedAttemptTokenUsage,
+            },
+            { onlyIfUnfinalized: true },
+        );
+        const terminalState = await readPromptState();
+
+        expect({ terminalResponsePersisted, ...terminalState }).toEqual({
+            terminalResponsePersisted: true,
+            response: 'The retried response completed successfully.',
+            error_message: null,
+            token_usage: retriedAttemptTokenUsage,
+            needs_user_input: null,
+            needs_user_input_metadata: null,
+            responded_at: expect.any(String),
+            retried_at: resetState?.retried_at,
         });
     });
 
