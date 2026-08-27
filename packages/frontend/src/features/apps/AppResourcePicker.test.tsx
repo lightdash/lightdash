@@ -30,6 +30,10 @@ vi.mock('../externalConnections/hooks/useExternalConnections', () => ({
         })) as unknown as ExternalConnection[],
     }),
 }));
+const unlink = vi.fn();
+vi.mock('../externalConnections/hooks/useUnlinkAppExternalConnection', () => ({
+    useUnlinkAppExternalConnection: () => ({ mutate: unlink }),
+}));
 vi.mock('../externalConnections/hooks/useAppExternalConnections', () => ({
     useAppExternalConnections: (
         _projectUuid: string | undefined,
@@ -173,19 +177,15 @@ it('counts linked and newly selected connections together, without double counti
     expect(screen.getByText('3')).toBeInTheDocument();
 });
 
-it('marks connections the app already links, unless they are selected again', () => {
+it('shows linked connections as checked, and unlinks them on click', () => {
+    const onSelect = vi.fn();
+    const onDeselect = vi.fn();
     render(
         <MantineProvider env="test">
             <ConnectionPickerView
-                selectedConnections={[
-                    {
-                        externalConnectionUuid: 'c-selected',
-                        name: 'Selected API',
-                        alias: 'selected_api',
-                    },
-                ]}
-                onSelect={() => undefined}
-                onDeselect={() => undefined}
+                selectedConnections={[]}
+                onSelect={onSelect}
+                onDeselect={onDeselect}
                 onDone={() => undefined}
                 enabled
                 linkedAppUuid="app-1"
@@ -193,17 +193,36 @@ it('marks connections the app already links, unless they are selected again', ()
         </MantineProvider>,
     );
 
-    const hints = screen.getAllByText('Linked');
-    expect(hints).toHaveLength(1);
-    expect(hints[0].parentElement).toHaveTextContent('Linked API');
+    const linkedRow = screen.getByRole('checkbox', { name: /Linked API/ });
+    expect(linkedRow).toBeChecked();
+    expect(
+        screen.getByRole('checkbox', { name: /Plain API/ }),
+    ).not.toBeChecked();
+
+    fireEvent.click(linkedRow);
+    expect(unlink).toHaveBeenCalledWith({
+        projectUuid: 'project-1',
+        appUuid: 'app-1',
+        alias: 'linked_api',
+        name: 'Linked API',
+    });
+    expect(onDeselect).toHaveBeenCalledWith('c-linked');
+    expect(onSelect).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Plain API/ }));
+    expect(onSelect).toHaveBeenCalledWith(
+        expect.objectContaining({ externalConnectionUuid: 'c-plain' }),
+    );
 });
 
-it('shows no linked hint before a first build exists', () => {
+it('never unlinks before a first build exists', () => {
+    unlink.mockClear();
+    const onSelect = vi.fn();
     render(
         <MantineProvider env="test">
             <ConnectionPickerView
                 selectedConnections={[]}
-                onSelect={() => undefined}
+                onSelect={onSelect}
                 onDeselect={() => undefined}
                 onDone={() => undefined}
                 enabled
@@ -211,5 +230,9 @@ it('shows no linked hint before a first build exists', () => {
         </MantineProvider>,
     );
 
-    expect(screen.queryByText('Linked')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: /Linked API/ }));
+    expect(unlink).not.toHaveBeenCalled();
+    expect(onSelect).toHaveBeenCalledWith(
+        expect.objectContaining({ externalConnectionUuid: 'c-linked' }),
+    );
 });

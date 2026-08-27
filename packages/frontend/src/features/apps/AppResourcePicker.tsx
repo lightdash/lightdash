@@ -64,6 +64,7 @@ import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
 import { useAppExternalConnections } from '../externalConnections/hooks/useAppExternalConnections';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
+import { useUnlinkAppExternalConnection } from '../externalConnections/hooks/useUnlinkAppExternalConnection';
 import { uniqueAliasFromName } from '../externalConnections/utils/aliasFromName';
 import classes from './AppResourcePicker.module.css';
 import {
@@ -944,8 +945,8 @@ export const ConnectionPickerView: FC<{
     onDeselect: (uuid: string) => void;
     onDone: () => void;
     enabled: boolean;
-    /** App whose existing links mark rows as already linked; omit before a
-     *  first build, when nothing can be linked yet. */
+    /** App whose existing links show as checked rows that unlink on click;
+     *  omit before a first build, when nothing can be linked yet. */
     linkedAppUuid?: string;
 }> = ({
     selectedConnections,
@@ -964,15 +965,17 @@ export const ConnectionPickerView: FC<{
         enabled ? projectUuid : undefined,
         linkedAppUuid,
     );
-    const linkedUuids = useMemo(
+    const linkedAliases = useMemo(
         () =>
-            new Set(
-                (existingLinks ?? []).map(
-                    (link) => link.connection.externalConnectionUuid,
-                ),
+            new Map(
+                (existingLinks ?? []).map((link) => [
+                    link.connection.externalConnectionUuid,
+                    link.alias,
+                ]),
             ),
         [existingLinks],
     );
+    const { mutate: unlink } = useUnlinkAppExternalConnection();
 
     // Only project/org admins can create connections; mirror the gate the
     // Project Settings → Data app connections page uses.
@@ -1018,7 +1021,18 @@ export const ConnectionPickerView: FC<{
 
     const handleToggle = useCallback(
         (connection: ExternalConnection) => {
-            if (selectedUuids.has(connection.externalConnectionUuid)) {
+            const linkedAlias = linkedAliases.get(
+                connection.externalConnectionUuid,
+            );
+            if (linkedAlias !== undefined && projectUuid && linkedAppUuid) {
+                unlink({
+                    projectUuid,
+                    appUuid: linkedAppUuid,
+                    alias: linkedAlias,
+                    name: connection.name,
+                });
+                onDeselect(connection.externalConnectionUuid);
+            } else if (selectedUuids.has(connection.externalConnectionUuid)) {
                 onDeselect(connection.externalConnectionUuid);
             } else {
                 onSelect({
@@ -1031,7 +1045,16 @@ export const ConnectionPickerView: FC<{
                 });
             }
         },
-        [onSelect, onDeselect, selectedConnections, selectedUuids],
+        [
+            linkedAliases,
+            linkedAppUuid,
+            onDeselect,
+            onSelect,
+            projectUuid,
+            selectedConnections,
+            selectedUuids,
+            unlink,
+        ],
     );
 
     return (
@@ -1065,18 +1088,21 @@ export const ConnectionPickerView: FC<{
                     </Stack>
                 ) : (
                     filtered.map((connection) => {
-                        const isSelected = selectedUuids.has(
-                            connection.externalConnectionUuid,
-                        );
-                        const isLinked = linkedUuids.has(
-                            connection.externalConnectionUuid,
-                        );
+                        const isChecked =
+                            selectedUuids.has(
+                                connection.externalConnectionUuid,
+                            ) ||
+                            linkedAliases.has(
+                                connection.externalConnectionUuid,
+                            );
                         return (
                             <Box
                                 key={connection.externalConnectionUuid}
                                 className={`${classes.chartItem} ${
-                                    isSelected ? classes.chartItemSelected : ''
+                                    isChecked ? classes.chartItemSelected : ''
                                 }`}
+                                aria-checked={isChecked}
+                                role="checkbox"
                                 onClick={() => handleToggle(connection)}
                             >
                                 <MantineIcon icon={IconPlugConnected} />
@@ -1088,16 +1114,7 @@ export const ConnectionPickerView: FC<{
                                         {connection.origin}
                                     </Text>
                                 </Box>
-                                {!isSelected && isLinked && (
-                                    <Text
-                                        size="xs"
-                                        c="dimmed"
-                                        className={classes.chartItemHint}
-                                    >
-                                        Linked
-                                    </Text>
-                                )}
-                                {isSelected && (
+                                {isChecked && (
                                     <Box
                                         className={
                                             classes.chartItemSelectedIcon
