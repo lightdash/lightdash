@@ -499,3 +499,27 @@ export type ApiDashboardRollbackResponse = {
     status: 'ok';
     results: undefined;
 };
+
+/** Dashboards owned by a user across all projects, e.g. for offboarding */
+export type UserDashboardsSummary = {
+    totalCount: number;
+    byProject: Array<{
+        projectUuid: string;
+        projectName: string;
+        count: number;
+    }>;
+};
+
+export type ReassignUserDashboardsRequest = {
+    newOwnerUserUuid: string;
+};
+
+export type ApiUserDashboardsSummaryResponse = {
+    status: 'ok';
+    results: UserDashboardsSummary;
+};
+
+export type ApiReassignUserDashboardsResponse = {
+    status: 'ok';
+    results: { reassignedCount: number };
+};

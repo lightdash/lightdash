@@ -163,6 +163,8 @@ import {
     type ApiVerifiedContentListResponse,
 } from './contentVerification';
 import {
+    type ApiReassignUserDashboardsResponse,
+    type ApiUserDashboardsSummaryResponse,
     type Dashboard,
     type DashboardAvailableFilters,
     type DashboardBasicDetails,
@@ -1379,6 +1381,8 @@ type ApiResults =
     | ApiSchedulersResponse['results']
     | ApiUserSchedulersSummaryResponse['results']
     | ApiReassignUserSchedulersResponse['results']
+    | ApiUserDashboardsSummaryResponse['results']
+    | ApiReassignUserDashboardsResponse['results']
     | ApiUserActivityDownloadCsv['results']
     | ApiRenameFieldsResponse['results']
     | ApiRenameResponse['results']

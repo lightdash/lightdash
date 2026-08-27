@@ -34,6 +34,7 @@ import {
     SessionUser,
     UnexpectedServerError,
     UpdateMultipleDashboards,
+    UserDashboardsSummary,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardFilters,
     type DashboardParameters,
@@ -1506,6 +1507,94 @@ export class DashboardModel {
             return newDashboard.dashboard_uuid;
         });
         return this.getByIdOrSlug(dashboardId);
+    }
+
+    /**
+     * Counts non-deleted dashboards owned by a user, broken down by project.
+     * Used for the offboarding flow when deleting an organization member.
+     */
+    async getDashboardsSummaryByOwner(
+        userUuid: string,
+    ): Promise<UserDashboardsSummary> {
+        const rows = await this.database(DashboardsTableName)
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${DashboardsTableName}.owner_user_uuid`, userUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .groupBy(
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.name`,
+            )
+            .orderBy(`${ProjectTableName}.name`, 'asc')
+            .select<
+                {
+                    project_uuid: string;
+                    project_name: string;
+                    count: string | number;
+                }[]
+            >(
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.name as project_name`,
+                this.database.raw(
+                    `count(${DashboardsTableName}.dashboard_uuid) as count`,
+                ),
+            );
+
+        const byProject = rows.map((row) => ({
+            projectUuid: row.project_uuid,
+            projectName: row.project_name,
+            count: Number(row.count),
+        }));
+
+        return {
+            totalCount: byProject.reduce(
+                (total, project) => total + project.count,
+                0,
+            ),
+            byProject,
+        };
+    }
+
+    /**
+     * Transfers ownership of all non-deleted dashboards owned by one user to
+     * another, scoped to the given projects. Returns the number updated.
+     */
+    async updateOwnerByUser(
+        fromUserUuid: string,
+        toUserUuid: string,
+        projectUuids: string[],
+    ): Promise<number> {
+        if (projectUuids.length === 0) return 0;
+
+        const dashboardUuids = this.database(DashboardsTableName)
+            .select(`${DashboardsTableName}.dashboard_uuid`)
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${DashboardsTableName}.owner_user_uuid`, fromUserUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .whereIn(`${ProjectTableName}.project_uuid`, projectUuids);
+
+        return this.database(DashboardsTableName)
+            .update({ owner_user_uuid: toUserUuid })
+            .whereIn('dashboard_uuid', dashboardUuids);
     }
 
     async update(

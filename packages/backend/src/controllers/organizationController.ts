@@ -13,8 +13,10 @@ import {
     ApiOrganizationMemberProfile,
     ApiOrganizationMemberProfiles,
     ApiOrganizationProjects,
+    ApiReassignUserDashboardsResponse,
     ApiReassignUserSchedulersResponse,
     ApiSuccessEmpty,
+    ApiUserDashboardsSummaryResponse,
     ApiUserSchedulersSummaryResponse,
     assertRegisteredAccount,
     CreateColorPalette,
@@ -25,6 +27,7 @@ import {
     KnexPaginateArgs,
     LightdashRequestMethodHeader,
     OrganizationMemberProfileUpdate,
+    ReassignUserDashboardsRequest,
     ReassignUserSchedulersRequest,
     SaveOrganizationBrandRequest,
     UpdateAllowedEmailDomains,
@@ -502,6 +505,62 @@ export class OrganizationController extends BaseController {
             results: await this.services
                 .getSchedulerService()
                 .reassignUserSchedulers(
+                    toSessionUser(req.account),
+                    userUuid,
+                    body.newOwnerUserUuid,
+                ),
+        };
+    }
+
+    /**
+     * Gets a summary of dashboards owned by a user across all projects
+     * @summary Get user dashboards
+     * @param req express request
+     * @param userUuid the uuid of the user
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/user/{userUuid}/dashboards-summary')
+    @OperationId('GetUserDashboardsSummary')
+    async getUserDashboardsSummary(
+        @Request() req: express.Request,
+        @Path() userUuid: UUID,
+    ): Promise<ApiUserDashboardsSummaryResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDashboardService()
+                .getUserDashboardsSummary(toSessionUser(req.account), userUuid),
+        };
+    }
+
+    /**
+     * Transfers ownership of all dashboards from one user to another
+     * @summary Reassign dashboards
+     * @param req express request
+     * @param userUuid the uuid of the user whose dashboards will be reassigned
+     * @param body the new owner details
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Patch('/user/{userUuid}/reassign-dashboards')
+    @OperationId('ReassignUserDashboards')
+    async reassignUserDashboards(
+        @Request() req: express.Request,
+        @Path() userUuid: UUID,
+        @Body() body: ReassignUserDashboardsRequest,
+    ): Promise<ApiReassignUserDashboardsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDashboardService()
+                .reassignUserDashboards(
                     toSessionUser(req.account),
                     userUuid,
                     body.newOwnerUserUuid,

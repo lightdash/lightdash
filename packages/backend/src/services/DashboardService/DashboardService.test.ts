@@ -73,6 +73,19 @@ const dashboardModel = {
     addVersion: vi.fn(async () => dashboard),
 
     getOrphanedCharts: vi.fn(async () => []),
+
+    getDashboardsSummaryByOwner: vi.fn(async () => ({
+        totalCount: 2,
+        byProject: [
+            {
+                projectUuid: 'projectUuid',
+                projectName: 'Jaffle shop',
+                count: 2,
+            },
+        ],
+    })),
+
+    updateOwnerByUser: vi.fn(async () => 2),
 };
 
 const spaceModel = {
@@ -217,7 +230,10 @@ describe('DashboardService', () => {
             findColorPalette: vi.fn(async () => null),
         } as unknown as OrganizationModel,
         organizationMemberProfileModel: {
-            getOrganizationMemberByUuid: vi.fn(async () => ({})),
+            getOrganizationMemberByUuid: vi.fn(async () => ({
+                organizationUuid: user.organizationUuid,
+                userUuid: 'target-user-uuid',
+            })),
         } as unknown as OrganizationMemberProfileModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
@@ -1536,6 +1552,73 @@ describe('DashboardService', () => {
             expect(schedulerModel.createScheduler).toHaveBeenCalledWith(
                 expect.objectContaining({ dashboardUuid: dashboard.uuid }),
             );
+        });
+    });
+
+    describe('offboarding dashboard ownership', () => {
+        const managerUser: SessionUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                {
+                    subject: 'Dashboard',
+                    action: ['manage'],
+                },
+            ]),
+        };
+
+        test('summarizes owned dashboards when the caller can manage every project', async () => {
+            const summary = await service.getUserDashboardsSummary(
+                managerUser,
+                'target-user-uuid',
+            );
+
+            expect(
+                dashboardModel.getDashboardsSummaryByOwner,
+            ).toHaveBeenCalledWith('target-user-uuid');
+            expect(summary).toEqual({
+                totalCount: 2,
+                byProject: [
+                    {
+                        projectUuid: 'projectUuid',
+                        projectName: 'Jaffle shop',
+                        count: 2,
+                    },
+                ],
+            });
+        });
+
+        test('refuses the summary when the caller cannot manage a project', async () => {
+            const viewerUser: SessionUser = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([
+                    {
+                        subject: 'Dashboard',
+                        action: ['view'],
+                    },
+                ]),
+            };
+
+            await expect(
+                service.getUserDashboardsSummary(
+                    viewerUser,
+                    'target-user-uuid',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('reassigns owned dashboards to another org member', async () => {
+            const result = await service.reassignUserDashboards(
+                managerUser,
+                'target-user-uuid',
+                'new-owner-uuid',
+            );
+
+            expect(dashboardModel.updateOwnerByUser).toHaveBeenCalledWith(
+                'target-user-uuid',
+                'new-owner-uuid',
+                ['projectUuid'],
+            );
+            expect(result).toEqual({ reassignedCount: 2 });
         });
     });
 });
