@@ -566,7 +566,8 @@ export class ContentService extends BaseService {
                     uuid: item.uuid,
                     contentType: item.contentType,
                     reason:
-                        error instanceof ForbiddenError
+                        error instanceof ForbiddenError &&
+                        error.data.contentAsCodeManaged !== true
                             ? 'You do not have permission to delete this content'
                             : getErrorMessage(error),
                 });

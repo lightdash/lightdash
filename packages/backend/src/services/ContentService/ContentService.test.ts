@@ -504,6 +504,38 @@ describe('ContentService.bulkDelete', () => {
         ).not.toHaveBeenCalled();
     });
 
+    it('reports the Content as Code reason when bulk deletion is blocked', async () => {
+        const deps = createService();
+        deps.savedChartService.delete.mockRejectedValueOnce(
+            new ForbiddenError(
+                'This chart is managed by Content as Code and can only be deleted by a Content as Code manager.',
+                { contentAsCodeManaged: true },
+            ),
+        );
+
+        const results = await deps.service.bulkDelete(
+            createUser(),
+            projectUuid,
+            [
+                {
+                    uuid: 'managed-chart-uuid',
+                    contentType: ContentType.CHART,
+                    source: ChartSourceType.DBT_EXPLORE,
+                },
+            ],
+        );
+
+        expect(results).toEqual({
+            deletedCount: 0,
+            skipped: [
+                expect.objectContaining({
+                    uuid: 'managed-chart-uuid',
+                    reason: expect.stringContaining('Content as Code'),
+                }),
+            ],
+        });
+    });
+
     it('rejects a project the user cannot view', async () => {
         const deps = createService();
         deps.projectModel.getSummary.mockResolvedValue({
