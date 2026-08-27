@@ -1,2 +1,2 @@
 export const NO_RESULTS_RETRY_PROMPT = `No results were returned for your query.
-This may be due to the use of filter values. If you're filtering by specific values and aren't sure they exist in the data, use the "searchFieldValues`;
+This may be due to filter values. Preserve the requested filter semantics while checking filters one at a time. If you are unsure whether a specific dimension value exists, use searchFieldValues with that candidate as a non-empty query. Set filters to null unless the value search itself must be scoped. Do not request every value from a field.`;
