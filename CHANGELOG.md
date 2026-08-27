@@ -1,3 +1,15 @@
+# [2.27.0](https://github.com/lightdash/lightdash/compare/2.26.1...2.27.0) (2026-08-27)
+
+
+### Bug Fixes
+
+* settings sidebar follows the project in the URL ([#28128](https://github.com/lightdash/lightdash/issues/28128)) ([5f1661f](https://github.com/lightdash/lightdash/commit/5f1661fc597f89b1598605612627d342ad3cb920))
+
+
+### Features
+
+* dashboard write-back and explicit add-to-git for new content ([#28007](https://github.com/lightdash/lightdash/issues/28007)) ([03ea456](https://github.com/lightdash/lightdash/commit/03ea456c2c2f4461908541b9b1584a6748e915d8))
+
 ## [2.26.1](https://github.com/lightdash/lightdash/compare/2.26.0...2.26.1) (2026-08-27)
 
 
