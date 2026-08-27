@@ -91,6 +91,7 @@ import {
     type DataAppDependencies,
     type DataAppGenerationUsage,
     type DataAppManifestExternalConnection,
+    type DataAppReadSource,
     type DataAppTemplate,
     type DataAppViz,
     type DataAppVizRenderMetadata,
@@ -10005,6 +10006,78 @@ export class AppGenerateService extends BaseService {
             );
             return null;
         }
+    }
+
+    // Read for the AI analyst and external agents; unviewable data apps read
+    // as not found so reads never leak.
+    async getDataAppReadSource(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<DataAppReadSource> {
+        await this.assertDataAppsEnabled(user);
+        const notFound = () => new NotFoundError(`App not found: ${appUuid}`);
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        if (app.template === DATA_APP_VIZ_TEMPLATE) {
+            throw notFound();
+        }
+        try {
+            await this.assertCanViewApp(user, app);
+        } catch (error) {
+            if (error instanceof ForbiddenError) {
+                throw notFound();
+            }
+            throw error;
+        }
+
+        const [latestVersion, latestReadyVersion, appLinks, space] =
+            await Promise.all([
+                this.appModel.getLatestVersion(appUuid),
+                this.appModel.getLatestReadyVersion(appUuid),
+                this.externalConnectionModel.listAppLinks(appUuid),
+                app.space_uuid
+                    ? this.spaceModel.getSpaceSummary(app.space_uuid)
+                    : null,
+            ]);
+        const dataReferences = latestReadyVersion
+            ? await this.getVersionDataReferences(
+                  appUuid,
+                  latestReadyVersion.version,
+              )
+            : null;
+
+        return {
+            app: {
+                uuid: app.app_id,
+                slug: app.slug,
+                name: app.name,
+                description: app.description,
+                template: app.template,
+                space: space ? { uuid: space.uuid, name: space.name } : null,
+                views: app.views_count,
+                createdByUserUuid: app.created_by_user_uuid,
+                upstreamAppUuid: app.upstream_app_uuid,
+            },
+            latestVersion: latestVersion
+                ? {
+                      version: latestVersion.version,
+                      status: latestVersion.status,
+                      statusMessage: latestVersion.status_message,
+                      error: latestVersion.error,
+                  }
+                : null,
+            latestReadyVersion: latestReadyVersion
+                ? {
+                      version: latestReadyVersion.version,
+                      resources: latestReadyVersion.resources,
+                  }
+                : null,
+            dataReferences,
+            externalConnections: appLinks.map(({ alias, connection }) => ({
+                alias,
+                origin: connection.origin,
+            })),
+        };
     }
 
     async getVersionDataReferences(

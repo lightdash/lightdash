@@ -21,6 +21,7 @@ This skill is shared with Lightdash's native agent, so its workflows use camelCa
 | Task                          | Tools/Action                                                    | References                            |
 | ----------------------------- | --------------------------------------------------------------- | ------------------------------------- |
 | Read dashboards and charts    | `readContent`                                                   | `dashboard-reference`, chart refs     |
+| Read data apps                | `readContent` with `type: "data_app"`                           | `data-apps-reference`                 |
 | Edit dashboards               | `editContent` with RFC6902 JSON Patch                           | `dashboard-reference`                 |
 | Edit charts and tiles         | `editContent`, then update referencing dashboards if needed     | Chart refs, `dashboard-reference`     |
 | Create charts                 | `grepFields`, `getMetadata`, `runContentQuery`, `createContent` | Chart refs                            |
@@ -202,3 +203,7 @@ For period comparisons, read `period-over-period-reference` in addition to the c
 
 - `dashboard-reference` - Dashboard structure, layout, tabs, tiles, and filters
 - `dashboard-best-practices` - Dashboard design guidance
+
+### Data apps
+
+- `data-apps-reference` - What a data app read returns and when to suggest generating one

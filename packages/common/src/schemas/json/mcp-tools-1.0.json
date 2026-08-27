@@ -1899,19 +1899,19 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Read a dashboard or chart as JSON using its slug. Call this before editing.",
+            "description": "Read a dashboard or chart as JSON using its slug, or a data app as a structured summary (identity, status, generation inputs, data references, usage — never source code). Call this before editing a dashboard or chart.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
                 "properties": {
                     "slug": {
-                        "description": "Slug of the dashboard or chart to read.",
+                        "description": "Slug of the dashboard, chart or data app to read.",
                         "minLength": 1,
                         "type": "string"
                     },
                     "type": {
                         "description": "Type of Lightdash content to read.",
-                        "enum": ["dashboard", "chart"],
+                        "enum": ["dashboard", "chart", "data_app"],
                         "type": "string"
                     }
                 },

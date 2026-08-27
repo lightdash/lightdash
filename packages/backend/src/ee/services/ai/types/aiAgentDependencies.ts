@@ -19,6 +19,7 @@ import {
     CustomChartTypeLibrary,
     DashboardAsCode,
     DashboardSearchResult,
+    DataAppRead,
     DataAppSearchResult,
     DataAppVizSchema,
     DbtProjectType,
@@ -33,6 +34,7 @@ import {
     ParametersValuesMap,
     PreviewDeploySetupResult,
     ProjectType,
+    ReadContentType,
     ResultColumns,
     SavedChart,
     SchedulerAndTargets,
@@ -297,10 +299,7 @@ export type GetDashboardChartsFn = (args: {
     };
 }>;
 
-export type ReadContentFn = (args: {
-    slug: string;
-    type: 'dashboard' | 'chart';
-}) => Promise<
+export type ReadContentAsCodeResult =
     | {
           type: 'dashboard';
           content: DashboardAsCode;
@@ -309,6 +308,17 @@ export type ReadContentFn = (args: {
     | {
           type: 'chart';
           content: ChartAsCode;
+          href: string;
+      };
+
+export type ReadContentFn = (args: {
+    slug: string;
+    type: ReadContentType;
+}) => Promise<
+    | ReadContentAsCodeResult
+    | {
+          type: 'data_app';
+          content: DataAppRead;
           href: string;
       }
 >;

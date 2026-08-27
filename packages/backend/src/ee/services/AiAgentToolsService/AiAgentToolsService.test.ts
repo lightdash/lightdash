@@ -108,6 +108,9 @@ const makeService = ({
     querySourceService = {},
     contentService = {},
     searchService = {},
+    appModel = {},
+    appGenerateService = {},
+    schedulerService = {},
 }: {
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
@@ -131,6 +134,9 @@ const makeService = ({
     querySourceService?: Record<string, unknown>;
     contentService?: Record<string, unknown>;
     searchService?: Record<string, unknown>;
+    appModel?: Record<string, unknown>;
+    appGenerateService?: Record<string, unknown>;
+    schedulerService?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
         builtInSkills: {
@@ -200,6 +206,9 @@ const makeService = ({
         shareService: {},
         asyncQueryService,
         querySourceService,
+        appModel,
+        appGenerateService,
+        schedulerService,
     } as unknown as ConstructorParameters<typeof AiAgentToolsService>[0]);
 
 function makeRuntimeContext(
@@ -1502,6 +1511,241 @@ describe('AiAgentToolsService', () => {
             runtime.readContent({ slug: 'test-dashboard', type: 'dashboard' }),
         ).rejects.toThrow(NotFoundError);
         expect(dashboardService.getByIdOrSlug).not.toHaveBeenCalled();
+    });
+
+    describe('readContent data_app', () => {
+        const makeAppRow = (overrides: Record<string, unknown> = {}) => ({
+            app_id: 'app-uuid',
+            slug: 'revenue-app',
+            name: 'Revenue app',
+            template: 'dashboard',
+            space_uuid: 'allowed-space-uuid',
+            created_by_user_uuid: userUuid,
+            ...overrides,
+        });
+
+        const makeReadSource = (overrides: Record<string, unknown> = {}) => ({
+            app: {
+                uuid: 'app-uuid',
+                slug: 'revenue-app',
+                name: 'Revenue app',
+                description: 'Revenue by region',
+                template: 'dashboard',
+                space: { uuid: 'allowed-space-uuid', name: 'Finance' },
+                views: 3,
+                createdByUserUuid: userUuid,
+                upstreamAppUuid: null,
+            },
+            latestVersion: {
+                version: 1,
+                status: 'ready',
+                statusMessage: null,
+                error: null,
+            },
+            latestReadyVersion: {
+                version: 1,
+                resources: {
+                    images: [],
+                    charts: [],
+                    dashboardName: null,
+                    clarifications: [],
+                },
+            },
+            dataReferences: null,
+            externalConnections: [],
+            ...overrides,
+        });
+
+        const makeDataAppService = ({
+            app = makeAppRow(),
+            source = makeReadSource(),
+            getDataAppReadSource = vi.fn().mockResolvedValue(source),
+            getAppSchedulers = vi
+                .fn()
+                .mockResolvedValue([
+                    { schedulerUuid: 'sched-1', name: 'Weekly' },
+                ]),
+        }: {
+            app?: ReturnType<typeof makeAppRow> | null;
+            source?: ReturnType<typeof makeReadSource>;
+            getDataAppReadSource?: import('vitest').Mock;
+            getAppSchedulers?: import('vitest').Mock;
+        } = {}) => {
+            const service = makeService({
+                appModel: {
+                    findAppByUuidOrSlug: vi.fn().mockResolvedValue(app),
+                    listDashboardsContainingApp: vi.fn().mockResolvedValue([
+                        {
+                            uuid: 'dash-1',
+                            name: 'Finance overview',
+                            spaceUuid: 'allowed-space-uuid',
+                        },
+                        {
+                            uuid: 'dash-2',
+                            name: 'Hidden',
+                            spaceUuid: 'hidden-space-uuid',
+                        },
+                    ]),
+                },
+                appGenerateService: { getDataAppReadSource },
+                schedulerService: { getAppSchedulers },
+                projectSpaces: [
+                    { uuid: 'allowed-space-uuid', path: 'finance' },
+                ],
+            });
+            return { service, getDataAppReadSource };
+        };
+
+        it('reads a viewable data app with href and chip metadata', async () => {
+            const { service } = makeDataAppService();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            const result = await runtime.readContent({
+                slug: 'revenue-app',
+                type: 'data_app',
+            });
+
+            expect(result.type).toBe('data_app');
+            if (result.type !== 'data_app') throw new Error('unreachable');
+            expect(result.href).toBe(
+                `/projects/${projectUuid}/apps/app-uuid/view`,
+            );
+            expect(result.content.identity).toMatchObject({
+                slug: 'revenue-app',
+                name: 'Revenue app',
+                href: result.href,
+            });
+            expect(result.content.status.latestReadyVersion).toBe(1);
+            expect(result.content.usage).toEqual({
+                dashboards: [
+                    {
+                        uuid: 'dash-1',
+                        name: 'Finance overview',
+                        href: `/projects/${projectUuid}/dashboards/dash-1/view#dashboard-link`,
+                    },
+                ],
+                schedulers: [{ uuid: 'sched-1', name: 'Weekly' }],
+                upstreamAppUuid: null,
+            });
+        });
+
+        it('reads without schedulers when the user cannot list deliveries', async () => {
+            const { service } = makeDataAppService({
+                getAppSchedulers: vi
+                    .fn()
+                    .mockRejectedValue(new ForbiddenError()),
+            });
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            const result = await runtime.readContent({
+                slug: 'revenue-app',
+                type: 'data_app',
+            });
+
+            if (result.type !== 'data_app') throw new Error('unreachable');
+            expect(result.content.usage.schedulers).toEqual([]);
+        });
+
+        it('does not read data apps outside the scoped agent spaces', async () => {
+            const { service, getDataAppReadSource } = makeDataAppService({
+                app: makeAppRow({ space_uuid: 'blocked-space-uuid' }),
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            await expect(
+                runtime.readContent({ slug: 'revenue-app', type: 'data_app' }),
+            ).rejects.toThrow(NotFoundError);
+            expect(getDataAppReadSource).not.toHaveBeenCalled();
+        });
+
+        it('does not read personal data apps through a space-scoped agent', async () => {
+            const { service, getDataAppReadSource } = makeDataAppService({
+                app: makeAppRow({ space_uuid: null }),
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            await expect(
+                runtime.readContent({ slug: 'revenue-app', type: 'data_app' }),
+            ).rejects.toThrow(NotFoundError);
+            expect(getDataAppReadSource).not.toHaveBeenCalled();
+        });
+
+        it("reads another user's personal data app as not found", async () => {
+            const { service } = makeDataAppService({
+                app: makeAppRow({
+                    space_uuid: null,
+                    created_by_user_uuid: 'someone-else',
+                }),
+                getDataAppReadSource: vi
+                    .fn()
+                    .mockRejectedValue(
+                        new NotFoundError('App not found: app-uuid'),
+                    ),
+            });
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.readContent({ slug: 'revenue-app', type: 'data_app' }),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('reads an app with no ready version as identity and status only', async () => {
+            const { service } = makeDataAppService({
+                source: makeReadSource({
+                    latestVersion: {
+                        version: 2,
+                        status: 'building',
+                        statusMessage: 'Compiling',
+                        error: null,
+                    },
+                    latestReadyVersion: null,
+                }),
+            });
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            const result = await runtime.readContent({
+                slug: 'revenue-app',
+                type: 'data_app',
+            });
+
+            if (result.type !== 'data_app') throw new Error('unreachable');
+            expect(result.content.status).toEqual({
+                latestVersion: {
+                    version: 2,
+                    status: 'building',
+                    statusMessage: 'Compiling',
+                    error: null,
+                },
+                latestReadyVersion: null,
+            });
+            expect(result.content.inputs).toBeNull();
+            expect(result.content.data).toBeNull();
+        });
+
+        it('does not read data app vizzes as data apps', async () => {
+            const { service, getDataAppReadSource } = makeDataAppService({
+                app: makeAppRow({ template: 'data_app_viz' }),
+            });
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.readContent({ slug: 'revenue-app', type: 'data_app' }),
+            ).rejects.toThrow(NotFoundError);
+            expect(getDataAppReadSource).not.toHaveBeenCalled();
+        });
+
+        it('reads an unknown slug as not found', async () => {
+            const { service } = makeDataAppService({ app: null });
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.readContent({ slug: 'missing', type: 'data_app' }),
+            ).rejects.toThrow(NotFoundError);
+        });
     });
 
     it('does not fetch dashboard charts outside the scoped agent spaces', async () => {

@@ -1,4 +1,9 @@
-import { readContentToolDefinition } from '@lightdash/common';
+import {
+    assertUnreachable,
+    READ_CONTENT_TYPE_LABELS,
+    readContentToolDefinition,
+    type ReadContentType,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type { ReadContentFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
@@ -17,8 +22,25 @@ const contentResult = ({
 }: {
     content: unknown;
     href: string;
-    type: 'dashboard' | 'chart';
+    type: ReadContentType;
 }) => `<${type} href="${href}" />\n---\n${JSON.stringify(content, null, 2)}`;
+
+const contentIdentity = (
+    result: Awaited<ReturnType<ReadContentFn>>,
+): { slug: string; name: string } => {
+    switch (result.type) {
+        case 'dashboard':
+        case 'chart':
+            return { slug: result.content.slug, name: result.content.name };
+        case 'data_app':
+            return {
+                slug: result.content.identity.slug,
+                name: result.content.identity.name,
+            };
+        default:
+            return assertUnreachable(result, 'Invalid content type');
+    }
+};
 
 export const getReadContent = ({ readContent }: Dependencies) =>
     tool({
@@ -28,8 +50,7 @@ export const getReadContent = ({ readContent }: Dependencies) =>
                 const result = await readContent({ slug, type });
                 const metadata = {
                     status: 'success' as const,
-                    slug: result.content.slug,
-                    name: result.content.name,
+                    ...contentIdentity(result),
                     href: result.href,
                 };
 
@@ -45,7 +66,7 @@ export const getReadContent = ({ readContent }: Dependencies) =>
                 return {
                     result: toolErrorHandler(
                         error,
-                        `Error reading ${type} "${slug}"`,
+                        `Error reading ${READ_CONTENT_TYPE_LABELS[type]} "${slug}"`,
                     ),
                     metadata: {
                         status: 'error' as const,

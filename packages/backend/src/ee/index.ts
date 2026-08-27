@@ -485,6 +485,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     builtInSkills: BuiltInSkills,
                     lightdashConfig: context.lightdashConfig,
                     appModel: models.getAppModel(),
+                    appGenerateService:
+                        repository.getAppGenerateService<AppGenerateService>(),
+                    schedulerService: repository.getSchedulerService(),
                     projectModel: models.getProjectModel(),
                     projectParametersModel: models.getProjectParametersModel(),
                     projectService: repository.getProjectService(),

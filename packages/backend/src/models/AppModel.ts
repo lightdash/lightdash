@@ -1691,13 +1691,43 @@ export class AppModel {
         dashboardUuids: string[],
     ): Promise<string[]> {
         if (dashboardUuids.length === 0) return [];
+        const rows = await this.dashboardsContainingAppQuery(
+            appUuid,
+            projectUuid,
+            dashboardUuids,
+        );
+        return rows.map((r) => r.dashboard_uuid);
+    }
 
+    async listDashboardsContainingApp(
+        appUuid: string,
+        projectUuid: string,
+    ): Promise<{ uuid: string; name: string; spaceUuid: string }[]> {
+        const rows = await this.dashboardsContainingAppQuery(
+            appUuid,
+            projectUuid,
+            null,
+        );
+        return rows.map((r) => ({
+            uuid: r.dashboard_uuid,
+            name: r.name,
+            spaceUuid: r.space_uuid,
+        }));
+    }
+
+    private dashboardsContainingAppQuery(
+        appUuid: string,
+        projectUuid: string,
+        dashboardUuids: string[] | null,
+    ) {
         const latestVersionsCte = 'latest_dashboard_versions';
-        const rows = await this.database
+        return this.database
             .with(latestVersionsCte, (qb) => {
                 void qb
                     .select({
                         dashboard_uuid: `${DashboardsTableName}.dashboard_uuid`,
+                        name: `${DashboardsTableName}.name`,
+                        space_uuid: `${SpaceTableName}.space_uuid`,
                         dashboard_version_id: this.database.raw(
                             `MAX(${DashboardVersionsTableName}.dashboard_version_id)`,
                         ),
@@ -1721,15 +1751,25 @@ export class AppModel {
                         `${DashboardVersionsTableName}.dashboard_id`,
                     )
                     .where(`${ProjectTableName}.project_uuid`, projectUuid)
-                    .whereIn(
+                    .whereNull(`${DashboardsTableName}.deleted_at`)
+                    .groupBy(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        `${DashboardsTableName}.name`,
+                        `${SpaceTableName}.space_uuid`,
+                    );
+                if (dashboardUuids !== null) {
+                    void qb.whereIn(
                         `${DashboardsTableName}.dashboard_uuid`,
                         dashboardUuids,
-                    )
-                    .whereNull(`${DashboardsTableName}.deleted_at`)
-                    .groupBy(`${DashboardsTableName}.dashboard_uuid`);
+                    );
+                }
             })
-            .select<{ dashboard_uuid: string }[]>(
+            .select<
+                { dashboard_uuid: string; name: string; space_uuid: string }[]
+            >(
                 `${latestVersionsCte}.dashboard_uuid`,
+                `${latestVersionsCte}.name`,
+                `${latestVersionsCte}.space_uuid`,
             )
             .distinct()
             .from(latestVersionsCte)
@@ -1750,8 +1790,6 @@ export class AppModel {
                 );
             })
             .where(`${DashboardTileDataAppsTableName}.app_uuid`, appUuid);
-
-        return rows.map((r) => r.dashboard_uuid);
     }
 
     /**

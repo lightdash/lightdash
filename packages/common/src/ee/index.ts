@@ -17,6 +17,7 @@ export * from './apps/types';
 export * from './apps/code';
 export * from './apps/dataReferenceChecker';
 export * from './apps/dataReferences';
+export * from './apps/dataAppRead';
 export * from './apps/sdkBridgeRoutes';
 export * from './ambientAi';
 export * from './commercialFeatureFlags';

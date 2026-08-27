@@ -1,12 +1,25 @@
 import { z } from 'zod';
 
 export const TOOL_READ_CONTENT_DESCRIPTION =
-    'Read a dashboard or chart as JSON using its slug. Call this before editing.';
+    'Read a dashboard or chart as JSON using its slug, or a data app as a structured summary (identity, status, generation inputs, data references, usage — never source code). Call this before editing a dashboard or chart.';
+
+export const READ_CONTENT_TYPES = ['dashboard', 'chart', 'data_app'] as const;
+
+export type ReadContentType = (typeof READ_CONTENT_TYPES)[number];
+
+export const READ_CONTENT_TYPE_LABELS: Record<ReadContentType, string> = {
+    dashboard: 'dashboard',
+    chart: 'chart',
+    data_app: 'data app',
+};
 
 export const toolReadContentArgsSchema = z.object({
-    slug: z.string().min(1).describe('Slug of the dashboard or chart to read.'),
+    slug: z
+        .string()
+        .min(1)
+        .describe('Slug of the dashboard, chart or data app to read.'),
     type: z
-        .enum(['dashboard', 'chart'])
+        .enum(READ_CONTENT_TYPES)
         .describe('Type of Lightdash content to read.'),
 });
 
