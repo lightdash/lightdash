@@ -1,4 +1,5 @@
 import {
+    AiReviewLinearDestination,
     AiReviewNotificationChannel,
     AiReviewNotificationEvent,
     AiReviewNotificationSettings,
@@ -6,8 +7,10 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import {
+    AiReviewLinearDestinationTableName,
     AiReviewNotificationLogTableName,
     AiReviewNotificationSettingsTableName,
+    type DbAiReviewLinearDestination,
     type DbAiReviewNotificationSettings,
 } from '../database/entities/aiReviewNotifications';
 
@@ -90,6 +93,84 @@ export class AiAgentReviewNotificationModel {
             .returning('*');
 
         return AiAgentReviewNotificationModel.mapSettings(row);
+    }
+
+    private static mapLinearDestination(
+        row: DbAiReviewLinearDestination,
+    ): AiReviewLinearDestination {
+        return {
+            organizationUuid: row.organization_uuid,
+            projectUuid: row.project_uuid,
+            enabled: row.enabled,
+            linearTeamId: row.linear_team_id,
+            linearProjectId: row.linear_project_id,
+        };
+    }
+
+    async getLinearDestination(
+        organizationUuid: string,
+        projectUuid: string,
+    ): Promise<AiReviewLinearDestination> {
+        const row = await this.database(AiReviewLinearDestinationTableName)
+            .where({
+                organization_uuid: organizationUuid,
+                project_uuid: projectUuid,
+            })
+            .first();
+
+        if (row) {
+            return AiAgentReviewNotificationModel.mapLinearDestination(row);
+        }
+
+        // Preserve routing configured before destinations became project-scoped.
+        const legacy = await this.getSettings(organizationUuid);
+        return {
+            organizationUuid,
+            projectUuid,
+            enabled: legacy.linearEnabled,
+            linearTeamId: legacy.linearTeamId,
+            linearProjectId: legacy.linearProjectId,
+        };
+    }
+
+    async upsertLinearDestination(
+        destination: AiReviewLinearDestination,
+    ): Promise<AiReviewLinearDestination> {
+        const [row] = await this.database(AiReviewLinearDestinationTableName)
+            .insert({
+                organization_uuid: destination.organizationUuid,
+                project_uuid: destination.projectUuid,
+                enabled: destination.enabled,
+                linear_team_id: destination.linearTeamId,
+                linear_project_id: destination.linearProjectId,
+                updated_at: new Date(),
+            })
+            .onConflict('project_uuid')
+            .merge({
+                enabled: destination.enabled,
+                linear_team_id: destination.linearTeamId,
+                linear_project_id: destination.linearProjectId,
+                updated_at: new Date(),
+            })
+            .returning('*');
+
+        return AiAgentReviewNotificationModel.mapLinearDestination(row);
+    }
+
+    async clearLinearDestinations(organizationUuid: string): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await trx(AiReviewLinearDestinationTableName)
+                .where({ organization_uuid: organizationUuid })
+                .delete();
+            await trx(AiReviewNotificationSettingsTableName)
+                .where({ organization_uuid: organizationUuid })
+                .update({
+                    linear_enabled: false,
+                    linear_team_id: null,
+                    linear_project_id: null,
+                    updated_at: new Date(),
+                });
+        });
     }
 
     async recordSent(args: LogArgs): Promise<string> {

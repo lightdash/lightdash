@@ -52,6 +52,7 @@ export class LinearAppInstallationsModel {
             organizationUuid: installation.organization_uuid,
             organizationName: installation.linear_organization_name,
             organizationUrlKey: installation.linear_organization_url_key,
+            requiresReconnect: installation.oauth_client_id === null,
         };
     }
 

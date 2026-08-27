@@ -1487,6 +1487,62 @@ describe('AiAgentAdminService review notification settings', () => {
             }),
         ).rejects.toThrow('A Linear team is required to create review issues');
     });
+
+    it('saves Linear routing for one Lightdash project', async () => {
+        const upsertLinearDestination = vi
+            .fn()
+            .mockImplementation((value) => Promise.resolve(value));
+        const service = makeService({
+            projectModel: {
+                get: vi.fn().mockResolvedValue({
+                    projectUuid: PROJECT_UUID,
+                    organizationUuid: ORGANIZATION_UUID,
+                }),
+            },
+            aiAgentReviewNotificationModel: { upsertLinearDestination },
+        });
+
+        await service.updateReviewLinearDestination(
+            makeAdminUser(),
+            PROJECT_UUID,
+            {
+                enabled: true,
+                linearTeamId: 'team-1',
+                linearProjectId: 'linear-project-1',
+            },
+        );
+
+        expect(upsertLinearDestination).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            enabled: true,
+            linearTeamId: 'team-1',
+            linearProjectId: 'linear-project-1',
+        });
+    });
+
+    it('requires a team when a project destination is enabled', async () => {
+        const service = makeService({
+            projectModel: {
+                get: vi.fn().mockResolvedValue({
+                    projectUuid: PROJECT_UUID,
+                    organizationUuid: ORGANIZATION_UUID,
+                }),
+            },
+        });
+
+        await expect(
+            service.updateReviewLinearDestination(
+                makeAdminUser(),
+                PROJECT_UUID,
+                {
+                    enabled: true,
+                    linearTeamId: null,
+                    linearProjectId: null,
+                },
+            ),
+        ).rejects.toThrow('A Linear team is required to create review issues');
+    });
 });
 
 describe('getAiAgentReviewItemWritebackEligibility', () => {

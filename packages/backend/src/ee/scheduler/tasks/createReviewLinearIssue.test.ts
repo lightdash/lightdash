@@ -1,5 +1,8 @@
 import { type Mock } from 'vitest';
-import { createReviewLinearIssue } from './createReviewLinearIssue';
+import {
+    buildIssueDescription,
+    createReviewLinearIssue,
+} from './createReviewLinearIssue';
 
 type Deps = Parameters<typeof createReviewLinearIssue>[0];
 
@@ -26,13 +29,17 @@ const makeDeps = (overrides: Record<string, unknown> = {}) => {
     return {
         siteUrl: 'https://app.example.com',
         model: {
-            getSettings: vi.fn().mockResolvedValue({
+            getLinearDestination: vi.fn().mockResolvedValue({
                 organizationUuid: ORGANIZATION_UUID,
-                enabled: false,
-                slackChannelId: null,
-                linearEnabled: true,
+                projectUuid: PROJECT_UUID,
+                enabled: true,
                 linearTeamId: 'team-1',
                 linearProjectId: 'project-linear-1',
+            }),
+        },
+        aiOrganizationSettingsModel: {
+            findByOrganizationUuid: vi.fn().mockResolvedValue({
+                aiAgentReviewsEnabled: true,
             }),
         },
         aiAgentReviewClassifierModel: {
@@ -40,6 +47,15 @@ const makeDeps = (overrides: Record<string, unknown> = {}) => {
                 title: 'Broken metric',
                 description: 'Count is wrong',
                 primaryRootCause: 'semantic_layer',
+                priority: 'high',
+                findingCount: 3,
+                targetRefs: [
+                    {
+                        type: 'metric',
+                        modelName: 'orders',
+                        metricName: 'count_orders',
+                    },
+                ],
                 linkedIssueUrl: null,
                 latestFinding: {
                     threadUuid: 'thread-1',
@@ -68,11 +84,25 @@ const makeDeps = (overrides: Record<string, unknown> = {}) => {
 };
 
 describe('createReviewLinearIssue', () => {
+    it('does nothing when AI agent reviews are disabled', async () => {
+        const deps = makeDeps({
+            aiOrganizationSettingsModel: {
+                findByOrganizationUuid: vi.fn().mockResolvedValue({
+                    aiAgentReviewsEnabled: false,
+                }),
+            },
+        });
+
+        await createReviewLinearIssue(deps)(payload);
+
+        expect(deps.createIssueForOrganization).not.toHaveBeenCalled();
+    });
+
     it('does nothing when Linear export is disabled', async () => {
         const deps = makeDeps({
             model: {
-                getSettings: vi.fn().mockResolvedValue({
-                    linearEnabled: false,
+                getLinearDestination: vi.fn().mockResolvedValue({
+                    enabled: false,
                     linearTeamId: 'team-1',
                     linearProjectId: null,
                 }),
@@ -95,6 +125,7 @@ describe('createReviewLinearIssue', () => {
                 title: 'Broken metric',
                 teamId: 'team-1',
                 projectId: 'project-linear-1',
+                description: expect.stringContaining('**Priority:** high'),
             }),
         );
         expect(deps.updateReviewItemLinkedIssueUrl).toHaveBeenCalledWith({
@@ -126,6 +157,9 @@ describe('createReviewLinearIssue', () => {
                     title: 'Broken metric',
                     description: 'Count is wrong',
                     primaryRootCause: 'semantic_layer',
+                    priority: 'high',
+                    findingCount: 1,
+                    targetRefs: [],
                     linkedIssueUrl: 'https://linear.app/acme/issue/PRD-1',
                     latestFinding: null,
                     agentUuid: null,
@@ -137,5 +171,29 @@ describe('createReviewLinearIssue', () => {
         await createReviewLinearIssue(deps)(payload);
 
         expect(deps.createIssueForOrganization).not.toHaveBeenCalled();
+    });
+});
+
+describe('buildIssueDescription', () => {
+    it('includes useful metadata without conversation evidence', () => {
+        const description = buildIssueDescription({
+            description: 'Count is wrong',
+            rootCause: 'semantic_layer',
+            priority: 'high',
+            findingCount: 3,
+            targetRefs: [
+                {
+                    type: 'metric',
+                    modelName: 'orders',
+                    metricName: 'count_orders',
+                },
+            ],
+            projectName: 'Jaffle shop',
+            reviewUrl: 'https://app.example.com/reviews',
+        });
+
+        expect(description).toContain('**Occurrences:** 3');
+        expect(description).toContain('- orders / count_orders');
+        expect(description).toContain('[Open in Lightdash]');
     });
 });

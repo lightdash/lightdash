@@ -1318,6 +1318,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
                 aiAgentReviewNotificationModel:
                     context.models.getAiAgentReviewNotificationModel<AiAgentReviewNotificationModel>(),
+                aiOrganizationSettingsModel:
+                    context.models.getAiOrganizationSettingsModel<AiOrganizationSettingsModel>(),
                 aiAgentReviewNotificationService:
                     context.serviceRepository.getAiAgentReviewNotificationService<AiAgentReviewNotificationService>(),
                 linearAppService:

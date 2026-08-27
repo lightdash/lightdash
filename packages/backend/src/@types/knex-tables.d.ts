@@ -498,6 +498,8 @@ import {
     AiEvalTableName,
 } from '../ee/database/entities/aiEvals';
 import {
+    AiReviewLinearDestinationTable,
+    AiReviewLinearDestinationTableName,
     AiReviewNotificationLogTable,
     AiReviewNotificationLogTableName,
     AiReviewNotificationSettingsTable,
@@ -734,6 +736,7 @@ declare module 'knex/types/tables' {
         [NotificationsTableName]: NotificationsTable;
         [AiReviewNotificationLogTableName]: AiReviewNotificationLogTable;
         [AiReviewNotificationSettingsTableName]: AiReviewNotificationSettingsTable;
+        [AiReviewLinearDestinationTableName]: AiReviewLinearDestinationTable;
         [CatalogTableName]: CatalogTable;
         [SlackChannelProjectMappingsTableName]: SlackChannelProjectMappingsTable;
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
