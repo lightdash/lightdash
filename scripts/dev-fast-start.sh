@@ -42,14 +42,10 @@ SHARED_BASE_VOLUME="ld-shared_postgres_base"
 # the core base, which must stay core-only for non-EE instances.
 EE_BASE_VOLUME="ld-shared_postgres_base_ee"
 
+. "$REPO_ROOT/scripts/dev-instance-lib.sh"
+
 fail() { echo "FAIL: $1 -- $2" >&2; exit 1; }
 step() { echo "STEP: $1"; }
-
-instance_pm2_names() {
-    for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
-        echo "${LD_INSTANCE_ID}-${suffix}"
-    done
-}
 
 # One name per call: `pm2 delete a b c` aborts at the first name it cannot
 # find, silently leaving every later one running.
