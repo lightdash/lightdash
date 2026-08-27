@@ -424,6 +424,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     projectParametersModel: models.getProjectParametersModel(),
                     spaceModel: models.getSpaceModel(),
+                    userModel: models.getUserModel(),
                     savedChartModel: models.getSavedChartModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,

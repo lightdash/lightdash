@@ -11,6 +11,12 @@ import {
     AnalyticsDashboardViewsTableName,
 } from '../database/entities/analytics';
 import {
+    AppGroupAccessTable,
+    AppGroupAccessTableName,
+    AppUserAccessTable,
+    AppUserAccessTableName,
+} from '../database/entities/appAccess';
+import {
     AppsTable,
     AppsTableName,
     AppVersionsTable,
@@ -789,6 +795,8 @@ declare module 'knex/types/tables' {
         [ContentVerificationTableName]: ContentVerificationTable;
         [AppsTableName]: AppsTable;
         [AppVersionsTableName]: AppVersionsTable;
+        [AppUserAccessTableName]: AppUserAccessTable;
+        [AppGroupAccessTableName]: AppGroupAccessTable;
         [AiRouterTableName]: AiRouterTable;
         [AiRouterDecisionTableName]: AiRouterDecisionTable;
         [ExternalConnectionsTableName]: ExternalConnectionsTable;

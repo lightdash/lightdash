@@ -100,6 +100,9 @@ describe('SpacePermissionService', () => {
         spaceModel: {} as SpaceModel,
         spacePermissionModel:
             mockPermissionModel as unknown as SpacePermissionModel,
+        appAccessModel: {
+            getUserAccess: vi.fn(async () => ({})),
+        } as never,
         dashboardAccessModel:
             dashboardAccessModel as unknown as DashboardAccessModel,
         savedChartAccessModel: {
@@ -1812,14 +1815,19 @@ describe('resolveAccess', () => {
     const createService = ({
         enabled,
         grants = {},
+        appGrants = {},
         context = spaceContext,
     }: {
         enabled: boolean;
         grants?: Record<string, unknown>;
+        appGrants?: Record<string, unknown>;
         context?: typeof spaceContext;
     }) => {
         const dashboardAccessModel = {
             getUserAccess: vi.fn(async () => grants),
+        };
+        const appAccessModel = {
+            getUserAccess: vi.fn(async () => appGrants),
         };
         const directAccessFeatureGate = {
             isEnabledForUser: vi.fn(async () => enabled),
@@ -1827,6 +1835,7 @@ describe('resolveAccess', () => {
         const service = new SpacePermissionService({
             spaceModel: {} as SpaceModel,
             spacePermissionModel: {} as unknown as SpacePermissionModel,
+            appAccessModel: appAccessModel as never,
             dashboardAccessModel:
                 dashboardAccessModel as unknown as DashboardAccessModel,
             savedChartAccessModel: {
@@ -1839,7 +1848,12 @@ describe('resolveAccess', () => {
                 directAccessFeatureGate as unknown as DirectAccessFeatureGate,
         });
         mockSpaceContexts(service, { 'space-uuid': context });
-        return { service, dashboardAccessModel, directAccessFeatureGate };
+        return {
+            service,
+            appAccessModel,
+            dashboardAccessModel,
+            directAccessFeatureGate,
+        };
     };
 
     test('returns the plain space context while the feature is off', async () => {
@@ -1997,6 +2011,113 @@ describe('resolveAccess', () => {
             service.resolveAccess('user-uuid', dashboardTarget),
         ).rejects.toThrow(ParameterError);
     });
+
+    test.each([
+        { label: 'personal', spaceUuid: null },
+        { label: 'space-backed', spaceUuid: 'space-uuid' },
+    ])('appends direct app grants for $label apps', async ({ spaceUuid }) => {
+        const { service, appAccessModel } = createService({
+            enabled: true,
+            appGrants: {
+                'app-uuid': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid,
+                    userRole: SpaceMemberRole.VIEWER,
+                    groupRoles: [SpaceMemberRole.EDITOR],
+                },
+            },
+        });
+
+        const result = await service.resolveAccess('user-uuid', {
+            type: 'app',
+            appUuid: 'app-uuid',
+            organizationUuid: 'organization-uuid',
+            projectUuid: 'project-uuid',
+            spaceUuid,
+        });
+
+        expect(result).toMatchObject({
+            organizationUuid: 'organization-uuid',
+            projectUuid: 'project-uuid',
+            directOnly: true,
+            access: [
+                {
+                    userUuid: 'user-uuid',
+                    role: SpaceMemberRole.VIEWER,
+                    grantedVia: 'app',
+                },
+                {
+                    userUuid: 'user-uuid',
+                    role: SpaceMemberRole.EDITOR,
+                    grantedVia: 'app',
+                },
+            ],
+        });
+        expect(appAccessModel.getUserAccess).toHaveBeenCalledWith(
+            ['app-uuid'],
+            'user-uuid',
+            { organizationUuid: 'organization-uuid' },
+        );
+    });
+
+    test('keeps personal app grants inert while direct access is disabled', async () => {
+        const { service, appAccessModel } = createService({
+            enabled: false,
+            appGrants: {
+                'app-uuid': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid: null,
+                    userRole: SpaceMemberRole.VIEWER,
+                    groupRoles: [],
+                },
+            },
+        });
+
+        await expect(
+            service.resolveAccess('user-uuid', {
+                type: 'app',
+                appUuid: 'app-uuid',
+                organizationUuid: 'organization-uuid',
+                projectUuid: 'project-uuid',
+                spaceUuid: null,
+            }),
+        ).resolves.toEqual({
+            organizationUuid: 'organization-uuid',
+            projectUuid: 'project-uuid',
+            inheritsFromOrgOrProject: false,
+            access: [],
+            admins: [],
+            directOnly: false,
+        });
+        expect(appAccessModel.getUserAccess).not.toHaveBeenCalled();
+    });
+
+    test('rejects app references whose resolved location does not match', async () => {
+        const { service } = createService({
+            enabled: true,
+            appGrants: {
+                'app-uuid': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid: null,
+                    userRole: SpaceMemberRole.VIEWER,
+                    groupRoles: [],
+                },
+            },
+        });
+
+        await expect(
+            service.resolveAccess('user-uuid', {
+                type: 'app',
+                appUuid: 'app-uuid',
+                organizationUuid: 'organization-uuid',
+                projectUuid: 'project-uuid',
+                spaceUuid: 'space-uuid',
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
 });
 
 describe('resolveAccessBatch', () => {
@@ -2029,6 +2150,9 @@ describe('resolveAccessBatch', () => {
         const service = new SpacePermissionService({
             spaceModel: {} as SpaceModel,
             spacePermissionModel: {} as unknown as SpacePermissionModel,
+            appAccessModel: {
+                getUserAccess: vi.fn(async () => ({})),
+            } as never,
             dashboardAccessModel:
                 dashboardAccessModel as unknown as DashboardAccessModel,
             savedChartAccessModel: savedChartAccessModel as never,
@@ -2450,6 +2574,9 @@ describe('resolveAccess space-saved chart target', () => {
         const service = new SpacePermissionService({
             spaceModel: {} as SpaceModel,
             spacePermissionModel: {} as unknown as SpacePermissionModel,
+            appAccessModel: {
+                getUserAccess: vi.fn(async () => ({})),
+            } as never,
             dashboardAccessModel: {
                 getUserAccess: vi.fn(async () => ({})),
             } as never,
@@ -2551,6 +2678,9 @@ describe('resolveAccess saved SQL chart target', () => {
         const service = new SpacePermissionService({
             spaceModel: {} as SpaceModel,
             spacePermissionModel: {} as unknown as SpacePermissionModel,
+            appAccessModel: {
+                getUserAccess: vi.fn(async () => ({})),
+            } as never,
             dashboardAccessModel: {
                 getUserAccess: vi.fn(async () => ({})),
             } as never,
@@ -2663,6 +2793,9 @@ describe('resolveAccess chart ownership routing', () => {
         const service = new SpacePermissionService({
             spaceModel: {} as SpaceModel,
             spacePermissionModel: {} as unknown as SpacePermissionModel,
+            appAccessModel: {
+                getUserAccess: vi.fn(async () => ({})),
+            } as never,
             dashboardAccessModel: dashboardAccessModel as never,
             savedChartAccessModel: savedChartAccessModel as never,
             savedSqlAccessModel: {

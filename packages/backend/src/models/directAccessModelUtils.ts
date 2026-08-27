@@ -16,9 +16,9 @@ import { UserTableName } from '../database/entities/users';
 export type DirectAccess = {
     organizationUuid: UUID;
     projectUuid: UUID;
-    // Space the granted resource actually lives in; lets callers verify the
-    // grant belongs to the space context they are extending.
-    spaceUuid: UUID;
+    // Space the granted resource actually lives in; personal apps have no
+    // space and use their project context as the authorization baseline.
+    spaceUuid: UUID | null;
     userRole: SpaceMemberRole | null;
     groupRoles: SpaceMemberRole[];
 };
@@ -27,7 +27,7 @@ export type DirectAccessRow = {
     resourceUuid: UUID;
     organizationUuid: UUID;
     projectUuid: UUID;
-    spaceUuid: UUID;
+    spaceUuid: UUID | null;
     role: SpaceMemberRole;
     groupUuid: UUID | null;
 };

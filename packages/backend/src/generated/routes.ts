@@ -13488,6 +13488,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
+                { dataType: 'enum', enums: ['app'] },
                 { dataType: 'enum', enums: ['dashboard'] },
                 { dataType: 'enum', enums: ['saved_chart'] },
                 { dataType: 'enum', enums: ['sql_chart'] },

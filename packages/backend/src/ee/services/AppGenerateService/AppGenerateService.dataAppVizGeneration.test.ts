@@ -56,6 +56,7 @@ function buildService(
         analytics: analytics as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
@@ -74,7 +75,16 @@ function buildService(
         savedChartModel: {} as never,
         schedulerClient: schedulerClient as never,
         savedChartService: {} as never,
-        spacePermissionService: {} as never,
+        spacePermissionService: {
+            resolveAccess: vi.fn().mockResolvedValue({
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+                inheritsFromOrgOrProject: false,
+                access: [],
+                admins: [],
+                directOnly: false,
+            }),
+        } as never,
         coderService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
@@ -90,7 +100,7 @@ function buildService(
     // Bypass real CASL — the mapping/flow is what these tests cover.
     (
         service as unknown as { createAuditedAbility: () => unknown }
-    ).createAuditedAbility = () => ({ cannot: () => false });
+    ).createAuditedAbility = () => ({ can: () => true, cannot: () => false });
     return { service, appModel, schedulerClient, analytics };
 }
 

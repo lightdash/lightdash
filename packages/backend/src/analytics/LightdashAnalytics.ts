@@ -1776,6 +1776,7 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         schedulerWaitMs?: number;
         claudeEffort: DataAppClaudeEffort;
         failureStage:
+            | 'authorization'
             | 'sandbox'
             | 'catalog'
             | 'generating'

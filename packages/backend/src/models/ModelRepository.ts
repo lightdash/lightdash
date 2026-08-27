@@ -4,6 +4,7 @@ import { PreAggregateDailyStatsModel } from '../ee/models/PreAggregateDailyStats
 import { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
+import { AppAccessModel } from './AppAccessModel';
 import { AppModel } from './AppModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
 import { CommentModel } from './CommentModel/CommentModel';
@@ -88,6 +89,7 @@ import { WarehouseConnectCodeModel } from './WarehouseConnectCodeModel';
 
 export type ModelManifest = {
     analyticsModel: AnalyticsModel;
+    appAccessModel: AppAccessModel;
     appModel: AppModel;
     commentModel: CommentModel;
     dashboardModel: DashboardModel;
@@ -291,6 +293,13 @@ export class ModelRepository
         return this.getModel(
             'analyticsModel',
             () => new AnalyticsModel({ database: this.database }),
+        );
+    }
+
+    public getAppAccessModel(): AppAccessModel {
+        return this.getModel(
+            'appAccessModel',
+            () => new AppAccessModel(this.database),
         );
     }
 

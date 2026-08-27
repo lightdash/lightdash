@@ -82,6 +82,7 @@ const buildService = () =>
         analytics: {} as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: {
             listAppsByProject: vi.fn().mockResolvedValue([
                 {
@@ -111,7 +112,16 @@ const buildService = () =>
         savedChartModel: {} as never,
         schedulerClient: {} as never,
         savedChartService: {} as never,
-        spacePermissionService: {} as never,
+        spacePermissionService: {
+            resolveAccess: vi.fn().mockResolvedValue({
+                organizationUuid: ORG_UUID,
+                projectUuid: OWN_PREVIEW_UUID,
+                inheritsFromOrgOrProject: false,
+                access: [],
+                admins: [],
+                directOnly: false,
+            }),
+        } as never,
         coderService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
@@ -157,6 +167,7 @@ describe('DataApp preview scopes', () => {
 
         await expect(
             service.canViewApp(user, {
+                app_id: 'app-uuid',
                 organization_uuid: ORG_UUID,
                 project_uuid: OWN_PREVIEW_UUID,
                 space_uuid: null,
