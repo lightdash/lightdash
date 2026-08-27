@@ -209,10 +209,11 @@ export class SavedChartService
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
         const { access, inheritsFromOrgOrProject, directOnly } =
-            await this.spacePermissionService.getDashboardAccessContext(
+            await this.spacePermissionService.getChartAccessContext(
                 user.userUuid,
                 {
-                    uuid: savedChart.dashboardUuid,
+                    uuid: savedChart.uuid,
+                    dashboardUuid: savedChart.dashboardUuid,
                     spaceUuid: savedChart.spaceUuid,
                 },
             );
@@ -664,13 +665,15 @@ export class SavedChartService
         // Embed write actors stay space-only: grant parity for embed
         // identities is a separate decision.
         const { inheritsFromOrgOrProject, access, directOnly } =
-            await this.spacePermissionService.getDashboardAccessContext(
-                user.userUuid,
-                {
-                    uuid: embedWriteActions ? null : dashboardUuid,
-                    spaceUuid,
-                },
-            );
+            embedWriteActions
+                ? await this.spacePermissionService.getDashboardAccessContext(
+                      user.userUuid,
+                      { uuid: null, spaceUuid },
+                  )
+                : await this.spacePermissionService.getChartAccessContext(
+                      user.userUuid,
+                      { uuid: savedChartUuid, dashboardUuid, spaceUuid },
+                  );
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -882,9 +885,9 @@ export class SavedChartService
         } = await this.savedChartModel.getSummary(savedChartUuid);
 
         const { inheritsFromOrgOrProject, access, directOnly } =
-            await this.spacePermissionService.getDashboardAccessContext(
+            await this.spacePermissionService.getChartAccessContext(
                 user.userUuid,
-                { uuid: dashboardUuid, spaceUuid },
+                { uuid: savedChartUuid, dashboardUuid, spaceUuid },
             );
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -1262,9 +1265,9 @@ export class SavedChartService
             });
         } else {
             const { inheritsFromOrgOrProject, access, directOnly } =
-                await this.spacePermissionService.getDashboardAccessContext(
+                await this.spacePermissionService.getChartAccessContext(
                     user.userUuid,
-                    { uuid: dashboardUuid, spaceUuid },
+                    { uuid: resolvedUuid, dashboardUuid, spaceUuid },
                 );
             deleteAuditContext = {
                 viaDashboardGrant:
@@ -1354,9 +1357,13 @@ export class SavedChartService
         } else {
             const chart = await this.savedChartModel.get(savedChartUuid);
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getDashboardAccessContext(
+                await this.spacePermissionService.getChartAccessContext(
                     user.userUuid,
-                    { uuid: chart.dashboardUuid, spaceUuid: chart.spaceUuid },
+                    {
+                        uuid: chart.uuid,
+                        dashboardUuid: chart.dashboardUuid,
+                        spaceUuid: chart.spaceUuid,
+                    },
                 );
             const auditedAbility = this.createAuditedAbility(user);
             if (
