@@ -1209,10 +1209,11 @@ export class DashboardService
         const { organizationUuid } = user;
 
         // Throws NotFoundError when the user is not an org member
-        await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
-            organizationUuid,
-            targetUserUuid,
-        );
+        const targetMember =
+            await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
+                organizationUuid,
+                targetUserUuid,
+            );
 
         const summary =
             await this.dashboardModel.getDashboardsSummaryByOwner(
@@ -1224,13 +1225,8 @@ export class DashboardService
             'manage',
             summary.byProject.map((project) =>
                 subject('Dashboard', {
-                    organizationUuid,
+                    organizationUuid: targetMember.organizationUuid,
                     projectUuid: project.projectUuid,
-                    metadata: {
-                        targetUserUuid,
-                        projectUuid: project.projectUuid,
-                        projectName: project.projectName,
-                    },
                 }),
             ),
         );

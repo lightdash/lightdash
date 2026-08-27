@@ -1589,6 +1589,7 @@ export class DashboardModel {
             )
             .where(`${DashboardsTableName}.owner_user_uuid`, fromUserUuid)
             .whereNull(`${DashboardsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .whereIn(`${ProjectTableName}.project_uuid`, projectUuids);
 
         return this.database(DashboardsTableName)
