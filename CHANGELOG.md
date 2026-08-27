@@ -1,3 +1,10 @@
+# [2.28.0](https://github.com/lightdash/lightdash/compare/2.27.0...2.28.0) (2026-08-27)
+
+
+### Features
+
+* **cli:** publish linux x64 binary ([#28161](https://github.com/lightdash/lightdash/issues/28161)) ([e5d3df8](https://github.com/lightdash/lightdash/commit/e5d3df8daf526e50380e77dee1e40c5e3940f436)), closes [#27834](https://github.com/lightdash/lightdash/issues/27834)
+
 # [2.27.0](https://github.com/lightdash/lightdash/compare/2.26.1...2.27.0) (2026-08-27)
 
 
