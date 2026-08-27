@@ -221,11 +221,13 @@ describe('DashboardService draft overlay is opt-in', () => {
                       }
                     : undefined,
         );
+        const findLatestDismissedDraft = vi.fn().mockResolvedValue(undefined);
         const updateDraft = vi.fn();
         const { service } = buildService();
         // Replace the collaborators the read path needs
         (service as AnyType).contentDraftModel = {
             findOpenDraft,
+            findLatestDismissedDraft,
             update: updateDraft,
         };
         (service as AnyType).dashboardModel = {
@@ -243,7 +245,13 @@ describe('DashboardService draft overlay is opt-in', () => {
                 { action: 'view', subject: 'Dashboard' },
             ]),
         } as unknown as SessionUser;
-        return { service, viewer, findOpenDraft, updateDraft };
+        return {
+            service,
+            viewer,
+            findOpenDraft,
+            findLatestDismissedDraft,
+            updateDraft,
+        };
     };
 
     it('getByIdOrSlug returns the published dashboard and never reads drafts', async () => {
@@ -288,6 +296,60 @@ describe('DashboardService draft overlay is opt-in', () => {
         });
         expect(dashboard.hasUnpublishedChanges).toBeUndefined();
         expect(updateDraft).not.toHaveBeenCalled();
+    });
+
+    it('lets an author discover their dismissed draft from the published dashboard', async () => {
+        const { service, viewer, findOpenDraft, findLatestDismissedDraft } =
+            buildReadService();
+        findOpenDraft.mockResolvedValue(undefined);
+        findLatestDismissedDraft.mockResolvedValue({
+            uuid: 'dismissed-draft-uuid',
+            status: 'dismissed',
+        });
+
+        const dashboard = await service.getByIdOrSlugForViewer(
+            viewer,
+            'weekly-kpis',
+        );
+
+        expect(dashboard).toMatchObject({
+            name: 'Weekly KPIs',
+            dismissedDraftUuid: 'dismissed-draft-uuid',
+        });
+        expect(findLatestDismissedDraft).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            'dashboard',
+            'dashboard-uuid',
+            'author-uuid',
+        );
+    });
+
+    it('does not expose another author dismissed draft', async () => {
+        const { service, viewer, findOpenDraft, findLatestDismissedDraft } =
+            buildReadService();
+        findOpenDraft.mockResolvedValue(undefined);
+        findLatestDismissedDraft.mockImplementation(
+            async (
+                _projectUuid: string,
+                _contentType: string,
+                _contentUuid: string,
+                authorUserUuid: string,
+            ) =>
+                authorUserUuid === 'author-uuid'
+                    ? { uuid: 'dismissed-draft-uuid', status: 'dismissed' }
+                    : undefined,
+        );
+        const otherViewer = {
+            ...viewer,
+            userUuid: 'other-viewer-uuid',
+        } as SessionUser;
+
+        const dashboard = await service.getByIdOrSlugForViewer(
+            otherViewer,
+            'weekly-kpis',
+        );
+
+        expect(dashboard).not.toHaveProperty('dismissedDraftUuid');
     });
 
     it('does not expose another author corrupt draft or its failure', async () => {

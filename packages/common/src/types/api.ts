@@ -146,6 +146,7 @@ import {
     type ApiContentAsCodeSettingsResponse,
     type ApiContentAsCodeUploadAdvisoryResponse,
     type ApiContentAsCodeWritebacksResponse,
+    type ApiContentDraftReopenResponse,
     type ApiContentDraftReviewResponse,
     type ApiContentDraftsResponse,
     type ApiContentDraftWriteBackResponse,
@@ -1369,6 +1370,7 @@ type ApiResults =
     | ApiContentAsCodeWritebacksResponse['results']
     | ApiContentDraftsResponse['results']
     | ApiContentDraftReviewResponse['results']
+    | ApiContentDraftReopenResponse['results']
     | ApiContentDraftWriteBackResponse['results']
     | ApiContentAsCodeProposeResponse['results']
     | ApiContentAsCodeSettingsResponse['results']

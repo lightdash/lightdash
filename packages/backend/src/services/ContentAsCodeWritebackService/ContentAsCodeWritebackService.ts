@@ -226,6 +226,29 @@ export class ContentAsCodeWritebackService extends BaseService {
         }
     }
 
+    private async assertCanViewContentAsCode(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('ContentAsCode', {
+                    projectUuid: project.projectUuid,
+                    organizationUuid: project.organizationUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
+                    metadata: { slug: '' },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+    }
+
     async getUploadAdvisory(
         user: SessionUser,
         projectUuid: string,
@@ -334,6 +357,38 @@ export class ContentAsCodeWritebackService extends BaseService {
         await this.contentDraftModel.update(draft.uuid, {
             status: 'dismissed',
         });
+    }
+
+    async reopenDraft(
+        user: SessionUser,
+        projectUuid: string,
+        draftUuid: string,
+    ): Promise<ContentDraft> {
+        await this.assertCanViewContentAsCode(user, projectUuid);
+        const draft = await this.contentDraftModel.get(draftUuid);
+        if (!draft || draft.projectUuid !== projectUuid) {
+            throw new ParameterError('Draft not found');
+        }
+        if (draft.authorUserUuid !== user.userUuid) {
+            throw new ForbiddenError();
+        }
+        if (draft.status === 'open') return draft;
+        if (draft.status !== 'dismissed') {
+            throw new ConflictError('Only dismissed drafts can be reopened');
+        }
+        const existingOpen = await this.contentDraftModel.findOpenDraft(
+            projectUuid,
+            draft.contentType,
+            draft.contentUuid,
+            user.userUuid,
+        );
+        if (existingOpen && existingOpen.uuid !== draft.uuid) {
+            throw new ConflictError(
+                'This content already has a newer open draft',
+            );
+        }
+        await this.contentDraftModel.update(draft.uuid, { status: 'open' });
+        return { ...draft, status: 'open' };
     }
 
     // A merged-but-not-yet-deployed PR should read "merged, applies on the

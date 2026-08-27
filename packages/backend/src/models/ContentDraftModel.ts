@@ -116,6 +116,25 @@ export class ContentDraftModel {
         return row ? parseRow(row) : undefined;
     }
 
+    async findLatestDismissedDraft(
+        projectUuid: string,
+        contentType: string,
+        contentUuid: string,
+        authorUserUuid: string,
+    ): Promise<ContentDraft | undefined> {
+        const row = await this.database(ContentDraftsTableName)
+            .where({
+                project_uuid: projectUuid,
+                content_type: contentType,
+                content_uuid: contentUuid,
+                author_user_uuid: authorUserUuid,
+                status: 'dismissed',
+            })
+            .orderBy('updated_at', 'desc')
+            .first();
+        return row ? parseRow(row) : undefined;
+    }
+
     async listOpenForContent(
         projectUuid: string,
         contentType: string,

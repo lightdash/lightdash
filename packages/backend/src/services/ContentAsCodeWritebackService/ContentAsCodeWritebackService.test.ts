@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     ConflictError,
     DbtProjectType,
+    ForbiddenError,
     PossibleAbilities,
     PullRequestSource,
     type SessionUser,
@@ -143,6 +144,7 @@ const buildService = (overrides: Overrides = {}) => {
         countOpenByProject: vi
             .fn()
             .mockResolvedValue(overrides.openDraftCount ?? 0),
+        findOpenDraft: vi.fn().mockResolvedValue(undefined),
         update: vi.fn(),
     };
     const service = new ContentAsCodeWritebackService({
@@ -174,6 +176,25 @@ const buildService = (overrides: Overrides = {}) => {
 };
 
 describe('ContentAsCodeWritebackService', () => {
+    const dismissedDraft = {
+        uuid: 'draft-uuid',
+        projectUuid: 'project-uuid',
+        contentType: 'dashboard',
+        contentUuid: 'dashboard-uuid',
+        slug: 'weekly-kpis',
+        authorUserUuid: 'author-uuid',
+        draft: { name: 'Weekly KPIs draft' },
+        status: 'dismissed',
+        prUrl: null,
+    };
+    const author = {
+        ...user,
+        userUuid: 'author-uuid',
+        ability: new Ability<PossibleAbilities>([
+            { action: 'view', subject: 'ContentAsCode' },
+        ]),
+    } as SessionUser;
+
     it.each([0, 3])(
         'reports %i open drafts for upload without changing content',
         async (openDraftCount) => {
@@ -203,6 +224,98 @@ describe('ContentAsCodeWritebackService', () => {
         await expect(
             service.getUploadAdvisory(uploadOnlyUser, 'project-uuid'),
         ).resolves.toEqual({ openDraftCount: 2 });
+    });
+
+    it('dismisses an open draft without deleting it', async () => {
+        const { service, contentDraftModel } = buildService();
+
+        await service.dismissDraft(user, 'project-uuid', 'draft-uuid');
+
+        expect(contentDraftModel.update).toHaveBeenCalledWith('draft-uuid', {
+            status: 'dismissed',
+        });
+    });
+
+    it('lets the author reopen the same dismissed draft', async () => {
+        const { service, contentDraftModel } = buildService({
+            draft: dismissedDraft,
+        });
+
+        await expect(
+            service.reopenDraft(author, 'project-uuid', 'draft-uuid'),
+        ).resolves.toMatchObject({
+            uuid: 'draft-uuid',
+            status: 'open',
+        });
+        expect(contentDraftModel.update).toHaveBeenCalledWith('draft-uuid', {
+            status: 'open',
+        });
+    });
+
+    it('makes repeated reopen requests idempotent', async () => {
+        const { service, contentDraftModel } = buildService({
+            draft: { ...dismissedDraft, status: 'open' },
+        });
+
+        await expect(
+            service.reopenDraft(author, 'project-uuid', 'draft-uuid'),
+        ).resolves.toMatchObject({
+            uuid: 'draft-uuid',
+            status: 'open',
+        });
+        expect(contentDraftModel.update).not.toHaveBeenCalled();
+    });
+
+    it('does not let another user reopen an author draft', async () => {
+        const { service, contentDraftModel } = buildService({
+            draft: dismissedDraft,
+        });
+        const otherUser = {
+            ...author,
+            userUuid: 'other-user-uuid',
+        } as SessionUser;
+
+        await expect(
+            service.reopenDraft(otherUser, 'project-uuid', 'draft-uuid'),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(contentDraftModel.update).not.toHaveBeenCalled();
+    });
+
+    it('does not reopen history when the author already has an open draft', async () => {
+        const { service, contentDraftModel } = buildService({
+            draft: dismissedDraft,
+        });
+        contentDraftModel.findOpenDraft.mockResolvedValue({
+            ...dismissedDraft,
+            uuid: 'newer-open-draft-uuid',
+            status: 'open',
+        });
+
+        await expect(
+            service.reopenDraft(author, 'project-uuid', 'draft-uuid'),
+        ).rejects.toBeInstanceOf(ConflictError);
+        expect(contentDraftModel.update).not.toHaveBeenCalled();
+    });
+
+    it('shows the same reopened row in the review queue immediately', async () => {
+        const { service, contentDraftModel } = buildService({
+            draft: dismissedDraft,
+        });
+        let persistedDraft = { ...dismissedDraft };
+        contentDraftModel.get.mockImplementation(async () => persistedDraft);
+        contentDraftModel.update.mockImplementation(
+            async (_uuid: string, update: { status?: string }) => {
+                persistedDraft = { ...persistedDraft, ...update };
+            },
+        );
+        contentDraftModel.listByProject.mockImplementation(async () => [
+            persistedDraft,
+        ]);
+
+        await service.reopenDraft(author, 'project-uuid', 'draft-uuid');
+        await expect(service.listDrafts(user, 'project-uuid')).resolves.toEqual(
+            [expect.objectContaining({ uuid: 'draft-uuid', status: 'open' })],
+        );
     });
 
     it('first save creates the instance branch, commits the YAML, and opens one PR', async () => {

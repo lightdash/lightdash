@@ -34,7 +34,9 @@ import { DashboardExportModal } from '../components/common/modal/DashboardExport
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { useDashboardCommentsCheck } from '../features/comments';
+import DismissedDraftAlert from '../features/contentAsCode/components/DismissedDraftAlert';
 import DraftOverlayFailureAlert from '../features/contentAsCode/components/DraftOverlayFailureAlert';
+import { useReopenDraftMutation } from '../features/contentAsCode/hooks/useContentDrafts';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
 import {
@@ -71,6 +73,8 @@ const Dashboard: FC = () => {
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardUuid = dashboard?.uuid;
     const dashboardIdentifier = dashboard?.slug ?? routeDashboardIdentifier;
+    const { mutate: reopenDraft, isLoading: isReopeningDraft } =
+        useReopenDraftMutation(projectUuid);
 
     const dashboardError = useDashboardContext((c) => c.dashboardError);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
@@ -1017,6 +1021,15 @@ const Dashboard: FC = () => {
                     {dashboard.draftOverlayError ? (
                         <DraftOverlayFailureAlert
                             error={dashboard.draftOverlayError}
+                        />
+                    ) : null}
+
+                    {dashboard.dismissedDraftUuid ? (
+                        <DismissedDraftAlert
+                            isReopening={isReopeningDraft}
+                            onReopen={() =>
+                                reopenDraft(dashboard.dismissedDraftUuid!)
+                            }
                         />
                     ) : null}
 
