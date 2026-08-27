@@ -1,3 +1,15 @@
+# [2.23.0](https://github.com/lightdash/lightdash/compare/2.22.0...2.23.0) (2026-08-27)
+
+
+### Bug Fixes
+
+* **filters:** preserve date values across operator changes ([#28164](https://github.com/lightdash/lightdash/issues/28164)) ([0bb9b75](https://github.com/lightdash/lightdash/commit/0bb9b7532a4684022420f127d88f9c7322619086))
+
+
+### Features
+
+* content-as-code write-back primitives (per-slug branch, commits, PR) ([#28004](https://github.com/lightdash/lightdash/issues/28004)) ([9f0e626](https://github.com/lightdash/lightdash/commit/9f0e62619789f7a77f037c42ba0f47cadbf8a2ae))
+
 # [2.22.0](https://github.com/lightdash/lightdash/compare/2.21.0...2.22.0) (2026-08-27)
 
 

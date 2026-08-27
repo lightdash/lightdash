@@ -1,24 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.22.0",
-  "previousVersion": "2.21.0",
-  "releaseDate": "2026-08-27T09:26:52.312Z",
+  "version": "2.23.0",
+  "previousVersion": "2.22.0",
+  "releaseDate": "2026-08-27T09:51:34.580Z",
   "migrations": {
     "present": true,
     "count": 1,
-    "coreCount": 0,
-    "eeCount": 1,
+    "coreCount": 1,
+    "eeCount": 0,
     "files": [
       {
-        "name": "20260825140001_add_linear_to_review_notification_settings.ts",
-        "edition": "ee",
+        "name": "20260825110000_create_content_as_code_writeback_tables.ts",
+        "edition": "core",
         "tables": [
-          "ai_agent_review_notification_settings"
+          "content_as_code_project_settings",
+          "content_as_code_writebacks",
+          "projects",
+          "users"
         ],
         "heaviness": {
           "locksTable": true,
           "rewritesTable": false,
-          "scansTable": false
+          "scansTable": true
         }
       }
     ]
@@ -34,10 +37,9 @@
       "changes": [],
       "breakingCount": 0,
       "advisories": [
-        "GET /api/v1/schedulers/runs/{runId}/logs — added the new `createReviewLinearIssue` enum value to the `results/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`",
-        "GET /api/v1/schedulers/{projectUuid}/logs — added the new `createReviewLinearIssue` enum value to the `results/data/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`"
+        "GET /api/v1/projects/{projectUuid}/pull-requests — added the new `content_as_code` enum value to the `results/data/items/allOf[#/components/schemas/PullRequest]/source` response property for the response status `200`"
       ],
-      "advisoryCount": 2
+      "advisoryCount": 1
     },
     "mcp": {
       "checked": true,

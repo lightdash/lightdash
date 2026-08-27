@@ -42757,7 +42757,8 @@
                     "custom_dimension",
                     "sql_runner",
                     "source_editor",
-                    "ai_agent"
+                    "ai_agent",
+                    "content_as_code"
                 ],
                 "type": "string"
             },
@@ -56698,7 +56699,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.22.0",
+        "version": "2.23.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -56755,6 +56756,63 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ContentSlugRenameRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/sync-settings": {
+            "post": {
+                "operationId": "stampContentAsCodeSettings",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Persist the repo's content_as_code flags as project-level state.\nCalled by the CLI at upload time so the instance learns what the\nrepo has opted into (Git-backed tracking and write-back).",
+                "summary": "Stamp content-as-code settings",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "sync": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "required": ["sync"],
+                                "type": "object"
                             }
                         }
                     }
