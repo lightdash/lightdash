@@ -90,8 +90,13 @@ const buildService = (overrides: Overrides = {}) => {
         contentDraftModel: { upsertOpenDraft, listOpenForContent } as AnyType,
         catalogModel: {} as AnyType,
         organizationModel: {} as AnyType,
+        organizationMemberProfileModel: {} as AnyType,
         spacePermissionService: {
             getSpaceAccessContext: vi.fn().mockResolvedValue({
+                inheritsFromOrgOrProject: true,
+                access: [],
+            }),
+            getDashboardAccessContext: vi.fn().mockResolvedValue({
                 inheritsFromOrgOrProject: true,
                 access: [],
             }),

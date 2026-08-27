@@ -68,24 +68,6 @@ export type ApiContentAsCodeUpsertResponse<
     status: 'ok';
     results: { action: ContentAsCodeUpsertAction } & Extra;
 };
-export enum ContentAsCodeSkipReason {
-    SKIPPED_AHEAD = 'skipped_ahead',
-}
-
-export type ContentAsCodeSkip = {
-    contentType: 'chart' | 'dashboard';
-    slug: string;
-    reason: ContentAsCodeSkipReason;
-    message: string;
-};
-
-/**
- * Drift outcome of an upsert against the last-applied snapshot: `skips` is
- * populated when content_as_code.sync enforcement rejected the write.
- */
-export type ContentAsCodeSyncStatus = {
-    skips?: ContentAsCodeSkip[];
-};
 
 export type ContentAsCodeWritebackStatus =
     | 'pending'
