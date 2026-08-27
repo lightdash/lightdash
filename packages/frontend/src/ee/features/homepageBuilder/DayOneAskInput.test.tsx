@@ -275,6 +275,7 @@ describe('DayOneAskInput', () => {
         expect(
             agentChatInputProps.current?.onStartDeepResearch,
         ).toBeUndefined();
+        expect(agentChatInputProps.current?.onSqlModeChange).toBeUndefined();
     });
 
     it('hides Deep Research when the user cannot start a run', () => {
@@ -304,6 +305,9 @@ describe('DayOneAskInput', () => {
         ];
         renderInput();
 
+        expect(agentChatInputProps.current?.sqlMode).toBe(false);
+        expect(agentChatInputProps.current?.onSqlModeChange).toBeDefined();
+
         act(() => {
             agentChatInputProps.current?.onSubmit({
                 message: 'Show revenue',
@@ -313,6 +317,29 @@ describe('DayOneAskInput', () => {
 
         expect(createAgentThread).toHaveBeenCalledWith(
             expect.objectContaining({ enableSqlMode: false }),
+        );
+    });
+
+    it('applies the homepage SQL Runner override when creating a thread', () => {
+        agents.current = [
+            { uuid: 'agent-1', name: 'Data agent', enableSqlMode: false },
+        ];
+        renderInput();
+
+        act(() => {
+            agentChatInputProps.current?.onSqlModeChange?.(true);
+        });
+
+        expect(agentChatInputProps.current?.sqlMode).toBe(true);
+        act(() => {
+            agentChatInputProps.current?.onSubmit({
+                message: 'Show revenue',
+                toolHints: [],
+            });
+        });
+
+        expect(createAgentThread).toHaveBeenCalledWith(
+            expect.objectContaining({ enableSqlMode: true }),
         );
     });
 });

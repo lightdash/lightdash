@@ -19,7 +19,6 @@ import {
     Paper,
     Pill,
     Text,
-    Tooltip,
 } from '@mantine/core';
 import {
     IconArrowUp,
@@ -840,61 +839,61 @@ export const AgentChatInput = ({
         return (
             <Menu position="top-start" withinPortal shadow="md" width={220}>
                 <Menu.Target>
-                    <Tooltip
-                        label="Add attachment or tool"
-                        position="top"
-                        withArrow
+                    <ActionIcon
+                        variant="subtle"
+                        color="ldGray.6"
+                        size={actionSize}
+                        radius="xl"
+                        aria-label="Composer options"
+                        className={
+                            showDeepResearchNudge &&
+                            !hasActiveDeepResearchRun &&
+                            composerMode !== 'deep_research'
+                                ? styles.deepResearchNudge
+                                : undefined
+                        }
                     >
-                        <ActionIcon
-                            variant="subtle"
+                        <MantineIcon
+                            icon={IconPlus}
+                            size={iconSize}
                             color="ldGray.6"
-                            size={actionSize}
-                            radius="xl"
-                            aria-label="Composer options"
-                            className={
-                                showDeepResearchNudge &&
-                                !hasActiveDeepResearchRun &&
-                                composerMode !== 'deep_research'
-                                    ? styles.deepResearchNudge
-                                    : undefined
-                            }
-                        >
-                            <MantineIcon
-                                icon={IconPlus}
-                                size={iconSize}
-                                color="ldGray.6"
-                            />
-                        </ActionIcon>
-                    </Tooltip>
+                        />
+                    </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
                     {canShowAttachControl && (
-                        <FileButton
-                            accept=".csv,.tsv,text/csv,text/tab-separated-values"
-                            multiple
-                            resetRef={resetCsvFileInputRef}
-                            onChange={(files) => {
-                                resetCsvFileInputRef.current?.();
-                                if (files.length > 0) {
-                                    void attachCsvFiles(files);
-                                }
-                            }}
-                        >
-                            {(fileButtonProps) => (
-                                <Menu.Item
-                                    {...fileButtonProps}
-                                    disabled={isPreparingCsv}
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconPaperclip}
-                                            size={14}
-                                        />
+                        <>
+                            <FileButton
+                                accept=".csv,.tsv,text/csv,text/tab-separated-values"
+                                multiple
+                                resetRef={resetCsvFileInputRef}
+                                onChange={(files) => {
+                                    resetCsvFileInputRef.current?.();
+                                    if (files.length > 0) {
+                                        void attachCsvFiles(files);
                                     }
-                                >
-                                    Attach CSV
-                                </Menu.Item>
+                                }}
+                            >
+                                {(fileButtonProps) => (
+                                    <Menu.Item
+                                        {...fileButtonProps}
+                                        disabled={isPreparingCsv}
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconPaperclip}
+                                                size={14}
+                                            />
+                                        }
+                                    >
+                                        Attach CSV
+                                    </Menu.Item>
+                                )}
+                            </FileButton>
+                            {(showSqlModeControl ||
+                                showDeepResearchInComposerMenu) && (
+                                <Menu.Divider role="separator" />
                             )}
-                        </FileButton>
+                        </>
                     )}
                     {showSqlModeControl && (
                         <Menu.Item

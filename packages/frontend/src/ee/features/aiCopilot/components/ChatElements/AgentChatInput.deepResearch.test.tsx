@@ -133,6 +133,7 @@ describe('AgentChatInput Deep Research mode', () => {
         expect(
             screen.getByRole('menuitem', { name: 'Enable deep research' }),
         ).toBeInTheDocument();
+        expect(screen.getByRole('separator')).toBeInTheDocument();
     };
 
     it('exposes every action from one menu in an existing thread', async () => {
@@ -204,7 +205,7 @@ describe('AgentChatInput Deep Research mode', () => {
         expect(onSqlModeChange).toHaveBeenCalledWith(false);
     });
 
-    it('keeps the action menu and trigger tooltip available in deep research mode', async () => {
+    it('keeps the action menu open in deep research mode', async () => {
         renderInput();
         const user = await openComposerOptions();
 
@@ -215,13 +216,6 @@ describe('AgentChatInput Deep Research mode', () => {
         expect(
             screen.getByRole('menuitem', { name: 'Disable deep research' }),
         ).toBeInTheDocument();
-        await user.hover(
-            screen.getByRole('button', { name: 'Composer options' }),
-        );
-
-        expect(await screen.findByRole('tooltip')).toHaveTextContent(
-            'Add attachment or tool',
-        );
     });
 
     it('starts research after selection and resets the mode after submission', async () => {
