@@ -1675,6 +1675,96 @@ describe('AiWritebackService repo read access', () => {
             ]);
         });
 
+        it('authorizes primary and configured additional source repositories without exposing unrelated installation repositories', async () => {
+            const sharedModelIdentity = {
+                modelName: 'orders',
+                ymlPath: 'models/orders.yml',
+            };
+            const project = {
+                ...githubProject(),
+                dbtSourceUuid: PRIMARY_SOURCE_UUID,
+                sourceFixture: {
+                    ...sharedModelIdentity,
+                    observableValue: 'primary orders',
+                },
+            };
+            const additionalSource = {
+                projectDbtSourceUuid: 'additional-source-uuid',
+                projectUuid: 'p1',
+                name: 'Additional source',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: {
+                    type: DbtProjectType.GITHUB,
+                    authorization_method: 'installation_id',
+                    repository: 'acme/additional-analytics',
+                    branch: 'additional-main',
+                    project_sub_path: 'transform/dbt',
+                },
+                sourceFixture: {
+                    ...sharedModelIdentity,
+                    observableValue: 'additional orders',
+                },
+                createdAt: new Date('2026-08-27T00:00:00.000Z'),
+                updatedAt: new Date('2026-08-27T00:00:00.000Z'),
+            };
+            const { service } = buildWithInstallation(project);
+            (service as AnyType).projectDbtSourcesModel = {
+                getSources: vi.fn().mockResolvedValue([additionalSource]),
+            };
+            (
+                listReposAccessibleToInstallation as import('vitest').Mock
+            ).mockResolvedValue([
+                {
+                    owner: 'acme',
+                    repo: 'analytics',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+                {
+                    owner: 'acme',
+                    repo: 'additional-analytics',
+                    defaultBranch: 'additional-main',
+                    private: true,
+                },
+                {
+                    owner: 'acme',
+                    repo: 'secret-infrastructure',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+            ]);
+
+            const access = await service.getInstallationRepoReadAccess({
+                user: userWithOrg(true),
+                projectUuid: 'p1',
+            });
+
+            await expect(access.listRepos()).resolves.toEqual([
+                {
+                    owner: 'acme',
+                    repo: 'analytics',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+                {
+                    owner: 'acme',
+                    repo: 'additional-analytics',
+                    defaultBranch: 'additional-main',
+                    private: true,
+                },
+            ]);
+            await expect(
+                access.resolveRepoAccess('acme', 'additional-analytics'),
+            ).resolves.toEqual({
+                branch: 'additional-main',
+                token: 'install-token',
+            });
+            await expect(
+                access.resolveRepoAccess('acme', 'secret-infrastructure'),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
         it('unions the linked user repos with the org repos (org wins on collision)', async () => {
             const project = githubProject();
             project.dbtConnection.repository = 'acme/shared';
@@ -2164,7 +2254,7 @@ describe('mergeSourceCodeRepoAccess', () => {
             undefined,
             [u('acme', 'analytics'), u('acme', 'secret-infrastructure')],
             'inst-token',
-            'acme/analytics',
+            ['acme/analytics'],
         );
         expect([...map.keys()]).toEqual(['acme/analytics']);
         expect(map.get('acme/analytics')?.token).toBe('inst-token');
@@ -2176,7 +2266,7 @@ describe('mergeSourceCodeRepoAccess', () => {
             'user-token',
             [u('acme', 'shared'), u('acme', 'data')],
             'inst-token',
-            'acme/shared',
+            ['acme/shared'],
         );
         expect([...map.keys()].sort()).toEqual(['acme/shared', 'me/personal']);
         expect(map.get('me/personal')?.token).toBe('user-token');
@@ -2189,7 +2279,7 @@ describe('mergeSourceCodeRepoAccess', () => {
             'user-token',
             [u('Acme', 'Analytics')],
             'inst-token',
-            'acme/analytics',
+            ['acme/analytics'],
         );
 
         expect([...map.values()]).toEqual([
@@ -2235,7 +2325,7 @@ describe('computeWritableRepoKeys', () => {
             [r('acme', 'a'), r('acme', 'b')],
             [],
             false,
-            'acme/a',
+            ['acme/a'],
         );
         expect([...keys]).toEqual(['acme/a']);
     });
@@ -2245,7 +2335,7 @@ describe('computeWritableRepoKeys', () => {
             [r('acme', 'a'), r('acme', 'b'), r('acme', 'c')],
             [r('acme', 'b'), r('acme', 'c'), r('me', 'x')],
             true,
-            'acme/a',
+            ['acme/a'],
         );
         expect([...keys].sort()).toEqual(['acme/a', 'acme/b', 'acme/c']);
     });
@@ -2255,7 +2345,7 @@ describe('computeWritableRepoKeys', () => {
             [r('lightdash', 'lightdash'), r('acme', 'a')],
             [],
             false,
-            'acme/a',
+            ['acme/a'],
         );
         expect(keys.has('lightdash/lightdash')).toBe(false);
         expect(keys.has('acme/a')).toBe(true);
@@ -2266,7 +2356,7 @@ describe('computeWritableRepoKeys', () => {
             [r('Lightdash', 'Lightdash')],
             [],
             false,
-            'Lightdash/Lightdash',
+            ['Lightdash/Lightdash'],
         );
         expect(keys.size).toBe(0);
     });
@@ -2276,7 +2366,7 @@ describe('computeWritableRepoKeys', () => {
             [r('Acme', 'Web-App')],
             [r('acme', 'web-app')],
             true,
-            null,
+            [],
         );
         // The slug differs only by case across the two listings — it must still
         // intersect (L1), and the output keeps the installation's casing.

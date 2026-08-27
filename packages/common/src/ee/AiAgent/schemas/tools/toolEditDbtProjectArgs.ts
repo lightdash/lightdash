@@ -11,6 +11,13 @@ export const TOOL_EDIT_DBT_PROJECT_DESCRIPTION = [
 ].join(' ');
 
 export const toolEditDbtProjectArgsSchema = z.object({
+    dbtSourceUuid: z
+        .string()
+        .uuid()
+        .optional()
+        .describe(
+            'The project dbt source UUID to edit. Use the projectDbtSourceUuid returned by a prior source-selection result. Omit it only when the project has one dbt source.',
+        ),
     prompt: z
         .string()
         .describe(

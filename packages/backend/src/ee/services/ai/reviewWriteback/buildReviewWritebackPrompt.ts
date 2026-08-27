@@ -23,6 +23,7 @@ export type ReviewWritebackPlan =
           strategy: 'prompt';
           promptText: string;
           aggregationKey: string | null;
+          dbtSourceUuid: string | null;
       }
     | {
           strategy: 'project_context';
@@ -32,15 +33,21 @@ export type ReviewWritebackPlan =
 // Resolves each model's dbt YAML path from compiled explores so the writeback agent edits the right file (the judge only gives names).
 export const buildYmlPathByModel = (
     explores: (Explore | ExploreError)[],
-): Map<string, string> => {
-    const map = new Map<string, string>();
+): Map<string, { ymlPath: string; dbtSourceUuid: string | null }> => {
+    const map = new Map<
+        string,
+        { ymlPath: string; dbtSourceUuid: string | null }
+    >();
     explores.forEach((explore) => {
         if (isExploreError(explore)) {
             return;
         }
         Object.entries(explore.tables).forEach(([tableName, table]) => {
             if (table.ymlPath) {
-                map.set(tableName, table.ymlPath);
+                map.set(tableName, {
+                    ymlPath: table.ymlPath,
+                    dbtSourceUuid: table.dbtSourceUuid ?? null,
+                });
             }
         });
     });
@@ -49,9 +56,12 @@ export const buildYmlPathByModel = (
 
 const formatSemanticTargetRef = (
     ref: AiAgentSemanticTargetRef,
-    ymlPathByModel: Map<string, string>,
+    ymlPathByModel: Map<
+        string,
+        { ymlPath: string; dbtSourceUuid: string | null }
+    >,
 ): string => {
-    const ymlPath = ymlPathByModel.get(ref.modelName);
+    const ymlPath = ymlPathByModel.get(ref.modelName)?.ymlPath;
     const yaml = ymlPath ? ` (yaml: ${ymlPath})` : '';
     switch (ref.type) {
         case 'model':
@@ -85,9 +95,26 @@ const isSemanticTargetRef = (
 
 const buildSemanticLayerWritebackPrompt = (
     item: AiAgentReviewItemSummary,
-    ymlPathByModel: Map<string, string>,
+    ymlPathByModel: Map<
+        string,
+        { ymlPath: string; dbtSourceUuid: string | null }
+    >,
 ): ReviewWritebackPlan => {
     const finding = item.latestFinding;
+    const targetRefs =
+        item.source === 'manual'
+            ? item.targetRefs
+            : (finding?.targetRefs ?? []);
+    const sourceUuids = new Set(
+        targetRefs
+            .filter(isSemanticTargetRef)
+            .map(
+                (ref) =>
+                    ymlPathByModel.get(ref.modelName)?.dbtSourceUuid ?? null,
+            )
+            .filter((uuid): uuid is string => uuid !== null),
+    );
+    const dbtSourceUuid = sourceUuids.size === 1 ? [...sourceUuids][0] : null;
     if (item.source === 'manual') {
         const manualTargetLines = item.targetRefs
             .filter(isSemanticTargetRef)
@@ -107,6 +134,7 @@ const buildSemanticLayerWritebackPrompt = (
             strategy: 'prompt',
             promptText: sections.join('\n\n'),
             aggregationKey: null,
+            dbtSourceUuid,
         };
     }
     const targetLines = (finding?.targetRefs ?? [])
@@ -130,6 +158,7 @@ const buildSemanticLayerWritebackPrompt = (
         strategy: 'prompt',
         promptText: sections.join('\n\n'),
         aggregationKey: null,
+        dbtSourceUuid,
     };
 };
 
@@ -149,7 +178,10 @@ export const PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION =
  */
 export const planReviewWriteback = (
     item: AiAgentReviewItemSummary,
-    ymlPathByModel: Map<string, string> = new Map(),
+    ymlPathByModel: Map<
+        string,
+        { ymlPath: string; dbtSourceUuid: string | null }
+    > = new Map(),
 ): ReviewWritebackPlan => {
     if (item.primaryRootCause === 'semantic_layer') {
         return buildSemanticLayerWritebackPrompt(item, ymlPathByModel);

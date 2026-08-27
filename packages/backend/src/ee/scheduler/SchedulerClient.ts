@@ -171,15 +171,21 @@ export class CommercialSchedulerClient extends SchedulerClient {
         return { jobId };
     }
 
-    async aiAgentReviewWriteback(payload: AiAgentReviewWritebackJobPayload) {
+    async aiAgentReviewWriteback(
+        payload: AiAgentReviewWritebackJobPayload,
+        runAt: Date = new Date(),
+        continuation: boolean = false,
+    ) {
         const graphileClient = await this.graphileUtils;
         const { id: jobId } = await graphileClient.addJob(
             EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK,
             payload,
             {
-                runAt: new Date(),
+                runAt,
                 maxAttempts: 1,
-                jobKey: `ai-agent-review-writeback:${payload.fingerprint}`,
+                jobKey: continuation
+                    ? `ai-agent-review-writeback:${payload.fingerprint}:continuation:${runAt.getTime()}`
+                    : `ai-agent-review-writeback:${payload.fingerprint}`,
             },
         );
         return { jobId };

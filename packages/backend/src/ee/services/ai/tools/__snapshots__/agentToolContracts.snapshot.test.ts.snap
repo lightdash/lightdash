@@ -3863,6 +3863,11 @@ Parameters:
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
+        "dbtSourceUuid": {
+          "description": "The project dbt source UUID to edit. Use the projectDbtSourceUuid returned by a prior source-selection result. Omit it only when the project has one dbt source.",
+          "format": "uuid",
+          "type": "string",
+        },
         "prUrl": {
           "description": "To UPDATE a specific existing pull request instead of opening a new one, put its full URL here (e.g. 'https://github.com/owner/repo/pull/123'). The PR must belong to this project's own dbt repository. Use this both for a PR the user pasted AND to target one of several pull requests this conversation has already opened (get the URL from listWorkstreams or a previous editDbtProject result). Otherwise pass null.",
           "type": [
@@ -4113,6 +4118,11 @@ Parameters:
       "properties": {
         "content": {
           "description": "A single self-contained sentence stating the fact (e.g. '"HR" = the high-risk diabetes cohort, not human resources.').",
+          "type": "string",
+        },
+        "dbtSourceUuid": {
+          "description": "The project dbt source UUID that owns the project context file. Omit it for the primary dbt source.",
+          "format": "uuid",
           "type": "string",
         },
         "id": {

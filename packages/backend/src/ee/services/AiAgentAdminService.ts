@@ -54,6 +54,7 @@ import {
     PullRequestSource,
     RequestMethod,
     RETENTION_WINDOW_HOURS_ERROR,
+    toolEditDbtProjectOutputSchema,
     UpdateAiAgentReviewItemPriority,
     UpdateAiAgentReviewItemStatus,
     UpdateAiReviewNotificationSettings,
@@ -344,6 +345,15 @@ export const getAiAgentReviewItemWritebackEligibility = (args: {
         provider: projectAccess.provider,
     };
 };
+
+const REVIEW_WRITEBACK_TERMINAL_TIMEOUT_MS = 60 * 60 * 1000;
+const REVIEW_WRITEBACK_RETRY_DELAY_MS = 5 * 1000;
+
+type ReviewWritebackOutcome =
+    | { type: 'not_started' }
+    | { type: 'pending' }
+    | { type: 'action_required'; message: string }
+    | { type: 'success'; prUrl: string | null };
 
 export class AiAgentAdminService extends BaseService {
     private readonly analytics: LightdashAnalytics;
@@ -2181,6 +2191,75 @@ export class AiAgentAdminService extends BaseService {
      * the job, streaming phase messages onto the review item so the admin UI
      * can poll for progress.
      */
+    private async getReviewWritebackOutcome(
+        organizationUuid: string,
+        projectUuid: string,
+        workThreadUuid: string,
+    ): Promise<ReviewWritebackOutcome> {
+        const messages = await this.aiAgentModel.getThreadMessages(
+            organizationUuid,
+            projectUuid,
+            workThreadUuid,
+        );
+        const latestPrompt = messages.at(-1);
+        if (!latestPrompt) {
+            return {
+                type: 'action_required',
+                message: 'Writeback did not produce a prompt result',
+            };
+        }
+        const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
+            latestPrompt.ai_prompt_uuid,
+        );
+        const latestWritebackResult = toolResults
+            .filter((result) => result.toolName === 'editDbtProject')
+            .at(-1);
+        if (!latestWritebackResult) {
+            return { type: 'not_started' };
+        }
+        const parsed = toolEditDbtProjectOutputSchema.safeParse({
+            result: latestWritebackResult.result,
+            metadata: latestWritebackResult.metadata,
+        });
+        if (!parsed.success) {
+            return {
+                type: 'action_required',
+                message: 'Writeback did not produce a terminal edit result',
+            };
+        }
+        if (parsed.data.metadata.status === 'pending') {
+            const promptCreatedAt = new Date(latestPrompt.created_at).getTime();
+            if (
+                !Number.isFinite(promptCreatedAt) ||
+                Date.now() - promptCreatedAt >=
+                    REVIEW_WRITEBACK_TERMINAL_TIMEOUT_MS
+            ) {
+                return {
+                    type: 'action_required',
+                    message:
+                        'Writeback did not finish within 60 minutes. Try again.',
+                };
+            }
+            return { type: 'pending' };
+        }
+        if (parsed.data.metadata.status === 'error') {
+            return {
+                type: 'action_required',
+                message: parsed.data.result,
+            };
+        }
+        if (parsed.data.metadata.needsDbtSourceSelection) {
+            return {
+                type: 'action_required',
+                message: parsed.data.result,
+            };
+        }
+        return {
+            type: 'success',
+            prUrl: parsed.data.metadata.prUrl,
+        };
+    }
+
     async runReviewItemWritebackJob(
         payload: AiAgentReviewWritebackJobPayload,
     ): Promise<void> {
@@ -2315,21 +2394,52 @@ export class AiAgentAdminService extends BaseService {
                         'Build-fix thread was not created for this remediation',
                     );
                 }
-                await this.aiAgentService.generateAgentThreadResponse(user, {
-                    agentUuid,
-                    threadUuid: workThreadUuid,
-                    autoApproveSql: true,
-                    // Force the writeback tool on the opening turn so the run
-                    // always opens a PR rather than just discussing the fix.
-                    toolHints: ['editDbtProject'],
-                    forceToolHints: true,
-                    // The review flow owns preview + verification (below), so the
-                    // tool must not also create its own preview project.
-                    suppressWritebackPreview: true,
-                    onStepProgress: (message) => {
-                        void setProgress(message);
-                    },
-                });
+                let writebackOutcome = await this.getReviewWritebackOutcome(
+                    organizationUuid,
+                    projectUuid,
+                    workThreadUuid,
+                );
+                if (writebackOutcome.type === 'not_started') {
+                    await this.aiAgentService.generateAgentThreadResponse(
+                        user,
+                        {
+                            agentUuid,
+                            threadUuid: workThreadUuid,
+                            autoApproveSql: true,
+                            dbtSourceUuid: plan.dbtSourceUuid ?? undefined,
+                            toolHints: ['editDbtProject'],
+                            forceToolHints: true,
+                            suppressWritebackPreview: true,
+                            onStepProgress: (message) => {
+                                void setProgress(message);
+                            },
+                        },
+                    );
+                    writebackOutcome = await this.getReviewWritebackOutcome(
+                        organizationUuid,
+                        projectUuid,
+                        workThreadUuid,
+                    );
+                }
+                if (writebackOutcome.type === 'pending') {
+                    const runAt = new Date(
+                        Date.now() + REVIEW_WRITEBACK_RETRY_DELAY_MS,
+                    );
+                    await this.schedulerClient.aiAgentReviewWriteback(
+                        payload,
+                        runAt,
+                        true,
+                    );
+                    return;
+                }
+                if (writebackOutcome.type === 'not_started') {
+                    throw new ParameterError(
+                        'Writeback did not produce an edit result',
+                    );
+                }
+                if (writebackOutcome.type === 'action_required') {
+                    throw new ParameterError(writebackOutcome.message);
+                }
                 const writebackPrs =
                     await this.aiAgentReviewClassifierModel.getThreadWritebackPullRequests(
                         [workThreadUuid],
@@ -2341,7 +2451,10 @@ export class AiAgentAdminService extends BaseService {
                 // tool (multi-repo, multiple PRs per turn), this selection
                 // would silently drop all but the newest PR — handle every
                 // entry instead of taking `[0]`.
-                prUrl = writebackPrs.get(workThreadUuid)?.[0]?.prUrl ?? null;
+                prUrl =
+                    writebackOutcome.prUrl ??
+                    writebackPrs.get(workThreadUuid)?.[0]?.prUrl ??
+                    null;
                 pullRequest = prUrl
                     ? await this.pullRequestsModel.findByProjectAndUrl(
                           projectUuid,
@@ -2445,9 +2558,6 @@ export class AiAgentAdminService extends BaseService {
                 await setTerminal('completed', terminalMessage);
             } else {
                 if (remediationUuid) {
-                    // No PR means nothing was wrong to fix — a legitimate
-                    // no-op, not a failure; close the remediation to match the
-                    // item's completed status.
                     await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
                         {
                             remediationUuid,

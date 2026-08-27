@@ -297,6 +297,22 @@ const makeService = ({
                 promptUuid: 'prompt-uuid-1',
             }),
             updateThreadTitle: vi.fn().mockResolvedValue(undefined),
+            getThreadMessages: vi.fn().mockResolvedValue([
+                {
+                    ai_prompt_uuid: 'prompt-uuid-1',
+                    created_at: new Date(),
+                },
+            ]),
+            getToolResultsForPrompt: vi
+                .fn()
+                .mockResolvedValueOnce([])
+                .mockResolvedValue([
+                    {
+                        toolName: 'editDbtProject',
+                        result: 'Opened a pull request.',
+                        metadata: { status: 'success', prUrl: PR_URL },
+                    },
+                ]),
             ...aiAgentModel,
         },
         aiAgentMemoryModel: {
@@ -2487,6 +2503,215 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
                     eventType: 'pr_opened',
                     payload: { prUrl: PR_URL, prNumber: 42 },
                 },
+            }),
+        );
+    });
+
+    it('waits for a pending dbt writeback to finish and uses its pull request', async () => {
+        const setReviewItemPrLink = vi.fn().mockResolvedValue(undefined);
+        const aiAgentReviewWriteback = vi.fn().mockResolvedValue({
+            jobId: 'continuation-job-1',
+        });
+        const service = makeService({
+            aiAgentModel: {
+                getToolResultsForPrompt: vi
+                    .fn()
+                    .mockResolvedValueOnce([])
+                    .mockResolvedValueOnce([
+                        {
+                            toolName: 'editDbtProject',
+                            result: 'Writeback is running.',
+                            metadata: {
+                                status: 'pending',
+                                aiWritebackRunUuid: 'writeback-run-1',
+                            },
+                        },
+                    ])
+                    .mockResolvedValue([
+                        {
+                            toolName: 'editDbtProject',
+                            result: 'Opened a pull request.',
+                            metadata: {
+                                status: 'success',
+                                prUrl: PR_URL,
+                            },
+                        },
+                    ]),
+            },
+            aiAgentReviewClassifierModel: {
+                setReviewItemPrLink,
+                getThreadWritebackPullRequests: vi
+                    .fn()
+                    .mockResolvedValue(new Map([[WORK_THREAD_UUID, []]])),
+            },
+            schedulerClient: { aiAgentReviewWriteback },
+        });
+
+        await expect(
+            service.runReviewItemWritebackJob(payload),
+        ).resolves.toBeUndefined();
+        expect(setReviewItemPrLink).not.toHaveBeenCalled();
+        expect(aiAgentReviewWriteback).toHaveBeenCalledWith(
+            payload,
+            expect.any(Date),
+            true,
+        );
+
+        await expect(
+            service.runReviewItemWritebackJob(payload),
+        ).resolves.toBeUndefined();
+        expect(setReviewItemPrLink).toHaveBeenCalledWith(
+            expect.objectContaining({ linkedPrUrl: PR_URL, prState: 'open' }),
+        );
+    });
+
+    it('fails actionably when a pending dbt writeback exceeds its deadline', async () => {
+        const aiAgentReviewWriteback = vi.fn();
+        const service = makeService({
+            aiAgentModel: {
+                getThreadMessages: vi.fn().mockResolvedValue([
+                    {
+                        ai_prompt_uuid: 'prompt-uuid-1',
+                        created_at: new Date(Date.now() - 61 * 60 * 1000),
+                    },
+                ]),
+                getToolResultsForPrompt: vi.fn().mockResolvedValue([
+                    {
+                        toolName: 'editDbtProject',
+                        result: 'Writeback is running.',
+                        metadata: {
+                            status: 'pending',
+                            aiWritebackRunUuid: 'writeback-run-1',
+                        },
+                    },
+                ]),
+            },
+            schedulerClient: { aiAgentReviewWriteback },
+        });
+
+        await expect(
+            service.runReviewItemWritebackJob(payload),
+        ).rejects.toThrow(
+            'Writeback did not finish within 60 minutes. Try again.',
+        );
+        expect(aiAgentReviewWriteback).not.toHaveBeenCalled();
+    });
+
+    it('keeps remediation open when dbt source selection prevents a pull request', async () => {
+        const updateReviewRemediationStatus = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const setReviewItemWritebackStatus = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentModel: {
+                getToolResultsForPrompt: vi.fn().mockResolvedValue([
+                    {
+                        toolName: 'editDbtProject',
+                        result: 'Select a dbt source and try again.',
+                        metadata: {
+                            status: 'success',
+                            prUrl: null,
+                            needsDbtSourceSelection: true,
+                            dbtSourceOptions: [
+                                {
+                                    projectDbtSourceUuid: 'source-1',
+                                    name: 'primary',
+                                    isPrimary: true,
+                                    repository: 'acme/analytics',
+                                    branch: 'main',
+                                    projectSubPath: '.',
+                                },
+                            ],
+                        },
+                    },
+                ]),
+            },
+            aiAgentReviewClassifierModel: {
+                updateReviewRemediationStatus,
+                setReviewItemWritebackStatus,
+                getThreadWritebackPullRequests: vi
+                    .fn()
+                    .mockResolvedValue(new Map([[WORK_THREAD_UUID, []]])),
+            },
+            aiAgentService: {
+                generateAgentThreadResponse: vi
+                    .fn()
+                    .mockResolvedValue('I need a source selection.'),
+            },
+        });
+
+        await expect(
+            service.runReviewItemWritebackJob(payload),
+        ).rejects.toThrow('Select a dbt source and try again');
+        expect(updateReviewRemediationStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                remediationUuid: REMEDIATION_UUID,
+                status: 'failed',
+                errorMessage: expect.stringContaining(
+                    'Select a dbt source and try again',
+                ),
+            }),
+        );
+        expect(setReviewItemWritebackStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: 'failed' }),
+        );
+        expect(updateReviewRemediationStatus).not.toHaveBeenCalledWith(
+            expect.objectContaining({ status: 'resolved' }),
+        );
+    });
+
+    it('resolves remediation when writeback confirms no changes are needed', async () => {
+        const updateReviewRemediationStatus = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const setReviewItemWritebackStatus = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentModel: {
+                getToolResultsForPrompt: vi.fn().mockResolvedValue([
+                    {
+                        toolName: 'editDbtProject',
+                        result: 'No file changes were needed.',
+                        metadata: {
+                            status: 'success',
+                            prUrl: null,
+                            needsDbtSourceSelection: false,
+                        },
+                    },
+                ]),
+            },
+            aiAgentReviewClassifierModel: {
+                updateReviewRemediationStatus,
+                setReviewItemWritebackStatus,
+                getThreadWritebackPullRequests: vi
+                    .fn()
+                    .mockResolvedValue(new Map([[WORK_THREAD_UUID, []]])),
+            },
+            aiAgentService: {
+                generateAgentThreadResponse: vi
+                    .fn()
+                    .mockResolvedValue(
+                        'The existing semantic layer already contains the requested hint. No changes are needed.',
+                    ),
+            },
+        });
+
+        await expect(
+            service.runReviewItemWritebackJob(payload),
+        ).resolves.toBeUndefined();
+        expect(updateReviewRemediationStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                remediationUuid: REMEDIATION_UUID,
+                status: 'resolved',
+            }),
+        );
+        expect(setReviewItemWritebackStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                status: 'completed',
+                message: 'Writeback ran — no changes were needed',
             }),
         );
     });

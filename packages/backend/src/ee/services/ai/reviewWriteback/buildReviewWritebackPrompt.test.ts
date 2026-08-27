@@ -3,6 +3,7 @@ import {
     type AiAgentReviewItemSummary,
 } from '@lightdash/common';
 import {
+    buildYmlPathByModel,
     planReviewWriteback,
     PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION,
 } from './buildReviewWritebackPrompt';
@@ -97,7 +98,15 @@ describe('planReviewWriteback', () => {
         const plan = expectPromptPlan(
             planReviewWriteback(
                 baseItem(),
-                new Map([['orders', 'models/orders.yml']]),
+                new Map([
+                    [
+                        'orders',
+                        {
+                            ymlPath: 'models/orders.yml',
+                            dbtSourceUuid: null,
+                        },
+                    ],
+                ]),
             ),
         );
 
@@ -125,6 +134,54 @@ describe('planReviewWriteback', () => {
 
         expect(plan.promptText).toContain('metric "orders.average_order_size"');
         expect(plan.promptText).not.toContain('(yaml:');
+    });
+
+    it('keeps the additional source identity when two sources contain the same model and yaml path', () => {
+        const targets = buildYmlPathByModel([
+            {
+                name: 'primary__orders',
+                tables: {
+                    primary__orders: {
+                        name: 'orders',
+                        ymlPath: 'models/orders.yml',
+                        dbtSourceUuid: '00000000-0000-0000-0000-000000000001',
+                    },
+                },
+            },
+            {
+                name: 'additional__orders',
+                tables: {
+                    additional__orders: {
+                        name: 'orders',
+                        ymlPath: 'models/orders.yml',
+                        dbtSourceUuid: '00000000-0000-0000-0000-000000000002',
+                    },
+                },
+            },
+        ] as never);
+        const item = baseItem();
+        if (item.latestFinding) {
+            item.latestFinding.targetRefs = [
+                {
+                    type: 'metric',
+                    modelName: 'additional__orders',
+                    metricName: 'average_order_size',
+                },
+            ];
+        }
+
+        const plan = expectPromptPlan(planReviewWriteback(item, targets));
+
+        expect(targets.get('additional__orders')).toEqual({
+            ymlPath: 'models/orders.yml',
+            dbtSourceUuid: '00000000-0000-0000-0000-000000000002',
+        });
+        expect(plan).toMatchObject({
+            dbtSourceUuid: '00000000-0000-0000-0000-000000000002',
+        });
+        expect(plan.promptText).toContain(
+            'metric "additional__orders.average_order_size" (yaml: models/orders.yml)',
+        );
     });
 
     it('builds a prompt from a manual semantic-layer issue', () => {

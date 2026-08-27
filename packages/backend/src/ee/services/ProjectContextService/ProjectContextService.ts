@@ -5,6 +5,7 @@ import {
     ForbiddenError,
     loadProjectContextFile,
     NotFoundError,
+    ParameterError,
     ParseError,
     persistedAiAgentJudgeProjectContextEntrySchema,
     type AiAgentJudgeProjectContextEntry,
@@ -291,6 +292,7 @@ export class ProjectContextService extends BaseService {
     async writebackEntry(args: {
         user: SessionUser;
         projectUuid: string;
+        dbtSourceUuid?: string;
         entry: AiAgentJudgeProjectContextEntry;
         branchTimestamp: number;
         // The agent thread that motivated this entry, linked from the PR body
@@ -302,6 +304,16 @@ export class ProjectContextService extends BaseService {
         } | null;
     }): Promise<ProjectContextWritebackResult> {
         const entry = parseWritebackEntry(args.entry);
+        if (args.dbtSourceUuid) {
+            const identity = await this.projectModel.getDbtSourceIdentity(
+                args.projectUuid,
+            );
+            if (args.dbtSourceUuid !== identity.dbtSourceUuid) {
+                throw new ParameterError(
+                    'Project context writeback currently supports only the primary dbt source',
+                );
+            }
+        }
         const access = await this.resolveGithubAccess(
             args.user,
             args.projectUuid,

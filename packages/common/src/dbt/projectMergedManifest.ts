@@ -26,6 +26,7 @@ const MODEL_FIELDS = [
     'language',
     'depends_on',
     'lightdash_source_name',
+    'lightdash_source_uuid',
 ] as const;
 
 const COLUMN_FIELDS = [
