@@ -1,6 +1,5 @@
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import reactPlugin from '@vitejs/plugin-react';
-import { appendFileSync } from 'node:fs';
 import * as path from 'path';
 import { compression } from 'vite-plugin-compression2';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
@@ -25,52 +24,6 @@ export default defineConfig({
             process.env.REACT_QUERY_DEVTOOLS_ENABLED ?? true,
     },
     plugins: [
-        {
-            name: 'cursor-debug-log',
-            configureServer(server) {
-                server.middlewares.use(
-                    '/__cursor-debug-log',
-                    (request, response, next) => {
-                        if (request.method !== 'POST') {
-                            next();
-                            return;
-                        }
-
-                        let body = '';
-                        request.setEncoding('utf8');
-                        request.on('data', (chunk) => {
-                            body += chunk;
-                        });
-                        request.on('end', () => {
-                            try {
-                                const payload = JSON.parse(body) as Record<
-                                    string,
-                                    unknown
-                                >;
-                                const safePayload = {
-                                    hypothesisId: payload.hypothesisId,
-                                    location: payload.location,
-                                    message: payload.message,
-                                    data: payload.data,
-                                    timestamp: payload.timestamp,
-                                };
-                                // #region agent log
-                                appendFileSync(
-                                    '/opt/cursor/logs/debug.log',
-                                    `${JSON.stringify(safePayload)}\n`,
-                                );
-                                // #endregion
-                                response.statusCode = 204;
-                                response.end();
-                            } catch {
-                                response.statusCode = 400;
-                                response.end();
-                            }
-                        });
-                    },
-                );
-            },
-        },
         buildHashPlugin(),
         compression({
             include: [/\.(js)$/, /\.(css)$/],
