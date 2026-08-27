@@ -184,6 +184,9 @@ export class HealthService extends BaseService {
             hasGitlab:
                 this.lightdashConfig.gitlab.clientId !== undefined &&
                 this.lightdashConfig.gitlab.clientSecret !== undefined,
+            hasLinear:
+                this.lightdashConfig.linear.clientId !== undefined && // pragma: allowlist secret
+                this.lightdashConfig.linear.clientSecret !== undefined, // pragma: allowlist secret
             auth: {
                 disablePasswordAuthentication:
                     this.lightdashConfig.auth.disablePasswordAuthentication,

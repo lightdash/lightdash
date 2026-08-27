@@ -4,9 +4,12 @@ import {
     DimensionType,
     MetricType,
     TableCalculationType,
+    type CustomFormat,
     type Item,
+    type NumberSeparator,
 } from './field';
 import { type AdditionalMetric } from './metricQuery';
+import { type TimeFrames } from './timeFrames';
 
 export type ResultValue = {
     raw: unknown;
@@ -71,9 +74,45 @@ export function convertItemTypeToDimensionType(
     }
 }
 
+export type ResultColumnProvenance = {
+    /** Key into the query's fields map (query_history.fields). */
+    fieldId: string;
+    /**
+     * Which query in a multi-source pipeline the field belongs to. Omitted
+     * for single-query results. Two composer nodes can both expose the same
+     * field name, so a bare fieldId is ambiguous across sources.
+     */
+    sourceQueryUuid?: string;
+};
+
 export type ResultColumn = {
     reference: string;
     type: DimensionType; // Lightdash simple type. In the future, we might introduce the warehouse type as well, which provides more detail.
+    /** Display label. Absent ⇒ consumers fall back to the reference. */
+    label?: string;
+    /**
+     * Lightdash format expression: ECMA-376 with in-repo extensions (IEC
+     * bytes, tz-shift for date expressions). MUST be rendered with
+     * formatValueWithExpression, never raw numfmt.
+     */
+    format?: string;
+    /** The expression cannot encode locale — carried beside it, mirroring
+     *  Field.separator / getFieldFormatOverrideProps. */
+    separator?: NumberSeparator;
+    /** Escape hatch for the non-expressible formats: Compact.AUTO and
+     *  negative round (magnitude rounding). Mirrors getFieldFormatOverrideProps. */
+    formatOptions?: CustomFormat;
+    /** Temporal grain. Required for QUARTER (no ECMA-376 token) and for
+     *  export paths (GSheets) that branch on grain. */
+    timeInterval?: TimeFrames;
+    /** Resolved output of getFormatterTimezone: whether values shift into the
+     *  display timezone. Saves consumers from needing skipTimezoneConversion /
+     *  baseDimensionType. */
+    shiftsTimezone?: boolean;
+    /** Absent ⇒ no semantic field behind this column (computed DuckDB column,
+     *  raw SQL column, table calc, join key). Absence gates interaction
+     *  capabilities (drill, underlying data, URLs) off — by design. */
+    provenance?: ResultColumnProvenance;
 };
 
 export type ResultColumns = Record<string, ResultColumn>;

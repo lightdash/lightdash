@@ -1,3 +1,89 @@
+# [2.21.0](https://github.com/lightdash/lightdash/compare/2.20.0...2.21.0) (2026-08-27)
+
+
+### Features
+
+* **integrations:** add Linear OAuth on the integrations page ([#27992](https://github.com/lightdash/lightdash/issues/27992)) ([54c0f4a](https://github.com/lightdash/lightdash/commit/54c0f4a3bbb8781062c20633cf2bcecd4f2e12a1))
+
+# [2.20.0](https://github.com/lightdash/lightdash/compare/2.19.0...2.20.0) (2026-08-27)
+
+
+### Features
+
+* **backend:** record last-applied content-as-code snapshot on upload ([#27995](https://github.com/lightdash/lightdash/issues/27995)) ([36cdbb6](https://github.com/lightdash/lightdash/commit/36cdbb6a8c5898745cc04bb5ece375e81373b480))
+
+# [2.19.0](https://github.com/lightdash/lightdash/compare/2.18.2...2.19.0) (2026-08-27)
+
+
+### Bug Fixes
+
+* **cli:** restore --show-chart-configuration-warnings as deprecated alias ([#28162](https://github.com/lightdash/lightdash/issues/28162)) ([bbb1e20](https://github.com/lightdash/lightdash/commit/bbb1e20b2c68b143925047f8eb38a4b974329455))
+
+
+### Features
+
+* **embed:** emit event when chart is saved ([#28160](https://github.com/lightdash/lightdash/issues/28160)) ([f485846](https://github.com/lightdash/lightdash/commit/f48584654e8e917cfe39885ce99e56c806dea1e8))
+
+## [2.18.2](https://github.com/lightdash/lightdash/compare/2.18.1...2.18.2) (2026-08-27)
+
+
+### Bug Fixes
+
+* **embed:** preserve custom SQL chart provenance ([#28139](https://github.com/lightdash/lightdash/issues/28139)) ([f2d959d](https://github.com/lightdash/lightdash/commit/f2d959d927626ebd03480e87b7d302b00aaf55f6))
+
+## [2.18.1](https://github.com/lightdash/lightdash/compare/2.18.0...2.18.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **dbt:** support package-qualified Mesh explores ([#28125](https://github.com/lightdash/lightdash/issues/28125)) ([3f37509](https://github.com/lightdash/lightdash/commit/3f37509a72d01b158651c21a8141a010be7bfc17))
+
+# [2.18.0](https://github.com/lightdash/lightdash/compare/2.17.1...2.18.0) (2026-08-26)
+
+
+### Features
+
+* **dashboards:** assign and manage dashboard owners ([#28148](https://github.com/lightdash/lightdash/issues/28148)) ([667355e](https://github.com/lightdash/lightdash/commit/667355e028d59a691aa4989fbf1d34167141f177))
+
+## [2.17.1](https://github.com/lightdash/lightdash/compare/2.17.0...2.17.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* **data-apps:** pass sandbox environments separately ([#28151](https://github.com/lightdash/lightdash/issues/28151)) ([4f04bb2](https://github.com/lightdash/lightdash/commit/4f04bb219204d2ebc1b5d775c4fe748696d63566))
+
+# [2.17.0](https://github.com/lightdash/lightdash/compare/2.16.0...2.17.0) (2026-08-26)
+
+
+### Bug Fixes
+
+* keep builder status label on one line for long prompts ([#28140](https://github.com/lightdash/lightdash/issues/28140)) ([e787331](https://github.com/lightdash/lightdash/commit/e78733146dab6dba88cf816f881b028352414011))
+
+
+### Features
+
+* **dashboards:** include grant-covered charts in dashboard filters ([#28124](https://github.com/lightdash/lightdash/issues/28124)) ([932a1a5](https://github.com/lightdash/lightdash/commit/932a1a52629954200872e0975d235628aeab456f))
+
+# [2.16.0](https://github.com/lightdash/lightdash/compare/2.15.0...2.16.0) (2026-08-26)
+
+
+### Features
+
+* **common:** enrich ResultColumn type and fix format-expression converter gaps ([#27968](https://github.com/lightdash/lightdash/issues/27968)) ([738db02](https://github.com/lightdash/lightdash/commit/738db0243e7db31f796d941b2df4aa794c510d9e)), closes [#0](https://github.com/lightdash/lightdash/issues/0)
+* **dashboards:** let dashboard grants edit their owned charts ([#28123](https://github.com/lightdash/lightdash/issues/28123)) ([fdf9fe3](https://github.com/lightdash/lightdash/commit/fdf9fe3e5c9672fd1d39f772101b5edcd14d5ccc)), closes [#28122](https://github.com/lightdash/lightdash/issues/28122)
+
+# [2.15.0](https://github.com/lightdash/lightdash/compare/2.14.0...2.15.0) (2026-08-26)
+
+
+### Bug Fixes
+
+* normalize warehouse credentials on write and guard snowflake timeout SQL ([#27970](https://github.com/lightdash/lightdash/issues/27970)) ([17a3960](https://github.com/lightdash/lightdash/commit/17a396034d26a3b880aab83e636068a7f412dfd7))
+
+
+### Features
+
+* **dashboards:** route dashboard-owned charts through direct grants ([#28122](https://github.com/lightdash/lightdash/issues/28122)) ([1b8c2ca](https://github.com/lightdash/lightdash/commit/1b8c2cabe004e8108e3fe23cddcc6eac48540747))
+
 # [2.14.0](https://github.com/lightdash/lightdash/compare/2.13.2...2.14.0) (2026-08-26)
 
 

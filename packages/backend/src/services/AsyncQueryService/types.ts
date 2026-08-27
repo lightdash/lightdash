@@ -94,6 +94,7 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;
     dataAppPreviewToken?: string;
+    customSqlProvenanceChartUuid?: UUID;
     dateZoom?: DateZoom;
     pivotConfiguration?: PivotConfiguration;
     materializationRole?: UserAccessControls;

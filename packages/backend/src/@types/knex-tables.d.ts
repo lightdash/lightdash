@@ -35,6 +35,10 @@ import {
     DashboardTileCommentsTableName,
 } from '../database/entities/comments';
 import {
+    ContentAsCodeSnapshotsTableName,
+    ContentAsCodeSnapshotTable,
+} from '../database/entities/contentAsCodeSnapshots';
+import {
     ContentVerificationTable,
     ContentVerificationTableName,
 } from '../database/entities/contentVerification';
@@ -129,6 +133,10 @@ import {
     JobStepsTable,
     JobStepsTableName,
 } from '../database/entities/jobs';
+import {
+    LinearAppInstallationTable,
+    LinearAppInstallationTableName,
+} from '../database/entities/linearAppInstallation';
 import {
     NotificationsTable,
     NotificationsTableName,
@@ -665,6 +673,7 @@ declare module 'knex/types/tables' {
         [DownloadAuditTableName]: DownloadAuditTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [GitlabAppInstallationTableName]: GitlabAppInstallationTable;
+        [LinearAppInstallationTableName]: LinearAppInstallationTable;
         [GitUserCredentialsTableName]: GitUserCredentialsTable;
         [UserOAuthGrantsTableName]: UserOAuthGrantsTable;
         [PullRequestsTableName]: PullRequestsTable;
@@ -752,6 +761,7 @@ declare module 'knex/types/tables' {
         [ManagedAgentRunsTableName]: ManagedAgentRunsTable;
         [ManagedAgentProtectionsTableName]: ManagedAgentProtectionsTable;
         [UserFavoritesTableName]: UserFavoritesTable;
+        [ContentAsCodeSnapshotsTableName]: ContentAsCodeSnapshotTable;
         [ContentVerificationTableName]: ContentVerificationTable;
         [AppsTableName]: AppsTable;
         [AppVersionsTableName]: AppVersionsTable;

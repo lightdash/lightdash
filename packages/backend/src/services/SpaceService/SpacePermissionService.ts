@@ -277,6 +277,90 @@ export class SpacePermissionService extends BaseService {
         );
     }
 
+    /**
+     * Batched getDashboardAccessContext for hot paths that resolve many
+     * (dashboard, space) refs at once: one space-context batch, one gate
+     * check, and one grant lookup. Returns contexts aligned with the input;
+     * undefined where the space context could not be resolved. Anything
+     * doubtful (missing grant, organization mismatch, dashboard not in the
+     * given space) degrades to the space-only context — never to more
+     * access.
+     */
+    async getDashboardsAccessContext(
+        userUuid: string,
+        dashboards: { uuid: string | null; spaceUuid: string }[],
+    ): Promise<(DashboardAccessContextForCasl | undefined)[]> {
+        const uniqueSpaceUuids = [
+            ...new Set(dashboards.map((ref) => ref.spaceUuid)),
+        ];
+        const spaceContexts = await this.getSpacesAccessContext(
+            userUuid,
+            uniqueSpaceUuids,
+        );
+        const spaceOnly = (ref: {
+            spaceUuid: string;
+        }): DashboardAccessContextForCasl | undefined => {
+            const ctx = spaceContexts[ref.spaceUuid];
+            return ctx ? { ...ctx, directOnly: false } : undefined;
+        };
+
+        const dashboardUuids = [
+            ...new Set(
+                dashboards.flatMap((ref) =>
+                    ref.uuid !== null && spaceContexts[ref.spaceUuid]
+                        ? [ref.uuid]
+                        : [],
+                ),
+            ),
+        ];
+        const organizationUuid = dashboards
+            .map((ref) => spaceContexts[ref.spaceUuid]?.organizationUuid)
+            .find((uuid) => uuid !== undefined);
+        if (
+            dashboardUuids.length === 0 ||
+            organizationUuid === undefined ||
+            !(await this.directAccessFeatureGate.isEnabledForUser({
+                userUuid,
+                organizationUuid,
+            }))
+        ) {
+            return dashboards.map(spaceOnly);
+        }
+
+        const grants = await this.dashboardAccessModel.getUserAccess(
+            dashboardUuids,
+            userUuid,
+            { organizationUuid },
+        );
+        return dashboards.map((ref) => {
+            const spaceContext = spaceContexts[ref.spaceUuid];
+            if (spaceContext === undefined || ref.uuid === null) {
+                return spaceOnly(ref);
+            }
+            const grant = grants[ref.uuid];
+            if (grant === undefined) {
+                return spaceOnly(ref);
+            }
+            const grantRoles = [
+                ...(grant.userRole ? [grant.userRole] : []),
+                ...grant.groupRoles,
+            ];
+            if (
+                grantRoles.length === 0 ||
+                grant.spaceUuid !== ref.spaceUuid ||
+                spaceContext.organizationUuid !== organizationUuid
+            ) {
+                return spaceOnly(ref);
+            }
+            return SpacePermissionService.withGrantAccess(
+                spaceContext,
+                userUuid,
+                grantRoles,
+                'dashboard',
+            );
+        });
+    }
+
     private static withGrantAccess(
         spaceContext: SpaceAccessContextForCasl,
         userUuid: string,

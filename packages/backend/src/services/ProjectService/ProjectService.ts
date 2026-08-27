@@ -162,6 +162,7 @@ import {
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
     normalizeIndexColumns,
+    normalizeWarehouseCredentials,
     NotFoundError,
     OpenIdIdentityIssuerType,
     ParameterError,
@@ -247,6 +248,7 @@ import {
     type ParametersValuesMap,
     type RunQueryTags,
     type Tag,
+    type UUID,
     type WarehouseLocation,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
@@ -344,6 +346,7 @@ import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
+import { type PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     doesExploreMatchRequiredAttributes,
@@ -424,6 +427,7 @@ export type ProjectServiceArguments = {
     organizationModel: OrganizationModel;
     projectCompileLogModel: ProjectCompileLogModel;
     adminNotificationService: AdminNotificationService;
+    permissionsService: PermissionsService;
     spacePermissionService: SpacePermissionService;
     natsClient?: INatsClient;
     contentVerificationModel?: ContentVerificationModel;
@@ -564,6 +568,8 @@ export class ProjectService extends BaseService {
 
     adminNotificationService: AdminNotificationService;
 
+    permissionsService: PermissionsService;
+
     spacePermissionService: SpacePermissionService;
 
     contentVerificationModel: ContentVerificationModel | undefined;
@@ -630,6 +636,7 @@ export class ProjectService extends BaseService {
         organizationWarehouseCredentialsModel,
         organizationModel,
         adminNotificationService,
+        permissionsService,
         spacePermissionService,
         contentVerificationModel,
         organizationSettingsModel,
@@ -679,6 +686,7 @@ export class ProjectService extends BaseService {
             organizationWarehouseCredentialsModel;
         this.organizationModel = organizationModel;
         this.adminNotificationService = adminNotificationService;
+        this.permissionsService = permissionsService;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
         this.organizationSettingsModel = organizationSettingsModel;
@@ -1456,7 +1464,15 @@ export class ProjectService extends BaseService {
             warehouseConnection: CreateWarehouseCredentials;
             organizationWarehouseCredentialsUuid?: string;
         },
-    >(args: T, userUuid: string, organizationUuid: string): Promise<T> {
+    >(rawArgs: T, userUuid: string, organizationUuid: string): Promise<T> {
+        // Normalize submitted credentials so in-flight connection tests and
+        // compiles never see legacy values that violate the credentials types
+        const args: T = {
+            ...rawArgs,
+            warehouseConnection: normalizeWarehouseCredentials(
+                rawArgs.warehouseConnection,
+            ),
+        };
         // If using organization credentials, load them from the organization table
         const organizationWarehouseCredentialsUuid =
             args.organizationWarehouseCredentialsUuid ||
@@ -5081,8 +5097,11 @@ export class ProjectService extends BaseService {
      * A caller who lacks the scope may still run SQL that is byte-identical to SQL
      * already persisted in a saved chart they can view (same project + explore), so
      * editors can re-run and filter existing saved charts in Explore edit mode
-     * without gaining authoring rights. The exemption is only granted to registered
-     * users, never to JWT/embed callers.
+     * without gaining authoring rights. That general exemption is only granted to
+     * registered users. Embedded Explore has a narrower path: it may use only the
+     * current SQL from the exact saved chart it was opened from, after the backend
+     * verifies that the chart is part of the dashboard (or standalone chart)
+     * authorized by the JWT.
      */
     protected async assertCustomSqlAuthorizedForQuery({
         account,
@@ -5091,9 +5110,10 @@ export class ProjectService extends BaseService {
         exploreName,
         metricQuery,
         dataAppPreviewToken,
+        customSqlProvenanceChartUuid,
     }: {
         account: Account;
-        projectUuid: string;
+        projectUuid: UUID;
         organizationUuid: string;
         exploreName: string;
         metricQuery: Pick<
@@ -5101,6 +5121,7 @@ export class ProjectService extends BaseService {
             'tableCalculations' | 'customDimensions' | 'additionalMetrics'
         >;
         dataAppPreviewToken?: string;
+        customSqlProvenanceChartUuid?: UUID;
     }): Promise<void> {
         const sqlTableCalculations = (
             metricQuery.tableCalculations ?? []
@@ -5162,7 +5183,6 @@ export class ProjectService extends BaseService {
         let viewableCustomDimensionKeys = new Set<string>();
         let viewableAdditionalMetricKeys = new Set<string>();
         // The provenance exemption trusts saved-chart SQL the caller can view.
-        // Never extend it to JWT/embed callers.
         if (account.isRegisteredUser()) {
             const provenance =
                 await this.savedChartModel.findCustomSqlProvenance({
@@ -5241,6 +5261,31 @@ export class ProjectService extends BaseService {
             }
             for (const key of appProvenance?.additionalMetrics ?? []) {
                 viewableAdditionalMetricKeys.add(key);
+            }
+        } else if (
+            isJwtUser(account) &&
+            customSqlProvenanceChartUuid !== undefined
+        ) {
+            await this.permissionsService.checkEmbedPermissions(
+                account,
+                customSqlProvenanceChartUuid,
+            );
+            const provenance =
+                await this.savedChartModel.getCustomSqlProvenanceForChart({
+                    projectUuid,
+                    savedChartUuid: customSqlProvenanceChartUuid,
+                });
+
+            if (provenance.exploreName === exploreName) {
+                viewableTableCalculationSqls = new Set(
+                    provenance.tableCalculations.map((tc) => tc.sql),
+                );
+                viewableCustomDimensionKeys = new Set(
+                    provenance.customSqlDimensions.map(getCustomSqlFieldKey),
+                );
+                viewableAdditionalMetricKeys = new Set(
+                    provenance.additionalMetrics.map(getCustomSqlFieldKey),
+                );
             }
         }
 
@@ -9721,9 +9766,12 @@ export class ProjectService extends BaseService {
                     ]);
 
                 const spaceCtx =
-                    await this.spacePermissionService.getSpaceAccessContext(
+                    await this.spacePermissionService.getDashboardAccessContext(
                         account.user.id,
-                        savedChart.spaceUuid,
+                        {
+                            uuid: savedChart.dashboardUuid,
+                            spaceUuid: savedChart.spaceUuid,
+                        },
                     );
 
                 const auditedAbility = this.createAuditedAbility(account);
@@ -9785,18 +9833,18 @@ export class ProjectService extends BaseService {
                     await this.savedChartModel.getInfoForAvailableFilters(
                         savedQueryUuids,
                     );
-                const uniqueSpaceUuids = [
-                    ...new Set(savedCharts.map((chart) => chart.spaceUuid)),
-                ];
 
                 if (savedCharts.length === 0) {
                     return [];
                 }
 
-                const [spacesCtx, exploresMap] = await Promise.all([
-                    this.spacePermissionService.getSpacesAccessContext(
+                const [chartContexts, exploresMap] = await Promise.all([
+                    this.spacePermissionService.getDashboardsAccessContext(
                         account.user.id,
-                        uniqueSpaceUuids,
+                        savedCharts.map((chart) => ({
+                            uuid: chart.dashboardUuid,
+                            spaceUuid: chart.spaceUuid,
+                        })),
                     ),
                     this.findExplores({
                         account,
@@ -9809,8 +9857,8 @@ export class ProjectService extends BaseService {
                 ]);
 
                 const chartsWithSpaceContext = savedCharts.flatMap(
-                    (savedChart) => {
-                        const spaceCtx = spacesCtx[savedChart.spaceUuid];
+                    (savedChart, index) => {
+                        const spaceCtx = chartContexts[index];
                         return spaceCtx ? [{ savedChart, spaceCtx }] : [];
                     },
                 );

@@ -99,6 +99,7 @@ import {
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 import { ProjectService } from './ProjectService';
@@ -285,6 +286,7 @@ const onboardingModel = {
 const savedChartModel = {
     getAllSpaces: vi.fn(async () => spacesWithSavedCharts),
     find: vi.fn(async () => [] as ChartSummary[]),
+    getCustomSqlProvenanceForChart: vi.fn(),
     findCustomSqlProvenance: vi.fn(async () => ({
         tableCalculations: [] as { sql: string; spaceUuid: string }[],
         customSqlDimensions: [] as {
@@ -298,6 +300,9 @@ const savedChartModel = {
             spaceUuid: string;
         }[],
     })),
+};
+const dashboardModel = {
+    savedChartExistsInDashboard: vi.fn(async () => false),
 };
 const jobModel = {
     get: vi.fn(async () => job),
@@ -414,7 +419,7 @@ const getMockedProjectService = (
             userAttributesModel as unknown as UserAttributesModel,
         s3CacheClient: {} as S3CacheClient,
         analyticsModel: {} as AnalyticsModel,
-        dashboardModel: {} as DashboardModel,
+        dashboardModel: dashboardModel as unknown as DashboardModel,
         userWarehouseCredentialsModel: {
             findForProjectWithSecrets: vi.fn(async () => undefined),
         } as unknown as UserWarehouseCredentialsModel,
@@ -466,6 +471,9 @@ const getMockedProjectService = (
         adminNotificationService: {
             notifyConnectionSettingsChange: vi.fn(async () => undefined),
         } as unknown as AdminNotificationService,
+        permissionsService: new PermissionsService({
+            dashboardModel: dashboardModel as unknown as DashboardModel,
+        }),
         spacePermissionService:
             overrides.spacePermissionService ?? ({} as SpacePermissionService),
         provisionPlaygroundProject: overrides.provisionPlaygroundProject,
@@ -6118,6 +6126,7 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
         organizationUuid: string;
         exploreName: string;
         dataAppPreviewToken?: string;
+        customSqlProvenanceChartUuid?: string;
         metricQuery: {
             tableCalculations?: (typeof sqlTableCalculation)[];
             customDimensions?: (typeof sqlCustomDimension)[];
@@ -6185,6 +6194,27 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
         ],
         { accountType: 'jwt', userType: 'anonymous' },
     );
+    const dashboardUuid = 'embedded-dashboard-uuid';
+    const chartUuid = 'embedded-chart-uuid';
+    const dashboardEmbed = {
+        projectUuid,
+        allowAllDashboards: false,
+        dashboardUuids: [dashboardUuid],
+        allowAllCharts: false,
+        chartUuids: [],
+    };
+    const dashboardJwtAccount = {
+        ...jwtAccount,
+        access: {
+            content: {
+                type: 'dashboard',
+                dashboardUuid,
+                chartUuids: [],
+                explores: [exploreName],
+            },
+        },
+        embed: dashboardEmbed,
+    } as unknown as ReturnType<typeof buildAccount>;
 
     const spacePermissionService = {
         getSpaceAccessContext: vi.fn(async () => ({
@@ -6226,6 +6256,9 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
             customSqlDimensions: [],
             additionalMetrics: [],
         });
+        savedChartModel.getCustomSqlProvenanceForChart.mockReset();
+        dashboardModel.savedChartExistsInDashboard.mockReset();
+        dashboardModel.savedChartExistsInDashboard.mockResolvedValue(false);
     });
 
     it('resolves and skips the provenance lookup when there is no custom SQL', async () => {
@@ -6439,6 +6472,183 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
             }),
         ).rejects.toThrow(ForbiddenError);
         expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
+    });
+
+    it('allows current custom SQL from a chart on the embedded dashboard', async () => {
+        dashboardModel.savedChartExistsInDashboard.mockResolvedValue(true);
+        savedChartModel.getCustomSqlProvenanceForChart.mockResolvedValue({
+            exploreName,
+            tableCalculations: [sqlTableCalculation],
+            customSqlDimensions: [sqlCustomDimension],
+            additionalMetrics: [sqlAdditionalMetric],
+        });
+
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: dashboardJwtAccount,
+                customSqlProvenanceChartUuid: chartUuid,
+                metricQuery: {
+                    tableCalculations: [sqlTableCalculation],
+                    customDimensions: [sqlCustomDimension],
+                    additionalMetrics: [sqlAdditionalMetric],
+                },
+            }),
+        ).resolves.toBeUndefined();
+        expect(dashboardModel.savedChartExistsInDashboard).toHaveBeenCalledWith(
+            projectUuid,
+            dashboardUuid,
+            chartUuid,
+        );
+        expect(
+            savedChartModel.getCustomSqlProvenanceForChart,
+        ).toHaveBeenCalledWith({
+            projectUuid,
+            savedChartUuid: chartUuid,
+        });
+    });
+
+    it('rejects substituted SQL from an otherwise authorized embedded chart', async () => {
+        dashboardModel.savedChartExistsInDashboard.mockResolvedValue(true);
+        savedChartModel.getCustomSqlProvenanceForChart.mockResolvedValue({
+            exploreName,
+            tableCalculations: [],
+            customSqlDimensions: [
+                { ...sqlCustomDimension, sql: 'persisted SQL' },
+            ],
+            additionalMetrics: [],
+        });
+
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: dashboardJwtAccount,
+                customSqlProvenanceChartUuid: chartUuid,
+                metricQuery: { customDimensions: [sqlCustomDimension] },
+            }),
+        ).rejects.toThrow(CustomSqlQueryForbiddenError);
+    });
+
+    it('rejects custom SQL from a chart outside the embedded dashboard', async () => {
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: dashboardJwtAccount,
+                customSqlProvenanceChartUuid: chartUuid,
+                metricQuery: { customDimensions: [sqlCustomDimension] },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            savedChartModel.getCustomSqlProvenanceForChart,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('rejects provenance when the dashboard is not on the embed allowlist', async () => {
+        const dashboardNotAllowlistedAccount = {
+            ...dashboardJwtAccount,
+            embed: {
+                ...dashboardEmbed,
+                dashboardUuids: [],
+            },
+        } as unknown as typeof dashboardJwtAccount;
+
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: dashboardNotAllowlistedAccount,
+                customSqlProvenanceChartUuid: chartUuid,
+                metricQuery: { customDimensions: [sqlCustomDimension] },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            dashboardModel.savedChartExistsInDashboard,
+        ).not.toHaveBeenCalled();
+        expect(
+            savedChartModel.getCustomSqlProvenanceForChart,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('rejects provenance from a chart on a different explore', async () => {
+        dashboardModel.savedChartExistsInDashboard.mockResolvedValue(true);
+        savedChartModel.getCustomSqlProvenanceForChart.mockResolvedValue({
+            exploreName: 'another_explore',
+            tableCalculations: [],
+            customSqlDimensions: [sqlCustomDimension],
+            additionalMetrics: [],
+        });
+
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: dashboardJwtAccount,
+                customSqlProvenanceChartUuid: chartUuid,
+                metricQuery: { customDimensions: [sqlCustomDimension] },
+            }),
+        ).rejects.toThrow(CustomSqlQueryForbiddenError);
+    });
+
+    it('allows current custom SQL from a chart-scoped embed token', async () => {
+        const chartJwtAccount = {
+            ...jwtAccount,
+            access: {
+                content: {
+                    type: 'chart',
+                    chartUuids: [chartUuid],
+                    explores: [exploreName],
+                },
+            },
+            embed: {
+                ...dashboardEmbed,
+                dashboardUuids: [],
+                chartUuids: [chartUuid],
+            },
+        } as unknown as ReturnType<typeof buildAccount>;
+        savedChartModel.getCustomSqlProvenanceForChart.mockResolvedValue({
+            exploreName,
+            tableCalculations: [],
+            customSqlDimensions: [sqlCustomDimension],
+            additionalMetrics: [],
+        });
+
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: chartJwtAccount,
+                customSqlProvenanceChartUuid: chartUuid,
+                metricQuery: { customDimensions: [sqlCustomDimension] },
+            }),
+        ).resolves.toBeUndefined();
+    });
+
+    it('rejects a globally embedded chart not authorized by the chart token', async () => {
+        const otherChartUuid = 'another-embedded-chart-uuid';
+        const chartJwtAccount = {
+            ...jwtAccount,
+            access: {
+                content: {
+                    type: 'chart',
+                    chartUuids: [chartUuid],
+                    explores: [exploreName],
+                },
+            },
+            embed: {
+                ...dashboardEmbed,
+                dashboardUuids: [],
+                chartUuids: [chartUuid, otherChartUuid],
+            },
+        } as unknown as ReturnType<typeof buildAccount>;
+
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: chartJwtAccount,
+                customSqlProvenanceChartUuid: otherChartUuid,
+                metricQuery: { customDimensions: [sqlCustomDimension] },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            savedChartModel.getCustomSqlProvenanceForChart,
+        ).not.toHaveBeenCalled();
     });
 
     // --- additional metrics (PR2) ---

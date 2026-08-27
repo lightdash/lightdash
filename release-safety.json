@@ -1,14 +1,29 @@
 {
   "schemaVersion": "2",
-  "version": "2.14.0",
-  "previousVersion": "2.13.2",
-  "releaseDate": "2026-08-26T16:01:00.276Z",
+  "version": "2.21.0",
+  "previousVersion": "2.20.0",
+  "releaseDate": "2026-08-27T09:18:28.927Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260825140000_add_linear_app_installations_table.ts",
+        "edition": "core",
+        "tables": [
+          "linear_app_installations",
+          "organizations",
+          "users"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

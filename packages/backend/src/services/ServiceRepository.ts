@@ -45,6 +45,7 @@ import { HeadlessBrowserService } from './HeadlessBrowserService';
 import { HealthService } from './HealthService/HealthService';
 import { LicenseService } from './LicenseService/LicenseService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
+import { LinearAppService } from './LinearAppService/LinearAppService';
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OAuthService } from './OAuthService/OAuthService';
@@ -106,6 +107,7 @@ interface ServiceManifest {
     pullRequestsService: PullRequestsService;
     githubAppService: GithubAppService;
     gitlabAppService: GitlabAppService;
+    linearAppService: LinearAppService;
     gdriveService: GdriveService;
     groupService: GroupsService;
     headlessBrowserService: HeadlessBrowserService;
@@ -556,6 +558,20 @@ export class ServiceRepository
         );
     }
 
+    public getLinearAppService(): LinearAppService {
+        return this.getService(
+            'linearAppService',
+            () =>
+                new LinearAppService({
+                    linearAppInstallationsModel:
+                        this.models.getLinearAppInstallationsModel(),
+                    userModel: this.models.getUserModel(),
+                    lightdashConfig: this.context.lightdashConfig, // pragma: allowlist secret
+                    analytics: this.context.lightdashAnalytics, // pragma: allowlist secret
+                }),
+        );
+    }
+
     public getGdriveService(): GdriveService {
         return this.getService(
             'gdriveService',
@@ -873,6 +889,7 @@ export class ServiceRepository
                         this.models.getProjectCompileLogModel(),
                     adminNotificationService:
                         this.getAdminNotificationService(),
+                    permissionsService: this.getPermissionsService(),
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
@@ -1280,6 +1297,8 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     promoteService: this.getPromoteService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    contentAsCodeSnapshotModel:
+                        this.models.getContentAsCodeSnapshotModel(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                     projectService: this.getProjectService(),

@@ -93,6 +93,7 @@ describe('buildQueryArgs', () => {
             parameters: undefined,
             isEditMode: true,
             minimal: false,
+            customSqlProvenanceChartUuid: 'chart-uuid',
             savedChart,
         });
 
@@ -104,6 +105,7 @@ describe('buildQueryArgs', () => {
         expect(result).toEqual(
             expect.objectContaining({
                 pivotConfiguration,
+                customSqlProvenanceChartUuid: 'chart-uuid',
                 query: expect.objectContaining({
                     pivotDimensions: ['orders_status'],
                 }),

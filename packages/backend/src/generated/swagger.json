@@ -4675,6 +4675,11 @@
                                 "type": "boolean",
                                 "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
                             },
+                            "ownerEmail": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Declarative dashboard owner, referenced by email so it is portable across projects.\nA string assigns the organization member with that email as owner, `null` unassigns\nthe owner, `undefined` leaves the current owner untouched. Download sets this to the\nowner's email when an owner is assigned."
+                            },
                             "filters": {
                                 "properties": {
                                     "tableCalculations": {
@@ -5520,8 +5525,50 @@
                 "enum": ["virtual_view"],
                 "type": "string"
             },
+            "ResultColumnProvenance": {
+                "properties": {
+                    "sourceQueryUuid": {
+                        "type": "string",
+                        "description": "Which query in a multi-source pipeline the field belongs to. Omitted\nfor single-query results. Two composer nodes can both expose the same\nfield name, so a bare fieldId is ambiguous across sources."
+                    },
+                    "fieldId": {
+                        "type": "string",
+                        "description": "Key into the query's fields map (query_history.fields)."
+                    }
+                },
+                "required": ["fieldId"],
+                "type": "object"
+            },
             "ResultColumn": {
                 "properties": {
+                    "provenance": {
+                        "$ref": "#/components/schemas/ResultColumnProvenance",
+                        "description": "Absent ⇒ no semantic field behind this column (computed DuckDB column,\nraw SQL column, table calc, join key). Absence gates interaction\ncapabilities (drill, underlying data, URLs) off — by design."
+                    },
+                    "shiftsTimezone": {
+                        "type": "boolean",
+                        "description": "Resolved output of getFormatterTimezone: whether values shift into the\ndisplay timezone. Saves consumers from needing skipTimezoneConversion /\nbaseDimensionType."
+                    },
+                    "timeInterval": {
+                        "$ref": "#/components/schemas/TimeFrames",
+                        "description": "Temporal grain. Required for QUARTER (no ECMA-376 token) and for\nexport paths (GSheets) that branch on grain."
+                    },
+                    "formatOptions": {
+                        "$ref": "#/components/schemas/CustomFormat",
+                        "description": "Escape hatch for the non-expressible formats: Compact.AUTO and\nnegative round (magnitude rounding). Mirrors getFieldFormatOverrideProps."
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator",
+                        "description": "The expression cannot encode locale — carried beside it, mirroring\nField.separator / getFieldFormatOverrideProps."
+                    },
+                    "format": {
+                        "type": "string",
+                        "description": "Lightdash format expression: ECMA-376 with in-repo extensions (IEC\nbytes, tz-shift for date expressions). MUST be rendered with\nformatValueWithExpression, never raw numfmt."
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "Display label. Absent ⇒ consumers fall back to the reference."
+                    },
                     "type": {
                         "$ref": "#/components/schemas/DimensionType"
                     },
@@ -7444,6 +7491,25 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "DashboardOwner": {
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["email", "lastName", "firstName", "userUuid"],
+                "type": "object"
+            },
             "Pick_Dashboard.Exclude_keyofDashboard.inheritsFromOrgOrProject-or-access__": {
                 "properties": {
                     "name": {
@@ -7542,6 +7608,14 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardOwner"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "deletedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -7582,7 +7656,8 @@
                     "spaceName",
                     "views",
                     "firstViewedAt",
-                    "colorPaletteUuid"
+                    "colorPaletteUuid",
+                    "owner"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -8836,6 +8911,11 @@
                     "verified": {
                         "type": "boolean",
                         "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
+                    },
+                    "ownerEmail": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Declarative dashboard owner, referenced by email so it is portable across projects.\nA string assigns the organization member with that email as owner, `null` unassigns\nthe owner, `undefined` leaves the current owner untouched. Download sets this to the\nowner's email when an owner is assigned."
                     }
                 },
                 "required": ["name", "slug", "tabs", "version", "spaceSlug"],
@@ -13804,8 +13884,16 @@
                 ],
                 "type": "string"
             },
+            "GrantSource": {
+                "type": "string",
+                "enum": ["dashboard"],
+                "nullable": false
+            },
             "SpaceAccess": {
                 "properties": {
+                    "grantedVia": {
+                        "$ref": "#/components/schemas/GrantSource"
+                    },
                     "inheritedFrom": {
                         "type": "string",
                         "enum": [
@@ -13863,6 +13951,14 @@
                     "deletedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardOwner"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "colorPaletteUuid": {
                         "type": "string",
@@ -13972,6 +14068,7 @@
                     }
                 },
                 "required": [
+                    "owner",
                     "colorPaletteUuid",
                     "slug",
                     "access",
@@ -15260,6 +15357,9 @@
                         "type": "string"
                     },
                     "description": {
+                        "type": "string"
+                    },
+                    "canonicalName": {
                         "type": "string"
                     },
                     "originalName": {
@@ -40664,6 +40764,15 @@
                     },
                     {
                         "properties": {
+                            "owner": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/DashboardOwner"
+                                    }
+                                ],
+                                "nullable": true,
+                                "description": "Only populated by the v2 content API"
+                            },
                             "verification": {
                                 "allOf": [
                                     {
@@ -44748,6 +44857,11 @@
             },
             "CreateDashboard": {
                 "properties": {
+                    "ownerUserUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Set to a user uuid to assign an owner, null or omitted for no owner"
+                    },
                     "colorPaletteUuid": {
                         "type": "string",
                         "nullable": true
@@ -45976,7 +46090,7 @@
                 "enum": ["dashboard"],
                 "type": "string"
             },
-            "Pick_DashboardBasicDetails.uuid-or-slug-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_": {
+            "Pick_DashboardBasicDetails.uuid-or-slug-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification-or-owner_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -46033,6 +46147,15 @@
                         ],
                         "nullable": true
                     },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardOwner"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Only populated by the v2 content API"
+                    },
                     "validationErrors": {
                         "items": {
                             "$ref": "#/components/schemas/ValidationSummary"
@@ -46071,7 +46194,7 @@
                         "$ref": "#/components/schemas/ResourceItemCategory"
                     },
                     "data": {
-                        "$ref": "#/components/schemas/Pick_DashboardBasicDetails.uuid-or-slug-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_"
+                        "$ref": "#/components/schemas/Pick_DashboardBasicDetails.uuid-or-slug-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification-or-owner_"
                     },
                     "type": {
                         "$ref": "#/components/schemas/ResourceViewItemType.DASHBOARD"
@@ -48651,6 +48774,52 @@
                     }
                 },
                 "required": ["parameterReferences", "query"],
+                "type": "object"
+            },
+            "LinearInstallation": {
+                "properties": {
+                    "organizationUrlKey": {
+                        "type": "string"
+                    },
+                    "organizationName": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "organizationUrlKey",
+                    "organizationName",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "LinearTeam": {
+                "properties": {
+                    "key": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["key", "name", "id"],
+                "type": "object"
+            },
+            "LinearProject": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "id"],
                 "type": "object"
             },
             "InviteLinkPurpose": {
@@ -54485,7 +54654,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid_": {
+            "Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid-or-ownerUserUuid_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -54499,6 +54668,11 @@
                     "colorPaletteUuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "ownerUserUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Set to a user uuid to assign an owner, null or omitted for no owner"
                     }
                 },
                 "required": ["name"],
@@ -54506,7 +54680,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "DashboardUnversionedFields": {
-                "$ref": "#/components/schemas/Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid_"
+                "$ref": "#/components/schemas/Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid-or-ownerUserUuid_"
             },
             "Pick_CreateDashboard.tiles-or-filters-or-parameters-or-updatedByUser-or-tabs-or-config_": {
                 "properties": {
@@ -55133,6 +55307,14 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardOwner"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -55151,7 +55333,8 @@
                     "pinnedList",
                     "views",
                     "firstViewedAt",
-                    "verification"
+                    "verification",
+                    "owner"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -56489,7 +56672,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.14.0",
+        "version": "2.21.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -82727,6 +82910,189 @@
                 }
             }
         },
+        "/api/v1/linear/install": {
+            "get": {
+                "operationId": "installLinearIntegration",
+                "responses": {
+                    "302": {
+                        "description": "Redirect to Linear OAuth"
+                    }
+                },
+                "description": "Initiate Linear OAuth integration",
+                "summary": "Install Linear integration",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/linear/oauth/callback": {
+            "get": {
+                "operationId": "linearOauthCallback",
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    }
+                },
+                "description": "Linear OAuth callback handler",
+                "summary": "Linear OAuth callback",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "code",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "state",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/linear": {
+            "get": {
+                "operationId": "getLinearInstallation",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/LinearInstallation"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the current Linear workspace connected to the organization",
+                "summary": "Get Linear installation",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/linear/uninstall": {
+            "delete": {
+                "operationId": "uninstallLinearIntegration",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Uninstall Linear integration from the organization",
+                "summary": "Uninstall Linear integration",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/linear/teams": {
+            "get": {
+                "operationId": "getLinearTeams",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/LinearTeam"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List Linear teams accessible via the integration",
+                "summary": "List Linear teams",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/linear/projects": {
+            "get": {
+                "operationId": "getLinearProjects",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/LinearProject"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the Linear projects belonging to a team",
+                "summary": "List Linear projects",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "teamId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/invite-links/{inviteLinkCode}": {
             "get": {
                 "operationId": "GetInviteLink",
@@ -91754,6 +92120,17 @@
                         "schema": {
                             "type": "string",
                             "enum": ["exclude", "only"]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "ownerUserUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     }
                 ]

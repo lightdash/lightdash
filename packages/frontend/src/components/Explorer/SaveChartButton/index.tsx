@@ -110,10 +110,19 @@ const SaveChartButton: FC<{
             preserveVerification === undefined ? {} : { preserveVerification };
 
         if (hasPaletteChanges) {
-            updateMetadata.mutate({
-                colorPaletteUuid: stagedColorPaletteUuid,
-                ...verificationUpdate,
-            });
+            updateMetadata.mutate(
+                {
+                    colorPaletteUuid: stagedColorPaletteUuid,
+                    ...verificationUpdate,
+                },
+                {
+                    onSuccess: (data) => {
+                        if (!hasVersionChanges && !hasMergeChanges) {
+                            embed.onChartSaved?.(data, 'updated');
+                        }
+                    },
+                },
+            );
         }
         if (hasVersionChanges || hasMergeChanges) {
             update.mutate(
@@ -128,7 +137,7 @@ const SaveChartButton: FC<{
                 {
                     // Lets the embed dashboard builder react to the update
                     // (e.g. close its chart editor modal)
-                    onSuccess: (data) => embed.onChartSaved?.(data),
+                    onSuccess: (data) => embed.onChartSaved?.(data, 'updated'),
                 },
             );
         }
@@ -289,7 +298,7 @@ const SaveChartButton: FC<{
                     onConfirm={(saved) => {
                         setIsQueryModalOpen(false);
                         setIsSaveAsModal(false);
-                        embed.onChartSaved?.(saved);
+                        embed.onChartSaved?.(saved, 'created');
                     }}
                     defaultSpaceUuid={spaceUuid ?? undefined}
                     chartMetadata={generatedMetadata ?? undefined}

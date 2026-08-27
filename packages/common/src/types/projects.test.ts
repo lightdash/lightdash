@@ -161,6 +161,22 @@ describe('normalizeWarehouseCredentials', () => {
             ).toBeUndefined();
         },
     );
+
+    test('keeps a numeric Snowflake timeout, including 0', () => {
+        const savedCredentials: CreateSnowflakeCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            account: 'account',
+            user: 'user',
+            database: 'database',
+            warehouse: 'warehouse',
+            schema: 'schema',
+            timeoutSeconds: 0,
+        };
+
+        expect(
+            normalizeWarehouseCredentials(savedCredentials).timeoutSeconds,
+        ).toBe(0);
+    });
 });
 
 describe('mergeWarehouseCredentials', () => {
