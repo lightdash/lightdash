@@ -7,6 +7,8 @@ import {
     getItemId,
     isDateItem,
     isField,
+    isRelativeDateFilterOperator,
+    isWithValueFilter,
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
@@ -214,12 +216,35 @@ const FilterRuleForm: FC<Props> = memo(
                     }}
                     onChange={(value) => {
                         if (!value) return;
+
+                        const operator = value as FilterRule['operator'];
+                        // Absolute date values are already normalized. Running
+                        // them through the defaults again can shift timezones.
+                        const shouldPreserveValues =
+                            filterType === FilterType.DATE &&
+                            (filterRule.values?.length ?? 0) > 0 &&
+                            isWithValueFilter(filterRule.operator) &&
+                            isWithValueFilter(operator) &&
+                            !isRelativeDateFilterOperator(
+                                filterRule.operator,
+                            ) &&
+                            !isRelativeDateFilterOperator(operator);
+
+                        if (shouldPreserveValues) {
+                            onChange({
+                                ...filterRule,
+                                operator,
+                                settings: undefined,
+                            });
+                            return;
+                        }
+
                         onChange(
                             getFilterRuleFromFieldWithDefaultValue(
                                 activeField,
                                 {
                                     ...filterRule,
-                                    operator: value as FilterRule['operator'],
+                                    operator,
                                 },
                                 filterRule.values ?? [],
                             ),
