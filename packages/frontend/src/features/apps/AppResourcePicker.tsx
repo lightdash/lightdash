@@ -1403,19 +1403,37 @@ export const ConnectionAttachButton: FC<{
     description,
     linkedAppUuid,
 }) => {
+    const projectUuid = useProjectUuid();
     const [opened, setOpened] = useState(false);
-    const selectedCount = selectedConnections.length;
+    const { data: existingLinks } = useAppExternalConnections(
+        projectUuid,
+        linkedAppUuid ?? undefined,
+    );
+    // Already-linked connections count as attached alongside the pending
+    // selection; re-selecting a linked one does not count it twice.
+    const attachedNames = useMemo(() => {
+        const names = new Map<string, string>();
+        (existingLinks ?? []).forEach((link) =>
+            names.set(
+                link.connection.externalConnectionUuid,
+                link.connection.name,
+            ),
+        );
+        selectedConnections.forEach((connection) =>
+            names.set(connection.externalConnectionUuid, connection.name),
+        );
+        return [...names.values()];
+    }, [existingLinks, selectedConnections]);
+    const attachedCount = attachedNames.length;
     const triggerLabel =
-        selectedCount > 0
-            ? `${selectedCount} external connection${
-                  selectedCount === 1 ? '' : 's'
+        attachedCount > 0
+            ? `${attachedCount} external connection${
+                  attachedCount === 1 ? '' : 's'
               } attached`
             : 'Add external connections';
     const tooltipLabel =
-        selectedCount > 0
-            ? `${triggerLabel}: ${selectedConnections
-                  .map((connection) => connection.name)
-                  .join(', ')}`
+        attachedCount > 0
+            ? `${triggerLabel}: ${attachedNames.join(', ')}`
             : triggerLabel;
 
     return (
@@ -1438,11 +1456,11 @@ export const ConnectionAttachButton: FC<{
                 >
                     <Indicator
                         inline
-                        label={selectedCount}
+                        label={attachedCount}
                         size={12}
                         offset={3}
                         color="blue"
-                        disabled={selectedCount === 0}
+                        disabled={attachedCount === 0}
                         classNames={{
                             indicator: classes.connectionCountIndicator,
                         }}

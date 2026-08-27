@@ -14,6 +14,7 @@ import {
     IconPlayerStop,
     IconX,
 } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
     forwardRef,
     useEffect,
@@ -180,6 +181,25 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const [selectedConnections, setSelectedConnections] = useState<
             SelectedConnection[]
         >([]);
+        const queryClient = useQueryClient();
+
+        // A finished build may have linked connections; refresh the count.
+        useEffect(() => {
+            if (!hasVersions) return;
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    'app-external-connections',
+                    projectUuid,
+                    composerAppUuid,
+                ],
+            });
+        }, [
+            composerAppUuid,
+            hasVersions,
+            latestReadyVersion,
+            projectUuid,
+            queryClient,
+        ]);
 
         useImperativeHandle(ref, () => ({
             setPrompt: (text) => {

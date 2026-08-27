@@ -142,6 +142,37 @@ it.each([
     },
 );
 
+it('counts linked and newly selected connections together, without double counting', () => {
+    render(
+        <MantineProvider env="test">
+            <ConnectionAttachButton
+                selectedConnections={[
+                    {
+                        externalConnectionUuid: 'c-selected',
+                        name: 'Selected API',
+                        alias: 'selected_api',
+                    },
+                    {
+                        externalConnectionUuid: 'c-plain',
+                        name: 'Plain API',
+                        alias: 'plain_api',
+                    },
+                ]}
+                onSelect={() => undefined}
+                onDeselect={() => undefined}
+                disabled={false}
+                description="Choose connections"
+                linkedAppUuid="app-1"
+            />
+        </MantineProvider>,
+    );
+
+    expect(
+        screen.getByRole('button', { name: '3 external connections attached' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+});
+
 it('marks connections the app already links, unless they are selected again', () => {
     render(
         <MantineProvider env="test">
