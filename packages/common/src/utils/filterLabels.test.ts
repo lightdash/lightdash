@@ -70,6 +70,19 @@ describe('getConditionalRuleLabel composed values', () => {
         ).toEqual('jour');
     });
 
+    it('falls back to days when the unit of time is missing', () => {
+        const rule: FilterRule = {
+            id: 'rule-6',
+            target: { fieldId: 'field-1' },
+            operator: FilterOperator.IN_THE_PAST,
+            values: [3],
+            settings: { completed: false },
+        };
+        expect(
+            getConditionalRuleLabel(rule, FilterType.DATE, 'Field').value,
+        ).toEqual('3 days');
+    });
+
     it('renders in-the-last values with the plural unit form', () => {
         const rule: FilterRule = {
             id: 'rule-2',

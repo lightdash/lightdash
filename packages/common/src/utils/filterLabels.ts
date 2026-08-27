@@ -232,14 +232,12 @@ const getValueAsString = (
                     const settings = rule.settings as
                         | DateFilterSettings
                         | undefined;
-                    const unitOfTime = settings?.unitOfTime;
-                    if (!unitOfTime) {
-                        return `${firstValue} ${
-                            settings?.completed ? 'completed ' : ''
-                        }${unitOfTime}`;
-                    }
+                    // A missing unit of time falls back to days, matching the
+                    // in-the-current branch below
                     return `${firstValue} ${resolveUiString(
-                        `filters.unitsOfTime.${unitOfTime}.${
+                        `filters.unitsOfTime.${
+                            settings?.unitOfTime ?? UnitOfTime.days
+                        }.${
                             settings?.completed ? 'completedPlural' : 'plural'
                         }`,
                         getUiString,
