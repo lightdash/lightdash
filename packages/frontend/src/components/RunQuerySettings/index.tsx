@@ -9,7 +9,7 @@ import {
 } from '@mantine/core';
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconChevronDown } from '@tabler/icons-react';
-import { memo, useCallback, useEffect, useRef, useState, type FC } from 'react';
+import { memo, useCallback, useRef, useState, type FC } from 'react';
 import ChartTimezoneSelect from '../common/ChartTimezoneSelect';
 import MantineIcon from '../common/MantineIcon';
 import AutoFetchResultsSwitch from './AutoFetchResultsSwitch';
@@ -60,9 +60,10 @@ const RunQuerySettings: FC<Props> = memo(
 
         const [tempLimit, setTempLimit] = useState(limit);
 
-        useEffect(() => {
+        const handleOpen = () => {
             setTempLimit(limit);
-        }, [limit]);
+            open();
+        };
 
         const handleLimitChange = (value: number) => {
             setTempLimit(value);
@@ -93,7 +94,7 @@ const RunQuerySettings: FC<Props> = memo(
                         size={size}
                         p="xs"
                         disabled={disabled}
-                        onClick={opened ? undefined : open}
+                        onClick={opened ? undefined : handleOpen}
                         {...targetProps}
                     >
                         <MantineIcon icon={IconChevronDown} size="sm" />
