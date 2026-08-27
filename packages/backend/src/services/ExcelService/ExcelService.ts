@@ -24,7 +24,6 @@ import {
     isNumericItem,
     ItemsMap,
     PivotConfig,
-    pivotResultsAsCsv,
     pivotResultsAsData,
     ResultRow,
     shouldShiftItemTimezone,
@@ -34,6 +33,7 @@ import {
     type ConditionalFormattingConfig,
     type ConditionalFormattingMinMaxMap,
     type ConditionalFormattingRowFields,
+    type PivotResultsDataCell,
     type PivotRowTotalsByIndex,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
@@ -158,6 +158,48 @@ export class ExcelService {
                 undefined,
                 timezone,
             );
+        });
+    }
+
+    private static convertPivotCellToExcel(
+        cell: PivotResultsDataCell,
+        itemMap: ItemsMap,
+        onlyRaw: boolean,
+    ): string | number {
+        const item = itemMap[cell.itemId ?? cell.fieldId];
+        if (
+            !onlyRaw &&
+            isNumericItem(item) &&
+            cell.raw !== null &&
+            cell.raw !== undefined &&
+            String(cell.raw).trim() !== '' &&
+            isNumber(cell.raw)
+        ) {
+            return Number(cell.raw);
+        }
+
+        return cell.formatted;
+    }
+
+    private static applyPivotNumberFormats(
+        excelRow: Excel.Row,
+        pivotRow: PivotResultsDataCell[],
+        itemMap: ItemsMap,
+        onlyRaw: boolean,
+    ) {
+        if (onlyRaw) return;
+
+        pivotRow.forEach((cell, colIndex) => {
+            const excelCell = excelRow.getCell(colIndex + 1);
+            if (typeof excelCell.value !== 'number') return;
+
+            const formatExpression = getExcelFormatExpression(
+                itemMap[cell.itemId ?? cell.fieldId],
+            );
+
+            if (formatExpression) {
+                excelCell.numFmt = formatExpression;
+            }
         });
     }
 
@@ -431,10 +473,16 @@ export class ExcelService {
             );
         }
 
+        const pivotValuesColumnsMap = Object.fromEntries(
+            pivotDetails.valuesColumns?.map((column) => [
+                column.pivotColumnName,
+                column,
+            ]) ?? [],
+        );
         const formattedRows = formatRows(
             rows,
             itemMap,
-            undefined,
+            pivotValuesColumnsMap,
             undefined,
             timezone,
         );
@@ -520,7 +568,7 @@ export class ExcelService {
             }
         });
 
-        // Add data rows — use raw values for date columns, formatted for everything else
+        // Add data rows with native date/number values and Excel formats.
         pivotData.dataRows.forEach((row) => {
             const excelRow = row.map((cell, colIndex) => {
                 const dateFmt = dateColumnFormats.get(colIndex);
@@ -537,9 +585,15 @@ export class ExcelService {
                             : m.toDate();
                     }
                 }
-                return cell.formatted;
+                return ExcelService.convertPivotCellToExcel(
+                    cell,
+                    itemMap,
+                    onlyRaw,
+                );
             });
             const wsRow = worksheet.addRow(excelRow);
+
+            ExcelService.applyPivotNumberFormats(wsRow, row, itemMap, onlyRaw);
 
             // Apply numFmt to date cells in this row
             dateColumnFormats.forEach(({ numFmt }, colIndex) => {
@@ -598,7 +652,7 @@ export class ExcelService {
         warehouseGrandTotals?: Record<string, number>;
         timezone?: string;
     }): Promise<Excel.Buffer> {
-        const csvResults = pivotResultsAsCsv({
+        const pivotData = pivotResultsAsData({
             pivotConfig,
             rows: formattedRows,
             itemMap,
@@ -609,15 +663,41 @@ export class ExcelService {
             warehouseColumnTotals,
             warehouseGrandTotals,
         });
+        const csvResults = [
+            ...pivotData.headers,
+            ...pivotData.dataRows.map((row) =>
+                row.map((cell) => cell.formatted),
+            ),
+        ];
 
         const workbook = new Excel.Workbook();
         const worksheet = workbook.addWorksheet('Pivot Table');
 
         csvResults.forEach((row, index) => {
-            const excelRow = row.map((value) =>
+            const pivotRow =
+                pivotData.dataRows[index - pivotData.headers.length];
+            const rowValues = pivotRow
+                ? pivotRow.map((cell) =>
+                      ExcelService.convertPivotCellToExcel(
+                          cell,
+                          itemMap,
+                          onlyRaw,
+                      ),
+                  )
+                : row;
+            const excelRow = rowValues.map((value) =>
                 ExcelService.convertToExcelDate(value, timezone),
             );
-            worksheet.addRow(excelRow);
+            const wsRow = worksheet.addRow(excelRow);
+
+            if (pivotRow) {
+                ExcelService.applyPivotNumberFormats(
+                    wsRow,
+                    pivotRow,
+                    itemMap,
+                    onlyRaw,
+                );
+            }
 
             if (index === 0) {
                 const headerRow = worksheet.getRow(1);

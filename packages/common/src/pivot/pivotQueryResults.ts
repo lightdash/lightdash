@@ -1430,6 +1430,7 @@ export type PivotResultsDataCell = {
     raw: unknown;
     formatted: string;
     fieldId: string;
+    itemId?: string;
 };
 
 export type PivotResultsData = {
@@ -1589,23 +1590,43 @@ export const pivotResultsAsData = ({
     // and the "hide" semantic includes exports. Filtered here so every
     // downstream consumer of pivotResultsAsData (CSV, XLSX, etc.) inherits
     // the exclusion.
-    const fieldIds = Object.values(pivotedResults.retrofitData.pivotColumnInfo)
-        .filter((field) => field.columnType !== 'passthrough')
-        .map((field) => field.fieldId);
+    const pivotColumns = Object.values(
+        pivotedResults.retrofitData.pivotColumnInfo,
+    ).filter((field) => field.columnType !== 'passthrough');
+    const fieldIds = pivotColumns.map((field) => field.fieldId);
 
     const hasIndex = pivotedResults.indexValues.length > 0;
-    const dataRows = pivotedResults.retrofitData.allCombinedData.map((row) => {
-        const noIndexPrefix: PivotResultsDataCell[] = hasIndex
-            ? []
-            : [{ raw: '', formatted: '', fieldId: '' }];
-        const cells: PivotResultsDataCell[] = fieldIds.map((fieldId) => ({
-            raw: row[fieldId]?.value?.raw ?? '',
-            formatted:
-                pickValue(row[fieldId]?.value, fieldId) || undefinedCharacter,
-            fieldId,
-        }));
-        return [...noIndexPrefix, ...cells];
-    });
+    const dataRows = pivotedResults.retrofitData.allCombinedData.map(
+        (row, rowIndex) => {
+            const metricLabel = last(pivotedResults.indexValues[rowIndex]);
+            const metricAsRowItemId =
+                pivotConfig.metricsAsRows && metricLabel?.type === 'label'
+                    ? metricLabel.fieldId
+                    : undefined;
+            const noIndexPrefix: PivotResultsDataCell[] = hasIndex
+                ? []
+                : [{ raw: '', formatted: '', fieldId: '', itemId: '' }];
+            const cells: PivotResultsDataCell[] = pivotColumns.map((column) => {
+                const itemId =
+                    metricAsRowItemId &&
+                    (column.columnType === undefined ||
+                        column.columnType === 'rowTotal')
+                        ? metricAsRowItemId
+                        : (column.underlyingId ??
+                          column.baseId ??
+                          column.fieldId);
+                return {
+                    raw: row[column.fieldId]?.value?.raw ?? '',
+                    formatted:
+                        pickValue(row[column.fieldId]?.value, itemId) ||
+                        undefinedCharacter,
+                    fieldId: column.fieldId,
+                    itemId,
+                };
+            });
+            return [...noIndexPrefix, ...cells];
+        },
+    );
 
     // Column totals render as footer row(s) below the data — mirroring the
     // pivot table UI. Each row is [index labels, per-column totals, blank row
@@ -1628,7 +1649,12 @@ export const pivotResultsAsData = ({
                               : ''
                       }`
                     : '';
-                return { raw: label, formatted: label, fieldId: '' };
+                return {
+                    raw: label,
+                    formatted: label,
+                    fieldId: '',
+                    itemId: '',
+                };
             },
         );
 
@@ -1639,6 +1665,7 @@ export const pivotResultsAsData = ({
                         raw: '',
                         formatted: undefinedCharacter,
                         fieldId: '',
+                        itemId: '',
                     };
                 }
                 // The total's metric is the per-row metric (metricsAsRows) or
@@ -1654,7 +1681,12 @@ export const pivotResultsAsData = ({
                 const formatted = onlyRaw
                     ? String(total)
                     : formatItemValue(field, total, false);
-                return { raw: total, formatted, fieldId: fieldId ?? '' };
+                return {
+                    raw: total,
+                    formatted,
+                    fieldId: fieldId ?? '',
+                    itemId: fieldId ?? '',
+                };
             },
         );
 
@@ -1675,7 +1707,12 @@ export const pivotResultsAsData = ({
                           grandTotal === undefined ||
                           !fieldId
                       ) {
-                          return { raw: '', formatted: '', fieldId: '' };
+                          return {
+                              raw: '',
+                              formatted: '',
+                              fieldId: '',
+                              itemId: '',
+                          };
                       }
                       const field = itemMap[fieldId];
                       const formatted = onlyRaw
@@ -1685,6 +1722,7 @@ export const pivotResultsAsData = ({
                           raw: grandTotal,
                           formatted,
                           fieldId,
+                          itemId: fieldId,
                       };
                   })
                 : [];
