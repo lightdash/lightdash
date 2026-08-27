@@ -314,6 +314,12 @@ import {
     SavedSqlVersionsTableName,
 } from '../database/entities/savedSql';
 import {
+    SavedSqlGroupAccessTable,
+    SavedSqlGroupAccessTableName,
+    SavedSqlUserAccessTable,
+    SavedSqlUserAccessTableName,
+} from '../database/entities/savedSqlAccess';
+import {
     SchedulerEmailTargetTable,
     SchedulerEmailTargetTableName,
     SchedulerGoogleChatTargetTable,
@@ -616,6 +622,8 @@ declare module 'knex/types/tables' {
         [SavedChartAdditionalMetricTableName]: SavedChartAdditionalMetricTable;
         [SavedSqlTableName]: SavedSqlTable;
         [SavedSqlVersionsTableName]: SavedSqlVersionsTable;
+        [SavedSqlUserAccessTableName]: SavedSqlUserAccessTable;
+        [SavedSqlGroupAccessTableName]: SavedSqlGroupAccessTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
         [DashboardUserAccessTableName]: DashboardUserAccessTable;

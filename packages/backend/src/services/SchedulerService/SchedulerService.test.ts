@@ -129,6 +129,15 @@ const dashboardModel = {
     getByIdOrSlug: vi.fn(async () => dashboardSummary),
 };
 
+const savedSqlModel = {
+    getByUuid: vi.fn(async () => ({
+        savedSqlUuid: 'savedSqlUuid',
+        organization: { organizationUuid },
+        project: { projectUuid },
+        space: { uuid: privateSpaceUuid },
+    })),
+};
+
 const spacePermissionService = {
     resolveAccess: vi.fn(async () => ({
         organizationUuid,
@@ -167,7 +176,7 @@ const buildService = () =>
         schedulerModel: schedulerModel as unknown as SchedulerModel,
         dashboardModel: dashboardModel as unknown as DashboardModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
-        savedSqlModel: {} as SavedSqlModel,
+        savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
         appModel: {} as AppModel,
         projectModel: {} as ProjectModel,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
@@ -569,6 +578,50 @@ describe('SchedulerService', () => {
                     type: 'chart',
                     chartUuid: savedChartUuid,
                     dashboardUuid: 'owningDashboardUuid',
+                    spaceUuid: privateSpaceUuid,
+                },
+            );
+        });
+
+        test('views a saved SQL scheduler through the SQL chart grant', async () => {
+            const sqlScheduler = {
+                ...dashboardScheduler,
+                dashboardUuid: null,
+                savedSqlUuid: 'savedSqlUuid',
+            } as unknown as SchedulerAndTargets;
+            schedulerModel.getSchedulerAndTargets.mockResolvedValueOnce(
+                sqlScheduler,
+            );
+            spacePermissionService.resolveAccess.mockResolvedValueOnce({
+                inheritsFromOrgOrProject: false,
+                access: [
+                    {
+                        userUuid: 'userUuid',
+                        role: SpaceMemberRole.VIEWER,
+                        hasDirectAccess: true,
+                        grantedVia: 'sql_chart',
+                    },
+                ],
+                directOnly: true,
+            } as never);
+            const user = buildUser([
+                {
+                    subject: 'SavedChart',
+                    action: ['view'],
+                    conditions: {
+                        access: { $elemMatch: { userUuid: 'userUuid' } },
+                    },
+                },
+            ]);
+
+            await expect(
+                service.getScheduler(user, 'schedulerUuid'),
+            ).resolves.toEqual(sqlScheduler);
+            expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+                'userUuid',
+                {
+                    type: 'sqlChart',
+                    savedSqlUuid: 'savedSqlUuid',
                     spaceUuid: privateSpaceUuid,
                 },
             );

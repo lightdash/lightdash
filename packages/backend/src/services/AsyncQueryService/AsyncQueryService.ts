@@ -734,6 +734,7 @@ export class AsyncQueryService extends ProjectService {
         account: Account,
         action: 'view' | 'create' | 'update' | 'delete' | 'manage',
         savedChart: {
+            savedSqlUuid: string;
             project: Pick<Project, 'projectUuid'>;
             organization: Pick<Organization, 'organizationUuid'>;
             space: Pick<SpaceSummaryBase, 'uuid'>;
@@ -741,7 +742,11 @@ export class AsyncQueryService extends ProjectService {
     ) {
         const ctx = await this.spacePermissionService.resolveAccess(
             account.user.id,
-            { type: 'space', spaceUuid: savedChart.space.uuid },
+            {
+                type: 'sqlChart',
+                savedSqlUuid: savedChart.savedSqlUuid,
+                spaceUuid: savedChart.space.uuid,
+            },
         );
 
         const auditedAbility = this.createAuditedAbility(account);

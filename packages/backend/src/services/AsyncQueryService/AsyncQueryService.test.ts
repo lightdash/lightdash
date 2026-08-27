@@ -419,6 +419,54 @@ type JwtDashboardQueryContextTestService = {
 };
 
 describe('AsyncQueryService', () => {
+    describe('saved SQL chart access', () => {
+        test('resolves access through the saved SQL chart target', async () => {
+            const resolveAccess = vi.fn(async () => ({
+                organizationUuid: 'organizationUuid',
+                projectUuid,
+                inheritsFromOrgOrProject: false,
+                access: [
+                    {
+                        userUuid: 'userId',
+                        role: 'viewer',
+                        hasDirectAccess: true,
+                        grantedVia: 'sql_chart',
+                    },
+                ],
+                admins: [],
+                directOnly: true,
+            }));
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                spacePermissionService: {
+                    resolveAccess,
+                } as unknown as SpacePermissionService,
+            } as never);
+            const account = buildAccount() as AnyType;
+            account.user.ability = new Ability<PossibleAbilities>([
+                {
+                    subject: 'SavedChart',
+                    action: 'view',
+                    conditions: {
+                        access: { $elemMatch: { userUuid: 'userId' } },
+                    },
+                },
+            ]);
+
+            await (service as AnyType).assertSavedChartAccess(account, 'view', {
+                savedSqlUuid: 'savedSqlUuid',
+                organization: { organizationUuid: 'organizationUuid' },
+                project: { projectUuid },
+                space: { uuid: 'spaceUuid' },
+            });
+
+            expect(resolveAccess).toHaveBeenCalledWith('userId', {
+                type: 'sqlChart',
+                savedSqlUuid: 'savedSqlUuid',
+                spaceUuid: 'spaceUuid',
+            });
+        });
+    });
+
     describe('executeAsyncExternalSqlQuery', () => {
         const execute = (featureFlags: Record<string, boolean>) => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
