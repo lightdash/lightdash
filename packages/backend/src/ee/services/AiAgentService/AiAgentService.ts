@@ -76,6 +76,7 @@ import {
     GenerateArtifactQuestionJobPayload,
     getDataAppVizChartFromArtifact,
     getErrorMessage,
+    getGenerateDataAppBuildOutcome,
     getGroupByDimensions,
     getItemId,
     getItemMap,
@@ -136,6 +137,7 @@ import {
     type AiDeepResearchPhase,
     type AiPromptContextInput,
     type AiWebAppThreadCreatedFrom,
+    type AppGeneratePipelineJobPayload,
     type DataAppVizChart,
     type ItemsMap,
     type MetricQuery,
@@ -540,7 +542,10 @@ type EmbedAiAgentRuntimeOptions = {
 
 type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
-    appModel: Pick<AppModel, 'findVisualizationApp'>;
+    appModel: Pick<
+        AppModel,
+        'findVisualizationApp' | 'findAppByUuid' | 'getVersion'
+    >;
     aiAgentMemoryModel: AiAgentMemoryModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
     externalSourceModel: Pick<ExternalSourceModel, 'getSource'>;
@@ -814,7 +819,10 @@ export const assertDeepResearchBedrockProfile = (
 export class AiAgentService extends BaseService {
     private readonly aiAgentModel: AiAgentModel;
 
-    private readonly appModel: Pick<AppModel, 'findVisualizationApp'>;
+    private readonly appModel: Pick<
+        AppModel,
+        'findVisualizationApp' | 'findAppByUuid' | 'getVersion'
+    >;
 
     private readonly inFlightStreamPrompts = new Map<
         string,
@@ -9161,6 +9169,59 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
     }
 
+    // Patches the starting generateDataApp result once the version is terminal;
+    // a thread read self-heals anything this misses.
+    async recordDataAppBuildOutcome(
+        payload: AppGeneratePipelineJobPayload,
+    ): Promise<void> {
+        const { aiAgentToolCall, appUuid, version, projectUuid } = payload;
+        if (!aiAgentToolCall) {
+            return;
+        }
+        try {
+            const [app, appVersion] = await Promise.all([
+                this.appModel.findAppByUuid(appUuid),
+                this.appModel.getVersion(appUuid, version),
+            ]);
+            if (!app || !appVersion) {
+                Logger.warn(
+                    `AiAgent.recordDataAppBuildOutcome: app ${appUuid} v${version} not found — leaving the tool result pending`,
+                );
+                return;
+            }
+            const outcome = getGenerateDataAppBuildOutcome({
+                projectUuid,
+                appUuid,
+                version,
+                name: app.name,
+                status: appVersion.status,
+                error: appVersion.error,
+                statusMessage: appVersion.status_message,
+            });
+            if (!outcome) {
+                Logger.warn(
+                    `AiAgent.recordDataAppBuildOutcome: app ${appUuid} v${version} is still ${appVersion.status} — leaving the tool result pending`,
+                );
+                return;
+            }
+            // The build can end before onStepFinish inserts the row.
+            await this.waitForToolResultWritten(
+                aiAgentToolCall.promptUuid,
+                aiAgentToolCall.toolCallId,
+            );
+            await this.aiAgentModel.updateToolResult(
+                aiAgentToolCall.promptUuid,
+                aiAgentToolCall.toolCallId,
+                outcome,
+            );
+        } catch (error) {
+            // Never fail the build job over the tool result.
+            Logger.error(
+                `AiAgent.recordDataAppBuildOutcome: failed for app ${appUuid} v${version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
     async markEditDbtProjectToolResultError(
         promptUuid: string,
         toolCallId: string,
@@ -9297,6 +9358,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 options?.runtimeOptions?.userAttributeOverrides,
             agentUuid: runtimeAgentSettings.uuid,
             threadUuid: prompt.threadUuid,
+            promptUuid: prompt.promptUuid,
             onWarehouseQuery: options?.onWarehouseQuery,
         });
 
@@ -9986,6 +10048,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             listContent: toolsRuntime.listContent,
             findContent: toolsRuntime.findContent,
             readContent: toolsRuntime.readContent,
+            generateDataApp: toolsRuntime.generateDataApp,
             resolveUrl: toolsRuntime.resolveUrl,
             editContent: toolsRuntime.editContent,
             createContent: toolsRuntime.createContent,
@@ -10193,6 +10256,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             listContent,
             findContent,
             readContent,
+            generateDataApp,
             resolveUrl,
             editContent,
             createContent,
@@ -10566,6 +10630,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     },
                 }),
             );
+        const enableGenerateDataApp =
+            canUseContentTools &&
+            (await this.aiAgentToolsService.canGenerateDataApp({
+                user,
+                projectUuid: promptProject.projectUuid,
+            }));
         const availableSkills = canUseContentTools
             ? await this.aiAgentToolsService.listAgentSkills()
             : [];
@@ -10680,6 +10750,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
             enableContentTools: canUseContentTools,
+            enableGenerateDataApp,
             enableAiWriteback: aiWritebackEnabled,
             enableEditProjectContext: isReviewRemediationWorkThread,
             writebackAttribution,
@@ -10772,6 +10843,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             listContent,
             findContent,
             readContent,
+            generateDataApp,
             resolveUrl,
             editContent,
             createContent,
@@ -12208,6 +12280,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 case 'editProjectContext':
                 case 'syncDbtProject':
                     return 'Preparing the semantic-layer changes...';
+                case 'generateDataApp':
+                    return 'Starting the data app build...';
                 case 'setupPreviewDeploy':
                     return 'Setting up the preview...';
                 case 'exploreRepo':

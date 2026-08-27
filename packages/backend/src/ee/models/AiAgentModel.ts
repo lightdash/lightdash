@@ -1,5 +1,6 @@
 import {
     AgentToolOutput,
+    AI_DATA_APP_BUILD_PENDING_GRACE_MS,
     AI_DEEP_RESEARCH_TERMINAL_STATUSES,
     AI_WRITEBACK_PENDING_GRACE_MS,
     AI_WRITEBACK_RUN_TERMINAL_STATUSES,
@@ -67,12 +68,15 @@ import {
     CreateWebAppPrompt,
     CreateWebAppThread,
     generateSlug,
+    getExpiredGenerateDataAppBuildOutcome,
     getExternalSourceDisplayName,
+    getGenerateDataAppBuildOutcome,
     isAiAgentMcpToolName,
     isAiAgentToolName,
     isAiWritebackRunInProgress,
     isThreadPrompt,
     isToolEditDbtProjectResult,
+    isToolGenerateDataAppResult,
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
@@ -95,12 +99,19 @@ import {
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
     type ToolEditDbtProjectOutput,
+    type ToolGenerateDataAppOutput,
     type VerifiedContentListItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import moment from 'moment';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AiAgentReasoningTableName } from '../../database/entities/aiAgentReasoning';
+import {
+    AppsTableName,
+    AppVersionsTableName,
+    type DbApp,
+    type DbAppVersion,
+} from '../../database/entities/apps';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -488,6 +499,20 @@ const isPendingEditDbtProjectToolResult = (
     result: AiAgentToolResult,
 ): result is PendingEditDbtProjectToolResult =>
     isEditDbtProjectToolResult(result) && result.metadata.status === 'pending';
+
+type PendingGenerateDataAppToolResult = AiAgentToolResult & {
+    toolType: 'built-in';
+    toolName: 'generateDataApp';
+    metadata: Extract<
+        ToolGenerateDataAppOutput['metadata'],
+        { status: 'pending' }
+    >;
+};
+
+const isPendingGenerateDataAppToolResult = (
+    result: AiAgentToolResult,
+): result is PendingGenerateDataAppToolResult =>
+    isToolGenerateDataAppResult(result) && result.metadata.status === 'pending';
 
 const getTerminalWritebackFallback = (
     run: DbAiWritebackRun,
@@ -7273,17 +7298,9 @@ export class AiAgentModel {
         }
     }
 
-    private async resolvePendingWritebackToolResults(
+    private async getPromptThreadScope(
         promptUuid: string,
-        results: AiAgentToolResult[],
-    ): Promise<AiAgentToolResult[]> {
-        const pendingResults = results.filter(
-            isPendingEditDbtProjectToolResult,
-        );
-        if (pendingResults.length === 0) {
-            return results;
-        }
-
+    ): Promise<Pick<DbAiThread, 'organization_uuid' | 'project_uuid'> | null> {
         const threadScope = await this.database(AiPromptTableName)
             .innerJoin(
                 AiThreadTableName,
@@ -7296,6 +7313,122 @@ export class AiAgentModel {
             )
             .where(`${AiPromptTableName}.ai_prompt_uuid`, promptUuid)
             .first();
+        return threadScope ?? null;
+    }
+
+    // Read-only self-heal: a pending generateDataApp result resolves to its
+    // version's outcome, or to an error once past the grace period.
+    private async resolvePendingDataAppBuildToolResults(
+        promptUuid: string,
+        results: AiAgentToolResult[],
+        now = Date.now(),
+    ): Promise<AiAgentToolResult[]> {
+        const pendingResults = results.filter(
+            isPendingGenerateDataAppToolResult,
+        );
+        if (pendingResults.length === 0) {
+            return results;
+        }
+        const threadScope = await this.getPromptThreadScope(promptUuid);
+        if (!threadScope) {
+            return results;
+        }
+
+        const versionRows = await this.database(AppVersionsTableName)
+            .innerJoin(
+                AppsTableName,
+                `${AppsTableName}.app_id`,
+                `${AppVersionsTableName}.app_id`,
+            )
+            .select<
+                Array<
+                    Pick<DbApp, 'app_id' | 'name'> &
+                        Pick<
+                            DbAppVersion,
+                            'version' | 'status' | 'error' | 'status_message'
+                        >
+                >
+            >(
+                `${AppsTableName}.app_id`,
+                `${AppsTableName}.name`,
+                `${AppVersionsTableName}.version`,
+                `${AppVersionsTableName}.status`,
+                `${AppVersionsTableName}.error`,
+                `${AppVersionsTableName}.status_message`,
+            )
+            .where(`${AppsTableName}.project_uuid`, threadScope.project_uuid)
+            .where((query) => {
+                pendingResults.forEach((result) => {
+                    void query.orWhere((versionQuery) => {
+                        void versionQuery
+                            .where(
+                                `${AppsTableName}.app_id`,
+                                result.metadata.appUuid,
+                            )
+                            .where(
+                                `${AppVersionsTableName}.version`,
+                                result.metadata.version,
+                            );
+                    });
+                });
+            });
+        const versionsByKey = new Map(
+            versionRows.map((row) => [`${row.app_id}:${row.version}`, row]),
+        );
+
+        return results.map((result) => {
+            if (!isPendingGenerateDataAppToolResult(result)) {
+                return result;
+            }
+            const { appUuid, version } = result.metadata;
+            const row = versionsByKey.get(`${appUuid}:${version}`);
+            const outcome = row
+                ? getGenerateDataAppBuildOutcome({
+                      projectUuid: threadScope.project_uuid,
+                      appUuid,
+                      version,
+                      name: row.name,
+                      status: row.status,
+                      error: row.error,
+                      statusMessage: row.status_message,
+                  })
+                : null;
+            if (outcome) {
+                return { ...result, ...outcome };
+            }
+            if (
+                result.createdAt.getTime() +
+                    AI_DATA_APP_BUILD_PENDING_GRACE_MS >
+                now
+            ) {
+                return result;
+            }
+            return { ...result, ...getExpiredGenerateDataAppBuildOutcome() };
+        });
+    }
+
+    private async resolvePendingToolResults(
+        promptUuid: string,
+        results: AiAgentToolResult[],
+    ): Promise<AiAgentToolResult[]> {
+        return this.resolvePendingDataAppBuildToolResults(
+            promptUuid,
+            await this.resolvePendingWritebackToolResults(promptUuid, results),
+        );
+    }
+
+    private async resolvePendingWritebackToolResults(
+        promptUuid: string,
+        results: AiAgentToolResult[],
+    ): Promise<AiAgentToolResult[]> {
+        const pendingResults = results.filter(
+            isPendingEditDbtProjectToolResult,
+        );
+        if (pendingResults.length === 0) {
+            return results;
+        }
+
+        const threadScope = await this.getPromptThreadScope(promptUuid);
         if (!threadScope) {
             return results;
         }
@@ -7517,7 +7650,7 @@ export class AiAgentModel {
                     approvalDecision: row.approval_decision,
                 };
             });
-        const resolvedResults = await this.resolvePendingWritebackToolResults(
+        const resolvedResults = await this.resolvePendingToolResults(
             promptUuid,
             toolCallsAndResults.flatMap(({ toolResult }) =>
                 toolResult ? [toolResult] : [],
@@ -7758,10 +7891,7 @@ export class AiAgentModel {
             .filter((row) => isParseableToolName(row.tool_name))
             .map((row) => this.parseToolResult(row));
 
-        return this.resolvePendingWritebackToolResults(
-            promptUuid,
-            parsedResults,
-        );
+        return this.resolvePendingToolResults(promptUuid, parsedResults);
     }
 
     async createToolResults(

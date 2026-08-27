@@ -34,10 +34,13 @@ import {
     SessionUser,
     shouldUseStaticFilterAutocomplete,
     TimeoutError,
+    UnexpectedServerError,
     UserAttributeValueMap,
     WarehouseQueryError,
     type AgentSqlScope,
     type AiAgentDocumentSummary,
+    type AppChartReference,
+    type AppDashboardReference,
     type ChartAsCode,
     type CustomChartType,
     type DashboardAsCode,
@@ -101,6 +104,7 @@ import {
     FindExploresFn,
     FindFieldFn,
     FindFieldsFn,
+    GenerateDataAppFn,
     GetDashboardChartsFn,
     GetExploreFn,
     GetProjectInfoFn,
@@ -187,6 +191,7 @@ export type AiAgentToolsRuntimeContext = {
     userAttributeOverrides?: UserAttributeValueMap;
     agentUuid?: string;
     threadUuid?: string;
+    promptUuid?: string;
     onWarehouseQuery?: () => void | Promise<void>;
     queryResultsExpirationMs?: number;
 };
@@ -250,6 +255,7 @@ export type AiAgentToolsRuntime = {
     createContent: CreateContentFn;
     createScheduledDelivery: CreateScheduledDeliveryFn;
     updateUserName: UpdateUserNameFn;
+    generateDataApp: GenerateDataAppFn;
     validateContent: ValidateContentFn;
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
     getKnowledgeDocumentContent: (args: {
@@ -266,7 +272,11 @@ export type AiAgentToolsRuntime = {
 
 export type McpAiAgentToolsRuntime = Omit<
     AiAgentToolsRuntime,
-    'getExplore' | 'findExplores' | 'findFields' | 'updateUserName'
+    | 'getExplore'
+    | 'findExplores'
+    | 'findFields'
+    | 'updateUserName'
+    | 'generateDataApp'
 > & {
     getExplore: (
         args: Parameters<GetExploreFn>[0],
@@ -596,7 +606,10 @@ export class AiAgentToolsService extends BaseService {
     createRuntime(
         context: AiAgentToolsRuntimeContext,
     ): AiAgentToolsRuntime | McpAiAgentToolsRuntime {
-        const runtime: Omit<AiAgentToolsRuntime, 'updateUserName'> = {
+        const runtime: Omit<
+            AiAgentToolsRuntime,
+            'updateUserName' | 'generateDataApp'
+        > = {
             listExplores: () => this.listExplores(context),
             getProjectParameterDefinitions: () =>
                 this.getProjectParameterDefinitions(context),
@@ -659,11 +672,16 @@ export class AiAgentToolsService extends BaseService {
             : {
                   ...runtime,
                   updateUserName: (args) => this.updateUserName(context, args),
+                  generateDataApp: (args) =>
+                      this.generateDataApp(context, args),
               };
     }
 
     private withMcpRuntimeResults(
-        runtime: Omit<AiAgentToolsRuntime, 'updateUserName'>,
+        runtime: Omit<
+            AiAgentToolsRuntime,
+            'updateUserName' | 'generateDataApp'
+        >,
     ): McpAiAgentToolsRuntime {
         return {
             ...runtime,
@@ -1587,6 +1605,139 @@ export class AiAgentToolsService extends BaseService {
         ) {
             throw new NotFoundError(notFoundMessage);
         }
+    }
+
+    /** Data apps enabled and the user may create them in the project. */
+    async canGenerateDataApp(context: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<boolean> {
+        if (!(await this.appGenerateService.dataAppsEnabledFor(context.user))) {
+            return false;
+        }
+        return this.appGenerateService.canCreateDataApp(
+            context.user,
+            context.projectUuid,
+        );
+    }
+
+    private generateDataApp(
+        context: AiAgentToolsRuntimeContext,
+        {
+            prompt,
+            template,
+            dashboardSlug,
+            chartSlugs,
+            toolCallId,
+        }: Parameters<GenerateDataAppFn>[0],
+    ): ReturnType<GenerateDataAppFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.generateDataApp`,
+            {
+                template,
+                fromDashboard: dashboardSlug !== null,
+                chartCount: chartSlugs?.length ?? 0,
+            },
+            async () => {
+                const { promptUuid } = context;
+                if (!promptUuid) {
+                    throw new UnexpectedServerError(
+                        'generateDataApp requires a prompt',
+                    );
+                }
+                const dashboard =
+                    dashboardSlug === null
+                        ? undefined
+                        : await this.resolveDataAppDashboardReference(
+                              context,
+                              dashboardSlug,
+                          );
+                const charts =
+                    chartSlugs === null || chartSlugs.length === 0
+                        ? undefined
+                        : await Promise.all(
+                              chartSlugs.map((chartSlug) =>
+                                  this.resolveDataAppChartReference(
+                                      context,
+                                      chartSlug,
+                                  ),
+                              ),
+                          );
+                return this.appGenerateService.generateApp(
+                    context.user,
+                    context.projectUuid,
+                    prompt,
+                    [],
+                    undefined,
+                    charts,
+                    dashboard,
+                    template ?? undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    {
+                        creationExperience: 'ai_agent',
+                        aiAgentToolCall: { promptUuid, toolCallId },
+                    },
+                );
+            },
+        );
+    }
+
+    private async resolveDataAppDashboardReference(
+        context: AiAgentToolsRuntimeContext,
+        slug: string,
+    ): Promise<AppDashboardReference> {
+        const notFound = `Dashboard "${slug}" was not found`;
+        let dashboard: Awaited<ReturnType<DashboardService['getByIdOrSlug']>>;
+        try {
+            dashboard = await this.dashboardService.getByIdOrSlug(
+                context.user,
+                slug,
+                { projectUuid: context.projectUuid },
+            );
+        } catch (error) {
+            if (error instanceof NotFoundError) {
+                throw new NotFoundError(notFound);
+            }
+            throw error;
+        }
+        if (
+            !AiAgentToolsService.hasAgentSpaceAccess(
+                context.spaceAccess,
+                dashboard.spaceUuid,
+            )
+        ) {
+            throw new NotFoundError(notFound);
+        }
+        return { uuid: dashboard.uuid, includeSampleData: true };
+    }
+
+    private async resolveDataAppChartReference(
+        context: AiAgentToolsRuntimeContext,
+        slug: string,
+    ): Promise<AppChartReference> {
+        const notFound = `Chart "${slug}" was not found`;
+        let chart: Awaited<ReturnType<SavedChartService['get']>>;
+        try {
+            chart = await this.savedChartService.get(slug, context.account, {
+                projectUuid: context.projectUuid,
+            });
+        } catch (error) {
+            if (error instanceof NotFoundError) {
+                throw new NotFoundError(notFound);
+            }
+            throw error;
+        }
+        if (
+            !AiAgentToolsService.hasAgentSpaceAccess(
+                context.spaceAccess,
+                chart.spaceUuid,
+            )
+        ) {
+            throw new NotFoundError(notFound);
+        }
+        return { uuid: chart.uuid, includeSampleData: true, linkLive: true };
     }
 
     private readContent(

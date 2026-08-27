@@ -384,6 +384,9 @@ type GenerateAppOptions = {
     designUuidInput?: string | null;
     externalConnections?: AppExternalConnectionReference[];
     codexModelInput?: DataAppCodexModel;
+    // The AI agent tool call that started the build; travels on the job so
+    // the worker can patch its pending result when the build ends.
+    aiAgentToolCall?: AppGeneratePipelineJobPayload['aiAgentToolCall'];
 };
 
 type GenerateAppResult = {
@@ -655,6 +658,18 @@ export class AppGenerateService extends BaseService {
                     conditions.projectType === ProjectType.PREVIEW
                 );
             })
+        );
+    }
+
+    /** Whether the user may create data apps in the project (feature flag aside). */
+    async canCreateDataApp(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const projectContext = await this.getDataAppProjectContext(projectUuid);
+        return this.createAuditedAbility(user).can(
+            'create',
+            subject('DataApp', projectContext),
         );
     }
 
@@ -6000,6 +6015,7 @@ export class AppGenerateService extends BaseService {
             designUuidInput,
             externalConnections,
             codexModelInput,
+            aiAgentToolCall,
         } = options;
         await this.assertDataAppsEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
@@ -6216,6 +6232,7 @@ export class AppGenerateService extends BaseService {
             dashboardBlueprint: dashboardBlueprint ?? undefined,
             ...(codexModel ? { codexModel } : { claudeModel }),
             designUuid: resolvedDesignUuid,
+            ...(aiAgentToolCall ? { aiAgentToolCall } : {}),
         });
 
         return { appUuid, version };

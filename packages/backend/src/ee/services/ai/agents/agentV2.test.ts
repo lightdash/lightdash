@@ -1011,6 +1011,7 @@ describe('getAgentTools workstream tool gate', () => {
         enableComposerQueries?: boolean;
         enableContentTools?: boolean;
         enableDataAccess?: boolean;
+        enableGenerateDataApp?: boolean;
     };
 
     const buildArgs = (flags: ToolFlags): AiAgentArgs =>
@@ -1027,6 +1028,7 @@ describe('getAgentTools workstream tool gate', () => {
             enableContentTools: false,
             enableDataAccess: false,
             enableEditProjectContext: false,
+            enableGenerateDataApp: false,
             enablePreviewDeploySetup: false,
             enableRepoDiscovery: false,
             execution: {
@@ -1077,6 +1079,22 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).toContain('getPullRequestDiff');
         expect(names).toContain('editDbtProject');
         expect(names).not.toContain('editRepo');
+    });
+
+    it('exposes generateDataApp only when the data app gate is satisfied', () => {
+        const withGate = toolNames({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            enableGenerateDataApp: true,
+        });
+        const withoutGate = toolNames({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            enableGenerateDataApp: false,
+        });
+
+        expect(withGate).toContain('generateDataApp');
+        expect(withoutGate).not.toContain('generateDataApp');
     });
 
     it('exposes loadProjectContext when AI agent memory is enabled', () => {

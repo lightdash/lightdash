@@ -648,10 +648,18 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         helpers.job.run_at,
                         payload,
                         async () => {
-                            await this.appGenerateService.runPipeline(
-                                payload,
-                                schedulerWaitMs,
-                            );
+                            try {
+                                await this.appGenerateService.runPipeline(
+                                    payload,
+                                    schedulerWaitMs,
+                                );
+                            } finally {
+                                // Pipeline exited (ready, error or cancelled):
+                                // record the outcome on the starting tool call.
+                                await this.aiAgentService.recordDataAppBuildOutcome(
+                                    payload,
+                                );
+                            }
                         },
                     ),
                     helpers.job,
@@ -668,6 +676,9 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                                 payload,
                                 e,
                                 schedulerWaitMs,
+                            );
+                            await this.aiAgentService.recordDataAppBuildOutcome(
+                                payload,
                             );
                         }
                     },

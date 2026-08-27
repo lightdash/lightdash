@@ -19,6 +19,7 @@ import {
     CustomChartTypeLibrary,
     DashboardAsCode,
     DashboardSearchResult,
+    DataAppBuildTemplate,
     DataAppSearchResult,
     DataAppVizSchema,
     DbtProjectType,
@@ -643,6 +644,16 @@ export type EditDbtProjectFn = (args: {
 }) => Promise<{
     aiWritebackRunUuid: string;
 }>;
+
+// Starts a personal data app build; the worker patches the tool result
+// (keyed by toolCallId) when the build ends.
+export type GenerateDataAppFn = (args: {
+    prompt: string;
+    template: DataAppBuildTemplate | null;
+    dashboardSlug: string | null;
+    chartSlugs: string[] | null;
+    toolCallId: string;
+}) => Promise<{ appUuid: string; version: number }>;
 
 // Applies a structured project-context entry to lightdash.project_context.yml
 // via the deterministic GitHub-API merge (no sandbox) and opens/updates a PR.

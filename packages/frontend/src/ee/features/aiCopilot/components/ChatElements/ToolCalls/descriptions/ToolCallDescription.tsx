@@ -370,6 +370,7 @@ export const ToolCallDescription: FC<{
         case 'listWorkstreams':
         case 'closePullRequest':
         case 'getPullRequestDiff':
+        case 'generateDataApp':
         case 'editDbtProject':
         case 'editProjectContext':
         case 'editRepo':
