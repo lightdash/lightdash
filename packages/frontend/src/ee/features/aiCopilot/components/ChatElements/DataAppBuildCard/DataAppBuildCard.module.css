@@ -51,13 +51,17 @@
 .lead {
     grid-column: 1;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--mantine-spacing-xs);
     min-width: 0;
 }
 
+/* Icon lines up with the first text line: single-line text centres within
+   the icon's height, a subtitle simply extends below. */
 .leadText {
     min-width: 0;
+    min-height: var(--card-icon-size);
+    justify-content: center;
 }
 
 .full {
