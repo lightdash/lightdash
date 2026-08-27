@@ -4,12 +4,12 @@ import {
     isNumericItem,
     SchedulerFormat,
     type ApiError,
-    type CreateSchedulerAndTargets,
     type CreateSchedulerAndTargetsWithoutIds,
     type DashboardFilterableField,
     type ItemsMap,
     type ParametersValuesMap,
     type SchedulerAndTargets,
+    type SendNowScheduler,
 } from '@lightdash/common';
 import { type FormValidateInput } from '@mantine/form';
 import { type UseMutationResult } from '@tanstack/react-query';
@@ -399,45 +399,20 @@ export const useSchedulerFormModal = ({
             formResource?.type,
         );
 
-        let resource: {
-            savedChartUuid: string | null;
-            dashboardUuid: string | null;
-            savedSqlUuid: string | null;
-            appUuid: string | null;
-        };
-        if (isEditMode) {
-            resource = {
-                savedChartUuid: scheduler.data?.savedChartUuid ?? null,
-                dashboardUuid: scheduler.data?.dashboardUuid ?? null,
-                savedSqlUuid: scheduler.data?.savedSqlUuid ?? null,
-                appUuid: scheduler.data?.appUuid ?? null,
-            };
-        } else if (isApp) {
-            resource = {
-                appUuid: resourceUuid,
-                savedChartUuid: null,
-                dashboardUuid: null,
-                savedSqlUuid: null,
-            };
-        } else if (isChart) {
-            resource = {
-                savedChartUuid: resourceUuid,
-                dashboardUuid: null,
-                savedSqlUuid: null,
-                appUuid: null,
-            };
-        } else {
-            resource = {
-                dashboardUuid: resourceUuid,
-                savedChartUuid: null,
-                savedSqlUuid: null,
-                appUuid: null,
-            };
-        }
-
-        const unsavedScheduler: CreateSchedulerAndTargets = {
-            ...schedulerData,
-            ...resource,
+        const sendNowBase = {
+            name: schedulerData.name,
+            message: schedulerData.message,
+            format: schedulerData.format,
+            cron: schedulerData.cron,
+            timezone: schedulerData.timezone,
+            appName: schedulerData.appName,
+            options: schedulerData.options,
+            thresholds: schedulerData.thresholds,
+            enabled: schedulerData.enabled,
+            notificationFrequency: schedulerData.notificationFrequency,
+            includeLinks: schedulerData.includeLinks,
+            plainTextEmail: schedulerData.plainTextEmail,
+            targets: schedulerData.targets,
             createdBy: user.userUuid,
             // Carry the (possibly unsaved) AI settings so send-now runs them.
             aiAugmentation: form.values.aiAugmentation,
@@ -445,6 +420,67 @@ export const useSchedulerFormModal = ({
             // links can open the delivery.
             sourceSchedulerUuid: isEditMode ? schedulerUuid : undefined,
         };
+
+        let unsavedScheduler: SendNowScheduler;
+        const savedChartUuid = isEditMode
+            ? scheduler.data?.savedChartUuid
+            : isChart
+              ? resourceUuid
+              : null;
+        const dashboardUuid = isEditMode
+            ? scheduler.data?.dashboardUuid
+            : !isChart && !isApp
+              ? resourceUuid
+              : null;
+        const savedSqlUuid = isEditMode ? scheduler.data?.savedSqlUuid : null;
+        const appUuid = isEditMode
+            ? scheduler.data?.appUuid
+            : isApp
+              ? resourceUuid
+              : null;
+
+        if (savedChartUuid) {
+            unsavedScheduler = {
+                ...sendNowBase,
+                savedChartUuid,
+                dashboardUuid: null,
+                savedSqlUuid: null,
+                appUuid: null,
+                filters: form.values.chartFilters,
+                parameters: form.values.parameters,
+            };
+        } else if (dashboardUuid) {
+            unsavedScheduler = {
+                ...sendNowBase,
+                savedChartUuid: null,
+                dashboardUuid,
+                savedSqlUuid: null,
+                appUuid: null,
+                filters: form.values.dashboardFilters,
+                parameters: form.values.parameters,
+                customViewportWidth: form.values.customViewportWidth,
+                selectedTabs: form.values.selectedTabs,
+            };
+        } else if (savedSqlUuid) {
+            unsavedScheduler = {
+                ...sendNowBase,
+                savedChartUuid: null,
+                dashboardUuid: null,
+                savedSqlUuid,
+                appUuid: null,
+            };
+        } else if (appUuid) {
+            unsavedScheduler = {
+                ...sendNowBase,
+                savedChartUuid: null,
+                dashboardUuid: null,
+                savedSqlUuid: null,
+                appUuid,
+                appState: form.values.appState ?? undefined,
+            };
+        } else {
+            return;
+        }
 
         track({ name: EventName.SCHEDULER_SEND_NOW_BUTTON });
         sendNow(unsavedScheduler);

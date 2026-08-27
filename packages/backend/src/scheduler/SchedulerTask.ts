@@ -97,6 +97,7 @@ import {
     SchedulerJobStatus,
     SchedulerLog,
     SchedulerResourceType,
+    SendNowScheduler,
     SessionUser,
     SlackInstallationNotFoundError,
     SlackNotificationPayload,
@@ -220,7 +221,7 @@ export type SchedulerDeliveryQuery = {
 
 export interface SchedulerAiAugmentationRunner {
     runForDelivery(args: {
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets;
+        scheduler: SchedulerAndTargets | SendNowScheduler;
         createdBy: string;
         deliveryQueries?: SchedulerDeliveryQuery[];
     }): Promise<string | null>;
@@ -620,7 +621,7 @@ export default class SchedulerTask {
     }
 
     private static getCsvOptions(
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        scheduler: SchedulerAndTargets | SendNowScheduler,
     ) {
         return isSchedulerCsvOptions(scheduler.options)
             ? scheduler.options
@@ -715,7 +716,7 @@ export default class SchedulerTask {
     // Renders the app once in delivery capture mode and returns the manifest of
     // queries it ran. Must be called once per job, before the per-channel fan-out.
     protected async captureAppDeliveryQueries(
-        scheduler: CreateSchedulerAndTargets,
+        scheduler: SendNowScheduler,
         jobId: string,
     ): Promise<DeliveryCaptureManifest> {
         if (!isAppCreateScheduler(scheduler)) {
@@ -748,7 +749,7 @@ export default class SchedulerTask {
     }
 
     protected async getNotificationPageData(
-        scheduler: CreateSchedulerAndTargets,
+        scheduler: SendNowScheduler,
         jobId: string,
         isFinalAttempt: boolean,
         expirationSecondsOverride?: number,
@@ -809,7 +810,7 @@ export default class SchedulerTask {
                 : undefined);
 
         const selectedTabs = isDashboardScheduler(scheduler)
-            ? scheduler.selectedTabs
+            ? (scheduler.selectedTabs ?? null)
             : null;
 
         const context =
@@ -3576,7 +3577,11 @@ export default class SchedulerTask {
 
             // Email-only: strips the branded template in favour of a text body.
             const plainText = plainTextEmail
-                ? { cadence: getCronCadence(scheduler.cron) }
+                ? {
+                      cadence: scheduler.cron
+                          ? getCronCadence(scheduler.cron)
+                          : undefined,
+                  }
                 : undefined;
 
             await this.schedulerService.logSchedulerJob({
@@ -4890,7 +4895,7 @@ export default class SchedulerTask {
 
         const persistedOrInlineScheduler:
             | SchedulerAndTargets
-            | CreateSchedulerAndTargets = isInlineScheduler
+            | SendNowScheduler = isInlineScheduler
             ? schedulerPayload
             : await this.schedulerService.schedulerModel.getSchedulerAndTargets(
                   schedulerPayload.schedulerUuid,
