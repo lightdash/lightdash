@@ -66,6 +66,27 @@ describe('getResultColumnMetadataFromItem', () => {
         ).toEqual({ label: 'Status' });
     });
 
+    test('null format keys on an item do not produce a format expression', () => {
+        // Merged items are built with `format: field?.format` and jsonb
+        // round-trips store null — a string dimension whose format keys are
+        // null must not get a default numeric format.
+        const nullFormatDimension = {
+            ...dimension,
+            format: null,
+            compact: null,
+            round: null,
+        } as unknown as Dimension;
+        expect(
+            getResultColumnMetadataFromItem(
+                nullFormatDimension,
+                'orders_status',
+            ),
+        ).toEqual({
+            label: 'Orders Status',
+            provenance: { fieldId: 'orders_status' },
+        });
+    });
+
     test('enriches a plain dimension with label and provenance', () => {
         expect(
             getResultColumnMetadataFromItem(dimension, 'orders_status'),
