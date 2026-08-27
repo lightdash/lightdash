@@ -1,3 +1,10 @@
+# [2.38.0](https://github.com/lightdash/lightdash/compare/2.37.0...2.38.0) (2026-08-27)
+
+
+### Features
+
+* **backend:** stamp result columns with display metadata at query-write time ([#28146](https://github.com/lightdash/lightdash/issues/28146)) ([033a700](https://github.com/lightdash/lightdash/commit/033a700a52ad7697543a33ef91a51849a4752326))
+
 # [2.37.0](https://github.com/lightdash/lightdash/compare/2.36.1...2.37.0) (2026-08-27)
 
 

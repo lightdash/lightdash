@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.37.0",
-  "previousVersion": "2.36.1",
-  "releaseDate": "2026-08-27T17:15:43.605Z",
+  "version": "2.38.0",
+  "previousVersion": "2.37.0",
+  "releaseDate": "2026-08-27T17:39:46.593Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260827120000_add_used_parameters_to_query_history.ts",
+        "edition": "core",
+        "tables": [
+          "query_history"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
