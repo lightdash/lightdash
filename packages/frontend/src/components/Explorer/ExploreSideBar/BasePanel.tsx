@@ -4,7 +4,7 @@ import {
     FeatureFlags,
     type SummaryExplore,
 } from '@lightdash/common';
-import { TextInput, Stack, ActionIcon, Button, Group } from '@mantine/core';
+import { ActionIcon, Button, Group, Stack, TextInput } from '@mantine-8/core';
 import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import {
     IconAlertCircle,
@@ -27,6 +27,7 @@ import { Can } from '../../../providers/Ability';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
+import { ExplorerSidebarToggle } from '../ExplorerSidebarToggle';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
 import { buildExploreTree, sortExploreTree } from './exploreTree';
@@ -48,9 +49,14 @@ type Props = {
     // a table created through the upload modal is handed here instead of
     // navigating, so the host flow keeps its state.
     onExploreCreated?: (exploreName: string) => void;
+    isCollapsible?: boolean;
 };
 
-const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
+const BasePanel = ({
+    onExploreClick,
+    onExploreCreated,
+    isCollapsible = false,
+}: Props) => {
     const navigate = useNavigate();
     const location = useLocation();
     const projectUuid = useProjectUuid();
@@ -229,30 +235,35 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
                                     size="md"
                                     items={[{ title: 'Tables', active: true }]}
                                 />
-                                {canShowAddData && (
-                                    <Can
-                                        I="manage"
-                                        this={subject('ExternalSource', {
-                                            organizationUuid:
-                                                org?.organizationUuid,
-                                            projectUuid,
-                                        })}
-                                    >
-                                        <Button
-                                            variant="default"
-                                            size="compact-xs"
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconPlus}
-                                                    size="sm"
-                                                />
-                                            }
-                                            onClick={openAddDataModal}
+                                <Group gap="xs" wrap="nowrap">
+                                    {canShowAddData && (
+                                        <Can
+                                            I="manage"
+                                            this={subject('ExternalSource', {
+                                                organizationUuid:
+                                                    org?.organizationUuid,
+                                                projectUuid,
+                                            })}
                                         >
-                                            Add data
-                                        </Button>
-                                    </Can>
-                                )}
+                                            <Button
+                                                variant="default"
+                                                size="compact-xs"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconPlus}
+                                                        size="sm"
+                                                    />
+                                                }
+                                                onClick={openAddDataModal}
+                                            >
+                                                Add data
+                                            </Button>
+                                        </Can>
+                                    )}
+                                    {isCollapsible && (
+                                        <ExplorerSidebarToggle isOpen />
+                                    )}
+                                </Group>
                             </Group>
                         </Can>
 

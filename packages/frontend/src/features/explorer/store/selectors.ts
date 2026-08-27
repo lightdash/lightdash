@@ -86,6 +86,11 @@ export const selectIsVisualizationConfigOpen = createSelector(
     (explorer) => explorer.isVisualizationConfigOpen === true,
 );
 
+export const selectIsFieldSidebarOpen = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.isFieldSidebarOpen,
+);
+
 export const selectChartSidebarStep = createSelector(
     [selectExplorerState],
     (explorer) => explorer.chartSidebarStep,

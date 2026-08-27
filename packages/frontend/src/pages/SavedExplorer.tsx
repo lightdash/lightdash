@@ -1,24 +1,32 @@
-import { Button } from '@mantine/core';
+import { Button, Group } from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
 import { lazy, memo, Suspense, useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
-import { useParams } from 'react-router';
+import { useLocation, useParams } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
 import ChangeChartExploreModal from '../components/common/modal/ChangeChartExploreModal';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
 import { useChartGalleryRightSidebar } from '../components/Explorer/ChartGallery/useChartGalleryRightSidebar';
+import { ExplorerSidebarToggle } from '../components/Explorer/ExplorerSidebarToggle';
 import LoadingSkeleton from '../components/Explorer/ExploreTree/LoadingSkeleton';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
+import { useExplorerSidebarShortcuts } from '../components/Explorer/useExplorerSidebarShortcuts';
 import {
     buildInitialExplorerState,
     createExplorerStore,
     explorerActions,
+    selectIsFieldSidebarOpen,
+    useExplorerSelector,
 } from '../features/explorer/store';
 import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
+import {
+    parseIsFieldSidebarOpen,
+    useExplorerSidebarUrlState,
+} from '../hooks/useExplorerSidebarUrlState';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
@@ -32,9 +40,12 @@ const LazyExplorePanel = lazy(
 const SavedExplorerContent = memo(() => {
     const { mode } = useParams<{ mode?: string }>();
     const isEditMode = mode === 'edit';
+    const isFieldSidebarOpen = useExplorerSelector(selectIsFieldSidebarOpen);
     const rightSidebarProps = useChartGalleryRightSidebar({
         enabled: isEditMode,
     });
+    useExplorerSidebarUrlState();
+    useExplorerSidebarShortcuts({ enabled: isEditMode });
 
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
@@ -45,14 +56,19 @@ const SavedExplorerContent = memo(() => {
             header={<SavedChartsHeader />}
             sidebar={
                 <Suspense fallback={<LoadingSkeleton />}>
-                    <LazyExplorePanel />
+                    <LazyExplorePanel isCollapsible />
                 </Suspense>
             }
-            isSidebarOpen={isEditMode}
+            isSidebarOpen={isEditMode && isFieldSidebarOpen}
             {...rightSidebarProps}
             withFullHeight
             withPaddedContent
         >
+            {isEditMode && !isFieldSidebarOpen && (
+                <Group>
+                    <ExplorerSidebarToggle isOpen={false} />
+                </Group>
+            )}
             <Explorer />
         </Page>
     );
@@ -68,6 +84,8 @@ const SavedExplorer = () => {
     }>();
 
     const isEditMode = mode === 'edit';
+    const { search } = useLocation();
+    const isFieldSidebarOpen = parseIsFieldSidebarOpen(search);
 
     const { setDashboardChartInfo } = useDashboardStorage();
 
@@ -106,6 +124,7 @@ const SavedExplorer = () => {
             const initialState = buildInitialExplorerState({
                 savedChart: data,
                 isEditMode,
+                isFieldSidebarOpen,
                 expandedSections: [ExplorerSection.VISUALIZATION],
                 defaultLimit: health.data?.query.defaultLimit,
             });
@@ -113,7 +132,13 @@ const SavedExplorer = () => {
         } else {
             store.dispatch(explorerActions.setSavedChart(data));
         }
-    }, [data, store, isEditMode, health.data?.query.defaultLimit]);
+    }, [
+        data,
+        store,
+        isEditMode,
+        isFieldSidebarOpen,
+        health.data?.query.defaultLimit,
+    ]);
 
     useEffect(() => {
         store.dispatch(explorerActions.setIsEditMode(isEditMode));

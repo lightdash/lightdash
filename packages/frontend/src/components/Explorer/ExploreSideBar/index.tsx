@@ -33,76 +33,83 @@ type Props = {
     // stay inside the embed route.
     onExploreClick?: (explore: SummaryExplore) => void;
     onBackToTables?: () => void;
+    isCollapsible?: boolean;
 };
 
-const ExploreSideBar = memo(({ onExploreClick, onBackToTables }: Props) => {
-    const projectUuid = useProjectUuid();
-    const projectRoute = useOptionalProjectRoute();
-    const projectUrlIdentifier =
-        projectRoute?.projectUrlIdentifier ?? projectUuid;
+const ExploreSideBar = memo(
+    ({ onExploreClick, onBackToTables, isCollapsible = false }: Props) => {
+        const projectUuid = useProjectUuid();
+        const projectRoute = useOptionalProjectRoute();
+        const projectUrlIdentifier =
+            projectRoute?.projectUrlIdentifier ?? projectUuid;
 
-    const tableName = useExplorerSelector(selectTableName);
-    const deferredTableName = useDeferredValue(tableName);
-    const ability = useAbilityContext();
-    const { data: org } = useOrganization();
+        const tableName = useExplorerSelector(selectTableName);
+        const deferredTableName = useDeferredValue(tableName);
+        const ability = useAbilityContext();
+        const { data: org } = useOrganization();
 
-    const queryClient = useQueryClient();
-    const dispatch = useExplorerDispatch();
-    const navigate = useNavigate();
+        const queryClient = useQueryClient();
+        const dispatch = useExplorerDispatch();
+        const navigate = useNavigate();
 
-    const clearExplore = useCallback(async () => {
-        void queryClient.cancelQueries({
-            queryKey: ['create-query'],
-            exact: false,
-        });
-        dispatch(explorerActions.reset(defaultState));
-        dispatch(explorerActions.resetQueryExecution());
-    }, [queryClient, dispatch]);
+        const clearExplore = useCallback(async () => {
+            void queryClient.cancelQueries({
+                queryKey: ['create-query'],
+                exact: false,
+            });
+            dispatch(explorerActions.reset(defaultState));
+            dispatch(explorerActions.resetQueryExecution());
+        }, [queryClient, dispatch]);
 
-    const canManageExplore = ability.can(
-        'manage',
-        subject('Explore', {
-            organizationUuid: org?.organizationUuid,
-            projectUuid,
-        }),
-    );
-    const handleBack = useCallback(() => {
-        void clearExplore();
-        if (onBackToTables) {
-            onBackToTables();
-            return;
-        }
-        void navigate(`/projects/${projectUrlIdentifier}/tables`);
-    }, [clearExplore, navigate, projectUrlIdentifier, onBackToTables]);
+        const canManageExplore = ability.can(
+            'manage',
+            subject('Explore', {
+                organizationUuid: org?.organizationUuid,
+                projectUuid,
+            }),
+        );
+        const handleBack = useCallback(() => {
+            void clearExplore();
+            if (onBackToTables) {
+                onBackToTables();
+                return;
+            }
+            void navigate(`/projects/${projectUrlIdentifier}/tables`);
+        }, [clearExplore, navigate, projectUrlIdentifier, onBackToTables]);
 
-    // When transitioning back to tables it's relatively fast so we don't show any skeleton
-    const isTransitioningToExplore = useMemo(
-        () => tableName !== deferredTableName && !!tableName,
-        [tableName, deferredTableName],
-    );
+        // When transitioning back to tables it's relatively fast so we don't show any skeleton
+        const isTransitioningToExplore = useMemo(
+            () => tableName !== deferredTableName && !!tableName,
+            [tableName, deferredTableName],
+        );
 
-    return (
-        <TrackSection name={SectionName.SIDEBAR}>
-            {isTransitioningToExplore ? (
-                <LoadingSkeleton />
-            ) : !tableName ? (
-                <Suspense fallback={<LoadingSkeleton />}>
-                    <LazyBasePanel onExploreClick={onExploreClick} />
-                </Suspense>
-            ) : (
-                <Suspense fallback={<LoadingSkeleton />}>
-                    <LazyExplorePanel
-                        onBack={
-                            onBackToTables || canManageExplore
-                                ? handleBack
-                                : undefined
-                        }
-                    />
-                </Suspense>
-            )}
-        </TrackSection>
-    );
-});
+        return (
+            <TrackSection name={SectionName.SIDEBAR}>
+                {isTransitioningToExplore ? (
+                    <LoadingSkeleton />
+                ) : !tableName ? (
+                    <Suspense fallback={<LoadingSkeleton />}>
+                        <LazyBasePanel
+                            onExploreClick={onExploreClick}
+                            isCollapsible={isCollapsible}
+                        />
+                    </Suspense>
+                ) : (
+                    <Suspense fallback={<LoadingSkeleton />}>
+                        <LazyExplorePanel
+                            onBack={
+                                onBackToTables || canManageExplore
+                                    ? handleBack
+                                    : undefined
+                            }
+                            isCollapsible={isCollapsible}
+                        />
+                    </Suspense>
+                )}
+            </TrackSection>
+        );
+    },
+);
 
 ExploreSideBar.displayName = 'ExploreSideBar';
 

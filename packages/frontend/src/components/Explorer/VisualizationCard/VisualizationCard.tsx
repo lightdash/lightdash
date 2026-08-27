@@ -8,7 +8,7 @@ import {
     type EChartsSeries,
     type FieldId,
 } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Button, Tooltip } from '@mantine-8/core';
 import { useElementSize } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
@@ -54,6 +54,7 @@ import SortButton from '../../SortButton';
 import ExplorerChartSidebar from '../ChartGallery/ExplorerChartSidebar';
 import { useIsChartGalleryEnabled } from '../ChartGallery/useIsChartGalleryEnabled';
 import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
+import { ShortcutTooltipLabel } from '../ExplorerSidebarToggle';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
 import { SeriesContextMenu } from './SeriesContextMenu';
 import { useDirtyPivotConfiguration } from './useDirtyPivotConfiguration';
@@ -374,27 +375,42 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                     }
                                 />
                                 {isEditMode ? (
-                                    <Button
-                                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
-                                        onClick={
-                                            isVisualizationConfigOpen
-                                                ? closeVisualizationConfig
-                                                : openVisualizationConfig
-                                        }
-                                        rightSection={
-                                            <MantineIcon
-                                                icon={
+                                    <Tooltip
+                                        label={
+                                            <ShortcutTooltipLabel
+                                                action={
                                                     isVisualizationConfigOpen
-                                                        ? IconLayoutSidebarLeftCollapse
-                                                        : IconLayoutSidebarLeftExpand
+                                                        ? 'Close chart sidebar'
+                                                        : 'Open chart sidebar'
                                                 }
+                                                withAlt
                                             />
                                         }
+                                        withArrow
+                                        withinPortal
                                     >
-                                        {isVisualizationConfigOpen
-                                            ? 'Close configure'
-                                            : 'Configure'}
-                                    </Button>
+                                        <Button
+                                            {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                                            onClick={
+                                                isVisualizationConfigOpen
+                                                    ? closeVisualizationConfig
+                                                    : openVisualizationConfig
+                                            }
+                                            rightSection={
+                                                <MantineIcon
+                                                    icon={
+                                                        isVisualizationConfigOpen
+                                                            ? IconLayoutSidebarLeftCollapse
+                                                            : IconLayoutSidebarLeftExpand
+                                                    }
+                                                />
+                                            }
+                                        >
+                                            {isVisualizationConfigOpen
+                                                ? 'Close configure'
+                                                : 'Configure'}
+                                        </Button>
+                                    </Tooltip>
                                 ) : null}
 
                                 {/*

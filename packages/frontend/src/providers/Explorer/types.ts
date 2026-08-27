@@ -278,6 +278,7 @@ export interface ExplorerReduceState {
         // Temporary state that tracks changes to `table calculations` - keeps track of new name and previous name to ensure these get updated correctly when making changes to the layout & config of a chart
         tableCalculations?: TableCalculationMetadata[];
     };
+    isFieldSidebarOpen: boolean;
     isVisualizationConfigOpen?: boolean;
     /** Which step the chart gallery sidebar shows when it is open. */
     chartSidebarStep: ChartSidebarStep;

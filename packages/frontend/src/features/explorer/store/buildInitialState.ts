@@ -11,6 +11,7 @@ import {
 interface BuildInitialStateOptions {
     savedChart?: SavedChart;
     isEditMode?: boolean;
+    isFieldSidebarOpen?: boolean;
     expandedSections?: ExplorerSection[];
     minimal?: boolean;
     initialState?: Partial<ExplorerReduceState>;
@@ -23,6 +24,7 @@ interface BuildInitialStateOptions {
 export const buildInitialExplorerState = ({
     savedChart,
     isEditMode = false,
+    isFieldSidebarOpen,
     expandedSections = [ExplorerSection.VISUALIZATION],
     minimal = false,
     initialState: customInitialState,
@@ -36,6 +38,10 @@ export const buildInitialExplorerState = ({
             ...defaultState,
             ...customInitialState,
             isEditMode,
+            isFieldSidebarOpen:
+                isFieldSidebarOpen ??
+                customInitialState.isFieldSidebarOpen ??
+                defaultState.isFieldSidebarOpen,
         };
 
         // Apply defaultLimit to metricQuery if provided and not already set
@@ -61,6 +67,8 @@ export const buildInitialExplorerState = ({
             ...defaultState,
             savedChart,
             isEditMode,
+            isFieldSidebarOpen:
+                isFieldSidebarOpen ?? defaultState.isFieldSidebarOpen,
             isMinimal: minimal,
             parameterReferences: Object.keys(savedChart.parameters ?? {}),
             parameterDefinitions: {},
@@ -82,6 +90,8 @@ export const buildInitialExplorerState = ({
         const baseDefaultState = {
             ...defaultState,
             isEditMode,
+            isFieldSidebarOpen:
+                isFieldSidebarOpen ?? defaultState.isFieldSidebarOpen,
             isMinimal: minimal,
             expandedSections,
         };

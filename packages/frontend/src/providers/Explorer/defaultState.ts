@@ -15,6 +15,7 @@ export const defaultQueryExecution: ExplorerSliceState['queryExecution'] = {
 const defaultFilters: Filters = {};
 
 export const defaultState: ExplorerSliceState = {
+    isFieldSidebarOpen: true,
     isVisualizationConfigOpen: false,
     chartSidebarStep: 'configure',
     chartTypeAuthoring: null,

@@ -40,6 +40,7 @@ import {
     type ExplorerReduceState,
 } from '../providers/Explorer/types';
 import useToaster from './toaster/useToaster';
+import { parseIsFieldSidebarOpen } from './useExplorerSidebarUrlState';
 
 const CHART_SIDEBAR_PARAM = 'chartSidebar';
 
@@ -430,6 +431,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                     parameters: {},
                     fromDashboard: fromDashboard ?? undefined,
                     isExploreFromHere: isExploreFromHere,
+                    isFieldSidebarOpen: parseIsFieldSidebarOpen(search),
                     ...parseChartSidebarFromSearchParams(search),
                     queryExecution: defaultQueryExecution,
                     preAggregate: defaultState.preAggregate,

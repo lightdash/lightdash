@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { Group } from '@mantine-8/core';
 import { useHotkeys } from '@mantine/hooks';
 import { memo, useCallback, useState } from 'react';
 import { Provider } from 'react-redux';
@@ -6,12 +7,15 @@ import { useNavigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
 import { useChartGalleryRightSidebar } from '../components/Explorer/ChartGallery/useChartGalleryRightSidebar';
+import { ExplorerSidebarToggle } from '../components/Explorer/ExplorerSidebarToggle';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
+import { useExplorerSidebarShortcuts } from '../components/Explorer/useExplorerSidebarShortcuts';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import {
     buildInitialExplorerState,
     createExplorerStore,
     explorerActions,
+    selectIsFieldSidebarOpen,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
@@ -24,6 +28,7 @@ import {
     useExplorerRoute,
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
+import { useExplorerSidebarUrlState } from '../hooks/useExplorerSidebarUrlState';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import useApp from '../providers/App/useApp';
 import { defaultState } from '../providers/Explorer/defaultState';
@@ -31,11 +36,13 @@ import { defaultState } from '../providers/Explorer/defaultState';
 const ExplorerContent = memo(() => {
     // Sync URL params to Redux
     useExplorerRoute();
+    useExplorerSidebarUrlState();
 
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
 
     const dispatch = useExplorerDispatch();
+    const isFieldSidebarOpen = useExplorerSelector(selectIsFieldSidebarOpen);
     const rightSidebarProps = useChartGalleryRightSidebar({ enabled: true });
     const navigate = useNavigate();
     const merge = useMergeSafe();
@@ -59,15 +66,22 @@ const ExplorerContent = memo(() => {
     }, [merge, dispatch, tableId, navigate]);
 
     useHotkeys([['mod + alt + k', handleClearQuery]]);
+    useExplorerSidebarShortcuts({ enabled: true });
 
     return (
         <Page
             title={data ? data?.label : 'Tables'}
-            sidebar={<ExploreSideBar />}
+            sidebar={<ExploreSideBar isCollapsible />}
+            isSidebarOpen={isFieldSidebarOpen}
             {...rightSidebarProps}
             withFullHeight
             withPaddedContent
         >
+            {!isFieldSidebarOpen && (
+                <Group>
+                    <ExplorerSidebarToggle isOpen={false} />
+                </Group>
+            )}
             <Explorer />
         </Page>
     );

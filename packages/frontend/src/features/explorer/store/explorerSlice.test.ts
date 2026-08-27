@@ -2,6 +2,35 @@ import { ChartType, type TableCalculation } from '@lightdash/common';
 import { defaultState } from '../../../providers/Explorer/defaultState';
 import { explorerActions, explorerReducer } from './explorerSlice';
 
+describe('explorerSlice field sidebar', () => {
+    it('opens, closes, and toggles the field sidebar', () => {
+        const closed = explorerReducer(
+            undefined,
+            explorerActions.setIsFieldSidebarOpen(false),
+        );
+        expect(closed.isFieldSidebarOpen).toBe(false);
+
+        const toggled = explorerReducer(
+            closed,
+            explorerActions.toggleFieldSidebar(),
+        );
+        expect(toggled.isFieldSidebarOpen).toBe(true);
+    });
+
+    it('preserves the field sidebar when clearing the query', () => {
+        const closed = explorerReducer(
+            undefined,
+            explorerActions.setIsFieldSidebarOpen(false),
+        );
+        const cleared = explorerReducer(
+            closed,
+            explorerActions.clearQuery({ defaultState, tableName: 'orders' }),
+        );
+
+        expect(cleared.isFieldSidebarOpen).toBe(false);
+    });
+});
+
 describe('explorerSlice pivot axis updates', () => {
     it('preserves both axis changes when moving a row dimension to columns', () => {
         const initialState = explorerReducer(

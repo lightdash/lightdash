@@ -1,5 +1,12 @@
 import { FeatureFlags, type ChartType } from '@lightdash/common';
-import { ActionIcon, Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Anchor,
+    Group,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
 import {
     IconArrowLeft,
     IconFilePencil,
@@ -26,6 +33,7 @@ import {
 import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { ShortcutTooltipLabel } from '../ExplorerSidebarToggle';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
 import { useChartTypeOptions } from '../VisualizationCardOptions/useChartTypeOptions';
 import ExplorerChartTypeGallery, {
@@ -126,7 +134,12 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                     </Group>
                     {!isAuthoring && (
                         <Tooltip
-                            label="Close visualization config"
+                            label={
+                                <ShortcutTooltipLabel
+                                    action="Close chart sidebar"
+                                    withAlt
+                                />
+                            }
                             position="right"
                         >
                             <ActionIcon

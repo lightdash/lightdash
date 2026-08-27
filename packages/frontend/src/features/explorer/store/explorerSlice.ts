@@ -96,6 +96,12 @@ const explorerSlice = createSlice({
         setIsMinimal: (state, action: PayloadAction<boolean>) => {
             state.isMinimal = action.payload;
         },
+        setIsFieldSidebarOpen: (state, action: PayloadAction<boolean>) => {
+            state.isFieldSidebarOpen = action.payload;
+        },
+        toggleFieldSidebar: (state) => {
+            state.isFieldSidebarOpen = !state.isFieldSidebarOpen;
+        },
         setSavedChart: (
             state,
             action: PayloadAction<SavedChart | undefined>,
@@ -1129,6 +1135,7 @@ const explorerSlice = createSlice({
             const {
                 isEditMode,
                 isMinimal,
+                isFieldSidebarOpen,
                 chartSidebarStep,
                 chartTypeAuthoring,
             } = state;
@@ -1137,6 +1144,7 @@ const explorerSlice = createSlice({
                 draft.unsavedChartVersion.metricQuery.exploreName = tableName;
                 draft.isEditMode = isEditMode;
                 draft.isMinimal = isMinimal;
+                draft.isFieldSidebarOpen = isFieldSidebarOpen;
                 draft.chartSidebarStep = chartSidebarStep;
                 draft.chartTypeAuthoring = chartTypeAuthoring;
             });
