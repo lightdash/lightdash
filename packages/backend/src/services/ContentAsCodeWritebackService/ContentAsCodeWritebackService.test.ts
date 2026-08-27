@@ -34,6 +34,7 @@ type Overrides = {
     existingFile?: object | 'missing';
     draft?: object | undefined;
     createError?: Error;
+    openDraftCount?: number;
 };
 
 const buildService = (overrides: Overrides = {}) => {
@@ -139,6 +140,9 @@ const buildService = (overrides: Overrides = {}) => {
                   },
         ),
         listByProject: vi.fn(),
+        countOpenByProject: vi
+            .fn()
+            .mockResolvedValue(overrides.openDraftCount ?? 0),
         update: vi.fn(),
     };
     const service = new ContentAsCodeWritebackService({
@@ -170,6 +174,37 @@ const buildService = (overrides: Overrides = {}) => {
 };
 
 describe('ContentAsCodeWritebackService', () => {
+    it.each([0, 3])(
+        'reports %i open drafts for upload without changing content',
+        async (openDraftCount) => {
+            const { service, gitIntegrationService } = buildService({
+                openDraftCount,
+            });
+
+            await expect(
+                service.getUploadAdvisory(user, 'project-uuid'),
+            ).resolves.toEqual({ openDraftCount });
+            expect(gitIntegrationService.saveFile).not.toHaveBeenCalled();
+            expect(
+                gitIntegrationService.createPullRequestFromBranch,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    it('allows upload-only users to read the advisory', async () => {
+        const uploadOnlyUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { action: 'create', subject: 'ContentAsCode' },
+            ]),
+        } as unknown as SessionUser;
+        const { service } = buildService({ openDraftCount: 2 });
+
+        await expect(
+            service.getUploadAdvisory(uploadOnlyUser, 'project-uuid'),
+        ).resolves.toEqual({ openDraftCount: 2 });
+    });
+
     it('first save creates the instance branch, commits the YAML, and opens one PR', async () => {
         const { service, gitIntegrationService, contentAsCodeWritebackModel } =
             buildService();

@@ -108,6 +108,15 @@ export type ApiContentAsCodeSettingsResponse = {
     results: ContentAsCodeProjectSettings | null;
 };
 
+export type ContentAsCodeUploadAdvisory = {
+    openDraftCount: number;
+};
+
+export type ApiContentAsCodeUploadAdvisoryResponse = {
+    status: 'ok';
+    results: ContentAsCodeUploadAdvisory;
+};
+
 export type ContentDraftSummary = {
     uuid: string;
     contentType: string;

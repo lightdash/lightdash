@@ -48,6 +48,7 @@ import {
     SqlChartAsCode,
     validateDataAppDependencies,
     VirtualViewAsCode,
+    type ContentAsCodeUploadAdvisory,
     type DashboardAsCodeUpsertResult,
     type DataAppCodeDownload,
     type SpaceAsCode,
@@ -3489,6 +3490,39 @@ const isFilteredWithNoDashboards = (
     dashboardSlugs: string[],
 ): boolean => hasFilters && dashboardSlugs.length === 0;
 
+const reportOpenDraftsForUpload = async (
+    projectUuid: string,
+): Promise<void> => {
+    try {
+        const { openDraftCount } =
+            await lightdashApi<ContentAsCodeUploadAdvisory>({
+                method: 'GET',
+                url: `/api/v1/projects/${projectUuid}/code/upload-advisory`,
+                body: undefined,
+            });
+        if (openDraftCount > 0) {
+            GlobalState.log(
+                styles.warning(
+                    `⚠ ${openDraftCount} open content draft${
+                        openDraftCount === 1 ? '' : 's'
+                    }. Upload will continue; Git content remains authoritative.`,
+                ),
+            );
+        }
+    } catch (error) {
+        GlobalState.log(
+            styles.warning(
+                '⚠ Could not check for open content drafts. Upload will continue.',
+            ),
+        );
+        GlobalState.debug(
+            `Could not load content-as-code upload advisory: ${getErrorMessage(
+                error,
+            )}`,
+        );
+    }
+};
+
 export const uploadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
@@ -3607,6 +3641,8 @@ export const uploadHandler = async (
 
     // Log current project info
     logSelectedProject(projectSelection, config, 'Uploading to');
+
+    await reportOpenDraftsForUpload(projectId);
 
     // Persist repo-owned sync settings for the review/write-back workflow.
     let syncEnabled: boolean | undefined;
@@ -4708,6 +4744,7 @@ export const testHelpers = {
     readExternalConnectionFiles,
     readSpaceFiles,
     readSpaceNames,
+    reportOpenDraftsForUpload,
     sanitizeChartForDownload,
     selectVirtualViewCandidates,
     shouldFallBackToEmbeddedSpaces,

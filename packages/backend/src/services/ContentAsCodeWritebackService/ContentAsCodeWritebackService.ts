@@ -8,6 +8,7 @@ import {
     ParameterError,
     PullRequestSource,
     type ChartAsCode,
+    type ContentAsCodeUploadAdvisory,
     type DashboardAsCode,
     type SessionUser,
 } from '@lightdash/common';
@@ -201,6 +202,39 @@ export class ContentAsCodeWritebackService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+    }
+
+    private async assertCanUploadContentAsCode(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        const contentAsCode = subject('ContentAsCode', {
+            projectUuid: project.projectUuid,
+            organizationUuid: project.organizationUuid,
+            upstreamProjectUuid: project.upstreamProjectUuid,
+            type: project.type,
+            createdByUserUuid: project.createdByUserUuid,
+            metadata: { slug: '' },
+        });
+        if (
+            auditedAbility.cannot('create', contentAsCode) &&
+            auditedAbility.cannot('manage', contentAsCode)
+        ) {
+            throw new ForbiddenError();
+        }
+    }
+
+    async getUploadAdvisory(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ContentAsCodeUploadAdvisory> {
+        await this.assertCanUploadContentAsCode(user, projectUuid);
+        return {
+            openDraftCount:
+                await this.contentDraftModel.countOpenByProject(projectUuid),
+        };
     }
 
     async listWritebacks(

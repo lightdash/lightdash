@@ -86,6 +86,7 @@ const {
     readAiAgentFiles,
     readSpaceFiles,
     readSpaceNames,
+    reportOpenDraftsForUpload,
     sanitizeChartForDownload,
     shouldFallBackToEmbeddedSpaces,
     shouldDownloadAiAgents,
@@ -97,6 +98,66 @@ const {
     validateSpaceIdentity,
     writeSpaceFiles,
 } = testHelpers;
+
+describe('reportOpenDraftsForUpload', () => {
+    beforeEach(() => {
+        vi.mocked(lightdashApi).mockReset();
+        vi.spyOn(GlobalState, 'log').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('stays quiet when the project has no open drafts', async () => {
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            openDraftCount: 0,
+        } as never);
+
+        await reportOpenDraftsForUpload('project-uuid');
+
+        expect(lightdashApi).toHaveBeenCalledWith({
+            method: 'GET',
+            url: '/api/v1/projects/project-uuid/code/upload-advisory',
+            body: undefined,
+        });
+        expect(GlobalState.log).not.toHaveBeenCalled();
+    });
+
+    it('warns without blocking when the project has multiple open drafts', async () => {
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            openDraftCount: 3,
+        } as never);
+
+        await expect(
+            reportOpenDraftsForUpload('project-uuid'),
+        ).resolves.toBeUndefined();
+
+        expect(GlobalState.log).toHaveBeenCalledWith(
+            expect.stringContaining('3 open content drafts'),
+        );
+        expect(GlobalState.log).toHaveBeenCalledWith(
+            expect.stringContaining('Upload will continue'),
+        );
+    });
+
+    it('warns without blocking when the draft count cannot be loaded', async () => {
+        vi.mocked(lightdashApi).mockRejectedValueOnce(
+            new Error('draft table unavailable'),
+        );
+
+        await expect(
+            reportOpenDraftsForUpload('project-uuid'),
+        ).resolves.toBeUndefined();
+
+        expect(GlobalState.log).toHaveBeenCalledWith(
+            expect.stringContaining('Could not check for open content drafts'),
+        );
+        expect(GlobalState.log).toHaveBeenCalledWith(
+            expect.stringContaining('Upload will continue'),
+        );
+    });
+});
 
 const makeDownloadHandlerOptions = (
     overrides: Partial<DownloadHandlerOptions> = {},
