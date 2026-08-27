@@ -1,3 +1,10 @@
+# [2.20.0](https://github.com/lightdash/lightdash/compare/2.19.0...2.20.0) (2026-08-27)
+
+
+### Features
+
+* **backend:** record last-applied content-as-code snapshot on upload ([#27995](https://github.com/lightdash/lightdash/issues/27995)) ([36cdbb6](https://github.com/lightdash/lightdash/commit/36cdbb6a8c5898745cc04bb5ece375e81373b480))
+
 # [2.19.0](https://github.com/lightdash/lightdash/compare/2.18.2...2.19.0) (2026-08-27)
 
 
