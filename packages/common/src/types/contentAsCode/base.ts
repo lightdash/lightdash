@@ -68,6 +68,7 @@ export type ApiContentAsCodeUpsertResponse<
     status: 'ok';
     results: { action: ContentAsCodeUpsertAction } & Extra;
 };
+
 export type ContentAsCodeWritebackStatus =
     | 'pending'
     | 'open'
@@ -105,4 +106,38 @@ export type ContentAsCodeProjectSettings = {
 export type ApiContentAsCodeSettingsResponse = {
     status: 'ok';
     results: ContentAsCodeProjectSettings | null;
+};
+
+export type ContentDraftSummary = {
+    uuid: string;
+    contentType: string;
+    contentUuid: string;
+    slug: string;
+    authorUserUuid: string;
+    authorName: string | null;
+    status: 'open' | 'written_back' | 'dismissed';
+    prUrl: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type ContentDraftReview = {
+    summary: ContentDraftSummary;
+    publishedYaml: string;
+    draftYaml: string;
+};
+
+export type ApiContentDraftsResponse = {
+    status: 'ok';
+    results: ContentDraftSummary[];
+};
+
+export type ApiContentDraftReviewResponse = {
+    status: 'ok';
+    results: ContentDraftReview;
+};
+
+export type ApiContentDraftWriteBackResponse = {
+    status: 'ok';
+    results: ContentDraftSummary;
 };

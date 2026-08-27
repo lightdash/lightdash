@@ -439,6 +439,11 @@ export class ServiceRepository
                     savedChartService: this.getSavedChartService(),
                     projectModel: this.models.getProjectModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
+                    contentAsCodeProjectSettingsModel:
+                        this.models.getContentAsCodeProjectSettingsModel(),
+                    contentAsCodeSnapshotModel:
+                        this.models.getContentAsCodeSnapshotModel(),
+                    contentDraftModel: this.models.getContentDraftModel(),
                     slackClient: this.clients.getSlackClient(),
                     catalogModel: this.models.getCatalogModel(),
                     organizationModel: this.models.getOrganizationModel(),
@@ -1294,6 +1299,7 @@ export class ServiceRepository
                         this.models.getContentAsCodeSnapshotModel(),
                     contentAsCodeWritebackModel:
                         this.models.getContentAsCodeWritebackModel(),
+                    contentDraftModel: this.models.getContentDraftModel(),
                 }),
         );
     }

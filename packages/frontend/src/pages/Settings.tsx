@@ -858,6 +858,12 @@ const Settings: FC = () => {
                 location.pathname,
             ) &&
             !matchPath(
+                {
+                    path: '/generalSettings/projectManagement/:projectUuid/contentReview',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
                 { path: '/generalSettings/ai/threads' },
                 location.pathname,
             ) &&

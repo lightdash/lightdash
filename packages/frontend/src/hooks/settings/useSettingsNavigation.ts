@@ -3,6 +3,7 @@ import {
     IconApps,
     IconAppWindow,
     IconBolt,
+    IconBook2,
     IconBrain,
     IconBrowser,
     IconBrush,
@@ -10,10 +11,10 @@ import {
     IconCalendarStats,
     IconChecklist,
     IconClock,
-    IconBook2,
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
+    IconEyeCheck,
     IconFileExport,
     IconFolders,
     IconGauge,
@@ -43,8 +44,8 @@ import {
     IconUsers,
     IconUserShield,
     IconVariable,
-    IconWorldCog,
     IconWorldCheck,
+    IconWorldCog,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -981,6 +982,26 @@ export const useSettingsNavigation = (
                     to: `${base}/pullRequests`,
                     icon: IconGitPullRequest,
                     keywords: ['git', 'github', 'write back'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (
+                isGitProject &&
+                ability?.can(
+                    'view',
+                    subject('SourceCode', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+            ) {
+                projectItems.push({
+                    label: 'Content review',
+                    to: `${base}/contentReview`,
+                    icon: IconEyeCheck,
+                    keywords: ['drafts', 'unpublished', 'review', 'write back'],
                     children: [],
                     exact: true,
                 });

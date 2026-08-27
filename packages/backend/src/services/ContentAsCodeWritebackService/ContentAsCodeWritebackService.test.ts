@@ -125,6 +125,11 @@ const buildService = (overrides: Overrides = {}) => {
             contentAsCodeProjectSettingsModel as never,
         contentAsCodeSnapshotModel: contentAsCodeSnapshotModel as never,
         contentAsCodeWritebackModel: contentAsCodeWritebackModel as never,
+        contentDraftModel: {
+            get: vi.fn(),
+            listByProject: vi.fn(),
+            update: vi.fn(),
+        } as never,
     });
     return {
         service,

@@ -1096,6 +1096,7 @@ const DashboardPage: FC = () => {
             key={dashboardUuid}
             projectUuid={projectUuid}
             dashboardCommentsCheck={dashboardCommentsCheck}
+            includeUnpublishedDraft
         >
             <SentryErrorBoundary fallback={() => <></>}>
                 <DashboardAiAgentContextBridge />

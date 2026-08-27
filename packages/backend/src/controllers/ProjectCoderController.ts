@@ -13,6 +13,9 @@ import {
     type ApiContentAsCodeProposeResponse,
     type ApiContentAsCodeSettingsResponse,
     type ApiContentAsCodeWritebacksResponse,
+    type ApiContentDraftReviewResponse,
+    type ApiContentDraftsResponse,
+    type ApiContentDraftWriteBackResponse,
     type ApiDashboardAsCodeListResponse,
     type ApiDashboardAsCodeUpsertResponse,
     type ApiErrorPayload,
@@ -62,6 +65,7 @@ import {
     CODE_READ_MIDDLEWARES,
     CODE_WRITE_MIDDLEWARES,
     codeSuccess,
+    toDraftSummary,
     toWritebackSummary,
 } from './CoderControllerUtils';
 
@@ -229,6 +233,97 @@ export class ProjectCoderController extends BaseController {
                     projectUuid,
                 ),
         );
+    }
+
+    /**
+     * Unpublished dashboard drafts awaiting review
+     * @summary List content drafts
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/drafts')
+    @OperationId('listContentDrafts')
+    async listContentDrafts(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentDraftsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const drafts = await this.services
+            .getContentAsCodeWritebackService()
+            .listDrafts(toSessionUser(req.account), projectUuid);
+        return codeSuccess(drafts.map(toDraftSummary));
+    }
+
+    /**
+     * The review payload for one draft: published vs draft as canonical YAML
+     * @summary Get content draft review
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/drafts/{draftUuid}/review')
+    @OperationId('getContentDraftReview')
+    async getContentDraftReview(
+        @Path() projectUuid: string,
+        @Path() draftUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentDraftReviewResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const review = await this.services
+            .getContentAsCodeWritebackService()
+            .getDraftReview(toSessionUser(req.account), projectUuid, draftUuid);
+        return codeSuccess({
+            summary: toDraftSummary(review.draft),
+            publishedYaml: review.publishedYaml,
+            draftYaml: review.draftYaml,
+        });
+    }
+
+    /**
+     * Write a reviewed draft back to the repo as a pull request
+     * @summary Write back content draft
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/drafts/{draftUuid}/write-back')
+    @OperationId('writeBackContentDraft')
+    async writeBackContentDraft(
+        @Path() projectUuid: string,
+        @Path() draftUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentDraftWriteBackResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const draft = await this.services
+            .getContentAsCodeWritebackService()
+            .writeBackDraft(toSessionUser(req.account), projectUuid, draftUuid);
+        return codeSuccess(toDraftSummary(draft));
+    }
+
+    /**
+     * Dismiss a draft without writing it back
+     * @summary Dismiss content draft
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/drafts/{draftUuid}/dismiss')
+    @OperationId('dismissContentDraft')
+    async dismissContentDraft(
+        @Path() projectUuid: string,
+        @Path() draftUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.services
+            .getContentAsCodeWritebackService()
+            .dismissDraft(toSessionUser(req.account), projectUuid, draftUuid);
+        return { status: 'ok', results: undefined };
     }
 
     /**

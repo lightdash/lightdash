@@ -4,6 +4,7 @@ import {
     assertRegisteredAccount,
     BulkActionable,
     canMutateVerifiedContent,
+    ContentAsCodeType,
     ContentType,
     CreateDashboard,
     CreateDashboardWithCharts,
@@ -79,6 +80,12 @@ import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
+import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
+import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
+import {
+    ContentDraftModel,
+    type ContentDraft,
+} from '../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
@@ -116,6 +123,9 @@ type DashboardServiceArguments = {
     savedSqlModel: SavedSqlModel;
     savedChartService: SavedChartService;
     schedulerClient: SchedulerClient;
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+    contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+    contentDraftModel: ContentDraftModel;
     slackClient: SlackClient;
     projectModel: ProjectModel;
     catalogModel: CatalogModel;
@@ -162,6 +172,12 @@ export class DashboardService
     organizationMemberProfileModel: OrganizationMemberProfileModel;
 
     schedulerClient: SchedulerClient;
+
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+
+    contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+
+    contentDraftModel: ContentDraftModel;
 
     slackClient: SlackClient;
 
@@ -277,6 +293,9 @@ export class DashboardService
         savedSqlModel,
         savedChartService,
         schedulerClient,
+        contentAsCodeProjectSettingsModel,
+        contentAsCodeSnapshotModel,
+        contentDraftModel,
         slackClient,
         projectModel,
         catalogModel,
@@ -303,6 +322,10 @@ export class DashboardService
         this.organizationModel = organizationModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.schedulerClient = schedulerClient;
+        this.contentAsCodeProjectSettingsModel =
+            contentAsCodeProjectSettingsModel;
+        this.contentAsCodeSnapshotModel = contentAsCodeSnapshotModel;
+        this.contentDraftModel = contentDraftModel;
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
@@ -436,15 +459,55 @@ export class DashboardService
         };
     }
 
+    // Draft payloads are untrusted JSON, so narrow instead of casting.
+    private static collectDraftSavedChartUuids(
+        drafts: ContentDraft[],
+    ): Set<string> {
+        const chartUuids = new Set<string>();
+        drafts.forEach(({ draft }) => {
+            const { tiles } = draft as { tiles?: unknown };
+            if (!Array.isArray(tiles)) return;
+            tiles.forEach((tile) => {
+                if (typeof tile !== 'object' || tile === null) return;
+                const { properties } = tile as { properties?: unknown };
+                if (typeof properties !== 'object' || properties === null)
+                    return;
+                const { savedChartUuid } = properties as {
+                    savedChartUuid?: unknown;
+                };
+                if (typeof savedChartUuid === 'string') {
+                    chartUuids.add(savedChartUuid);
+                }
+            });
+        });
+        return chartUuids;
+    }
+
     private async deleteOrphanedChartsInDashboards(
         user: SessionUser,
+        projectUuid: UUID,
         dashboardUuid: UUID,
     ) {
         const orphanedCharts =
             await this.dashboardModel.getOrphanedCharts(dashboardUuid);
 
+        // A chart saved into a dashboard exists before the dashboard version
+        // that references it. When the author's save was held back as a draft,
+        // no version references the chart, so the next published save would
+        // permanently delete a chart the draft still points at.
+        const draftChartUuids = DashboardService.collectDraftSavedChartUuids(
+            await this.contentDraftModel.listOpenForContent(
+                projectUuid,
+                'dashboard',
+                dashboardUuid,
+            ),
+        );
+        const deletableCharts = orphanedCharts.filter(
+            (chart) => !draftChartUuids.has(chart.uuid),
+        );
+
         await Promise.all(
-            orphanedCharts.map(async (chart) => {
+            deletableCharts.map(async (chart) => {
                 try {
                     const deletedChart =
                         await this.savedChartModel.permanentDelete(chart.uuid);
@@ -716,6 +779,24 @@ export class DashboardService
         });
 
         return dashboard;
+    }
+
+    // The published dashboard with the caller's own unpublished draft applied
+    // on top. Only interactive read paths should use this: `getByIdOrSlug`
+    // stays published-only so machine consumers — scheduled deliveries,
+    // exports, Google Sheets syncs, AI tools — cannot serve one user's draft
+    // to everyone by forgetting to opt out.
+    async getByIdOrSlugForViewer(
+        user: SessionUser,
+        dashboardUuidOrSlug: UuidOrSlug,
+        options?: { projectUuid?: string },
+    ): Promise<Dashboard> {
+        const dashboard = await this.getByIdOrSlug(
+            user,
+            dashboardUuidOrSlug,
+            options,
+        );
+        return this.applyOpenDraftOverlay(user, dashboard);
     }
 
     async getDashboardCharts(
@@ -1581,6 +1662,142 @@ export class DashboardService
         return this.update(user, dashboardUuidOrSlug, dashboard, options);
     }
 
+    private async canManageContentAsCode(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        return auditedAbility.can(
+            'manage',
+            subject('ContentAsCode', {
+                projectUuid: project.projectUuid,
+                organizationUuid: project.organizationUuid,
+                upstreamProjectUuid: project.upstreamProjectUuid,
+                type: project.type,
+                createdByUserUuid: project.createdByUserUuid,
+                metadata: { slug: '' },
+            }),
+        );
+    }
+
+    private static mergeDraftIntoDashboard<T extends DashboardDAO>(
+        dashboard: T,
+        draft: object,
+    ): T {
+        const fields = draft as Partial<DashboardDAO>;
+        return {
+            ...dashboard,
+            ...(fields.name !== undefined && { name: fields.name }),
+            ...(fields.description !== undefined && {
+                description: fields.description,
+            }),
+            ...(fields.tiles !== undefined && { tiles: fields.tiles }),
+            ...(fields.filters !== undefined && { filters: fields.filters }),
+            ...(fields.tabs !== undefined && { tabs: fields.tabs }),
+            ...(fields.config !== undefined && { config: fields.config }),
+        };
+    }
+
+    // Drafts mode: with content_as_code.sync on, a business user's save of
+    // GIT-BACKED content becomes an unpublished draft that only they see;
+    // reviewers later write it back to the repo. The published dashboard is
+    // untouched. Content never uploaded as code (no last-applied snapshot
+    // row) publishes normally — drafts exist to protect the repo contract,
+    // not to intercept every save in the project.
+    private async maybeStoreDraft(
+        user: SessionUser,
+        existingDashboardDao: DashboardDAO,
+        dashboardFields: object,
+    ): Promise<Dashboard | undefined> {
+        const settings = await this.contentAsCodeProjectSettingsModel.get(
+            existingDashboardDao.projectUuid,
+        );
+        if (!settings?.syncEnabled) return undefined;
+        const snapshot = await this.contentAsCodeSnapshotModel.get(
+            existingDashboardDao.projectUuid,
+            ContentAsCodeType.DASHBOARD,
+            existingDashboardDao.slug,
+        );
+        if (snapshot === undefined) return undefined;
+        if (
+            await this.canManageContentAsCode(
+                user,
+                existingDashboardDao.projectUuid,
+            )
+        ) {
+            return undefined;
+        }
+        await this.contentDraftModel.upsertOpenDraft({
+            projectUuid: existingDashboardDao.projectUuid,
+            contentType: 'dashboard',
+            contentUuid: existingDashboardDao.uuid,
+            slug: existingDashboardDao.slug,
+            authorUserUuid: user.userUuid,
+            draft: dashboardFields,
+        });
+        const overlaid = DashboardService.mergeDraftIntoDashboard(
+            existingDashboardDao,
+            dashboardFields,
+        );
+        const space = await this.spacePermissionService.getSpaceAccessContext(
+            user.userUuid,
+            existingDashboardDao.spaceUuid,
+        );
+        return {
+            ...overlaid,
+            inheritsFromOrgOrProject: space.inheritsFromOrgOrProject,
+            access: space.access,
+            hasUnpublishedChanges: true,
+        };
+    }
+
+    private async applyOpenDraftOverlay(
+        user: SessionUser,
+        dashboard: Dashboard,
+    ): Promise<Dashboard> {
+        try {
+            const settings = await this.contentAsCodeProjectSettingsModel.get(
+                dashboard.projectUuid,
+            );
+            if (!settings?.syncEnabled) return dashboard;
+            const draft = await this.contentDraftModel.findOpenDraft(
+                dashboard.projectUuid,
+                'dashboard',
+                dashboard.uuid,
+                user.userUuid,
+            );
+            if (draft) {
+                return {
+                    ...DashboardService.mergeDraftIntoDashboard(
+                        dashboard,
+                        draft.draft,
+                    ),
+                    hasUnpublishedChanges: true,
+                };
+            }
+            // Reviewers get an entry point when others have open drafts here
+            if (
+                await this.canManageContentAsCode(user, dashboard.projectUuid)
+            ) {
+                const awaiting =
+                    await this.contentDraftModel.countOpenForContent(
+                        dashboard.projectUuid,
+                        'dashboard',
+                        dashboard.uuid,
+                        user.userUuid,
+                    );
+                if (awaiting > 0) {
+                    return { ...dashboard, draftsAwaitingReview: awaiting };
+                }
+            }
+            return dashboard;
+        } catch (error) {
+            this.logger.warn('Draft overlay failed', error);
+            return dashboard;
+        }
+    }
+
     async update(
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
@@ -1624,6 +1841,13 @@ export class DashboardService
             projectUuid: existingDashboardDao.projectUuid,
             organizationUuid: existingDashboardDao.organizationUuid,
         });
+
+        const draftResult = await this.maybeStoreDraft(
+            user,
+            existingDashboardDao,
+            dashboardFields,
+        );
+        if (draftResult) return draftResult;
 
         const verificationAfterUpdate =
             await this.getVerificationAfterDashboardUpdate({
@@ -1830,6 +2054,7 @@ export class DashboardService
             });
             await this.deleteOrphanedChartsInDashboards(
                 user,
+                existingDashboardDao.projectUuid,
                 existingDashboardDao.uuid,
             );
         }

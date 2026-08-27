@@ -255,6 +255,10 @@ export type DashboardOwner = {
 export type Dashboard = {
     organizationUuid: string;
     projectUuid: string;
+    /** Set when the viewer has an unpublished draft applied on top */
+    hasUnpublishedChanges?: boolean;
+    /** For reviewers: open drafts by other users awaiting review */
+    draftsAwaitingReview?: number;
     dashboardVersionId: number;
     versionUuid: string;
     uuid: string;

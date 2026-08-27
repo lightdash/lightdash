@@ -3,6 +3,7 @@ import {
     ContentAsCodeType,
     DbtProjectType,
     ForbiddenError,
+    NotFoundError,
     ParameterError,
     PullRequestSource,
     type ChartAsCode,
@@ -18,6 +19,10 @@ import {
     ContentAsCodeWritebackModel,
     type ContentAsCodeWriteback,
 } from '../../models/ContentAsCodeWritebackModel';
+import {
+    ContentDraftModel,
+    type ContentDraft,
+} from '../../models/ContentDraftModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
 import { CoderService } from '../CoderService/CoderService';
@@ -31,6 +36,7 @@ type ContentAsCodeWritebackServiceArguments = {
     contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
     contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
     contentAsCodeWritebackModel: ContentAsCodeWritebackModel;
+    contentDraftModel: ContentDraftModel;
 };
 
 type WritebackContentType = 'chart' | 'dashboard';
@@ -86,6 +92,8 @@ export class ContentAsCodeWritebackService extends BaseService {
 
     private readonly contentAsCodeWritebackModel: ContentAsCodeWritebackModel;
 
+    private readonly contentDraftModel: ContentDraftModel;
+
     constructor(args: ContentAsCodeWritebackServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
@@ -96,6 +104,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             args.contentAsCodeProjectSettingsModel;
         this.contentAsCodeSnapshotModel = args.contentAsCodeSnapshotModel;
         this.contentAsCodeWritebackModel = args.contentAsCodeWritebackModel;
+        this.contentDraftModel = args.contentDraftModel;
     }
 
     // Identifies this instance in branch names so two instances editing the
@@ -207,6 +216,89 @@ export class ContentAsCodeWritebackService extends BaseService {
         return rows;
     }
 
+    async listDrafts(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ContentDraft[]> {
+        await this.assertCanManageContentAsCode(user, projectUuid);
+        return this.contentDraftModel.listByProject(projectUuid);
+    }
+
+    // The review payload: published vs draft, both rendered as the exact
+    // canonical YAML that would land in the repo
+    async getDraftReview(
+        user: SessionUser,
+        projectUuid: string,
+        draftUuid: string,
+    ): Promise<{
+        draft: ContentDraft;
+        publishedYaml: string;
+        draftYaml: string;
+    }> {
+        await this.assertCanManageContentAsCode(user, projectUuid);
+        const draft = await this.contentDraftModel.get(draftUuid);
+        if (!draft || draft.projectUuid !== projectUuid) {
+            throw new ParameterError('Draft not found');
+        }
+        const published = await this.coderService.getCurrentDashboardAsCode(
+            draft.contentUuid,
+        );
+        const draftDoc = await this.coderService.getDashboardAsCodeWithOverlay(
+            draft.contentUuid,
+            draft.draft,
+        );
+        return {
+            draft,
+            publishedYaml: dumpContentAsCode(published),
+            draftYaml: dumpContentAsCode(draftDoc),
+        };
+    }
+
+    // The reviewer's gesture: the draft (not the published version) becomes
+    // the write-back PR
+    async writeBackDraft(
+        user: SessionUser,
+        projectUuid: string,
+        draftUuid: string,
+    ): Promise<ContentDraft> {
+        await this.assertCanManageContentAsCode(user, projectUuid);
+        const draft = await this.contentDraftModel.get(draftUuid);
+        if (!draft || draft.projectUuid !== projectUuid) {
+            throw new ParameterError('Draft not found');
+        }
+        const draftDoc = await this.coderService.getDashboardAsCodeWithOverlay(
+            draft.contentUuid,
+            draft.draft,
+        );
+        const row = await this.writeContentToWritebackPr(user, {
+            projectUuid,
+            contentType: 'dashboard',
+            contentUuid: draft.contentUuid,
+            slug: draft.slug,
+            documentOverride: draftDoc,
+        });
+        await this.contentDraftModel.update(draft.uuid, {
+            status: 'written_back',
+            prUrl: row.prUrl,
+        });
+        return { ...draft, status: 'written_back', prUrl: row.prUrl };
+    }
+
+    async dismissDraft(
+        user: SessionUser,
+        projectUuid: string,
+        draftUuid: string,
+    ): Promise<void> {
+        await this.assertCanManageContentAsCode(user, projectUuid);
+        const draft = await this.contentDraftModel.get(draftUuid);
+        if (!draft || draft.projectUuid !== projectUuid) {
+            throw new ParameterError('Draft not found');
+        }
+        await this.contentDraftModel.update(draft.uuid, {
+            status: 'dismissed',
+        });
+    }
+
     // A merged-but-not-yet-deployed PR should read "merged, applies on the
     // next deploy" instead of a stale pending badge.
     private async refreshOpenPullRequestStates(
@@ -272,6 +364,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             contentType: WritebackContentType;
             contentUuid: string;
             slug: string;
+            documentOverride?: ChartAsCode | DashboardAsCode;
         },
     ): Promise<ContentAsCodeWriteback> {
         const { projectUuid, contentType, slug } = target;
@@ -353,6 +446,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             contentType: WritebackContentType;
             contentUuid: string;
             slug: string;
+            documentOverride?: ChartAsCode | DashboardAsCode;
         },
         row: ContentAsCodeWriteback,
     ): Promise<void> {
@@ -379,10 +473,12 @@ export class ContentAsCodeWritebackService extends BaseService {
         const files: { path: string; content: string }[] = [];
         const notes: string[] = [];
         if (contentType === 'chart') {
-            const chartAsCode = await this.coderService.getPortableChartAsCode(
-                projectUuid,
-                contentUuid,
-            );
+            const chartAsCode =
+                (target.documentOverride as ChartAsCode | undefined) ??
+                (await this.coderService.getPortableChartAsCode(
+                    projectUuid,
+                    contentUuid,
+                ));
             files.push({
                 path: ContentAsCodeWritebackService.getContentFilePath(
                     repo.path,
@@ -393,7 +489,10 @@ export class ContentAsCodeWritebackService extends BaseService {
             });
         } else {
             const dashboardAsCode =
-                await this.coderService.getCurrentDashboardAsCode(contentUuid);
+                (target.documentOverride as DashboardAsCode | undefined) ??
+                (await this.coderService.getCurrentDashboardAsCode(
+                    contentUuid,
+                ));
             files.push({
                 path: ContentAsCodeWritebackService.getContentFilePath(
                     repo.path,

@@ -42,6 +42,9 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
     const { data: dashboard, isInitialLoading } = useDashboardQuery({
         uuidOrSlug: uuid,
         projectUuid,
+        // Prefill from the author's own draft, so saving the form doesn't
+        // revert a drafted name back to the published one.
+        includeUnpublishedDraft: true,
     });
     const { data: palettes = [] } = useColorPalettes();
     const { data: health } = useHealth();

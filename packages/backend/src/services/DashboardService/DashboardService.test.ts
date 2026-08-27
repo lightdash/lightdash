@@ -225,6 +225,12 @@ describe('DashboardService', () => {
         projectModel: projectModel as unknown as ProjectModel,
         slackClient: slackClient as unknown as SlackClient,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
+        contentAsCodeProjectSettingsModel: { get: vi.fn() } as never,
+        contentAsCodeSnapshotModel: { get: vi.fn() } as never,
+        contentDraftModel: {
+            findOpenDraft: vi.fn(),
+            listOpenForContent: vi.fn(async () => []),
+        } as never,
         catalogModel: {} as CatalogModel,
         organizationModel: {
             findColorPalette: vi.fn(async () => null),
