@@ -70,11 +70,11 @@ export const AiEditRepoToolCall: FC<Props> = ({ metadata, projectUuid }) => {
                         variant="light"
                         color="ldGray"
                         radius="md"
-                        size="md"
+                        size="sm"
                     >
-                        <MantineIcon icon={IconGitPullRequest} size={16} />
+                        <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
-                    <Text size="sm" c="ldGray.7">
+                    <Text size="xs" c="ldGray.7">
                         No file changes were needed — no pull request was
                         opened.
                     </Text>
@@ -116,11 +116,11 @@ export const AiEditRepoToolCall: FC<Props> = ({ metadata, projectUuid }) => {
                     >
                         <MantineIcon
                             icon={IconGitPullRequest}
-                            size={18}
+                            size={16}
                             color="ldGray.7"
                         />
                         <Stack gap={0}>
-                            <Text size="sm" fw={500}>
+                            <Text size="xs" fw={500}>
                                 Edited repository
                             </Text>
                             {summary && (

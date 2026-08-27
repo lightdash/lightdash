@@ -72,7 +72,7 @@ export const InstallAppButton: FC<{
             target="_blank"
             rel="noopener noreferrer"
             variant="default"
-            size="compact-sm"
+            size="compact-xs"
             leftSection={<MantineIcon icon={action.icon} size={14} />}
         >
             {action.cta}
@@ -101,7 +101,7 @@ export const PullRequestViewMenu: FC<{
                 <Menu.Target>
                     <Button
                         variant="default"
-                        size="compact-sm"
+                        size="compact-xs"
                         leftSection={<MantineIcon icon={IconEye} size={14} />}
                         rightSection={
                             <MantineIcon icon={IconChevronDown} size={14} />
@@ -210,7 +210,7 @@ export const PullRequestActionButtons: FC<{
             <Button
                 variant="light"
                 color="violet"
-                size="compact-sm"
+                size="compact-xs"
                 disabled
                 className={styles.mergedStatus}
                 leftSection={<MantineIcon icon={IconGitMerge} size={14} />}
@@ -225,7 +225,7 @@ export const PullRequestActionButtons: FC<{
             <Button
                 variant="light"
                 color="red"
-                size="compact-sm"
+                size="compact-xs"
                 disabled
                 className={styles.closedStatus}
                 leftSection={
@@ -270,7 +270,7 @@ export const PullRequestActionButtons: FC<{
         <Button.Group>
             <Button
                 variant="default"
-                size="compact-sm"
+                size="compact-xs"
                 loading={isClosing}
                 onBlur={disarm}
                 leftSection={
@@ -287,7 +287,7 @@ export const PullRequestActionButtons: FC<{
                 ref={mergeButtonRef}
                 variant="filled"
                 color="green"
-                size="compact-sm"
+                size="compact-xs"
                 loading={isMerging}
                 disabled={!isMergeable(ciChecks)}
                 onBlur={disarm}
@@ -367,13 +367,13 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             variant="light"
                             color="ldGray"
                             radius="md"
-                            size="md"
+                            size="sm"
                         >
-                            <MantineIcon icon={IconGitPullRequest} size={16} />
+                            <MantineIcon icon={IconGitPullRequest} size={14} />
                         </ThemeIcon>
                         <Stack gap="xs">
                             <Stack gap={2}>
-                                <Text size="sm" fw={500}>
+                                <Text size="xs" fw={500}>
                                     Source control not supported
                                 </Text>
                                 <Text size="xs" c="ldGray.6">
@@ -388,7 +388,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                     component={Link}
                                     to={`/generalSettings/projectManagement/${projectUuid}/settings`}
                                     variant="default"
-                                    size="compact-sm"
+                                    size="compact-xs"
                                     leftSection={
                                         <MantineIcon
                                             icon={IconSettings}
@@ -412,13 +412,13 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             variant="light"
                             color="red"
                             radius="md"
-                            size="md"
+                            size="sm"
                         >
-                            <MantineIcon icon={IconAlertTriangle} size={16} />
+                            <MantineIcon icon={IconAlertTriangle} size={14} />
                         </ThemeIcon>
                         <Stack gap="xs">
                             <Stack gap={2}>
-                                <Text size="sm" fw={500}>
+                                <Text size="xs" fw={500}>
                                     No write access to this repository
                                 </Text>
                                 <Text size="xs" c="ldGray.6">
@@ -436,7 +436,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                     component={Link}
                                     to={`/generalSettings/projectManagement/${projectUuid}/settings`}
                                     variant="default"
-                                    size="compact-sm"
+                                    size="compact-xs"
                                     leftSection={
                                         <MantineIcon
                                             icon={IconSettings}
@@ -463,15 +463,15 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             variant="light"
                             color="ldGray"
                             radius="md"
-                            size="md"
+                            size="sm"
                         >
                             <MantineIcon
                                 icon={IconGitPullRequestClosed}
-                                size={16}
+                                size={14}
                             />
                         </ThemeIcon>
                         <Stack gap={2}>
-                            <Text size="sm" fw={500}>
+                            <Text size="xs" fw={500}>
                                 This thread's pull request is closed
                             </Text>
                             <Text size="xs" c="ldGray.6">
@@ -491,12 +491,12 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         variant="light"
                         color="red"
                         radius="md"
-                        size="md"
+                        size="sm"
                     >
-                        <MantineIcon icon={IconAlertTriangle} size={16} />
+                        <MantineIcon icon={IconAlertTriangle} size={14} />
                     </ThemeIcon>
                     <Stack gap={2}>
-                        <Text size="sm" fw={500}>
+                        <Text size="xs" fw={500}>
                             The change couldn't be completed
                         </Text>
                         <Text size="xs" c="ldGray.6">
@@ -517,11 +517,11 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         variant="light"
                         color="ldGray"
                         radius="md"
-                        size="md"
+                        size="sm"
                     >
-                        <MantineIcon icon={IconGitPullRequest} size={16} />
+                        <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
-                    <Text size="sm" c="ldGray.7">
+                    <Text size="xs" c="ldGray.7">
                         Working on the change — this can take a few minutes.
                     </Text>
                 </Group>
@@ -543,11 +543,11 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         variant="light"
                         color="ldGray"
                         radius="md"
-                        size="md"
+                        size="sm"
                     >
-                        <MantineIcon icon={IconGitPullRequest} size={16} />
+                        <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
-                    <Text size="sm" c="ldGray.7">
+                    <Text size="xs" c="ldGray.7">
                         No file changes were needed — no pull request was
                         opened.
                     </Text>
@@ -592,11 +592,11 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                     >
                         <MantineIcon
                             icon={IconGitPullRequest}
-                            size={18}
+                            size={16}
                             color="ldGray.7"
                         />
                         <Stack gap={0}>
-                            <Text size="sm" fw={500}>
+                            <Text size="xs" fw={500}>
                                 {title}
                             </Text>
                             {summary && (
