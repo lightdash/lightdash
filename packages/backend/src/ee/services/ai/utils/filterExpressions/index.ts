@@ -9,5 +9,7 @@ export type {
 export { formatFilterExpressionError } from './renderFilterExpressionError';
 export {
     resolveFilterExpressionArgs,
+    resolveSearchFieldValuesFilterExpression,
     type ResolveFilterExpressionArgsResult,
+    type ResolveSearchFieldValuesFilterExpressionResult,
 } from './resolveFilterExpressionArgs';

@@ -10231,6 +10231,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateUserName: toolsRuntime.updateUserName,
             validateContent: toolsRuntime.validateContent,
             getDashboardCharts: toolsRuntime.getDashboardCharts,
+            getExplore: toolsRuntime.getExplore,
             findExplores: toolsRuntime.findExplores,
             listCustomChartTypes: toolsRuntime.listCustomChartTypes,
             findCustomChartTypes: toolsRuntime.findCustomChartTypes,
@@ -10425,6 +10426,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const {
             listExplores,
+            getExplore,
             getProjectParameterDefinitions,
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
@@ -11020,6 +11022,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const dependencies: AiAgentDependencies = {
             listExplores,
+            getExplore,
             getProjectParameterDefinitions,
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,

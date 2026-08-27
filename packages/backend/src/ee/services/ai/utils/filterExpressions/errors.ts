@@ -109,4 +109,8 @@ export type FilterExpressionResolutionError =
     | (FilterExpressionErrorBase & {
           code: 'FILTER_EXPRESSION_CUSTOM_METRIC_OR';
           example: null;
+      })
+    | (FilterExpressionErrorBase<QueryFilterExpressionSource> & {
+          code: 'FILTER_EXPRESSION_SEARCH_FIELD_VALUES_OR';
+          example: null;
       });

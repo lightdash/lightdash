@@ -127,6 +127,12 @@ const errorsByCode: Record<
         source: customMetricSource,
         example: null,
     },
+    FILTER_EXPRESSION_SEARCH_FIELD_VALUES_OR: {
+        ...details,
+        code: 'FILTER_EXPRESSION_SEARCH_FIELD_VALUES_OR',
+        source: dimensionSource,
+        example: null,
+    },
 };
 
 const expectedByCode = {
@@ -186,6 +192,12 @@ How to fix: Correct the expression.
 Example: field equals=value`,
     FILTER_EXPRESSION_CUSTOM_METRIC_OR: `[FILTER_EXPRESSION_CUSTOM_METRIC_OR]
 Invalid custom metric "completed_revenue" filter expression.
+
+Location: line 2, column 3
+Problem: The expression is invalid.
+How to fix: Correct the expression.`,
+    FILTER_EXPRESSION_SEARCH_FIELD_VALUES_OR: `[FILTER_EXPRESSION_SEARCH_FIELD_VALUES_OR]
+Invalid dimension filter expression.
 
 Location: line 2, column 3
 Problem: The expression is invalid.

@@ -1036,6 +1036,8 @@ export const getAgentTools = (
 
     const searchFieldValues = getSearchFieldValues({
         searchFieldValues: dependencies.searchFieldValues,
+        getExplore: dependencies.getExplore,
+        enableFilterExpressions: args.enableFilterExpressions,
     });
 
     const analyzeFieldImpact = getAnalyzeFieldImpact({
@@ -1468,6 +1470,7 @@ export const getAgentMessages = (
         hasProjectContext,
         enableAiAgentMemory: args.aiAgentMemoryEnabled,
         enableDataAccess: args.enableDataAccess,
+        enableFilterExpressions: args.enableFilterExpressions,
         enableAiWriteback: args.enableAiWriteback,
         writebackAttribution: args.writebackAttribution,
         enableCodingAgent: args.enableCodingAgent,

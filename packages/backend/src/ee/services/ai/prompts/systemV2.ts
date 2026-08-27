@@ -35,6 +35,12 @@ import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
 
+const STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE =
+    'If `filters` is non-null, include `type`, `dimensions`, `metrics`, and `tableCalculations`, using null or [] for every unused category.';
+
+const EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE =
+    'If `filters` is non-null, pass one raw AND filter-expression string containing dimension fields only; do not pass `type`, rule arrays, or filter objects.';
+
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
     availableCustomChartTypes?: CustomChartTypeLibrary;
@@ -47,6 +53,7 @@ export const getSystemPromptV2 = (args: {
     requestingUser?: AiAgentRequestingUser | null;
     date?: string;
     enableDataAccess?: boolean;
+    enableFilterExpressions?: boolean;
     enableAiWriteback?: boolean;
     writebackAttribution?: AiWritebackAttribution | null;
     enableCodingAgent?: boolean;
@@ -81,6 +88,7 @@ export const getSystemPromptV2 = (args: {
         requestingUser = null,
         date = moment().utc().format('YYYY-MM-DD'),
         enableDataAccess = false,
+        enableFilterExpressions = false,
         enableAiWriteback = false,
         writebackAttribution = null,
         enableCodingAgent = false,
@@ -244,6 +252,12 @@ export const getSystemPromptV2 = (args: {
         '{{self_improvement_section}}',
         '',
     )
+        .replace(
+            '{{search_field_values_filter_guidance}}',
+            enableFilterExpressions
+                ? EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE
+                : STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+        )
         .replace(
             '{{ai_writeback_section}}',
             enableAiWriteback

@@ -220,6 +220,8 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         }),
         searchFieldValues: getSearchFieldValues({
             searchFieldValues: noop,
+            getExplore: noop,
+            enableFilterExpressions,
         }),
     };
 };
@@ -244,6 +246,14 @@ describe('AI agent tool contracts', () => {
 
         expect(
             agentToolSnapshot('generateVisualization', generateVisualization),
+        ).toMatchSnapshot();
+    });
+
+    it('matches the filter-expression field-value contract snapshot', () => {
+        const { searchFieldValues } = makeAgentTools(true);
+
+        expect(
+            agentToolSnapshot('searchFieldValues', searchFieldValues),
         ).toMatchSnapshot();
     });
 

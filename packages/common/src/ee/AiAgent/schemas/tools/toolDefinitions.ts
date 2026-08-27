@@ -294,7 +294,9 @@ import {
 } from './toolRunSqlArgs';
 import {
     TOOL_SEARCH_FIELD_VALUES_DESCRIPTION,
+    TOOL_SEARCH_FIELD_VALUES_FILTER_EXPRESSION_DESCRIPTION,
     toolSearchFieldValuesArgsSchema,
+    toolSearchFieldValuesExpressionArgsSchema,
     toolSearchFieldValuesOutputSchema,
 } from './toolSearchFieldValuesArgs';
 import {
@@ -519,6 +521,21 @@ export const searchFieldValuesToolDefinition: ToolDefinitionWithoutMcpOutput<
     description: TOOL_SEARCH_FIELD_VALUES_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: toolSearchFieldValuesArgsSchema,
+    agent: { outputSchema: toolSearchFieldValuesOutputSchema },
+    mcp: { annotations: readOnlyAnnotations },
+});
+
+export const searchFieldValuesFilterExpressionToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'searchFieldValues',
+    typeof toolSearchFieldValuesExpressionArgsSchema,
+    typeof toolSearchFieldValuesExpressionArgsSchema,
+    typeof toolSearchFieldValuesOutputSchema
+> = defineTool({
+    name: 'searchFieldValues',
+    title: 'Search field values',
+    description: TOOL_SEARCH_FIELD_VALUES_FILTER_EXPRESSION_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    inputSchema: toolSearchFieldValuesExpressionArgsSchema,
     agent: { outputSchema: toolSearchFieldValuesOutputSchema },
     mcp: { annotations: readOnlyAnnotations },
 });

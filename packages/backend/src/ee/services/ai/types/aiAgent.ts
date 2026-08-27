@@ -51,6 +51,7 @@ import {
     FindExploresFn,
     GenerateDataAppFn,
     GetDashboardChartsFn,
+    GetExploreFn,
     GetKnowledgeDocumentContentFn,
     GetProjectInfoFn,
     GetProjectParameterDefinitionsFn,
@@ -294,6 +295,7 @@ export type PerformanceMetrics = {
 
 export type AiAgentDependencies = {
     listExplores: ListExploresFn;
+    getExplore: GetExploreFn;
     getProjectParameterDefinitions: GetProjectParameterDefinitionsFn;
     // The whole cached project_context document.
     getProjectContextDocument: () => Promise<ProjectContextEntry[]>;

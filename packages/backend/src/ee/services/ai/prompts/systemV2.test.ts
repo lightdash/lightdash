@@ -13,6 +13,30 @@ const promptText = (args: Parameters<typeof getSystemPromptV2>[0]): string => {
     return typeof content === 'string' ? content : JSON.stringify(content);
 };
 
+const searchFieldValuesInstruction = (
+    args: Parameters<typeof getSystemPromptV2>[0],
+) =>
+    promptText(args)
+        .split('\n')
+        .find((line) => line.startsWith('4. **searchFieldValues**'));
+
+describe('getSystemPromptV2 filter expressions', () => {
+    test('keeps structured field-value guidance when disabled', () => {
+        expect(
+            searchFieldValuesInstruction({ availableExplores: [] }),
+        ).toMatchSnapshot();
+    });
+
+    test('uses expression field-value guidance when enabled', () => {
+        expect(
+            searchFieldValuesInstruction({
+                availableExplores: [],
+                enableFilterExpressions: true,
+            }),
+        ).toMatchSnapshot();
+    });
+});
+
 describe('getSystemPromptV2 project context', () => {
     test('advertises the loadProjectContext tool when context exists', () => {
         const content = promptText({
