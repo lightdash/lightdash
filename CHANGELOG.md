@@ -1,3 +1,10 @@
+## [2.36.1](https://github.com/lightdash/lightdash/compare/2.36.0...2.36.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **content-as-code:** apply draft policy to bulk edits ([#28234](https://github.com/lightdash/lightdash/issues/28234)) ([f59c078](https://github.com/lightdash/lightdash/commit/f59c078c9b319663af88231ad5997c969df06ba8))
+
 # [2.36.0](https://github.com/lightdash/lightdash/compare/2.35.2...2.36.0) (2026-08-27)
 
 
