@@ -64,7 +64,7 @@ const CardShell: FC<{
             <Stack gap="xs">
                 <Group justify="space-between" align="center" wrap="nowrap">
                     <Stack gap={0}>
-                        <Text size="sm" fw={500}>
+                        <Text size="xs" fw={500}>
                             Edited semantic layer
                         </Text>
                         <Text size="xs" c="ldGray.6">
