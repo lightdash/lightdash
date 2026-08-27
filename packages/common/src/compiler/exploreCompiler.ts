@@ -572,6 +572,14 @@ export class ExploreCompiler {
                         originalName:
                             tables[join.table].originalName ??
                             tables[join.table].name,
+                        ...(tables[join.table].originalName !== undefined ||
+                        tables[join.table].canonicalName !== undefined
+                            ? {
+                                  canonicalName:
+                                      tables[join.table].canonicalName ??
+                                      tables[join.table].name,
+                              }
+                            : {}),
                         name: joinTableName,
                         label: joinTableLabel,
                         ...(joinDescription !== undefined && {

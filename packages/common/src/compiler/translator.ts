@@ -1,6 +1,9 @@
 import merge from 'lodash/merge';
 import partition from 'lodash/partition';
-import { qualifyMergedManifestNames } from '../dbt/qualifiedName';
+import {
+    getManifestNamespaceKey,
+    qualifyManifestNames,
+} from '../dbt/qualifiedName';
 import {
     buildModelGraph,
     convertColumnMetric,
@@ -1142,21 +1145,20 @@ export const convertExplores = async (
         allowPartialCompilation,
         postProcessors,
     } = options ?? {};
-    const resolvedNamesByUniqueId = qualifyMergedManifestNames(
+    const resolvedNamesByUniqueId = qualifyManifestNames(
         models.map((model) => ({
             uniqueId: model.unique_id,
             name: model.name,
-            sourceName: model.lightdash_source_name,
+            lightdash_source_name: model.lightdash_source_name,
+            package_name: model.package_name,
         })),
         'model',
     );
-    const modelsBySourceAndName = new Map<string, DbtModelNode>();
+    const modelsByNamespaceAndName = new Map<string, DbtModelNode>();
     models.forEach((model) => {
-        if (model.lightdash_source_name !== undefined) {
-            modelsBySourceAndName.set(
-                `${model.lightdash_source_name}\u0000${model.name}`,
-                model,
-            );
+        const namespaceKey = getManifestNamespaceKey(model, model.name);
+        if (namespaceKey !== undefined) {
+            modelsByNamespaceAndName.set(namespaceKey, model);
         }
     });
     const resolveJoins = (
@@ -1164,12 +1166,11 @@ export const convertExplores = async (
         joins: DbtModelNode['meta']['joins'],
     ): DbtModelNode['meta']['joins'] =>
         joins?.map((join) => {
-            if (model.lightdash_source_name === undefined) {
+            const namespaceKey = getManifestNamespaceKey(model, join.join);
+            if (namespaceKey === undefined) {
                 return join;
             }
-            const joinedModel = modelsBySourceAndName.get(
-                `${model.lightdash_source_name}\u0000${join.join}`,
-            );
+            const joinedModel = modelsByNamespaceAndName.get(namespaceKey);
             const resolvedJoinName = joinedModel
                 ? resolvedNamesByUniqueId.get(joinedModel.unique_id)
                 : undefined;
