@@ -1460,9 +1460,9 @@ export class ValidationService extends BaseService {
                   )
                 : [];
         const spaceAccessContexts = Object.fromEntries(
-            appSpaceUuids.map((spaceUuid, index) => [
-                spaceUuid,
-                resolvedSpaceAccessContexts[index],
+            resolvedSpaceAccessContexts.map(({ target, context }) => [
+                target.spaceUuid,
+                context,
             ]),
         );
 

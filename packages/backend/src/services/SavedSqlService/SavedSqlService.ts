@@ -182,14 +182,18 @@ export class SavedSqlService
         const targetSpaceUuids = needsNewSpaceCheck
             ? [spaceUuid, resource.spaceUuid!]
             : [spaceUuid];
-        const contexts = await this.spacePermissionService.resolveAccessBatch(
-            actor.user.userUuid,
-            targetSpaceUuids.map((targetSpaceUuid) => ({
-                type: 'space',
-                spaceUuid: targetSpaceUuid,
-            })),
+        const contextsBySpaceUuid = new Map(
+            (
+                await this.spacePermissionService.resolveAccessBatch(
+                    actor.user.userUuid,
+                    targetSpaceUuids.map((targetSpaceUuid) => ({
+                        type: 'space',
+                        spaceUuid: targetSpaceUuid,
+                    })),
+                )
+            ).map(({ target, context }) => [target.spaceUuid, context]),
         );
-        const currentContext = contexts[0];
+        const currentContext = contextsBySpaceUuid.get(spaceUuid);
         if (currentContext === undefined) {
             throw new ForbiddenError(
                 `You don't have access to ${action} this Saved SQL chart`,
@@ -213,7 +217,7 @@ export class SavedSqlService
         }
 
         if (needsNewSpaceCheck) {
-            const targetContext = contexts[1];
+            const targetContext = contextsBySpaceUuid.get(resource.spaceUuid!);
             if (targetContext === undefined) {
                 throw new ForbiddenError(
                     `You don't have access to ${action} this Saved SQL chart in the new space`,

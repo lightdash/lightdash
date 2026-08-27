@@ -694,9 +694,9 @@ export class DashboardService
                 })),
             );
         const spaceContexts = Object.fromEntries(
-            spaceUuids.map((spaceUuid, index) => [
-                spaceUuid,
-                resolvedSpaceContexts[index],
+            resolvedSpaceContexts.map(({ target, context }) => [
+                target.spaceUuid,
+                context,
             ]),
         );
 

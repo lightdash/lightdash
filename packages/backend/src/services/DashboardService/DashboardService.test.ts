@@ -196,9 +196,12 @@ const spacePermissionService = {
     })),
     resolveAccessBatch: vi.fn(
         async (_userUuid: string, targets: { spaceUuid: string }[]) =>
-            targets.map(({ spaceUuid }) => ({
-                ...lookupSpaceContext(spaceUuid),
-                directOnly: false,
+            targets.map((target) => ({
+                target,
+                context: {
+                    ...lookupSpaceContext(target.spaceUuid),
+                    directOnly: false,
+                },
             })),
     ),
     getFirstViewableSpaceUuid: vi.fn(async () => publicSpace.uuid),

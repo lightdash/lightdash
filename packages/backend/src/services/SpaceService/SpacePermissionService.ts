@@ -84,6 +84,11 @@ export type AccessContextForCasl = SpaceAccessContextForCasl & {
     directOnly: boolean;
 };
 
+export type AccessResult = {
+    target: AccessTarget;
+    context: AccessContextForCasl | undefined;
+};
+
 export class SpacePermissionService extends BaseService {
     private readonly spaceModel: SpaceModel;
 
@@ -232,10 +237,11 @@ export class SpacePermissionService extends BaseService {
         target: AccessTarget,
         { trx }: { trx?: Knex } = {},
     ): Promise<AccessContextForCasl> {
-        const [context] = await this.resolveAccessTargets(userUuid, [target], {
+        const [result] = await this.resolveAccessTargets(userUuid, [target], {
             onMismatch: 'throw',
             trx,
         });
+        const context = result?.context;
         if (context === undefined) {
             throw new NotFoundError(
                 `Couldn't find access context for space ${target.spaceUuid}`,
@@ -245,15 +251,15 @@ export class SpacePermissionService extends BaseService {
     }
 
     /**
-     * Batched access resolution aligned with the input. Missing spaces and
-     * mismatched resource refs degrade to `undefined` or space-only access so
-     * one doubtful target never fails an entire hot-path request.
+     * Batched access resolution paired with each original target. Missing
+     * spaces and mismatched resource refs degrade to `undefined` or space-only
+     * access so one doubtful target never fails an entire hot-path request.
      */
     async resolveAccessBatch(
         userUuid: string,
         targets: AccessTarget[],
         { trx }: { trx?: Knex } = {},
-    ): Promise<(AccessContextForCasl | undefined)[]> {
+    ): Promise<AccessResult[]> {
         return this.resolveAccessTargets(userUuid, targets, {
             onMismatch: 'fallback',
             trx,
@@ -329,7 +335,7 @@ export class SpacePermissionService extends BaseService {
             onMismatch: 'throw' | 'fallback';
             trx?: Knex;
         },
-    ): Promise<(AccessContextForCasl | undefined)[]> {
+    ): Promise<AccessResult[]> {
         if (targets.length === 0) {
             return [];
         }
@@ -348,6 +354,10 @@ export class SpacePermissionService extends BaseService {
             const context = spaceContexts[target.spaceUuid];
             return context ? { ...context, directOnly: false } : undefined;
         };
+        const resultFor = (
+            target: AccessTarget,
+            context: AccessContextForCasl | undefined,
+        ): AccessResult => ({ target, context });
         const grantTargets = targets.flatMap((target) => {
             const spaceContext = spaceContexts[target.spaceUuid];
             const grantTarget =
@@ -362,7 +372,9 @@ export class SpacePermissionService extends BaseService {
                 : [];
         });
         if (grantTargets.length === 0) {
-            return targets.map(spaceOnly);
+            return targets.map((target) =>
+                resultFor(target, spaceOnly(target)),
+            );
         }
 
         const organizationUuids = [
@@ -401,7 +413,9 @@ export class SpacePermissionService extends BaseService {
             grantBatches.set(target.organizationUuid, batchesBySource);
         });
         if (grantBatches.size === 0) {
-            return targets.map(spaceOnly);
+            return targets.map((target) =>
+                resultFor(target, spaceOnly(target)),
+            );
         }
 
         const grantResults = await Promise.all(
@@ -432,20 +446,20 @@ export class SpacePermissionService extends BaseService {
             const grantTarget =
                 SpacePermissionService.getDirectGrantTarget(target);
             if (spaceContext === undefined || grantTarget === undefined) {
-                return spaceOnly(target);
+                return resultFor(target, spaceOnly(target));
             }
             const grant = grantsByOrganization
                 .get(spaceContext.organizationUuid)
                 ?.get(grantTarget.source)?.[grantTarget.resourceUuid];
             if (grant === undefined) {
-                return spaceOnly(target);
+                return resultFor(target, spaceOnly(target));
             }
             const grantRoles = [
                 ...(grant.userRole ? [grant.userRole] : []),
                 ...grant.groupRoles,
             ];
             if (grantRoles.length === 0) {
-                return spaceOnly(target);
+                return resultFor(target, spaceOnly(target));
             }
             const isMismatched = grant.spaceUuid !== target.spaceUuid;
             if (isMismatched && onMismatch === 'throw') {
@@ -454,13 +468,16 @@ export class SpacePermissionService extends BaseService {
                 );
             }
             if (isMismatched) {
-                return spaceOnly(target);
+                return resultFor(target, spaceOnly(target));
             }
-            return SpacePermissionService.withGrantAccess(
-                spaceContext,
-                userUuid,
-                grantRoles,
-                grantTarget.source,
+            return resultFor(
+                target,
+                SpacePermissionService.withGrantAccess(
+                    spaceContext,
+                    userUuid,
+                    grantRoles,
+                    grantTarget.source,
+                ),
             );
         });
     }

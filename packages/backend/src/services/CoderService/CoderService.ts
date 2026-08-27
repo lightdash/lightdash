@@ -3850,7 +3850,9 @@ export class CoderService extends BaseService {
             await this.spacePermissionService.resolveAccessBatch(userUuid, [
                 { type: 'space', spaceUuid },
             ]);
-        return accessContexts[0];
+        return accessContexts.find(
+            ({ target }) => target.spaceUuid === spaceUuid,
+        )?.context;
     }
 
     // Throws unless the caller can write content as code. `canUploadAnyContent`
@@ -3934,11 +3936,9 @@ export class CoderService extends BaseService {
                     spaceUuid,
                 })),
             ));
-        const contextsWithSpace = uniqueSpaceUuids.flatMap(
-            (spaceUuid, index) => {
-                const context = spaceAccessContexts[index];
-                return context ? [{ context, spaceUuid }] : [];
-            },
+        const contextsWithSpace = spaceAccessContexts.flatMap(
+            ({ target, context }) =>
+                context ? [{ context, spaceUuid: target.spaceUuid }] : [],
         );
         const lacksAccess =
             contextsWithSpace.length !== uniqueSpaceUuids.length ||
@@ -4065,9 +4065,9 @@ export class CoderService extends BaseService {
                 })),
             );
         const spaceAccessContexts = Object.fromEntries(
-            uniqueSpaceUuids.map((spaceUuid, index) => [
-                spaceUuid,
-                resolvedSpaceContexts[index],
+            resolvedSpaceContexts.map(({ target, context }) => [
+                target.spaceUuid,
+                context,
             ]),
         );
         const chartsWithContext = referencedCharts.flatMap((chart) => {

@@ -5252,11 +5252,9 @@ export class ProjectService extends BaseService {
                             spaceUuid,
                         })),
                     );
-                const spaceContexts = candidateSpaceUuids.flatMap(
-                    (spaceUuid, index) => {
-                        const context = resolvedSpaceContexts[index];
-                        return context ? [[spaceUuid, context] as const] : [];
-                    },
+                const spaceContexts = resolvedSpaceContexts.flatMap(
+                    ({ target, context }) =>
+                        context ? [[target.spaceUuid, context] as const] : [],
                 );
                 const accessResults = auditedAbility.canBulk(
                     'view',
@@ -9882,6 +9880,10 @@ export class ProjectService extends BaseService {
                     return [];
                 }
 
+                const savedChartsByUuid = new Map(
+                    savedCharts.map((chart) => [chart.uuid, chart]),
+                );
+
                 const [chartContexts, exploresMap] = await Promise.all([
                     this.spacePermissionService.resolveAccessBatch(
                         account.user.id,
@@ -9902,10 +9904,13 @@ export class ProjectService extends BaseService {
                     }),
                 ]);
 
-                const chartsWithSpaceContext = savedCharts.flatMap(
-                    (savedChart, index) => {
-                        const spaceCtx = chartContexts[index];
-                        return spaceCtx ? [{ savedChart, spaceCtx }] : [];
+                const chartsWithSpaceContext = chartContexts.flatMap(
+                    ({ target, context: spaceCtx }) => {
+                        if (target.type !== 'chart' || !spaceCtx) return [];
+                        const savedChart = savedChartsByUuid.get(
+                            target.chartUuid,
+                        );
+                        return savedChart ? [{ savedChart, spaceCtx }] : [];
                     },
                 );
                 const auditedAbility = this.createAuditedAbility(account);
@@ -10663,10 +10668,15 @@ export class ProjectService extends BaseService {
             this.spacePermissionService.getDirectAccessUserUuids(spaceUuids),
         ]);
 
-        const spacesWithContext = spaces.flatMap((space, index) => {
-            const ctx = userSpaceContexts[index];
-            return ctx ? [{ space, ctx }] : [];
-        });
+        const spacesByUuid = new Map(
+            spaces.map((space) => [space.uuid, space]),
+        );
+        const spacesWithContext = userSpaceContexts.flatMap(
+            ({ target, context: ctx }) => {
+                const space = spacesByUuid.get(target.spaceUuid);
+                return space && ctx ? [{ space, ctx }] : [];
+            },
+        );
         const accessResults = auditedAbility.canBulk(
             'view',
             spacesWithContext.map(({ space, ctx }) =>

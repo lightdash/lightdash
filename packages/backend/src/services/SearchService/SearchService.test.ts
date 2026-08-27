@@ -60,7 +60,7 @@ const makeService = ({ dataAppsEnabled = true } = {}) => {
         spaceModel: {} as never,
         userAttributesModel: {} as never,
         spacePermissionService: {
-            resolveAccessBatch: vi.fn().mockResolvedValue({}),
+            resolveAccessBatch: vi.fn().mockResolvedValue([]),
         } as never,
         appGenerateService: appGenerateService as never,
     });

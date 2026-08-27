@@ -128,13 +128,16 @@ const buildService = () =>
             can: vi.fn(async () => true),
             resolveAccessBatch: vi.fn(
                 async (_userUuid: string, targets: { spaceUuid: string }[]) =>
-                    targets.map(({ spaceUuid }) => ({
-                        organizationUuid: ORG_UUID,
-                        projectUuid: PROJECT_UUID,
-                        inheritsFromOrgOrProject: true,
-                        access: [],
-                        admins: [],
-                        directOnly: false,
+                    targets.map((target) => ({
+                        target,
+                        context: {
+                            organizationUuid: ORG_UUID,
+                            projectUuid: PROJECT_UUID,
+                            inheritsFromOrgOrProject: true,
+                            access: [],
+                            admins: [],
+                            directOnly: false,
+                        },
                     })),
             ),
         } as AnyType,
@@ -400,12 +403,15 @@ describe('CoderService content-as-code space permissions', () => {
             service.spacePermissionService.resolveAccessBatch,
         ).mockResolvedValue([
             {
-                organizationUuid: ORG_UUID,
-                projectUuid: PROJECT_UUID,
-                inheritsFromOrgOrProject: false,
-                access: [],
-                admins: [],
-                directOnly: false,
+                target: { type: 'space', spaceUuid: PARENT_SPACE_UUID },
+                context: {
+                    organizationUuid: ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                    inheritsFromOrgOrProject: false,
+                    access: [],
+                    admins: [],
+                    directOnly: false,
+                },
             },
         ]);
         const user = makeUser([
@@ -477,25 +483,28 @@ describe('CoderService content-as-code space permissions', () => {
         vi.mocked(
             service.spacePermissionService.resolveAccessBatch,
         ).mockImplementation(async (_userUuid, targets) =>
-            targets.map(({ spaceUuid }) => ({
-                organizationUuid: ORG_UUID,
-                projectUuid: PROJECT_UUID,
-                inheritsFromOrgOrProject: false,
-                access:
-                    spaceUuid === SPACE_UUID
-                        ? [
-                              {
-                                  userUuid: 'user-uuid',
-                                  role: SpaceMemberRole.EDITOR,
-                                  hasDirectAccess: true,
-                                  projectRole: undefined,
-                                  inheritedRole: undefined,
-                                  inheritedFrom: undefined,
-                              },
-                          ]
-                        : [],
-                admins: [],
-                directOnly: false,
+            targets.map((target) => ({
+                target,
+                context: {
+                    organizationUuid: ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                    inheritsFromOrgOrProject: false,
+                    access:
+                        target.spaceUuid === SPACE_UUID
+                            ? [
+                                  {
+                                      userUuid: 'user-uuid',
+                                      role: SpaceMemberRole.EDITOR,
+                                      hasDirectAccess: true,
+                                      projectRole: undefined,
+                                      inheritedRole: undefined,
+                                      inheritedFrom: undefined,
+                                  },
+                              ]
+                            : [],
+                    admins: [],
+                    directOnly: false,
+                },
             })),
         );
         const user = makeUser([
@@ -771,16 +780,19 @@ describe('CoderService content-as-code space permissions', () => {
         vi.mocked(
             service.spacePermissionService.resolveAccessBatch,
         ).mockImplementation(async (_userUuid, targets) =>
-            targets.map(({ spaceUuid }) => ({
-                organizationUuid: ORG_UUID,
-                projectUuid:
-                    spaceUuid === OTHER_SPACE_UUID
-                        ? 'restricted-project'
-                        : PROJECT_UUID,
-                inheritsFromOrgOrProject: true,
-                access: [],
-                admins: [],
-                directOnly: false,
+            targets.map((target) => ({
+                target,
+                context: {
+                    organizationUuid: ORG_UUID,
+                    projectUuid:
+                        target.spaceUuid === OTHER_SPACE_UUID
+                            ? 'restricted-project'
+                            : PROJECT_UUID,
+                    inheritsFromOrgOrProject: true,
+                    access: [],
+                    admins: [],
+                    directOnly: false,
+                },
             })),
         );
         const user = makeUser([
@@ -828,16 +840,19 @@ describe('CoderService content-as-code space permissions', () => {
         vi.mocked(
             service.spacePermissionService.resolveAccessBatch,
         ).mockImplementation(async (_userUuid, targets) =>
-            targets.map(({ spaceUuid }) => ({
-                organizationUuid: ORG_UUID,
-                projectUuid:
-                    spaceUuid === SPACE_UUID
-                        ? 'restricted-project'
-                        : PROJECT_UUID,
-                inheritsFromOrgOrProject: true,
-                access: [],
-                admins: [],
-                directOnly: false,
+            targets.map((target) => ({
+                target,
+                context: {
+                    organizationUuid: ORG_UUID,
+                    projectUuid:
+                        target.spaceUuid === SPACE_UUID
+                            ? 'restricted-project'
+                            : PROJECT_UUID,
+                    inheritsFromOrgOrProject: true,
+                    access: [],
+                    admins: [],
+                    directOnly: false,
+                },
             })),
         );
         const user = makeUser([
@@ -940,25 +955,28 @@ describe('CoderService content-as-code space permissions', () => {
         vi.mocked(
             service.spacePermissionService.resolveAccessBatch,
         ).mockImplementation(async (_userUuid, targets) =>
-            targets.map(({ spaceUuid }) => ({
-                organizationUuid: ORG_UUID,
-                projectUuid: PROJECT_UUID,
-                inheritsFromOrgOrProject: false,
-                access:
-                    spaceUuid === SPACE_UUID
-                        ? [
-                              {
-                                  userUuid: 'user-uuid',
-                                  role: SpaceMemberRole.EDITOR,
-                                  hasDirectAccess: true,
-                                  projectRole: undefined,
-                                  inheritedRole: undefined,
-                                  inheritedFrom: undefined,
-                              },
-                          ]
-                        : [],
-                admins: [],
-                directOnly: false,
+            targets.map((target) => ({
+                target,
+                context: {
+                    organizationUuid: ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                    inheritsFromOrgOrProject: false,
+                    access:
+                        target.spaceUuid === SPACE_UUID
+                            ? [
+                                  {
+                                      userUuid: 'user-uuid',
+                                      role: SpaceMemberRole.EDITOR,
+                                      hasDirectAccess: true,
+                                      projectRole: undefined,
+                                      inheritedRole: undefined,
+                                      inheritedFrom: undefined,
+                                  },
+                              ]
+                            : [],
+                    admins: [],
+                    directOnly: false,
+                },
             })),
         );
         const user = makeUser([
@@ -1081,25 +1099,28 @@ describe('CoderService content-as-code space permissions', () => {
         vi.mocked(
             service.spacePermissionService.resolveAccessBatch,
         ).mockImplementation(async (_userUuid, targets) =>
-            targets.map(({ spaceUuid }) => ({
-                organizationUuid: ORG_UUID,
-                projectUuid: PROJECT_UUID,
-                inheritsFromOrgOrProject: false,
-                access:
-                    spaceUuid === SPACE_UUID
-                        ? [
-                              {
-                                  userUuid: 'user-uuid',
-                                  role: SpaceMemberRole.EDITOR,
-                                  hasDirectAccess: true,
-                                  projectRole: undefined,
-                                  inheritedRole: undefined,
-                                  inheritedFrom: undefined,
-                              },
-                          ]
-                        : [],
-                admins: [],
-                directOnly: false,
+            targets.map((target) => ({
+                target,
+                context: {
+                    organizationUuid: ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                    inheritsFromOrgOrProject: false,
+                    access:
+                        target.spaceUuid === SPACE_UUID
+                            ? [
+                                  {
+                                      userUuid: 'user-uuid',
+                                      role: SpaceMemberRole.EDITOR,
+                                      hasDirectAccess: true,
+                                      projectRole: undefined,
+                                      inheritedRole: undefined,
+                                      inheritedFrom: undefined,
+                                  },
+                              ]
+                            : [],
+                    admins: [],
+                    directOnly: false,
+                },
             })),
         );
         const user = makeUser([
@@ -1173,25 +1194,28 @@ describe('CoderService content-as-code space permissions', () => {
         vi.mocked(
             service.spacePermissionService.resolveAccessBatch,
         ).mockImplementation(async (_userUuid, targets) =>
-            targets.map(({ spaceUuid }) => ({
-                organizationUuid: ORG_UUID,
-                projectUuid: PROJECT_UUID,
-                inheritsFromOrgOrProject: false,
-                access:
-                    spaceUuid === SPACE_UUID
-                        ? [
-                              {
-                                  userUuid: 'user-uuid',
-                                  role: SpaceMemberRole.EDITOR,
-                                  hasDirectAccess: true,
-                                  projectRole: undefined,
-                                  inheritedRole: undefined,
-                                  inheritedFrom: undefined,
-                              },
-                          ]
-                        : [],
-                admins: [],
-                directOnly: false,
+            targets.map((target) => ({
+                target,
+                context: {
+                    organizationUuid: ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                    inheritsFromOrgOrProject: false,
+                    access:
+                        target.spaceUuid === SPACE_UUID
+                            ? [
+                                  {
+                                      userUuid: 'user-uuid',
+                                      role: SpaceMemberRole.EDITOR,
+                                      hasDirectAccess: true,
+                                      projectRole: undefined,
+                                      inheritedRole: undefined,
+                                      inheritedFrom: undefined,
+                                  },
+                              ]
+                            : [],
+                    admins: [],
+                    directOnly: false,
+                },
             })),
         );
         const user = makeUser([

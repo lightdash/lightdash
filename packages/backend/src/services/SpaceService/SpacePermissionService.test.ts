@@ -2065,16 +2065,29 @@ describe('resolveAccessBatch', () => {
                 contexts: { 'space-a': baseContext },
             });
 
+        const firstTarget = { type: 'space' as const, spaceUuid: 'space-a' };
+        const duplicateTarget = {
+            type: 'space' as const,
+            spaceUuid: 'space-a',
+        };
         const result = await service.resolveAccessBatch('user-uuid', [
-            { type: 'space', spaceUuid: 'space-a' },
-            { type: 'space', spaceUuid: 'space-a' },
+            firstTarget,
+            duplicateTarget,
         ]);
 
         expect(result).toEqual([
-            { ...baseContext, directOnly: false },
-            { ...baseContext, directOnly: false },
+            {
+                target: firstTarget,
+                context: { ...baseContext, directOnly: false },
+            },
+            {
+                target: duplicateTarget,
+                context: { ...baseContext, directOnly: false },
+            },
         ]);
-        result.forEach((context) => {
+        expect(result[0].target).toBe(firstTarget);
+        expect(result[1].target).toBe(duplicateTarget);
+        result.forEach(({ context }) => {
             if (context) expectNoGrantRows(context);
         });
         expect(directAccessFeatureGate.isEnabledForUser).not.toHaveBeenCalled();
@@ -2108,7 +2121,7 @@ describe('resolveAccessBatch', () => {
             },
         ]);
 
-        expect(result).toEqual([
+        expect(result.map(({ context }) => context)).toEqual([
             { ...baseContext, directOnly: false },
             { ...baseContext, directOnly: false },
             { ...baseContext, directOnly: false },
@@ -2169,10 +2182,10 @@ describe('resolveAccessBatch', () => {
             },
         ]);
 
-        expect(result[0]?.access).toEqual([
+        expect(result[0]?.context?.access).toEqual([
             expect.objectContaining({ role: SpaceMemberRole.VIEWER }),
         ]);
-        expect(result[1]?.access).toEqual([
+        expect(result[1]?.context?.access).toEqual([
             expect.objectContaining({ role: SpaceMemberRole.EDITOR }),
         ]);
         expect(directAccessFeatureGate.isEnabledForUser).toHaveBeenCalledTimes(
@@ -2250,15 +2263,22 @@ describe('resolveAccessBatch', () => {
         ]);
 
         // Order preserved: dash-2 (no grant) first, dash-1 (grant) second.
-        expect(result[0]).toEqual({ ...baseContext, directOnly: false });
-        expect(result[1]?.access).toEqual([
+        expect(result[0]).toEqual({
+            target: {
+                type: 'dashboard',
+                dashboardUuid: 'dash-2',
+                spaceUuid: 'space-b',
+            },
+            context: { ...baseContext, directOnly: false },
+        });
+        expect(result[1]?.context?.access).toEqual([
             expect.objectContaining({
                 userUuid: 'user-uuid',
                 role: SpaceMemberRole.VIEWER,
                 grantedVia: 'dashboard',
             }),
         ]);
-        expect(result[1]?.directOnly).toBe(true);
+        expect(result[1]?.context?.directOnly).toBe(true);
         expect(dashboardAccessModel.getUserAccess).toHaveBeenCalledTimes(1);
         expect(dashboardAccessModel.getUserAccess).toHaveBeenCalledWith(
             ['dash-2', 'dash-1'],
@@ -2290,8 +2310,11 @@ describe('resolveAccessBatch', () => {
             },
         ]);
 
-        expect(result[0]).toEqual({ ...baseContext, directOnly: false });
-        expectNoGrantRows(result[0]!);
+        expect(result[0].context).toEqual({
+            ...baseContext,
+            directOnly: false,
+        });
+        expectNoGrantRows(result[0].context!);
     });
 
     test('unresolvable spaces map to undefined', async () => {
@@ -2305,7 +2328,16 @@ describe('resolveAccessBatch', () => {
             },
         ]);
 
-        expect(result).toEqual([undefined]);
+        expect(result).toEqual([
+            {
+                target: {
+                    type: 'dashboard',
+                    dashboardUuid: 'dash-1',
+                    spaceUuid: 'missing-space',
+                },
+                context: undefined,
+            },
+        ]);
     });
 });
 
@@ -2537,10 +2569,10 @@ describe('resolveAccess chart ownership routing', () => {
             },
         ]);
 
-        expect(result[0]?.access).toEqual([
+        expect(result[0]?.context?.access).toEqual([
             expect.objectContaining({ grantedVia: 'dashboard' }),
         ]);
-        expect(result[1]?.access).toEqual([
+        expect(result[1]?.context?.access).toEqual([
             expect.objectContaining({ grantedVia: 'saved_chart' }),
         ]);
         expect(spaceContextResolver).toHaveBeenCalledTimes(1);
