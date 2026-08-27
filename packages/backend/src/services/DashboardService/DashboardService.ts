@@ -1762,9 +1762,9 @@ export class DashboardService
             existingDashboardDao,
             dashboardFields,
         );
-        const space = await this.spacePermissionService.getSpaceAccessContext(
+        const space = await this.spacePermissionService.resolveAccess(
             user.userUuid,
-            existingDashboardDao.spaceUuid,
+            { type: 'space', spaceUuid: existingDashboardDao.spaceUuid },
         );
         return {
             ...overlaid,

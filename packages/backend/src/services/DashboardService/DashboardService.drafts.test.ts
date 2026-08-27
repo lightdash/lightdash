@@ -92,13 +92,10 @@ const buildService = (overrides: Overrides = {}) => {
         organizationModel: {} as AnyType,
         organizationMemberProfileModel: {} as AnyType,
         spacePermissionService: {
-            getSpaceAccessContext: vi.fn().mockResolvedValue({
+            resolveAccess: vi.fn().mockResolvedValue({
                 inheritsFromOrgOrProject: true,
                 access: [],
-            }),
-            getDashboardAccessContext: vi.fn().mockResolvedValue({
-                inheritsFromOrgOrProject: true,
-                access: [],
+                directOnly: false,
             }),
         } as AnyType,
         contentVerificationModel: {} as AnyType,
