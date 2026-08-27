@@ -1,3 +1,20 @@
+# [2.31.0](https://github.com/lightdash/lightdash/compare/2.30.0...2.31.0) (2026-08-27)
+
+
+### Bug Fixes
+
+* **content-as-code:** isolate write-back PRs by draft ([#28196](https://github.com/lightdash/lightdash/issues/28196)) ([b5e0004](https://github.com/lightdash/lightdash/commit/b5e0004616110a3c44f8e998c6352d6227012182))
+* **upgrade-automation:** close superseded bump pull requests ([#28195](https://github.com/lightdash/lightdash/issues/28195)) ([49c5656](https://github.com/lightdash/lightdash/commit/49c5656b31e7d7339ec51c16af1beeb514565301))
+* **upgrade-automation:** stop replacing held pull requests ([#27840](https://github.com/lightdash/lightdash/issues/27840)) ([fffc05e](https://github.com/lightdash/lightdash/commit/fffc05e09a9a1c29bedd10882a8f79b24f80b2a8))
+* write Google Sheets dates as native values ([#28182](https://github.com/lightdash/lightdash/issues/28182)) ([32ad12c](https://github.com/lightdash/lightdash/commit/32ad12c749f3c34f75129b67c7648069859151b5))
+
+
+### Features
+
+* **charts:** direct-grant access kernel and reads for saved explore charts ([#28143](https://github.com/lightdash/lightdash/issues/28143)) ([90315a5](https://github.com/lightdash/lightdash/commit/90315a59369812292fe44c26ea98659183efad29)), closes [#28122](https://github.com/lightdash/lightdash/issues/28122) [#28124](https://github.com/lightdash/lightdash/issues/28124) [#28144](https://github.com/lightdash/lightdash/issues/28144) [#28145](https://github.com/lightdash/lightdash/issues/28145)
+* **charts:** direct-grant write parity for saved explore charts ([#28144](https://github.com/lightdash/lightdash/issues/28144)) ([f54aa15](https://github.com/lightdash/lightdash/commit/f54aa155b10e9b6afd544d28462f3df5507c311f)), closes [#28143](https://github.com/lightdash/lightdash/issues/28143) [#28145](https://github.com/lightdash/lightdash/issues/28145)
+* **charts:** grant management + dashboard-owned guard for saved charts ([#28145](https://github.com/lightdash/lightdash/issues/28145)) ([e79bdd9](https://github.com/lightdash/lightdash/commit/e79bdd99be5087ac63bb2c9b67b41909fe5a6aae)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [2.30.0](https://github.com/lightdash/lightdash/compare/2.29.0...2.30.0) (2026-08-27)
 
 

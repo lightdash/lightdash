@@ -13363,7 +13363,14 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     GrantSource: {
         dataType: 'refAlias',
-        type: { dataType: 'enum', enums: ['dashboard'], validators: {} },
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['dashboard'] },
+                { dataType: 'enum', enums: ['saved_chart'] },
+            ],
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SpaceAccess: {
