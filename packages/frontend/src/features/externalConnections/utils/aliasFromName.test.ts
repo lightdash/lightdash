@@ -22,7 +22,7 @@ describe('uniqueAliasFromName', () => {
         const alias = uniqueAliasFromName(name, ['a'.repeat(64)]);
 
         expect(alias).toHaveLength(64);
-        expect(alias).toEndWith('_2');
+        expect(alias.endsWith('_2')).toBe(true);
     });
 
     it('uses a valid fallback when the name has no letters or numbers', () => {

@@ -1,6 +1,6 @@
 import { type ApiError } from '@lightdash/common'; // pragma: allowlist secret (product-name false positive)
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api'; // pragma: allowlist secret (product-name false positive)
+import { lightdashApi as api } from '../../../api'; // pragma: allowlist secret (product-name false positive)
 import useToaster from '../../../hooks/toaster/useToaster';
 import { invalidateAppConnectionQueries } from './invalidateAppConnectionQueries';
 
@@ -17,7 +17,7 @@ const linkAppExternalConnection = async ({
     externalConnectionUuid,
     alias,
 }: LinkParams) =>
-    lightdashApi<undefined>({ // pragma: allowlist secret (product-name false positive)
+    api<undefined>({
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/external-connections`,
         method: 'POST',
         body: JSON.stringify({ externalConnectionUuid, alias }),

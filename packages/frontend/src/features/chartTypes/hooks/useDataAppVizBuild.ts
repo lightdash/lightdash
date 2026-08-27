@@ -4,7 +4,6 @@ import {
     getErrorMessage,
     type ApiAppVersionSummary,
     type AppClarification,
-    type AppExternalConnectionReference,
     type AppVersionExternalConnectionResource,
     type DataAppClaudeModel,
     type DataAppCodexModel,

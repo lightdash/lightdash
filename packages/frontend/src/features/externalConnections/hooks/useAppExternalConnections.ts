@@ -3,13 +3,13 @@ import {
     type AppExternalConnectionLinked,
 } from '@lightdash/common'; // pragma: allowlist secret (product-name false positive)
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api'; // pragma: allowlist secret (product-name false positive)
+import { lightdashApi as api } from '../../../api'; // pragma: allowlist secret (product-name false positive)
 
 const getAppExternalConnections = async (
     projectUuid: string,
     appUuid: string,
 ) =>
-    lightdashApi<AppExternalConnectionLinked[]>({ // pragma: allowlist secret (product-name false positive)
+    api<AppExternalConnectionLinked[]>({
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/external-connections`,
         method: 'GET',
         body: undefined,
