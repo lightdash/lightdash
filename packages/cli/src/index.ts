@@ -1478,6 +1478,12 @@ program
             .default('error'),
     )
     .addOption(
+        new Option(
+            '--show-chart-configuration-warnings',
+            '(deprecated) Alias for --severity warning. Shows chart configuration warnings and treats them as errors.',
+        ),
+    )
+    .addOption(
         new Option('--only <elems...>', 'Specify project elements to validate')
             .choices(Object.values(ValidationTarget))
             .default(Object.values(ValidationTarget)),
