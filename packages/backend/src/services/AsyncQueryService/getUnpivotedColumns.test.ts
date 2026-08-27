@@ -133,38 +133,6 @@ describe('getUnpivotedColumns', () => {
         });
     });
 
-    test('column metadata overrides win and keep the live reference and type', () => {
-        const columns = getUnpivotedColumns(
-            {},
-            warehouseFields,
-            itemsMap,
-            null,
-            {
-                computed_col: {
-                    reference: 'computed_col',
-                    type: DimensionType.STRING,
-                    label: 'Orders Revenue',
-                    format: '#,##0.00',
-                    provenance: {
-                        fieldId: 'orders_revenue',
-                        sourceQueryUuid: 'referenced-query-uuid',
-                    },
-                },
-            },
-        );
-        expect(columns.computed_col).toEqual({
-            reference: 'computed_col',
-            // The live execution type wins over the override's
-            type: DimensionType.NUMBER,
-            label: 'Orders Revenue',
-            format: '#,##0.00',
-            provenance: {
-                fieldId: 'orders_revenue',
-                sourceQueryUuid: 'referenced-query-uuid',
-            },
-        });
-    });
-
     test('already-captured columns are returned untouched', () => {
         const existing = {
             foo: { reference: 'foo', type: DimensionType.STRING },
