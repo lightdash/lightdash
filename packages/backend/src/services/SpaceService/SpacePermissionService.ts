@@ -545,6 +545,22 @@ export class SpacePermissionService extends BaseService {
         return ctx;
     }
 
+    async getSpaceAccessContextForUsers(
+        userUuids: string[],
+        spaceUuid: string,
+    ): Promise<SpaceAccessContextForCasl> {
+        const accessContext = await this.getSpacesCaslContext([spaceUuid], {
+            userUuids,
+        });
+        const ctx = accessContext[spaceUuid];
+        if (!ctx) {
+            throw new NotFoundError(
+                `Couldn't find access context for space ${spaceUuid}`,
+            );
+        }
+        return ctx;
+    }
+
     mergeAdminAccess(ctx: SpaceAccessContextForCasl): SpaceAccess[] {
         const existingAccessUuids = new Set(
             ctx.access.map((access) => access.userUuid),
