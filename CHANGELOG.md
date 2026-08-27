@@ -1,3 +1,11 @@
+# [2.37.0](https://github.com/lightdash/lightdash/compare/2.36.1...2.37.0) (2026-08-27)
+
+
+### Features
+
+* **chart-types:** allow linking external connections ([#28136](https://github.com/lightdash/lightdash/issues/28136)) ([28acba6](https://github.com/lightdash/lightdash/commit/28acba6413c9e07a3119cca8a99d1e2cb28ee732))
+* **chart-types:** unlink connections from the attach picker ([#28235](https://github.com/lightdash/lightdash/issues/28235)) ([83d87a9](https://github.com/lightdash/lightdash/commit/83d87a909ca62dbac25351bb33bd30349e69b2d2))
+
 ## [2.36.1](https://github.com/lightdash/lightdash/compare/2.36.0...2.36.1) (2026-08-27)
 
 
