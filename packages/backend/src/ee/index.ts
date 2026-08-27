@@ -1320,7 +1320,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.models.getAiAgentReviewNotificationModel<AiAgentReviewNotificationModel>(),
                 aiAgentReviewNotificationService:
                     context.serviceRepository.getAiAgentReviewNotificationService<AiAgentReviewNotificationService>(),
-                linearAppService: context.serviceRepository.getLinearAppService(),
+                linearAppService:
+                    context.serviceRepository.getLinearAppService(),
                 aiAgentAdminService:
                     context.serviceRepository.getAiAgentAdminService<AiAgentAdminService>(),
                 projectContextService:

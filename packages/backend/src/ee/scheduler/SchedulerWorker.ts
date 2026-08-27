@@ -20,14 +20,13 @@ import {
     SchedulerWorkerArguments,
 } from '../../scheduler/SchedulerWorker';
 import { TypedEETaskList } from '../../scheduler/types';
+import { type LinearAppService } from '../../services/LinearAppService/LinearAppService';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
 import { type McpToolCallModel } from '../models/McpToolCallModel';
 import { AiAgentAdminService } from '../services/AiAgentAdminService';
 import { AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
 import { AiAgentReviewClassifierService } from '../services/AiAgentReviewClassifierService';
-import { type LinearAppService } from '../../services/LinearAppService/LinearAppService';
-import { createReviewLinearIssue } from './tasks/createReviewLinearIssue';
 import { type AiAgentReviewNotificationService } from '../services/AiAgentReviewNotificationService';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
 import { type AiDeepResearchService } from '../services/AiDeepResearchService/AiDeepResearchService';
@@ -39,6 +38,7 @@ import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgen
 import { type OnboardingAgentService } from '../services/OnboardingAgentService/OnboardingAgentService';
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
 import type { ProjectHomepageService } from '../services/ProjectHomepageService';
+import { createReviewLinearIssue } from './tasks/createReviewLinearIssue';
 import { sendReviewNotification } from './tasks/sendReviewNotification';
 
 const MCP_TOOL_CALL_RETENTION_DAYS = 90;
@@ -960,7 +960,9 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     analytics: this.analytics,
                 })(payload);
             },
-            [EE_SCHEDULER_TASKS.CREATE_REVIEW_LINEAR_ISSUE]: async (payload) => {
+            [EE_SCHEDULER_TASKS.CREATE_REVIEW_LINEAR_ISSUE]: async (
+                payload,
+            ) => {
                 await createReviewLinearIssue({
                     siteUrl: this.lightdashConfig.siteUrl, // pragma: allowlist secret
                     model: this.aiAgentReviewNotificationModel,
