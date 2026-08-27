@@ -98,9 +98,7 @@ export class LinearController extends BaseController {
     @SuccessResponse('200')
     @Get('/')
     @OperationId('getLinearInstallation')
-    async getLinearInstallation(
-        @Request() req: express.Request,
-    ): Promise<{
+    async getLinearInstallation(@Request() req: express.Request): Promise<{
         status: 'ok';
         results: LinearInstallation;
     }> {
@@ -145,9 +143,7 @@ export class LinearController extends BaseController {
     @SuccessResponse('200')
     @Get('/teams')
     @OperationId('getLinearTeams')
-    async getLinearTeams(
-        @Request() req: express.Request,
-    ): Promise<{
+    async getLinearTeams(@Request() req: express.Request): Promise<{
         status: 'ok';
         results: Array<LinearTeam>;
     }> {

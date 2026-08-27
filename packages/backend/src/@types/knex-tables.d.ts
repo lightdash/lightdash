@@ -107,10 +107,6 @@ import {
     GitlabAppInstallationTableName,
 } from '../database/entities/gitlabAppInstallation';
 import {
-    LinearAppInstallationTable,
-    LinearAppInstallationTableName,
-} from '../database/entities/linearAppInstallation';
-import {
     GitUserCredentialsTable,
     GitUserCredentialsTableName,
 } from '../database/entities/gitUserCredentials';
@@ -133,6 +129,10 @@ import {
     JobStepsTable,
     JobStepsTableName,
 } from '../database/entities/jobs';
+import {
+    LinearAppInstallationTable,
+    LinearAppInstallationTableName,
+} from '../database/entities/linearAppInstallation';
 import {
     NotificationsTable,
     NotificationsTableName,

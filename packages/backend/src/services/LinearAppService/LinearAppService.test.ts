@@ -55,7 +55,8 @@ const makeService = () => {
     const service = new LinearAppService({
         linearAppInstallationsModel,
         userModel,
-        lightdashConfig: { // pragma: allowlist secret
+        lightdashConfig: {
+            // pragma: allowlist secret
             siteUrl: 'https://app.example.com',
             linear: {
                 clientId: 'client-1',
@@ -73,9 +74,9 @@ describe('LinearAppService', () => {
     it('forbids members who cannot manage the organization', async () => {
         const { service } = makeService();
 
-        await expect(service.getInstallation(makeUser(false))).rejects.toBeInstanceOf(
-            ForbiddenError,
-        );
+        await expect(
+            service.getInstallation(makeUser(false)),
+        ).rejects.toBeInstanceOf(ForbiddenError);
     });
 
     it('tracks uninstall when an admin removes Linear', async () => {

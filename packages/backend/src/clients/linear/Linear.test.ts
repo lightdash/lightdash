@@ -96,7 +96,11 @@ describe('Linear client', () => {
                         data: {
                             teams: {
                                 nodes: [
-                                    { id: 'team-1', name: 'Product', key: 'PRD' },
+                                    {
+                                        id: 'team-1',
+                                        name: 'Product',
+                                        key: 'PRD',
+                                    },
                                 ],
                                 pageInfo: {
                                     hasNextPage: false,
@@ -152,7 +156,13 @@ describe('Linear client', () => {
                     data: {
                         teams: {
                             nodes: isFirstPage
-                                ? [{ id: 'team-1', name: 'Product', key: 'PRD' }]
+                                ? [
+                                      {
+                                          id: 'team-1',
+                                          name: 'Product',
+                                          key: 'PRD',
+                                      },
+                                  ]
                                 : [{ id: 'team-2', name: 'Data', key: 'DAT' }],
                             pageInfo: {
                                 hasNextPage: isFirstPage,

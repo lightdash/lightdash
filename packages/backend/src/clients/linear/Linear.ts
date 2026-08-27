@@ -18,7 +18,8 @@ const LINEAR_SCOPES = ['read', 'issues:create'];
 // page size it returns 50, silently truncating the pickers on large workspaces.
 const LINEAR_PAGE_SIZE = 250;
 
-export class LinearApiError extends LightdashError { // pragma: allowlist secret
+export class LinearApiError extends LightdashError {
+    // pragma: allowlist secret
     constructor(message: string, statusCode: number = 500) {
         super({
             message,
@@ -120,7 +121,8 @@ export const exchangeLinearCodeForToken = async (
 
         return await parseTokenResponse(response);
     } catch (error) {
-        if (error instanceof LightdashError) { // pragma: allowlist secret
+        if (error instanceof LightdashError) {
+            // pragma: allowlist secret
             throw error;
         }
         throw new UnexpectedServerError(getErrorMessage(error));
@@ -148,7 +150,8 @@ export const refreshLinearToken = async (
 
         return await parseTokenResponse(response);
     } catch (error) {
-        if (error instanceof LightdashError) { // pragma: allowlist secret
+        if (error instanceof LightdashError) {
+            // pragma: allowlist secret
             throw error;
         }
         throw new UnexpectedServerError(getErrorMessage(error));

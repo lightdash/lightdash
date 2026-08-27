@@ -151,17 +151,17 @@ export class LinearAppService extends BaseService {
                 this.getRedirectUri(),
             );
             const linearOrganization = await getLinearOrganization(token);
-            const installer = await this.userModel.findSessionUserByUUID(
-                userUuid,
-            );
+            const installer =
+                await this.userModel.findSessionUserByUUID(userUuid);
             if (!installer || !isUserWithOrg(installer)) {
                 throw new Error('User is not part of an organization');
             }
             this.canManageOrg(installer);
 
-            const existing = await this.linearAppInstallationsModel.findInstallation(
-                installer.organizationUuid,
-            );
+            const existing =
+                await this.linearAppInstallationsModel.findInstallation(
+                    installer.organizationUuid,
+                );
             const installationArgs = {
                 installationId: linearOrganization.id,
                 token,
@@ -268,14 +268,16 @@ export class LinearAppService extends BaseService {
         organizationUuid: string,
         run: (token: string) => Promise<T>,
     ): Promise<T> {
-        const auth = await this.linearAppInstallationsModel.getAuth(
-            organizationUuid,
-        );
+        const auth =
+            await this.linearAppInstallationsModel.getAuth(organizationUuid);
 
         try {
             return await run(auth.token);
         } catch (error) {
-            if (!(error instanceof ForbiddenError) || auth.refreshToken === null) {
+            if (
+                !(error instanceof ForbiddenError) ||
+                auth.refreshToken === null
+            ) {
                 throw error;
             }
 
