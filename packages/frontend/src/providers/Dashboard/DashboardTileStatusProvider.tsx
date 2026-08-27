@@ -103,7 +103,7 @@ const DashboardTileStatusProvider: React.FC<
         (c) => c.dateZoomGranularity,
     );
     const { embedToken } = useEmbed();
-    const { dispatchEmbedEvent } = useEmbedEventEmitter();
+    const { dispatchEmbedEvent, isEmbedEventReady } = useEmbedEventEmitter();
 
     const visibleEmbedTileUuids = useMemo(() => {
         if (!dashboardTiles) return [];
@@ -186,7 +186,8 @@ const DashboardTileStatusProvider: React.FC<
     const emittedLoadCycle = useRef<string | undefined>(undefined);
 
     useEffect(() => {
-        if (!embedToken || !areAllEmbedTilesLoaded) return;
+        if (!embedToken || !isEmbedEventReady || !areAllEmbedTilesLoaded)
+            return;
         if (emittedLoadCycle.current === embedLoadCycleKey) return;
 
         const dispatched = dispatchEmbedEvent(
@@ -207,6 +208,7 @@ const DashboardTileStatusProvider: React.FC<
         dispatchEmbedEvent,
         embedLoadCycleKey,
         embedToken,
+        isEmbedEventReady,
         visibleEmbedTileUuids.length,
     ]);
 

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type Exact } from 'type-fest';
 import useHealth from '../../../../hooks/health/useHealth';
 import { LightdashUiEvent } from '../events/LightdashUiEvent';
@@ -16,28 +16,37 @@ import type {
  */
 export const useEmbedEventEmitter = () => {
     const { data: health } = useHealth();
-    const eventEmitter = useMemo(
-        () =>
-            health?.embedding?.events
-                ? new LightdashUiEvent(
-                      health.embedding.events,
-                      LightdashUiEvent.getTargetOriginFromUrl(),
-                  )
-                : null,
-        [health?.embedding?.events],
-    );
+    const eventEmitter = useRef<LightdashUiEvent | null>(null);
+    const [isEmbedEventReady, setIsEmbedEventReady] = useState(false);
+
+    useEffect(() => {
+        if (health?.embedding?.events) {
+            eventEmitter.current = new LightdashUiEvent(
+                health.embedding.events,
+                LightdashUiEvent.getTargetOriginFromUrl(),
+            );
+            setIsEmbedEventReady(true);
+        } else {
+            eventEmitter.current = null;
+            setIsEmbedEventReady(false);
+        }
+    }, [health?.embedding?.events]);
+
     const dispatchEmbedEvent = useCallback(
         <T extends Exact<LightdashEventPayload, T>>(
             eventType: LightdashEventType,
             payload?: T,
         ) => {
-            if (!eventEmitter) return false;
+            if (!eventEmitter.current) return false;
 
-            eventEmitter.dispatch(eventType, payload);
+            eventEmitter.current.dispatch(eventType, payload);
             return true;
         },
-        [eventEmitter],
+        [],
     );
 
-    return useMemo(() => ({ dispatchEmbedEvent }), [dispatchEmbedEvent]);
+    return useMemo(
+        () => ({ dispatchEmbedEvent, isEmbedEventReady }),
+        [dispatchEmbedEvent, isEmbedEventReady],
+    );
 };
