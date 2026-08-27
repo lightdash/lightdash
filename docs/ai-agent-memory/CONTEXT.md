@@ -1,6 +1,6 @@
 # AI agent memory
 
-Per-user, per-project knowledge the AI analyst learns from a user's own
+Per-user, per-project knowledge the AI agent learns from a user's own
 threads and recalls on their future threads. Memory is recall, not authority:
 current catalog truth and project context always outrank it.
 

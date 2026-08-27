@@ -10,6 +10,7 @@ collisions with other contexts' or repo-wide meanings.
 
 ## Contexts
 
+- [Data apps](./docs/data-apps/CONTEXT.md) — AI-generated interactive apps built on the semantic layer by a coding agent in a sandbox, versioned per prompt, found and read by the AI agent
 - [Pre-aggregates](./docs/pre-aggregates/CONTEXT.md) — user-defined, pre-computed summaries of explores that serve matching queries from materialized files instead of the warehouse
-- [AI agent memory](./docs/ai-agent-memory/CONTEXT.md) — per-user, per-project knowledge the AI analyst distills from a user's threads and recalls on their future threads
+- [AI agent memory](./docs/ai-agent-memory/CONTEXT.md) — per-user, per-project knowledge the AI agent distills from a user's threads and recalls on their future threads
 - [External sources](./docs/external-sources/CONTEXT.md) — uploaded CSVs and connected Google Sheets ingested to typed parquet and queried as explores on the DuckDB engine
