@@ -1076,6 +1076,7 @@ describe('CoderService', () => {
                 contentAsCodeSnapshotModel: {
                     upsert: vi.fn(),
                 } as AnyType,
+                contentAsCodeProjectSettingsModel: {} as AnyType,
                 contentVerificationModel: {} as AnyType,
                 dashboardModel: {} as AnyType,
                 lightdashConfig: {} as AnyType,

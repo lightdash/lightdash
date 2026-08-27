@@ -121,7 +121,7 @@ export class ProjectCoderController extends BaseController {
     /**
      * Persist the repo's content_as_code flags as project-level state.
      * Called by the CLI at upload time so the instance learns what the
-     * repo has opted into (sync enforcement, write-back).
+     * repo has opted into (Git-backed tracking and write-back).
      * @summary Stamp content-as-code settings
      */
     @Tags('Projects')

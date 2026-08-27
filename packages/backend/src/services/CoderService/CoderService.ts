@@ -3677,9 +3677,8 @@ export class CoderService extends BaseService {
                 `Finished creating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
             );
 
-            // SQL charts don't support content_as_code.sync drift detection
-            // yet (positional-args upsert needs an options refactor first),
-            // so there is no baseline to gate recording on here.
+            // SQL charts do not record Git-backed snapshots yet because their
+            // positional upsert arguments do not carry sync settings.
             await this.stampAppliedSqlChartSnapshot(
                 user,
                 projectUuid,
