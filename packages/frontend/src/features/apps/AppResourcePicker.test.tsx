@@ -63,11 +63,11 @@ it('hides the sample-data controls when the instance disables sample data', () =
 });
 
 it.each([
-    { count: 0, label: 'Connections' },
-    { count: 1, label: '1 connection' },
-    { count: 2, label: '2 connections' },
+    { count: 0, label: 'Add external connections' },
+    { count: 1, label: '1 external connection attached' },
+    { count: 2, label: '2 external connections attached' },
 ])(
-    'summarizes $count selected connections in the trigger',
+    'summarizes $count selected connections with an indicator',
     ({ count, label }) => {
         render(
             <MantineProvider env="test">
@@ -88,8 +88,11 @@ it.each([
             </MantineProvider>,
         );
 
-        expect(
-            screen.getByRole('button', { name: 'Add external connections' }),
-        ).toHaveTextContent(label);
+        expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+        if (count === 0) {
+            expect(screen.queryByText('0')).not.toBeInTheDocument();
+        } else {
+            expect(screen.getByText(String(count))).toBeInTheDocument();
+        }
     },
 );

@@ -16,6 +16,7 @@ import {
     CloseButton,
     Group,
     Image,
+    Indicator,
     Loader,
     LoadingOverlay,
     Popover,
@@ -1356,6 +1357,13 @@ export const ConnectionAttachButton: FC<{
     description: string;
 }> = ({ selectedConnections, onSelect, onDeselect, disabled, description }) => {
     const [opened, setOpened] = useState(false);
+    const selectedCount = selectedConnections.length;
+    const triggerLabel =
+        selectedCount > 0
+            ? `${selectedCount} external connection${
+                  selectedCount === 1 ? '' : 's'
+              } attached`
+            : 'Add external connections';
 
     return (
         <Popover
@@ -1367,28 +1375,24 @@ export const ConnectionAttachButton: FC<{
             trapFocus
         >
             <Popover.Target>
-                <Tooltip
-                    label="Add external connections"
-                    withArrow
-                    position="top"
-                >
-                    <Button
-                        variant="subtle"
-                        color="ldGray"
-                        size="compact-xs"
-                        leftSection={
-                            <MantineIcon icon={IconPlugConnected} size={14} />
-                        }
-                        aria-label="Add external connections"
-                        onClick={() => setOpened((value) => !value)}
-                        disabled={disabled}
+                <Tooltip label={triggerLabel} withArrow position="top">
+                    <Indicator
+                        label={selectedCount}
+                        size={16}
+                        offset={4}
+                        disabled={selectedCount === 0}
                     >
-                        {selectedConnections.length > 0
-                            ? `${selectedConnections.length} connection${
-                                  selectedConnections.length === 1 ? '' : 's'
-                              }`
-                            : 'Connections'}
-                    </Button>
+                        <ActionIcon
+                            variant="subtle"
+                            color="ldGray"
+                            size="sm"
+                            aria-label={triggerLabel}
+                            onClick={() => setOpened((value) => !value)}
+                            disabled={disabled}
+                        >
+                            <MantineIcon icon={IconPlugConnected} />
+                        </ActionIcon>
+                    </Indicator>
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown className={classes.queryDropdown} p={0}>
