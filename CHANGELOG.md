@@ -1,3 +1,10 @@
+# [2.26.0](https://github.com/lightdash/lightdash/compare/2.25.0...2.26.0) (2026-08-27)
+
+
+### Features
+
+* propose drifted content to git retroactively ([#28006](https://github.com/lightdash/lightdash/issues/28006)) ([1a989cb](https://github.com/lightdash/lightdash/commit/1a989cb04510c8a75f04cffc18092570e5d45aa3))
+
 # [2.25.0](https://github.com/lightdash/lightdash/compare/2.24.0...2.25.0) (2026-08-27)
 
 

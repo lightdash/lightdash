@@ -76,6 +76,122 @@
                 "required": ["to", "from", "resourceType"],
                 "type": "object"
             },
+            "ContentAsCodeWritebackStatus": {
+                "type": "string",
+                "enum": ["pending", "open", "merged", "closed", "error"]
+            },
+            "ContentAsCodeWritebackSummary": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/ContentAsCodeWritebackStatus"
+                    },
+                    "prUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "prNumber": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "branch": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "error",
+                    "status",
+                    "prUrl",
+                    "prNumber",
+                    "branch",
+                    "slug",
+                    "contentType"
+                ],
+                "type": "object"
+            },
+            "ApiContentAsCodeWritebacksResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentAsCodeWritebackSummary"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiContentAsCodeProposeResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ContentAsCodeWritebackSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ContentAsCodeProjectSettings": {
+                "properties": {
+                    "stampedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "syncEnabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["stampedAt", "syncEnabled"],
+                "type": "object"
+            },
+            "ApiContentAsCodeSettingsResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentAsCodeProjectSettings"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ParameterValue": {
                 "anyOf": [
                     {
@@ -31872,7 +31988,7 @@
                     },
                     {
                         "type": "string",
-                        "enum": ["pending", "ready", "error", "cancelled"]
+                        "enum": ["pending", "error", "ready", "cancelled"]
                     }
                 ]
             },
@@ -37451,6 +37567,9 @@
             },
             "Pick_ValidationResponseBase.Exclude_keyofValidationResponseBase.name__": {
                 "properties": {
+                    "error": {
+                        "type": "string"
+                    },
                     "projectUuid": {
                         "type": "string"
                     },
@@ -37460,9 +37579,6 @@
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
-                    },
-                    "error": {
-                        "type": "string"
                     },
                     "source": {
                         "$ref": "#/components/schemas/ValidationSourceType"
@@ -37481,9 +37597,9 @@
                     }
                 },
                 "required": [
+                    "error",
                     "projectUuid",
                     "createdAt",
-                    "error",
                     "validationUuid",
                     "validationId",
                     "errorType"
@@ -37592,6 +37708,9 @@
             },
             "Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-tableName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_": {
                 "properties": {
+                    "error": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -37602,9 +37721,6 @@
                         "type": "string"
                     },
                     "projectUuid": {
-                        "type": "string"
-                    },
-                    "error": {
                         "type": "string"
                     },
                     "source": {
@@ -37620,7 +37736,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["name", "projectUuid", "error", "errorType"],
+                "required": ["error", "name", "projectUuid", "errorType"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -37655,6 +37771,9 @@
             },
             "Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-tableName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_": {
                 "properties": {
+                    "error": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -37670,9 +37789,6 @@
                     "dashboardUuid": {
                         "type": "string"
                     },
-                    "error": {
-                        "type": "string"
-                    },
                     "source": {
                         "$ref": "#/components/schemas/ValidationSourceType"
                     },
@@ -37683,7 +37799,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["name", "projectUuid", "error", "errorType"],
+                "required": ["error", "name", "projectUuid", "errorType"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -40648,12 +40764,12 @@
             },
             "Pick_ValidationResponse.error-or-createdAt-or-validationUuid-or-validationId_": {
                 "properties": {
+                    "error": {
+                        "type": "string"
+                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
-                    },
-                    "error": {
-                        "type": "string"
                     },
                     "validationUuid": {
                         "type": "string"
@@ -40666,8 +40782,8 @@
                     }
                 },
                 "required": [
-                    "createdAt",
                     "error",
+                    "createdAt",
                     "validationUuid",
                     "validationId"
                 ],
@@ -56773,7 +56889,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.25.0",
+        "version": "2.26.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -56836,7 +56952,144 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/code/writebacks": {
+            "get": {
+                "operationId": "listContentAsCodeWritebacks",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentAsCodeWritebacksResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List this instance's content-as-code write-back PRs for the project.\nPass refresh=true to also re-check open PRs against the git provider\n(a merged PR then reads as merged instead of a stale pending badge).",
+                "summary": "List content-as-code write-backs",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "refresh",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/writebacks/charts/{slug}/propose": {
+            "post": {
+                "operationId": "proposeChartToGit",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentAsCodeProposeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Propose the current instance version of a managed chart back to the\nconnected repo: opens (or appends to) this instance's write-back PR\nfor the slug. The retroactive migration path for drifted content.",
+                "summary": "Propose chart to git",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "slug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/code/sync-settings": {
+            "get": {
+                "operationId": "getContentAsCodeSettings",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentAsCodeSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The content_as_code flags last stamped on this project by an upload",
+                "summary": "Get content-as-code settings",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
             "post": {
                 "operationId": "stampContentAsCodeSettings",
                 "responses": {
