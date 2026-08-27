@@ -56540,7 +56540,6 @@ const models: TsoaRoute.Models = {
                     {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
-                            appCount: { dataType: 'double', required: true },
                             nestedSpaceCount: {
                                 dataType: 'double',
                                 required: true,
@@ -56549,6 +56548,7 @@ const models: TsoaRoute.Models = {
                                 dataType: 'double',
                                 required: true,
                             },
+                            appCount: { dataType: 'double', required: true },
                             dashboardCount: {
                                 dataType: 'double',
                                 required: true,

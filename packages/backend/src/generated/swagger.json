@@ -56919,15 +56919,15 @@
                     },
                     {
                         "properties": {
-                            "appCount": {
-                                "type": "number",
-                                "format": "double"
-                            },
                             "nestedSpaceCount": {
                                 "type": "number",
                                 "format": "double"
                             },
                             "schedulerCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appCount": {
                                 "type": "number",
                                 "format": "double"
                             },
@@ -56941,9 +56941,9 @@
                             }
                         },
                         "required": [
-                            "appCount",
                             "nestedSpaceCount",
                             "schedulerCount",
+                            "appCount",
                             "dashboardCount",
                             "chartCount"
                         ],
@@ -57234,7 +57234,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.40.0",
+        "version": "2.41.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

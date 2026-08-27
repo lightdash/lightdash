@@ -1,3 +1,10 @@
+# [2.41.0](https://github.com/lightdash/lightdash/compare/2.40.0...2.41.0) (2026-08-27)
+
+
+### Features
+
+* **data-apps:** apply viewer-scoped direct access ([#28228](https://github.com/lightdash/lightdash/issues/28228)) ([6215e6d](https://github.com/lightdash/lightdash/commit/6215e6d4abee7aff94a0bc9986f5f3cd1ccd640d))
+
 # [2.40.0](https://github.com/lightdash/lightdash/compare/2.39.0...2.40.0) (2026-08-27)
 
 
