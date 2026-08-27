@@ -1,3 +1,10 @@
+## [2.18.1](https://github.com/lightdash/lightdash/compare/2.18.0...2.18.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **dbt:** support package-qualified Mesh explores ([#28125](https://github.com/lightdash/lightdash/issues/28125)) ([3f37509](https://github.com/lightdash/lightdash/commit/3f37509a72d01b158651c21a8141a010be7bfc17))
+
 # [2.18.0](https://github.com/lightdash/lightdash/compare/2.17.1...2.18.0) (2026-08-26)
 
 

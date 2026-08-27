@@ -1,28 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.18.0",
-  "previousVersion": "2.17.1",
-  "releaseDate": "2026-08-26T21:56:10.650Z",
+  "version": "2.18.1",
+  "previousVersion": "2.18.0",
+  "releaseDate": "2026-08-27T07:25:05.625Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260826170753_add_owner_user_uuid_to_dashboards.ts",
-        "edition": "core",
-        "tables": [
-          "dashboards",
-          "users"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
