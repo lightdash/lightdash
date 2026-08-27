@@ -572,8 +572,7 @@ export class ServiceRepository
                 new LinearAppService({
                     linearAppInstallationsModel:
                         this.models.getLinearAppInstallationsModel(),
-                    userModel: this.models.getUserModel(),
-                    lightdashConfig: this.context.lightdashConfig, // pragma: allowlist secret
+                    lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics, // pragma: allowlist secret
                 }),
         );

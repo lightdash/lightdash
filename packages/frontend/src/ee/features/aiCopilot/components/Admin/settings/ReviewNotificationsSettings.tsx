@@ -1,65 +1,31 @@
 import {
-    Anchor,
     Box,
     Divider,
     Group,
     Loader,
-    Select,
-    Stack,
     Switch,
     Text,
     Title,
 } from '@mantine/core';
-import { Link } from 'react-router';
-import {
-    useLinearInstallation,
-    useLinearProjects,
-    useLinearTeams,
-} from '../../../../../../components/common/LinearIntegration/hooks/useLinearIntegration';
 import { SlackChannelSelect } from '../../../../../../components/common/SlackChannelSelect';
-import useHealth from '../../../../../../hooks/health/useHealth';
 import { useGetSlack } from '../../../../../../hooks/slack/useSlack';
 import useApp from '../../../../../../providers/App/useApp';
 import {
     useReviewNotificationSettings,
     useUpdateReviewNotificationSettings,
 } from '../../../hooks/useReviewNotificationSettings';
+import { LinearReviewSettings } from './LinearReviewSettings';
 
-/**
- * Slack and Linear destinations for AI review runs. Rendered inside the
- * "Review AI agent turns" card when reviews are enabled.
- */
+/** Notification and issue destinations shown only while AI agent reviews run. */
 export const ReviewNotificationsSettings = () => {
     const { user } = useApp();
     const canEdit = user.data?.ability?.can('manage', 'Organization') ?? false;
-    const { data: health } = useHealth();
-    const hasLinearConfig = !!health?.hasLinear;
-
     const { data: slackInstallation } = useGetSlack();
     const hasSlack = !!slackInstallation?.organizationUuid;
-
-    const linearInstallationQuery = useLinearInstallation({
-        enabled: hasLinearConfig,
-    });
-    const hasLinear = !!linearInstallationQuery.data;
-    const { data: linearTeams, isInitialLoading: isLinearTeamsLoading } =
-        useLinearTeams({
-            enabled: hasLinear,
-        });
-
     const { data: settings, isInitialLoading } =
         useReviewNotificationSettings();
     const { mutate: updateSettings, isLoading: isUpdating } =
         useUpdateReviewNotificationSettings();
-    const { data: linearProjects, isInitialLoading: isLinearProjectsLoading } =
-        useLinearProjects({
-            enabled: hasLinear,
-            teamId: settings?.linearTeamId ?? null,
-        });
-
-    if (!hasSlack && !hasLinearConfig) {
-        return null;
-    }
 
     return (
         <>
@@ -80,8 +46,7 @@ export const ReviewNotificationsSettings = () => {
                                 Post to a Slack channel when a review run
                                 surfaces findings that need review. Assignment
                                 notifications are always sent as a direct
-                                message and in the in-app bell, regardless of
-                                this setting.
+                                message and in the in-app bell.
                             </Text>
                         </Box>
                         {isInitialLoading || !settings ? (
@@ -89,16 +54,13 @@ export const ReviewNotificationsSettings = () => {
                         ) : (
                             <Switch
                                 size="md"
+                                aria-label="Post AI review findings to Slack"
                                 checked={settings.enabled}
                                 disabled={!canEdit || isUpdating}
                                 onChange={(event) =>
                                     updateSettings({
                                         enabled: event.currentTarget.checked,
                                         slackChannelId: settings.slackChannelId,
-                                        linearEnabled: settings.linearEnabled,
-                                        linearTeamId: settings.linearTeamId,
-                                        linearProjectId:
-                                            settings.linearProjectId,
                                     })
                                 }
                             />
@@ -116,9 +78,6 @@ export const ReviewNotificationsSettings = () => {
                                 updateSettings({
                                     enabled: true,
                                     slackChannelId,
-                                    linearEnabled: settings.linearEnabled,
-                                    linearTeamId: settings.linearTeamId,
-                                    linearProjectId: settings.linearProjectId,
                                 })
                             }
                         />
@@ -126,130 +85,7 @@ export const ReviewNotificationsSettings = () => {
                 </>
             )}
 
-            {hasLinearConfig && (
-                <>
-                    <Divider mx="calc(var(--mantine-spacing-md) * -1)" />
-                    <Group
-                        justify="space-between"
-                        wrap="nowrap"
-                        align="flex-start"
-                        gap="md"
-                    >
-                        <Box maw={620}>
-                            <Title order={6} mb={4}>
-                                Linear issues
-                            </Title>
-                            <Text c="dimmed" fz="xs">
-                                Create a Linear issue when a review run surfaces
-                                a new finding. Choose a team and optionally a
-                                project.
-                            </Text>
-                            {!hasLinear &&
-                                !linearInstallationQuery.isInitialLoading && (
-                                    <Text c="dimmed" fz="xs" mt="xs">
-                                        Connect Linear in{' '}
-                                        <Anchor
-                                            component={Link}
-                                            to="/generalSettings/integrations"
-                                        >
-                                            Integrations
-                                        </Anchor>{' '}
-                                        to send new issues there.
-                                    </Text>
-                                )}
-                        </Box>
-                        {isInitialLoading ||
-                        !settings ||
-                        linearInstallationQuery.isInitialLoading ? (
-                            <Loader size="sm" />
-                        ) : (
-                            <Switch
-                                size="md"
-                                checked={settings.linearEnabled}
-                                disabled={
-                                    !canEdit ||
-                                    isUpdating ||
-                                    !hasLinear ||
-                                    (!settings.linearTeamId &&
-                                        !settings.linearEnabled)
-                                }
-                                onChange={(event) =>
-                                    updateSettings({
-                                        enabled: settings.enabled,
-                                        slackChannelId: settings.slackChannelId,
-                                        linearEnabled:
-                                            event.currentTarget.checked,
-                                        linearTeamId: settings.linearTeamId,
-                                        linearProjectId:
-                                            settings.linearProjectId,
-                                    })
-                                }
-                            />
-                        )}
-                    </Group>
-
-                    {hasLinear && settings && (
-                        <Stack gap="sm">
-                            <Select
-                                label="Linear team"
-                                placeholder={
-                                    isLinearTeamsLoading
-                                        ? 'Loading teams'
-                                        : 'Select a team'
-                                }
-                                data={(linearTeams ?? []).map((team) => ({
-                                    value: team.id,
-                                    label: `${team.name} (${team.key})`,
-                                }))}
-                                value={settings.linearTeamId}
-                                disabled={
-                                    !canEdit ||
-                                    isUpdating ||
-                                    isLinearTeamsLoading
-                                }
-                                onChange={(linearTeamId) =>
-                                    updateSettings({
-                                        enabled: settings.enabled,
-                                        slackChannelId: settings.slackChannelId,
-                                        linearEnabled: true,
-                                        linearTeamId,
-                                        linearProjectId: null,
-                                    })
-                                }
-                            />
-                            <Select
-                                label="Linear project"
-                                placeholder={
-                                    isLinearProjectsLoading
-                                        ? 'Loading projects'
-                                        : 'Optional project'
-                                }
-                                data={(linearProjects ?? []).map((project) => ({
-                                    value: project.id,
-                                    label: project.name,
-                                }))}
-                                value={settings.linearProjectId}
-                                disabled={
-                                    !canEdit ||
-                                    isUpdating ||
-                                    !settings.linearTeamId ||
-                                    isLinearProjectsLoading
-                                }
-                                clearable
-                                onChange={(linearProjectId) =>
-                                    updateSettings({
-                                        enabled: settings.enabled,
-                                        slackChannelId: settings.slackChannelId,
-                                        linearEnabled: true,
-                                        linearTeamId: settings.linearTeamId,
-                                        linearProjectId,
-                                    })
-                                }
-                            />
-                        </Stack>
-                    )}
-                </>
-            )}
+            <LinearReviewSettings />
         </>
     );
 };

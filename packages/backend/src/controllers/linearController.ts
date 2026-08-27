@@ -22,22 +22,12 @@ import { toSessionUser } from '../auth/account';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { BaseController } from './baseController';
 
-/** Linear OAuth Integration Controller
- *
- * Flow:
- * 1. /install - Redirects to Linear OAuth authorization
- * 2. /oauth/callback - Handles OAuth callback and stores tokens
- * 3. / - Gets current Linear workspace
- * 4. /teams - Lists Linear teams
- * 5. /projects - Lists Linear projects
- * 6. /uninstall - Removes Linear integration
- */
 @Route('/api/v1/linear')
 @Tags('Integrations')
 export class LinearController extends BaseController {
     /**
-     * Initiate Linear OAuth integration
-     * @summary Install Linear integration
+     * Start Linear OAuth with PKCE
+     * @summary Connect Linear
      */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('302', 'Redirect to Linear OAuth')
@@ -45,23 +35,25 @@ export class LinearController extends BaseController {
     @OperationId('installLinearIntegration')
     async installLinearIntegration(
         @Request() req: express.Request,
+        @Query() clientId?: string,
     ): Promise<void> {
         assertRegisteredAccount(req.account);
         const context = await this.services
             .getLinearAppService()
-            .installRedirect(toSessionUser(req.account));
+            .installRedirect(toSessionUser(req.account), clientId);
 
-        req.session.oauth = {};
-        req.session.oauth.returnTo = context.returnToUrl;
-        req.session.oauth.state = context.state;
-        req.session.oauth.inviteCode = context.inviteCode;
+        req.session.oauth = {
+            returnTo: context.returnToUrl,
+            state: context.state,
+            linear: context.linear,
+        };
 
         this.setStatus(302);
         this.setHeader('Location', context.installUrl);
     }
 
     /**
-     * Linear OAuth callback handler
+     * Finish Linear OAuth and return to Ask AI settings
      * @summary Linear OAuth callback
      */
     @Get('/oauth/callback')

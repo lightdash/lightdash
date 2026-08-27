@@ -8,6 +8,8 @@ import { Knex } from 'knex';
 export const AiReviewNotificationLogTableName = 'ai_agent_review_notification';
 export const AiReviewNotificationSettingsTableName =
     'ai_agent_review_notification_settings';
+export const AiReviewLinearDestinationTableName =
+    'ai_agent_review_linear_destinations';
 
 export type DbAiReviewNotificationSettings = {
     organization_uuid: string;
@@ -33,6 +35,17 @@ export type DbAiReviewNotificationLog = {
     clicked_at: Date | null;
     dismissed_at: Date | null;
     created_at: Date;
+};
+
+export type DbAiReviewLinearDestination = {
+    ai_review_linear_destination_uuid: string;
+    organization_uuid: string;
+    project_uuid: string;
+    enabled: boolean;
+    linear_team_id: string | null;
+    linear_project_id: string | null;
+    created_at: Date;
+    updated_at: Date;
 };
 
 export type AiReviewNotificationSettingsTable = Knex.CompositeTableType<
@@ -86,6 +99,32 @@ export type AiReviewNotificationLogTable = Knex.CompositeTableType<
         Pick<
             DbAiReviewNotificationLog,
             'status' | 'error' | 'sent_at' | 'clicked_at' | 'dismissed_at'
+        >
+    >
+>;
+
+export type AiReviewLinearDestinationTable = Knex.CompositeTableType<
+    DbAiReviewLinearDestination,
+    Pick<
+        DbAiReviewLinearDestination,
+        | 'organization_uuid'
+        | 'project_uuid'
+        | 'enabled'
+        | 'linear_team_id'
+        | 'linear_project_id'
+    > &
+        Partial<
+            Pick<
+                DbAiReviewLinearDestination,
+                | 'ai_review_linear_destination_uuid'
+                | 'created_at'
+                | 'updated_at'
+            >
+        >,
+    Partial<
+        Pick<
+            DbAiReviewLinearDestination,
+            'enabled' | 'linear_team_id' | 'linear_project_id' | 'updated_at'
         >
     >
 >;

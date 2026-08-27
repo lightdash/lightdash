@@ -24,6 +24,7 @@ import {
     AiAgentReviewWritebackJobPayload,
     AiAgentSummary,
     AiAgentThreadDump,
+    AiReviewLinearDestination,
     AiReviewNotificationSettings,
     AiThreadRetentionPreview,
     AlreadyExistsError,
@@ -56,6 +57,7 @@ import {
     RETENTION_WINDOW_HOURS_ERROR,
     UpdateAiAgentReviewItemPriority,
     UpdateAiAgentReviewItemStatus,
+    UpdateAiReviewLinearDestination,
     UpdateAiReviewNotificationSettings,
     type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentReviewItemWritebackEligibility,
@@ -1068,6 +1070,53 @@ export class AiAgentAdminService extends BaseService {
         }
 
         return updated;
+    }
+
+    async getReviewLinearDestination(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AiReviewLinearDestination> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkReviewAccess(user, organizationUuid);
+        const project = await this.projectModel.get(projectUuid);
+        if (project.organizationUuid !== organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+
+        return this.aiAgentReviewNotificationModel.getLinearDestination(
+            organizationUuid,
+            projectUuid,
+        );
+    }
+
+    async updateReviewLinearDestination(
+        user: SessionUser,
+        projectUuid: string,
+        destination: UpdateAiReviewLinearDestination,
+    ): Promise<AiReviewLinearDestination> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+        const project = await this.projectModel.get(projectUuid);
+        if (project.organizationUuid !== organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        if (destination.enabled && !destination.linearTeamId) {
+            throw new ParameterError(
+                'A Linear team is required to create review issues',
+            );
+        }
+
+        return this.aiAgentReviewNotificationModel.upsertLinearDestination({
+            organizationUuid,
+            projectUuid,
+            ...destination,
+        });
     }
 
     async listReviewItems(

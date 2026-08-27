@@ -23,6 +23,7 @@ import { TypedEETaskList } from '../../scheduler/types';
 import { type LinearAppService } from '../../services/LinearAppService/LinearAppService';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
+import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { type McpToolCallModel } from '../models/McpToolCallModel';
 import { AiAgentAdminService } from '../services/AiAgentAdminService';
 import { AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
@@ -113,6 +114,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentReviewClassifierService: AiAgentReviewClassifierService;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
+    aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
     linearAppService: LinearAppService;
     aiAgentAdminService: AiAgentAdminService;
@@ -149,6 +151,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
 
     protected readonly aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
+
+    protected readonly aiOrganizationSettingsModel: AiOrganizationSettingsModel;
 
     protected readonly aiAgentReviewNotificationService: AiAgentReviewNotificationService;
 
@@ -188,6 +192,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.aiAgentReviewClassifierModel = args.aiAgentReviewClassifierModel;
         this.aiAgentReviewNotificationModel =
             args.aiAgentReviewNotificationModel;
+        this.aiOrganizationSettingsModel = args.aiOrganizationSettingsModel;
         this.aiAgentReviewNotificationService =
             args.aiAgentReviewNotificationService;
         this.linearAppService = args.linearAppService;
@@ -966,6 +971,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 await createReviewLinearIssue({
                     siteUrl: this.lightdashConfig.siteUrl, // pragma: allowlist secret
                     model: this.aiAgentReviewNotificationModel,
+                    aiOrganizationSettingsModel:
+                        this.aiOrganizationSettingsModel,
                     aiAgentReviewClassifierModel:
                         this.aiAgentReviewClassifierModel,
                     projectModel: this.projectModel,

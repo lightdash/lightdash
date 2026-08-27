@@ -20,6 +20,7 @@ import {
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadDumpResponse,
     ApiAiOrganizationSettingsResponse,
+    ApiAiReviewLinearDestinationResponse,
     ApiAiReviewNotificationSettingsResponse,
     ApiAiThreadRetentionPreviewResponse,
     ApiErrorPayload,
@@ -39,6 +40,7 @@ import {
     UpdateAiAgentReviewItemPriority,
     UpdateAiAgentReviewItemStatus,
     UpdateAiOrganizationSettings,
+    UpdateAiReviewLinearDestination,
     UpdateAiReviewNotificationSettings,
     type ApiAiAgentReviewItemWritebackPreviewResponse,
     type UUID,
@@ -975,6 +977,60 @@ export class AiAgentAdminController extends BaseController {
             results:
                 await this.getAiAgentAdminService().updateReviewNotificationSettings(
                     toSessionUser(req.account),
+                    body,
+                ),
+        };
+    }
+
+    /**
+     * Get a project's Linear destination for AI reviews
+     * @summary Get AI review Linear destination
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/review-linear-destination/{projectUuid}')
+    @OperationId('getAiReviewLinearDestination')
+    async getReviewLinearDestination(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiAiReviewLinearDestinationResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().getReviewLinearDestination(
+                    toSessionUser(req.account),
+                    projectUuid,
+                ),
+        };
+    }
+
+    /**
+     * Update a project's Linear destination for AI reviews
+     * @summary Update AI review Linear destination
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('/review-linear-destination/{projectUuid}')
+    @OperationId('updateAiReviewLinearDestination')
+    async updateReviewLinearDestination(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: UpdateAiReviewLinearDestination,
+    ): Promise<ApiAiReviewLinearDestinationResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().updateReviewLinearDestination(
+                    toSessionUser(req.account),
+                    projectUuid,
                     body,
                 ),
         };

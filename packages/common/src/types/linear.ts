@@ -4,6 +4,7 @@ export type LinearInstallation = {
     organizationUuid: string;
     organizationName: string;
     organizationUrlKey: string;
+    requiresReconnect: boolean;
 };
 
 export type LinearTeam = {

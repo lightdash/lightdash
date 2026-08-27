@@ -38,6 +38,22 @@ export type UpdateAiReviewNotificationSettings = {
 export type ApiAiReviewNotificationSettingsResponse =
     ApiSuccess<AiReviewNotificationSettings>;
 
+export type AiReviewLinearDestination = {
+    organizationUuid: string;
+    projectUuid: string;
+    enabled: boolean;
+    linearTeamId: string | null;
+    linearProjectId: string | null;
+};
+
+export type UpdateAiReviewLinearDestination = Pick<
+    AiReviewLinearDestination,
+    'enabled' | 'linearTeamId' | 'linearProjectId'
+>;
+
+export type ApiAiReviewLinearDestinationResponse =
+    ApiSuccess<AiReviewLinearDestination>;
+
 export type AiReviewNotificationRecipient = {
     userUuid: string;
     email: string;
