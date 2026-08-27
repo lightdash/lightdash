@@ -203,6 +203,7 @@ describe('AgentChatInput Deep Research mode', () => {
         );
 
         expect(onSqlModeChange).toHaveBeenCalledWith(true);
+        expect(screen.getByRole('menu')).toBeInTheDocument();
     });
 
     it('disables SQL Runner from its active menu state', async () => {
@@ -215,6 +216,7 @@ describe('AgentChatInput Deep Research mode', () => {
         );
 
         expect(onSqlModeChange).toHaveBeenCalledWith(false);
+        expect(screen.getByRole('menu')).toBeInTheDocument();
     });
 
     it('keeps the action menu open in deep research mode', async () => {

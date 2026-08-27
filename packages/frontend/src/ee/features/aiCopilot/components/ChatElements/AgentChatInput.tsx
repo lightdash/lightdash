@@ -902,6 +902,7 @@ export const AgentChatInput = ({
                                     ? 'Disable SQL Runner'
                                     : 'Enable SQL Runner'
                             }
+                            closeMenuOnClick={false}
                             onClick={() => onSqlModeChange?.(!sqlMode)}
                             leftSection={
                                 <MantineIcon
