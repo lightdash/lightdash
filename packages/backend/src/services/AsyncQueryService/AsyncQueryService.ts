@@ -1481,9 +1481,8 @@ export class AsyncQueryService extends ProjectService {
         return {
             rows,
             columns,
-            // The gated display timezone the SQL was built with — persisted on
-            // the metric query at creation, same value execute responses
-            // return as resolvedTimezone.
+            // Display timezone the SQL was built with; mirrors the
+            // execute response's resolvedTimezone.
             resolvedTimezone: displayTimezone,
             totalPageCount: pageCount,
             totalResults: totalRowCount ?? 0,

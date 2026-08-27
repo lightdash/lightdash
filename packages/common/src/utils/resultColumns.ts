@@ -25,17 +25,9 @@ type ResultColumnMetadata = Omit<ResultColumn, 'reference' | 'type'>;
  * The display/format metadata a semantic item contributes to its result
  * column, resolved once at query-write time (docs/composer-viz-plan/01-design.md §3).
  *
- * An item contributes metadata only when the column reference equals the
- * item's own field id. Raw SQL columns always fail that check:
- * `SqlQueryComposer` keys its virtual-view items `${table}_${column}` while
- * warehouse columns use unprefixed names. The check is intentional —
- * virtual-view dimensions are synthesized from probed columns, and marking
- * them as provenance would repeat the merge-path synthesized-field problem
- * (01-design.md §1) — so re-keying that map can never mark them as semantic
- * fields.
- *
- * A column with no semantic item gets only a display label derived from the
- * reference with `friendlyName`; it never gets provenance or a format.
+ * An item contributes metadata only when its field id matches the column
+ * reference. Unmatched columns get only a display label derived from the
+ * reference with `friendlyName`; they never get provenance or a format.
  */
 export function getResultColumnMetadataFromItem(
     item: Item | undefined,
