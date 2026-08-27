@@ -299,13 +299,32 @@ export class ContentAsCodeWritebackService extends BaseService {
         if (!draft || draft.projectUuid !== projectUuid) {
             throw new ParameterError('Draft not found');
         }
-        const published = await this.coderService.getCurrentDashboardAsCode(
-            draft.contentUuid,
-        );
-        const draftDoc = await this.coderService.getDashboardAsCodeWithOverlay(
-            draft.contentUuid,
-            draft.draft,
-        );
+        if (
+            draft.contentType !== 'chart' &&
+            draft.contentType !== 'dashboard'
+        ) {
+            throw new ParameterError('Unsupported draft content type');
+        }
+        const published =
+            draft.contentType === 'chart'
+                ? await this.coderService.getPortableChartAsCode(
+                      projectUuid,
+                      draft.contentUuid,
+                  )
+                : await this.coderService.getCurrentDashboardAsCode(
+                      draft.contentUuid,
+                  );
+        const draftDoc =
+            draft.contentType === 'chart'
+                ? await this.coderService.getPortableChartAsCodeWithOverlay(
+                      projectUuid,
+                      draft.contentUuid,
+                      draft.draft,
+                  )
+                : await this.coderService.getDashboardAsCodeWithOverlay(
+                      draft.contentUuid,
+                      draft.draft,
+                  );
         return {
             draft,
             publishedYaml: dumpContentAsCode(published),
@@ -325,13 +344,28 @@ export class ContentAsCodeWritebackService extends BaseService {
         if (!draft || draft.projectUuid !== projectUuid) {
             throw new ParameterError('Draft not found');
         }
-        const draftDoc = await this.coderService.getDashboardAsCodeWithOverlay(
-            draft.contentUuid,
-            draft.draft,
-        );
+        if (
+            draft.contentType !== 'chart' &&
+            draft.contentType !== 'dashboard'
+        ) {
+            throw new ParameterError('Unsupported draft content type');
+        }
+        const contentType =
+            draft.contentType === 'chart' ? 'chart' : 'dashboard';
+        const draftDoc =
+            contentType === 'chart'
+                ? await this.coderService.getPortableChartAsCodeWithOverlay(
+                      projectUuid,
+                      draft.contentUuid,
+                      draft.draft,
+                  )
+                : await this.coderService.getDashboardAsCodeWithOverlay(
+                      draft.contentUuid,
+                      draft.draft,
+                  );
         const row = await this.writeContentToWritebackPr(user, {
             projectUuid,
-            contentType: 'dashboard',
+            contentType,
             contentUuid: draft.contentUuid,
             slug: draft.slug,
             contentDraftUuid: draft.uuid,

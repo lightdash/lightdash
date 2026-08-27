@@ -197,9 +197,9 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                     </ThemeIcon>
                     <Text fw={600}>All clear</Text>
                     <Text size="sm" c="dimmed" ta="center" maw={360}>
-                        When editors save unpublished changes to managed
-                        dashboards, their drafts land here for you to review and
-                        write back to the repo.
+                        When editors save unpublished changes to managed charts
+                        or dashboards, their drafts land here for you to review
+                        and write back to the repo.
                     </Text>
                 </Stack>
             </Center>
@@ -273,13 +273,17 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                     </Text>
                                     <Anchor
                                         component={Link}
-                                        to={`/projects/${projectUuid}/dashboards/${active.contentUuid}/view`}
+                                        to={
+                                            active.contentType === 'chart'
+                                                ? `/projects/${projectUuid}/saved/${active.contentUuid}/view`
+                                                : `/projects/${projectUuid}/dashboards/${active.contentUuid}/view`
+                                        }
                                         size="xs"
                                         c="dimmed"
                                         underline="always"
                                     >
                                         <Group gap={2} display="inline-flex">
-                                            Open dashboard
+                                            Open {active.contentType}
                                             <MantineIcon
                                                 icon={IconExternalLink}
                                                 size="sm"
@@ -353,7 +357,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                             </Popover.Dropdown>
                                         </Popover>
                                         <Tooltip
-                                            label="Opens (or appends to) this dashboard's pull request with the draft's content"
+                                            label={`Opens this ${active.contentType}'s pull request with the draft's content`}
                                             withinPortal
                                         >
                                             <Button
@@ -391,11 +395,19 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                 >
                                     <MultiFileDiff
                                         oldFile={{
-                                            name: `lightdash/dashboards/${active.slug}.yml`,
+                                            name: `lightdash/${
+                                                active.contentType === 'chart'
+                                                    ? 'charts'
+                                                    : 'dashboards'
+                                            }/${active.slug}.yml`,
                                             contents: review.publishedYaml,
                                         }}
                                         newFile={{
-                                            name: `lightdash/dashboards/${active.slug}.yml`,
+                                            name: `lightdash/${
+                                                active.contentType === 'chart'
+                                                    ? 'charts'
+                                                    : 'dashboards'
+                                            }/${active.slug}.yml`,
                                             contents: review.draftYaml,
                                         }}
                                         style={{ colorScheme }}

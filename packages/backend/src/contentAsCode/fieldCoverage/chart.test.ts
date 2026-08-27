@@ -11,9 +11,11 @@ describeContentAsCodeSchemaContract({
         'dashboardUuid',
         'deletedAt',
         'deletedBy',
-        // A chart's merge is not expressible as code yet; the saved shape is
-        // experimental alongside the endpoint.
-        'merge',
+        // Overlay flags for unpublished drafts; not part of the as-code document.
+        'dismissedDraftUuid',
+        'draftOverlayError',
+        'draftsAwaitingReview',
+        'hasUnpublishedChanges',
         'organizationUuid',
         'pinnedListOrder',
         'pinnedListUuid',

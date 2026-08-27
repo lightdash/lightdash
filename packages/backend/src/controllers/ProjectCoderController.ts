@@ -260,7 +260,7 @@ export class ProjectCoderController extends BaseController {
     }
 
     /**
-     * Unpublished dashboard drafts awaiting review
+     * Unpublished content drafts awaiting review
      * @summary List content drafts
      */
     @Tags('Projects')

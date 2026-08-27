@@ -198,6 +198,11 @@ describe('SavedChartService direct-grant write parity', () => {
             unverify: vi.fn(async () => undefined),
         } as unknown as ContentVerificationModel,
         organizationModel: {} as unknown as OrganizationModel,
+        contentAsCodeProjectSettingsModel: {
+            get: vi.fn(async () => undefined),
+        },
+        contentAsCodeSnapshotModel: {},
+        contentDraftModel: {},
     } as never);
 
     afterEach(() => {

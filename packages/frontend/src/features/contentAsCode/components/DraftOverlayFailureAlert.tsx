@@ -1,15 +1,16 @@
-import { type DashboardDraftOverlayError } from '@lightdash/common';
 import { Alert, Text } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 type DraftOverlayFailureAlertProps = {
-    error: DashboardDraftOverlayError;
+    error: { code: string; draftUuid: string };
+    contentType?: 'dashboard' | 'chart';
 };
 
 const DraftOverlayFailureAlert: FC<DraftOverlayFailureAlertProps> = ({
     error,
+    contentType = 'dashboard',
 }) => (
     <Alert
         color="orange"
@@ -20,8 +21,9 @@ const DraftOverlayFailureAlert: FC<DraftOverlayFailureAlertProps> = ({
         data-draft-error={error.code}
     >
         <Text size="sm">
-            You're viewing the published dashboard. Your draft is still saved
-            for review. Ask a Content as Code admin to review or dismiss it.
+            You're viewing the published {contentType}. Your draft is still
+            saved for review. Ask a Content as Code admin to review or dismiss
+            it.
         </Text>
     </Alert>
 );

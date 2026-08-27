@@ -74,6 +74,7 @@ const SavedExplorer = () => {
     const { data, isInitialLoading, error } = useSavedQuery({
         uuidOrSlug: savedQueryUuid,
         projectUuid,
+        includeUnpublishedDraft: true,
     });
     const [isChangeExploreModalOpen, changeExploreModalHandlers] =
         useDisclosure(false);

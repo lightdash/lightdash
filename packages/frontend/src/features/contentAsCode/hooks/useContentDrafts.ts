@@ -122,6 +122,7 @@ export const useReopenDraftMutation = (projectUuid: string | undefined) => {
                         projectUuid,
                     ]),
                     queryClient.invalidateQueries(['saved_dashboard_query']),
+                    queryClient.invalidateQueries(['saved_query']),
                 ]);
                 showToastSuccess({ title: 'Draft reopened' });
             },

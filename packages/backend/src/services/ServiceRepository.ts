@@ -1047,6 +1047,11 @@ export class ServiceRepository
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                     organizationModel: this.models.getOrganizationModel(),
+                    contentAsCodeProjectSettingsModel:
+                        this.models.getContentAsCodeProjectSettingsModel(),
+                    contentAsCodeSnapshotModel:
+                        this.models.getContentAsCodeSnapshotModel(),
+                    contentDraftModel: this.models.getContentDraftModel(),
                 }),
         );
     }
