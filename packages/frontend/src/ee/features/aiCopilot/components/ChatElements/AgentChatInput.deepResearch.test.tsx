@@ -122,6 +122,10 @@ describe('AgentChatInput Deep Research mode', () => {
     };
 
     const expectAllComposerActions = () => {
+        expect(screen.getByRole('menu')).toHaveAttribute(
+            'data-position',
+            'bottom-start',
+        );
         expect(
             screen
                 .getAllByRole('menuitem')

@@ -837,7 +837,7 @@ export const AgentChatInput = ({
         );
 
         return (
-            <Menu position="top-start" withinPortal shadow="md" width={220}>
+            <Menu position="bottom-start" withinPortal shadow="md" width={220}>
                 <Menu.Target>
                     <ActionIcon
                         variant="subtle"
