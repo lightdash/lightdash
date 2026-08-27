@@ -16,6 +16,7 @@ import {
     isExecuteAsyncSqlChartByUuidParams,
     isJwtUser,
     LightdashAppPreviewTokenHeader,
+    LightdashCustomSqlProvenanceChartUuidHeader,
     LightdashSignedDownloadHeader,
     PersistentDownloadFileAccessMode,
     QueryExecutionContext,
@@ -339,6 +340,9 @@ export class QueryController extends BaseController {
             typeof previewTokenHeader === 'string'
                 ? previewTokenHeader
                 : undefined;
+        const customSqlProvenanceChartUuid: UUID | undefined = req.header(
+            LightdashCustomSqlProvenanceChartUuidHeader,
+        );
 
         const metricQuery: MetricQuery = {
             exploreName: body.query.exploreName,
@@ -370,6 +374,7 @@ export class QueryController extends BaseController {
                 pivotConfiguration: body.pivotConfiguration,
                 dashboardFilters: body.dashboardFilters,
                 dataAppPreviewToken,
+                customSqlProvenanceChartUuid,
             });
 
         return {

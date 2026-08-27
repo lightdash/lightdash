@@ -1,11 +1,11 @@
 import {
-    type CreateSavedChartVersion,
     type DashboardFilterRule,
     type EChartsSeries,
     type SavedChart,
 } from '@lightdash/common';
 import { Menu, Portal } from '@mantine/core';
 import React, { useCallback, useState, type FC, type ReactNode } from 'react';
+import { type EmbedExploreOptions } from '../../ee/providers/Embed/types';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { type DashboardChartReadyQuery } from '../../hooks/dashboard/useDashboardChartReadyQuery';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
@@ -26,7 +26,7 @@ import {
 import { UnderlyingDataMenuItem } from './UnderlyingDataMenuItem';
 
 export type EmbeddedDashboardInteractions = EmbeddedDashboardInteractivity & {
-    onDrillDownExplore?: (options: { chart: CreateSavedChartVersion }) => void;
+    onDrillDownExplore?: (options: EmbedExploreOptions) => void;
 };
 
 type Props = {

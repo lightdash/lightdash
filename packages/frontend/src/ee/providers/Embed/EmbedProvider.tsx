@@ -1,8 +1,7 @@
 import {
     type CreateEmbedJwt,
-    type CreateSavedChartVersion,
     type LanguageMap,
-    type SavedChart,
+    type UUID,
 } from '@lightdash/common';
 import get from 'lodash/get';
 import { useEffect, useMemo, useState, type FC } from 'react';
@@ -19,7 +18,13 @@ import { useEmbedEventEmitter } from '../../features/embed/hooks/useEmbedEventEm
 import EmbedProviderContext from './context';
 import { parseEmbedThemeParams } from './parseEmbedThemeParams';
 import { parseEmbedTimezoneParam } from './parseEmbedTimezoneParam';
-import { EMBED_KEY, type EmbedMode, type InMemoryEmbed } from './types';
+import {
+    EMBED_KEY,
+    type EmbedExploreChart,
+    type EmbedExploreOptions,
+    type EmbedMode,
+    type InMemoryEmbed,
+} from './types';
 
 type Props = {
     embedToken?: string;
@@ -28,11 +33,10 @@ type Props = {
     paletteUuid?: string;
     contentOverrides?: LanguageMap;
     embedHeaders?: Record<string, string>;
-    onExplore?: (options: {
-        chart: SavedChart | CreateSavedChartVersion;
-    }) => void;
+    onExplore?: (options: EmbedExploreOptions) => void;
     onBackToDashboard?: () => void;
-    savedChart?: SavedChart | CreateSavedChartVersion;
+    savedChart?: EmbedExploreChart;
+    customSqlProvenanceChartUuid?: UUID;
     savedQueryUuid?: string;
     appUuid?: string;
 };
@@ -70,6 +74,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     onExplore,
     onBackToDashboard,
     savedChart,
+    customSqlProvenanceChartUuid,
     savedQueryUuid,
     appUuid,
 }) => {
@@ -158,6 +163,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             languageMap: contentOverrides,
             onExplore,
             savedChart,
+            customSqlProvenanceChartUuid,
             savedQueryUuid,
             appUuid,
             onBackToDashboard,
@@ -178,6 +184,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         contentOverrides,
         onExplore,
         savedChart,
+        customSqlProvenanceChartUuid,
         savedQueryUuid,
         appUuid,
         onBackToDashboard,

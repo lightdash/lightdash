@@ -225,7 +225,6 @@ import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
 import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
-import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { getFieldValuesMetricQuery } from '../ProjectService/fieldValuesQueryBuilder';
@@ -392,7 +391,6 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     prometheusMetrics?: PrometheusMetrics;
     schedulerClient: SchedulerClient;
     natsClient: INatsClient;
-    permissionsService: PermissionsService;
     persistentDownloadFileService: PersistentDownloadFileService;
     organizationAccessService: OrganizationAccessService;
     preAggregateStrategy?: PreAggregateStrategy;
@@ -522,8 +520,6 @@ export class AsyncQueryService extends ProjectService {
 
     natsClient: INatsClient;
 
-    permissionsService: PermissionsService;
-
     persistentDownloadFileService: PersistentDownloadFileService;
 
     private readonly organizationAccessService: OrganizationAccessService;
@@ -544,7 +540,6 @@ export class AsyncQueryService extends ProjectService {
         this.prometheusMetrics = args.prometheusMetrics;
         this.schedulerClient = args.schedulerClient;
         this.natsClient = args.natsClient;
-        this.permissionsService = args.permissionsService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.organizationAccessService = args.organizationAccessService;
         this.preAggregateStrategy =
@@ -5039,6 +5034,7 @@ export class AsyncQueryService extends ProjectService {
             exploreName: inputMetricQuery.exploreName,
             metricQuery: inputMetricQuery,
             dataAppPreviewToken: args.dataAppPreviewToken,
+            customSqlProvenanceChartUuid: args.customSqlProvenanceChartUuid,
         });
 
         return this.runAsyncMetricQueryWithoutPermissionCheck(
