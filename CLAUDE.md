@@ -2,6 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Agent skills
+
+### Issue tracker
+
+GitHub issues are canonical; Linear is a synchronized planning view. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the repository's mapped triage vocabulary. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a multi-context repository rooted at `CONTEXT-MAP.md`. See `docs/agents/domain.md`.
+
 ## Opt-in Agent Okteto Development Environment
 
 This workflow is enabled only when
