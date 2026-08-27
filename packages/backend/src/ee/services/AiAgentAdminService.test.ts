@@ -351,11 +351,17 @@ const makeService = ({
                 organizationUuid: ORGANIZATION_UUID,
                 enabled: false,
                 slackChannelId: null,
+                linearEnabled: false,
+                linearTeamId: null,
+                linearProjectId: null,
             }),
             upsertSettings: vi.fn().mockResolvedValue({
                 organizationUuid: ORGANIZATION_UUID,
                 enabled: true,
                 slackChannelId: 'C123',
+                linearEnabled: false,
+                linearTeamId: null,
+                linearProjectId: null,
             }),
             ...aiAgentReviewNotificationModel,
         },
@@ -442,6 +448,7 @@ const makeService = ({
         },
         aiAgentReviewNotificationService: {
             notifyAssigned: vi.fn().mockResolvedValue(undefined),
+            createLinearIssues: vi.fn().mockResolvedValue(undefined),
             ...aiAgentReviewNotificationService,
         },
         slackClient: {
@@ -1346,6 +1353,9 @@ describe('AiAgentAdminService review notification settings', () => {
             organizationUuid: ORGANIZATION_UUID,
             enabled: true,
             slackChannelId: 'C123',
+            linearEnabled: false,
+            linearTeamId: null,
+            linearProjectId: null,
         });
         const service = makeService({
             aiAgentReviewNotificationModel: { getSettings },
@@ -1357,6 +1367,9 @@ describe('AiAgentAdminService review notification settings', () => {
             organizationUuid: ORGANIZATION_UUID,
             enabled: true,
             slackChannelId: 'C123',
+            linearEnabled: false,
+            linearTeamId: null,
+            linearProjectId: null,
         });
         expect(getSettings).toHaveBeenCalledWith(ORGANIZATION_UUID);
     });
@@ -1371,6 +1384,9 @@ describe('AiAgentAdminService review notification settings', () => {
             service.updateReviewNotificationSettings(makeDeveloperUser(), {
                 enabled: true,
                 slackChannelId: 'C123',
+                linearEnabled: false,
+                linearTeamId: null,
+                linearProjectId: null,
             }),
         ).rejects.toThrow(
             'Insufficient permissions to access organization-wide AI agent data',
@@ -1385,6 +1401,9 @@ describe('AiAgentAdminService review notification settings', () => {
         await service.updateReviewNotificationSettings(makeAdminUser(), {
             enabled: true,
             slackChannelId: 'C123',
+            linearEnabled: false,
+            linearTeamId: null,
+            linearProjectId: null,
         });
 
         expect(joinChannels).toHaveBeenCalledWith(ORGANIZATION_UUID, ['C123']);
@@ -1399,6 +1418,9 @@ describe('AiAgentAdminService review notification settings', () => {
                     organizationUuid: ORGANIZATION_UUID,
                     enabled: false,
                     slackChannelId: 'C123',
+                    linearEnabled: false,
+                    linearTeamId: null,
+                    linearProjectId: null,
                 }),
             },
         });
@@ -1406,9 +1428,64 @@ describe('AiAgentAdminService review notification settings', () => {
         await service.updateReviewNotificationSettings(makeAdminUser(), {
             enabled: false,
             slackChannelId: 'C123',
+            linearEnabled: false,
+            linearTeamId: null,
+            linearProjectId: null,
         });
 
         expect(joinChannels).not.toHaveBeenCalled();
+    });
+
+    it('preserves Linear settings for legacy update requests', async () => {
+        const upsertSettings = vi.fn().mockResolvedValue({
+            organizationUuid: ORGANIZATION_UUID,
+            enabled: true,
+            slackChannelId: 'C123',
+            linearEnabled: true,
+            linearTeamId: 'team-1',
+            linearProjectId: 'project-1',
+        });
+        const service = makeService({
+            aiAgentReviewNotificationModel: {
+                getSettings: vi.fn().mockResolvedValue({
+                    organizationUuid: ORGANIZATION_UUID,
+                    enabled: false,
+                    slackChannelId: null,
+                    linearEnabled: true,
+                    linearTeamId: 'team-1',
+                    linearProjectId: 'project-1',
+                }),
+                upsertSettings,
+            },
+        });
+
+        await service.updateReviewNotificationSettings(makeAdminUser(), {
+            enabled: true,
+            slackChannelId: 'C123',
+        });
+
+        expect(upsertSettings).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            enabled: true,
+            slackChannelId: 'C123',
+            linearEnabled: true,
+            linearTeamId: 'team-1',
+            linearProjectId: 'project-1',
+        });
+    });
+
+    it('requires a Linear team when Linear issue creation is enabled', async () => {
+        const service = makeService();
+
+        await expect(
+            service.updateReviewNotificationSettings(makeAdminUser(), {
+                enabled: false,
+                slackChannelId: null,
+                linearEnabled: true,
+                linearTeamId: null,
+                linearProjectId: null,
+            }),
+        ).rejects.toThrow('A Linear team is required to create review issues');
     });
 });
 

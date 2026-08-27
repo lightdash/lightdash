@@ -31,6 +31,9 @@ describe('AiAgentReviewNotificationModel', () => {
             organizationUuid: 'org-1',
             enabled: false,
             slackChannelId: null,
+            linearEnabled: false,
+            linearTeamId: null,
+            linearProjectId: null,
         });
     });
 

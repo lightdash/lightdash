@@ -22,12 +22,18 @@ export type AiReviewNotificationSettings = {
     organizationUuid: string;
     enabled: boolean;
     slackChannelId: string | null;
+    linearEnabled: boolean;
+    linearTeamId: string | null;
+    linearProjectId: string | null;
 };
 
-export type UpdateAiReviewNotificationSettings = Pick<
-    AiReviewNotificationSettings,
-    'enabled' | 'slackChannelId'
->;
+export type UpdateAiReviewNotificationSettings = {
+    enabled: boolean;
+    slackChannelId: string | null;
+    linearEnabled?: boolean;
+    linearTeamId?: string | null;
+    linearProjectId?: string | null;
+};
 
 export type ApiAiReviewNotificationSettingsResponse =
     ApiSuccess<AiReviewNotificationSettings>;

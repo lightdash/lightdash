@@ -1039,11 +1039,25 @@ export class AiAgentAdminService extends BaseService {
         }
         this.checkOrganizationAdminAccess(user);
 
-        const updated =
-            await this.aiAgentReviewNotificationModel.upsertSettings({
+        const currentSettings =
+            await this.aiAgentReviewNotificationModel.getSettings(
                 organizationUuid,
-                ...settings,
-            });
+            );
+        const updatedSettings = {
+            ...currentSettings,
+            ...settings,
+        };
+
+        if (updatedSettings.linearEnabled && !updatedSettings.linearTeamId) {
+            throw new ParameterError(
+                'A Linear team is required to create review issues',
+            );
+        }
+
+        const updated =
+            await this.aiAgentReviewNotificationModel.upsertSettings(
+                updatedSettings,
+            );
 
         // Slack rejects chat.postMessage with not_in_channel unless the app is
         // a member, so join on save the same way scheduled deliveries do.
@@ -1232,6 +1246,16 @@ export class AiAgentAdminService extends BaseService {
                 priority: item.priority,
             },
         });
+
+        if (item.projectUuid) {
+            await this.aiAgentReviewNotificationService.createLinearIssues({
+                organizationUuid,
+                projectUuid: item.projectUuid,
+                fingerprints: [item.fingerprint],
+                reviewRunUuid: null,
+                userUuid: user.userUuid,
+            });
+        }
 
         return item;
     }

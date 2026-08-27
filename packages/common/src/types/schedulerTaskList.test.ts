@@ -6,6 +6,12 @@ test('SEND_REVIEW_NOTIFICATION task is registered', () => {
     );
 });
 
+test('CREATE_REVIEW_LINEAR_ISSUE task is registered', () => {
+    expect(EE_SCHEDULER_TASKS.CREATE_REVIEW_LINEAR_ISSUE).toBe(
+        'createReviewLinearIssue',
+    );
+});
+
 test('AI_DEEP_RESEARCH tasks are registered', () => {
     expect(EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH).toBe('aiDeepResearch');
     expect(EE_SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS).toBe(

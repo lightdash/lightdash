@@ -2546,6 +2546,20 @@ export class AiAgentReviewClassifierModel {
             .ignore();
     }
 
+    async updateReviewItemLinkedIssueUrl(args: {
+        fingerprint: string;
+        organizationUuid: string;
+        linkedIssueUrl: string;
+    }): Promise<void> {
+        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .where('fingerprint', args.fingerprint)
+            .where('organization_uuid', args.organizationUuid)
+            .update({
+                linked_issue_url: args.linkedIssueUrl,
+                updated_at: this.database.fn.now() as never,
+            });
+    }
+
     async updateReviewItemAssignee(args: {
         fingerprint: string;
         organizationUuid: string;
