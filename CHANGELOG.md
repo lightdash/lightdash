@@ -1,3 +1,15 @@
+# [2.34.0](https://github.com/lightdash/lightdash/compare/2.33.2...2.34.0) (2026-08-27)
+
+
+### Bug Fixes
+
+* **explorer:** show details for selected fields ([#28077](https://github.com/lightdash/lightdash/issues/28077)) ([840f75c](https://github.com/lightdash/lightdash/commit/840f75c1e70dbf689aeff4f5865cf986224894f9))
+
+
+### Features
+
+* **content-as-code:** let authors reopen dismissed drafts ([#28211](https://github.com/lightdash/lightdash/issues/28211)) ([d42c3c6](https://github.com/lightdash/lightdash/commit/d42c3c61d062dccd29fcd878c3015728195c868a))
+
 ## [2.33.2](https://github.com/lightdash/lightdash/compare/2.33.1...2.33.2) (2026-08-27)
 
 

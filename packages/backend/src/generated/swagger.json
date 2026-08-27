@@ -328,6 +328,20 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiContentDraftReopenResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ContentDraftSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ParameterValue": {
                 "anyOf": [
                     {
@@ -7833,6 +7847,10 @@
                         "$ref": "#/components/schemas/DashboardDraftOverlayError",
                         "description": "The author draft was preserved but could not be safely rendered"
                     },
+                    "dismissedDraftUuid": {
+                        "type": "string",
+                        "description": "The viewer authored a dismissed draft that can be reopened"
+                    },
                     "dashboardVersionId": {
                         "type": "number",
                         "format": "double"
@@ -14337,6 +14355,10 @@
                     "dashboardVersionId": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "dismissedDraftUuid": {
+                        "type": "string",
+                        "description": "The viewer authored a dismissed draft that can be reopened"
                     },
                     "draftOverlayError": {
                         "$ref": "#/components/schemas/DashboardDraftOverlayError",
@@ -57138,7 +57160,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.33.2",
+        "version": "2.34.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -57681,6 +57703,55 @@
                 },
                 "description": "Dismiss a draft without writing it back",
                 "summary": "Dismiss content draft",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "draftUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/drafts/{draftUuid}/reopen": {
+            "post": {
+                "operationId": "reopenContentDraft",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentDraftReopenResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Reopen the caller's dismissed draft without creating another record",
+                "summary": "Reopen content draft",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [

@@ -515,6 +515,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiContentDraftReopenResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'ContentDraftSummary', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ParameterValue: {
         dataType: 'refAlias',
         type: {
@@ -7455,6 +7467,13 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    dismissedDraftUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     dashboardVersionId: { dataType: 'double', required: true },
                     versionUuid: { dataType: 'string', required: true },
                     verification: {
@@ -13579,6 +13598,7 @@ const models: TsoaRoute.Models = {
                 uuid: { dataType: 'string', required: true },
                 versionUuid: { dataType: 'string', required: true },
                 dashboardVersionId: { dataType: 'double', required: true },
+                dismissedDraftUuid: { dataType: 'string' },
                 draftOverlayError: { ref: 'DashboardDraftOverlayError' },
                 draftsAwaitingReview: { dataType: 'double' },
                 hasUnpublishedChanges: { dataType: 'boolean' },
@@ -57410,6 +57430,73 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'dismissContentDraft',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectCoderController_reopenContentDraft: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        draftUuid: {
+            in: 'path',
+            name: 'draftUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/code/drafts/:draftUuid/reopen',
+        ...fetchMiddlewares<RequestHandler>(ProjectCoderController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectCoderController.prototype.reopenContentDraft,
+        ),
+
+        async function ProjectCoderController_reopenContentDraft(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectCoderController_reopenContentDraft,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectCoderController>(
+                        ProjectCoderController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'reopenContentDraft',
                     controller,
                     response,
                     next,
