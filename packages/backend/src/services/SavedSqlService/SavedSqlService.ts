@@ -44,7 +44,10 @@ import type {
     SoftDeletableService,
     SoftDeleteOptions,
 } from '../SoftDeletableService';
-import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import {
+    SpacePermissionService,
+    type AccessTarget,
+} from '../SpaceService/SpacePermissionService';
 
 type SavedSqlServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -182,19 +185,30 @@ export class SavedSqlService
                 ? resource.spaceUuid
                 : null;
 
-        const targetSpaceUuids = newSpaceUuid
-            ? [spaceUuid, newSpaceUuid]
-            : [spaceUuid];
+        const destinationTargets: AccessTarget[] =
+            newSpaceUuid !== null
+                ? [{ type: 'space', spaceUuid: newSpaceUuid }]
+                : [];
+
+        const currentTarget: AccessTarget =
+            action === 'view' && resource.savedSqlUuid !== null
+                ? {
+                      type: 'sqlChart',
+                      savedSqlUuid: resource.savedSqlUuid,
+                      spaceUuid,
+                  }
+                : { type: 'space', spaceUuid };
+        const targets = [currentTarget, ...destinationTargets];
+        const accessResults =
+            await this.spacePermissionService.resolveAccessBatch(
+                actor.user.userUuid,
+                targets,
+            );
         const contextsBySpaceUuid = new Map(
-            (
-                await this.spacePermissionService.resolveAccessBatch(
-                    actor.user.userUuid,
-                    targetSpaceUuids.map((targetSpaceUuid) => ({
-                        type: 'space' as const,
-                        spaceUuid: targetSpaceUuid,
-                    })),
-                )
-            ).map(({ target, context }) => [target.spaceUuid, context]),
+            accessResults.map(({ target, context }) => [
+                target.spaceUuid,
+                context,
+            ]),
         );
         const currentContext = contextsBySpaceUuid.get(spaceUuid);
         if (currentContext === undefined) {
@@ -219,7 +233,7 @@ export class SavedSqlService
             );
         }
 
-        if (newSpaceUuid) {
+        if (newSpaceUuid !== null) {
             const targetContext = contextsBySpaceUuid.get(newSpaceUuid);
             if (targetContext === undefined) {
                 throw new ForbiddenError(
@@ -333,9 +347,12 @@ export class SavedSqlService
                 user,
                 projectUuid,
             },
-            {
-                savedSqlUuid: savedChart.savedSqlUuid,
-            },
+            embedWriteActions
+                ? {
+                      savedSqlUuid: null,
+                      spaceUuid: savedChart.space.uuid,
+                  }
+                : { savedSqlUuid: savedChart.savedSqlUuid },
         );
 
         this.analytics.track({

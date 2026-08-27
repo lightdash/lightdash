@@ -107,6 +107,7 @@ const createdScheduler = {
 
 const savedSqlModel = {
     getByUuid: vi.fn(async () => sqlChart),
+    resolveColorPalette: vi.fn(async () => undefined),
 };
 const schedulerModel = {
     getSqlChartSchedulers: vi.fn(async () => []),
@@ -121,10 +122,10 @@ const spacePermissionService = {
                 context: {
                     organizationUuid,
                     projectUuid,
-                    inheritsFromOrgOrProject: true,
+                    inheritsFromOrgOrProject: false,
                     access: [],
                     admins: [],
-                    directOnly: false,
+                    directOnly: true,
                 },
             })),
     ),
@@ -158,6 +159,63 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
     });
 
     afterEach(() => vi.clearAllMocks());
+
+    test('loads a saved SQL chart through its resource access target', async () => {
+        const user = {
+            ...baseUser,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: 'view' },
+            ]),
+        };
+
+        await expect(
+            service.getSqlChart(user, projectUuid, savedSqlUuid),
+        ).resolves.toBeDefined();
+        expect(spacePermissionService.resolveAccessBatch).toHaveBeenCalledWith(
+            user.userUuid,
+            [
+                {
+                    type: 'sqlChart',
+                    savedSqlUuid,
+                    spaceUuid,
+                },
+            ],
+        );
+    });
+
+    test('keeps embed write actors scoped to their write space', async () => {
+        const embedWriteUser = {
+            ...baseUser,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: 'view' },
+            ]),
+        };
+
+        await expect(
+            service.getSqlChartFromAccount(
+                {
+                    authentication: {
+                        type: 'jwt',
+                        data: {
+                            content: {
+                                type: 'dashboard',
+                                dashboardUuid: 'dashboard-uuid',
+                            },
+                            writeActions: { spaceUuid },
+                        },
+                    },
+                    embedWriteUser,
+                    isJwtUser: () => true,
+                } as never,
+                projectUuid,
+                savedSqlUuid,
+            ),
+        ).resolves.toBeDefined();
+        expect(spacePermissionService.resolveAccessBatch).toHaveBeenCalledWith(
+            embedWriteUser.userUuid,
+            [{ type: 'space', spaceUuid }],
+        );
+    });
 
     describe('getSchedulers', () => {
         it('admin lists all SQL chart schedulers', async () => {

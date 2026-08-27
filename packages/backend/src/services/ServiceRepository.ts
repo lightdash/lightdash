@@ -1146,6 +1146,7 @@ export class ServiceRepository
                     dashboardAccessModel: this.models.getDashboardAccessModel(),
                     savedChartAccessModel:
                         this.models.getSavedChartAccessModel(),
+                    savedSqlAccessModel: this.models.getSavedSqlAccessModel(),
                     directAccessFeatureGate: new DirectAccessFeatureGate(
                         this.models.getFeatureFlagModel(),
                         this.getLicenseService(),

@@ -456,7 +456,8 @@ export class SchedulerService extends BaseService {
 
             const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.resolveAccess(user.userUuid, {
-                    type: 'space',
+                    type: 'sqlChart',
+                    savedSqlUuid: scheduler.savedSqlUuid,
                     spaceUuid,
                 });
             if (

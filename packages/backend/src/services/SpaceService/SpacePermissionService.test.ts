@@ -105,6 +105,9 @@ describe('SpacePermissionService', () => {
         savedChartAccessModel: {
             getUserAccess: vi.fn(async () => ({})),
         } as never,
+        savedSqlAccessModel: {
+            getUserAccess: vi.fn(async () => ({})),
+        } as never,
         directAccessFeatureGate:
             directAccessFeatureGate as unknown as DirectAccessFeatureGate,
     });
@@ -1829,6 +1832,9 @@ describe('resolveAccess', () => {
             savedChartAccessModel: {
                 getUserAccess: vi.fn(async () => ({})),
             } as never,
+            savedSqlAccessModel: {
+                getUserAccess: vi.fn(async () => ({})),
+            } as never,
             directAccessFeatureGate:
                 directAccessFeatureGate as unknown as DirectAccessFeatureGate,
         });
@@ -2026,6 +2032,9 @@ describe('resolveAccessBatch', () => {
             dashboardAccessModel:
                 dashboardAccessModel as unknown as DashboardAccessModel,
             savedChartAccessModel: savedChartAccessModel as never,
+            savedSqlAccessModel: {
+                getUserAccess: vi.fn(async () => ({})),
+            } as never,
             directAccessFeatureGate:
                 directAccessFeatureGate as unknown as DirectAccessFeatureGate,
         });
@@ -2445,6 +2454,9 @@ describe('resolveAccess space-saved chart target', () => {
                 getUserAccess: vi.fn(async () => ({})),
             } as never,
             savedChartAccessModel: savedChartAccessModel as never,
+            savedSqlAccessModel: {
+                getUserAccess: vi.fn(async () => ({})),
+            } as never,
             directAccessFeatureGate: {
                 isEnabledForUser: vi.fn(async () => enabled),
             } as unknown as DirectAccessFeatureGate,
@@ -2512,6 +2524,110 @@ describe('resolveAccess space-saved chart target', () => {
     });
 });
 
+describe('resolveAccess saved SQL chart target', () => {
+    const spaceContext: SpaceAccessContextForCasl = {
+        organizationUuid: 'organization-uuid',
+        projectUuid: 'project-uuid',
+        inheritsFromOrgOrProject: false,
+        access: [],
+        admins: [],
+    };
+    const sqlChartTarget = {
+        type: 'sqlChart' as const,
+        savedSqlUuid: 'saved-sql-uuid',
+        spaceUuid: 'space-uuid',
+    };
+
+    const createService = ({
+        enabled,
+        grants = {},
+    }: {
+        enabled: boolean;
+        grants?: Record<string, unknown>;
+    }) => {
+        const savedSqlAccessModel = {
+            getUserAccess: vi.fn(async () => grants),
+        };
+        const service = new SpacePermissionService({
+            spaceModel: {} as SpaceModel,
+            spacePermissionModel: {} as unknown as SpacePermissionModel,
+            dashboardAccessModel: {
+                getUserAccess: vi.fn(async () => ({})),
+            } as never,
+            savedChartAccessModel: {
+                getUserAccess: vi.fn(async () => ({})),
+            } as never,
+            savedSqlAccessModel: savedSqlAccessModel as never,
+            directAccessFeatureGate: {
+                isEnabledForUser: vi.fn(async () => enabled),
+            } as unknown as DirectAccessFeatureGate,
+        });
+        mockSpaceContexts(service, { 'space-uuid': spaceContext });
+        return { service, savedSqlAccessModel };
+    };
+
+    test('returns the plain space context while the feature is off', async () => {
+        const { service, savedSqlAccessModel } = createService({
+            enabled: false,
+        });
+
+        await expect(
+            service.resolveAccess('user-uuid', sqlChartTarget),
+        ).resolves.toEqual({ ...spaceContext, directOnly: false });
+        expect(savedSqlAccessModel.getUserAccess).not.toHaveBeenCalled();
+    });
+
+    test('appends a grant row tagged sql_chart and marks grant-only', async () => {
+        const { service, savedSqlAccessModel } = createService({
+            enabled: true,
+            grants: {
+                'saved-sql-uuid': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid: 'space-uuid',
+                    userRole: SpaceMemberRole.VIEWER,
+                    groupRoles: [],
+                },
+            },
+        });
+
+        const result = await service.resolveAccess('user-uuid', sqlChartTarget);
+
+        expect(result.access).toEqual([
+            expect.objectContaining({
+                userUuid: 'user-uuid',
+                role: SpaceMemberRole.VIEWER,
+                grantedVia: 'sql_chart',
+            }),
+        ]);
+        expect(result.directOnly).toBe(true);
+        expect(savedSqlAccessModel.getUserAccess).toHaveBeenCalledWith(
+            ['saved-sql-uuid'],
+            'user-uuid',
+            { organizationUuid: 'organization-uuid' },
+        );
+    });
+
+    test('throws when the grant does not belong to the given space', async () => {
+        const { service } = createService({
+            enabled: true,
+            grants: {
+                'saved-sql-uuid': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid: 'another-space',
+                    userRole: SpaceMemberRole.EDITOR,
+                    groupRoles: [],
+                },
+            },
+        });
+
+        await expect(
+            service.resolveAccess('user-uuid', sqlChartTarget),
+        ).rejects.toThrow(ParameterError);
+    });
+});
+
 describe('resolveAccess chart ownership routing', () => {
     const baseContext: SpaceAccessContextForCasl = {
         organizationUuid: 'organization-uuid',
@@ -2549,6 +2665,9 @@ describe('resolveAccess chart ownership routing', () => {
             spacePermissionModel: {} as unknown as SpacePermissionModel,
             dashboardAccessModel: dashboardAccessModel as never,
             savedChartAccessModel: savedChartAccessModel as never,
+            savedSqlAccessModel: {
+                getUserAccess: vi.fn(async () => ({})),
+            } as never,
             directAccessFeatureGate: {
                 isEnabledForUser: vi.fn(async () => true),
             } as unknown as DirectAccessFeatureGate,

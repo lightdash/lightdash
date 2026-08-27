@@ -57,6 +57,7 @@ import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { RolesModel } from './RolesModel';
 import { SavedChartAccessModel } from './SavedChartAccessModel';
 import { SavedChartModel } from './SavedChartModel';
+import { SavedSqlAccessModel } from './SavedSqlAccessModel';
 import { SavedSqlModel } from './SavedSqlModel';
 import { SchedulerModel } from './SchedulerModel';
 import { SearchModel } from './SearchModel';
@@ -92,6 +93,7 @@ export type ModelManifest = {
     dashboardModel: DashboardModel;
     dashboardAccessModel: DashboardAccessModel;
     savedChartAccessModel: SavedChartAccessModel;
+    savedSqlAccessModel: SavedSqlAccessModel;
     deploySessionModel: DeploySessionModel;
     downloadFileModel: DownloadFileModel;
     downloadAuditModel: DownloadAuditModel;
@@ -329,6 +331,13 @@ export class ModelRepository
         return this.getModel(
             'savedChartAccessModel',
             () => new SavedChartAccessModel(this.database),
+        );
+    }
+
+    public getSavedSqlAccessModel(): SavedSqlAccessModel {
+        return this.getModel(
+            'savedSqlAccessModel',
+            () => new SavedSqlAccessModel(this.database),
         );
     }
 
