@@ -45,6 +45,7 @@ import {
     TogglePinnedItemInfo,
     UpdateDashboard,
     UpdateMultipleDashboards,
+    UserDashboardsSummary,
     type Account,
     type ChartFieldUpdates,
     type ChartVersionDifference,
@@ -1184,6 +1185,108 @@ export class DashboardService
             inheritsFromOrgOrProject,
             access,
         };
+    }
+
+    /**
+     * Summary of dashboards owned by a user across all projects, used by the
+     * offboarding flow when deleting an organization member. The caller must
+     * be able to manage dashboards in every project where the user owns any.
+     */
+    async getUserDashboardsSummary(
+        user: SessionUser,
+        targetUserUuid: UUID,
+    ): Promise<UserDashboardsSummary> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } = user;
+
+        // Throws NotFoundError when the user is not an org member
+        await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
+            organizationUuid,
+            targetUserUuid,
+        );
+
+        const summary =
+            await this.dashboardModel.getDashboardsSummaryByOwner(
+                targetUserUuid,
+            );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        const accessResults = auditedAbility.canBulk(
+            'manage',
+            summary.byProject.map((project) =>
+                subject('Dashboard', {
+                    organizationUuid,
+                    projectUuid: project.projectUuid,
+                    metadata: {
+                        targetUserUuid,
+                        projectUuid: project.projectUuid,
+                        projectName: project.projectName,
+                    },
+                }),
+            ),
+        );
+        const projectsWithoutPermission = summary.byProject
+            .filter((_, index) => !accessResults[index])
+            .map((project) => project.projectName);
+
+        if (projectsWithoutPermission.length > 0) {
+            throw new ForbiddenError(
+                `You do not have permission to manage dashboards in: ${projectsWithoutPermission.join(
+                    ', ',
+                )}`,
+            );
+        }
+
+        return summary;
+    }
+
+    /**
+     * Transfers ownership of all dashboards owned by one user to another,
+     * used to keep ownership continuity when deleting an organization member.
+     */
+    async reassignUserDashboards(
+        user: SessionUser,
+        fromUserUuid: UUID,
+        newOwnerUserUuid: UUID,
+    ): Promise<{ reassignedCount: number }> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } = user;
+
+        // Also validates fromUser membership and the caller's per-project access
+        const summary = await this.getUserDashboardsSummary(user, fromUserUuid);
+
+        if (summary.totalCount === 0) {
+            return { reassignedCount: 0 };
+        }
+
+        // Throws NotFoundError when the new owner is not an org member
+        await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
+            organizationUuid,
+            newOwnerUserUuid,
+        );
+
+        const reassignedCount = await this.dashboardModel.updateOwnerByUser(
+            fromUserUuid,
+            newOwnerUserUuid,
+            summary.byProject.map((project) => project.projectUuid),
+        );
+
+        this.analytics.track({
+            event: 'dashboard.ownership_reassigned',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                fromUserUuid,
+                newOwnerUserUuid,
+                reassignedCount,
+            },
+        });
+
+        return { reassignedCount };
     }
 
     async duplicateFromAccount(

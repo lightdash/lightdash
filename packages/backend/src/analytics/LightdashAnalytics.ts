@@ -3286,6 +3286,16 @@ export type SchedulerOwnershipReassignedEvent = BaseTrack & {
     };
 };
 
+export type DashboardOwnershipReassignedEvent = BaseTrack & {
+    event: 'dashboard.ownership_reassigned';
+    properties: {
+        organizationId: string;
+        fromUserUuid: string;
+        newOwnerUserUuid: string;
+        reassignedCount: number;
+    };
+};
+
 export type ImpersonationEvent = BaseTrack & {
     event: 'user.impersonation_started' | 'user.impersonation_stopped';
     properties: {
@@ -3494,6 +3504,7 @@ type TypedEvent =
     | AiRouterMessageRoutedEvent
     | ContentVerificationEvent
     | SchedulerOwnershipReassignedEvent
+    | DashboardOwnershipReassignedEvent
     | ImpersonationEvent
     | PromptFetchedEvent
     | FeatureFlagCheckedAggregatedEvent
