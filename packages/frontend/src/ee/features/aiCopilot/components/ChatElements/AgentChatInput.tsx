@@ -21,7 +21,6 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
 import {
     IconArrowUp,
     IconCheck,
@@ -74,10 +73,6 @@ import { isAiAgentThreadStreamActive } from '../../store/aiAgentThreadStreamSlic
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
-import {
-    DeepResearchModeControl,
-    type AgentComposerMode,
-} from '../DeepResearch/DeepResearchModeControl';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
 import {
@@ -91,6 +86,8 @@ import { getAgentSuggestionModes } from './suggestionModes';
 const SUGGESTION_CHIP_MENTION_NAME = 'suggestionChip';
 const ACTIVE_DEEP_RESEARCH_DISABLED_REASON =
     'Only one deep research run can be active in a thread at a time.';
+
+type AgentComposerMode = 'ask' | 'deep_research';
 
 const SuggestionChipMention = Mention.extend({
     name: SUGGESTION_CHIP_MENTION_NAME,
@@ -156,7 +153,6 @@ interface AgentChatInputProps {
     revealControlsOnFocus?: boolean;
     // Shrinks padding/min-heights for a more compact composer.
     dense?: boolean;
-    showDeepResearchBelowComposer?: boolean;
     // Rendered below the input, right-aligned like the disabled-reason banner.
     footerNotice?: ReactNode;
 }
@@ -204,16 +200,10 @@ export const AgentChatInput = ({
     contentMentionPriorityItems = [],
     revealControlsOnFocus = false,
     dense = false,
-    showDeepResearchBelowComposer = false,
     footerNotice,
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const app = useApp();
-    // Resolved on first render so the toolbar never renders the desktop layout
-    // on a phone before settling.
-    const isMobile = useMediaQuery('(max-width: 768px)', undefined, {
-        getInitialValueInEffect: false,
-    });
     const [value, setValueState] = useState(defaultValue ?? '');
     const [externalSourceAttachments, setExternalSourceAttachments] = useState<
         ExternalSourceAttachment[]
@@ -601,16 +591,11 @@ export const AgentChatInput = ({
         !canSteer &&
         composerMode === 'ask',
     );
-    // The mobile toolbar has no room for these inline, so they move into a
-    // single overflow menu and the send button keeps its place.
-    const showDeepResearchInMobileMenu = Boolean(
-        isMobile && canStartDeepResearch,
-    );
-    const showMobileToolsMenu = Boolean(
-        isMobile &&
-        (showSqlModeControl ||
-            canShowAttachControl ||
-            showDeepResearchInMobileMenu),
+    const showDeepResearchInComposerMenu = canStartDeepResearch && !disabled;
+    const showComposerActionsMenu = Boolean(
+        showSqlModeControl ||
+        canShowAttachControl ||
+        showDeepResearchInComposerMenu,
     );
 
     const handleStartDeepResearch = async () => {
@@ -749,35 +734,6 @@ export const AgentChatInput = ({
     const showDeepResearchNudge =
         nudgeState === 'shown' && isDeepResearchDraft(value);
 
-    const shouldShowDeepResearchBelowComposer =
-        isThreadInput || showDeepResearchBelowComposer;
-    const deepResearchControl =
-        canStartDeepResearch &&
-        !shouldShowDeepResearchBelowComposer &&
-        !showDeepResearchInMobileMenu ? (
-            <DeepResearchModeControl
-                mode={composerMode}
-                onModeChange={setComposerMode}
-                disabled={hasActiveDeepResearchRun}
-                disabledReason={ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
-                nudge={showDeepResearchNudge}
-            />
-        ) : null;
-    const compactDeepResearchControl =
-        canStartDeepResearch &&
-        shouldShowDeepResearchBelowComposer &&
-        !showDeepResearchInMobileMenu ? (
-            <DeepResearchModeControl
-                mode={composerMode}
-                onModeChange={setComposerMode}
-                disabled={hasActiveDeepResearchRun}
-                disabledReason={ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
-                iconOnly
-                actionSize="sm"
-                iconSize={14}
-                nudge={showDeepResearchNudge}
-            />
-        ) : null;
     const chipRow = useMemo(() => {
         if (!emptyStateMode && !postResponseMode) return null;
         if (suggestionsQuery.isError) return null;
@@ -820,115 +776,96 @@ export const AgentChatInput = ({
             </Box>
         );
 
-    const renderSqlModeControl = ({
+    const renderComposerActionsMenu = ({
         actionSize,
         iconSize,
     }: {
         actionSize: number | 'sm' | 'md';
         iconSize: number;
     }) => {
-        if (!showSqlModeControl || showMobileToolsMenu) return null;
-
-        return (
-            <Tooltip
-                multiline
-                w={260}
-                withArrow
-                position="top"
-                label="Let the agent reach for raw SQL when the question can't be answered from the semantic layer alone. Each query still asks for your approval before running."
-            >
-                <Group gap={6} wrap="nowrap" className={styles.sqlModeControl}>
-                    <ActionIcon
-                        variant={sqlMode ? 'light' : 'subtle'}
-                        color={sqlMode ? 'indigo' : 'gray'}
-                        size={actionSize}
-                        className={styles.sqlModeButton}
-                        onClick={() => onSqlModeChange?.(!sqlMode)}
-                        aria-label="Toggle SQL Runner"
-                        aria-pressed={sqlMode}
-                    >
-                        <MantineIcon
-                            icon={IconTerminal2}
-                            size={iconSize}
-                            color={sqlMode ? 'indigo.5' : 'ldGray.6'}
-                        />
-                    </ActionIcon>
-                </Group>
-            </Tooltip>
-        );
-    };
-
-    const renderAttachDataControl = ({
-        actionSize,
-        iconSize,
-    }: {
-        actionSize: number | 'sm' | 'md';
-        iconSize: number;
-    }) => {
-        if (!canShowAttachControl || showMobileToolsMenu) {
+        if (!showComposerActionsMenu) {
             return null;
         }
-        return (
-            <FileButton
-                accept=".csv,.tsv,text/csv,text/tab-separated-values"
-                multiple
-                resetRef={resetCsvFileInputRef}
-                onChange={(files) => {
-                    resetCsvFileInputRef.current?.();
-                    if (files.length > 0) {
-                        void attachCsvFiles(files);
-                    }
-                }}
+
+        const deepResearchMenuItem = (
+            <Menu.Item
+                aria-label={
+                    hasActiveDeepResearchRun
+                        ? `Deep research unavailable. ${ACTIVE_DEEP_RESEARCH_DISABLED_REASON}`
+                        : composerMode === 'deep_research'
+                          ? 'Disable deep research'
+                          : 'Enable deep research'
+                }
+                disabled={hasActiveDeepResearchRun}
+                closeMenuOnClick={false}
+                onClick={() =>
+                    setComposerMode(
+                        composerMode === 'deep_research'
+                            ? 'ask'
+                            : 'deep_research',
+                    )
+                }
+                leftSection={
+                    <MantineIcon
+                        icon={IconTelescope}
+                        size={14}
+                        color={
+                            composerMode === 'deep_research'
+                                ? 'indigo.5'
+                                : 'ldGray.6'
+                        }
+                    />
+                }
+                rightSection={
+                    composerMode === 'deep_research' ? (
+                        <MantineIcon
+                            icon={IconCheck}
+                            size={14}
+                            color="indigo.5"
+                        />
+                    ) : null
+                }
             >
-                {(fileButtonProps) => (
+                <Text component="span" size="sm">
+                    Deep research
+                </Text>
+                {hasActiveDeepResearchRun && (
+                    <Text component="span" display="block" size="xs" c="dimmed">
+                        {ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
+                    </Text>
+                )}
+            </Menu.Item>
+        );
+
+        return (
+            <Menu position="top-start" withinPortal shadow="md" width={220}>
+                <Menu.Target>
                     <Tooltip
-                        label="Attach a CSV for the agent to query"
+                        label="Add attachment or tool"
+                        position="top"
                         withArrow
                     >
                         <ActionIcon
-                            {...fileButtonProps}
                             variant="subtle"
                             color="ldGray.6"
                             size={actionSize}
-                            aria-label="Attach CSV"
-                            disabled={isPreparingCsv}
+                            radius="xl"
+                            aria-label="Composer options"
+                            className={
+                                showDeepResearchNudge &&
+                                !hasActiveDeepResearchRun &&
+                                composerMode !== 'deep_research'
+                                    ? styles.deepResearchNudge
+                                    : undefined
+                            }
                         >
                             <MantineIcon
-                                icon={IconPaperclip}
+                                icon={IconPlus}
                                 size={iconSize}
                                 color="ldGray.6"
                             />
                         </ActionIcon>
                     </Tooltip>
-                )}
-            </FileButton>
-        );
-    };
-
-    const renderMobileToolsMenu = ({
-        actionSize,
-        iconSize,
-    }: {
-        actionSize: number | 'sm' | 'md';
-        iconSize: number;
-    }) => {
-        if (!showMobileToolsMenu) return null;
-
-        return (
-            <Menu position="top-start" withinPortal shadow="md" width={220}>
-                <Menu.Target>
-                    <ActionIcon
-                        variant="subtle"
-                        color="ldGray.6"
-                        size={actionSize}
-                        aria-label="Composer options"
-                    >
-                        <MantineIcon
-                            icon={IconPlus}
-                            size={iconSize}
-                            color="ldGray.6"
-                        />
-                    </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
                     {canShowAttachControl && (
@@ -961,6 +898,11 @@ export const AgentChatInput = ({
                     )}
                     {showSqlModeControl && (
                         <Menu.Item
+                            aria-label={
+                                sqlMode
+                                    ? 'Disable SQL Runner'
+                                    : 'Enable SQL Runner'
+                            }
                             onClick={() => onSqlModeChange?.(!sqlMode)}
                             leftSection={
                                 <MantineIcon
@@ -982,40 +924,7 @@ export const AgentChatInput = ({
                             SQL Runner
                         </Menu.Item>
                     )}
-                    {showDeepResearchInMobileMenu && (
-                        <Menu.Item
-                            disabled={hasActiveDeepResearchRun}
-                            onClick={() =>
-                                setComposerMode(
-                                    composerMode === 'deep_research'
-                                        ? 'ask'
-                                        : 'deep_research',
-                                )
-                            }
-                            leftSection={
-                                <MantineIcon
-                                    icon={IconTelescope}
-                                    size={14}
-                                    color={
-                                        composerMode === 'deep_research'
-                                            ? 'indigo.5'
-                                            : 'ldGray.6'
-                                    }
-                                />
-                            }
-                            rightSection={
-                                composerMode === 'deep_research' ? (
-                                    <MantineIcon
-                                        icon={IconCheck}
-                                        size={14}
-                                        color="indigo.5"
-                                    />
-                                ) : null
-                            }
-                        >
-                            Deep research
-                        </Menu.Item>
-                    )}
+                    {showDeepResearchInComposerMenu && deepResearchMenuItem}
                 </Menu.Dropdown>
             </Menu>
         );
@@ -1057,36 +966,6 @@ export const AgentChatInput = ({
                 ))}
             </Pill.Group>
         ) : undefined;
-
-    const hasExternalModeControls =
-        !disabled &&
-        shouldShowDeepResearchBelowComposer &&
-        Boolean(
-            compactDeepResearchControl ||
-            (showSqlModeControl && !showMobileToolsMenu),
-        );
-
-    const renderExternalModeControls = ({
-        actionSize,
-        iconSize,
-    }: {
-        actionSize: number | 'sm' | 'md';
-        iconSize: number;
-    }) => {
-        if (!hasExternalModeControls) {
-            return null;
-        }
-
-        return (
-            <Box className={styles.belowComposerControls}>
-                {footerNotice && <Box mr="auto">{footerNotice}</Box>}
-                <Group gap="xs" align="center" wrap="nowrap">
-                    {compactDeepResearchControl}
-                    {renderSqlModeControl({ actionSize, iconSize })}
-                </Group>
-            </Box>
-        );
-    };
 
     const renderComposerAction = (size: 'sm' | 'lg') => {
         if (canSteer && hasValue) {
@@ -1165,34 +1044,15 @@ export const AgentChatInput = ({
                         attachments={renderedAttachments}
                         toolbarRight={
                             <Group gap={4} align="center" wrap="nowrap">
-                                {renderMobileToolsMenu({
+                                {renderComposerActionsMenu({
                                     actionSize: 'sm',
                                     iconSize: 14,
                                 })}
-                                {renderAttachDataControl({
-                                    actionSize: 'sm',
-                                    iconSize: 14,
-                                })}
-                                {deepResearchControl}
                                 {renderComposerAction('sm')}
                             </Group>
                         }
                     />
                 </Box>
-
-                {shouldShowDeepResearchBelowComposer
-                    ? renderExternalModeControls({
-                          actionSize: 'sm',
-                          iconSize: 14,
-                      })
-                    : showSqlModeControl && (
-                          <Box className={styles.belowComposerControls}>
-                              {renderSqlModeControl({
-                                  actionSize: 'sm',
-                                  iconSize: 14,
-                              })}
-                          </Box>
-                      )}
 
                 {!isThreadInput &&
                     renderChipRow(
@@ -1206,7 +1066,7 @@ export const AgentChatInput = ({
                     </Text>
                 )}
 
-                {!disabled && !hasExternalModeControls && footerNotice && (
+                {!disabled && footerNotice && (
                     <Box className={styles.footerNotice}>{footerNotice}</Box>
                 )}
             </Box>
@@ -1232,25 +1092,16 @@ export const AgentChatInput = ({
                 attachments={renderedAttachments}
                 toolbarLeft={
                     <Group gap="xs" align="center" wrap="nowrap">
-                        {renderMobileToolsMenu({
+                        {renderComposerActionsMenu({
                             actionSize: 30,
                             iconSize: 16,
                         })}
-                        {renderAttachDataControl({
-                            actionSize: 30,
-                            iconSize: 15,
-                        })}
-                        {!shouldShowDeepResearchBelowComposer &&
-                            renderSqlModeControl({
-                                actionSize: 30,
-                                iconSize: 15,
-                            })}
                     </Group>
                 }
                 toolbarRight={
                     <Group gap="xs" align="center" wrap="nowrap">
                         <Box className={styles.toolbarSelectors}>
-                            {(deepResearchControl || showAgentSelector) && (
+                            {showAgentSelector && (
                                 <Box
                                     className={styles.controlsReveal}
                                     data-visible={hasClickedInput}
@@ -1260,16 +1111,12 @@ export const AgentChatInput = ({
                                         align="center"
                                         wrap="nowrap"
                                     >
-                                        {deepResearchControl}
-
-                                        {showAgentSelector && (
-                                            <AgentSelector
-                                                projectUuid={projectUuid!}
-                                                agents={agents!}
-                                                selectedAgent={selectedAgent!}
-                                                compact
-                                            />
-                                        )}
+                                        <AgentSelector
+                                            projectUuid={projectUuid!}
+                                            agents={agents!}
+                                            selectedAgent={selectedAgent!}
+                                            compact
+                                        />
                                     </Group>
                                 </Box>
                             )}
@@ -1299,11 +1146,6 @@ export const AgentChatInput = ({
                 }
             />
 
-            {renderExternalModeControls({
-                actionSize: 'sm',
-                iconSize: 14,
-            })}
-
             {!isThreadInput &&
                 renderChipRow(
                     styles.chipTray,
@@ -1318,7 +1160,7 @@ export const AgentChatInput = ({
                 </Paper>
             )}
 
-            {!disabled && !hasExternalModeControls && footerNotice && (
+            {!disabled && footerNotice && (
                 <Box className={styles.footerNotice}>{footerNotice}</Box>
             )}
         </Box>
