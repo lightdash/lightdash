@@ -1,3 +1,10 @@
+# [2.24.0](https://github.com/lightdash/lightdash/compare/2.23.0...2.24.0) (2026-08-27)
+
+
+### Features
+
+* **dashboards:** transfer dashboard ownership when deleting a user ([#28167](https://github.com/lightdash/lightdash/issues/28167)) ([0dc01e4](https://github.com/lightdash/lightdash/commit/0dc01e45a7d379702384c403ed1ec2e9c5cccf83))
+
 # [2.23.0](https://github.com/lightdash/lightdash/compare/2.22.0...2.23.0) (2026-08-27)
 
 

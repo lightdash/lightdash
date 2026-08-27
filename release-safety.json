@@ -1,30 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.23.0",
-  "previousVersion": "2.22.0",
-  "releaseDate": "2026-08-27T09:51:34.580Z",
+  "version": "2.24.0",
+  "previousVersion": "2.23.0",
+  "releaseDate": "2026-08-27T10:02:04.074Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260825110000_create_content_as_code_writeback_tables.ts",
-        "edition": "core",
-        "tables": [
-          "content_as_code_project_settings",
-          "content_as_code_writebacks",
-          "projects",
-          "users"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -36,10 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/projects/{projectUuid}/pull-requests — added the new `content_as_code` enum value to the `results/data/items/allOf[#/components/schemas/PullRequest]/source` response property for the response status `200`"
-      ],
-      "advisoryCount": 1
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
