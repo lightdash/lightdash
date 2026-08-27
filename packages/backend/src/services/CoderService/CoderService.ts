@@ -101,6 +101,10 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { getAccountApiAccessContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AppModel } from '../../models/AppModel';
+import {
+    ContentAsCodeSnapshotModel,
+    type ContentAsCodeSnapshotType,
+} from '../../models/ContentAsCodeSnapshotModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { GroupsModel } from '../../models/GroupsModel';
@@ -128,6 +132,10 @@ import {
     type ContentAsCodeSqlPermissionCheckResult,
     type CurrentChartSqlItems,
 } from './chartPermissions';
+import {
+    buildContentAsCodeSnapshot,
+    type SnapshotAsCodeContent,
+} from './contentAsCodeSnapshot';
 import {
     getConfigWithDateZoomTileSlugs,
     getConfigWithDateZoomTileUuids,
@@ -173,6 +181,7 @@ type CoderServiceArguments = {
     schedulerClient: SchedulerClient;
     promoteService: PromoteService;
     spacePermissionService: SpacePermissionService;
+    contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
     contentVerificationModel: ContentVerificationModel;
     projectService?: ProjectService;
     groupsModel: GroupsModel;
@@ -186,6 +195,10 @@ type UpsertContentAsCodeOptions = {
     force?: boolean;
     spaceNames?: Record<string, string>;
     mode?: 'upsert' | 'create';
+    // Mirrors content_as_code.sync from the caller's lightdash.config.yml.
+    // Gates snapshot recording: a project that never opts into sync has no
+    // use for a last-applied baseline.
+    syncEnabled?: boolean;
 };
 
 export class CoderService extends BaseService {
@@ -218,6 +231,8 @@ export class CoderService extends BaseService {
     promoteService: PromoteService;
 
     spacePermissionService: SpacePermissionService;
+
+    contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
 
     contentVerificationModel: ContentVerificationModel;
 
@@ -256,6 +271,7 @@ export class CoderService extends BaseService {
         schedulerClient,
         promoteService,
         spacePermissionService,
+        contentAsCodeSnapshotModel,
         contentVerificationModel,
         projectService,
         groupsModel,
@@ -278,6 +294,7 @@ export class CoderService extends BaseService {
         this.schedulerClient = schedulerClient;
         this.promoteService = promoteService;
         this.spacePermissionService = spacePermissionService;
+        this.contentAsCodeSnapshotModel = contentAsCodeSnapshotModel;
         this.contentVerificationModel = contentVerificationModel;
         this.projectService = projectService;
         this.groupsModel = groupsModel;
@@ -2774,6 +2791,143 @@ export class CoderService extends BaseService {
         }
     }
 
+    private async recordAppliedSnapshot(
+        projectUuid: string,
+        contentType: ContentAsCodeSnapshotType,
+        content: SnapshotAsCodeContent,
+        appliedByUserUuid: string,
+    ): Promise<void> {
+        const { snapshot, snapshotHash } = buildContentAsCodeSnapshot(content);
+        await this.contentAsCodeSnapshotModel.upsert({
+            projectUuid,
+            contentType,
+            slug: content.slug,
+            snapshot,
+            snapshotHash,
+            appliedByUserUuid,
+        });
+    }
+
+    // Snapshot stamping is bookkeeping for drift detection; it must never
+    // fail an upload, so each stamp method swallows and logs its errors.
+    // Recording only happens for repos that opted into content_as_code.sync
+    // - there is nothing to detect drift against otherwise.
+    private async stampAppliedChartSnapshot(
+        user: SessionUser,
+        projectUuid: string,
+        chartUuid: string,
+        syncEnabled: boolean,
+    ): Promise<void> {
+        if (!syncEnabled) return;
+        try {
+            const chart = await this.savedChartModel.get(chartUuid);
+            const spaces = await this.spaceModel.find({
+                spaceUuids: chart.spaceUuid ? [chart.spaceUuid] : [],
+            });
+            const dashboardSlugs = chart.dashboardUuid
+                ? await this.dashboardModel.getSlugsForUuids([
+                      chart.dashboardUuid,
+                  ])
+                : {};
+            const verificationMap =
+                await this.contentVerificationModel.getByContentUuids(
+                    ContentType.CHART,
+                    [chart.uuid],
+                );
+            await this.recordAppliedSnapshot(
+                projectUuid,
+                ContentAsCodeType.CHART,
+                CoderService.transformChart(
+                    chart,
+                    spaces,
+                    dashboardSlugs,
+                    verificationMap,
+                ),
+                user.userUuid,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Failed to record as-code snapshot for chart ${chartUuid} on project ${projectUuid}`,
+                error,
+            );
+        }
+    }
+
+    private async stampAppliedDashboardSnapshot(
+        user: SessionUser,
+        projectUuid: string,
+        dashboardUuid: string,
+        syncEnabled: boolean,
+    ): Promise<void> {
+        if (!syncEnabled) return;
+        try {
+            const dashboard =
+                await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            const spaces = await this.spaceModel.find({
+                spaceUuids: dashboard.spaceUuid ? [dashboard.spaceUuid] : [],
+            });
+            const verificationMap =
+                await this.contentVerificationModel.getByContentUuids(
+                    ContentType.DASHBOARD,
+                    [dashboard.uuid],
+                );
+            await this.recordAppliedSnapshot(
+                projectUuid,
+                ContentAsCodeType.DASHBOARD,
+                CoderService.transformDashboard(
+                    dashboard,
+                    spaces,
+                    verificationMap,
+                ),
+                user.userUuid,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Failed to record as-code snapshot for dashboard ${dashboardUuid} on project ${projectUuid}`,
+                error,
+            );
+        }
+    }
+
+    private async stampAppliedSqlChartSnapshot(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+        syncEnabled: boolean,
+    ): Promise<void> {
+        if (!syncEnabled) return;
+        try {
+            const [row] = await this.savedSqlModel.find({
+                projectUuid,
+                slugs: [slug],
+            });
+            if (row === undefined) return;
+            await this.recordAppliedSnapshot(
+                projectUuid,
+                ContentAsCodeType.SQL_CHART,
+                CoderService.transformSqlChart(
+                    {
+                        name: row.name,
+                        description: row.description,
+                        slug: row.slug,
+                        sql: row.sql,
+                        limit: row.limit,
+                        config: row.config as SqlChartAsCode['config'],
+                        chartKind: row.chart_kind,
+                        lastUpdatedAt: row.last_version_updated_at,
+                    },
+                    row.path,
+                ),
+                user.userUuid,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Failed to record as-code snapshot for SQL chart ${slug} on project ${projectUuid}`,
+                error,
+            );
+        }
+    }
+
     /**
      * Applies the declarative `ownerEmail` from dashboard-as-code: a string
      * assigns the matching organization member as owner, null unassigns the
@@ -3031,6 +3185,15 @@ export class CoderService extends BaseService {
                 verified: chartAsCode.verified,
             });
 
+            if (mode === 'upsert') {
+                await this.stampAppliedChartSnapshot(
+                    user,
+                    projectUuid,
+                    newChart.uuid,
+                    options.syncEnabled ?? false,
+                );
+            }
+
             console.info(
                 `Finished creating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
             );
@@ -3179,6 +3342,15 @@ export class CoderService extends BaseService {
             contentUuid: chart.uuid,
             verified: chartAsCode.verified,
         });
+
+        if (mode === 'upsert') {
+            await this.stampAppliedChartSnapshot(
+                user,
+                projectUuid,
+                chart.uuid,
+                options.syncEnabled ?? false,
+            );
+        }
 
         console.info(
             `Finished updating chart "${chartWithDefaults.name}" on project ${projectUuid}: ${promotionChanges.charts[0].action}`,
@@ -3380,6 +3552,16 @@ export class CoderService extends BaseService {
                 `Finished creating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
             );
 
+            // SQL charts don't support content_as_code.sync drift detection
+            // yet (positional-args upsert needs an options refactor first),
+            // so there is no baseline to gate recording on here.
+            await this.stampAppliedSqlChartSnapshot(
+                user,
+                projectUuid,
+                sqlChartAsCode.slug,
+                false,
+            );
+
             // Note: We use a minimal object for the promotion changes since SQL charts
             // don't have the same structure as regular charts. The CLI only uses the action.
             const promotionChanges: PromotionChanges = {
@@ -3427,6 +3609,9 @@ export class CoderService extends BaseService {
         this.logger.info(
             `Finished updating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
         );
+
+        // See the create-path comment above: no sync support for SQL charts yet.
+        await this.stampAppliedSqlChartSnapshot(user, projectUuid, slug, false);
 
         const promotionChanges: PromotionChanges = {
             charts: [
@@ -4021,6 +4206,15 @@ export class CoderService extends BaseService {
                 ownerEmail: dashboardAsCode.ownerEmail,
             });
 
+            if (mode === 'upsert') {
+                await this.stampAppliedDashboardSnapshot(
+                    user,
+                    projectUuid,
+                    newDashboard.uuid,
+                    options.syncEnabled ?? false,
+                );
+            }
+
             return withTileWarnings(
                 {
                     dashboards: [
@@ -4175,6 +4369,15 @@ export class CoderService extends BaseService {
             currentOwnerUserUuid: dashboard.owner?.userUuid ?? null,
             ownerEmail: dashboardAsCode.ownerEmail,
         });
+
+        if (mode === 'upsert') {
+            await this.stampAppliedDashboardSnapshot(
+                user,
+                projectUuid,
+                dashboard.uuid,
+                options.syncEnabled ?? false,
+            );
+        }
 
         console.info(
             `Finished updating dashboard "${dashboard.name}" on project ${projectUuid}: ${promotionChanges.dashboards[0].action}`,

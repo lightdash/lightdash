@@ -1281,6 +1281,8 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     promoteService: this.getPromoteService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    contentAsCodeSnapshotModel:
+                        this.models.getContentAsCodeSnapshotModel(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                     projectService: this.getProjectService(),
