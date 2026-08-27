@@ -1,7 +1,6 @@
 import {
     type ApiError,
     type LinearInstallation,
-    type LinearProject,
     type LinearTeam,
 } from '@lightdash/common'; // pragma: allowlist secret
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,7 +9,6 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 
 const LINEAR_INSTALLATION_QUERY_KEY = ['linear_installation'];
 const LINEAR_TEAMS_QUERY_KEY = ['linear_teams'];
-const LINEAR_PROJECTS_QUERY_KEY = ['linear_projects'];
 
 const getLinearInstallation = async (): Promise<LinearInstallation> =>
     lightdashApi<LinearInstallation>({
@@ -66,37 +64,6 @@ export const useLinearTeams = (options?: { enabled?: boolean }) => {
     });
 };
 
-const getLinearProjects = async (teamId: string): Promise<LinearProject[]> =>
-    lightdashApi<LinearProject[]>({
-        // pragma: allowlist secret
-        url: `/linear/projects?teamId=${encodeURIComponent(teamId)}`,
-        method: 'GET',
-        body: undefined,
-    });
-
-export const useLinearProjects = (options: {
-    enabled?: boolean;
-    teamId: string | null;
-}) => {
-    const { showToastApiError } = useToaster();
-    const { teamId } = options;
-
-    return useQuery<LinearProject[], ApiError>({
-        queryKey: [...LINEAR_PROJECTS_QUERY_KEY, teamId],
-        queryFn: () => getLinearProjects(teamId!),
-        retry: false,
-        enabled: !!teamId && (options.enabled ?? true),
-        onError: ({ error }) => {
-            if (error.statusCode === 404 || error.statusCode === 401) return;
-
-            showToastApiError({
-                title: 'Failed to get Linear projects',
-                apiError: error,
-            });
-        },
-    });
-};
-
 const deleteLinearInstallation = async (): Promise<void> =>
     lightdashApi<undefined>({
         // pragma: allowlist secret
@@ -114,7 +81,6 @@ export const useDeleteLinearInstallationMutation = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries(LINEAR_INSTALLATION_QUERY_KEY);
             await queryClient.invalidateQueries(LINEAR_TEAMS_QUERY_KEY);
-            await queryClient.invalidateQueries(LINEAR_PROJECTS_QUERY_KEY);
             showToastSuccess({
                 title: 'Success! Linear integration was deleted.',
             });
