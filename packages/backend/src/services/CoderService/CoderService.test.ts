@@ -246,6 +246,87 @@ describe('CoderService', () => {
         });
     });
 
+    describe('draft space overlays', () => {
+        const publishedChart = {
+            uuid: 'chart-uuid',
+            slug: 'chart-slug',
+            name: 'Chart',
+            description: null,
+            spaceUuid: 'published-space',
+            dashboardUuid: null,
+            tableName: 'orders',
+            metricQuery: {
+                metrics: [],
+                dimensions: [],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+            },
+            chartConfig: { type: ChartType.TABLE, config: {} },
+            tableConfig: {},
+            pivotConfig: undefined,
+            parameters: undefined,
+            merge: null,
+            updatedAt: new Date('2026-08-27T00:00:00Z'),
+        };
+        const publishedDashboard = {
+            uuid: 'dashboard-uuid',
+            slug: 'dashboard-slug',
+            name: 'Dashboard',
+            description: null,
+            spaceUuid: 'published-space',
+            tiles: [],
+            tabs: [],
+            filters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
+            config: {},
+            updatedAt: new Date('2026-08-27T00:00:00Z'),
+        };
+        const service = new CoderService({
+            savedChartModel: {
+                get: vi.fn().mockResolvedValue(publishedChart),
+            },
+            dashboardModel: {
+                getByIdOrSlug: vi.fn().mockResolvedValue(publishedDashboard),
+            },
+            spaceModel: {
+                find: vi.fn(async ({ spaceUuids }: AnyType) =>
+                    spaceUuids.map((uuid: string) => ({
+                        uuid,
+                        name: 'Draft space',
+                        path: 'draft_space',
+                    })),
+                ),
+            },
+            contentVerificationModel: {
+                getByContentUuids: vi.fn().mockResolvedValue(new Map()),
+            },
+        } as AnyType);
+
+        it('renders a chart draft move as the target space slug', async () => {
+            const result = await service.getPortableChartAsCodeWithOverlay(
+                'project-uuid',
+                publishedChart.uuid,
+                { spaceUuid: 'draft-space' },
+            );
+
+            expect(result.spaceSlug).toBe('draft-space');
+        });
+
+        it('renders a dashboard draft move as the target space slug', async () => {
+            const result = await service.getDashboardAsCodeWithOverlay(
+                publishedDashboard.uuid,
+                { spaceUuid: 'draft-space' },
+            );
+
+            expect(result.spaceSlug).toBe('draft-space');
+        });
+    });
+
     describe('getTileSlugForTileUuid', () => {
         it('should return undefined when chart tile slug is null', () => {
             const mockDashboard = {

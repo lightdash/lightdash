@@ -57,6 +57,7 @@ const reviewer = {
     ability: new Ability<PossibleAbilities>([
         { action: 'manage', subject: 'ContentAsCode' },
         { action: 'delete', subject: 'SavedChart' },
+        { action: 'update', subject: 'SavedChart' },
     ]),
 } as unknown as SessionUser;
 
@@ -68,6 +69,8 @@ const buildService = (
         snapshot?: object;
         draft?: object;
         softDeleteEnabled?: boolean;
+        charts?: AnyType[];
+        managedSlugs?: string[];
     } = {},
 ) => {
     const settingsGet = vi
@@ -77,13 +80,18 @@ const buildService = (
                 ? overrides.settings
                 : { syncEnabled: true },
         );
-    const snapshotGet = vi
-        .fn()
-        .mockResolvedValue(
-            'snapshot' in overrides
+    const snapshotGet = vi.fn(
+        async (_projectUuid: string, _contentType: string, slug: string) => {
+            if (overrides.managedSlugs) {
+                return overrides.managedSlugs.includes(slug)
+                    ? { snapshotHash: 'hash' }
+                    : undefined;
+            }
+            return 'snapshot' in overrides
                 ? overrides.snapshot
-                : { snapshotHash: 'hash' },
-        );
+                : { snapshotHash: 'hash' };
+        },
+    );
     const upsertOpenDraft = vi.fn(async (args: AnyType) => ({
         uuid: 'draft-uuid',
         draft: args.draft,
@@ -95,11 +103,21 @@ const buildService = (
         findLatestDismissedDraft: vi.fn().mockResolvedValue(undefined),
         countOpenForContent: vi.fn().mockResolvedValue(0),
     };
+    const charts = overrides.charts ?? [chart];
+    const getChart = (uuid: string) =>
+        charts.find((candidate) => candidate.uuid === uuid) ?? chart;
     const savedChartModel = {
-        get: vi.fn().mockResolvedValue(chart),
-        getSummary: vi.fn().mockResolvedValue(chart),
+        get: vi.fn(async (uuid: string) => getChart(uuid)),
+        getSummary: vi.fn(async (uuid: string) => getChart(uuid)),
         createVersion: vi.fn(),
         update: vi.fn(),
+        updateMultiple: vi.fn(
+            async (_projectUuid: string, updates: AnyType[]) =>
+                updates.map((update) => ({
+                    ...getChart(update.uuid),
+                    ...update,
+                })),
+        ),
         permanentDelete: vi.fn().mockResolvedValue(chart),
         softDelete: vi.fn().mockResolvedValue(chart),
     };
@@ -221,6 +239,137 @@ describe('SavedChartService chart drafts', () => {
             hasUnpublishedChanges: true,
         });
         expect(savedChartModel.update).not.toHaveBeenCalled();
+    });
+
+    it('turns a Git-backed chart move into a portable draft field', async () => {
+        const { service, savedChartModel, upsertOpenDraft } = buildService();
+
+        const result = await service.update(editor, chart.uuid, {
+            spaceUuid: 'new-space-uuid',
+        });
+
+        expect(result).toMatchObject({
+            spaceUuid: 'new-space-uuid',
+            hasUnpublishedChanges: true,
+        });
+        expect(upsertOpenDraft).toHaveBeenCalledWith(
+            expect.objectContaining({
+                draft: expect.objectContaining({
+                    spaceUuid: 'new-space-uuid',
+                }),
+            }),
+        );
+        expect(savedChartModel.update).not.toHaveBeenCalled();
+    });
+
+    it('drafts only Git-backed charts in a mixed bulk update', async () => {
+        const managedChart = {
+            ...chart,
+            uuid: 'managed-chart',
+            slug: 'managed-chart',
+        };
+        const uiOnlyChart = {
+            ...chart,
+            uuid: 'ui-only-chart',
+            slug: 'ui-only-chart',
+        };
+        const { service, savedChartModel, upsertOpenDraft } = buildService({
+            charts: [managedChart, uiOnlyChart],
+            managedSlugs: [managedChart.slug],
+        });
+        const updates = [managedChart, uiOnlyChart].map((item) => ({
+            uuid: item.uuid,
+            name: `${item.name} updated`,
+            description: item.description,
+            spaceUuid: 'new-space-uuid',
+        }));
+
+        const results = await service.updateMultiple(
+            editor,
+            chart.projectUuid,
+            updates,
+        );
+
+        expect(upsertOpenDraft).toHaveBeenCalledTimes(1);
+        expect(upsertOpenDraft).toHaveBeenCalledWith(
+            expect.objectContaining({
+                contentUuid: managedChart.uuid,
+                draft: expect.objectContaining({
+                    spaceUuid: 'new-space-uuid',
+                }),
+            }),
+        );
+        expect(savedChartModel.updateMultiple).toHaveBeenCalledWith(
+            chart.projectUuid,
+            [updates[1]],
+        );
+        expect(results).toMatchObject([
+            { uuid: managedChart.uuid, hasUnpublishedChanges: true },
+            { uuid: uiOnlyChart.uuid },
+        ]);
+        expect(results[1]).not.toHaveProperty('hasUnpublishedChanges');
+    });
+
+    it('persists safe drafts before a mixed bulk publish failure', async () => {
+        const managedChart = {
+            ...chart,
+            uuid: 'managed-chart',
+            slug: 'managed-chart',
+        };
+        const uiOnlyChart = {
+            ...chart,
+            uuid: 'ui-only-chart',
+            slug: 'ui-only-chart',
+        };
+        const { service, savedChartModel, upsertOpenDraft } = buildService({
+            charts: [managedChart, uiOnlyChart],
+            managedSlugs: [managedChart.slug],
+        });
+        savedChartModel.updateMultiple.mockRejectedValueOnce(
+            new Error('published transaction failed'),
+        );
+        const updates = [managedChart, uiOnlyChart].map((item) => ({
+            uuid: item.uuid,
+            name: `${item.name} updated`,
+            description: item.description,
+            spaceUuid: item.spaceUuid,
+        }));
+
+        await expect(
+            service.updateMultiple(editor, chart.projectUuid, updates),
+        ).rejects.toThrow('published transaction failed');
+        expect(upsertOpenDraft).toHaveBeenCalledTimes(1);
+        expect(upsertOpenDraft.mock.invocationCallOrder[0]).toBeLessThan(
+            savedChartModel.updateMultiple.mock.invocationCallOrder[0],
+        );
+    });
+
+    it('publishes every bulk chart update for a Content as Code manager', async () => {
+        const managedChart = {
+            ...chart,
+            uuid: 'managed-chart',
+            slug: 'managed-chart',
+        };
+        const { service, savedChartModel, upsertOpenDraft } = buildService({
+            charts: [managedChart],
+            managedSlugs: [managedChart.slug],
+        });
+        const updates = [
+            {
+                uuid: managedChart.uuid,
+                name: 'Manager update',
+                description: managedChart.description,
+                spaceUuid: managedChart.spaceUuid,
+            },
+        ];
+
+        await service.updateMultiple(reviewer, chart.projectUuid, updates);
+
+        expect(upsertOpenDraft).not.toHaveBeenCalled();
+        expect(savedChartModel.updateMultiple).toHaveBeenCalledWith(
+            chart.projectUuid,
+            updates,
+        );
     });
 
     it('publishes UI-only charts through the existing path', async () => {

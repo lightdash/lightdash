@@ -145,7 +145,13 @@ type ContentAsCodeDeleteOptions = SoftDeleteOptions & {
 type DashboardDraftOverlay = Partial<
     Pick<
         DashboardDAO,
-        'name' | 'description' | 'tiles' | 'filters' | 'tabs' | 'config'
+        | 'name'
+        | 'description'
+        | 'tiles'
+        | 'filters'
+        | 'tabs'
+        | 'config'
+        | 'spaceUuid'
     >
 >;
 
@@ -168,6 +174,7 @@ const assertDashboardDraftOverlay: (
         filters: isRecord,
         tabs: Array.isArray,
         config: isRecord,
+        spaceUuid: (value) => typeof value === 'string',
     };
     for (const [field, validate] of Object.entries(validators)) {
         if (
@@ -1784,6 +1791,9 @@ export class DashboardService
             ...(fields.filters !== undefined && { filters: fields.filters }),
             ...(fields.tabs !== undefined && { tabs: fields.tabs }),
             ...(fields.config !== undefined && { config: fields.config }),
+            ...(fields.spaceUuid !== undefined && {
+                spaceUuid: fields.spaceUuid,
+            }),
         };
     }
 
@@ -1798,29 +1808,47 @@ export class DashboardService
         existingDashboardDao: DashboardDAO,
         dashboardFields: object,
     ): Promise<Dashboard | undefined> {
+        if (!(await this.shouldStoreDraft(user, existingDashboardDao))) {
+            return undefined;
+        }
+        return this.storeDraft(user, existingDashboardDao, dashboardFields);
+    }
+
+    private async shouldStoreDraft(
+        user: SessionUser,
+        existingDashboardDao: Pick<DashboardDAO, 'projectUuid' | 'slug'>,
+    ): Promise<boolean> {
         const settings = await this.contentAsCodeProjectSettingsModel.get(
             existingDashboardDao.projectUuid,
         );
-        if (!settings?.syncEnabled) return undefined;
+        if (!settings?.syncEnabled) return false;
         const snapshot = await this.contentAsCodeSnapshotModel.get(
             existingDashboardDao.projectUuid,
             ContentAsCodeType.DASHBOARD,
             existingDashboardDao.slug,
         );
-        if (snapshot === undefined) return undefined;
+        if (snapshot === undefined) return false;
         if (
             await this.canManageContentAsCode(
                 user,
                 existingDashboardDao.projectUuid,
             )
         ) {
-            return undefined;
+            return false;
         }
-        const overlaid = DashboardService.mergeDraftIntoDashboard(
+        return true;
+    }
+
+    private async storeDraft(
+        user: SessionUser,
+        existingDashboardDao: DashboardDAO,
+        dashboardFields: object,
+    ): Promise<Dashboard> {
+        DashboardService.mergeDraftIntoDashboard(
             existingDashboardDao,
             dashboardFields,
         );
-        await this.contentDraftModel.upsertOpenDraft({
+        const stored = await this.contentDraftModel.upsertOpenDraft({
             projectUuid: existingDashboardDao.projectUuid,
             contentType: 'dashboard',
             contentUuid: existingDashboardDao.uuid,
@@ -1828,9 +1856,13 @@ export class DashboardService
             authorUserUuid: user.userUuid,
             draft: dashboardFields,
         });
+        const overlaid = DashboardService.mergeDraftIntoDashboard(
+            existingDashboardDao,
+            stored.draft,
+        );
         const space = await this.spacePermissionService.resolveAccess(
             user.userUuid,
-            { type: 'space', spaceUuid: existingDashboardDao.spaceUuid },
+            { type: 'space', spaceUuid: overlaid.spaceUuid },
         );
         return {
             ...overlaid,
@@ -2373,7 +2405,7 @@ export class DashboardService
         dashboards: UpdateMultipleDashboards[],
     ): Promise<Dashboard[]> {
         const auditedAbility = this.createAuditedAbility(user);
-        const userHasAccessToDashboards = await Promise.all(
+        const dashboardContexts = await Promise.all(
             dashboards.map(async (dashboardToUpdate) => {
                 const dashboard = await this.dashboardModel.getByIdOrSlug(
                     dashboardToUpdate.uuid,
@@ -2409,24 +2441,24 @@ export class DashboardService
                         metadata: { dashboardUuid: dashboardToUpdate.uuid },
                     }),
                 );
-                return (
-                    canUpdateDashboardInCurrentSpace &&
-                    canUpdateDashboardInNewSpace
-                );
+                return {
+                    dashboardToUpdate,
+                    dashboard,
+                    hasAccess:
+                        canUpdateDashboardInCurrentSpace &&
+                        canUpdateDashboardInNewSpace,
+                };
             }),
         );
 
-        if (userHasAccessToDashboards.some((hasAccess) => !hasAccess)) {
+        if (dashboardContexts.some(({ hasAccess }) => !hasAccess)) {
             throw new ForbiddenError(
                 "You don't have access to some of the dashboards you are trying to update.",
             );
         }
 
         await Promise.all(
-            dashboards.map(async (dashboardToUpdate) => {
-                const dashboard = await this.dashboardModel.getByIdOrSlug(
-                    dashboardToUpdate.uuid,
-                );
+            dashboardContexts.map(async ({ dashboard }) => {
                 await this.assertCanMutateVerifiedDashboard({
                     user,
                     dashboardUuid: dashboard.uuid,
@@ -2436,19 +2468,32 @@ export class DashboardService
             }),
         );
 
-        this.analytics.track({
-            event: 'dashboard.updated_multiple',
-            userId: user.userUuid,
-            properties: {
-                dashboardIds: dashboards.map((dashboard) => dashboard.uuid),
-                projectId: projectUuid,
-            },
-        });
-
-        const updatedDashboards = await this.dashboardModel.updateMultiple(
-            projectUuid,
-            dashboards,
+        const shouldStoreDraft = await Promise.all(
+            dashboardContexts.map(({ dashboard }) =>
+                this.shouldStoreDraft(user, dashboard),
+            ),
         );
+        // Draft upserts are idempotent and happen before the transactional
+        // published update, so a retry cannot duplicate or partially publish.
+        const draftResults = await Promise.all(
+            dashboardContexts.map(
+                async ({ dashboardToUpdate, dashboard }, index) =>
+                    shouldStoreDraft[index]
+                        ? this.storeDraft(user, dashboard, dashboardToUpdate)
+                        : undefined,
+            ),
+        );
+
+        const directUpdates = dashboards.filter(
+            (_dashboard, index) => !shouldStoreDraft[index],
+        );
+        const updatedDashboards =
+            directUpdates.length > 0
+                ? await this.dashboardModel.updateMultiple(
+                      projectUuid,
+                      directUpdates,
+                  )
+                : [];
 
         const updatedDashboardsWithSpacesAccess = updatedDashboards.map(
             async (dashboard) => {
@@ -2470,7 +2515,26 @@ export class DashboardService
             },
         );
 
-        return Promise.all(updatedDashboardsWithSpacesAccess);
+        const directResults = await Promise.all(
+            updatedDashboardsWithSpacesAccess,
+        );
+        const directResultsByUuid = new Map(
+            directResults.map((dashboard) => [dashboard.uuid, dashboard]),
+        );
+        this.analytics.track({
+            event: 'dashboard.updated_multiple',
+            userId: user.userUuid,
+            properties: {
+                dashboardIds: dashboards.map((dashboard) => dashboard.uuid),
+                projectId: projectUuid,
+            },
+        });
+        return dashboards.map((dashboard, index) => {
+            const result =
+                draftResults[index] ?? directResultsByUuid.get(dashboard.uuid);
+            if (!result) throw new NotFoundError('Dashboard not found');
+            return result;
+        });
     }
 
     async delete(

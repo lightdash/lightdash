@@ -2906,6 +2906,9 @@ export class CoderService extends BaseService {
                 parameters: fields.parameters,
             }),
             ...(fields.merge !== undefined && { merge: fields.merge }),
+            ...(fields.spaceUuid !== undefined && {
+                spaceUuid: fields.spaceUuid,
+            }),
         };
         const spaces = await this.spaceModel.find({
             spaceUuids: merged.spaceUuid ? [merged.spaceUuid] : [],
@@ -2994,6 +2997,9 @@ export class CoderService extends BaseService {
             ...(fields.filters !== undefined && { filters: fields.filters }),
             ...(fields.tabs !== undefined && { tabs: fields.tabs }),
             ...(fields.config !== undefined && { config: fields.config }),
+            ...(fields.spaceUuid !== undefined && {
+                spaceUuid: fields.spaceUuid,
+            }),
         };
         const spaces = await this.spaceModel.find({
             spaceUuids: merged.spaceUuid ? [merged.spaceUuid] : [],
