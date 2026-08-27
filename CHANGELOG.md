@@ -1,3 +1,10 @@
+# [2.21.0](https://github.com/lightdash/lightdash/compare/2.20.0...2.21.0) (2026-08-27)
+
+
+### Features
+
+* **integrations:** add Linear OAuth on the integrations page ([#27992](https://github.com/lightdash/lightdash/issues/27992)) ([54c0f4a](https://github.com/lightdash/lightdash/commit/54c0f4a3bbb8781062c20633cf2bcecd4f2e12a1))
+
 # [2.20.0](https://github.com/lightdash/lightdash/compare/2.19.0...2.20.0) (2026-08-27)
 
 

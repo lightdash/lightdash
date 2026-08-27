@@ -48776,6 +48776,52 @@
                 "required": ["parameterReferences", "query"],
                 "type": "object"
             },
+            "LinearInstallation": {
+                "properties": {
+                    "organizationUrlKey": {
+                        "type": "string"
+                    },
+                    "organizationName": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "organizationUrlKey",
+                    "organizationName",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "LinearTeam": {
+                "properties": {
+                    "key": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["key", "name", "id"],
+                "type": "object"
+            },
+            "LinearProject": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "id"],
+                "type": "object"
+            },
             "InviteLinkPurpose": {
                 "enum": ["member", "setup"],
                 "type": "string"
@@ -56626,7 +56672,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.20.0",
+        "version": "2.21.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -82862,6 +82908,189 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/linear/install": {
+            "get": {
+                "operationId": "installLinearIntegration",
+                "responses": {
+                    "302": {
+                        "description": "Redirect to Linear OAuth"
+                    }
+                },
+                "description": "Initiate Linear OAuth integration",
+                "summary": "Install Linear integration",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/linear/oauth/callback": {
+            "get": {
+                "operationId": "linearOauthCallback",
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    }
+                },
+                "description": "Linear OAuth callback handler",
+                "summary": "Linear OAuth callback",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "code",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "state",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/linear": {
+            "get": {
+                "operationId": "getLinearInstallation",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/LinearInstallation"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the current Linear workspace connected to the organization",
+                "summary": "Get Linear installation",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/linear/uninstall": {
+            "delete": {
+                "operationId": "uninstallLinearIntegration",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Uninstall Linear integration from the organization",
+                "summary": "Uninstall Linear integration",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/linear/teams": {
+            "get": {
+                "operationId": "getLinearTeams",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/LinearTeam"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List Linear teams accessible via the integration",
+                "summary": "List Linear teams",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/linear/projects": {
+            "get": {
+                "operationId": "getLinearProjects",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/LinearProject"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the Linear projects belonging to a team",
+                "summary": "List Linear projects",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "teamId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/invite-links/{inviteLinkCode}": {

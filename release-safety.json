@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.20.0",
-  "previousVersion": "2.19.0",
-  "releaseDate": "2026-08-27T09:01:18.722Z",
+  "version": "2.21.0",
+  "previousVersion": "2.20.0",
+  "releaseDate": "2026-08-27T09:18:28.927Z",
   "migrations": {
     "present": true,
     "count": 1,
@@ -10,11 +10,11 @@
     "eeCount": 0,
     "files": [
       {
-        "name": "20260826150000_create_content_as_code_snapshots.ts",
+        "name": "20260825140000_add_linear_app_installations_table.ts",
         "edition": "core",
         "tables": [
-          "content_as_code_snapshots",
-          "projects",
+          "linear_app_installations",
+          "organizations",
           "users"
         ],
         "heaviness": {
