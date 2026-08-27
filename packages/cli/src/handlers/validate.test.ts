@@ -6,7 +6,11 @@ import {
 } from '@lightdash/common';
 import { compile } from './compile';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
-import { validateHandler } from './validate';
+import {
+    resolveValidateSeverity,
+    SHOW_CHART_CONFIGURATION_WARNINGS_DEPRECATION,
+    validateHandler,
+} from './validate';
 
 vi.mock('../analytics/analytics');
 vi.mock('../config', () => ({
@@ -322,6 +326,37 @@ describe('validateHandler warehouse column validation', () => {
         expect(output).toContain('Chart configuration warning');
         expect(output).toContain('orders.unused_dim');
         expect(output).toContain('1 warning');
+    });
+
+    test('fails when deprecated --show-chart-configuration-warnings is set and warnings exist', async () => {
+        validationResults = [chartConfigurationWarning];
+        vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+        await validateHandler({
+            ...baseOptions,
+            showChartConfigurationWarnings: true,
+        });
+
+        expect(process.exit).toHaveBeenCalledWith(1);
+        const output = errorOutput.join('\n');
+        expect(output).toContain(SHOW_CHART_CONFIGURATION_WARNINGS_DEPRECATION);
+        expect(output).toContain('Chart configuration warning');
+        expect(output).toContain('orders.unused_dim');
+        expect(output).toContain('1 warning');
+    });
+
+    test('treats the deprecated flag as --severity warning even when severity defaults to error', async () => {
+        expect(
+            resolveValidateSeverity({
+                severity: 'error',
+                showChartConfigurationWarnings: true,
+            }),
+        ).toBe('warning');
+        expect(
+            resolveValidateSeverity({
+                severity: 'error',
+            }),
+        ).toBe('error');
     });
 
     test('fails on blocking errors even when warnings stay hidden', async () => {

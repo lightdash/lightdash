@@ -93,6 +93,9 @@ const REFETCH_JOB_INTERVAL = 3000;
 export const VALIDATION_SEVERITIES = ['error', 'warning'] as const;
 export type ValidationSeverity = (typeof VALIDATION_SEVERITIES)[number];
 
+export const SHOW_CHART_CONFIGURATION_WARNINGS_DEPRECATION =
+    '`--show-chart-configuration-warnings` is deprecated. Use `--severity warning` instead.';
+
 type ValidateHandlerOptions = CompileHandlerOptions & {
     project?: string;
     verbose: boolean;
@@ -100,9 +103,22 @@ type ValidateHandlerOptions = CompileHandlerOptions & {
     only: ValidationTarget[];
     validateWarehouseColumns: boolean;
     severity?: ValidationSeverity;
+    showChartConfigurationWarnings?: boolean;
     includeSpaces?: string[];
     excludeSpaces?: string[];
 };
+
+export function resolveValidateSeverity(
+    options: Pick<
+        ValidateHandlerOptions,
+        'severity' | 'showChartConfigurationWarnings'
+    >,
+): ValidationSeverity {
+    if (options.showChartConfigurationWarnings) {
+        return 'warning';
+    }
+    return options.severity ?? 'error';
+}
 
 type WaitUntilFinishedOptions = {
     jobUuid: string;
@@ -133,6 +149,12 @@ export const validateHandler = async (
 ) => {
     const options = { ...originalOptions };
     GlobalState.setVerbose(options.verbose);
+    if (options.showChartConfigurationWarnings) {
+        console.error(
+            styles.warning(SHOW_CHART_CONFIGURATION_WARNINGS_DEPRECATION),
+        );
+    }
+    const severity = resolveValidateSeverity(options);
     await checkLightdashVersion();
 
     if (options.includeSpaces?.length && options.excludeSpaces?.length) {
@@ -226,8 +248,6 @@ export const validateHandler = async (
             ),
         );
     }
-
-    const severity = options.severity ?? 'error';
 
     await LightdashAnalytics.track({
         event: 'validate.started',
