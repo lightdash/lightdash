@@ -4522,7 +4522,6 @@ export const uploadHandler = async (
                     concurrency,
                     looseFiles.charts,
                     spaceNames,
-                    spaceNames,
                     undefined,
                     syncEnabled,
                 );
@@ -4578,7 +4577,6 @@ export const uploadHandler = async (
                     options.validate,
                     concurrency,
                     looseFiles.dashboards,
-                    spaceNames,
                     spaceNames,
                     dashboardsToSkip,
                     syncEnabled,
