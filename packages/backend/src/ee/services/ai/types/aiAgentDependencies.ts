@@ -628,6 +628,7 @@ export type LoadAgentSkillFn = (
 ) => Promise<AiAgentSkill | undefined>;
 
 export type EditDbtProjectFn = (args: {
+    dbtSourceUuid?: string;
     prompt: string;
     prUrl: string | null;
     /** Open a new PR instead of continuing the thread's existing one. */
@@ -640,7 +641,7 @@ export type EditDbtProjectFn = (args: {
 // Applies a structured project-context entry to lightdash.project_context.yml
 // via the deterministic GitHub-API merge (no sandbox) and opens/updates a PR.
 export type EditProjectContextFn = (
-    entry: AiAgentJudgeProjectContextEntry,
+    entry: AiAgentJudgeProjectContextEntry & { dbtSourceUuid?: string },
 ) => Promise<{ prUrl: string; prAction: 'opened' | 'updated' }>;
 
 /**

@@ -115,6 +115,10 @@ const makeService = (overrides: {
     let cachedEntries = overrides.initialEntries ?? existingEntries();
     const projectModel = {
         get: vi.fn().mockResolvedValue(overrides.project ?? githubProject),
+        getDbtSourceIdentity: vi.fn().mockResolvedValue({
+            dbtSourceUuid: PROJECT_UUID,
+            dbtSourceName: 'primary',
+        }),
         getSummary: vi.fn().mockResolvedValue(
             overrides.projectSummary ?? {
                 organizationUuid: ORG_UUID,
@@ -446,6 +450,25 @@ describe('ProjectContextService.writebackEntry', () => {
                 sourceThread: null,
             }),
         ).rejects.toThrow(NotFoundError);
+    });
+
+    test('returns a clear limitation for an explicitly selected additional dbt source', async () => {
+        const { service } = makeService({});
+
+        await expect(
+            service.writebackEntry({
+                user: userWithProjectContextAccess(),
+                projectUuid: PROJECT_UUID,
+                dbtSourceUuid: '00000000-0000-0000-0000-000000000099',
+                entry: judgeEntry,
+                branchTimestamp: 1,
+                sourceThread: null,
+            }),
+        ).rejects.toThrow(
+            'Project context writeback currently supports only the primary dbt source',
+        );
+        expect(mockGetInstallationToken).not.toHaveBeenCalled();
+        expect(mockCreateBranch).not.toHaveBeenCalled();
     });
 
     test('links the originating agent thread in the PR body', async () => {

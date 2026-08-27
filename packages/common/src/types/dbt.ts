@@ -57,6 +57,7 @@ export type DbtNode = {
     resource_type: string;
     config?: DbtNodeConfig;
     lightdash_source_name?: string;
+    lightdash_source_uuid?: string;
 };
 export type DbtRawModelNode = Omit<
     CompiledModelNode,
@@ -69,6 +70,7 @@ export type DbtRawModelNode = Omit<
     config?: CompiledModelNode['config'] & { meta?: DbtModelMetadata };
     meta: DbtModelMetadata;
     lightdash_source_name?: string;
+    lightdash_source_uuid?: string;
 };
 export type DbtModelNode = DbtRawModelNode & {
     database: string;

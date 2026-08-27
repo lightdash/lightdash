@@ -49,6 +49,7 @@ export type TableBase = {
     aiHint?: string | string[];
     warnings?: InlineError[];
     dbtPackageName?: string;
+    dbtSourceUuid?: string;
     ymlPath?: string;
     sqlPath?: string;
 };

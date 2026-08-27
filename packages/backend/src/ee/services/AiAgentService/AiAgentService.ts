@@ -6608,6 +6608,7 @@ export class AiAgentService extends BaseService {
             forceToolHints,
             onStepProgress,
             suppressWritebackPreview,
+            dbtSourceUuid,
             isReviewRemediationWorkThread,
             execution = { mode: 'standard' },
         }: {
@@ -6624,6 +6625,7 @@ export class AiAgentService extends BaseService {
                 progressStatus?: 'in_progress' | 'complete' | 'error',
             ) => void | Promise<void>;
             suppressWritebackPreview?: boolean;
+            dbtSourceUuid?: string;
             // Enables the work-thread-only editProjectContext tool so the agent
             // can open/change the project_context PR from this thread.
             isReviewRemediationWorkThread?: boolean;
@@ -6676,6 +6678,7 @@ export class AiAgentService extends BaseService {
                     forceToolHints,
                     onSlackStepProgress: onStepProgress,
                     suppressWritebackPreview,
+                    dbtSourceUuid,
                     isReviewRemediationWorkThread,
                     execution,
                 },
@@ -8912,6 +8915,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             promptUuid,
             toolCallId,
             writebackPrompt,
+            dbtSourceUuid,
             source,
             prUrl,
             startNewPullRequest,
@@ -8947,6 +8951,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         user,
                         projectUuid,
                         prompt: writebackPrompt,
+                        dbtSourceUuid,
                         prUrl,
                         startNewPullRequest: startNewPullRequest ?? false,
                         aiThreadUuid: prompt.threadUuid,
@@ -9274,6 +9279,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ) => void | Promise<void>;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
             suppressWritebackPreview?: boolean;
+            dbtSourceUuid?: string;
             onWarehouseQuery?: () => void | Promise<void>;
         },
     ) {
@@ -9562,6 +9568,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 isSlackPrompt: isSlackPrompt(prompt),
                 toolCallId: args.progressId,
                 writebackPrompt,
+                dbtSourceUuid: args.dbtSourceUuid ?? options?.dbtSourceUuid,
                 source,
                 prUrl: args.prUrl,
                 startNewPullRequest: args.startNewPullRequest ?? null,
@@ -9943,6 +9950,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             const writeback = await this.projectContextService.writebackEntry({
                 user,
                 projectUuid,
+                dbtSourceUuid: entry.dbtSourceUuid ?? options?.dbtSourceUuid,
                 entry,
                 branchTimestamp: Date.now(),
                 sourceThread,
@@ -10080,6 +10088,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             // and verification itself — the editDbtProject tool must not also
             // spin up its own preview project.
             suppressWritebackPreview?: boolean;
+            dbtSourceUuid?: string;
             // Forces the first tool hint on the opening step instead of merely
             // suggesting it (review Build-fix guarantees editDbtProject runs).
             forceToolHints?: boolean;
@@ -10126,6 +10135,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
             suppressWritebackPreview?: boolean;
+            dbtSourceUuid?: string;
             forceToolHints?: boolean;
             isReviewRemediationWorkThread?: boolean;
             toolHints?: string[];
@@ -10257,6 +10267,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     : undefined),
             runtimeOptions: options.runtimeOptions,
             suppressWritebackPreview: options.suppressWritebackPreview,
+            dbtSourceUuid: options.dbtSourceUuid,
             onWarehouseQuery:
                 responseExecution.mode === 'deep_research'
                     ? responseExecution.onWarehouseQuery

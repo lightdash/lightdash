@@ -4792,10 +4792,27 @@ export class ProjectService extends BaseService {
             primary.adapter.getDbtManifest(),
             this.projectModel.getDbtSourceIdentity(projectUuid),
         ]);
-        const primaryManifest = manifestWithCompilationSelection(
+        const selectedPrimaryManifest = manifestWithCompilationSelection(
             rawPrimaryManifest,
             primarySelectedModelIds,
         );
+        const primaryManifest = {
+            ...selectedPrimaryManifest,
+            nodes: Object.fromEntries(
+                Object.entries(selectedPrimaryManifest.nodes).map(
+                    ([uniqueId, node]) => [
+                        uniqueId,
+                        node.resource_type === 'model' ||
+                        node.resource_type === 'seed'
+                            ? {
+                                  ...node,
+                                  lightdash_source_uuid: identity.dbtSourceUuid,
+                              }
+                            : node,
+                    ],
+                ),
+            ),
+        };
 
         // A credential error fails the whole deploy by name, matching every
         // other per-source failure below (broken clone, broken manifest) — a
@@ -4858,13 +4875,32 @@ export class ProjectService extends BaseService {
                         manifest,
                         selectedModelIds: sourceSelectedModelIds,
                     } = await sourceAdapter.getDbtManifest();
+                    const selectedManifest = manifestWithCompilationSelection(
+                        manifest,
+                        sourceSelectedModelIds,
+                    );
+                    const sourceManifest = {
+                        ...selectedManifest,
+                        nodes: Object.fromEntries(
+                            Object.entries(selectedManifest.nodes).map(
+                                ([uniqueId, node]) => [
+                                    uniqueId,
+                                    node.resource_type === 'model' ||
+                                    node.resource_type === 'seed'
+                                        ? {
+                                              ...node,
+                                              lightdash_source_uuid:
+                                                  source.projectDbtSourceUuid,
+                                          }
+                                        : node,
+                                ],
+                            ),
+                        ),
+                    };
                     return {
                         name: source.name,
                         precedence: source.precedence,
-                        manifest: manifestWithCompilationSelection(
-                            manifest,
-                            sourceSelectedModelIds,
-                        ),
+                        manifest: sourceManifest,
                         selectedModelIds: sourceSelectedModelIds,
                     };
                 } catch (e) {

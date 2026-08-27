@@ -214,6 +214,42 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
         );
     });
 
+    it('keeps the selected additional dbt source through the worker pipeline', async () => {
+        const primaryResult = {
+            ...WRITEBACK_RESULT,
+            repository: 'acme/primary-analytics',
+            output: 'Updated models/orders.yml with primary orders.',
+            dbtSourceUuid: '00000000-0000-0000-0000-000000000001',
+        };
+        const additionalResult = {
+            ...WRITEBACK_RESULT,
+            repository: 'acme/additional-analytics',
+            output: 'Updated models/orders.yml with additional orders.',
+            dbtSourceUuid: '00000000-0000-0000-0000-000000000002',
+        };
+        const run = vi
+            .fn()
+            .mockImplementation(async (args) =>
+                args.dbtSourceUuid === additionalResult.dbtSourceUuid
+                    ? additionalResult
+                    : primaryResult,
+            );
+        const { service, updateToolResult } = buildService({ run });
+
+        await service.runEditDbtProjectPipeline({
+            ...PAYLOAD,
+            dbtSourceUuid: additionalResult.dbtSourceUuid,
+        });
+
+        expect(updateToolResult).toHaveBeenCalledWith(
+            'prompt-1',
+            'tool-call-1',
+            expect.objectContaining({
+                result: expect.stringContaining('acme/additional-analytics'),
+            }),
+        );
+    });
+
     it('waits for the tool-result row to exist before updating it', async () => {
         const { service, hasToolResult, updateToolResult } = buildService({});
 

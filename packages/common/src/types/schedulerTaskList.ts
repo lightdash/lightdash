@@ -133,6 +133,7 @@ export type AiAgentEditDbtProjectPipelineJobPayload = TraceTaskBase & {
     isSlackPrompt: boolean;
     toolCallId: string;
     writebackPrompt: string;
+    dbtSourceUuid?: string;
     source: AiWritebackSource;
     prUrl: string | null;
     startNewPullRequest: boolean | null;

@@ -58,6 +58,50 @@ describe('CommercialSchedulerClient.aiDeepResearch', () => {
     });
 });
 
+describe('CommercialSchedulerClient.aiAgentReviewWriteback', () => {
+    it('keeps the initial key stable and gives a continuation a run-specific key', async () => {
+        const addJob = vi
+            .fn()
+            .mockResolvedValueOnce({ id: 'job-1' })
+            .mockResolvedValueOnce({ id: 'job-2' });
+        const client = Object.create(
+            CommercialSchedulerClient.prototype,
+        ) as CommercialSchedulerClient;
+        client.graphileUtils = Promise.resolve({ addJob } as AnyType);
+        const payload = {
+            fingerprint: 'fingerprint-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            userUuid: 'user-1',
+            remediationUuid: 'remediation-1',
+        };
+        const initialRunAt = new Date('2026-08-27T12:00:00.000Z');
+        const continuationRunAt = new Date('2026-08-27T12:00:05.000Z');
+
+        await client.aiAgentReviewWriteback(payload, initialRunAt);
+        await client.aiAgentReviewWriteback(payload, continuationRunAt, true);
+
+        expect(addJob).toHaveBeenNthCalledWith(
+            1,
+            EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK,
+            payload,
+            expect.objectContaining({
+                runAt: initialRunAt,
+                jobKey: 'ai-agent-review-writeback:fingerprint-1',
+            }),
+        );
+        expect(addJob).toHaveBeenNthCalledWith(
+            2,
+            EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK,
+            payload,
+            expect.objectContaining({
+                runAt: continuationRunAt,
+                jobKey: 'ai-agent-review-writeback:fingerprint-1:continuation:1787832005000',
+            }),
+        );
+    });
+});
+
 describe('CommercialSchedulerClient.ingestExternalSourceAttachment', () => {
     it('uses an attachment-only task that old workers cannot claim', async () => {
         const addJob = vi.fn().mockResolvedValue({ id: 'job-1' });
