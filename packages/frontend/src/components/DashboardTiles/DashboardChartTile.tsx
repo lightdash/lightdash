@@ -21,6 +21,7 @@ import {
     isTableChartConfig,
     type ApiChartAndResults,
     type ApiError,
+    type CreateSavedChartVersion,
     type Dashboard,
     type QueryExecutionContext,
     type DashboardFilterRule,
@@ -2279,6 +2280,19 @@ export const GenericDashboardChartTile: FC<
         (c) => c.dashboard?.uuid,
     );
     const chartUuid = dashboardChartReadyQuery?.chart.uuid;
+    const embeddedOnDrillDownExplore =
+        embeddedDashboardInteractions?.onDrillDownExplore;
+    const onDrillDownExplore = useMemo(
+        () =>
+            embeddedOnDrillDownExplore && chartUuid
+                ? (options: { chart: CreateSavedChartVersion }) =>
+                      embeddedOnDrillDownExplore({
+                          ...options,
+                          customSqlProvenanceChartUuid: chartUuid,
+                      })
+                : undefined,
+        [embeddedOnDrillDownExplore, chartUuid],
+    );
     // Skip the resolver fetch when the parent already supplied a palette
     // (embeds, screenshots, SDK minimal): the override always wins below,
     // and the endpoint 403s for JWT/embed auth.
@@ -2422,9 +2436,7 @@ export const GenericDashboardChartTile: FC<
                 />
             )}
             <UnderlyingDataModal />
-            <DrillDownModal
-                onExplore={embeddedDashboardInteractions?.onDrillDownExplore}
-            />
+            <DrillDownModal onExplore={onDrillDownExplore} />
         </MetricQueryDataProvider>
     );
 };

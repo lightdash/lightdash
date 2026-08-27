@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     DirectSpaceAccessOrigin,
     NotFoundError,
+    ParameterError,
     ProjectSpaceAccessOrigin,
     SpaceMemberRole,
     type DirectSpaceAccess,
@@ -9,16 +10,22 @@ import {
     type PossibleAbilities,
     type ProjectMemberRole,
     type SessionUser,
+    type SpaceAccess,
     type SpaceInheritanceChain,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { type DashboardAccessModel } from '../../models/DashboardAccessModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import {
     SpacePermissionModel,
     type OrganizationSpaceAccessWithCustomRole,
     type ProjectSpaceAccessWithCustomRole,
 } from '../../models/SpacePermissionModel';
-import { SpacePermissionService } from './SpacePermissionService';
+import { type DirectAccessFeatureGate } from '../DirectAccess/DirectAccessFeatureGate';
+import {
+    SpacePermissionService,
+    type SpaceAccessContextForCasl,
+} from './SpacePermissionService';
 
 const createMockSpacePermissionModel = () => ({
     getInheritanceChains:
@@ -83,10 +90,21 @@ const createMockSpacePermissionModel = () => ({
 
 describe('SpacePermissionService', () => {
     const mockPermissionModel = createMockSpacePermissionModel();
-    const service = new SpacePermissionService(
-        {} as SpaceModel,
-        mockPermissionModel as unknown as SpacePermissionModel,
-    );
+    const dashboardAccessModel = {
+        getUserAccess: vi.fn(async () => ({})),
+    };
+    const directAccessFeatureGate = {
+        isEnabledForUser: vi.fn(async () => false),
+    };
+    const service = new SpacePermissionService({
+        spaceModel: {} as SpaceModel,
+        spacePermissionModel:
+            mockPermissionModel as unknown as SpacePermissionModel,
+        dashboardAccessModel:
+            dashboardAccessModel as unknown as DashboardAccessModel,
+        directAccessFeatureGate:
+            directAccessFeatureGate as unknown as DirectAccessFeatureGate,
+    });
 
     afterEach(() => {
         vi.resetAllMocks();
@@ -1741,5 +1759,361 @@ describe('SpacePermissionService', () => {
             );
             expect(userAccess).toBeUndefined();
         });
+    });
+});
+
+// Boundary-crossing operations must receive contexts free of synthesized
+// grant rows; assert it wherever a space-only context is expected.
+const expectNoGrantRows = (context: { access: SpaceAccess[] }) => {
+    expect(
+        context.access.filter((row) => row.grantedVia !== undefined),
+    ).toEqual([]);
+};
+
+describe('getDashboardAccessContext', () => {
+    const spaceContext: SpaceAccessContextForCasl = {
+        organizationUuid: 'organization-uuid',
+        projectUuid: 'project-uuid',
+        inheritsFromOrgOrProject: false,
+        access: [],
+        admins: [],
+    };
+    const dashboardRef = { uuid: 'dashboard-uuid', spaceUuid: 'space-uuid' };
+
+    const createService = ({
+        enabled,
+        grants = {},
+        context = spaceContext,
+    }: {
+        enabled: boolean;
+        grants?: Record<string, unknown>;
+        context?: typeof spaceContext;
+    }) => {
+        const dashboardAccessModel = {
+            getUserAccess: vi.fn(async () => grants),
+        };
+        const directAccessFeatureGate = {
+            isEnabledForUser: vi.fn(async () => enabled),
+        };
+        const service = new SpacePermissionService({
+            spaceModel: {} as SpaceModel,
+            spacePermissionModel: {} as unknown as SpacePermissionModel,
+            dashboardAccessModel:
+                dashboardAccessModel as unknown as DashboardAccessModel,
+            directAccessFeatureGate:
+                directAccessFeatureGate as unknown as DirectAccessFeatureGate,
+        });
+        vi.spyOn(service, 'getSpaceAccessContext').mockResolvedValue(context);
+        return { service, dashboardAccessModel, directAccessFeatureGate };
+    };
+
+    test('returns the plain space context while the feature is off', async () => {
+        const { service, dashboardAccessModel } = createService({
+            enabled: false,
+        });
+
+        await expect(
+            service.getDashboardAccessContext('user-uuid', dashboardRef),
+        ).resolves.toEqual({ ...spaceContext, directOnly: false });
+        expect(dashboardAccessModel.getUserAccess).not.toHaveBeenCalled();
+    });
+
+    test('returns the plain space context without a grant', async () => {
+        const { service } = createService({ enabled: true });
+
+        await expect(
+            service.getDashboardAccessContext('user-uuid', dashboardRef),
+        ).resolves.toEqual({ ...spaceContext, directOnly: false });
+    });
+
+    test('appends grant rows and marks grant-only readers', async () => {
+        const { service, dashboardAccessModel } = createService({
+            enabled: true,
+            grants: {
+                'dashboard-uuid': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid: 'space-uuid',
+                    userRole: SpaceMemberRole.VIEWER,
+                    groupRoles: [SpaceMemberRole.EDITOR],
+                },
+            },
+        });
+
+        await expect(
+            service.getDashboardAccessContext('user-uuid', dashboardRef),
+        ).resolves.toEqual({
+            ...spaceContext,
+            access: [
+                {
+                    userUuid: 'user-uuid',
+                    role: SpaceMemberRole.VIEWER,
+                    hasDirectAccess: true,
+                    projectRole: undefined,
+                    inheritedRole: undefined,
+                    inheritedFrom: undefined,
+                    grantedVia: 'dashboard',
+                },
+                {
+                    userUuid: 'user-uuid',
+                    role: SpaceMemberRole.EDITOR,
+                    hasDirectAccess: true,
+                    projectRole: undefined,
+                    inheritedRole: undefined,
+                    inheritedFrom: undefined,
+                    grantedVia: 'dashboard',
+                },
+            ],
+            directOnly: true,
+        });
+        expect(dashboardAccessModel.getUserAccess).toHaveBeenCalledWith(
+            ['dashboard-uuid'],
+            'user-uuid',
+            { organizationUuid: 'organization-uuid' },
+        );
+    });
+
+    test('does not mark space members or admins as grant-only', async () => {
+        const memberContext = {
+            ...spaceContext,
+            access: [
+                {
+                    userUuid: 'user-uuid',
+                    role: SpaceMemberRole.VIEWER,
+                    hasDirectAccess: true,
+                    projectRole: undefined,
+                    inheritedRole: undefined,
+                    inheritedFrom: undefined,
+                },
+            ],
+        };
+        const { service } = createService({
+            enabled: true,
+            context: memberContext,
+            grants: {
+                'dashboard-uuid': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid: 'space-uuid',
+                    userRole: SpaceMemberRole.EDITOR,
+                    groupRoles: [],
+                },
+            },
+        });
+
+        await expect(
+            service.getDashboardAccessContext('user-uuid', dashboardRef),
+        ).resolves.toMatchObject({ directOnly: false });
+
+        const adminContext: SpaceAccessContextForCasl = {
+            ...spaceContext,
+            admins: [
+                { userUuid: 'user-uuid', source: 'organization' as const },
+            ],
+        };
+        const { service: adminService } = createService({
+            enabled: true,
+            context: adminContext,
+            grants: {
+                'dashboard-uuid': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid: 'space-uuid',
+                    userRole: SpaceMemberRole.EDITOR,
+                    groupRoles: [],
+                },
+            },
+        });
+        await expect(
+            adminService.getDashboardAccessContext('user-uuid', dashboardRef),
+        ).resolves.toMatchObject({ directOnly: false });
+    });
+
+    test('a null dashboard uuid returns the space-only context without any grant lookup', async () => {
+        const { service, dashboardAccessModel, directAccessFeatureGate } =
+            createService({ enabled: true });
+
+        const result = await service.getDashboardAccessContext('user-uuid', {
+            uuid: null,
+            spaceUuid: 'space-uuid',
+        });
+
+        expect(result).toEqual({ ...spaceContext, directOnly: false });
+        expectNoGrantRows(result);
+        expect(directAccessFeatureGate.isEnabledForUser).not.toHaveBeenCalled();
+        expect(dashboardAccessModel.getUserAccess).not.toHaveBeenCalled();
+    });
+
+    test('throws when the granted dashboard does not belong to the given space', async () => {
+        const { service } = createService({
+            enabled: true,
+            grants: {
+                'dashboard-uuid': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid: 'another-space-uuid',
+                    userRole: SpaceMemberRole.EDITOR,
+                    groupRoles: [],
+                },
+            },
+        });
+
+        await expect(
+            service.getDashboardAccessContext('user-uuid', dashboardRef),
+        ).rejects.toThrow(ParameterError);
+    });
+});
+
+describe('getDashboardsAccessContext', () => {
+    const baseContext: SpaceAccessContextForCasl = {
+        organizationUuid: 'organization-uuid',
+        projectUuid: 'project-uuid',
+        inheritsFromOrgOrProject: false,
+        access: [],
+        admins: [],
+    };
+
+    const createService = ({
+        enabled,
+        grants = {},
+        contexts,
+    }: {
+        enabled: boolean;
+        grants?: Record<string, unknown>;
+        contexts: Record<string, SpaceAccessContextForCasl>;
+    }) => {
+        const dashboardAccessModel = {
+            getUserAccess: vi.fn(async () => grants),
+        };
+        const directAccessFeatureGate = {
+            isEnabledForUser: vi.fn(async () => enabled),
+        };
+        const service = new SpacePermissionService({
+            spaceModel: {} as SpaceModel,
+            spacePermissionModel: {} as unknown as SpacePermissionModel,
+            dashboardAccessModel:
+                dashboardAccessModel as unknown as DashboardAccessModel,
+            directAccessFeatureGate:
+                directAccessFeatureGate as unknown as DirectAccessFeatureGate,
+        });
+        vi.spyOn(service, 'getSpacesAccessContext').mockResolvedValue(contexts);
+        return { service, dashboardAccessModel, directAccessFeatureGate };
+    };
+
+    test('null uuids return space-only contexts with no gate or grant lookup', async () => {
+        const { service, dashboardAccessModel, directAccessFeatureGate } =
+            createService({
+                enabled: true,
+                contexts: { 'space-a': baseContext },
+            });
+
+        const result = await service.getDashboardsAccessContext('user-uuid', [
+            { uuid: null, spaceUuid: 'space-a' },
+            { uuid: null, spaceUuid: 'space-a' },
+        ]);
+
+        expect(result).toEqual([
+            { ...baseContext, directOnly: false },
+            { ...baseContext, directOnly: false },
+        ]);
+        result.forEach((context) => {
+            if (context) expectNoGrantRows(context);
+        });
+        expect(directAccessFeatureGate.isEnabledForUser).not.toHaveBeenCalled();
+        expect(dashboardAccessModel.getUserAccess).not.toHaveBeenCalled();
+    });
+
+    test('feature off returns space-only for every ref without a grant lookup', async () => {
+        const { service, dashboardAccessModel } = createService({
+            enabled: false,
+            contexts: { 'space-a': baseContext },
+            grants: {
+                'dash-1': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid: 'space-a',
+                    userRole: SpaceMemberRole.EDITOR,
+                    groupRoles: [],
+                },
+            },
+        });
+
+        const result = await service.getDashboardsAccessContext('user-uuid', [
+            { uuid: 'dash-1', spaceUuid: 'space-a' },
+        ]);
+
+        expect(result[0]).toEqual({ ...baseContext, directOnly: false });
+        expect(dashboardAccessModel.getUserAccess).not.toHaveBeenCalled();
+    });
+
+    test('appends tagged grant rows per granted dashboard from one batched lookup, aligned with input order', async () => {
+        const { service, dashboardAccessModel } = createService({
+            enabled: true,
+            contexts: { 'space-a': baseContext, 'space-b': baseContext },
+            grants: {
+                'dash-1': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid: 'space-a',
+                    userRole: SpaceMemberRole.VIEWER,
+                    groupRoles: [],
+                },
+            },
+        });
+
+        const result = await service.getDashboardsAccessContext('user-uuid', [
+            { uuid: 'dash-2', spaceUuid: 'space-b' },
+            { uuid: 'dash-1', spaceUuid: 'space-a' },
+        ]);
+
+        // Order preserved: dash-2 (no grant) first, dash-1 (grant) second.
+        expect(result[0]).toEqual({ ...baseContext, directOnly: false });
+        expect(result[1]?.access).toEqual([
+            expect.objectContaining({
+                userUuid: 'user-uuid',
+                role: SpaceMemberRole.VIEWER,
+                grantedVia: 'dashboard',
+            }),
+        ]);
+        expect(result[1]?.directOnly).toBe(true);
+        expect(dashboardAccessModel.getUserAccess).toHaveBeenCalledTimes(1);
+        expect(dashboardAccessModel.getUserAccess).toHaveBeenCalledWith(
+            ['dash-2', 'dash-1'],
+            'user-uuid',
+            { organizationUuid: 'organization-uuid' },
+        );
+    });
+
+    test('degrades to space-only when the grant does not belong to the given space', async () => {
+        const { service } = createService({
+            enabled: true,
+            contexts: { 'space-a': baseContext },
+            grants: {
+                'dash-1': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid: 'another-space',
+                    userRole: SpaceMemberRole.EDITOR,
+                    groupRoles: [],
+                },
+            },
+        });
+
+        const result = await service.getDashboardsAccessContext('user-uuid', [
+            { uuid: 'dash-1', spaceUuid: 'space-a' },
+        ]);
+
+        expect(result[0]).toEqual({ ...baseContext, directOnly: false });
+        expectNoGrantRows(result[0]!);
+    });
+
+    test('unresolvable spaces map to undefined', async () => {
+        const { service } = createService({ enabled: true, contexts: {} });
+
+        const result = await service.getDashboardsAccessContext('user-uuid', [
+            { uuid: 'dash-1', spaceUuid: 'missing-space' },
+        ]);
+
+        expect(result).toEqual([undefined]);
     });
 });

@@ -22,6 +22,15 @@ export type CodexProviderConfig = {
     };
 };
 
+export const CODEX_CODE_SECRET_ENV_KEYS = [
+    'CODEX_API_KEY',
+    'BEDROCK_GATEWAY_API_KEY',
+    'AWS_ACCESS_KEY_ID',
+    'AWS_SECRET_ACCESS_KEY',
+    'AWS_SESSION_TOKEN',
+    'AWS_BEARER_TOKEN_BEDROCK',
+] as const;
+
 const getOpenAiConfig = (copilot: CodexProviderConfig) => {
     const config = copilot.providers.openai;
     if (!config?.apiKey) {

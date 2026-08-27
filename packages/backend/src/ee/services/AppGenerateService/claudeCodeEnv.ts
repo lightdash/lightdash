@@ -44,6 +44,15 @@ export type ClaudeCodeProviderConfig = {
     };
 };
 
+export const CLAUDE_CODE_SECRET_ENV_KEYS = [
+    'ANTHROPIC_API_KEY',
+    'ANTHROPIC_AUTH_TOKEN',
+    'AWS_ACCESS_KEY_ID',
+    'AWS_SECRET_ACCESS_KEY',
+    'AWS_SESSION_TOKEN',
+    'AWS_BEARER_TOKEN_BEDROCK',
+] as const;
+
 export const buildAnthropicClaudeCodeEnv = (
     apiKey: string,
     baseUrl?: string | null,

@@ -68,6 +68,7 @@ import { type AiOrganizationSettingsModel } from '../../models/AiOrganizationSet
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
+import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from './constants';
 import { resolveDeepResearchWarehouseChart } from './resolveDeepResearchWarehouseChart';
 import {
     isDeepResearchEvidenceQueryTool,
@@ -76,7 +77,6 @@ import {
 
 const MAX_EVENT_PAGE_SIZE = 100;
 const DEFAULT_EVENT_PAGE_SIZE = 50;
-const STALE_RUN_THRESHOLD_MINUTES = 75;
 const REPORT_FINALIZATION_RETRY_DELAYS_MS = [100, 500] as const;
 const STALE_RUN_ERROR_MESSAGE =
     'Deep Research stopped unexpectedly before it could finish.';
@@ -1908,12 +1908,12 @@ export class AiDeepResearchService extends BaseService {
 
     async sweepStaleRuns(): Promise<number> {
         const runs = await this.aiDeepResearchRunModel.markStaleRunsAsFailed(
-            STALE_RUN_THRESHOLD_MINUTES,
+            AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES,
             STALE_RUN_ERROR_MESSAGE,
         );
         if (runs.length > 0) {
             this.logger.warn(
-                `Swept ${runs.length} stale Deep Research run(s) after ${STALE_RUN_THRESHOLD_MINUTES} minutes`,
+                `Swept ${runs.length} stale Deep Research run(s) after ${AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES} minutes`,
             );
         }
         await this.dispatchPendingLifecycleAnalytics();

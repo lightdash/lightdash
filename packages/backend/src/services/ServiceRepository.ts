@@ -30,6 +30,7 @@ import { ContentVerificationService } from './ContentVerificationService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DeployService } from './DeployService';
+import { DirectAccessFeatureGate } from './DirectAccess/DirectAccessFeatureGate';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
 import { EmailWhitelabelService } from './EmailWhitelabelService/EmailWhitelabelService';
 import { FavoritesService } from './FavoritesService/FavoritesService';
@@ -437,6 +438,8 @@ export class ServiceRepository
                     slackClient: this.clients.getSlackClient(),
                     catalogModel: this.models.getCatalogModel(),
                     organizationModel: this.models.getOrganizationModel(),
+                    organizationMemberProfileModel:
+                        this.models.getOrganizationMemberProfileModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
@@ -870,6 +873,7 @@ export class ServiceRepository
                         this.models.getProjectCompileLogModel(),
                     adminNotificationService:
                         this.getAdminNotificationService(),
+                    permissionsService: this.getPermissionsService(),
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
@@ -1109,10 +1113,15 @@ export class ServiceRepository
         return this.getService(
             'spacePermissionService',
             () =>
-                new SpacePermissionService(
-                    this.models.getSpaceModel(),
-                    this.models.getSpacePermissionModel(),
-                ),
+                new SpacePermissionService({
+                    spaceModel: this.models.getSpaceModel(),
+                    spacePermissionModel: this.models.getSpacePermissionModel(),
+                    dashboardAccessModel: this.models.getDashboardAccessModel(),
+                    directAccessFeatureGate: new DirectAccessFeatureGate(
+                        this.models.getFeatureFlagModel(),
+                        this.getLicenseService(),
+                    ),
+                }),
         );
     }
 

@@ -39,7 +39,7 @@ import {
     useUpdateDashboard,
 } from '../../../../../hooks/dashboard/useDashboard';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
-import { type EmbedExploreChart } from '../../../../providers/Embed/types';
+import { type EmbedExploreOptions } from '../../../../providers/Embed/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 import { embedContractClass } from '../../styles/embedClassContract';
 import { useEmbedDashboard } from '../hooks';
@@ -76,7 +76,7 @@ const EmbedDashboardGrid: FC<{
     onDeleteTile: (tile: DashboardTile) => void;
     onEditTile: (tile: DashboardTile) => void;
     onEditChart?: (chart: SavedChart) => void;
-    onExplore?: (options: { chart: EmbedExploreChart }) => void;
+    onExplore?: (options: EmbedExploreOptions) => void;
     useDashboardEditorTileQueries: boolean;
 }> = ({
     filteredTiles,

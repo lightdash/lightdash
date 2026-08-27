@@ -225,11 +225,13 @@ import {
 } from './claudeCliFailure';
 import {
     buildClaudeCodeEnv,
+    CLAUDE_CODE_SECRET_ENV_KEYS,
     claudeCodeAllowedHosts,
     describeClaudeCodeEnv,
 } from './claudeCodeEnv';
 import {
     buildClaudeCodeOtelEnv,
+    CLAUDE_CODE_OTEL_SECRET_ENV_KEYS,
     claudeCodeOtelAllowedHosts,
 } from './claudeCodeOtelEnv';
 import {
@@ -249,6 +251,7 @@ import {
 import {
     buildCodexCodeEnv,
     buildCodexExecCommand,
+    CODEX_CODE_SECRET_ENV_KEYS,
     CODEX_PROJECT_INSTRUCTIONS,
     CODEX_PROJECT_INSTRUCTIONS_PATH,
     codexCodeAllowedHosts,
@@ -281,6 +284,7 @@ import {
 import { resolveOtelExportHeaders } from './gcpOtelAuth';
 import { readDesignForDownload } from './readDesignForDownload';
 import { readS3ObjectAsBuffer } from './s3Utils';
+import { redactSandboxEnvSecrets } from './sandboxOutputRedaction';
 import {
     buildTemplateBaseline,
     TEMPLATE_DEV_DEPENDENCIES,
@@ -3306,6 +3310,11 @@ export class AppGenerateService extends BaseService {
     ): Promise<CodingAgentGenerationResult> {
         const start = performance.now();
         let telemetry = ZERO_CLAUDE_GENERATION_TELEMETRY;
+        const redactOutput = (text: string): string =>
+            redactSandboxEnvSecrets(text, claudeCodeEnv, [
+                ...CLAUDE_CODE_SECRET_ENV_KEYS,
+                ...CLAUDE_CODE_OTEL_SECRET_ENV_KEYS,
+            ]);
 
         if (structuredOutputSchema) {
             // A resumed sandbox may still hold a root-owned
@@ -3397,19 +3406,22 @@ export class AppGenerateService extends BaseService {
                                         this.updateAppStatus(
                                             appUuid,
                                             version,
-                                            event.snippet,
+                                            redactOutput(event.snippet),
                                             'thinking',
                                         );
                                         break;
                                     case 'tool_use': {
+                                        const description = redactOutput(
+                                            event.description,
+                                        );
                                         this.logger.info(
-                                            `App ${appUuid}: claude tool #${event.index}: ${event.description}`,
+                                            `App ${appUuid}: claude tool #${event.index}: ${description}`,
                                         );
                                         // description can be comma-separated
                                         // (e.g. "Write foo.tsx, Read bar.tsx") —
                                         // use only the first tool for the status.
                                         const firstTool =
-                                            event.description.split(', ')[0];
+                                            description.split(', ')[0];
                                         const toolStatus =
                                             AppGenerateService.toolDescriptionToStatusMessage(
                                                 firstTool,
@@ -3427,7 +3439,9 @@ export class AppGenerateService extends BaseService {
                                     }
                                     case 'result':
                                         if (event.text) {
-                                            responseText = event.text;
+                                            responseText = redactOutput(
+                                                event.text,
+                                            );
                                         }
                                         structuredOutput =
                                             event.structuredOutput;
@@ -3439,11 +3453,6 @@ export class AppGenerateService extends BaseService {
                                         );
                                 }
                             }
-                        },
-                        onStderr: (chunk) => {
-                            this.logger.debug(
-                                `App ${appUuid}: claude stderr: ${chunk.trimEnd()}`,
-                            );
                         },
                     },
                 )
@@ -3461,7 +3470,12 @@ export class AppGenerateService extends BaseService {
                         stdout: err.stdout,
                         stderr: err.stderr,
                     };
-                });
+                })
+                .then((raw) => ({
+                    ...raw,
+                    stdout: redactOutput(raw.stdout),
+                    stderr: redactOutput(raw.stderr),
+                }));
             const toolCallCount = processor.totalToolCalls;
             const usage = processor.lastUsage;
             const { timeToFirstTokenMs, turnDurationsMs } = processor;
@@ -3583,6 +3597,8 @@ export class AppGenerateService extends BaseService {
     ): Promise<CodingAgentGenerationResult> {
         const start = performance.now();
         let telemetry = ZERO_CLAUDE_GENERATION_TELEMETRY;
+        const redactOutput = (text: string): string =>
+            redactSandboxEnvSecrets(text, codexEnv, CODEX_CODE_SECRET_ENV_KEYS);
 
         if (structuredOutputSchema) {
             await sandbox.commands.run(
@@ -3642,17 +3658,20 @@ export class AppGenerateService extends BaseService {
                                     this.updateAppStatus(
                                         appUuid,
                                         version,
-                                        event.snippet,
+                                        redactOutput(event.snippet),
                                         'thinking',
                                     );
                                     break;
                                 case 'tool_use': {
+                                    const description = redactOutput(
+                                        event.description,
+                                    );
                                     this.logger.info(
-                                        `App ${appUuid}: codex tool #${event.index}: ${event.description}`,
+                                        `App ${appUuid}: codex tool #${event.index}: ${description}`,
                                     );
                                     const toolStatus =
                                         AppGenerateService.toolDescriptionToStatusMessage(
-                                            event.description,
+                                            description,
                                         );
                                     this.updateAppStatus(
                                         appUuid,
@@ -3665,7 +3684,7 @@ export class AppGenerateService extends BaseService {
                                 }
                                 case 'result':
                                     if (event.text) {
-                                        responseText = event.text;
+                                        responseText = redactOutput(event.text);
                                     }
                                     break;
                                 default:
@@ -3676,20 +3695,22 @@ export class AppGenerateService extends BaseService {
                             }
                         }
                     },
-                    onStderr: (chunk) => {
-                        this.logger.debug(
-                            `App ${appUuid}: codex stderr: ${chunk.trimEnd()}`,
-                        );
-                    },
                 })
                 .catch((err: unknown) => {
-                    if (!(err instanceof SandboxCommandError)) throw err;
+                    if (!(err instanceof SandboxCommandError)) {
+                        throw err;
+                    }
                     return {
                         exitCode: err.exitCode,
                         stdout: err.stdout,
                         stderr: err.stderr,
                     };
-                });
+                })
+                .then((raw) => ({
+                    ...raw,
+                    stdout: redactOutput(raw.stdout),
+                    stderr: redactOutput(raw.stderr),
+                }));
 
             const usage = processor.lastUsage;
             const toolCallCount = processor.totalToolCalls;
@@ -6999,7 +7020,7 @@ export class AppGenerateService extends BaseService {
                 // sandbox hasn't generated anything before this restore).
                 // Best-effort: log and move on.
                 this.logger.warn(
-                    `App ${appUuid}: restore FYI to Claude failed (exit ${result.exitCode}): ${AppGenerateService.truncateEnd(result.stderr, 500)}`,
+                    `App ${appUuid}: restore FYI to Claude failed (exit ${result.exitCode}): ${AppGenerateService.truncateEnd(redactSandboxEnvSecrets(result.stderr, claudeCodeEnv, CLAUDE_CODE_SECRET_ENV_KEYS), 500)}`,
                 );
                 return;
             }

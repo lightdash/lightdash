@@ -225,7 +225,6 @@ import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
 import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
-import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { getFieldValuesMetricQuery } from '../ProjectService/fieldValuesQueryBuilder';
@@ -392,7 +391,6 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     prometheusMetrics?: PrometheusMetrics;
     schedulerClient: SchedulerClient;
     natsClient: INatsClient;
-    permissionsService: PermissionsService;
     persistentDownloadFileService: PersistentDownloadFileService;
     organizationAccessService: OrganizationAccessService;
     preAggregateStrategy?: PreAggregateStrategy;
@@ -522,8 +520,6 @@ export class AsyncQueryService extends ProjectService {
 
     natsClient: INatsClient;
 
-    permissionsService: PermissionsService;
-
     persistentDownloadFileService: PersistentDownloadFileService;
 
     private readonly organizationAccessService: OrganizationAccessService;
@@ -544,7 +540,6 @@ export class AsyncQueryService extends ProjectService {
         this.prometheusMetrics = args.prometheusMetrics;
         this.schedulerClient = args.schedulerClient;
         this.natsClient = args.natsClient;
-        this.permissionsService = args.permissionsService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.organizationAccessService = args.organizationAccessService;
         this.preAggregateStrategy =
@@ -5039,6 +5034,7 @@ export class AsyncQueryService extends ProjectService {
             exploreName: inputMetricQuery.exploreName,
             metricQuery: inputMetricQuery,
             dataAppPreviewToken: args.dataAppPreviewToken,
+            customSqlProvenanceChartUuid: args.customSqlProvenanceChartUuid,
         });
 
         return this.runAsyncMetricQueryWithoutPermissionCheck(
@@ -5702,10 +5698,14 @@ export class AsyncQueryService extends ProjectService {
                 );
             inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
         } else {
-            const ctx = await this.spacePermissionService.getSpaceAccessContext(
-                account.user.id,
-                savedChartSpaceUuid,
-            );
+            const ctx =
+                await this.spacePermissionService.getDashboardAccessContext(
+                    account.user.id,
+                    {
+                        uuid: savedChart.dashboardUuid,
+                        spaceUuid: savedChartSpaceUuid,
+                    },
+                );
             access = ctx.access;
             inheritsFromOrgOrProject = ctx.inheritsFromOrgOrProject;
         }
@@ -5994,6 +5994,9 @@ export class AsyncQueryService extends ProjectService {
         projectUuid: string,
         savedChartUuid: string,
         space: SpaceSummaryBase,
+        // Set when the chart is owned by a dashboard, whose direct grants
+        // then cover running it.
+        owningDashboardUuid: string | null,
     ) {
         if (isJwtUser(account)) {
             const embedWriteActions = account.authentication.data.writeActions;
@@ -6034,10 +6037,11 @@ export class AsyncQueryService extends ProjectService {
             );
         } else {
             const auditedAbility = this.createAuditedAbility(account);
-            const ctx = await this.spacePermissionService.getSpaceAccessContext(
-                account.user.id,
-                space.uuid,
-            );
+            const ctx =
+                await this.spacePermissionService.getDashboardAccessContext(
+                    account.user.id,
+                    { uuid: owningDashboardUuid, spaceUuid: space.uuid },
+                );
 
             if (
                 auditedAbility.cannot(
@@ -6179,6 +6183,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             savedChart.uuid,
             space,
+            savedChart.dashboardUuid,
         );
 
         // Fire-and-forget: analytics tracking is non-critical and shouldn't block query execution
@@ -9579,9 +9584,12 @@ export class AsyncQueryService extends ProjectService {
             : savedChart.metricQuery;
 
         const spaceCtx =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.getDashboardAccessContext(
                 account.user.id,
-                savedChart.spaceUuid,
+                {
+                    uuid: savedChart.dashboardUuid,
+                    spaceUuid: savedChart.spaceUuid,
+                },
             );
 
         const auditedAbility = this.createAuditedAbility(account);

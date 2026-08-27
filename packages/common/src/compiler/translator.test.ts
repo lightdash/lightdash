@@ -1,5 +1,9 @@
 import { SupportedDbtAdapter, type DbtModelNode } from '../types/dbt';
-import { InlineErrorType, type Explore } from '../types/explore';
+import {
+    getExploreSplitCandidates,
+    InlineErrorType,
+    type Explore,
+} from '../types/explore';
 import {
     DimensionType,
     FieldType,
@@ -1603,6 +1607,129 @@ describe('merged manifest model qualification', () => {
             ),
         ).rejects.toThrow(
             'Merged dbt model name "analytics__orders" is ambiguous after qualification: model "orders" from source "analytics" (model.pkg_a.orders) and model "analytics__orders" from source "warehouse" (model.pkg_c.analytics__orders). Rename the source or model before deploying.',
+        );
+    });
+});
+
+describe('dbt Mesh model qualification', () => {
+    const buildMeshModel = ({
+        packageName,
+        name,
+        columnName = 'id',
+        joins = [],
+    }: {
+        packageName: string;
+        name: string;
+        columnName?: string;
+        joins?: DbtModelNode['meta']['joins'];
+    }): DbtModelNode => ({
+        ...model,
+        unique_id: `model.${packageName}.${name}`,
+        package_name: packageName,
+        name,
+        alias: name,
+        relation_name: `${packageName}.${name}`,
+        columns: {
+            [columnName]: {
+                name: columnName,
+                data_type: DimensionType.NUMBER,
+                meta: {},
+            },
+        },
+        meta: { joins },
+    });
+
+    it('qualifies cross-package models and keeps bare joins package-local', async () => {
+        const explores = await convertExplores(
+            [
+                buildMeshModel({
+                    packageName: 'marketing__core',
+                    name: 'customers',
+                    joins: [
+                        {
+                            join: 'orders',
+                            sql_on: '${customers.id} = ${orders.marketing_id}',
+                        },
+                    ],
+                }),
+                buildMeshModel({
+                    packageName: 'marketing__core',
+                    name: 'orders',
+                    columnName: 'marketing_id',
+                }),
+                buildMeshModel({
+                    packageName: 'finance',
+                    name: 'orders',
+                    columnName: 'finance_id',
+                }),
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+
+        expect(explores.map(({ name }) => name).sort()).toEqual([
+            'customers',
+            'finance__orders',
+            'marketing__core__orders',
+        ]);
+
+        const marketingOrders = explores.find(
+            (explore) => explore.name === 'marketing__core__orders',
+        ) as Explore;
+        expect(
+            Object.keys(
+                marketingOrders.tables.marketing__core__orders.dimensions,
+            ),
+        ).toContain('marketing_id');
+        expect(
+            Object.keys(
+                marketingOrders.tables.marketing__core__orders.dimensions,
+            ),
+        ).not.toContain('finance_id');
+
+        expect(getExploreSplitCandidates('orders', explores)).toEqual([
+            'finance__orders',
+            'marketing__core__orders',
+        ]);
+
+        const customers = explores.find(
+            (explore) => explore.name === 'customers',
+        ) as Explore;
+        expect(customers.tables.orders.sqlTable).toBe('marketing__core.orders');
+        expect(customers.tables.orders.canonicalName).toBe(
+            'marketing__core__orders',
+        );
+        expect(customers.joinedTables[0].compiledSqlOn).toBe(
+            '("customers".id) = ("orders".marketing_id)',
+        );
+    });
+
+    it('rejects a package-qualified name that still collides', async () => {
+        await expect(
+            convertExplores(
+                [
+                    buildMeshModel({
+                        packageName: 'analytics',
+                        name: 'orders',
+                    }),
+                    buildMeshModel({
+                        packageName: 'finance',
+                        name: 'orders',
+                    }),
+                    buildMeshModel({
+                        packageName: 'warehouse',
+                        name: 'analytics__orders',
+                    }),
+                ],
+                false,
+                SupportedDbtAdapter.POSTGRES,
+                warehouseClientMock,
+                { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            ),
+        ).rejects.toThrow(
+            'dbt Mesh model name "analytics__orders" is ambiguous after qualification: model "orders" from package "analytics" (model.analytics.orders) and model "analytics__orders" from package "warehouse" (model.warehouse.analytics__orders). Rename the package or model before deploying.',
         );
     });
 });

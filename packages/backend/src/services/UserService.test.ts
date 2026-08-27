@@ -4746,6 +4746,46 @@ describe('UserService', () => {
             );
         });
 
+        it('refreshes the credential queries actually resolve when duplicates exist', async () => {
+            const credentialsModel = createSnowflakeCredentialsModel();
+            // Oldest first, matching getAllByUserUuid's ordering.
+            credentialsModel.getAllByUserUuid.mockResolvedValue([
+                {
+                    uuid: 'stale-sso-credentials-uuid',
+                    name: 'Default',
+                    credentials: {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                    },
+                    project: null,
+                },
+                {
+                    uuid: 'newest-sso-credentials-uuid',
+                    name: 'Default',
+                    credentials: {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                    },
+                    project: null,
+                },
+            ]);
+            const service = createUserService(lightdashConfigMock, {
+                userWarehouseCredentialsModel:
+                    credentialsModel as unknown as UserWarehouseCredentialsModel,
+            });
+
+            await service.createSnowflakeWarehouseCredentials(
+                sessionUser,
+                'new-refresh-token',
+            );
+
+            expect(credentialsModel.update).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                'newest-sso-credentials-uuid',
+                expect.anything(),
+            );
+        });
+
         it('rejects a callback without a refresh token instead of writing', async () => {
             const credentialsModel = createSnowflakeCredentialsModel();
             const service = createUserService(lightdashConfigMock, {

@@ -792,6 +792,17 @@ const DashboardHeader = memo(
                                             <Menu.Item
                                                 leftSection={
                                                     <MantineIcon
+                                                        icon={IconPencil}
+                                                    />
+                                                }
+                                                onClick={handleEditClick}
+                                            >
+                                                Edit details
+                                            </Menu.Item>
+
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
                                                         icon={IconCopy}
                                                     />
                                                 }

@@ -11,12 +11,6 @@ import {
     AnalyticsDashboardViewsTableName,
 } from '../database/entities/analytics';
 import {
-    AppGroupAccessTable,
-    AppGroupAccessTableName,
-    AppUserAccessTable,
-    AppUserAccessTableName,
-} from '../database/entities/appAccess';
-import {
     AppsTable,
     AppsTableName,
     AppVersionsTable,
@@ -278,12 +272,6 @@ import {
     ScopedRoleTable,
 } from '../database/entities/roles';
 import {
-    SavedChartGroupAccessTable,
-    SavedChartGroupAccessTableName,
-    SavedChartUserAccessTable,
-    SavedChartUserAccessTableName,
-} from '../database/entities/savedChartAccess';
-import {
     SavedChartAdditionalMetricTable,
     SavedChartAdditionalMetricTableName,
     SavedChartCustomDimensionsTable,
@@ -311,12 +299,6 @@ import {
     SavedSqlVersionsTable,
     SavedSqlVersionsTableName,
 } from '../database/entities/savedSql';
-import {
-    SavedSqlGroupAccessTable,
-    SavedSqlGroupAccessTableName,
-    SavedSqlUserAccessTable,
-    SavedSqlUserAccessTableName,
-} from '../database/entities/savedSqlAccess';
 import {
     SchedulerEmailTargetTable,
     SchedulerEmailTargetTableName,
@@ -610,8 +592,6 @@ declare module 'knex/types/tables' {
         [ProjectTableName]: ProjectTable;
         [ProjectDbtSourcesTableName]: ProjectDbtSourcesTable;
         [SavedChartsTableName]: SavedChartTable;
-        [SavedChartUserAccessTableName]: SavedChartUserAccessTable;
-        [SavedChartGroupAccessTableName]: SavedChartGroupAccessTable;
         [SavedChartSlugMappingsTableName]: SavedChartSlugMappingTable;
         [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
@@ -619,8 +599,6 @@ declare module 'knex/types/tables' {
         [SavedChartTableCalculationTableName]: SavedChartTableCalculationTable;
         [SavedChartAdditionalMetricTableName]: SavedChartAdditionalMetricTable;
         [SavedSqlTableName]: SavedSqlTable;
-        [SavedSqlUserAccessTableName]: SavedSqlUserAccessTable;
-        [SavedSqlGroupAccessTableName]: SavedSqlGroupAccessTable;
         [SavedSqlVersionsTableName]: SavedSqlVersionsTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
@@ -781,8 +759,6 @@ declare module 'knex/types/tables' {
         [ContentAsCodeSnapshotsTableName]: ContentAsCodeSnapshotTable;
         [ContentVerificationTableName]: ContentVerificationTable;
         [AppsTableName]: AppsTable;
-        [AppUserAccessTableName]: AppUserAccessTable;
-        [AppGroupAccessTableName]: AppGroupAccessTable;
         [AppVersionsTableName]: AppVersionsTable;
         [AiRouterTableName]: AiRouterTable;
         [AiRouterDecisionTableName]: AiRouterDecisionTable;

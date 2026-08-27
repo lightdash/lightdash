@@ -10,6 +10,11 @@ export const LightdashCliVersionHeader = 'Lightdash-CLI-Version';
 // authenticated, so it must not gate access or feed anything authoritative.
 export const LightdashAppUuidHeader = 'Lightdash-App-Uuid';
 export const LightdashAppPreviewTokenHeader = 'Lightdash-App-Preview-Token';
+// Identifies the saved chart whose persisted custom SQL seeded an embedded
+// Explore. This is an untrusted client hint: the backend must verify both the
+// embed's access to the chart and an exact SQL match before authorizing it.
+export const LightdashCustomSqlProvenanceChartUuidHeader =
+    'Lightdash-Custom-Sql-Provenance-Chart-Uuid';
 export const LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS = 60 * 60;
 
 // Declares that the file produced by a schedule-download request will be

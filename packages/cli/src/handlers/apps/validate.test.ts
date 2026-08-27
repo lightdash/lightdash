@@ -1,5 +1,6 @@
 import {
     buildDataAppExploreIndexFromModelFiles,
+    DATA_APP_VIZ_TEMPLATE,
     type DataAppCode,
     type DataAppManifest,
 } from '@lightdash/common';
@@ -13,6 +14,7 @@ import {
     renderAppsValidationJson,
     validateDataAppBuild,
     validateLocalDataApp,
+    type AppValidationResult,
     type RunDataAppBuildCommand,
 } from './validate';
 
@@ -519,6 +521,7 @@ describe('renderAppsValidationHuman', () => {
                 path: '/tmp/orders-app',
                 name: 'Orders app',
                 projectUuid: 'project-uuid',
+                template: null,
                 valid: true,
                 errors: [],
                 warnings: [],
@@ -594,6 +597,67 @@ describe('renderAppsValidationHuman', () => {
 
         expect(JSON.parse(output)).not.toHaveProperty(
             'apps.0.unanalyzedReferences',
+        );
+    });
+
+    const buildResult = (
+        template: AppValidationResult['template'],
+        overrides: Partial<AppValidationResult> = {},
+    ): AppValidationResult => ({
+        path: '/tmp/bundle',
+        name: 'Bundle',
+        projectUuid: null,
+        template,
+        valid: true,
+        errors: [],
+        warnings: [],
+        coverage: {
+            callSites: 0,
+            fullyResolved: 0,
+            partiallyResolved: 0,
+            unresolved: 0,
+            unanalyzed: 0,
+        },
+        unanalyzedReferences: [],
+        ...overrides,
+    });
+
+    it('describes an all-chart-type run as custom chart types', () => {
+        const vizReport = buildAppsValidationReport(
+            [buildResult(DATA_APP_VIZ_TEMPLATE)],
+            false,
+        );
+        const output = renderAppsValidationHuman(vizReport);
+
+        expect(output).toContain('Validating 1 custom chart type(s)');
+        expect(output).toContain(
+            'Validation passed for 1 custom chart type(s)',
+        );
+        expect(output).not.toContain('data app(s)');
+        expect(vizReport.summary.chartTypes).toBe(1);
+        expect(vizReport.summary.dataApps).toBe(0);
+    });
+
+    it('describes a mixed run with both nouns', () => {
+        const mixedReport = buildAppsValidationReport(
+            [
+                buildResult(DATA_APP_VIZ_TEMPLATE, {
+                    valid: false,
+                    errors: [
+                        { code: 'manifest', message: 'bad', location: null },
+                    ],
+                }),
+                buildResult(null),
+            ],
+            false,
+        );
+        const output = renderAppsValidationHuman(mixedReport);
+
+        expect(output).toContain(
+            'Validating 1 data app(s) and 1 custom chart type(s)',
+        );
+        expect(output).toContain(
+            'Validation failed with 1 error(s) across 1 data app(s) and 1 custom chart type(s).',
         );
     });
 });

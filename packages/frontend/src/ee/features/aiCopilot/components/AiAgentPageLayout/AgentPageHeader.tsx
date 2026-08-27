@@ -1,4 +1,5 @@
 import { ActionIcon, Button, Divider, Group, Tooltip } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
     IconNotebook,
     IconSettings,
@@ -29,7 +30,14 @@ export const AgentPageHeader: FC<Props> = ({
     settingsHref,
 }) => {
     const settingsLinkState = useAgentSettingsLinkState();
-    const hasAgentActions = Boolean(onOpenMemories || settingsHref);
+    const isMobile = useMediaQuery('(max-width: 768px)', undefined, {
+        getInitialValueInEffect: false,
+    });
+    // Memories and minimize are desktop affordances — the mobile header only
+    // has room for the agent selector, sidebar toggle and share.
+    const showMemories = Boolean(onOpenMemories) && !isMobile;
+    const showMinimize = Boolean(onMinimize) && !isMobile;
+    const hasAgentActions = showMemories || Boolean(settingsHref);
 
     return (
         <Group align="center" justify="space-between" className={styles.root}>
@@ -40,7 +48,7 @@ export const AgentPageHeader: FC<Props> = ({
                 )}
                 {hasAgentActions && (
                     <Group gap={4}>
-                        {onOpenMemories && (
+                        {showMemories && (
                             <Button
                                 variant="default"
                                 className={styles.action}
@@ -97,7 +105,7 @@ export const AgentPageHeader: FC<Props> = ({
                         </ActionIcon>
                     </Tooltip>
                 )}
-                {onMinimize && (
+                {showMinimize && (
                     <Tooltip label="Minimize" position="bottom">
                         <ActionIcon
                             variant="subtle"

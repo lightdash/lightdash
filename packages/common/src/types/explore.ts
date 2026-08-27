@@ -176,13 +176,10 @@ export const getExploreSplitCandidates = (
     const candidates = explores.flatMap((explore) => {
         if (isExploreError(explore)) return [];
         const baseTable = explore.tables[explore.baseTable];
-        const separatorIndex = explore.name.indexOf('__');
-        const originalExploreName =
-            separatorIndex === -1
-                ? undefined
-                : explore.name.slice(separatorIndex + 2);
+        // Package names can contain `__`, so match the qualified suffix rather
+        // than treating the separator as something we can parse.
         return baseTable?.originalName === exploreName &&
-            originalExploreName === exploreName
+            explore.name.endsWith(`__${exploreName}`)
             ? [explore.name]
             : [];
     });

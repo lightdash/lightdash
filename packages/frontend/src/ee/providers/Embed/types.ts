@@ -4,6 +4,7 @@ import {
     type CreateSavedChartVersion,
     type LanguageMap,
     type SavedChart,
+    type UUID,
 } from '@lightdash/common';
 import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
 
@@ -19,6 +20,11 @@ export type InMemoryEmbed = {
 export type EmbedMode = 'sdk' | 'direct';
 
 export type EmbedExploreChart = SavedChart | CreateSavedChartVersion;
+
+export type EmbedExploreOptions = {
+    chart: EmbedExploreChart;
+    customSqlProvenanceChartUuid?: UUID;
+};
 
 export interface EmbedContext {
     // The JWT token used to authenticate the user
@@ -38,7 +44,7 @@ export interface EmbedContext {
     // Powers localization of the dashboard
     languageMap?: LanguageMap;
     // The function to call when the user clicks "Explore from here"
-    onExplore?: (options: { chart: EmbedExploreChart }) => void;
+    onExplore?: (options: EmbedExploreOptions) => void;
     // Localization function
     t: (input: string) => string | undefined;
     // The function to call when the user clicks "Back to dashboard" from an Explore
@@ -48,6 +54,9 @@ export interface EmbedContext {
     onChartSaved?: (chart: SavedChart) => void;
     // The chart that the user is exploring
     savedChart?: EmbedExploreChart;
+    // The saved chart whose persisted custom SQL seeded this Explore. This is
+    // carried separately because derived drill-down charts have no UUID.
+    customSqlProvenanceChartUuid?: UUID;
     // The UUID of the saved query being viewed in an embedded Chart
     savedQueryUuid?: string;
     // The UUID of the data app being viewed in a standalone embedded App

@@ -37,6 +37,8 @@ export type ContentArgs = {
     // 'exclude' hides data app vizs (reusable custom chart types); 'only'
     // returns just them.
     dataAppVizsFilter?: 'exclude' | 'only';
+    // Restrict to dashboards owned by these users (other content types are excluded)
+    ownerUserUuids?: string[];
 };
 
 const contentTypeLabel = (contentType: ContentType): string =>

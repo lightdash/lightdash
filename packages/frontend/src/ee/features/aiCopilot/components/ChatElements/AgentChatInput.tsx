@@ -15,15 +15,20 @@ import {
     FileButton,
     Group,
     Loader,
+    Menu,
     Paper,
     Pill,
     Text,
     Tooltip,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
     IconArrowUp,
+    IconCheck,
     IconPaperclip,
     IconPlayerStop,
+    IconPlus,
+    IconTelescope,
     IconTerminal2,
 } from '@tabler/icons-react';
 import Mention from '@tiptap/extension-mention';
@@ -204,6 +209,11 @@ export const AgentChatInput = ({
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const app = useApp();
+    // Resolved on first render so the toolbar never renders the desktop layout
+    // on a phone before settling.
+    const isMobile = useMediaQuery('(max-width: 768px)', undefined, {
+        getInitialValueInEffect: false,
+    });
     const [value, setValueState] = useState(defaultValue ?? '');
     const [externalSourceAttachments, setExternalSourceAttachments] = useState<
         ExternalSourceAttachment[]
@@ -585,6 +595,23 @@ export const AgentChatInput = ({
             }),
         ),
     );
+    const canShowAttachControl = Boolean(
+        canAttachExternalSource &&
+        !disabled &&
+        !canSteer &&
+        composerMode === 'ask',
+    );
+    // The mobile toolbar has no room for these inline, so they move into a
+    // single overflow menu and the send button keeps its place.
+    const showDeepResearchInMobileMenu = Boolean(
+        isMobile && canStartDeepResearch,
+    );
+    const showMobileToolsMenu = Boolean(
+        isMobile &&
+        (showSqlModeControl ||
+            canShowAttachControl ||
+            showDeepResearchInMobileMenu),
+    );
 
     const handleStartDeepResearch = async () => {
         const ed = editorRef.current;
@@ -725,7 +752,9 @@ export const AgentChatInput = ({
     const shouldShowDeepResearchBelowComposer =
         isThreadInput || showDeepResearchBelowComposer;
     const deepResearchControl =
-        canStartDeepResearch && !shouldShowDeepResearchBelowComposer ? (
+        canStartDeepResearch &&
+        !shouldShowDeepResearchBelowComposer &&
+        !showDeepResearchInMobileMenu ? (
             <DeepResearchModeControl
                 mode={composerMode}
                 onModeChange={setComposerMode}
@@ -735,7 +764,9 @@ export const AgentChatInput = ({
             />
         ) : null;
     const compactDeepResearchControl =
-        canStartDeepResearch && shouldShowDeepResearchBelowComposer ? (
+        canStartDeepResearch &&
+        shouldShowDeepResearchBelowComposer &&
+        !showDeepResearchInMobileMenu ? (
             <DeepResearchModeControl
                 mode={composerMode}
                 onModeChange={setComposerMode}
@@ -796,7 +827,7 @@ export const AgentChatInput = ({
         actionSize: number | 'sm' | 'md';
         iconSize: number;
     }) => {
-        if (!onSqlModeChange || disabled) return null;
+        if (!showSqlModeControl || showMobileToolsMenu) return null;
 
         return (
             <Tooltip
@@ -812,7 +843,7 @@ export const AgentChatInput = ({
                         color={sqlMode ? 'indigo' : 'gray'}
                         size={actionSize}
                         className={styles.sqlModeButton}
-                        onClick={() => onSqlModeChange(!sqlMode)}
+                        onClick={() => onSqlModeChange?.(!sqlMode)}
                         aria-label="Toggle SQL Runner"
                         aria-pressed={sqlMode}
                     >
@@ -834,12 +865,7 @@ export const AgentChatInput = ({
         actionSize: number | 'sm' | 'md';
         iconSize: number;
     }) => {
-        if (
-            !canAttachExternalSource ||
-            disabled ||
-            canSteer ||
-            composerMode !== 'ask'
-        ) {
+        if (!canShowAttachControl || showMobileToolsMenu) {
             return null;
         }
         return (
@@ -876,6 +902,122 @@ export const AgentChatInput = ({
                     </Tooltip>
                 )}
             </FileButton>
+        );
+    };
+
+    const renderMobileToolsMenu = ({
+        actionSize,
+        iconSize,
+    }: {
+        actionSize: number | 'sm' | 'md';
+        iconSize: number;
+    }) => {
+        if (!showMobileToolsMenu) return null;
+
+        return (
+            <Menu position="top-start" withinPortal shadow="md" width={220}>
+                <Menu.Target>
+                    <ActionIcon
+                        variant="subtle"
+                        color="ldGray.6"
+                        size={actionSize}
+                        aria-label="Composer options"
+                    >
+                        <MantineIcon
+                            icon={IconPlus}
+                            size={iconSize}
+                            color="ldGray.6"
+                        />
+                    </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    {canShowAttachControl && (
+                        <FileButton
+                            accept=".csv,.tsv,text/csv,text/tab-separated-values"
+                            multiple
+                            resetRef={resetCsvFileInputRef}
+                            onChange={(files) => {
+                                resetCsvFileInputRef.current?.();
+                                if (files.length > 0) {
+                                    void attachCsvFiles(files);
+                                }
+                            }}
+                        >
+                            {(fileButtonProps) => (
+                                <Menu.Item
+                                    {...fileButtonProps}
+                                    disabled={isPreparingCsv}
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconPaperclip}
+                                            size={14}
+                                        />
+                                    }
+                                >
+                                    Attach CSV
+                                </Menu.Item>
+                            )}
+                        </FileButton>
+                    )}
+                    {showSqlModeControl && (
+                        <Menu.Item
+                            onClick={() => onSqlModeChange?.(!sqlMode)}
+                            leftSection={
+                                <MantineIcon
+                                    icon={IconTerminal2}
+                                    size={14}
+                                    color={sqlMode ? 'indigo.5' : 'ldGray.6'}
+                                />
+                            }
+                            rightSection={
+                                sqlMode ? (
+                                    <MantineIcon
+                                        icon={IconCheck}
+                                        size={14}
+                                        color="indigo.5"
+                                    />
+                                ) : null
+                            }
+                        >
+                            SQL Runner
+                        </Menu.Item>
+                    )}
+                    {showDeepResearchInMobileMenu && (
+                        <Menu.Item
+                            disabled={hasActiveDeepResearchRun}
+                            onClick={() =>
+                                setComposerMode(
+                                    composerMode === 'deep_research'
+                                        ? 'ask'
+                                        : 'deep_research',
+                                )
+                            }
+                            leftSection={
+                                <MantineIcon
+                                    icon={IconTelescope}
+                                    size={14}
+                                    color={
+                                        composerMode === 'deep_research'
+                                            ? 'indigo.5'
+                                            : 'ldGray.6'
+                                    }
+                                />
+                            }
+                            rightSection={
+                                composerMode === 'deep_research' ? (
+                                    <MantineIcon
+                                        icon={IconCheck}
+                                        size={14}
+                                        color="indigo.5"
+                                    />
+                                ) : null
+                            }
+                        >
+                            Deep research
+                        </Menu.Item>
+                    )}
+                </Menu.Dropdown>
+            </Menu>
         );
     };
 
@@ -919,7 +1061,10 @@ export const AgentChatInput = ({
     const hasExternalModeControls =
         !disabled &&
         shouldShowDeepResearchBelowComposer &&
-        Boolean(compactDeepResearchControl || showSqlModeControl);
+        Boolean(
+            compactDeepResearchControl ||
+            (showSqlModeControl && !showMobileToolsMenu),
+        );
 
     const renderExternalModeControls = ({
         actionSize,
@@ -1020,6 +1165,10 @@ export const AgentChatInput = ({
                         attachments={renderedAttachments}
                         toolbarRight={
                             <Group gap={4} align="center" wrap="nowrap">
+                                {renderMobileToolsMenu({
+                                    actionSize: 'sm',
+                                    iconSize: 14,
+                                })}
                                 {renderAttachDataControl({
                                     actionSize: 'sm',
                                     iconSize: 14,
@@ -1083,6 +1232,10 @@ export const AgentChatInput = ({
                 attachments={renderedAttachments}
                 toolbarLeft={
                     <Group gap="xs" align="center" wrap="nowrap">
+                        {renderMobileToolsMenu({
+                            actionSize: 30,
+                            iconSize: 16,
+                        })}
                         {renderAttachDataControl({
                             actionSize: 30,
                             iconSize: 15,
@@ -1096,44 +1249,50 @@ export const AgentChatInput = ({
                 }
                 toolbarRight={
                     <Group gap="xs" align="center" wrap="nowrap">
-                        {(deepResearchControl || showAgentSelector) && (
-                            <Box
-                                className={styles.controlsReveal}
-                                data-visible={hasClickedInput}
-                            >
-                                <Group gap="xs" align="center" wrap="nowrap">
-                                    {deepResearchControl}
+                        <Box className={styles.toolbarSelectors}>
+                            {(deepResearchControl || showAgentSelector) && (
+                                <Box
+                                    className={styles.controlsReveal}
+                                    data-visible={hasClickedInput}
+                                >
+                                    <Group
+                                        gap="xs"
+                                        align="center"
+                                        wrap="nowrap"
+                                    >
+                                        {deepResearchControl}
 
-                                    {showAgentSelector && (
-                                        <AgentSelector
-                                            projectUuid={projectUuid!}
-                                            agents={agents!}
-                                            selectedAgent={selectedAgent!}
-                                            compact
-                                        />
-                                    )}
-                                </Group>
-                            </Box>
-                        )}
-
-                        {(showModelSelector || onExtendedThinkingChange) &&
-                            models &&
-                            onModelChange && (
-                                <Box className={styles.modelGroup}>
-                                    <ModelSelector
-                                        models={models}
-                                        value={selectedModelId ?? null}
-                                        onChange={onModelChange}
-                                        variant="subtle"
-                                        color="gray"
-                                        size="xs"
-                                        reasoningEnabled={extendedThinking}
-                                        onReasoningChange={
-                                            onExtendedThinkingChange
-                                        }
-                                    />
+                                        {showAgentSelector && (
+                                            <AgentSelector
+                                                projectUuid={projectUuid!}
+                                                agents={agents!}
+                                                selectedAgent={selectedAgent!}
+                                                compact
+                                            />
+                                        )}
+                                    </Group>
                                 </Box>
                             )}
+
+                            {(showModelSelector || onExtendedThinkingChange) &&
+                                models &&
+                                onModelChange && (
+                                    <Box className={styles.modelGroup}>
+                                        <ModelSelector
+                                            models={models}
+                                            value={selectedModelId ?? null}
+                                            onChange={onModelChange}
+                                            variant="subtle"
+                                            color="gray"
+                                            size="xs"
+                                            reasoningEnabled={extendedThinking}
+                                            onReasoningChange={
+                                                onExtendedThinkingChange
+                                            }
+                                        />
+                                    </Box>
+                                )}
+                        </Box>
 
                         {renderComposerAction('lg')}
                     </Group>

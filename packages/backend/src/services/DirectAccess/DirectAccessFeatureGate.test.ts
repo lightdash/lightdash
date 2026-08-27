@@ -70,7 +70,7 @@ describe('DirectAccessFeatureGate', () => {
     });
 
     it('fails closed when flag resolution is unknown', async () => {
-        const { gate } = buildGate({
+        const { gate, get } = buildGate({
             licensed: true,
             flagResult: new Error('flag unavailable'),
         });
@@ -78,5 +78,38 @@ describe('DirectAccessFeatureGate', () => {
         await expect(gate.assertEnabled(account)).rejects.toMatchObject({
             name: 'ForbiddenError',
         });
+        // Failures are never cached — each call retries flag resolution.
+        expect(get).toHaveBeenCalledTimes(2);
+    });
+
+    it('resolves the flag once per user within the cache TTL', async () => {
+        const { gate, get } = buildGate({ licensed: true, flagResult: true });
+        await expect(
+            Promise.all([gate.isEnabled(account), gate.isEnabled(account)]),
+        ).resolves.toEqual([true, true]);
+        await expect(gate.isEnabled(account)).resolves.toBe(true);
+        expect(get).toHaveBeenCalledTimes(1);
+
+        await gate.isEnabledForUser({
+            userUuid: 'other-user-uuid',
+            organizationUuid: 'organization-uuid',
+        });
+        expect(get).toHaveBeenCalledTimes(2);
+    });
+
+    it('re-resolves the flag after the cache TTL expires', async () => {
+        vi.useFakeTimers();
+        try {
+            const { gate, get } = buildGate({
+                licensed: true,
+                flagResult: true,
+            });
+            await expect(gate.isEnabled(account)).resolves.toBe(true);
+            vi.advanceTimersByTime(31_000);
+            await expect(gate.isEnabled(account)).resolves.toBe(true);
+            expect(get).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });

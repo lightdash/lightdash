@@ -1,3 +1,89 @@
+## [2.18.2](https://github.com/lightdash/lightdash/compare/2.18.1...2.18.2) (2026-08-27)
+
+
+### Bug Fixes
+
+* **embed:** preserve custom SQL chart provenance ([#28139](https://github.com/lightdash/lightdash/issues/28139)) ([f2d959d](https://github.com/lightdash/lightdash/commit/f2d959d927626ebd03480e87b7d302b00aaf55f6))
+
+## [2.18.1](https://github.com/lightdash/lightdash/compare/2.18.0...2.18.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **dbt:** support package-qualified Mesh explores ([#28125](https://github.com/lightdash/lightdash/issues/28125)) ([3f37509](https://github.com/lightdash/lightdash/commit/3f37509a72d01b158651c21a8141a010be7bfc17))
+
+# [2.18.0](https://github.com/lightdash/lightdash/compare/2.17.1...2.18.0) (2026-08-26)
+
+
+### Features
+
+* **dashboards:** assign and manage dashboard owners ([#28148](https://github.com/lightdash/lightdash/issues/28148)) ([667355e](https://github.com/lightdash/lightdash/commit/667355e028d59a691aa4989fbf1d34167141f177))
+
+## [2.17.1](https://github.com/lightdash/lightdash/compare/2.17.0...2.17.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* **data-apps:** pass sandbox environments separately ([#28151](https://github.com/lightdash/lightdash/issues/28151)) ([4f04bb2](https://github.com/lightdash/lightdash/commit/4f04bb219204d2ebc1b5d775c4fe748696d63566))
+
+# [2.17.0](https://github.com/lightdash/lightdash/compare/2.16.0...2.17.0) (2026-08-26)
+
+
+### Bug Fixes
+
+* keep builder status label on one line for long prompts ([#28140](https://github.com/lightdash/lightdash/issues/28140)) ([e787331](https://github.com/lightdash/lightdash/commit/e78733146dab6dba88cf816f881b028352414011))
+
+
+### Features
+
+* **dashboards:** include grant-covered charts in dashboard filters ([#28124](https://github.com/lightdash/lightdash/issues/28124)) ([932a1a5](https://github.com/lightdash/lightdash/commit/932a1a52629954200872e0975d235628aeab456f))
+
+# [2.16.0](https://github.com/lightdash/lightdash/compare/2.15.0...2.16.0) (2026-08-26)
+
+
+### Features
+
+* **common:** enrich ResultColumn type and fix format-expression converter gaps ([#27968](https://github.com/lightdash/lightdash/issues/27968)) ([738db02](https://github.com/lightdash/lightdash/commit/738db0243e7db31f796d941b2df4aa794c510d9e)), closes [#0](https://github.com/lightdash/lightdash/issues/0)
+* **dashboards:** let dashboard grants edit their owned charts ([#28123](https://github.com/lightdash/lightdash/issues/28123)) ([fdf9fe3](https://github.com/lightdash/lightdash/commit/fdf9fe3e5c9672fd1d39f772101b5edcd14d5ccc)), closes [#28122](https://github.com/lightdash/lightdash/issues/28122)
+
+# [2.15.0](https://github.com/lightdash/lightdash/compare/2.14.0...2.15.0) (2026-08-26)
+
+
+### Bug Fixes
+
+* normalize warehouse credentials on write and guard snowflake timeout SQL ([#27970](https://github.com/lightdash/lightdash/issues/27970)) ([17a3960](https://github.com/lightdash/lightdash/commit/17a396034d26a3b880aab83e636068a7f412dfd7))
+
+
+### Features
+
+* **dashboards:** route dashboard-owned charts through direct grants ([#28122](https://github.com/lightdash/lightdash/issues/28122)) ([1b8c2ca](https://github.com/lightdash/lightdash/commit/1b8c2cabe004e8108e3fe23cddcc6eac48540747))
+
+# [2.14.0](https://github.com/lightdash/lightdash/compare/2.13.2...2.14.0) (2026-08-26)
+
+
+### Bug Fixes
+
+* **cli:** create download output root before writing metadata file ([#28117](https://github.com/lightdash/lightdash/issues/28117)) ([5943402](https://github.com/lightdash/lightdash/commit/5943402291a793fb80541cc5c4e8bdc4e3865f41))
+* **cli:** describe custom chart types correctly in apps validate output ([#28116](https://github.com/lightdash/lightdash/issues/28116)) ([b89f02e](https://github.com/lightdash/lightdash/commit/b89f02e8f60b6b5adc73fd003dc16a75b6900599))
+* **cli:** exit non-zero when selected content-as-code resources fail ([#28118](https://github.com/lightdash/lightdash/issues/28118)) ([30594f5](https://github.com/lightdash/lightdash/commit/30594f5ef451a13c52cde1a772e204af8223a676))
+* **cli:** reject option-like values for variadic reference options ([#28115](https://github.com/lightdash/lightdash/issues/28115)) ([3a361ae](https://github.com/lightdash/lightdash/commit/3a361ae810201e0068631254f028c2342dec87aa))
+* **cli:** skip dashboards whose dependent charts failed to upload ([#28119](https://github.com/lightdash/lightdash/issues/28119)) ([a390a35](https://github.com/lightdash/lightdash/commit/a390a3554823ea9d60900da1f9fccf06c961ef78))
+* **coder:** stop forced dashboard uploads writing duplicate tile chart versions ([#28120](https://github.com/lightdash/lightdash/issues/28120)) ([2d6aab7](https://github.com/lightdash/lightdash/commit/2d6aab7a5a2c797fd3311e16a6b3189a9952efa7))
+* **coder:** validate legacy uuid-only custom chart type bindings against the target project ([#28121](https://github.com/lightdash/lightdash/issues/28121)) ([25f5e51](https://github.com/lightdash/lightdash/commit/25f5e5193c9eb2bf741956373af73a0c4ba7554c))
+* **credentials:** refresh the Snowflake SSO credential queries resolve ([#28126](https://github.com/lightdash/lightdash/issues/28126)) ([a14b24d](https://github.com/lightdash/lightdash/commit/a14b24d06ea90f8638efbbcca5938bcc472ea368))
+
+
+### Features
+
+* expose AI agent thread live statuses ([#28090](https://github.com/lightdash/lightdash/issues/28090)) ([cc19306](https://github.com/lightdash/lightdash/commit/cc1930604d22d964bd94482abaf07ac3bd0dc162))
+
+## [2.13.2](https://github.com/lightdash/lightdash/compare/2.13.1...2.13.2) (2026-08-26)
+
+
+### Bug Fixes
+
+* **frontend:** make agent thread sidebar work on mobile ([#28076](https://github.com/lightdash/lightdash/issues/28076)) ([b22a776](https://github.com/lightdash/lightdash/commit/b22a776c01f36424fb0c501f77de026babde781e)), closes [#34](https://github.com/lightdash/lightdash/issues/34) [#34](https://github.com/lightdash/lightdash/issues/34)
+
 ## [2.13.1](https://github.com/lightdash/lightdash/compare/2.13.0...2.13.1) (2026-08-26)
 
 

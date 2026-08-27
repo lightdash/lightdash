@@ -1668,6 +1668,7 @@ export class CoderService extends BaseService {
             version: currentVersion,
             contentType: ContentAsCodeType.DASHBOARD,
             downloadedAt: new Date(),
+            ownerEmail: dashboard.owner?.email ?? undefined,
             verified: verificationMap.has(dashboard.uuid) ? true : undefined,
             verification: verificationMap.get(dashboard.uuid) ?? null,
         };
@@ -1817,6 +1818,12 @@ export class CoderService extends BaseService {
                     tabUuid,
                     uuid: tile.uuid ?? uuidv4(),
                 } as DashboardTileWithSlug;
+            }
+
+            if (tile.properties.chartSlug != null && chartInfo === undefined) {
+                warnings.push(
+                    `Chart "${tile.properties.chartSlug}" was not found in this project — the tile was saved without a chart. Upload the chart first, then re-upload the dashboard.`,
+                );
             }
 
             const isSqlChart =
@@ -2187,9 +2194,11 @@ export class CoderService extends BaseService {
      * Convert a chart YAML's viz binding to the runtime shape: resolve the
      * portable dataAppVizSlug against the target project's chart types and
      * rewrite the config with the resolved uuid. A slug missing in the target
-     * fails loudly (upload the chart type first) unless the file also carries
-     * a legacy uuid to fall back to; uuid-only legacy files are accepted
-     * verbatim.
+     * fails loudly (upload the chart type first). A legacy dataAppVizUuid —
+     * whether it stands alone or backs up a missing slug — is accepted only
+     * when it resolves to a chart type in the target project; uuids are
+     * project-specific, so keeping a foreign one would create a dangling
+     * cross-project reference.
      */
     private async resolveDataAppVizBinding(
         projectUuid: string,
@@ -2203,6 +2212,16 @@ export class CoderService extends BaseService {
         }
         const { dataAppVizSlug, dataAppVizUuid, ...configRest } =
             chartConfig.config;
+        // The 'only' filter also rejects uuids pointing at regular data apps.
+        const uuidResolvesInTargetProject = async (): Promise<boolean> =>
+            dataAppVizUuid !== undefined &&
+            (
+                await this.appModel.findAppsByUuids(
+                    projectUuid,
+                    [dataAppVizUuid],
+                    { dataAppVizsFilter: 'only' },
+                )
+            ).length > 0;
         if (dataAppVizSlug !== undefined) {
             const [vizRow] = await this.appModel.findAppsBySlugs(
                 projectUuid,
@@ -2215,8 +2234,12 @@ export class CoderService extends BaseService {
                     config: { ...configRest, dataAppVizUuid: vizRow.app_id },
                 };
             }
-            // Interim files carry both identities — fall back to the uuid.
-            if (dataAppVizUuid !== undefined) {
+            // Interim files carry both identities — fall back to the uuid,
+            // but only when it names a chart type in this project.
+            if (
+                dataAppVizUuid !== undefined &&
+                (await uuidResolvesInTargetProject())
+            ) {
                 this.logger.warn(
                     `Chart type "${dataAppVizSlug}" was not found in project ${projectUuid}; keeping the chart's existing dataAppVizUuid reference.`,
                 );
@@ -2230,11 +2253,15 @@ export class CoderService extends BaseService {
             );
         }
         if (dataAppVizUuid !== undefined) {
-            // Legacy pre-slug file: accept the uuid verbatim.
-            return {
-                ...chartConfig,
-                config: { ...configRest, dataAppVizUuid },
-            };
+            if (await uuidResolvesInTargetProject()) {
+                return {
+                    ...chartConfig,
+                    config: { ...configRest, dataAppVizUuid },
+                };
+            }
+            throw new ParameterError(
+                `Custom chart type ${dataAppVizUuid} was not found in this project. Chart type uuids are project-specific: re-download the chart with a current CLI to get a portable dataAppVizSlug, upload the chart type into this project, then re-upload this chart.`,
+            );
         }
         throw new ParameterError(
             'Chart uses a custom chart type but carries neither dataAppVizSlug nor dataAppVizUuid.',
@@ -2899,6 +2926,52 @@ export class CoderService extends BaseService {
                 error,
             );
         }
+    }
+
+    /**
+     * Applies the declarative `ownerEmail` from dashboard-as-code: a string
+     * assigns the matching organization member as owner, null unassigns the
+     * owner, undefined leaves the current owner untouched.
+     * Returns warnings when the email does not match any organization member.
+     */
+    private async syncDashboardOwner({
+        organizationUuid,
+        dashboardUuid,
+        currentOwnerUserUuid,
+        ownerEmail,
+    }: {
+        organizationUuid: string;
+        dashboardUuid: string;
+        currentOwnerUserUuid: string | null;
+        ownerEmail: string | null | undefined;
+    }): Promise<string[]> {
+        if (ownerEmail === undefined) return [];
+
+        if (ownerEmail === null) {
+            if (currentOwnerUserUuid !== null) {
+                await this.dashboardModel.update(dashboardUuid, {
+                    ownerUserUuid: null,
+                });
+            }
+            return [];
+        }
+
+        const [member] =
+            await this.organizationMemberProfileModel.findOrganizationMembersByEmails(
+                organizationUuid,
+                [ownerEmail],
+            );
+        if (!member) {
+            return [
+                `Dashboard owner email "${ownerEmail}" does not match any organization member; owner left unchanged.`,
+            ];
+        }
+        if (member.userUuid !== currentOwnerUserUuid) {
+            await this.dashboardModel.update(dashboardUuid, {
+                ownerUserUuid: member.userUuid,
+            });
+        }
+        return [];
     }
 
     async upsertChart(
@@ -3997,7 +4070,6 @@ export class CoderService extends BaseService {
         const {
             skipSpaceCreate,
             publicSpaceCreate,
-            force,
             spaceNames,
             mode = 'upsert',
         } = options;
@@ -4127,6 +4199,13 @@ export class CoderService extends BaseService {
                 verified: dashboardAsCode.verified,
             });
 
+            const createOwnerWarnings = await this.syncDashboardOwner({
+                organizationUuid: project.organizationUuid,
+                dashboardUuid: newDashboard.uuid,
+                currentOwnerUserUuid: newDashboard.owner?.userUuid ?? null,
+                ownerEmail: dashboardAsCode.ownerEmail,
+            });
+
             if (mode === 'upsert') {
                 await this.stampAppliedDashboardSnapshot(
                     user,
@@ -4155,7 +4234,7 @@ export class CoderService extends BaseService {
                         ? [{ action: PromotionAction.CREATE, data: space }]
                         : [],
                 },
-                tileWarnings,
+                [...tileWarnings, ...createOwnerWarnings],
             );
         }
         // Use promote service to update existing dashboard
@@ -4254,16 +4333,10 @@ export class CoderService extends BaseService {
         // TODO: Right now dashboards on promote service always update dashboards
         // See isDashboardUpdated for more details
 
-        if (force) {
-            promotionChanges = {
-                ...promotionChanges,
-                charts: promotionChanges.charts.map((c) =>
-                    c.action === PromotionAction.NO_CHANGES
-                        ? { ...c, action: PromotionAction.UPDATE }
-                        : c,
-                ),
-            };
-        }
+        // Unlike upsertChart, force must not flip NO_CHANGES tile charts to
+        // UPDATE here: promoted and upstream both resolve to this project's
+        // DB rows, so a forced update writes an identical duplicate chart
+        // version. Chart file changes are applied by the chart upload path.
 
         promotionChanges = await this.promoteService.getOrCreateDashboard(
             user,
@@ -4290,6 +4363,13 @@ export class CoderService extends BaseService {
             verified: dashboardAsCode.verified,
         });
 
+        const ownerWarnings = await this.syncDashboardOwner({
+            organizationUuid: project.organizationUuid,
+            dashboardUuid: dashboard.uuid,
+            currentOwnerUserUuid: dashboard.owner?.userUuid ?? null,
+            ownerEmail: dashboardAsCode.ownerEmail,
+        });
+
         if (mode === 'upsert') {
             await this.stampAppliedDashboardSnapshot(
                 user,
@@ -4302,6 +4382,9 @@ export class CoderService extends BaseService {
         console.info(
             `Finished updating dashboard "${dashboard.name}" on project ${projectUuid}: ${promotionChanges.dashboards[0].action}`,
         );
-        return withTileWarnings(promotionChanges, tileWarnings);
+        return withTileWarnings(promotionChanges, [
+            ...tileWarnings,
+            ...ownerWarnings,
+        ]);
     }
 }

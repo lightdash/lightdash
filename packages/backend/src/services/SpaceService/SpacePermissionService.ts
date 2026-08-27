@@ -5,10 +5,12 @@ import {
     getProjectRoleForRoleSetSpaceAccess,
     NotFoundError,
     OrganizationMemberRole,
+    ParameterError,
     ProjectMemberRole,
     resolveSpaceAccess,
     SpaceMemberRole,
     type AbilityAction,
+    type GrantSource,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type OrganizationSpaceAccess,
@@ -21,6 +23,7 @@ import {
     type SpaceShare,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { type DashboardAccessModel } from '../../models/DashboardAccessModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import {
     SpacePermissionModel,
@@ -28,6 +31,7 @@ import {
     type ProjectSpaceAccessWithCustomRole,
 } from '../../models/SpacePermissionModel';
 import { BaseService } from '../BaseService';
+import { type DirectAccessFeatureGate } from '../DirectAccess/DirectAccessFeatureGate';
 
 export type SpaceAdmin = {
     userUuid: string;
@@ -44,12 +48,40 @@ export type SpaceAccessContextForCasl = {
     admins: SpaceAdmin[];
 };
 
+export type DashboardAccessContextForCasl = SpaceAccessContextForCasl & {
+    /**
+     * True when the requester has no space-derived access path (membership,
+     * inheritance, or admin standing) and reaches the content only through
+     * direct content grants.
+     */
+    directOnly: boolean;
+};
+
 export class SpacePermissionService extends BaseService {
-    constructor(
-        private readonly spaceModel: SpaceModel,
-        private readonly spacePermissionModel: SpacePermissionModel,
-    ) {
+    private readonly spaceModel: SpaceModel;
+
+    private readonly spacePermissionModel: SpacePermissionModel;
+
+    private readonly dashboardAccessModel: DashboardAccessModel;
+
+    private readonly directAccessFeatureGate: DirectAccessFeatureGate;
+
+    constructor({
+        spaceModel,
+        spacePermissionModel,
+        dashboardAccessModel,
+        directAccessFeatureGate,
+    }: {
+        spaceModel: SpaceModel;
+        spacePermissionModel: SpacePermissionModel;
+        dashboardAccessModel: DashboardAccessModel;
+        directAccessFeatureGate: DirectAccessFeatureGate;
+    }) {
         super();
+        this.spaceModel = spaceModel;
+        this.spacePermissionModel = spacePermissionModel;
+        this.dashboardAccessModel = dashboardAccessModel;
+        this.directAccessFeatureGate = directAccessFeatureGate;
     }
 
     /**
@@ -157,6 +189,205 @@ export class SpacePermissionService extends BaseService {
             );
         }
         return ctx;
+    }
+
+    /**
+     * The single choke point for authorizing a dashboard-owned chart through
+     * a direct dashboard grant. Read this before touching any grant call site.
+     *
+     * THE BOUNDARY RULE. A direct grant on a dashboard authorizes operations
+     * whose effect stays INSIDE that dashboard; anything that reads, moves, or
+     * copies content BEYOND the dashboard requires real space access.
+     *
+     * This turns on one distinction:
+     *   - A chart OWNED BY a dashboard (`saved_queries.dashboard_uuid` set,
+     *     `space_id` null) inherits the dashboard's grants — sharing the
+     *     dashboard shares its own charts.
+     *   - A chart that merely LIVES IN A SPACE (`space_id` set) is governed by
+     *     space access only — sharing a dashboard that references it grants
+     *     nothing over it.
+     * Why: the grant's scope is "you may work within this dashboard", so it
+     * must never become a lever to reach a chart's private space or to relocate
+     * content into a space the granter never saw.
+     *
+     * Mechanically: returns the space CASL context plus the requester's direct
+     * dashboard grants appended as ordinary `access` rows tagged
+     * `grantedVia: 'dashboard'`, so the existing elemMatch ability rules
+     * interpret them with no dashboard-specific logic. Behind the direct-access
+     * feature gate; with the flag off the result equals the plain space
+     * context.
+     *
+     * Pass `uuid: null` for a chart with no owning dashboard, AND at every
+     * boundary-crossing call site (copying or moving content out of the
+     * dashboard) where the grant must not count: the space-only context is
+     * returned and no grant lookup runs. The `expectNoGrantRows` test tripwire
+     * guards those sites. See also `ld-permissions` skill and this service's
+     * CLAUDE.md.
+     */
+    async getDashboardAccessContext(
+        userUuid: string,
+        dashboard: { uuid: string | null; spaceUuid: string },
+    ): Promise<DashboardAccessContextForCasl> {
+        const spaceContext = await this.getSpaceAccessContext(
+            userUuid,
+            dashboard.spaceUuid,
+        );
+        const spaceOnlyContext = { ...spaceContext, directOnly: false };
+        if (dashboard.uuid === null) {
+            return spaceOnlyContext;
+        }
+        if (
+            !(await this.directAccessFeatureGate.isEnabledForUser({
+                userUuid,
+                organizationUuid: spaceContext.organizationUuid,
+            }))
+        ) {
+            return spaceOnlyContext;
+        }
+
+        const grants = await this.dashboardAccessModel.getUserAccess(
+            [dashboard.uuid],
+            userUuid,
+            { organizationUuid: spaceContext.organizationUuid },
+        );
+        const grant = grants[dashboard.uuid];
+        if (grant === undefined) {
+            return spaceOnlyContext;
+        }
+        const grantRoles = [
+            ...(grant.userRole ? [grant.userRole] : []),
+            ...grant.groupRoles,
+        ];
+        if (grantRoles.length === 0) {
+            return spaceOnlyContext;
+        }
+        // Grants must never extend a context for a space the dashboard does
+        // not live in; a mismatch is a caller bug, so fail loudly.
+        if (grant.spaceUuid !== dashboard.spaceUuid) {
+            throw new ParameterError(
+                `Dashboard ${dashboard.uuid} does not belong to space ${dashboard.spaceUuid}`,
+            );
+        }
+
+        return SpacePermissionService.withGrantAccess(
+            spaceContext,
+            userUuid,
+            grantRoles,
+            'dashboard',
+        );
+    }
+
+    /**
+     * Batched getDashboardAccessContext for hot paths that resolve many
+     * (dashboard, space) refs at once: one space-context batch, one gate
+     * check, and one grant lookup. Returns contexts aligned with the input;
+     * undefined where the space context could not be resolved. Anything
+     * doubtful (missing grant, organization mismatch, dashboard not in the
+     * given space) degrades to the space-only context — never to more
+     * access.
+     */
+    async getDashboardsAccessContext(
+        userUuid: string,
+        dashboards: { uuid: string | null; spaceUuid: string }[],
+    ): Promise<(DashboardAccessContextForCasl | undefined)[]> {
+        const uniqueSpaceUuids = [
+            ...new Set(dashboards.map((ref) => ref.spaceUuid)),
+        ];
+        const spaceContexts = await this.getSpacesAccessContext(
+            userUuid,
+            uniqueSpaceUuids,
+        );
+        const spaceOnly = (ref: {
+            spaceUuid: string;
+        }): DashboardAccessContextForCasl | undefined => {
+            const ctx = spaceContexts[ref.spaceUuid];
+            return ctx ? { ...ctx, directOnly: false } : undefined;
+        };
+
+        const dashboardUuids = [
+            ...new Set(
+                dashboards.flatMap((ref) =>
+                    ref.uuid !== null && spaceContexts[ref.spaceUuid]
+                        ? [ref.uuid]
+                        : [],
+                ),
+            ),
+        ];
+        const organizationUuid = dashboards
+            .map((ref) => spaceContexts[ref.spaceUuid]?.organizationUuid)
+            .find((uuid) => uuid !== undefined);
+        if (
+            dashboardUuids.length === 0 ||
+            organizationUuid === undefined ||
+            !(await this.directAccessFeatureGate.isEnabledForUser({
+                userUuid,
+                organizationUuid,
+            }))
+        ) {
+            return dashboards.map(spaceOnly);
+        }
+
+        const grants = await this.dashboardAccessModel.getUserAccess(
+            dashboardUuids,
+            userUuid,
+            { organizationUuid },
+        );
+        return dashboards.map((ref) => {
+            const spaceContext = spaceContexts[ref.spaceUuid];
+            if (spaceContext === undefined || ref.uuid === null) {
+                return spaceOnly(ref);
+            }
+            const grant = grants[ref.uuid];
+            if (grant === undefined) {
+                return spaceOnly(ref);
+            }
+            const grantRoles = [
+                ...(grant.userRole ? [grant.userRole] : []),
+                ...grant.groupRoles,
+            ];
+            if (
+                grantRoles.length === 0 ||
+                grant.spaceUuid !== ref.spaceUuid ||
+                spaceContext.organizationUuid !== organizationUuid
+            ) {
+                return spaceOnly(ref);
+            }
+            return SpacePermissionService.withGrantAccess(
+                spaceContext,
+                userUuid,
+                grantRoles,
+                'dashboard',
+            );
+        });
+    }
+
+    private static withGrantAccess(
+        spaceContext: SpaceAccessContextForCasl,
+        userUuid: string,
+        grantRoles: SpaceMemberRole[],
+        grantedVia: GrantSource,
+    ): DashboardAccessContextForCasl {
+        const hasSpacePath =
+            spaceContext.access.some(
+                (access) => access.userUuid === userUuid,
+            ) ||
+            spaceContext.admins.some((admin) => admin.userUuid === userUuid);
+        return {
+            ...spaceContext,
+            access: [
+                ...spaceContext.access,
+                ...grantRoles.map((role) => ({
+                    userUuid,
+                    role,
+                    hasDirectAccess: true,
+                    projectRole: undefined,
+                    inheritedRole: undefined,
+                    inheritedFrom: undefined,
+                    grantedVia,
+                })),
+            ],
+            directOnly: !hasSpacePath,
+        };
     }
 
     /**

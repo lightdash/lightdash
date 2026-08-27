@@ -4,7 +4,6 @@ import { PreAggregateDailyStatsModel } from '../ee/models/PreAggregateDailyStats
 import { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
-import { AppAccessModel } from './AppAccessModel';
 import { AppModel } from './AppModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
 import { CommentModel } from './CommentModel/CommentModel';
@@ -52,9 +51,7 @@ import { PullRequestsModel } from './PullRequestsModel';
 import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { RolesModel } from './RolesModel';
-import { SavedChartAccessModel } from './SavedChartAccessModel';
 import { SavedChartModel } from './SavedChartModel';
-import { SavedSqlAccessModel } from './SavedSqlAccessModel';
 import { SavedSqlModel } from './SavedSqlModel';
 import { SchedulerModel } from './SchedulerModel';
 import { SearchModel } from './SearchModel';
@@ -85,7 +82,6 @@ import { WarehouseConnectCodeModel } from './WarehouseConnectCodeModel';
 
 export type ModelManifest = {
     analyticsModel: AnalyticsModel;
-    appAccessModel: AppAccessModel;
     appModel: AppModel;
     commentModel: CommentModel;
     dashboardModel: DashboardModel;
@@ -129,7 +125,6 @@ export type ModelManifest = {
     resourceViewItemModel: ResourceViewItemModel;
     rolesModel: RolesModel;
     savedChartModel: SavedChartModel;
-    savedChartAccessModel: SavedChartAccessModel;
     schedulerModel: SchedulerModel;
     searchModel: SearchModel;
     sessionModel: SessionModel;
@@ -150,7 +145,6 @@ export type ModelManifest = {
     validationModel: ValidationModel;
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
-    savedSqlAccessModel: SavedSqlAccessModel;
     contentModel: ContentModel;
     contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
     contentVerificationModel: ContentVerificationModel;
@@ -285,13 +279,6 @@ export class ModelRepository
         return this.getModel(
             'analyticsModel',
             () => new AnalyticsModel({ database: this.database }),
-        );
-    }
-
-    public getAppAccessModel(): AppAccessModel {
-        return this.getModel(
-            'appAccessModel',
-            () => new AppAccessModel(this.database),
         );
     }
 
@@ -659,13 +646,6 @@ export class ModelRepository
         );
     }
 
-    public getSavedChartAccessModel(): SavedChartAccessModel {
-        return this.getModel(
-            'savedChartAccessModel',
-            () => new SavedChartAccessModel(this.database),
-        );
-    }
-
     public getSchedulerModel(): SchedulerModel {
         return this.getModel(
             'schedulerModel',
@@ -834,13 +814,6 @@ export class ModelRepository
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
                 }),
-        );
-    }
-
-    public getSavedSqlAccessModel(): SavedSqlAccessModel {
-        return this.getModel(
-            'savedSqlAccessModel',
-            () => new SavedSqlAccessModel(this.database),
         );
     }
 

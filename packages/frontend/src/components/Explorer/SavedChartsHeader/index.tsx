@@ -372,6 +372,21 @@ const SavedChartsHeader: FC = () => {
             user.data.userUuid,
         );
 
+    // Manage access that does NOT rely on a direct dashboard grant. Boundary-
+    // crossing actions (moving a chart out of its dashboard) must not be
+    // offered to grant-only users, whose server-side check stays space-only.
+    const userCanManageChartViaSpace =
+        savedChart &&
+        user.data?.ability?.can(
+            'manage',
+            subject('SavedChart', {
+                ...savedChart,
+                access: (savedChart.access ?? []).filter(
+                    (row) => row.grantedVia === undefined,
+                ),
+            }),
+        );
+
     const userCanViewContentAsCode =
         project &&
         user.data?.ability.can(
@@ -813,7 +828,7 @@ const SavedChartsHeader: FC = () => {
                                             Add to dashboard
                                         </Menu.Item>
                                     )}
-                                {userCanManageChart &&
+                                {userCanManageChartViaSpace &&
                                     savedChart?.dashboardUuid && (
                                         <Menu.Item
                                             leftSection={
