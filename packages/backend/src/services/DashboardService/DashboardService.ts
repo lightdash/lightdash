@@ -1227,6 +1227,10 @@ export class DashboardService
                 subject('Dashboard', {
                     organizationUuid: targetMember.organizationUuid,
                     projectUuid: project.projectUuid,
+                    metadata: {
+                        projectUuid: project.projectUuid,
+                        projectName: project.projectName,
+                    },
                 }),
             ),
         );
