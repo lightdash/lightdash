@@ -7431,6 +7431,20 @@
                 "required": ["order", "name", "uuid"],
                 "type": "object"
             },
+            "DashboardDraftOverlayError": {
+                "properties": {
+                    "draftUuid": {
+                        "type": "string"
+                    },
+                    "code": {
+                        "type": "string",
+                        "enum": ["invalid_dashboard_draft"],
+                        "nullable": false
+                    }
+                },
+                "required": ["draftUuid", "code"],
+                "type": "object"
+            },
             "Required_CreateDashboardTileBase_": {
                 "properties": {
                     "uuid": {
@@ -7814,6 +7828,10 @@
                         "type": "number",
                         "format": "double",
                         "description": "For reviewers: open drafts by other users awaiting review"
+                    },
+                    "draftOverlayError": {
+                        "$ref": "#/components/schemas/DashboardDraftOverlayError",
+                        "description": "The author draft was preserved but could not be safely rendered"
                     },
                     "dashboardVersionId": {
                         "type": "number",
@@ -14319,6 +14337,10 @@
                     "dashboardVersionId": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "draftOverlayError": {
+                        "$ref": "#/components/schemas/DashboardDraftOverlayError",
+                        "description": "The author draft was preserved but could not be safely rendered"
                     },
                     "draftsAwaitingReview": {
                         "type": "number",
@@ -57116,7 +57138,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.33.1",
+        "version": "2.33.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,3 +1,10 @@
+## [2.33.2](https://github.com/lightdash/lightdash/compare/2.33.1...2.33.2) (2026-08-27)
+
+
+### Bug Fixes
+
+* **content-as-code:** surface draft overlay failures to authors ([#28205](https://github.com/lightdash/lightdash/issues/28205)) ([5991536](https://github.com/lightdash/lightdash/commit/59915363f6e5532bcca5573d5bc8a26e5f347460))
+
 ## [2.33.1](https://github.com/lightdash/lightdash/compare/2.33.0...2.33.1) (2026-08-27)
 
 

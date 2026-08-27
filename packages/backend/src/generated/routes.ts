@@ -7037,6 +7037,22 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardDraftOverlayError: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                draftUuid: { dataType: 'string', required: true },
+                code: {
+                    dataType: 'enum',
+                    enums: ['invalid_dashboard_draft'],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Required_CreateDashboardTileBase_: {
         dataType: 'refAlias',
         type: {
@@ -7429,6 +7445,13 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'double' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    draftOverlayError: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'DashboardDraftOverlayError' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -13556,6 +13579,7 @@ const models: TsoaRoute.Models = {
                 uuid: { dataType: 'string', required: true },
                 versionUuid: { dataType: 'string', required: true },
                 dashboardVersionId: { dataType: 'double', required: true },
+                draftOverlayError: { ref: 'DashboardDraftOverlayError' },
                 draftsAwaitingReview: { dataType: 'double' },
                 hasUnpublishedChanges: { dataType: 'boolean' },
                 projectUuid: { dataType: 'string', required: true },
