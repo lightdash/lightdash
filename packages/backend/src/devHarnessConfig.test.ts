@@ -75,11 +75,15 @@ describe('development PM2 harness', () => {
             path.join(repoRoot, 'scripts/dev-fast-start.sh'),
             'utf8',
         );
+        const instanceLib = fs.readFileSync(
+            path.join(repoRoot, 'scripts/dev-instance-lib.sh'),
+            'utf8',
+        );
 
         expect(backendPackage.scripts['generate-api-dev']).toMatch(
             /^pnpm run generate-api:build && chokidar /,
         );
-        expect(fastStart).toMatch(
+        expect(instanceLib).toMatch(
             /for suffix in api api-routes-watch scheduler/,
         );
         expect(fastStart).toContain('API_RELOAD_READY');
