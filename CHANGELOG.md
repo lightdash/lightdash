@@ -1,3 +1,15 @@
+# [2.19.0](https://github.com/lightdash/lightdash/compare/2.18.2...2.19.0) (2026-08-27)
+
+
+### Bug Fixes
+
+* **cli:** restore --show-chart-configuration-warnings as deprecated alias ([#28162](https://github.com/lightdash/lightdash/issues/28162)) ([bbb1e20](https://github.com/lightdash/lightdash/commit/bbb1e20b2c68b143925047f8eb38a4b974329455))
+
+
+### Features
+
+* **embed:** emit event when chart is saved ([#28160](https://github.com/lightdash/lightdash/issues/28160)) ([f485846](https://github.com/lightdash/lightdash/commit/f48584654e8e917cfe39885ce99e56c806dea1e8))
+
 ## [2.18.2](https://github.com/lightdash/lightdash/compare/2.18.1...2.18.2) (2026-08-27)
 
 
