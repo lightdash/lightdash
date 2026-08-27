@@ -142,6 +142,24 @@ pnpm -F common test
 pnpm -F backend test:dev:nowatch # runs only tests for modified files
 ```
 
+When running a specific Vitest file in any package, pass the path directly to
+the package test script:
+
+```bash
+pnpm -F <package> test path/to/file.test.ts
+```
+
+Never insert `--` before the file path. Vitest can ignore the file filter and
+run the entire package test suite:
+
+```bash
+# Wrong — can run every test in the package
+pnpm -F <package> test -- path/to/file.test.ts
+```
+
+For a single-file run, verify the Vitest summary reports one test file. If
+unrelated test files appear, stop the command immediately and correct it.
+
 **API Generation:**
 
 OpenAPI artifacts are generated from TSOA controllers in PR CI for compatibility
