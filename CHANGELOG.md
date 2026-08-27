@@ -1,3 +1,10 @@
+## [2.35.1](https://github.com/lightdash/lightdash/compare/2.35.0...2.35.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* preserve metric formats in pivoted xlsx exports ([#28201](https://github.com/lightdash/lightdash/issues/28201)) ([f823df7](https://github.com/lightdash/lightdash/commit/f823df720f266cc7cc3d99723f2afaeec1d49e9d))
+
 # [2.35.0](https://github.com/lightdash/lightdash/compare/2.34.1...2.35.0) (2026-08-27)
 
 
