@@ -47,6 +47,7 @@ Show the current state of this instance. Run port allocation (Step 0) first, the
 
 ```bash
 ./scripts/dev-ports.sh show
+./scripts/dev-resources.sh report
 ```
 
 Then run the **State Detection** checks below and present the results as a status summary. After showing status, list available commands:
@@ -921,6 +922,18 @@ else:
 PY
 ```
 Restart Claude Code to load the new `statusLine` command. If there's no command-type statusline yet, set `statusLine` to `{"type":"command","command":"$HOME/.lightdash/dev-statusline-hud.sh"}` for a bare URL-only line.
+
+## Session-start resource report
+
+The `SessionStart` hook runs `./scripts/dev-resources.sh hook-start` to report Docker-dev resource use across all claimed instances. It summarises PM2 memory, running containers, and `ld-*` volumes, and flags unclaimed processes or containers as cleanup candidates.
+
+The hook is silent when no Docker-dev resources are present. When it does report, relay the result in 1–2 lines and offer to clean up specific instances with `stop`, `destroy`, `stop-all`, or `gc`.
+
+Run the report at any time with:
+
+```bash
+./scripts/dev-resources.sh report
+```
 
 ## `stop`: Stop This Instance
 
