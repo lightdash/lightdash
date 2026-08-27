@@ -407,9 +407,11 @@ const FilterConfiguration: FC<Props> = ({
         !!draftFilterRule?.required &&
         !hasFilterValueSet(draftFilterRule);
 
-    const applyDisabledTooltipLabel = isLockedRequiredMissingValue
-        ? 'A locked, required filter must have a value'
-        : 'Filter field and value required';
+    const applyDisabledTooltipLabel = getUiString(
+        isLockedRequiredMissingValue
+            ? 'filters.config.applyLockedRequiredTooltip'
+            : 'filters.config.applyRequiredTooltip',
+    );
 
     // Render nested dropdowns inside the popover (not portaled) so selecting an
     // option doesn't register as an outside click and close the whole popover.
@@ -485,13 +487,17 @@ const FilterConfiguration: FC<Props> = ({
                                     size="xs"
                                     label={
                                         <Text fw={500} fz="sm">
-                                            Select a column to filter{' '}
+                                            {getUiString(
+                                                'filters.config.selectColumn',
+                                            )}{' '}
                                             <Text c="red" span>
                                                 *
                                             </Text>{' '}
                                         </Text>
                                     }
-                                    placeholder="Search column..."
+                                    placeholder={getUiString(
+                                        'filters.config.searchColumnPlaceholder',
+                                    )}
                                     comboboxProps={{
                                         withinPortal:
                                             inlinePopoverProps.withinPortal,
@@ -605,11 +611,15 @@ const FilterConfiguration: FC<Props> = ({
                     selectedTabId === FilterTabs.SETTINGS &&
                     !isEditMode && (
                         <Tooltip
-                            label="Reset to original value"
+                            label={getUiString(
+                                'filters.config.resetToOriginal',
+                            )}
                             position="left"
                         >
                             <Button
-                                aria-label="Reset filter to original value"
+                                aria-label={getUiString(
+                                    'filters.config.resetToOriginalAria',
+                                )}
                                 size="xs"
                                 variant="default"
                                 color="gray"

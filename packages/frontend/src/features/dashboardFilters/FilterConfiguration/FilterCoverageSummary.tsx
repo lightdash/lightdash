@@ -7,6 +7,7 @@ import type {
 import { Anchor, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { doesFilterApplyToAnyTile, getTabsForFilterRule } from './utils';
 
 interface FilterCoverageSummaryProps {
@@ -26,6 +27,7 @@ const FilterCoverageSummary: FC<FilterCoverageSummaryProps> = ({
     availableTileFilters,
     onNavigateToTilesTab,
 }) => {
+    const getUiString = useUiStrings();
     const sortedTabUuids = useMemo(
         () => [...tabs].sort((a, b) => a.order - b.order).map((t) => t.uuid),
         [tabs],
@@ -65,14 +67,14 @@ const FilterCoverageSummary: FC<FilterCoverageSummaryProps> = ({
         return (
             <Callout variant="warning">
                 <Text size="xs">
-                    No charts have a matching field for this filter.{' '}
+                    {getUiString('filters.coverage.noMatchingCharts')}{' '}
                     <Anchor
                         component="button"
                         type="button"
                         size="xs"
                         onClick={onNavigateToTilesTab}
                     >
-                        Review tile targets
+                        {getUiString('filters.coverage.reviewTileTargets')}
                     </Anchor>
                 </Text>
             </Callout>
@@ -86,8 +88,8 @@ const FilterCoverageSummary: FC<FilterCoverageSummaryProps> = ({
     return (
         <Callout variant="warning">
             <Text size="xs">
-                This filter won't affect charts on the current tab. <br /> It
-                applies automatically to:{' '}
+                {getUiString('filters.coverage.wontAffectCurrentTab')} <br />{' '}
+                {getUiString('filters.coverage.appliesAutomaticallyTo')}{' '}
                 <strong>{applicableTabNames.join(', ')}</strong>. <br />
                 <Anchor
                     component="button"
@@ -95,7 +97,7 @@ const FilterCoverageSummary: FC<FilterCoverageSummaryProps> = ({
                     size="xs"
                     onClick={onNavigateToTilesTab}
                 >
-                    Review tile targets and change the filter target
+                    {getUiString('filters.coverage.reviewAndChangeTarget')}
                 </Anchor>
             </Text>
         </Callout>

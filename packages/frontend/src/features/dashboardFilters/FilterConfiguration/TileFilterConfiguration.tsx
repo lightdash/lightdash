@@ -1,5 +1,6 @@
 import {
     getItemId,
+    interpolateUiString,
     isDashboardChartTileType,
     isDashboardDataAppTileType,
     isDashboardFieldTarget,
@@ -36,6 +37,7 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { FilterActions } from './constants';
 import classes from './FilterConfiguration.module.css';
@@ -116,6 +118,7 @@ const TileFilterConfiguration: FC<Props> = ({
     onChange,
     onToggleAll,
 }) => {
+    const getUiString = useUiStrings();
     const [collapsedTabs, setCollapsedTabs] = useState<Record<string, boolean>>(
         {},
     );
@@ -412,7 +415,11 @@ const TileFilterConfiguration: FC<Props> = ({
                     size="xs"
                     variant="subtle"
                     onClick={toggleCollapse}
-                    aria-label={isCollapsed ? 'Expand tab' : 'Collapse tab'}
+                    aria-label={getUiString(
+                        isCollapsed
+                            ? 'filters.config.expandTab'
+                            : 'filters.config.collapseTab',
+                    )}
                 >
                     <MantineIcon
                         icon={isCollapsed ? IconChevronRight : IconChevronDown}
@@ -476,7 +483,7 @@ const TileFilterConfiguration: FC<Props> = ({
                     mt={isNested ? 'lg' : undefined}
                     ml={isNested ? 22 : undefined}
                 >
-                    No tiles in this tab
+                    {getUiString('filters.config.noTilesInTab')}
                 </Text>
             );
         }
@@ -499,8 +506,15 @@ const TileFilterConfiguration: FC<Props> = ({
                             <Tooltip
                                 label={
                                     value.invalidField
-                                        ? `The selected field '${value.invalidField}' is not available in this chart`
-                                        : 'No fields matching filter type'
+                                        ? interpolateUiString(
+                                              getUiString(
+                                                  'filters.config.fieldNotAvailableInChart',
+                                              ),
+                                              { field: value.invalidField },
+                                          )
+                                        : getUiString(
+                                              'filters.config.noFieldsMatchingType',
+                                          )
                                 }
                                 position="top-start"
                                 disabled={

@@ -182,7 +182,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 )}
                 {isCreatingNew && !isEditMode && (
                     <Text size="xs" fw={500}>
-                        Value
+                        {getUiString('filters.config.valueLabel')}
                     </Text>
                 )}
 
@@ -301,14 +301,14 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 FilterOperator.NOT_NULL,
                             ].includes(filterRule.operator) && (
                                 <Tooltip
-                                    label={
+                                    label={getUiString(
                                         filterRule.disabled
-                                            ? 'Already showing any value'
+                                            ? 'filters.config.alreadyAnyValue'
                                             : (filterRule.values?.length ??
                                                     0) === 0
-                                              ? 'No value to clear'
-                                              : 'Clear to any value'
-                                    }
+                                              ? 'filters.config.noValueToClear'
+                                              : 'filters.config.clearToAnyValue',
+                                    )}
                                 >
                                     <ActionIcon
                                         variant="subtle"

@@ -128,10 +128,10 @@ const AddFilterButton: FC<Props> = ({
     if (isAddFilterDisabled && !isEditMode) {
         if (showResetFiltersButton)
             return (
-                <Tooltip label="Reset all filters" withinPortal>
+                <Tooltip label={getUiString('filters.resetAll')} withinPortal>
                     <Button
                         data-dashboard-filter-control
-                        aria-label="Reset all filters"
+                        aria-label={getUiString('filters.resetAll')}
                         size="xs"
                         variant="default"
                         radius="md"

@@ -141,6 +141,25 @@
         "filters.unitsOfTime.months.completedSingular": "დასრულებული თვე",
         "filters.unitsOfTime.months.completedPlural": "დასრულებული თვეები",
         "filters.unitsOfTime.years.completedSingular": "დასრულებული წელი",
-        "filters.unitsOfTime.years.completedPlural": "დასრულებული წლები"
+        "filters.unitsOfTime.years.completedPlural": "დასრულებული წლები",
+        "filters.actions.cancel": "გაუქმება",
+        "filters.actions.clearAll": "ყველას გასუფთავება",
+        "filters.config.resetToOriginal": "თავდაპირველ მნიშვნელობაზე დაბრუნება",
+        "filters.config.valueLabel": "მნიშვნელობა",
+        "filters.config.noMatchingFields": "შესაბამისი ველები ვერ მოიძებნა",
+        "filters.config.fieldsInThisTab": "ველები ამ ჩანართში",
+        "filters.config.otherAvailableFields": "სხვა ხელმისაწვდომი ველები",
+        "filters.notAppliedToAnyTiles": "ეს ფილტრი არცერთ ფილას არ ეხება",
+        "filters.invalidFilter": "არასწორი ფილტრი",
+        "filters.crossFilter.showOnly": "მხოლოდ ჩვენება",
+        "filters.crossFilter.exclude": "გამორიცხვა",
+        "filters.inputs.startDate": "დაწყების თარიღი",
+        "filters.inputs.endDate": "დასრულების თარიღი",
+        "filters.inputs.minValue": "მინიმალური მნიშვნელობა",
+        "filters.inputs.maxValue": "მაქსიმალური მნიშვნელობა",
+        "filters.inputs.singleValue": "ერთი მნიშვნელობა",
+        "filters.inputs.multipleValues": "რამდენიმე მნიშვნელობა",
+        "filters.manageValues.title": "მნიშვნელობების მართვა",
+        "filters.manageValues.searchPlaceholder": "მნიშვნელობების ძებნა…"
     }
 }

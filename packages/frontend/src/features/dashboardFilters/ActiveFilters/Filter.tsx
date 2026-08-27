@@ -66,7 +66,7 @@ type Props = {
 const Filter: FC<Props> = ({
     isEditMode,
     isOrphaned,
-    orphanedTooltip = 'This filter is not applied to any tiles',
+    orphanedTooltip,
     isTemporary,
     field,
     filterRule,
@@ -290,7 +290,8 @@ const Filter: FC<Props> = ({
                         label={
                             isReadOnlyLocked
                                 ? 'Locked by the dashboard editor — switch to edit mode to change it'
-                                : orphanedTooltip
+                                : (orphanedTooltip ??
+                                  getUiString('filters.notAppliedToAnyTiles'))
                         }
                         disabled={!isOrphaned && !isReadOnlyLocked}
                         withinPortal
@@ -404,11 +405,11 @@ const Filter: FC<Props> = ({
                                     {!isEditMode && isLocked && (
                                         <span
                                             className={classes.lockSlotActive}
-                                            aria-label={
+                                            aria-label={getUiString(
                                                 hasTabs
-                                                    ? 'Filter is locked on this tab'
-                                                    : 'Filter is locked'
-                                            }
+                                                    ? 'filters.filterIsLockedOnTab'
+                                                    : 'filters.filterIsLocked',
+                                            )}
                                         >
                                             <MantineIcon
                                                 size="sm"
@@ -460,9 +461,12 @@ const Filter: FC<Props> = ({
                                         offset={8}
                                         label={
                                             <Text>
-                                                {filterRuleTables?.length === 1
-                                                    ? 'Table: '
-                                                    : 'Tables: '}
+                                                {getUiString(
+                                                    filterRuleTables?.length ===
+                                                        1
+                                                        ? 'filters.tableLabel'
+                                                        : 'filters.tablesLabel',
+                                                )}
                                                 <Text span fw={600}>
                                                     {filterRuleTables?.join(
                                                         ', ',

@@ -296,7 +296,9 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                     />
                     <Combobox.Options>
                         {totalFields === 0 ? (
-                            <Combobox.Empty>No matching fields</Combobox.Empty>
+                            <Combobox.Empty>
+                                {getUiString('filters.config.noMatchingFields')}
+                            </Combobox.Empty>
                         ) : (
                             <Box
                                 mah={DROPDOWN_MAX_HEIGHT}

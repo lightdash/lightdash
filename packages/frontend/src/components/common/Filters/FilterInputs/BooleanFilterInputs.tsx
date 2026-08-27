@@ -42,8 +42,14 @@ const BooleanFilterInputs = <T extends BaseFilterRule>(
                     defaultDropdownOpened={currentValue === null && !disabled}
                     placeholder={placeholder}
                     data={[
-                        { value: 'true', label: 'True' },
-                        { value: 'false', label: 'False' },
+                        {
+                            value: 'true',
+                            label: getUiString('filters.values.true'),
+                        },
+                        {
+                            value: 'false',
+                            label: getUiString('filters.values.false'),
+                        },
                     ]}
                     value={currentValue}
                     onChange={(value) =>

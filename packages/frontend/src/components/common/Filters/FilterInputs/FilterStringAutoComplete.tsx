@@ -78,6 +78,7 @@ const RefreshIndicator: FC<{
     refreshedAtRef: React.RefObject<Date>;
     onRefresh: () => void;
 }> = ({ refreshedAtRef, onRefresh }) => {
+    const getUiString = useUiStrings();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [displayTime, setDisplayTime] = useState(
         refreshedAtRef.current.toLocaleString(),
@@ -87,7 +88,7 @@ const RefreshIndicator: FC<{
         <Tooltip
             withinPortal
             position="left"
-            label="Click to refresh filter values"
+            label={getUiString('filters.autocomplete.refreshTooltip')}
         >
             <Text
                 size="xs"
@@ -99,7 +100,10 @@ const RefreshIndicator: FC<{
                     setIsRefreshing(true);
                 }}
             >
-                Results loaded at {displayTime}{' '}
+                {interpolateUiString(
+                    getUiString('filters.autocomplete.resultsLoadedAt'),
+                    { time: displayTime },
+                )}{' '}
                 <MantineIcon
                     icon={IconRefresh}
                     display="inline"
@@ -342,7 +346,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                 onClose={closeManageValues}
                 values={values}
                 onChange={handleChange}
-                title="Manage filter values"
+                title={getUiString('filters.manageValues.filterValuesTitle')}
             />
 
             <MultiValuePastePopover
