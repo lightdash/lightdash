@@ -1,3 +1,10 @@
+## [2.34.1](https://github.com/lightdash/lightdash/compare/2.34.0...2.34.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **ai-agent:** scale down writeback card typography ([#28209](https://github.com/lightdash/lightdash/issues/28209)) ([0cb6fd7](https://github.com/lightdash/lightdash/commit/0cb6fd74f339071d05f1c1ef6c2e8fb5303422e7))
+
 # [2.34.0](https://github.com/lightdash/lightdash/compare/2.33.2...2.34.0) (2026-08-27)
 
 
