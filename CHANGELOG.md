@@ -1,3 +1,15 @@
+# [2.33.0](https://github.com/lightdash/lightdash/compare/2.32.0...2.33.0) (2026-08-27)
+
+
+### Bug Fixes
+
+* **previews:** copy additional dbt sources ([#28178](https://github.com/lightdash/lightdash/issues/28178)) ([a6b70df](https://github.com/lightdash/lightdash/commit/a6b70dfaf8db052cfc74996ea2f62f3f33d72185))
+
+
+### Features
+
+* classify AI prompts that need user input ([#28093](https://github.com/lightdash/lightdash/issues/28093)) ([f02245f](https://github.com/lightdash/lightdash/commit/f02245fba8662d154b060024beefc0436a962322))
+
 # [2.32.0](https://github.com/lightdash/lightdash/compare/2.31.1...2.32.0) (2026-08-27)
 
 
