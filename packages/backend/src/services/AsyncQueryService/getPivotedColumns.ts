@@ -1,6 +1,10 @@
 import {
     DimensionType,
+    getResultColumnMetadataFromItem,
     normalizeIndexColumns,
+    type ItemsMap,
+    type ParametersValuesMap,
+    type PivotValuesColumn,
     type QueryHistory,
     type ResultColumns,
 } from '@lightdash/common';
@@ -8,7 +12,9 @@ import {
 export function getPivotedColumns(
     unpivotedColumns: ResultColumns,
     pivotConfiguration: NonNullable<QueryHistory['pivotConfiguration']>,
-    pivotValuesColumns: string[],
+    pivotValuesColumns: PivotValuesColumn[],
+    itemsMap?: ItemsMap,
+    usedParameters?: ParametersValuesMap | null,
 ): ResultColumns {
     const { indexColumn, passthroughDimensions } = pivotConfiguration;
     const indexColumns = normalizeIndexColumns(indexColumn);
@@ -45,15 +51,31 @@ export function getPivotedColumns(
     return {
         ...indexColumnsResult,
         ...passthroughColumnsResult,
-        ...pivotValuesColumns.reduce(
-            (acc, valueColumn) => ({
-                ...acc,
-                [valueColumn]: {
-                    reference: valueColumn,
-                    type: DimensionType.NUMBER,
-                },
-            }),
-            {},
-        ),
+        ...pivotValuesColumns.reduce<ResultColumns>((acc, valueColumn) => {
+            const sourceItem = itemsMap?.[valueColumn.referenceField];
+            const metadata = getResultColumnMetadataFromItem(
+                sourceItem,
+                valueColumn.referenceField,
+                usedParameters,
+            );
+            // Compose the label from the source metric's label and the
+            // (already formatted) pivot values, mirroring how the frontend
+            // joins pivot values with ' - ' for series names.
+            const pivotValuesLabel = valueColumn.pivotValues
+                .map(
+                    (pivotValue) =>
+                        pivotValue.formatted ?? String(pivotValue.value),
+                )
+                .join(' - ');
+            if (metadata.label && pivotValuesLabel) {
+                metadata.label = `${metadata.label} - ${pivotValuesLabel}`;
+            }
+            acc[valueColumn.pivotColumnName] = {
+                reference: valueColumn.pivotColumnName,
+                type: DimensionType.NUMBER,
+                ...metadata,
+            };
+            return acc;
+        }, {}),
     };
 }

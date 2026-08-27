@@ -3,6 +3,7 @@ import type {
     ExecuteAsyncQueryRequestParams,
     ItemsMap,
     MetricQuery,
+    ParametersValuesMap,
     PivotConfiguration,
     PivotValuesColumn,
     PreAggregateExecutionEngine,
@@ -30,6 +31,7 @@ export type DbQueryHistory = {
     metric_query: MetricQuery;
     fields: ItemsMap;
     request_parameters: ExecuteAsyncQueryRequestParams;
+    used_parameters: ParametersValuesMap | null;
     total_row_count: number | null;
     warehouse_execution_time_ms: number | null;
     error: string | null;

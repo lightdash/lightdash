@@ -380,6 +380,7 @@ export * from './utils/i18n/types';
 export * from './utils/item';
 export * from './utils/mergeQueryItems';
 export * from './utils/queryHistoryList';
+export * from './utils/resultColumns';
 export * from './utils/loadLightdashProjectConfig';
 export * from './utils/lightdashSqlVariables';
 export * from './utils/metricsExplorer';
