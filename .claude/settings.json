@@ -21,6 +21,12 @@
             "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-exedev-dev.sh\" hook-start",
             "timeout": 600,
             "statusMessage": "Provisioning the Lightdash exe.dev VM"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/dev-resources.sh\" hook-start",
+            "timeout": 30,
+            "statusMessage": "Checking Docker dev resource usage"
           }
         ]
       }
