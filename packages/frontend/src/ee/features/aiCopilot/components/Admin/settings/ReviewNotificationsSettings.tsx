@@ -11,14 +11,14 @@ import {
     Title,
 } from '@mantine/core';
 import { Link } from 'react-router';
-import { SlackChannelSelect } from '../../../../../../components/common/SlackChannelSelect';
 import {
     useLinearInstallation,
     useLinearProjects,
     useLinearTeams,
 } from '../../../../../../components/common/LinearIntegration/hooks/useLinearIntegration';
-import { useGetSlack } from '../../../../../../hooks/slack/useSlack';
+import { SlackChannelSelect } from '../../../../../../components/common/SlackChannelSelect';
 import useHealth from '../../../../../../hooks/health/useHealth';
+import { useGetSlack } from '../../../../../../hooks/slack/useSlack';
 import useApp from '../../../../../../providers/App/useApp';
 import {
     useReviewNotificationSettings,
@@ -94,8 +94,7 @@ export const ReviewNotificationsSettings = () => {
                                 onChange={(event) =>
                                     updateSettings({
                                         enabled: event.currentTarget.checked,
-                                        slackChannelId:
-                                            settings.slackChannelId,
+                                        slackChannelId: settings.slackChannelId,
                                         linearEnabled: settings.linearEnabled,
                                         linearTeamId: settings.linearTeamId,
                                         linearProjectId:
@@ -141,22 +140,23 @@ export const ReviewNotificationsSettings = () => {
                                 Linear issues
                             </Title>
                             <Text c="dimmed" fz="xs">
-                                Create a Linear issue when a review run
-                                surfaces a new finding. Choose a team and
-                                optionally a project.
+                                Create a Linear issue when a review run surfaces
+                                a new finding. Choose a team and optionally a
+                                project.
                             </Text>
-                            {!hasLinear && !linearInstallationQuery.isInitialLoading && (
-                                <Text c="dimmed" fz="xs" mt="xs">
-                                    Connect Linear in{' '}
-                                    <Anchor
-                                        component={Link}
-                                        to="/generalSettings/integrations"
-                                    >
-                                        Integrations
-                                    </Anchor>{' '}
-                                    to send new issues there.
-                                </Text>
-                            )}
+                            {!hasLinear &&
+                                !linearInstallationQuery.isInitialLoading && (
+                                    <Text c="dimmed" fz="xs" mt="xs">
+                                        Connect Linear in{' '}
+                                        <Anchor
+                                            component={Link}
+                                            to="/generalSettings/integrations"
+                                        >
+                                            Integrations
+                                        </Anchor>{' '}
+                                        to send new issues there.
+                                    </Text>
+                                )}
                         </Box>
                         {isInitialLoading ||
                         !settings ||
@@ -176,8 +176,7 @@ export const ReviewNotificationsSettings = () => {
                                 onChange={(event) =>
                                     updateSettings({
                                         enabled: settings.enabled,
-                                        slackChannelId:
-                                            settings.slackChannelId,
+                                        slackChannelId: settings.slackChannelId,
                                         linearEnabled:
                                             event.currentTarget.checked,
                                         linearTeamId: settings.linearTeamId,
@@ -211,8 +210,7 @@ export const ReviewNotificationsSettings = () => {
                                 onChange={(linearTeamId) =>
                                     updateSettings({
                                         enabled: settings.enabled,
-                                        slackChannelId:
-                                            settings.slackChannelId,
+                                        slackChannelId: settings.slackChannelId,
                                         linearEnabled: true,
                                         linearTeamId,
                                         linearProjectId: null,
@@ -241,8 +239,7 @@ export const ReviewNotificationsSettings = () => {
                                 onChange={(linearProjectId) =>
                                     updateSettings({
                                         enabled: settings.enabled,
-                                        slackChannelId:
-                                            settings.slackChannelId,
+                                        slackChannelId: settings.slackChannelId,
                                         linearEnabled: true,
                                         linearTeamId: settings.linearTeamId,
                                         linearProjectId,

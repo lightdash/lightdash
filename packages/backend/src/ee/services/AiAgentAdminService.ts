@@ -1039,17 +1039,25 @@ export class AiAgentAdminService extends BaseService {
         }
         this.checkOrganizationAdminAccess(user);
 
-        if (settings.linearEnabled && !settings.linearTeamId) {
+        const currentSettings =
+            await this.aiAgentReviewNotificationModel.getSettings(
+                organizationUuid,
+            );
+        const updatedSettings = {
+            ...currentSettings,
+            ...settings,
+        };
+
+        if (updatedSettings.linearEnabled && !updatedSettings.linearTeamId) {
             throw new ParameterError(
                 'A Linear team is required to create review issues',
             );
         }
 
         const updated =
-            await this.aiAgentReviewNotificationModel.upsertSettings({
-                organizationUuid,
-                ...settings,
-            });
+            await this.aiAgentReviewNotificationModel.upsertSettings(
+                updatedSettings,
+            );
 
         // Slack rejects chat.postMessage with not_in_channel unless the app is
         // a member, so join on save the same way scheduled deliveries do.

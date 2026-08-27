@@ -29,8 +29,14 @@ export type AiReviewNotificationSettings = {
 
 export type UpdateAiReviewNotificationSettings = Pick<
     AiReviewNotificationSettings,
-    'enabled' | 'slackChannelId' | 'linearEnabled' | 'linearTeamId' | 'linearProjectId'
->;
+    'enabled' | 'slackChannelId'
+> &
+    Partial<
+        Pick<
+            AiReviewNotificationSettings,
+            'linearEnabled' | 'linearTeamId' | 'linearProjectId'
+        >
+    >;
 
 export type ApiAiReviewNotificationSettingsResponse =
     ApiSuccess<AiReviewNotificationSettings>;
