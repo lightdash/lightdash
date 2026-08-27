@@ -1,3 +1,10 @@
+# [2.36.0](https://github.com/lightdash/lightdash/compare/2.35.2...2.36.0) (2026-08-27)
+
+
+### Features
+
+* **ai:** group composer actions in one menu ([#28231](https://github.com/lightdash/lightdash/issues/28231)) ([b369f29](https://github.com/lightdash/lightdash/commit/b369f29488ee63eb18f3872cff4a378406af955e))
+
 ## [2.35.2](https://github.com/lightdash/lightdash/compare/2.35.1...2.35.2) (2026-08-27)
 
 
