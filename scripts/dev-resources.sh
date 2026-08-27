@@ -217,6 +217,7 @@ services = (
 )
 
 claimed_pm2_names = set()
+current_root_matched = False
 for instance in instances:
     # Exact names, not a prefix match: instance "foo" must not claim "foo-bar-api".
     expected_names = {instance["id"] + "-" + service for service in services}
@@ -235,7 +236,11 @@ for instance in instances:
     line = "; ".join(parts)
     if current_root and os.path.realpath(instance["worktree"]) == os.path.realpath(current_root):
         line += " (this worktree)"
+        current_root_matched = True
     print(line)
+
+if current_root and instances and not current_root_matched:
+    print("this worktree: no claimed instance (none of the above is this checkout)")
 
 if docker_reachable:
     shared_count = sum(name.startswith("ld-shared-") for name in containers)
