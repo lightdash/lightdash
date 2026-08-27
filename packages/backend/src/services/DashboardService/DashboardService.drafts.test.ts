@@ -145,6 +145,17 @@ describe('DashboardService drafts gating (sync + git-backed only)', () => {
         });
     });
 
+    it('rejects an invalid draft before persisting it', async () => {
+        const { service, upsertOpenDraft } = buildService();
+
+        await expect(
+            service['maybeStoreDraft'](editorUser, dashboardDao, {
+                tiles: 'not-an-array',
+            }),
+        ).rejects.toThrow('Invalid dashboard draft field: tiles');
+        expect(upsertOpenDraft).not.toHaveBeenCalled();
+    });
+
     it('publishes normally when the repo never opted into sync', async () => {
         const { service, snapshotGet, upsertOpenDraft } = buildService({
             settings: undefined,
@@ -193,13 +204,30 @@ describe('DashboardService drafts gating (sync + git-backed only)', () => {
 describe('DashboardService draft overlay is opt-in', () => {
     afterEach(() => vi.clearAllMocks());
 
-    const buildReadService = () => {
-        const findOpenDraft = vi
-            .fn()
-            .mockResolvedValue({ draft: { name: 'Weekly KPIs (drafted)' } });
+    const buildReadService = (
+        draftFieldsForRead: object = { name: 'Weekly KPIs (drafted)' },
+    ) => {
+        const findOpenDraft = vi.fn(
+            async (
+                _projectUuid: string,
+                _contentType: string,
+                _contentUuid: string,
+                authorUserUuid: string,
+            ) =>
+                authorUserUuid === 'author-uuid'
+                    ? {
+                          uuid: 'draft-uuid',
+                          draft: draftFieldsForRead,
+                      }
+                    : undefined,
+        );
+        const updateDraft = vi.fn();
         const { service } = buildService();
         // Replace the collaborators the read path needs
-        (service as AnyType).contentDraftModel = { findOpenDraft };
+        (service as AnyType).contentDraftModel = {
+            findOpenDraft,
+            update: updateDraft,
+        };
         (service as AnyType).dashboardModel = {
             getByIdOrSlug: vi.fn().mockResolvedValue(dashboardDao),
         };
@@ -215,7 +243,7 @@ describe('DashboardService draft overlay is opt-in', () => {
                 { action: 'view', subject: 'Dashboard' },
             ]),
         } as unknown as SessionUser;
-        return { service, viewer, findOpenDraft };
+        return { service, viewer, findOpenDraft, updateDraft };
     };
 
     it('getByIdOrSlug returns the published dashboard and never reads drafts', async () => {
@@ -238,6 +266,55 @@ describe('DashboardService draft overlay is opt-in', () => {
 
         expect(dashboard.name).toBe('Weekly KPIs (drafted)');
         expect(dashboard.hasUnpublishedChanges).toBe(true);
+    });
+
+    it('returns published content with a typed failure when the author draft is corrupt', async () => {
+        const { service, viewer, updateDraft } = buildReadService({
+            tiles: 'not-an-array',
+        });
+
+        const dashboard = await service.getByIdOrSlugForViewer(
+            viewer,
+            'weekly-kpis',
+        );
+
+        expect(dashboard).toMatchObject({
+            name: 'Weekly KPIs',
+            tiles: [],
+            draftOverlayError: {
+                code: 'invalid_dashboard_draft',
+                draftUuid: 'draft-uuid',
+            },
+        });
+        expect(dashboard.hasUnpublishedChanges).toBeUndefined();
+        expect(updateDraft).not.toHaveBeenCalled();
+    });
+
+    it('does not expose another author corrupt draft or its failure', async () => {
+        const { service, viewer, findOpenDraft } = buildReadService({
+            tiles: 'not-an-array',
+        });
+        const otherViewer = {
+            ...viewer,
+            userUuid: 'other-viewer-uuid',
+        } as SessionUser;
+
+        const dashboard = await service.getByIdOrSlugForViewer(
+            otherViewer,
+            'weekly-kpis',
+        );
+
+        expect(dashboard).toMatchObject({
+            name: 'Weekly KPIs',
+            tiles: [],
+        });
+        expect(dashboard).not.toHaveProperty('draftOverlayError');
+        expect(findOpenDraft).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            'dashboard',
+            'dashboard-uuid',
+            'other-viewer-uuid',
+        );
     });
 });
 

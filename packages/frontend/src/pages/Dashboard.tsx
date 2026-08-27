@@ -34,6 +34,7 @@ import { DashboardExportModal } from '../components/common/modal/DashboardExport
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { useDashboardCommentsCheck } from '../features/comments';
+import DraftOverlayFailureAlert from '../features/contentAsCode/components/DraftOverlayFailureAlert';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
 import {
@@ -1012,6 +1013,12 @@ const Dashboard: FC = () => {
             >
                 <div>
                     <DashboardHeader {...dashboardHeaderProps} />
+
+                    {dashboard.draftOverlayError ? (
+                        <DraftOverlayFailureAlert
+                            error={dashboard.draftOverlayError}
+                        />
+                    ) : null}
 
                     {/* Coordinates filter chip / rules popovers across the dashboard */}
                     <FilterBarPopoversProvider>

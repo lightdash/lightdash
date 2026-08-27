@@ -10,6 +10,7 @@ describeContentAsCodeSchemaContract({
         'deletedAt',
         'deletedBy',
         // Overlay flags for unpublished drafts; not part of the as-code document.
+        'draftOverlayError',
         'draftsAwaitingReview',
         'firstViewedAt',
         'hasUnpublishedChanges',

@@ -138,6 +138,44 @@ type DashboardServiceArguments = {
     contentVerificationModel: ContentVerificationModel;
 };
 
+type DashboardDraftOverlay = Partial<
+    Pick<
+        DashboardDAO,
+        'name' | 'description' | 'tiles' | 'filters' | 'tabs' | 'config'
+    >
+>;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const assertDashboardDraftOverlay: (
+    draft: unknown,
+) => asserts draft is DashboardDraftOverlay = (draft) => {
+    if (!isRecord(draft)) {
+        throw new Error('Dashboard draft must be an object');
+    }
+    const validators: Record<
+        keyof DashboardDraftOverlay,
+        (value: unknown) => boolean
+    > = {
+        name: (value) => typeof value === 'string',
+        description: (value) => typeof value === 'string',
+        tiles: Array.isArray,
+        filters: isRecord,
+        tabs: Array.isArray,
+        config: isRecord,
+    };
+    for (const [field, validate] of Object.entries(validators)) {
+        if (
+            Object.prototype.hasOwnProperty.call(draft, field) &&
+            draft[field] !== undefined &&
+            !validate(draft[field])
+        ) {
+            throw new Error(`Invalid dashboard draft field: ${field}`);
+        }
+    }
+};
+
 export class DashboardService
     extends BaseService
     implements BulkActionable<Knex>, SoftDeletableService
@@ -1703,9 +1741,10 @@ export class DashboardService
 
     private static mergeDraftIntoDashboard<T extends DashboardDAO>(
         dashboard: T,
-        draft: object,
+        draft: unknown,
     ): T {
-        const fields = draft as Partial<DashboardDAO>;
+        assertDashboardDraftOverlay(draft);
+        const fields = draft;
         return {
             ...dashboard,
             ...(fields.name !== undefined && { name: fields.name }),
@@ -1748,6 +1787,10 @@ export class DashboardService
         ) {
             return undefined;
         }
+        const overlaid = DashboardService.mergeDraftIntoDashboard(
+            existingDashboardDao,
+            dashboardFields,
+        );
         await this.contentDraftModel.upsertOpenDraft({
             projectUuid: existingDashboardDao.projectUuid,
             contentType: 'dashboard',
@@ -1756,10 +1799,6 @@ export class DashboardService
             authorUserUuid: user.userUuid,
             draft: dashboardFields,
         });
-        const overlaid = DashboardService.mergeDraftIntoDashboard(
-            existingDashboardDao,
-            dashboardFields,
-        );
         const space = await this.spacePermissionService.resolveAccess(
             user.userUuid,
             { type: 'space', spaceUuid: existingDashboardDao.spaceUuid },
@@ -1788,13 +1827,35 @@ export class DashboardService
                 user.userUuid,
             );
             if (draft) {
-                return {
-                    ...DashboardService.mergeDraftIntoDashboard(
-                        dashboard,
-                        draft.draft,
-                    ),
-                    hasUnpublishedChanges: true,
-                };
+                try {
+                    return {
+                        ...DashboardService.mergeDraftIntoDashboard(
+                            dashboard,
+                            draft.draft,
+                        ),
+                        hasUnpublishedChanges: true,
+                    };
+                } catch (error) {
+                    this.logger.warn(
+                        'Draft overlay failed; serving published dashboard',
+                        {
+                            projectUuid: dashboard.projectUuid,
+                            dashboardUuid: dashboard.uuid,
+                            draftUuid: draft.uuid,
+                            error:
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error),
+                        },
+                    );
+                    return {
+                        ...dashboard,
+                        draftOverlayError: {
+                            code: 'invalid_dashboard_draft',
+                            draftUuid: draft.uuid,
+                        },
+                    };
+                }
             }
             // Reviewers get an entry point when others have open drafts here
             if (

@@ -252,6 +252,11 @@ export type DashboardOwner = {
     email: string | null;
 };
 
+export type DashboardDraftOverlayError = {
+    code: 'invalid_dashboard_draft';
+    draftUuid: string;
+};
+
 export type Dashboard = {
     organizationUuid: string;
     projectUuid: string;
@@ -259,6 +264,8 @@ export type Dashboard = {
     hasUnpublishedChanges?: boolean;
     /** For reviewers: open drafts by other users awaiting review */
     draftsAwaitingReview?: number;
+    /** The author draft was preserved but could not be safely rendered */
+    draftOverlayError?: DashboardDraftOverlayError;
     dashboardVersionId: number;
     versionUuid: string;
     uuid: string;
