@@ -2086,6 +2086,95 @@ describe('resolveAccessBatch', () => {
         expect(dashboardAccessModel.getUserAccess).not.toHaveBeenCalled();
     });
 
+    test('duplicate granted targets resolve through the grant path with one deduped lookup, identities kept', async () => {
+        const { service, dashboardAccessModel } = createService({
+            enabled: true,
+            contexts: { 'space-a': baseContext },
+            grants: {
+                'dash-a': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid: 'space-a',
+                    userRole: SpaceMemberRole.EDITOR,
+                    groupRoles: [],
+                },
+            },
+        });
+        const firstTarget = {
+            type: 'dashboard' as const,
+            dashboardUuid: 'dash-a',
+            spaceUuid: 'space-a',
+        };
+        const duplicateTarget = {
+            type: 'dashboard' as const,
+            dashboardUuid: 'dash-a',
+            spaceUuid: 'space-a',
+        };
+
+        const result = await service.resolveAccessBatch('user-uuid', [
+            firstTarget,
+            duplicateTarget,
+        ]);
+
+        expect(result[0].target).toBe(firstTarget);
+        expect(result[1].target).toBe(duplicateTarget);
+        result.forEach(({ context }) => {
+            expect(context?.access).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ grantedVia: 'dashboard' }),
+                ]),
+            );
+        });
+        expect(dashboardAccessModel.getUserAccess).toHaveBeenCalledTimes(1);
+        expect(dashboardAccessModel.getUserAccess).toHaveBeenCalledWith(
+            ['dash-a'],
+            'user-uuid',
+            { organizationUuid: 'organization-uuid' },
+        );
+    });
+
+    test('an unresolvable target stays aligned as undefined amid resolved neighbours', async () => {
+        const { service } = createService({
+            enabled: true,
+            contexts: { 'space-a': baseContext },
+            grants: {
+                'dash-a': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid: 'space-a',
+                    userRole: SpaceMemberRole.VIEWER,
+                    groupRoles: [],
+                },
+            },
+        });
+
+        const targets = [
+            {
+                type: 'dashboard' as const,
+                dashboardUuid: 'dash-a',
+                spaceUuid: 'space-a',
+            },
+            { type: 'space' as const, spaceUuid: 'ghost-space' },
+            { type: 'space' as const, spaceUuid: 'space-a' },
+        ];
+        const result = await service.resolveAccessBatch('user-uuid', targets);
+
+        expect(result).toHaveLength(3);
+        result.forEach(({ target }, index) => {
+            expect(target).toBe(targets[index]);
+        });
+        expect(result[0].context?.access).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ grantedVia: 'dashboard' }),
+            ]),
+        );
+        expect(result[1].context).toBeUndefined();
+        expect(result[2].context).toEqual({
+            ...baseContext,
+            directOnly: false,
+        });
+    });
+
     test('feature off returns space-only for every ref without a grant lookup', async () => {
         const {
             service,

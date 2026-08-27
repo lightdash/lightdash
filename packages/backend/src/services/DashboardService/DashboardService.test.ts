@@ -1061,6 +1061,46 @@ describe('DashboardService', () => {
 
         expect(result).toEqual([]);
     });
+    test('correlates access by target, not position: reversed batch results change nothing', async () => {
+        (
+            spacePermissionService.resolveAccessBatch as import('vitest').Mock
+        ).mockImplementationOnce(
+            async (_userUuid: string, targets: { spaceUuid: string }[]) =>
+                targets
+                    .map((target) => ({
+                        target,
+                        context: {
+                            ...lookupSpaceContext(target.spaceUuid),
+                            directOnly: false,
+                        },
+                    }))
+                    .reverse(),
+        );
+
+        const result = await service.getAllByProject(
+            user,
+            projectUuid,
+            undefined,
+        );
+
+        expect(result).toEqual(dashboardsDetails);
+    });
+    test('fails closed when a batch context is undefined (unresolvable space)', async () => {
+        (
+            spacePermissionService.resolveAccessBatch as import('vitest').Mock
+        ).mockImplementationOnce(
+            async (_userUuid: string, targets: { spaceUuid: string }[]) =>
+                targets.map((target) => ({ target, context: undefined })),
+        );
+
+        const result = await service.getAllByProject(
+            user,
+            projectUuid,
+            undefined,
+        );
+
+        expect(result).toEqual([]);
+    });
     test('should preserve dashboard verification when verifier updates details', async () => {
         contentVerificationModel.getByContent.mockResolvedValue({
             verifiedBy: {

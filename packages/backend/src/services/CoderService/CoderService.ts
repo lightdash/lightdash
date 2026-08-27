@@ -127,7 +127,10 @@ import { ProjectService } from '../ProjectService/ProjectService';
 import { PromoteService } from '../PromoteService/PromoteService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SchedulerService } from '../SchedulerService/SchedulerService';
-import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import {
+    spaceContextsByUuid,
+    type SpacePermissionService,
+} from '../SpaceService/SpacePermissionService';
 import {
     getChartContentAsCodePermissionChecks,
     type ContentAsCodeSqlPermissionCheckResult,
@@ -3850,9 +3853,8 @@ export class CoderService extends BaseService {
             await this.spacePermissionService.resolveAccessBatch(userUuid, [
                 { type: 'space', spaceUuid },
             ]);
-        return accessContexts.find(
-            ({ target }) => target.spaceUuid === spaceUuid,
-        )?.context;
+        // One result per target, input-ordered — the contract guarantees it.
+        return accessContexts[0]?.context;
     }
 
     // Throws unless the caller can write content as code. `canUploadAnyContent`
@@ -3936,16 +3938,25 @@ export class CoderService extends BaseService {
                     spaceUuid,
                 })),
             ));
-        const contextsWithSpace = spaceAccessContexts.flatMap(
-            ({ target, context }) =>
-                context ? [{ context, spaceUuid: target.spaceUuid }] : [],
+        // Coverage is checked by key, not by count: every REQUESTED space must
+        // have resolved a context, so a pre-fetched batch for a different (but
+        // equally sized) set of spaces can never satisfy the check.
+        const contextBySpaceUuid = new Map(
+            spaceAccessContexts.map(({ target, context }) => [
+                target.spaceUuid,
+                context,
+            ]),
         );
+        const resolvedContexts = uniqueSpaceUuids.flatMap((spaceUuid) => {
+            const context = contextBySpaceUuid.get(spaceUuid);
+            return context ? [{ context, spaceUuid }] : [];
+        });
         const lacksAccess =
-            contextsWithSpace.length !== uniqueSpaceUuids.length ||
+            resolvedContexts.length !== uniqueSpaceUuids.length ||
             auditedAbility
                 .canBulk(
                     action,
-                    contextsWithSpace.map(({ context, spaceUuid }) =>
+                    resolvedContexts.map(({ context, spaceUuid }) =>
                         subject(subjectType, {
                             ...context,
                             metadata: {
@@ -4060,16 +4071,11 @@ export class CoderService extends BaseService {
             await this.spacePermissionService.resolveAccessBatch(
                 userUuid,
                 uniqueSpaceUuids.map((spaceUuid) => ({
-                    type: 'space',
+                    type: 'space' as const,
                     spaceUuid,
                 })),
             );
-        const spaceAccessContexts = Object.fromEntries(
-            resolvedSpaceContexts.map(({ target, context }) => [
-                target.spaceUuid,
-                context,
-            ]),
-        );
+        const spaceAccessContexts = spaceContextsByUuid(resolvedSpaceContexts);
         const chartsWithContext = referencedCharts.flatMap((chart) => {
             const context = spaceAccessContexts[chart.spaceUuid];
             return context ? [{ chart, context }] : [];

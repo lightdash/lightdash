@@ -106,7 +106,10 @@ import type {
     SoftDeletableService,
     SoftDeleteOptions,
 } from '../SoftDeletableService';
-import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import {
+    spaceContextsByUuid,
+    SpacePermissionService,
+} from '../SpaceService/SpacePermissionService';
 import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
 
 type DashboardServiceArguments = {
@@ -693,12 +696,7 @@ export class DashboardService
                     spaceUuid,
                 })),
             );
-        const spaceContexts = Object.fromEntries(
-            resolvedSpaceContexts.map(({ target, context }) => [
-                target.spaceUuid,
-                context,
-            ]),
-        );
+        const spaceContexts = spaceContextsByUuid(resolvedSpaceContexts);
 
         const dashboardsWithContext = dashboards.flatMap((dashboard) => {
             const spaceContext = spaceContexts[dashboard.spaceUuid];

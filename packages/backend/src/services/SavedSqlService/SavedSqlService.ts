@@ -176,18 +176,21 @@ export class SavedSqlService
             throw new NotFoundError('Space is required');
         }
 
-        const needsNewSpaceCheck =
-            resource.spaceUuid && spaceUuid !== resource.spaceUuid;
+        // Narrow once: a move targets a different, known space or nothing.
+        const newSpaceUuid =
+            resource.spaceUuid && spaceUuid !== resource.spaceUuid
+                ? resource.spaceUuid
+                : null;
 
-        const targetSpaceUuids = needsNewSpaceCheck
-            ? [spaceUuid, resource.spaceUuid!]
+        const targetSpaceUuids = newSpaceUuid
+            ? [spaceUuid, newSpaceUuid]
             : [spaceUuid];
         const contextsBySpaceUuid = new Map(
             (
                 await this.spacePermissionService.resolveAccessBatch(
                     actor.user.userUuid,
                     targetSpaceUuids.map((targetSpaceUuid) => ({
-                        type: 'space',
+                        type: 'space' as const,
                         spaceUuid: targetSpaceUuid,
                     })),
                 )
@@ -216,8 +219,8 @@ export class SavedSqlService
             );
         }
 
-        if (needsNewSpaceCheck) {
-            const targetContext = contextsBySpaceUuid.get(resource.spaceUuid!);
+        if (newSpaceUuid) {
+            const targetContext = contextsBySpaceUuid.get(newSpaceUuid);
             if (targetContext === undefined) {
                 throw new ForbiddenError(
                     `You don't have access to ${action} this Saved SQL chart in the new space`,

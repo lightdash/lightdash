@@ -62,7 +62,10 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
-import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import {
+    spaceContextsByUuid,
+    type SpacePermissionService,
+} from '../SpaceService/SpacePermissionService';
 
 const VALIDATION_SUMMARY_AFFECTED_CONTENT_LIMIT = 20;
 
@@ -1459,11 +1462,8 @@ export class ValidationService extends BaseService {
                       })),
                   )
                 : [];
-        const spaceAccessContexts = Object.fromEntries(
-            resolvedSpaceAccessContexts.map(({ target, context }) => [
-                target.spaceUuid,
-                context,
-            ]),
+        const spaceAccessContexts = spaceContextsByUuid(
+            resolvedSpaceAccessContexts,
         );
 
         return apps

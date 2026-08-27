@@ -84,10 +84,22 @@ export type AccessContextForCasl = SpaceAccessContextForCasl & {
     directOnly: boolean;
 };
 
-export type AccessResult = {
-    target: AccessTarget;
+export type AccessResult<T extends AccessTarget = AccessTarget> = {
+    target: T;
     context: AccessContextForCasl | undefined;
 };
+
+/**
+ * Correlates a space-target batch by spaceUuid. Only valid for space targets,
+ * where the context is a pure function of the space — grant-aware targets can
+ * carry different contexts within one space and must correlate per target.
+ */
+export const spaceContextsByUuid = (
+    results: AccessResult<{ type: 'space'; spaceUuid: string }>[],
+): Record<string, AccessContextForCasl | undefined> =>
+    Object.fromEntries(
+        results.map(({ target, context }) => [target.spaceUuid, context]),
+    );
 
 export class SpacePermissionService extends BaseService {
     private readonly spaceModel: SpaceModel;
@@ -260,11 +272,11 @@ export class SpacePermissionService extends BaseService {
      * All grant-bearing targets must belong to one organization (every caller
      * is project-scoped); a batch spanning organizations throws.
      */
-    async resolveAccessBatch(
+    async resolveAccessBatch<T extends AccessTarget>(
         userUuid: string,
-        targets: AccessTarget[],
+        targets: T[],
         { trx }: { trx?: Knex } = {},
-    ): Promise<AccessResult[]> {
+    ): Promise<AccessResult<T>[]> {
         return this.resolveAccessTargets(userUuid, targets, {
             onMismatch: 'fallback',
             trx,
@@ -330,9 +342,9 @@ export class SpacePermissionService extends BaseService {
         }
     }
 
-    private async resolveAccessTargets(
+    private async resolveAccessTargets<T extends AccessTarget>(
         userUuid: string,
-        targets: AccessTarget[],
+        targets: T[],
         {
             onMismatch,
             trx,
@@ -340,7 +352,7 @@ export class SpacePermissionService extends BaseService {
             onMismatch: 'throw' | 'fallback';
             trx?: Knex;
         },
-    ): Promise<AccessResult[]> {
+    ): Promise<AccessResult<T>[]> {
         if (targets.length === 0) {
             return [];
         }
@@ -353,16 +365,14 @@ export class SpacePermissionService extends BaseService {
             { userUuid },
             { trx },
         );
-        const spaceOnly = (
-            target: AccessTarget,
-        ): AccessContextForCasl | undefined => {
+        const spaceOnly = (target: T): AccessContextForCasl | undefined => {
             const context = spaceContexts[target.spaceUuid];
             return context ? { ...context, directOnly: false } : undefined;
         };
         const resultFor = (
-            target: AccessTarget,
+            target: T,
             context: AccessContextForCasl | undefined,
-        ): AccessResult => ({ target, context });
+        ): AccessResult<T> => ({ target, context });
         const grantTargets = targets.flatMap((target) => {
             const spaceContext = spaceContexts[target.spaceUuid];
             const grantTarget =

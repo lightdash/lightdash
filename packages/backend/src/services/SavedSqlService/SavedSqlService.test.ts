@@ -114,6 +114,20 @@ const schedulerModel = {
 };
 const spacePermissionService = {
     can: vi.fn(async () => true),
+    resolveAccessBatch: vi.fn(
+        async (_userUuid: string, targets: { spaceUuid: string }[]) =>
+            targets.map((target) => ({
+                target,
+                context: {
+                    organizationUuid,
+                    projectUuid,
+                    inheritsFromOrgOrProject: true,
+                    access: [],
+                    admins: [],
+                    directOnly: false,
+                },
+            })),
+    ),
 };
 
 const newSchedulerPayload = {
@@ -233,5 +247,129 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
             );
             expect(schedulerModel.createScheduler).not.toHaveBeenCalled();
         });
+    });
+});
+
+describe('SavedSqlService - hasAccess space-move gate', () => {
+    const managerUser = {
+        ...baseUser,
+        userUuid: 'manager-uuid',
+        role: OrganizationMemberRole.EDITOR,
+        ability: new Ability<PossibleAbilities>([
+            { subject: 'SavedChart', action: 'manage' },
+        ]),
+    };
+
+    const service = new SavedSqlService({
+        lightdashConfig: lightdashConfigMock,
+        analytics: analyticsMock,
+        projectModel: {} as unknown as ProjectModel,
+        savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
+        schedulerClient: {} as unknown as SchedulerClient,
+        schedulerModel: schedulerModel as unknown as SchedulerModel,
+        analyticsModel: {} as unknown as AnalyticsModel,
+        spacePermissionService:
+            spacePermissionService as unknown as SpacePermissionService,
+    });
+    // The gate itself is the unit under test: it correlates the current and
+    // target space contexts from one resolveAccessBatch call.
+    const hasAccess = (resource: {
+        savedSqlUuid: string;
+        spaceUuid?: string;
+    }) =>
+        (
+            service as unknown as {
+                hasAccess: (
+                    action: string,
+                    actor: { user: typeof managerUser; projectUuid: string },
+                    resource: { savedSqlUuid: string; spaceUuid?: string },
+                ) => Promise<unknown>;
+            }
+        ).hasAccess('manage', { user: managerUser, projectUuid }, resource);
+
+    afterEach(() => vi.clearAllMocks());
+
+    it('authorizes a move using target-keyed contexts even when batch results arrive reversed', async () => {
+        (
+            spacePermissionService.resolveAccessBatch as import('vitest').Mock
+        ).mockImplementationOnce(
+            async (_userUuid: string, targets: { spaceUuid: string }[]) =>
+                targets
+                    .map((target) => ({
+                        target,
+                        context: {
+                            organizationUuid,
+                            projectUuid,
+                            inheritsFromOrgOrProject: true,
+                            access: [],
+                            admins: [],
+                            directOnly: false,
+                        },
+                    }))
+                    .reverse(),
+        );
+
+        await expect(
+            hasAccess({ savedSqlUuid, spaceUuid: 'new-space-uuid' }),
+        ).resolves.toBeDefined();
+        expect(spacePermissionService.resolveAccessBatch).toHaveBeenCalledWith(
+            managerUser.userUuid,
+            [
+                { type: 'space', spaceUuid },
+                { type: 'space', spaceUuid: 'new-space-uuid' },
+            ],
+        );
+    });
+
+    it('denies when the current space context is unresolvable', async () => {
+        (
+            spacePermissionService.resolveAccessBatch as import('vitest').Mock
+        ).mockImplementationOnce(
+            async (_userUuid: string, targets: { spaceUuid: string }[]) =>
+                targets.map((target) => ({
+                    target,
+                    context:
+                        target.spaceUuid === spaceUuid
+                            ? undefined
+                            : {
+                                  organizationUuid,
+                                  projectUuid,
+                                  inheritsFromOrgOrProject: true,
+                                  access: [],
+                                  admins: [],
+                                  directOnly: false,
+                              },
+                })),
+        );
+
+        await expect(
+            hasAccess({ savedSqlUuid, spaceUuid: 'new-space-uuid' }),
+        ).rejects.toThrowError(ForbiddenError);
+    });
+
+    it('denies with the new-space error when the target space context is unresolvable', async () => {
+        (
+            spacePermissionService.resolveAccessBatch as import('vitest').Mock
+        ).mockImplementationOnce(
+            async (_userUuid: string, targets: { spaceUuid: string }[]) =>
+                targets.map((target) => ({
+                    target,
+                    context:
+                        target.spaceUuid === 'new-space-uuid'
+                            ? undefined
+                            : {
+                                  organizationUuid,
+                                  projectUuid,
+                                  inheritsFromOrgOrProject: true,
+                                  access: [],
+                                  admins: [],
+                                  directOnly: false,
+                              },
+                })),
+        );
+
+        await expect(
+            hasAccess({ savedSqlUuid, spaceUuid: 'new-space-uuid' }),
+        ).rejects.toThrowError(/new space/);
     });
 });

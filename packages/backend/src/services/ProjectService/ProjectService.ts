@@ -9888,7 +9888,7 @@ export class ProjectService extends BaseService {
                     this.spacePermissionService.resolveAccessBatch(
                         account.user.id,
                         savedCharts.map((chart) => ({
-                            type: 'chart',
+                            type: 'chart' as const,
                             chartUuid: chart.uuid,
                             dashboardUuid: chart.dashboardUuid,
                             spaceUuid: chart.spaceUuid,
@@ -9906,7 +9906,9 @@ export class ProjectService extends BaseService {
 
                 const chartsWithSpaceContext = chartContexts.flatMap(
                     ({ target, context: spaceCtx }) => {
-                        if (target.type !== 'chart' || !spaceCtx) return [];
+                        if (!spaceCtx) {
+                            return [];
+                        }
                         const savedChart = savedChartsByUuid.get(
                             target.chartUuid,
                         );
