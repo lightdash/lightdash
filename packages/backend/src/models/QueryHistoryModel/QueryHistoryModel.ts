@@ -325,6 +325,23 @@ export class QueryHistoryModel {
         );
     }
 
+    async updateStatusToErrorIfQueued(
+        queryUuid: string,
+        error: string,
+    ): Promise<number> {
+        return this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .whereIn('status', [
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.QUEUED,
+            ])
+            .update({
+                status: QueryHistoryStatus.ERROR,
+                error,
+                errored_at: new Date(),
+            });
+    }
+
     async get(queryUuid: string, projectUuid: string, account: Account) {
         const query = this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)

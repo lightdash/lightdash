@@ -18,6 +18,11 @@ type CommonExecuteQueryRequestParams = {
     invalidateCache?: boolean;
     usePreAggregateCache?: boolean;
     parameters?: ParametersValuesMap;
+    /**
+     * Server-derived authorization provenance persisted with query history.
+     * Callers cannot use this field to authorize a query.
+     */
+    savedSqlUuids?: UUID[];
 };
 
 export type DateZoom = {
@@ -209,6 +214,7 @@ export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams
+    | ExecuteAsyncSqlChartRequestParams
     | ExecuteAsyncDashboardSqlChartRequestParams
     | ExecuteAsyncFieldValueSearchRequestParams;
 

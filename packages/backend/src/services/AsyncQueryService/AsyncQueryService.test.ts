@@ -16,6 +16,7 @@ import {
     MetricType,
     NotFoundError,
     OrganizationAccessStatus,
+    ParameterError,
     PersistentDownloadFileAccessMode,
     PossibleAbilities,
     QueryExecutionContext,
@@ -107,6 +108,7 @@ import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     AsyncQueryService,
     QUEUED_QUERY_EXPIRED_MESSAGE,
+    SAVED_SQL_QUERY_ACCESS_REVOKED_MESSAGE,
 } from './AsyncQueryService';
 import {
     NoOpPreAggregateStrategy,
@@ -312,6 +314,7 @@ const getMockedAsyncQueryService = (
             getByQueryUuid: vi.fn(async () => undefined),
             update: vi.fn(),
             updateStatusToError: vi.fn(async () => 1),
+            updateStatusToErrorIfQueued: vi.fn(async () => 1),
             updateStatusToQueued: vi.fn(async () => 1),
             updateStatusToExecuting: vi.fn(async () => 1),
             updateStatusToExpired: vi.fn(async () => 1),
@@ -420,6 +423,17 @@ type JwtDashboardQueryContextTestService = {
 
 describe('AsyncQueryService', () => {
     describe('saved SQL chart access', () => {
+        test('retains every saved SQL origin across derivative queries', () => {
+            expect(
+                (AsyncQueryService as AnyType).getSavedSqlUuids({
+                    requestParameters: {
+                        savedSqlUuid: 'saved-sql-a',
+                        savedSqlUuids: ['saved-sql-b', 'saved-sql-a'],
+                    },
+                }),
+            ).toEqual(['saved-sql-b', 'saved-sql-a']);
+        });
+
         test('resolves access through the saved SQL chart target', async () => {
             const resolveAccess = vi.fn(async () => ({
                 organizationUuid: 'organizationUuid',
@@ -464,6 +478,116 @@ describe('AsyncQueryService', () => {
                 savedSqlUuid: 'savedSqlUuid',
                 spaceUuid: 'spaceUuid',
             });
+        });
+
+        test('reauthorizes saved SQL access when reading persisted results', async () => {
+            const queryHistory = {
+                queryUuid: 'queryUuid',
+                projectUuid,
+                requestParameters: { savedSqlUuid: 'savedSqlUuid' },
+            } as QueryHistory;
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                queryHistoryModel: {
+                    get: vi.fn(async () => queryHistory),
+                } as unknown as QueryHistoryModel,
+                savedSqlModel: {
+                    getByUuid: vi.fn(async () => ({
+                        savedSqlUuid: 'savedSqlUuid',
+                        organization: {
+                            organizationUuid: 'organizationUuid',
+                        },
+                        project: { projectUuid },
+                        space: { uuid: 'spaceUuid' },
+                    })),
+                } as unknown as SavedSqlModel,
+                spacePermissionService: {
+                    resolveAccess: vi.fn(async () => ({
+                        organizationUuid: 'organizationUuid',
+                        projectUuid,
+                        inheritsFromOrgOrProject: false,
+                        access: [],
+                        admins: [],
+                        directOnly: false,
+                    })),
+                } as unknown as SpacePermissionService,
+            });
+            const account = buildAccount() as AnyType;
+            account.user.ability = new Ability<PossibleAbilities>([
+                {
+                    subject: 'SavedChart',
+                    action: 'view',
+                    conditions: {
+                        access: { $elemMatch: { userUuid: 'userId' } },
+                    },
+                },
+            ]);
+
+            await expect(
+                (service as AnyType).getAuthorizedQueryHistory(
+                    account,
+                    projectUuid,
+                    'queryUuid',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('collects saved SQL origins from every compose reference', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (service as AnyType).getAuthorizedQueryHistory = vi.fn(
+                async (
+                    _account: Account,
+                    _projectUuid: string,
+                    queryUuid: string,
+                ) => ({
+                    requestParameters: {
+                        savedSqlUuids:
+                            queryUuid === '11111111-1111-4111-8111-111111111111'
+                                ? ['saved-sql-a']
+                                : ['saved-sql-a', 'saved-sql-b'],
+                    },
+                }),
+            );
+            (service as AnyType).throwIfCannotReadQueryHistory = vi.fn();
+
+            await expect(
+                (service as AnyType).authorizeQueryReferences({
+                    account: buildAccount(),
+                    projectUuid,
+                    organizationUuid: 'organizationUuid',
+                    references: {
+                        first: '11111111-1111-4111-8111-111111111111',
+                        second: '22222222-2222-4222-8222-222222222222',
+                    },
+                }),
+            ).resolves.toEqual(['saved-sql-a', 'saved-sql-b']);
+        });
+
+        test('reauthorizes compose references when consuming them', async () => {
+            const queryHistory = {
+                requestParameters: { savedSqlUuids: ['saved-sql-a'] },
+            } as QueryHistory;
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                queryHistoryModel: {
+                    pollForQueryCompletion: vi.fn(async () => queryHistory),
+                } as unknown as QueryHistoryModel,
+            });
+            const assertAccess = vi
+                .spyOn(service as AnyType, 'assertSavedSqlQueryHistoryAccess')
+                .mockRejectedValue(new ForbiddenError());
+
+            await expect(
+                (service as AnyType).buildQueryReferenceCtes({
+                    account: buildAccount(),
+                    projectUuid,
+                    references: {
+                        first: '11111111-1111-4111-8111-111111111111',
+                    },
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(assertAccess).toHaveBeenCalledWith(
+                expect.anything(),
+                queryHistory,
+            );
         });
     });
 
@@ -3102,6 +3226,59 @@ describe('AsyncQueryService', () => {
                 }),
             ).rejects.toThrow(ForbiddenError);
         });
+
+        it('rejects saved SQL derivative history after its grant is revoked', async () => {
+            const queryHistory = {
+                ...createQueryHistory(),
+                requestParameters: { savedSqlUuids: ['saved-sql-uuid'] },
+            } as QueryHistory;
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                queryHistoryModel: {
+                    get: vi.fn(async () => queryHistory),
+                } as unknown as QueryHistoryModel,
+                savedSqlModel: {
+                    getByUuid: vi.fn(async () => ({
+                        savedSqlUuid: 'saved-sql-uuid',
+                        organization: {
+                            organizationUuid: projectSummary.organizationUuid,
+                        },
+                        project: { projectUuid },
+                        space: { uuid: 'private-space-uuid' },
+                    })),
+                } as unknown as SavedSqlModel,
+                spacePermissionService: {
+                    resolveAccess: vi.fn(async () => ({
+                        organizationUuid: projectSummary.organizationUuid,
+                        projectUuid,
+                        inheritsFromOrgOrProject: false,
+                        access: [],
+                        admins: [],
+                        directOnly: false,
+                    })),
+                } as unknown as SpacePermissionService,
+            });
+            const account = buildAccount();
+            account.user.ability = new Ability<PossibleAbilities>([
+                { action: 'view', subject: 'Project' },
+                {
+                    action: 'view',
+                    subject: 'SavedChart',
+                    conditions: {
+                        access: {
+                            $elemMatch: { userUuid: account.user.id },
+                        },
+                    },
+                },
+            ]);
+
+            await expect(
+                service.getAsyncQueryHistory({
+                    account,
+                    projectUuid,
+                    queryUuid: queryHistory.queryUuid,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
     });
 
     describe('pollQueryHistoryUntilDeadline', () => {
@@ -3375,6 +3552,129 @@ describe('AsyncQueryService', () => {
                 'test-query-uuid',
                 QUEUED_QUERY_EXPIRED_MESSAGE,
             );
+            expect(
+                service.queryHistoryModel.updateStatusToExecuting,
+            ).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            {
+                source: 'saved SQL query',
+                requestParameters: { savedSqlUuid: 'saved-sql-uuid' },
+            },
+            {
+                source: 'saved SQL derivative',
+                requestParameters: {
+                    savedSqlUuids: ['saved-sql-uuid'],
+                },
+            },
+        ])(
+            'denies a queued $source after its grant is revoked',
+            async ({ requestParameters }) => {
+                const user = {
+                    ...sessionAccount.user,
+                    userUuid: sessionAccount.user.id,
+                    organizationUuid:
+                        sessionAccount.organization.organizationUuid,
+                    organizationName: sessionAccount.organization.name,
+                    organizationCreatedAt:
+                        sessionAccount.organization.createdAt,
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            subject: 'SavedChart',
+                            action: 'view',
+                            conditions: {
+                                access: {
+                                    $elemMatch: {
+                                        userUuid: sessionAccount.user.id,
+                                    },
+                                },
+                            },
+                        },
+                    ]),
+                };
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        userModel: {
+                            findSessionUserAndOrgByUuid: vi.fn(
+                                async () => user,
+                            ),
+                        } as unknown as UserModel,
+                        savedSqlModel: {
+                            getByUuid: vi.fn(async () => ({
+                                savedSqlUuid: 'saved-sql-uuid',
+                                organization: {
+                                    organizationUuid:
+                                        sessionAccount.organization
+                                            .organizationUuid,
+                                },
+                                project: { projectUuid },
+                                space: { uuid: 'private-space-uuid' },
+                            })),
+                        } as unknown as SavedSqlModel,
+                        spacePermissionService: {
+                            resolveAccess: vi.fn(async () => ({
+                                organizationUuid:
+                                    sessionAccount.organization
+                                        .organizationUuid,
+                                projectUuid,
+                                inheritsFromOrgOrProject: false,
+                                access: [],
+                                admins: [],
+                                directOnly: false,
+                            })),
+                        } as unknown as SpacePermissionService,
+                    },
+                );
+                (
+                    service.queryHistoryModel
+                        .getByQueryUuid as import('vitest').Mock
+                ).mockResolvedValue({
+                    ...createMockQueryHistory(QueryHistoryStatus.QUEUED),
+                    requestParameters,
+                });
+
+                const canRun = await service.prepareQueuedQueryForExecution(
+                    'test-query-uuid',
+                    'worker-1',
+                );
+
+                expect(canRun).toBe(false);
+                expect(
+                    service.queryHistoryModel.updateStatusToErrorIfQueued,
+                ).toHaveBeenCalledWith(
+                    'test-query-uuid',
+                    SAVED_SQL_QUERY_ACCESS_REVOKED_MESSAGE,
+                );
+                expect(
+                    service.queryHistoryModel.updateStatusToExecuting,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        test('retries a queued saved SQL query after an operational authorization error', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (
+                service.queryHistoryModel
+                    .getByQueryUuid as import('vitest').Mock
+            ).mockResolvedValue(
+                createMockQueryHistory(QueryHistoryStatus.QUEUED),
+            );
+            vi.spyOn(
+                service as AnyType,
+                'assertQueuedSavedSqlQueryAccess',
+            ).mockRejectedValue(new Error('database unavailable'));
+
+            await expect(
+                service.prepareQueuedQueryForExecution(
+                    'test-query-uuid',
+                    'worker-1',
+                ),
+            ).rejects.toThrow('database unavailable');
+            expect(
+                service.queryHistoryModel.updateStatusToErrorIfQueued,
+            ).not.toHaveBeenCalled();
             expect(
                 service.queryHistoryModel.updateStatusToExecuting,
             ).not.toHaveBeenCalled();
@@ -4482,6 +4782,10 @@ describe('AsyncQueryService', () => {
         it('threads the source dateZoom from request_parameters into the totals query', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             const account = buildAccount();
+            vi.spyOn(
+                service as AnyType,
+                'assertSavedSqlQueryHistoryAccess',
+            ).mockResolvedValue(undefined);
 
             const dateZoom = {
                 granularity: 'MONTH',
@@ -4516,6 +4820,7 @@ describe('AsyncQueryService', () => {
                     },
                     dashboardSorts: [],
                     dateZoom,
+                    savedSqlUuids: ['saved-sql-uuid'],
                 },
             } as unknown as QueryHistory);
 
@@ -4539,8 +4844,33 @@ describe('AsyncQueryService', () => {
 
             expect(runSpy).toHaveBeenCalledTimes(1);
             expect(runSpy.mock.calls[0][0]).toEqual(
-                expect.objectContaining({ dateZoom }),
+                expect.objectContaining({
+                    dateZoom,
+                    savedSqlUuids: ['saved-sql-uuid'],
+                }),
             );
+        });
+
+        it('does not start a totals query after source access is revoked', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.spyOn(
+                service as AnyType,
+                'getAuthorizedQueryHistory',
+            ).mockRejectedValue(new ForbiddenError());
+            const runSpy = vi.spyOn(
+                service as AnyType,
+                'runAsyncMetricQueryWithoutPermissionCheck',
+            );
+
+            await expect(
+                service.executeAsyncCalculateTotalFromQueryHistory({
+                    account: buildAccount(),
+                    projectUuid,
+                    queryUuid: 'source-query-uuid',
+                    kind: 'columnTotal',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(runSpy).not.toHaveBeenCalled();
         });
     });
 
@@ -4563,6 +4893,7 @@ describe('AsyncQueryService', () => {
                     context: QueryExecutionContext.SCHEDULED_DELIVERY,
                     query: metricQueryMock,
                     parameters: { region: 'EU' },
+                    savedSqlUuids: ['saved-sql-uuid'],
                 },
             }) as unknown as QueryHistory;
 
@@ -4578,6 +4909,10 @@ describe('AsyncQueryService', () => {
         it('re-runs the source metricQuery with the row limit lifted, returning the applied limit', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             const account = buildAccount();
+            vi.spyOn(
+                service as AnyType,
+                'assertSavedSqlQueryHistoryAccess',
+            ).mockResolvedValue(undefined);
 
             (
                 service.queryHistoryModel.get as import('vitest').Mock
@@ -4621,6 +4956,7 @@ describe('AsyncQueryService', () => {
                 expect.objectContaining({
                     parameters: { region: 'EU' },
                     pivotConfiguration: undefined,
+                    savedSqlUuids: ['saved-sql-uuid'],
                 }),
             );
             expect(result).toEqual({
@@ -4630,12 +4966,38 @@ describe('AsyncQueryService', () => {
             });
         });
 
+        it('does not start an unbounded rerun after source access is revoked', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.spyOn(
+                service as AnyType,
+                'getAuthorizedQueryHistory',
+            ).mockRejectedValue(new ForbiddenError());
+            const runSpy = vi.spyOn(
+                service as AnyType,
+                'runAsyncMetricQueryWithoutPermissionCheck',
+            );
+
+            await expect(
+                service.executeAsyncUnboundedRerunFromQueryHistory({
+                    account: buildAccount(),
+                    projectUuid,
+                    queryUuid: 'source-query-uuid',
+                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(runSpy).not.toHaveBeenCalled();
+        });
+
         // Wide-query case: a source limit already at (or above) the org's
         // cell-based cap means rerunning can't return more rows than the
         // capped result already has — 'All Results' must never deliver less.
         it('skips execution and reports noImprovementPossible when the computed limit would not beat the source limit', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             const account = buildAccount();
+            vi.spyOn(
+                service as AnyType,
+                'assertSavedSqlQueryHistoryAccess',
+            ).mockResolvedValue(undefined);
 
             (
                 service.queryHistoryModel.get as import('vitest').Mock
@@ -4662,6 +5024,42 @@ describe('AsyncQueryService', () => {
 
             expect(runSpy).not.toHaveBeenCalled();
             expect(result).toEqual({ outcome: 'noImprovementPossible' });
+        });
+    });
+
+    describe('executeAsyncUnderlyingDataQuery', () => {
+        afterEach(() => {
+            vi.restoreAllMocks();
+        });
+
+        it('does not inspect source fields after saved SQL access is revoked', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const account = buildAccount();
+            account.user.ability = new Ability<PossibleAbilities>([
+                { action: 'view', subject: 'UnderlyingData' },
+            ]);
+            (service as AnyType).getWarehouseCredentials = vi
+                .fn()
+                .mockResolvedValue(warehouseCredentialsMock);
+            vi.spyOn(
+                service as AnyType,
+                'getAuthorizedQueryHistory',
+            ).mockRejectedValue(new ForbiddenError());
+            const getExploreSpy = vi.spyOn(
+                service,
+                'getExploreWithUserAccessControls',
+            );
+
+            await expect(
+                service.executeAsyncUnderlyingDataQuery({
+                    account,
+                    projectUuid,
+                    underlyingDataSourceQueryUuid: 'source-query-uuid',
+                    filters: {},
+                    context: QueryExecutionContext.EXPLORE,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(getExploreSpy).not.toHaveBeenCalled();
         });
     });
 

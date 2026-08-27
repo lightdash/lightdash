@@ -18,6 +18,10 @@ import { lightdashApi } from '../../../api';
 const getExecuteEndpoint = (
     params: ExecuteAsyncQueryRequestParams,
 ): string | null => {
+    // Derivative provenance is server-owned. Generic replay cannot safely
+    // reconstruct it, so these queries need a dedicated server-side rerun.
+    if (params.savedSqlUuids?.length) return null;
+
     if ('underlyingDataSourceQueryUuid' in params) return 'underlying-data';
     if ('fieldId' in params) return 'field-values';
     if ('sql' in params) return 'sql';

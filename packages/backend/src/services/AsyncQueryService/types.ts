@@ -93,6 +93,8 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;
+    /** Saved-SQL origins inherited by server-created derivative queries. */
+    savedSqlUuids?: UUID[];
     dataAppPreviewToken?: string;
     customSqlProvenanceChartUuid?: UUID;
     dateZoom?: DateZoom;

@@ -56,6 +56,10 @@ const adminUser = {
     role: OrganizationMemberRole.ADMIN,
     ability: new Ability<PossibleAbilities>([
         {
+            subject: 'SavedChart',
+            action: 'view',
+        },
+        {
             subject: 'ScheduledDeliveries',
             action: 'manage',
             conditions: { organizationUuid },
@@ -68,6 +72,10 @@ const editorUser = {
     userUuid: 'editor-uuid',
     role: OrganizationMemberRole.EDITOR,
     ability: new Ability<PossibleAbilities>([
+        {
+            subject: 'SavedChart',
+            action: 'view',
+        },
         {
             subject: 'ScheduledDeliveries',
             action: 'create',
@@ -108,10 +116,19 @@ const createdScheduler = {
 const savedSqlModel = {
     getByUuid: vi.fn(async () => sqlChart),
     resolveColorPalette: vi.fn(async () => undefined),
+    update: vi.fn(async () => ({
+        savedSqlUuid,
+        savedSqlVersionUuid: null,
+    })),
+    softDelete: vi.fn(async () => undefined),
+    moveToSpace: vi.fn(async () => undefined),
 };
 const schedulerModel = {
     getSqlChartSchedulers: vi.fn(async () => []),
     createScheduler: vi.fn(async () => createdScheduler),
+};
+const projectModel = {
+    getSummary: vi.fn(async () => ({ organizationUuid })),
 };
 const spacePermissionService = {
     can: vi.fn(async () => true),
@@ -149,7 +166,7 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
     const service = new SavedSqlService({
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
-        projectModel: {} as unknown as ProjectModel,
+        projectModel: projectModel as unknown as ProjectModel,
         savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
         schedulerClient: {} as unknown as SchedulerClient,
         schedulerModel: schedulerModel as unknown as SchedulerModel,
@@ -183,6 +200,84 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
         );
     });
 
+    describe('direct-grant write boundaries', () => {
+        const editor = {
+            ...baseUser,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: ['update', 'delete'] },
+                { subject: 'CustomSql', action: 'manage' },
+            ]),
+        };
+
+        test('updates a saved SQL chart through its resource access target', async () => {
+            await service.updateSqlChart(
+                editor,
+                projectUuid,
+                savedSqlUuid,
+                {} as never,
+            );
+
+            expect(
+                spacePermissionService.resolveAccessBatch,
+            ).toHaveBeenCalledWith(editor.userUuid, [
+                {
+                    type: 'sqlChart',
+                    savedSqlUuid,
+                    spaceUuid,
+                },
+            ]);
+        });
+
+        test('soft-deletes a saved SQL chart through its resource access target', async () => {
+            await service.softDelete(editor, savedSqlUuid);
+
+            expect(
+                spacePermissionService.resolveAccessBatch,
+            ).toHaveBeenCalledWith(editor.userUuid, [
+                {
+                    type: 'sqlChart',
+                    savedSqlUuid,
+                    spaceUuid,
+                },
+            ]);
+        });
+
+        test('requires real access to both spaces when moving a saved SQL chart', async () => {
+            const targetSpaceUuid = 'target-space-uuid';
+            const accessContext = {
+                organizationUuid,
+                projectUuid,
+                inheritsFromOrgOrProject: false,
+                access: [],
+                admins: [],
+                directOnly: false,
+            };
+            spacePermissionService.resolveAccessBatch.mockResolvedValueOnce([
+                {
+                    target: { spaceUuid },
+                    context: accessContext,
+                },
+                {
+                    target: { spaceUuid: targetSpaceUuid },
+                    context: accessContext,
+                },
+            ]);
+
+            await service.moveToSpace(editor, {
+                projectUuid,
+                itemUuid: savedSqlUuid,
+                targetSpaceUuid,
+            });
+
+            expect(
+                spacePermissionService.resolveAccessBatch,
+            ).toHaveBeenCalledWith(editor.userUuid, [
+                { type: 'space', spaceUuid },
+                { type: 'space', spaceUuid: targetSpaceUuid },
+            ]);
+        });
+    });
+
     describe('getSchedulers', () => {
         it('admin lists all SQL chart schedulers', async () => {
             await expect(
@@ -211,12 +306,17 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
             expect(schedulerModel.getSqlChartSchedulers).not.toHaveBeenCalled();
         });
 
-        it('user without space access is blocked', async () => {
-            spacePermissionService.can.mockResolvedValueOnce(false);
+        it('user without chart access is blocked', async () => {
+            spacePermissionService.resolveAccessBatch.mockResolvedValueOnce([
+                {
+                    target: { spaceUuid },
+                    context: undefined,
+                },
+            ] as never);
             await expect(
                 service.getSchedulers(editorUser, projectUuid, savedSqlUuid),
             ).rejects.toThrow(
-                "You don't have access to the space this chart belongs to",
+                "You don't have access to view this Saved SQL chart",
             );
             expect(schedulerModel.getSqlChartSchedulers).not.toHaveBeenCalled();
         });
@@ -257,8 +357,13 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
             expect(schedulerModel.createScheduler).not.toHaveBeenCalled();
         });
 
-        it('user without space access is blocked from creating scheduler', async () => {
-            spacePermissionService.can.mockResolvedValueOnce(false);
+        it('user without chart access is blocked from creating scheduler', async () => {
+            spacePermissionService.resolveAccessBatch.mockResolvedValueOnce([
+                {
+                    target: { spaceUuid },
+                    context: undefined,
+                },
+            ] as never);
             await expect(
                 service.createScheduler(
                     editorUser,
@@ -267,7 +372,7 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
                     newSchedulerPayload,
                 ),
             ).rejects.toThrow(
-                "You don't have access to the space this chart belongs to",
+                "You don't have access to view this Saved SQL chart",
             );
             expect(schedulerModel.createScheduler).not.toHaveBeenCalled();
         });

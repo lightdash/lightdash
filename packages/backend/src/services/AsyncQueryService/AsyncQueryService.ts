@@ -58,6 +58,7 @@ import {
     getMetricsWithValidParameters,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
+    InvalidUser,
     isCartesianChartConfig,
     isCustomBinDimension,
     isCustomDimension,
@@ -123,12 +124,14 @@ import {
     type ExecuteAsyncComposeMergeQueryRequestParams,
     type ExecuteAsyncComposeSqlQueryRequestParams,
     type ExecuteAsyncDashboardChartRequestParams,
+    type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncExternalSqlQueryRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
     type ExecuteAsyncMergeQueryRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
+    type ExecuteAsyncSqlChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
     type ExternalSourceTableReference,
     type MergeQueryChart,
@@ -335,6 +338,8 @@ type ExecuteMergeQueryInternalArgs = Omit<
 const NULL_PIVOT_KEY = '<null>';
 export const QUEUED_QUERY_EXPIRED_MESSAGE =
     'Your query expired while waiting in the queue. Please try again.';
+export const SAVED_SQL_QUERY_ACCESS_REVOKED_MESSAGE =
+    'Saved SQL chart access is no longer available.';
 
 // Internal-only download result. Adds `s3FileUrl` (the underlying S3
 // presigned URL) so the scheduler can hand it to nodemailer for fetching
@@ -766,6 +771,126 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError("You don't have access to this chart");
         }
+    }
+
+    private async assertSavedSqlQueryHistoryAccess(
+        account: Account,
+        queryHistory: QueryHistory,
+    ): Promise<void> {
+        const { projectUuid } = queryHistory;
+        const savedSqlUuids = AsyncQueryService.getSavedSqlUuids(queryHistory);
+        if (
+            isJwtUser(account) ||
+            savedSqlUuids.length === 0 ||
+            projectUuid === null
+        ) {
+            return;
+        }
+
+        await Promise.all(
+            savedSqlUuids.map(async (savedSqlUuid) => {
+                const savedSql = await this.savedSqlModel.getByUuid(
+                    savedSqlUuid,
+                    { projectUuid },
+                );
+                await this.assertSavedChartAccess(account, 'view', savedSql);
+            }),
+        );
+    }
+
+    private async assertSavedSqlChartViewAccessForUser(
+        user: SessionUser,
+        projectUuid: string,
+        savedSqlUuid: string,
+    ): Promise<void> {
+        const savedSql = await this.savedSqlModel.getByUuid(savedSqlUuid, {
+            projectUuid,
+        });
+        const ctx = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            {
+                type: 'sqlChart',
+                savedSqlUuid,
+                spaceUuid: savedSql.space.uuid,
+            },
+        );
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: savedSql.organization.organizationUuid,
+                    projectUuid: savedSql.project.projectUuid,
+                    inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
+                    access: ctx.access,
+                    metadata: {
+                        spaceUuid: savedSql.space.uuid,
+                        savedSqlUuid,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError("You don't have access to this chart");
+        }
+    }
+
+    private async assertQueuedSavedSqlQueryAccess(
+        queryHistory: QueryHistory,
+    ): Promise<void> {
+        const { projectUuid } = queryHistory;
+        const savedSqlUuids = AsyncQueryService.getSavedSqlUuids(queryHistory);
+        if (savedSqlUuids.length === 0) {
+            return;
+        }
+        const actor = AsyncQueryService.getQueryHistoryActor(queryHistory);
+        if (!actor.isRegisteredUser || projectUuid === null) {
+            return;
+        }
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            actor.userUuid,
+            queryHistory.organizationUuid,
+        );
+        await Promise.all(
+            savedSqlUuids.map((savedSqlUuid) =>
+                this.assertSavedSqlChartViewAccessForUser(
+                    user,
+                    projectUuid,
+                    savedSqlUuid,
+                ),
+            ),
+        );
+    }
+
+    private static getSavedSqlUuids(
+        queryHistory: Pick<QueryHistory, 'requestParameters'>,
+    ): string[] {
+        const { requestParameters } = queryHistory;
+        if (!requestParameters) {
+            return [];
+        }
+
+        return [
+            ...new Set([
+                ...(requestParameters.savedSqlUuids ?? []),
+                ...('savedSqlUuid' in requestParameters
+                    ? [requestParameters.savedSqlUuid]
+                    : []),
+            ]),
+        ];
+    }
+
+    private async getAuthorizedQueryHistory(
+        account: Account,
+        projectUuid: string,
+        queryUuid: string,
+    ): Promise<QueryHistory> {
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+        await this.assertSavedSqlQueryHistoryAccess(account, queryHistory);
+        return queryHistory;
     }
 
     private async assertSavedChartViewAccessForUser(
@@ -1306,7 +1431,7 @@ export class AsyncQueryService extends ProjectService {
 
         const [{ organizationUuid }, queryHistory] = await Promise.all([
             this.projectModel.getSummary(projectUuid),
-            this.queryHistoryModel.get(queryUuid, projectUuid, account),
+            this.getAuthorizedQueryHistory(account, projectUuid, queryUuid),
         ]);
 
         this.throwIfCannotReadQueryHistory(
@@ -1533,13 +1658,17 @@ export class AsyncQueryService extends ProjectService {
         );
 
         if (canViewProject) {
-            return this.queryHistoryModel.get(queryUuid, projectUuid, account);
+            return this.getAuthorizedQueryHistory(
+                account,
+                projectUuid,
+                queryUuid,
+            );
         }
 
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
+        const queryHistory = await this.getAuthorizedQueryHistory(
             account,
+            projectUuid,
+            queryUuid,
         );
 
         if (
@@ -1590,10 +1719,10 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
+        const queryHistory = await this.getAuthorizedQueryHistory(
             account,
+            projectUuid,
+            queryUuid,
         );
 
         const { status, resultsFileName } = queryHistory;
@@ -1709,6 +1838,12 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
+
+        await this.getAuthorizedQueryHistory(
+            account,
+            payload.projectUuid,
+            payload.queryUuid,
+        );
 
         const userUuid = account.user.id;
 
@@ -1896,10 +2031,10 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
+        const queryHistory = await this.getAuthorizedQueryHistory(
             account,
+            projectUuid,
+            queryUuid,
         );
 
         const displayTimezone = queryHistory.metricQuery.timezone ?? null;
@@ -3149,6 +3284,32 @@ export class AsyncQueryService extends ProjectService {
         if (!isQueuedStatus) {
             this.logger.info(
                 `Worker ${workerLabel} skipped async query ${queryUuid} because status is ${queryHistory.status}`,
+            );
+            return false;
+        }
+
+        try {
+            await this.assertQueuedSavedSqlQueryAccess(queryHistory);
+        } catch (error) {
+            if (
+                !(error instanceof ForbiddenError) &&
+                !(error instanceof NotFoundError) &&
+                !(error instanceof InvalidUser)
+            ) {
+                throw error;
+            }
+
+            await this.queryHistoryModel.updateStatusToErrorIfQueued(
+                queryUuid,
+                SAVED_SQL_QUERY_ACCESS_REVOKED_MESSAGE,
+            );
+            this.logger.warn(
+                `Worker ${workerLabel} denied async query ${queryUuid} after saved SQL access changed`,
+                {
+                    organizationUuid: queryHistory.organizationUuid,
+                    projectUuid: queryHistory.projectUuid,
+                    error: getErrorMessage(error),
+                },
             );
             return false;
         }
@@ -5064,6 +5225,7 @@ export class AsyncQueryService extends ProjectService {
             materializationRole,
             dashboardFilters,
             totalConfiguration,
+            savedSqlUuids,
         }: ExecuteAsyncMetricQueryArgs,
         organizationUuid: string,
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
@@ -5195,6 +5357,7 @@ export class AsyncQueryService extends ProjectService {
             query: effectiveMetricQuery,
             parameters: combinedParameters,
             dateZoom,
+            savedSqlUuids,
         };
 
         const routingDecision = this.getPreAggregationRoutingDecision({
@@ -5287,7 +5450,7 @@ export class AsyncQueryService extends ProjectService {
         assertIsAccountWithOrg(account);
 
         const [source, { organizationUuid }] = await Promise.all([
-            this.queryHistoryModel.get(queryUuid, projectUuid, account),
+            this.getAuthorizedQueryHistory(account, projectUuid, queryUuid),
             this.projectModel.getSummary(projectUuid),
         ]);
 
@@ -5322,6 +5485,7 @@ export class AsyncQueryService extends ProjectService {
                         source.requestParameters,
                     ),
                     invalidateCache,
+                    savedSqlUuids: AsyncQueryService.getSavedSqlUuids(source),
                 },
                 organizationUuid,
             );
@@ -5360,7 +5524,7 @@ export class AsyncQueryService extends ProjectService {
         // this account — that ownership authorizes the totals query, so we skip
         // the explore-level CASL gate (which embed JWT callers can't pass).
         const [source, { organizationUuid }] = await Promise.all([
-            this.queryHistoryModel.get(queryUuid, projectUuid, account),
+            this.getAuthorizedQueryHistory(account, projectUuid, queryUuid),
             this.projectModel.getSummary(projectUuid),
         ]);
 
@@ -5388,6 +5552,7 @@ export class AsyncQueryService extends ProjectService {
                 parameters: sourceParameters,
                 dateZoom: sourceDateZoom,
                 invalidateCache,
+                savedSqlUuids: AsyncQueryService.getSavedSqlUuids(source),
             },
             organizationUuid,
         );
@@ -6509,12 +6674,12 @@ export class AsyncQueryService extends ProjectService {
             isServiceAccount: account.isServiceAccount(),
         });
 
-        const { metricQuery, fields: metricQueryFields } =
-            await this.queryHistoryModel.get(
-                underlyingDataSourceQueryUuid,
-                projectUuid,
-                account,
-            );
+        const sourceQueryHistory = await this.getAuthorizedQueryHistory(
+            account,
+            projectUuid,
+            underlyingDataSourceQueryUuid,
+        );
+        const { metricQuery, fields: metricQueryFields } = sourceQueryHistory;
 
         const { exploreName } = metricQuery;
 
@@ -6677,6 +6842,8 @@ export class AsyncQueryService extends ProjectService {
             filters,
             underlyingDataItemId,
             sorts,
+            savedSqlUuids:
+                AsyncQueryService.getSavedSqlUuids(sourceQueryHistory),
         };
 
         const baseQueryTags: RunQueryTags = {
@@ -6888,7 +7055,7 @@ export class AsyncQueryService extends ProjectService {
         projectUuid: string;
         organizationUuid: string;
         references: Record<string, string>;
-    }): Promise<void> {
+    }): Promise<string[]> {
         const validTableName = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
         const validUuid =
             /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -6901,7 +7068,7 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        await Promise.all(
+        const savedSqlUuids = await Promise.all(
             Object.entries(references).map(async ([tableName, queryUuid]) => {
                 if (!validTableName.test(tableName)) {
                     throw new ParameterError(
@@ -6914,10 +7081,10 @@ export class AsyncQueryService extends ProjectService {
                     );
                 }
 
-                const queryHistory = await this.queryHistoryModel.get(
-                    queryUuid,
-                    projectUuid,
+                const queryHistory = await this.getAuthorizedQueryHistory(
                     account,
+                    projectUuid,
+                    queryUuid,
                 );
 
                 this.throwIfCannotReadQueryHistory(
@@ -6926,8 +7093,12 @@ export class AsyncQueryService extends ProjectService {
                     organizationUuid,
                     queryHistory,
                 );
+
+                return AsyncQueryService.getSavedSqlUuids(queryHistory);
             }),
         );
+
+        return [...new Set(savedSqlUuids.flat())];
     }
 
     /**
@@ -6960,6 +7131,10 @@ export class AsyncQueryService extends ProjectService {
                             timeoutMs:
                                 AsyncQueryService.REFERENCE_WAIT_TIMEOUT_MS,
                         });
+                    await this.assertSavedSqlQueryHistoryAccess(
+                        account,
+                        queryHistory,
+                    );
                 } catch (e) {
                     throw new ParameterError(
                         `Referenced query "${tableName}" (${queryUuid}) did not complete: ${getErrorMessage(
@@ -7079,14 +7254,14 @@ export class AsyncQueryService extends ProjectService {
             references && Object.keys(references).length > 0
                 ? references
                 : undefined;
-        if (normalizedReferences) {
-            await this.authorizeQueryReferences({
-                account,
-                projectUuid,
-                organizationUuid,
-                references: normalizedReferences,
-            });
-        }
+        const savedSqlUuids = normalizedReferences
+            ? await this.authorizeQueryReferences({
+                  account,
+                  projectUuid,
+                  organizationUuid,
+                  references: normalizedReferences,
+              })
+            : [];
 
         // Throws NotImplementedError when pre-aggregate execution is unavailable
         const warehouseClient =
@@ -7129,6 +7304,7 @@ export class AsyncQueryService extends ProjectService {
             limit,
             context,
             references,
+            savedSqlUuids,
         };
 
         const queryCreatedAt = new Date();
@@ -8123,7 +8299,7 @@ export class AsyncQueryService extends ProjectService {
                 ],
             ),
         );
-        await this.authorizeQueryReferences({
+        const savedSqlUuids = await this.authorizeQueryReferences({
             account,
             projectUuid,
             organizationUuid,
@@ -8158,6 +8334,7 @@ export class AsyncQueryService extends ProjectService {
             mergeQuery,
             parameters,
             pivotConfiguration,
+            savedSqlUuids,
         };
 
         const queryCreatedAt = new Date();
@@ -8234,10 +8411,10 @@ export class AsyncQueryService extends ProjectService {
         projectUuid: string,
         queryUuid: string,
     ): Promise<{ metricQuery: MetricQuery; fields: ItemsMap }> {
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
+        const queryHistory = await this.getAuthorizedQueryHistory(
             account,
+            projectUuid,
+            queryUuid,
         );
         if (queryHistory.status !== QueryHistoryStatus.READY) {
             throw new ParameterError(
@@ -8624,7 +8801,6 @@ export class AsyncQueryService extends ProjectService {
             warehouseConnection,
             warehouseCredentials,
             queryTags,
-            metricQuery,
             queryComposer,
             originalColumns,
             parameterReferences,
@@ -8644,6 +8820,13 @@ export class AsyncQueryService extends ProjectService {
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
         await warehouseConnection.sshTunnel.disconnect();
 
+        const requestParameters: ExecuteAsyncSqlChartRequestParams = {
+            savedSqlUuid: sqlChart.savedSqlUuid,
+            context,
+            invalidateCache,
+            limit,
+            parameters: args.parameters,
+        };
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
@@ -8656,10 +8839,7 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns,
                 warehouseCredentials,
             },
-            {
-                query: metricQuery,
-                invalidateCache,
-            },
+            requestParameters,
         );
 
         return {
@@ -8766,7 +8946,6 @@ export class AsyncQueryService extends ProjectService {
             warehouseConnection,
             warehouseCredentials,
             queryTags,
-            metricQuery,
             queryComposer,
             appliedDashboardFilters,
             originalColumns,
@@ -8791,6 +8970,17 @@ export class AsyncQueryService extends ProjectService {
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
         await warehouseConnection.sshTunnel.disconnect();
 
+        const requestParameters: ExecuteAsyncDashboardSqlChartRequestParams = {
+            savedSqlUuid: savedChart.savedSqlUuid,
+            dashboardUuid: resolvedDashboardUuid,
+            tileUuid,
+            dashboardFilters,
+            dashboardSorts,
+            context,
+            invalidateCache,
+            limit,
+            parameters: args.parameters,
+        };
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
@@ -8803,10 +8993,7 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns,
                 warehouseCredentials,
             },
-            {
-                query: metricQuery,
-                invalidateCache,
-            },
+            requestParameters,
         );
 
         return {
@@ -8953,10 +9140,10 @@ export class AsyncQueryService extends ProjectService {
         queryUuid: string;
         expiresAt: Date;
     }): Promise<void> {
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
+        const queryHistory = await this.getAuthorizedQueryHistory(
             account,
+            projectUuid,
+            queryUuid,
         );
         if (
             !queryHistory.resultsFileName ||
@@ -9039,10 +9226,10 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
     }> {
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
+        const queryHistory = await this.getAuthorizedQueryHistory(
             account,
+            projectUuid,
+            queryUuid,
         );
 
         const resultsStream = await this.getResultsStorageClientForContext(
@@ -9318,10 +9505,10 @@ export class AsyncQueryService extends ProjectService {
             ...pollingOptions,
         });
 
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
+        const queryHistory = await this.getAuthorizedQueryHistory(
             account,
+            projectUuid,
+            queryUuid,
         );
 
         if (!queryHistory.resultsFileName) {
