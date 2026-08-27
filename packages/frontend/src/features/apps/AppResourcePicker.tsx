@@ -1372,16 +1372,23 @@ export const ConnectionAttachButton: FC<{
                     withArrow
                     position="top"
                 >
-                    <ActionIcon
+                    <Button
                         variant="subtle"
                         color="ldGray"
-                        size="sm"
+                        size="compact-xs"
+                        leftSection={
+                            <MantineIcon icon={IconPlugConnected} size={14} />
+                        }
                         aria-label="Add external connections"
                         onClick={() => setOpened((value) => !value)}
                         disabled={disabled}
                     >
-                        <MantineIcon icon={IconPlugConnected} />
-                    </ActionIcon>
+                        {selectedConnections.length > 0
+                            ? `${selectedConnections.length} connection${
+                                  selectedConnections.length === 1 ? '' : 's'
+                              }`
+                            : 'Connections'}
+                    </Button>
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown className={classes.queryDropdown} p={0}>

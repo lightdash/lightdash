@@ -35,7 +35,6 @@ import {
     type SelectedConnection,
 } from '../../apps/AppResourcePicker';
 import AppVersionNarration from '../../apps/components/AppVersionNarration';
-import ConnectionChip from '../../apps/components/ConnectionChip';
 import { type ClarificationRound } from '../../apps/hooks/useClarificationRound';
 import { type DataAppModelSelection } from '../../apps/hooks/useDataAppModelSelection';
 import {
@@ -531,47 +530,17 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     onSubmit={handleSubmit}
                     onPaste={handlePaste}
                     attachments={
-                        selectedConnections.length > 0 ||
                         attachments.attachments.length > 0 ? (
-                            <>
-                                {selectedConnections.length > 0 && (
-                                    <Group gap="xs">
-                                        {selectedConnections.map(
-                                            (connection) => (
-                                                <ConnectionChip
-                                                    key={
-                                                        connection.externalConnectionUuid
-                                                    }
-                                                    name={connection.name}
-                                                    onRemove={() =>
-                                                        setSelectedConnections(
-                                                            (current) =>
-                                                                current.filter(
-                                                                    (item) =>
-                                                                        item.externalConnectionUuid !==
-                                                                        connection.externalConnectionUuid,
-                                                                ),
-                                                        )
-                                                    }
-                                                />
-                                            ),
-                                        )}
-                                    </Group>
+                            <SelectedAttachmentSection
+                                attachments={attachments.attachments.map(
+                                    (attachment) => ({
+                                        id: attachment.key,
+                                        previewUrl: attachment.previewUrl,
+                                        filename: attachment.filename,
+                                    }),
                                 )}
-                                {attachments.attachments.length > 0 && (
-                                    <SelectedAttachmentSection
-                                        attachments={attachments.attachments.map(
-                                            (attachment) => ({
-                                                id: attachment.key,
-                                                previewUrl:
-                                                    attachment.previewUrl,
-                                                filename: attachment.filename,
-                                            }),
-                                        )}
-                                        onRemove={attachments.remove}
-                                    />
-                                )}
-                            </>
+                                onRemove={attachments.remove}
+                            />
                         ) : undefined
                     }
                     toolbarRight={

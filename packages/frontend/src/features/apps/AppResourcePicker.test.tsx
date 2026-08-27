@@ -1,7 +1,10 @@
 import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
-import { SelectedQuerySection } from './AppResourcePicker';
+import {
+    ConnectionAttachButton,
+    SelectedQuerySection,
+} from './AppResourcePicker';
 
 const baseChart = {
     uuid: 'c1',
@@ -58,3 +61,35 @@ it('hides the sample-data controls when the instance disables sample data', () =
     expect(screen.queryByLabelText('Include sample data')).toBeNull();
     expect(screen.getByLabelText('Link live')).toBeInTheDocument();
 });
+
+it.each([
+    { count: 0, label: 'Connections' },
+    { count: 1, label: '1 connection' },
+    { count: 2, label: '2 connections' },
+])(
+    'summarizes $count selected connections in the trigger',
+    ({ count, label }) => {
+        render(
+            <MantineProvider env="test">
+                <ConnectionAttachButton
+                    selectedConnections={Array.from(
+                        { length: count },
+                        (_, index) => ({
+                            externalConnectionUuid: `connection-${index}`,
+                            name: `Connection ${index}`,
+                            alias: `connection_${index}`,
+                        }),
+                    )}
+                    onSelect={() => undefined}
+                    onDeselect={() => undefined}
+                    disabled={false}
+                    description="Choose connections"
+                />
+            </MantineProvider>,
+        );
+
+        expect(
+            screen.getByRole('button', { name: 'Add external connections' }),
+        ).toHaveTextContent(label);
+    },
+);
