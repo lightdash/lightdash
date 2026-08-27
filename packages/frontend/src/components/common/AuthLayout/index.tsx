@@ -28,6 +28,8 @@ type Props = {
     cardId?: string;
     /** Pages that bring their own cards (Invite) opt out of the legacy card. */
     withLegacyCard?: boolean;
+    backgroundColor?: string;
+    brandBackgroundColor?: string;
     footer?: ReactNode;
 };
 
@@ -38,6 +40,8 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     legacyTitle,
     cardId,
     withLegacyCard = true,
+    backgroundColor,
+    brandBackgroundColor,
     footer,
     children,
 }) => {
@@ -48,7 +52,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     }
 
     if (!isNewLayout) {
-        return (
+        const page = (
             <Page title={pageTitle} withCenteredContent withNavbar={false}>
                 <Stack w={400} mt="4xl">
                     <Box mx="auto" my="lg">
@@ -76,6 +80,8 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                 </Stack>
             </Page>
         );
+
+        return backgroundColor ? <Box bg={backgroundColor}>{page}</Box> : page;
     }
 
     return (
@@ -83,7 +89,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
             <DocumentTitle title={pageTitle} />
 
             <Box className={classes.root}>
-                <Box className={classes.brandPanel}>
+                <Box className={classes.brandPanel} bg={brandBackgroundColor}>
                     <Box className={classes.decorationTop} aria-hidden />
                     <Box className={classes.decorationBottom} aria-hidden />
 
@@ -128,7 +134,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                     </Stack>
                 </Box>
 
-                <Box className={classes.formPanel}>
+                <Box className={classes.formPanel} bg={backgroundColor}>
                     <Stack id={cardId} className={classes.formContent} gap="xl">
                         <Group
                             gap="sm"

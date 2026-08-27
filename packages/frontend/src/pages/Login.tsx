@@ -8,7 +8,7 @@ import LoginLanding from '../features/users/components/LoginLanding';
 const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
     if (minimal) {
         return (
-            <Stack m="xl">
+            <Stack bg="pink.0" mih="100vh" p="xl">
                 <Box mx="auto" my="lg">
                     <LightdashLogo />
                 </Box>
@@ -35,6 +35,8 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
             subtitle="Welcome back — pick up where you left off."
             legacyTitle="Sign in"
             cardId={LOGIN_PAGE_ID}
+            backgroundColor="pink.0"
+            brandBackgroundColor="pink.7"
         >
             <LoginLanding />
         </AuthLayout>
