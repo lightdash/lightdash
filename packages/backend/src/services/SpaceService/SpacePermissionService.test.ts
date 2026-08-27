@@ -2005,22 +2005,14 @@ describe('resolveAccessBatch', () => {
     const createService = ({
         enabled,
         grants = {},
-        grantsByOrganization,
         contexts,
     }: {
         enabled: boolean;
         grants?: Record<string, unknown>;
-        grantsByOrganization?: Record<string, Record<string, unknown>>;
         contexts: Record<string, SpaceAccessContextForCasl>;
     }) => {
         const dashboardAccessModel = {
-            getUserAccess: vi.fn(
-                async (
-                    _resourceUuids: string[],
-                    _userUuid: string,
-                    { organizationUuid }: { organizationUuid: string },
-                ) => grantsByOrganization?.[organizationUuid] ?? grants,
-            ),
+            getUserAccess: vi.fn(async () => grants),
         };
         const savedChartAccessModel = {
             getUserAccess: vi.fn(async () => ({})),
@@ -2065,20 +2057,122 @@ describe('resolveAccessBatch', () => {
                 contexts: { 'space-a': baseContext },
             });
 
+        const firstTarget = { type: 'space' as const, spaceUuid: 'space-a' };
+        const duplicateTarget = {
+            type: 'space' as const,
+            spaceUuid: 'space-a',
+        };
         const result = await service.resolveAccessBatch('user-uuid', [
-            { type: 'space', spaceUuid: 'space-a' },
-            { type: 'space', spaceUuid: 'space-a' },
+            firstTarget,
+            duplicateTarget,
         ]);
 
         expect(result).toEqual([
-            { ...baseContext, directOnly: false },
-            { ...baseContext, directOnly: false },
+            {
+                target: firstTarget,
+                context: { ...baseContext, directOnly: false },
+            },
+            {
+                target: duplicateTarget,
+                context: { ...baseContext, directOnly: false },
+            },
         ]);
-        result.forEach((context) => {
+        expect(result[0].target).toBe(firstTarget);
+        expect(result[1].target).toBe(duplicateTarget);
+        result.forEach(({ context }) => {
             if (context) expectNoGrantRows(context);
         });
         expect(directAccessFeatureGate.isEnabledForUser).not.toHaveBeenCalled();
         expect(dashboardAccessModel.getUserAccess).not.toHaveBeenCalled();
+    });
+
+    test('duplicate granted targets resolve through the grant path with one deduped lookup, identities kept', async () => {
+        const { service, dashboardAccessModel } = createService({
+            enabled: true,
+            contexts: { 'space-a': baseContext },
+            grants: {
+                'dash-a': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid: 'space-a',
+                    userRole: SpaceMemberRole.EDITOR,
+                    groupRoles: [],
+                },
+            },
+        });
+        const firstTarget = {
+            type: 'dashboard' as const,
+            dashboardUuid: 'dash-a',
+            spaceUuid: 'space-a',
+        };
+        const duplicateTarget = {
+            type: 'dashboard' as const,
+            dashboardUuid: 'dash-a',
+            spaceUuid: 'space-a',
+        };
+
+        const result = await service.resolveAccessBatch('user-uuid', [
+            firstTarget,
+            duplicateTarget,
+        ]);
+
+        expect(result[0].target).toBe(firstTarget);
+        expect(result[1].target).toBe(duplicateTarget);
+        result.forEach(({ context }) => {
+            expect(context?.access).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ grantedVia: 'dashboard' }),
+                ]),
+            );
+        });
+        expect(dashboardAccessModel.getUserAccess).toHaveBeenCalledTimes(1);
+        expect(dashboardAccessModel.getUserAccess).toHaveBeenCalledWith(
+            ['dash-a'],
+            'user-uuid',
+            { organizationUuid: 'organization-uuid' },
+        );
+    });
+
+    test('an unresolvable target stays aligned as undefined amid resolved neighbours', async () => {
+        const { service } = createService({
+            enabled: true,
+            contexts: { 'space-a': baseContext },
+            grants: {
+                'dash-a': {
+                    organizationUuid: 'organization-uuid',
+                    projectUuid: 'project-uuid',
+                    spaceUuid: 'space-a',
+                    userRole: SpaceMemberRole.VIEWER,
+                    groupRoles: [],
+                },
+            },
+        });
+
+        const targets = [
+            {
+                type: 'dashboard' as const,
+                dashboardUuid: 'dash-a',
+                spaceUuid: 'space-a',
+            },
+            { type: 'space' as const, spaceUuid: 'ghost-space' },
+            { type: 'space' as const, spaceUuid: 'space-a' },
+        ];
+        const result = await service.resolveAccessBatch('user-uuid', targets);
+
+        expect(result).toHaveLength(3);
+        result.forEach(({ target }, index) => {
+            expect(target).toBe(targets[index]);
+        });
+        expect(result[0].context?.access).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ grantedVia: 'dashboard' }),
+            ]),
+        );
+        expect(result[1].context).toBeUndefined();
+        expect(result[2].context).toEqual({
+            ...baseContext,
+            directOnly: false,
+        });
     });
 
     test('feature off returns space-only for every ref without a grant lookup', async () => {
@@ -2108,7 +2202,7 @@ describe('resolveAccessBatch', () => {
             },
         ]);
 
-        expect(result).toEqual([
+        expect(result.map(({ context }) => context)).toEqual([
             { ...baseContext, directOnly: false },
             { ...baseContext, directOnly: false },
             { ...baseContext, directOnly: false },
@@ -2121,7 +2215,9 @@ describe('resolveAccessBatch', () => {
         expect(savedChartAccessModel.getUserAccess).not.toHaveBeenCalled();
     });
 
-    test('partitions feature checks and grant lookups by organization', async () => {
+    test('rejects a batch whose grant targets span organizations before any gate or grant work', async () => {
+        // Every caller is project-scoped, so a cross-organization batch is a
+        // caller bug or a probing attempt; the resolver refuses to service it.
         const organizationBContext = {
             ...baseContext,
             organizationUuid: 'organization-b',
@@ -2134,61 +2230,50 @@ describe('resolveAccessBatch', () => {
                     'space-a': baseContext,
                     'space-b': organizationBContext,
                 },
-                grantsByOrganization: {
-                    'organization-uuid': {
-                        'dash-a': {
-                            organizationUuid: 'organization-uuid',
-                            projectUuid: 'project-uuid',
-                            spaceUuid: 'space-a',
-                            userRole: SpaceMemberRole.VIEWER,
-                            groupRoles: [],
-                        },
-                    },
-                    'organization-b': {
-                        'dash-b': {
-                            organizationUuid: 'organization-b',
-                            projectUuid: 'project-b',
-                            spaceUuid: 'space-b',
-                            userRole: SpaceMemberRole.EDITOR,
-                            groupRoles: [],
-                        },
-                    },
-                },
             });
 
+        await expect(
+            service.resolveAccessBatch('user-uuid', [
+                {
+                    type: 'dashboard',
+                    dashboardUuid: 'dash-a',
+                    spaceUuid: 'space-a',
+                },
+                {
+                    type: 'dashboard',
+                    dashboardUuid: 'dash-b',
+                    spaceUuid: 'space-b',
+                },
+            ]),
+        ).rejects.toThrow(
+            'Access targets must belong to a single organization',
+        );
+        expect(directAccessFeatureGate.isEnabledForUser).not.toHaveBeenCalled();
+        expect(dashboardAccessModel.getUserAccess).not.toHaveBeenCalled();
+    });
+
+    test('a cross-organization space-only batch still resolves (no grant machinery involved)', async () => {
+        const organizationBContext = {
+            ...baseContext,
+            organizationUuid: 'organization-b',
+            projectUuid: 'project-b',
+        };
+        const { service, directAccessFeatureGate } = createService({
+            enabled: true,
+            contexts: {
+                'space-a': baseContext,
+                'space-b': organizationBContext,
+            },
+        });
+
         const result = await service.resolveAccessBatch('user-uuid', [
-            {
-                type: 'dashboard',
-                dashboardUuid: 'dash-a',
-                spaceUuid: 'space-a',
-            },
-            {
-                type: 'dashboard',
-                dashboardUuid: 'dash-b',
-                spaceUuid: 'space-b',
-            },
+            { type: 'space', spaceUuid: 'space-a' },
+            { type: 'space', spaceUuid: 'space-b' },
         ]);
 
-        expect(result[0]?.access).toEqual([
-            expect.objectContaining({ role: SpaceMemberRole.VIEWER }),
-        ]);
-        expect(result[1]?.access).toEqual([
-            expect.objectContaining({ role: SpaceMemberRole.EDITOR }),
-        ]);
-        expect(directAccessFeatureGate.isEnabledForUser).toHaveBeenCalledTimes(
-            2,
-        );
-        expect(dashboardAccessModel.getUserAccess).toHaveBeenCalledTimes(2);
-        expect(dashboardAccessModel.getUserAccess).toHaveBeenCalledWith(
-            ['dash-a'],
-            'user-uuid',
-            { organizationUuid: 'organization-uuid' },
-        );
-        expect(dashboardAccessModel.getUserAccess).toHaveBeenCalledWith(
-            ['dash-b'],
-            'user-uuid',
-            { organizationUuid: 'organization-b' },
-        );
+        expect(result[0]?.context?.organizationUuid).toBe('organization-uuid');
+        expect(result[1]?.context?.organizationUuid).toBe('organization-b');
+        expect(directAccessFeatureGate.isEnabledForUser).not.toHaveBeenCalled();
     });
 
     test('forwards a transaction to space and grant resolution', async () => {
@@ -2250,15 +2335,22 @@ describe('resolveAccessBatch', () => {
         ]);
 
         // Order preserved: dash-2 (no grant) first, dash-1 (grant) second.
-        expect(result[0]).toEqual({ ...baseContext, directOnly: false });
-        expect(result[1]?.access).toEqual([
+        expect(result[0]).toEqual({
+            target: {
+                type: 'dashboard',
+                dashboardUuid: 'dash-2',
+                spaceUuid: 'space-b',
+            },
+            context: { ...baseContext, directOnly: false },
+        });
+        expect(result[1]?.context?.access).toEqual([
             expect.objectContaining({
                 userUuid: 'user-uuid',
                 role: SpaceMemberRole.VIEWER,
                 grantedVia: 'dashboard',
             }),
         ]);
-        expect(result[1]?.directOnly).toBe(true);
+        expect(result[1]?.context?.directOnly).toBe(true);
         expect(dashboardAccessModel.getUserAccess).toHaveBeenCalledTimes(1);
         expect(dashboardAccessModel.getUserAccess).toHaveBeenCalledWith(
             ['dash-2', 'dash-1'],
@@ -2290,8 +2382,11 @@ describe('resolveAccessBatch', () => {
             },
         ]);
 
-        expect(result[0]).toEqual({ ...baseContext, directOnly: false });
-        expectNoGrantRows(result[0]!);
+        expect(result[0].context).toEqual({
+            ...baseContext,
+            directOnly: false,
+        });
+        expectNoGrantRows(result[0].context!);
     });
 
     test('unresolvable spaces map to undefined', async () => {
@@ -2305,7 +2400,16 @@ describe('resolveAccessBatch', () => {
             },
         ]);
 
-        expect(result).toEqual([undefined]);
+        expect(result).toEqual([
+            {
+                target: {
+                    type: 'dashboard',
+                    dashboardUuid: 'dash-1',
+                    spaceUuid: 'missing-space',
+                },
+                context: undefined,
+            },
+        ]);
     });
 });
 
@@ -2537,10 +2641,10 @@ describe('resolveAccess chart ownership routing', () => {
             },
         ]);
 
-        expect(result[0]?.access).toEqual([
+        expect(result[0]?.context?.access).toEqual([
             expect.objectContaining({ grantedVia: 'dashboard' }),
         ]);
-        expect(result[1]?.access).toEqual([
+        expect(result[1]?.context?.access).toEqual([
             expect.objectContaining({ grantedVia: 'saved_chart' }),
         ]);
         expect(spaceContextResolver).toHaveBeenCalledTimes(1);

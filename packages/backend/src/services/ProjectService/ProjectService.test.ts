@@ -6328,13 +6328,16 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
         })),
         resolveAccessBatch: vi.fn(
             async (_userUuid: string, targets: { spaceUuid: string }[]) =>
-                targets.map(() => ({
-                    organizationUuid,
-                    projectUuid,
-                    inheritsFromOrgOrProject: true,
-                    access: [],
-                    admins: [],
-                    directOnly: false,
+                targets.map((target) => ({
+                    target,
+                    context: {
+                        organizationUuid,
+                        projectUuid,
+                        inheritsFromOrgOrProject: true,
+                        access: [],
+                        admins: [],
+                        directOnly: false,
+                    },
                 })),
         ),
     } as unknown as SpacePermissionService;

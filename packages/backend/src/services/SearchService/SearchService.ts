@@ -24,7 +24,10 @@ import { searchReservingVerified } from '../../models/SearchModel/utils/search';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { BaseService } from '../BaseService';
-import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import {
+    spaceContextsByUuid,
+    type SpacePermissionService,
+} from '../SpaceService/SpacePermissionService';
 import { checkUserAttributesAccess } from '../UserAttributesService/UserAttributeUtils';
 
 type SearchServiceArguments = {
@@ -158,12 +161,7 @@ export class SearchService extends BaseService {
                   )
                 : Promise.resolve([]),
         ]);
-        const spaceContexts = Object.fromEntries(
-            spaceUuids.map((spaceUuid, index) => [
-                spaceUuid,
-                resolvedSpaceContexts[index],
-            ]),
-        );
+        const spaceContexts = spaceContextsByUuid(resolvedSpaceContexts);
 
         const contentWithContext = allContent.flatMap((content) => {
             const spaceContext = spaceContexts[content.spaceUuid];

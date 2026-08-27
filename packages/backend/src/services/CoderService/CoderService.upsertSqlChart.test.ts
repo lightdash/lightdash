@@ -72,7 +72,11 @@ const buildService = (
         async (
             _userUuid: string,
             targets: { type: 'space'; spaceUuid: string }[],
-        ) => targets.map(() => ({ ...accessContext(), directOnly: false })),
+        ) =>
+            targets.map((target) => ({
+                target,
+                context: { ...accessContext(), directOnly: false },
+            })),
     ),
 ) =>
     new CoderService({
@@ -204,12 +208,15 @@ describe('CoderService.upsertSqlChart - permissions', () => {
                 service.spacePermissionService.resolveAccessBatch,
             ).mockResolvedValue([
                 {
-                    organizationUuid: ORG_UUID,
-                    projectUuid: PROJECT_UUID,
-                    inheritsFromOrgOrProject: false,
-                    access: [],
-                    admins: [],
-                    directOnly: false,
+                    target: { type: 'space', spaceUuid: PARENT_SPACE_UUID },
+                    context: {
+                        organizationUuid: ORG_UUID,
+                        projectUuid: PROJECT_UUID,
+                        inheritsFromOrgOrProject: false,
+                        access: [],
+                        admins: [],
+                        directOnly: false,
+                    },
                 },
             ]);
             const user = makeUser([
@@ -304,11 +311,19 @@ describe('CoderService.upsertSqlChart - permissions', () => {
                     _userUuid: string,
                     targets: { type: 'space'; spaceUuid: string }[],
                 ) =>
-                    targets.map(({ spaceUuid }) =>
-                        spaceUuid === SPACE_UUID
-                            ? accessContext(PROJECT_UUID)
-                            : accessContext('inaccessible-project'),
-                    ),
+                    targets.map((target) => ({
+                        target,
+                        context:
+                            target.spaceUuid === SPACE_UUID
+                                ? {
+                                      ...accessContext(PROJECT_UUID),
+                                      directOnly: false,
+                                  }
+                                : {
+                                      ...accessContext('inaccessible-project'),
+                                      directOnly: false,
+                                  },
+                    })),
             );
             const service = buildService(savedSqlModel, resolveAccessBatch);
             stubSpace(service, SPACE_UUID);

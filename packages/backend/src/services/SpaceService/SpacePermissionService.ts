@@ -84,6 +84,23 @@ export type AccessContextForCasl = SpaceAccessContextForCasl & {
     directOnly: boolean;
 };
 
+export type AccessResult<T extends AccessTarget = AccessTarget> = {
+    target: T;
+    context: AccessContextForCasl | undefined;
+};
+
+/**
+ * Correlates a space-target batch by spaceUuid. Only valid for space targets,
+ * where the context is a pure function of the space — grant-aware targets can
+ * carry different contexts within one space and must correlate per target.
+ */
+export const spaceContextsByUuid = (
+    results: AccessResult<{ type: 'space'; spaceUuid: string }>[],
+): Record<string, AccessContextForCasl | undefined> =>
+    Object.fromEntries(
+        results.map(({ target, context }) => [target.spaceUuid, context]),
+    );
+
 export class SpacePermissionService extends BaseService {
     private readonly spaceModel: SpaceModel;
 
@@ -232,10 +249,11 @@ export class SpacePermissionService extends BaseService {
         target: AccessTarget,
         { trx }: { trx?: Knex } = {},
     ): Promise<AccessContextForCasl> {
-        const [context] = await this.resolveAccessTargets(userUuid, [target], {
+        const [result] = await this.resolveAccessTargets(userUuid, [target], {
             onMismatch: 'throw',
             trx,
         });
+        const context = result?.context;
         if (context === undefined) {
             throw new NotFoundError(
                 `Couldn't find access context for space ${target.spaceUuid}`,
@@ -245,15 +263,20 @@ export class SpacePermissionService extends BaseService {
     }
 
     /**
-     * Batched access resolution aligned with the input. Missing spaces and
+     * Batched access resolution paired with each original target. Unlike the
+     * strict single-target `resolveAccess` (which throws), missing spaces and
      * mismatched resource refs degrade to `undefined` or space-only access so
-     * one doubtful target never fails an entire hot-path request.
+     * one doubtful target never fails an entire hot-path request. The two
+     * entry points differ in that error posture, not just arity.
+     *
+     * All grant-bearing targets must belong to one organization (every caller
+     * is project-scoped); a batch spanning organizations throws.
      */
-    async resolveAccessBatch(
+    async resolveAccessBatch<T extends AccessTarget>(
         userUuid: string,
-        targets: AccessTarget[],
+        targets: T[],
         { trx }: { trx?: Knex } = {},
-    ): Promise<(AccessContextForCasl | undefined)[]> {
+    ): Promise<AccessResult<T>[]> {
         return this.resolveAccessTargets(userUuid, targets, {
             onMismatch: 'fallback',
             trx,
@@ -319,9 +342,9 @@ export class SpacePermissionService extends BaseService {
         }
     }
 
-    private async resolveAccessTargets(
+    private async resolveAccessTargets<T extends AccessTarget>(
         userUuid: string,
-        targets: AccessTarget[],
+        targets: T[],
         {
             onMismatch,
             trx,
@@ -329,7 +352,7 @@ export class SpacePermissionService extends BaseService {
             onMismatch: 'throw' | 'fallback';
             trx?: Knex;
         },
-    ): Promise<(AccessContextForCasl | undefined)[]> {
+    ): Promise<AccessResult<T>[]> {
         if (targets.length === 0) {
             return [];
         }
@@ -342,12 +365,14 @@ export class SpacePermissionService extends BaseService {
             { userUuid },
             { trx },
         );
-        const spaceOnly = (
-            target: AccessTarget,
-        ): AccessContextForCasl | undefined => {
+        const spaceOnly = (target: T): AccessContextForCasl | undefined => {
             const context = spaceContexts[target.spaceUuid];
             return context ? { ...context, directOnly: false } : undefined;
         };
+        const resultFor = (
+            target: T,
+            context: AccessContextForCasl | undefined,
+        ): AccessResult<T> => ({ target, context });
         const grantTargets = targets.flatMap((target) => {
             const spaceContext = spaceContexts[target.spaceUuid];
             const grantTarget =
@@ -362,90 +387,74 @@ export class SpacePermissionService extends BaseService {
                 : [];
         });
         if (grantTargets.length === 0) {
-            return targets.map(spaceOnly);
+            return targets.map((target) =>
+                resultFor(target, spaceOnly(target)),
+            );
         }
 
+        // Every caller is project-scoped, so grant-bearing targets can only
+        // ever belong to one organization. A batch that spans organizations is
+        // a caller bug or a probing attempt — refuse it rather than service it.
         const organizationUuids = [
             ...new Set(grantTargets.map((target) => target.organizationUuid)),
         ];
-        const directAccessEnabledByOrganization = new Map(
-            await Promise.all(
-                organizationUuids.map(
-                    async (organizationUuid) =>
-                        [
-                            organizationUuid,
-                            await this.directAccessFeatureGate.isEnabledForUser(
-                                {
-                                    userUuid,
-                                    organizationUuid,
-                                },
-                            ),
-                        ] as const,
-                ),
-            ),
-        );
-
-        const grantBatches = new Map<string, Map<GrantSource, Set<string>>>();
-        grantTargets.forEach((target) => {
-            if (
-                !directAccessEnabledByOrganization.get(target.organizationUuid)
-            ) {
-                return;
-            }
-            const batchesBySource =
-                grantBatches.get(target.organizationUuid) ?? new Map();
-            const resourceUuids =
-                batchesBySource.get(target.source) ?? new Set();
-            resourceUuids.add(target.resourceUuid);
-            batchesBySource.set(target.source, resourceUuids);
-            grantBatches.set(target.organizationUuid, batchesBySource);
-        });
-        if (grantBatches.size === 0) {
-            return targets.map(spaceOnly);
+        if (organizationUuids.length > 1) {
+            throw new ParameterError(
+                'Access targets must belong to a single organization',
+            );
+        }
+        const [organizationUuid] = organizationUuids;
+        const directAccessEnabled =
+            await this.directAccessFeatureGate.isEnabledForUser({
+                userUuid,
+                organizationUuid,
+            });
+        if (!directAccessEnabled) {
+            return targets.map((target) =>
+                resultFor(target, spaceOnly(target)),
+            );
         }
 
-        const grantResults = await Promise.all(
-            [...grantBatches].flatMap(([organizationUuid, batchesBySource]) =>
-                [...batchesBySource].map(async ([source, resourceUuids]) => ({
-                    organizationUuid,
-                    source,
-                    grants: await this.getGrantLookup(userUuid, source)(
-                        [...resourceUuids],
-                        trx ? { organizationUuid, trx } : { organizationUuid },
-                    ),
-                })),
-            ),
-        );
-        const grantsByOrganization = new Map<
-            string,
-            Map<GrantSource, Record<string, DirectAccess>>
-        >();
-        grantResults.forEach(({ organizationUuid, source, grants }) => {
-            const grantsBySource =
-                grantsByOrganization.get(organizationUuid) ?? new Map();
-            grantsBySource.set(source, grants);
-            grantsByOrganization.set(organizationUuid, grantsBySource);
+        const grantBatches = new Map<GrantSource, Set<string>>();
+        grantTargets.forEach((target) => {
+            const resourceUuids = grantBatches.get(target.source) ?? new Set();
+            resourceUuids.add(target.resourceUuid);
+            grantBatches.set(target.source, resourceUuids);
         });
+
+        const grantResults = await Promise.all(
+            [...grantBatches].map(async ([source, resourceUuids]) => ({
+                source,
+                grants: await this.getGrantLookup(userUuid, source)(
+                    [...resourceUuids],
+                    trx ? { organizationUuid, trx } : { organizationUuid },
+                ),
+            })),
+        );
+        const grantsBySource = new Map<
+            GrantSource,
+            Record<string, DirectAccess>
+        >(grantResults.map(({ source, grants }) => [source, grants]));
 
         return targets.map((target) => {
             const spaceContext = spaceContexts[target.spaceUuid];
             const grantTarget =
                 SpacePermissionService.getDirectGrantTarget(target);
             if (spaceContext === undefined || grantTarget === undefined) {
-                return spaceOnly(target);
+                return resultFor(target, spaceOnly(target));
             }
-            const grant = grantsByOrganization
-                .get(spaceContext.organizationUuid)
-                ?.get(grantTarget.source)?.[grantTarget.resourceUuid];
+            const grant = grantsBySource.get(grantTarget.source)?.[
+                grantTarget.resourceUuid
+            ];
             if (grant === undefined) {
-                return spaceOnly(target);
+                return resultFor(target, spaceOnly(target));
             }
             const grantRoles = [
                 ...(grant.userRole ? [grant.userRole] : []),
                 ...grant.groupRoles,
             ];
             if (grantRoles.length === 0) {
-                return spaceOnly(target);
+                return resultFor(target, spaceOnly(target));
             }
             const isMismatched = grant.spaceUuid !== target.spaceUuid;
             if (isMismatched && onMismatch === 'throw') {
@@ -454,13 +463,16 @@ export class SpacePermissionService extends BaseService {
                 );
             }
             if (isMismatched) {
-                return spaceOnly(target);
+                return resultFor(target, spaceOnly(target));
             }
-            return SpacePermissionService.withGrantAccess(
-                spaceContext,
-                userUuid,
-                grantRoles,
-                grantTarget.source,
+            return resultFor(
+                target,
+                SpacePermissionService.withGrantAccess(
+                    spaceContext,
+                    userUuid,
+                    grantRoles,
+                    grantTarget.source,
+                ),
             );
         });
     }
