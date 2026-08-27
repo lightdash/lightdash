@@ -1,3 +1,10 @@
+# [2.22.0](https://github.com/lightdash/lightdash/compare/2.21.0...2.22.0) (2026-08-27)
+
+
+### Features
+
+* **ai-reviews:** send new review findings to Linear ([#27983](https://github.com/lightdash/lightdash/issues/27983)) ([560ecc9](https://github.com/lightdash/lightdash/commit/560ecc953451eda665efa4537a510501676698b8))
+
 # [2.21.0](https://github.com/lightdash/lightdash/compare/2.20.0...2.21.0) (2026-08-27)
 
 

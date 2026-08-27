@@ -36322,6 +36322,23 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                linearProjectId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                linearTeamId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                linearEnabled: { dataType: 'boolean', required: true },
                 slackChannelId: {
                     dataType: 'union',
                     subSchemas: [
@@ -36360,12 +36377,26 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_AiReviewNotificationSettings.enabled-or-slackChannelId_': {
+    UpdateAiReviewNotificationSettings: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                enabled: { dataType: 'boolean', required: true },
+                linearProjectId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                linearTeamId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                linearEnabled: { dataType: 'boolean' },
                 slackChannelId: {
                     dataType: 'union',
                     subSchemas: [
@@ -36374,15 +36405,8 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                enabled: { dataType: 'boolean', required: true },
             },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    UpdateAiReviewNotificationSettings: {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Pick_AiReviewNotificationSettings.enabled-or-slackChannelId_',
             validators: {},
         },
     },
@@ -41398,6 +41422,7 @@ const models: TsoaRoute.Models = {
                 },
                 { dataType: 'enum', enums: ['aiAgentReviewRemediationRun'] },
                 { dataType: 'enum', enums: ['sendReviewNotification'] },
+                { dataType: 'enum', enums: ['createReviewLinearIssue'] },
                 { dataType: 'enum', enums: ['embedArtifactVersion'] },
                 { dataType: 'enum', enums: ['generateArtifactQuestion'] },
                 { dataType: 'enum', enums: ['appGeneratePipeline'] },

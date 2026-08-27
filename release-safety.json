@@ -1,26 +1,24 @@
 {
   "schemaVersion": "2",
-  "version": "2.21.0",
-  "previousVersion": "2.20.0",
-  "releaseDate": "2026-08-27T09:18:28.927Z",
+  "version": "2.22.0",
+  "previousVersion": "2.21.0",
+  "releaseDate": "2026-08-27T09:26:52.312Z",
   "migrations": {
     "present": true,
     "count": 1,
-    "coreCount": 1,
-    "eeCount": 0,
+    "coreCount": 0,
+    "eeCount": 1,
     "files": [
       {
-        "name": "20260825140000_add_linear_app_installations_table.ts",
-        "edition": "core",
+        "name": "20260825140001_add_linear_to_review_notification_settings.ts",
+        "edition": "ee",
         "tables": [
-          "linear_app_installations",
-          "organizations",
-          "users"
+          "ai_agent_review_notification_settings"
         ],
         "heaviness": {
           "locksTable": true,
           "rewritesTable": false,
-          "scansTable": true
+          "scansTable": false
         }
       }
     ]
@@ -35,8 +33,11 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/schedulers/runs/{runId}/logs — added the new `createReviewLinearIssue` enum value to the `results/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`",
+        "GET /api/v1/schedulers/{projectUuid}/logs — added the new `createReviewLinearIssue` enum value to the `results/data/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`"
+      ],
+      "advisoryCount": 2
     },
     "mcp": {
       "checked": true,
