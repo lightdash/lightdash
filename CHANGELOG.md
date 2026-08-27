@@ -1,3 +1,10 @@
+## [2.26.1](https://github.com/lightdash/lightdash/compare/2.26.0...2.26.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **dev:** validate shared PM2 process names ([#28180](https://github.com/lightdash/lightdash/issues/28180)) ([df87a0e](https://github.com/lightdash/lightdash/commit/df87a0ecd9a0eaab4f3a6c98a3ace8b90ad73259))
+
 # [2.26.0](https://github.com/lightdash/lightdash/compare/2.25.0...2.26.0) (2026-08-27)
 
 
