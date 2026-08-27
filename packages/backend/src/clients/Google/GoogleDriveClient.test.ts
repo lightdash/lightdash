@@ -2,6 +2,8 @@ import {
     DimensionType,
     FieldType,
     GoogleSheetsQuotaError,
+    TimeFrames,
+    type Dimension,
 } from '@lightdash/common';
 import { google } from 'googleapis';
 import { GoogleDriveClient } from './GoogleDriveClient';
@@ -172,6 +174,7 @@ describe('GoogleDriveClient', () => {
                 'file-id',
                 [['Total revenue'], [120]],
                 undefined,
+                [],
             );
         });
 
@@ -227,6 +230,7 @@ describe('GoogleDriveClient', () => {
                     [120],
                 ],
                 undefined,
+                [],
             );
         });
 
@@ -265,7 +269,141 @@ describe('GoogleDriveClient', () => {
                 'file-id',
                 [['Active filters'], ['No active filters applied'], [], []],
                 undefined,
+                [],
             );
+        });
+
+        test('should write supported date dimensions as native Google Sheets values', async () => {
+            vi.mocked(google.auth.fromJSON).mockReturnValue({} as never);
+            vi.mocked(google.auth.GoogleAuth).mockImplementation(
+                function MockGoogleAuth(this: object) {
+                    return this;
+                } as never,
+            );
+            const get = vi.fn().mockResolvedValue({
+                data: {
+                    sheets: [{ properties: { sheetId: 123, title: 'Sheet1' } }],
+                },
+            });
+            const clear = vi.fn().mockResolvedValue({});
+            const update = vi.fn().mockResolvedValue({});
+            const batchUpdate = vi.fn().mockResolvedValue({});
+            vi.mocked(google.sheets).mockReturnValue({
+                spreadsheets: {
+                    get,
+                    batchUpdate,
+                    values: { clear, update },
+                },
+            } as never);
+
+            const client = new GoogleDriveClient({
+                lightdashConfig: {
+                    auth: {
+                        google: {
+                            oauth2ClientId: 'client-id',
+                            oauth2ClientSecret: 'client-secret',
+                        },
+                    },
+                },
+            } as never);
+
+            await client.appendToSheet(
+                'refresh-token',
+                'file-id',
+                [
+                    {
+                        orders_order_date: '2023-03-15',
+                        orders_order_quarter: '2023-01-01',
+                        orders_total_revenue: 120,
+                    },
+                    {
+                        orders_order_date: null,
+                        orders_order_quarter: '2023-04-01',
+                        orders_total_revenue: 80,
+                    },
+                ],
+                {
+                    orders_order_date: {
+                        name: 'order_date',
+                        label: 'Order date',
+                        type: DimensionType.DATE,
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        fieldType: FieldType.DIMENSION,
+                        timeInterval: TimeFrames.DAY,
+                        sql: '${TABLE}.order_date',
+                        hidden: false,
+                    } as Dimension,
+                    orders_order_quarter: {
+                        name: 'order_quarter',
+                        label: 'Order quarter',
+                        type: DimensionType.DATE,
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        fieldType: FieldType.DIMENSION,
+                        timeInterval: TimeFrames.QUARTER,
+                        sql: '${TABLE}.order_date',
+                        hidden: false,
+                    } as Dimension,
+                    orders_total_revenue: {
+                        name: 'total_revenue',
+                        label: 'Total revenue',
+                        type: DimensionType.NUMBER,
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.total_revenue',
+                        hidden: false,
+                    },
+                },
+                false,
+                undefined,
+                [
+                    'orders_order_date',
+                    'orders_order_quarter',
+                    'orders_total_revenue',
+                ],
+            );
+
+            expect(update).toHaveBeenCalledWith({
+                spreadsheetId: 'file-id',
+                range: 'A1',
+                valueInputOption: 'RAW',
+                requestBody: {
+                    values: [
+                        ['Order date', 'Order quarter', 'Total revenue'],
+                        [45000, '2023-Q1', 120],
+                        ['NaT', '2023-Q2', 80],
+                    ],
+                },
+            });
+            expect(batchUpdate).toHaveBeenCalledWith({
+                spreadsheetId: 'file-id',
+                requestBody: {
+                    requests: [
+                        {
+                            repeatCell: {
+                                range: {
+                                    sheetId: 123,
+                                    startRowIndex: 1,
+                                    endRowIndex: 3,
+                                    startColumnIndex: 0,
+                                    endColumnIndex: 1,
+                                },
+                                cell: {
+                                    userEnteredFormat: {
+                                        numberFormat: {
+                                            type: 'DATE',
+                                            pattern: 'yyyy-mm-dd',
+                                        },
+                                    },
+                                },
+                                fields: 'userEnteredFormat.numberFormat',
+                            },
+                        },
+                    ],
+                },
+            });
         });
     });
 
