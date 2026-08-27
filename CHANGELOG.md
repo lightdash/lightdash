@@ -1,3 +1,10 @@
+## [2.35.2](https://github.com/lightdash/lightdash/compare/2.35.1...2.35.2) (2026-08-27)
+
+
+### Bug Fixes
+
+* **content-as-code:** block managed content deletion ([#28232](https://github.com/lightdash/lightdash/issues/28232)) ([13a3a19](https://github.com/lightdash/lightdash/commit/13a3a1942a057a3deb0ae490d9e671adbf4b184f))
+
 ## [2.35.1](https://github.com/lightdash/lightdash/compare/2.35.0...2.35.1) (2026-08-27)
 
 
