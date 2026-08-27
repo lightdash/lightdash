@@ -24,6 +24,10 @@ import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { AgentChatDisplay } from '../ee/features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentSuggestionChips } from '../ee/features/aiCopilot/components/ChatElements/AgentSuggestionChips';
+import {
+    DataAppBuildCard,
+    type DataAppBuildCardState,
+} from '../ee/features/aiCopilot/components/ChatElements/DataAppBuildCard/DataAppBuildCard';
 import { DotsLoader } from '../ee/features/aiCopilot/components/ChatElements/DotsLoader/DotsLoader';
 import { ReasoningHistoryRow } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
 import { LiveActivityCard } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
@@ -772,6 +776,38 @@ const StorySurface = ({ children }: { children: ReactNode }) => (
     </Box>
 );
 
+const buildCardStates: DataAppBuildCardState[] = [
+    { kind: 'queued' },
+    {
+        kind: 'building',
+        statusMessage: 'Building your app',
+        narration: {
+            reasoning: ['Totals should reconcile against the revenue metric.'],
+            activity: ['Ran 5 queries · 26 weeks · 4 regions'],
+        },
+    },
+    {
+        kind: 'ready',
+        name: 'Weekly revenue by region',
+        version: 1,
+        durationMs: 372_000,
+        completionMessage:
+            'Your app is ready. Five regional pages, weekly revenue over the last 26 weeks.',
+    },
+    {
+        kind: 'failed',
+        message:
+            'The build failed while generating your app. Nothing was published.',
+    },
+    { kind: 'cancelled' },
+    { kind: 'unavailable' },
+];
+
+const buildCardActions = {
+    onOpenBuilder: () => undefined,
+    onView: () => undefined,
+};
+
 const Section = ({
     title,
     description,
@@ -997,6 +1033,34 @@ const ComponentInventory = () => (
                 </Stack>
             </Section>
         </SimpleGrid>
+
+        <Section
+            title="DataAppBuildCard"
+            description="Real build card under an agent reply: the six states, then the compact ready / failed rows used on earlier turns."
+        >
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+                {buildCardStates.map((state) => (
+                    <Box key={state.kind}>
+                        <DataAppBuildCard
+                            state={state}
+                            compact={false}
+                            {...buildCardActions}
+                        />
+                    </Box>
+                ))}
+                {buildCardStates
+                    .filter((s) => s.kind === 'ready' || s.kind === 'failed')
+                    .map((state) => (
+                        <Box key={`compact-${state.kind}`}>
+                            <DataAppBuildCard
+                                state={state}
+                                compact
+                                {...buildCardActions}
+                            />
+                        </Box>
+                    ))}
+            </SimpleGrid>
+        </Section>
 
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <Section
