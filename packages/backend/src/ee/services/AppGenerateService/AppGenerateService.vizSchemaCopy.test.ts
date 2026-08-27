@@ -155,7 +155,7 @@ function buildService() {
         schedulerClient: {} as never,
         savedChartService: {} as never,
         spacePermissionService: {
-            getSpaceAccessContext: vi.fn().mockResolvedValue({}),
+            resolveAccess: vi.fn().mockResolvedValue({}),
         } as never,
         coderService: {} as never,
         dashboardService: {} as never,

@@ -86,7 +86,7 @@ function buildService(
     };
 
     const spacePermissionService = {
-        getSpaceAccessContext: vi.fn().mockResolvedValue({}),
+        resolveAccess: vi.fn().mockResolvedValue({}),
     };
 
     const analytics = { track: vi.fn() };

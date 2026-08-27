@@ -179,15 +179,22 @@ export class SavedSqlService
         const needsNewSpaceCheck =
             resource.spaceUuid && spaceUuid !== resource.spaceUuid;
 
-        const ctx = needsNewSpaceCheck
-            ? await this.spacePermissionService.getSpacesAccessContext(
-                  actor.user.userUuid,
-                  [spaceUuid, resource.spaceUuid!],
-              )
-            : await this.spacePermissionService.getSpacesAccessContext(
-                  actor.user.userUuid,
-                  [spaceUuid],
-              );
+        const targetSpaceUuids = needsNewSpaceCheck
+            ? [spaceUuid, resource.spaceUuid!]
+            : [spaceUuid];
+        const contexts = await this.spacePermissionService.resolveAccessBatch(
+            actor.user.userUuid,
+            targetSpaceUuids.map((targetSpaceUuid) => ({
+                type: 'space',
+                spaceUuid: targetSpaceUuid,
+            })),
+        );
+        const currentContext = contexts[0];
+        if (currentContext === undefined) {
+            throw new ForbiddenError(
+                `You don't have access to ${action} this Saved SQL chart`,
+            );
+        }
 
         const auditedAbility = this.createAuditedAbility(actor.user);
 
@@ -195,7 +202,7 @@ export class SavedSqlService
             auditedAbility.cannot(
                 action,
                 subject('SavedChart', {
-                    ...ctx[spaceUuid],
+                    ...currentContext,
                     metadata: { savedSqlUuid: resource.savedSqlUuid ?? '' },
                 }),
             )
@@ -206,11 +213,17 @@ export class SavedSqlService
         }
 
         if (needsNewSpaceCheck) {
+            const targetContext = contexts[1];
+            if (targetContext === undefined) {
+                throw new ForbiddenError(
+                    `You don't have access to ${action} this Saved SQL chart in the new space`,
+                );
+            }
             if (
                 auditedAbility.cannot(
                     action,
                     subject('SavedChart', {
-                        ...ctx[resource.spaceUuid!],
+                        ...targetContext,
                         metadata: { savedSqlUuid: resource.savedSqlUuid ?? '' },
                     }),
                 )
@@ -221,7 +234,7 @@ export class SavedSqlService
             }
         }
 
-        return ctx[spaceUuid];
+        return currentContext;
     }
 
     async getSqlChart(

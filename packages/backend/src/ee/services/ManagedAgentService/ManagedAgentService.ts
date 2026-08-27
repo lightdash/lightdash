@@ -710,7 +710,7 @@ export class ManagedAgentService extends BaseService {
         }
     }
 
-    private async getChartAccessContext(
+    private async resolveChartAccess(
         actor: SessionUser,
         chart: {
             spaceUuid: string;
@@ -720,10 +720,10 @@ export class ManagedAgentService extends BaseService {
         access: unknown[];
     }> {
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                actor.userUuid,
-                chart.spaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(actor.userUuid, {
+                type: 'space',
+                spaceUuid: chart.spaceUuid,
+            });
         return { inheritsFromOrgOrProject, access };
     }
 
@@ -738,7 +738,7 @@ export class ManagedAgentService extends BaseService {
         },
     ): Promise<boolean> {
         const { inheritsFromOrgOrProject, access } =
-            await this.getChartAccessContext(actor, chart);
+            await this.resolveChartAccess(actor, chart);
         const auditedAbility = this.createAuditedAbility(actor);
         return auditedAbility.can(
             'view',
@@ -766,7 +766,7 @@ export class ManagedAgentService extends BaseService {
         },
     ): Promise<void> {
         const { inheritsFromOrgOrProject, access } =
-            await this.getChartAccessContext(actor, chart);
+            await this.resolveChartAccess(actor, chart);
         const auditedAbility = this.createAuditedAbility(actor);
         if (
             auditedAbility.cannot(
@@ -800,7 +800,7 @@ export class ManagedAgentService extends BaseService {
         },
     ): Promise<void> {
         const { inheritsFromOrgOrProject, access } =
-            await this.getChartAccessContext(actor, chart);
+            await this.resolveChartAccess(actor, chart);
         const auditedAbility = this.createAuditedAbility(actor);
         if (
             auditedAbility.cannot(
@@ -889,10 +889,10 @@ export class ManagedAgentService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                actor.userUuid,
+            await this.spacePermissionService.resolveAccess(actor.userUuid, {
+                type: 'space',
                 spaceUuid,
-            );
+            });
         const auditedAbility = this.createAuditedAbility(actor);
         if (
             auditedAbility.cannot(
@@ -912,7 +912,7 @@ export class ManagedAgentService extends BaseService {
         }
     }
 
-    private async getDashboardAccessContext(
+    private async resolveDashboardAccess(
         actor: SessionUser,
         dashboard: {
             spaceUuid: string;
@@ -922,10 +922,10 @@ export class ManagedAgentService extends BaseService {
         access: unknown[];
     }> {
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                actor.userUuid,
-                dashboard.spaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(actor.userUuid, {
+                type: 'space',
+                spaceUuid: dashboard.spaceUuid,
+            });
         return { inheritsFromOrgOrProject, access };
     }
 
@@ -940,7 +940,7 @@ export class ManagedAgentService extends BaseService {
         },
     ): Promise<boolean> {
         const { inheritsFromOrgOrProject, access } =
-            await this.getDashboardAccessContext(actor, dashboard);
+            await this.resolveDashboardAccess(actor, dashboard);
         const auditedAbility = this.createAuditedAbility(actor);
         return auditedAbility.can(
             'view',
@@ -968,7 +968,7 @@ export class ManagedAgentService extends BaseService {
         },
     ): Promise<void> {
         const { inheritsFromOrgOrProject, access } =
-            await this.getDashboardAccessContext(actor, dashboard);
+            await this.resolveDashboardAccess(actor, dashboard);
         const auditedAbility = this.createAuditedAbility(actor);
         if (
             auditedAbility.cannot(

@@ -126,20 +126,17 @@ const buildService = () =>
         } as AnyType,
         spacePermissionService: {
             can: vi.fn(async () => true),
-            getSpacesAccessContext: vi.fn(async () => ({
-                [SPACE_UUID]: {
-                    organizationUuid: ORG_UUID,
-                    projectUuid: PROJECT_UUID,
-                    inheritsFromOrgOrProject: true,
-                    access: [],
-                },
-                [OTHER_SPACE_UUID]: {
-                    organizationUuid: ORG_UUID,
-                    projectUuid: PROJECT_UUID,
-                    inheritsFromOrgOrProject: true,
-                    access: [],
-                },
-            })),
+            resolveAccessBatch: vi.fn(
+                async (_userUuid: string, targets: { spaceUuid: string }[]) =>
+                    targets.map(({ spaceUuid }) => ({
+                        organizationUuid: ORG_UUID,
+                        projectUuid: PROJECT_UUID,
+                        inheritsFromOrgOrProject: true,
+                        access: [],
+                        admins: [],
+                        directOnly: false,
+                    })),
+            ),
         } as AnyType,
         contentAsCodeSnapshotModel: { upsert: vi.fn() } as AnyType,
         contentAsCodeProjectSettingsModel: { upsert: vi.fn() } as AnyType,
@@ -352,7 +349,7 @@ describe('CoderService content-as-code space permissions', () => {
             ),
         ).resolves.toMatchObject({ charts: [{ action: 'create' }] });
         expect(
-            service.spacePermissionService.getSpacesAccessContext,
+            service.spacePermissionService.resolveAccessBatch,
         ).not.toHaveBeenCalled();
     });
 
@@ -400,16 +397,17 @@ describe('CoderService content-as-code space permissions', () => {
             service.spaceModel.findClosestAncestorByPath,
         ).mockResolvedValue(PARENT_SPACE_UUID);
         vi.mocked(
-            service.spacePermissionService.getSpacesAccessContext,
-        ).mockResolvedValue({
-            [PARENT_SPACE_UUID]: {
+            service.spacePermissionService.resolveAccessBatch,
+        ).mockResolvedValue([
+            {
                 organizationUuid: ORG_UUID,
                 projectUuid: PROJECT_UUID,
                 inheritsFromOrgOrProject: false,
                 access: [],
                 admins: [],
+                directOnly: false,
             },
-        });
+        ]);
         const user = makeUser([
             { subject: 'ContentAsCode', action: 'create' },
             {
@@ -477,32 +475,28 @@ describe('CoderService content-as-code space permissions', () => {
             inheritParentPermissions: true,
         } as AnyType);
         vi.mocked(
-            service.spacePermissionService.getSpacesAccessContext,
-        ).mockImplementation(async (_userUuid, spaceUuids) =>
-            Object.fromEntries(
-                spaceUuids.map((spaceUuid) => [
-                    spaceUuid,
-                    {
-                        organizationUuid: ORG_UUID,
-                        projectUuid: PROJECT_UUID,
-                        inheritsFromOrgOrProject: false,
-                        access:
-                            spaceUuid === SPACE_UUID
-                                ? [
-                                      {
-                                          userUuid: 'user-uuid',
-                                          role: SpaceMemberRole.EDITOR,
-                                          hasDirectAccess: true,
-                                          projectRole: undefined,
-                                          inheritedRole: undefined,
-                                          inheritedFrom: undefined,
-                                      },
-                                  ]
-                                : [],
-                        admins: [],
-                    },
-                ]),
-            ),
+            service.spacePermissionService.resolveAccessBatch,
+        ).mockImplementation(async (_userUuid, targets) =>
+            targets.map(({ spaceUuid }) => ({
+                organizationUuid: ORG_UUID,
+                projectUuid: PROJECT_UUID,
+                inheritsFromOrgOrProject: false,
+                access:
+                    spaceUuid === SPACE_UUID
+                        ? [
+                              {
+                                  userUuid: 'user-uuid',
+                                  role: SpaceMemberRole.EDITOR,
+                                  hasDirectAccess: true,
+                                  projectRole: undefined,
+                                  inheritedRole: undefined,
+                                  inheritedFrom: undefined,
+                              },
+                          ]
+                        : [],
+                admins: [],
+                directOnly: false,
+            })),
         );
         const user = makeUser([
             { subject: 'ContentAsCode', action: 'create' },
@@ -775,23 +769,19 @@ describe('CoderService content-as-code space permissions', () => {
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
         } as AnyType);
         vi.mocked(
-            service.spacePermissionService.getSpacesAccessContext,
-        ).mockImplementation(async (_userUuid, spaceUuids) =>
-            Object.fromEntries(
-                spaceUuids.map((spaceUuid) => [
-                    spaceUuid,
-                    {
-                        organizationUuid: ORG_UUID,
-                        projectUuid:
-                            spaceUuid === OTHER_SPACE_UUID
-                                ? 'restricted-project'
-                                : PROJECT_UUID,
-                        inheritsFromOrgOrProject: true,
-                        access: [],
-                        admins: [],
-                    },
-                ]),
-            ),
+            service.spacePermissionService.resolveAccessBatch,
+        ).mockImplementation(async (_userUuid, targets) =>
+            targets.map(({ spaceUuid }) => ({
+                organizationUuid: ORG_UUID,
+                projectUuid:
+                    spaceUuid === OTHER_SPACE_UUID
+                        ? 'restricted-project'
+                        : PROJECT_UUID,
+                inheritsFromOrgOrProject: true,
+                access: [],
+                admins: [],
+                directOnly: false,
+            })),
         );
         const user = makeUser([
             { subject: 'ContentAsCode', action: 'create' },
@@ -836,23 +826,19 @@ describe('CoderService content-as-code space permissions', () => {
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
         } as AnyType);
         vi.mocked(
-            service.spacePermissionService.getSpacesAccessContext,
-        ).mockImplementation(async (_userUuid, spaceUuids) =>
-            Object.fromEntries(
-                spaceUuids.map((spaceUuid) => [
-                    spaceUuid,
-                    {
-                        organizationUuid: ORG_UUID,
-                        projectUuid:
-                            spaceUuid === SPACE_UUID
-                                ? 'restricted-project'
-                                : PROJECT_UUID,
-                        inheritsFromOrgOrProject: true,
-                        access: [],
-                        admins: [],
-                    },
-                ]),
-            ),
+            service.spacePermissionService.resolveAccessBatch,
+        ).mockImplementation(async (_userUuid, targets) =>
+            targets.map(({ spaceUuid }) => ({
+                organizationUuid: ORG_UUID,
+                projectUuid:
+                    spaceUuid === SPACE_UUID
+                        ? 'restricted-project'
+                        : PROJECT_UUID,
+                inheritsFromOrgOrProject: true,
+                access: [],
+                admins: [],
+                directOnly: false,
+            })),
         );
         const user = makeUser([
             { subject: 'ContentAsCode', action: 'create' },
@@ -952,32 +938,28 @@ describe('CoderService content-as-code space permissions', () => {
             } as AnyType,
         ]);
         vi.mocked(
-            service.spacePermissionService.getSpacesAccessContext,
-        ).mockImplementation(async (_userUuid, spaceUuids) =>
-            Object.fromEntries(
-                spaceUuids.map((spaceUuid) => [
-                    spaceUuid,
-                    {
-                        organizationUuid: ORG_UUID,
-                        projectUuid: PROJECT_UUID,
-                        inheritsFromOrgOrProject: false,
-                        access:
-                            spaceUuid === SPACE_UUID
-                                ? [
-                                      {
-                                          userUuid: 'user-uuid',
-                                          role: SpaceMemberRole.EDITOR,
-                                          hasDirectAccess: true,
-                                          projectRole: undefined,
-                                          inheritedRole: undefined,
-                                          inheritedFrom: undefined,
-                                      },
-                                  ]
-                                : [],
-                        admins: [],
-                    },
-                ]),
-            ),
+            service.spacePermissionService.resolveAccessBatch,
+        ).mockImplementation(async (_userUuid, targets) =>
+            targets.map(({ spaceUuid }) => ({
+                organizationUuid: ORG_UUID,
+                projectUuid: PROJECT_UUID,
+                inheritsFromOrgOrProject: false,
+                access:
+                    spaceUuid === SPACE_UUID
+                        ? [
+                              {
+                                  userUuid: 'user-uuid',
+                                  role: SpaceMemberRole.EDITOR,
+                                  hasDirectAccess: true,
+                                  projectRole: undefined,
+                                  inheritedRole: undefined,
+                                  inheritedFrom: undefined,
+                              },
+                          ]
+                        : [],
+                admins: [],
+                directOnly: false,
+            })),
         );
         const user = makeUser([
             { subject: 'ContentAsCode', action: 'create' },
@@ -1097,32 +1079,28 @@ describe('CoderService content-as-code space permissions', () => {
             } as AnyType,
         ]);
         vi.mocked(
-            service.spacePermissionService.getSpacesAccessContext,
-        ).mockImplementation(async (_userUuid, spaceUuids) =>
-            Object.fromEntries(
-                spaceUuids.map((spaceUuid) => [
-                    spaceUuid,
-                    {
-                        organizationUuid: ORG_UUID,
-                        projectUuid: PROJECT_UUID,
-                        inheritsFromOrgOrProject: false,
-                        access:
-                            spaceUuid === SPACE_UUID
-                                ? [
-                                      {
-                                          userUuid: 'user-uuid',
-                                          role: SpaceMemberRole.EDITOR,
-                                          hasDirectAccess: true,
-                                          projectRole: undefined,
-                                          inheritedRole: undefined,
-                                          inheritedFrom: undefined,
-                                      },
-                                  ]
-                                : [],
-                        admins: [],
-                    },
-                ]),
-            ),
+            service.spacePermissionService.resolveAccessBatch,
+        ).mockImplementation(async (_userUuid, targets) =>
+            targets.map(({ spaceUuid }) => ({
+                organizationUuid: ORG_UUID,
+                projectUuid: PROJECT_UUID,
+                inheritsFromOrgOrProject: false,
+                access:
+                    spaceUuid === SPACE_UUID
+                        ? [
+                              {
+                                  userUuid: 'user-uuid',
+                                  role: SpaceMemberRole.EDITOR,
+                                  hasDirectAccess: true,
+                                  projectRole: undefined,
+                                  inheritedRole: undefined,
+                                  inheritedFrom: undefined,
+                              },
+                          ]
+                        : [],
+                admins: [],
+                directOnly: false,
+            })),
         );
         const user = makeUser([
             { subject: 'ContentAsCode', action: 'create' },
@@ -1193,32 +1171,28 @@ describe('CoderService content-as-code space permissions', () => {
             } as AnyType,
         ]);
         vi.mocked(
-            service.spacePermissionService.getSpacesAccessContext,
-        ).mockImplementation(async (_userUuid, spaceUuids) =>
-            Object.fromEntries(
-                spaceUuids.map((spaceUuid) => [
-                    spaceUuid,
-                    {
-                        organizationUuid: ORG_UUID,
-                        projectUuid: PROJECT_UUID,
-                        inheritsFromOrgOrProject: false,
-                        access:
-                            spaceUuid === SPACE_UUID
-                                ? [
-                                      {
-                                          userUuid: 'user-uuid',
-                                          role: SpaceMemberRole.EDITOR,
-                                          hasDirectAccess: true,
-                                          projectRole: undefined,
-                                          inheritedRole: undefined,
-                                          inheritedFrom: undefined,
-                                      },
-                                  ]
-                                : [],
-                        admins: [],
-                    },
-                ]),
-            ),
+            service.spacePermissionService.resolveAccessBatch,
+        ).mockImplementation(async (_userUuid, targets) =>
+            targets.map(({ spaceUuid }) => ({
+                organizationUuid: ORG_UUID,
+                projectUuid: PROJECT_UUID,
+                inheritsFromOrgOrProject: false,
+                access:
+                    spaceUuid === SPACE_UUID
+                        ? [
+                              {
+                                  userUuid: 'user-uuid',
+                                  role: SpaceMemberRole.EDITOR,
+                                  hasDirectAccess: true,
+                                  projectRole: undefined,
+                                  inheritedRole: undefined,
+                                  inheritedFrom: undefined,
+                              },
+                          ]
+                        : [],
+                admins: [],
+                directOnly: false,
+            })),
         );
         const user = makeUser([
             { subject: 'ContentAsCode', action: 'create' },
@@ -1355,7 +1329,7 @@ describe('CoderService content-as-code space permissions', () => {
         expect(service.dashboardModel.create).toHaveBeenCalled();
         expect(service.savedChartModel.create).toHaveBeenCalled();
         expect(
-            service.spacePermissionService.getSpacesAccessContext,
+            service.spacePermissionService.resolveAccessBatch,
         ).toHaveBeenCalledTimes(1);
     });
 });

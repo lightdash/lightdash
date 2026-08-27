@@ -20,7 +20,10 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SchedulerService } from '../SchedulerService/SchedulerService';
-import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import {
+    SpacePermissionService,
+    type AccessTarget,
+} from '../SpaceService/SpacePermissionService';
 import { SavedChartService } from './SavedChartService';
 
 const OWNING_DASHBOARD = 'owning-dashboard-uuid';
@@ -161,11 +164,14 @@ const projectModel = {
     })),
 };
 
-const spacePermissionService = {
-    getSpaceAccessContext: vi.fn(async () => spaceOnlyContext),
-    getDashboardAccessContext: vi.fn(async () => grantContext),
-    getChartAccessContext: vi.fn(async () => grantContext),
+const resolveAccess = async (_userUuid: string, target: AccessTarget) => {
+    if (target.type === 'space') return spaceOnlyContext;
+    return target.type === 'chart' && target.dashboardUuid === null
+        ? chartGrantContext
+        : grantContext;
 };
+
+const spacePermissionService = { resolveAccess: vi.fn(resolveAccess) };
 
 vi.spyOn(analyticsMock, 'track');
 
@@ -196,9 +202,7 @@ describe('SavedChartService direct-grant write parity', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
-        spacePermissionService.getChartAccessContext.mockResolvedValue(
-            grantContext,
-        );
+        spacePermissionService.resolveAccess.mockImplementation(resolveAccess);
         savedChartModel.getSummary.mockResolvedValue(ownedChart);
         savedChartModel.get.mockResolvedValue(ownedChart);
     });
@@ -212,13 +216,15 @@ describe('SavedChartService direct-grant write parity', () => {
             } as never),
         ).resolves.toBeDefined();
         // The router resolves the OWNING dashboard's grants for an owned chart.
-        expect(
-            spacePermissionService.getChartAccessContext,
-        ).toHaveBeenCalledWith(grantOnlyEditor.userUuid, {
-            uuid: ownedChart.uuid,
-            dashboardUuid: OWNING_DASHBOARD,
-            spaceUuid: PRIVATE_SPACE,
-        });
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            grantOnlyEditor.userUuid,
+            {
+                type: 'chart',
+                chartUuid: ownedChart.uuid,
+                dashboardUuid: OWNING_DASHBOARD,
+                spaceUuid: PRIVATE_SPACE,
+            },
+        );
         // Audit records the grant provenance.
         expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -242,13 +248,17 @@ describe('SavedChartService direct-grant write parity', () => {
                 spaceUuid: 'attacker-space-uuid',
             } as never),
         ).rejects.toThrow('move this chart out of its space');
-        expect(
-            spacePermissionService.getSpaceAccessContext,
-        ).toHaveBeenCalledWith(grantOnlyEditor.userUuid, PRIVATE_SPACE);
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            grantOnlyEditor.userUuid,
+            {
+                type: 'space',
+                spaceUuid: PRIVATE_SPACE,
+            },
+        );
     });
 
     it('denies the update when the context carries no grant (space-only)', async () => {
-        spacePermissionService.getChartAccessContext.mockResolvedValue(
+        spacePermissionService.resolveAccess.mockResolvedValue(
             spaceOnlyContext,
         );
         await expect(
@@ -275,7 +285,7 @@ describe('SavedChartService direct-grant write parity', () => {
     });
 
     it('denies the delete when the context carries no grant (space-only)', async () => {
-        spacePermissionService.getChartAccessContext.mockResolvedValue(
+        spacePermissionService.resolveAccess.mockResolvedValue(
             spaceOnlyContext,
         );
         await expect(
@@ -285,9 +295,6 @@ describe('SavedChartService direct-grant write parity', () => {
 
     it('lets a grant-only editor rename a space-saved chart via its own chart grant', async () => {
         savedChartModel.getSummary.mockResolvedValue(spaceChart as never);
-        spacePermissionService.getChartAccessContext.mockResolvedValue(
-            chartGrantContext,
-        );
         await expect(
             service.update(grantOnlyEditor, spaceChart.uuid, {
                 name: 'Renamed in space',
@@ -295,13 +302,15 @@ describe('SavedChartService direct-grant write parity', () => {
             } as never),
         ).resolves.toBeDefined();
         // The router resolves the chart's OWN grant for a space chart.
-        expect(
-            spacePermissionService.getChartAccessContext,
-        ).toHaveBeenCalledWith(grantOnlyEditor.userUuid, {
-            uuid: spaceChart.uuid,
-            dashboardUuid: null,
-            spaceUuid: PRIVATE_SPACE,
-        });
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            grantOnlyEditor.userUuid,
+            {
+                type: 'chart',
+                chartUuid: spaceChart.uuid,
+                dashboardUuid: null,
+                spaceUuid: PRIVATE_SPACE,
+            },
+        );
         // A saved_chart grant is grant-only but not a dashboard grant.
         expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -316,9 +325,6 @@ describe('SavedChartService direct-grant write parity', () => {
 
     it('denies moving a space-saved chart to another space via its chart grant (boundary)', async () => {
         savedChartModel.getSummary.mockResolvedValue(spaceChart as never);
-        spacePermissionService.getChartAccessContext.mockResolvedValue(
-            chartGrantContext,
-        );
         // The chart grant authorizes the edit, but relocating requires space
         // access to the current space, which a grant-only editor lacks.
         await expect(
@@ -328,16 +334,17 @@ describe('SavedChartService direct-grant write parity', () => {
                 spaceUuid: 'attacker-space-uuid',
             } as never),
         ).rejects.toThrow('move this chart out of its space');
-        expect(
-            spacePermissionService.getSpaceAccessContext,
-        ).toHaveBeenCalledWith(grantOnlyEditor.userUuid, PRIVATE_SPACE);
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            grantOnlyEditor.userUuid,
+            {
+                type: 'space',
+                spaceUuid: PRIVATE_SPACE,
+            },
+        );
     });
 
     it('lets a grant-only editor delete a space-saved chart via its chart grant', async () => {
         savedChartModel.get.mockResolvedValue(spaceChart as never);
-        spacePermissionService.getChartAccessContext.mockResolvedValue(
-            chartGrantContext,
-        );
         await expect(
             service.delete(grantOnlyEditor, spaceChart.uuid),
         ).resolves.toBeUndefined();

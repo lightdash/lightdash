@@ -204,7 +204,7 @@ function buildService(overrides: {
         get: vi.fn().mockResolvedValue({ enabled: true }),
     };
     const spacePermissionService = {
-        getSpaceAccessContext: vi.fn().mockResolvedValue({}),
+        resolveAccess: vi.fn().mockResolvedValue({}),
     };
 
     const svc = new AppGenerateService({

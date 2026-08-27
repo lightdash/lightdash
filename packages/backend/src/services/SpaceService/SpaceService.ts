@@ -128,11 +128,10 @@ export class SpaceService
         space: Pick<SpaceSummary, 'uuid'>,
         action: AbilityAction,
     ): Promise<boolean> {
-        const spaceCtx =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                space.uuid,
-            );
+        const spaceCtx = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            { type: 'space', spaceUuid: space.uuid },
+        );
         // eslint-disable-next-line lightdash/no-direct-ability-check -- test-only method exercises raw CASL abilities
         return user.ability.can(action, subject(contentType, spaceCtx));
     }
@@ -147,10 +146,10 @@ export class SpaceService
     ): Promise<Space> {
         const space = await this.spaceModel.get(spaceUuid);
         const [ctx, groupsAccess, rawBreadcrumbs] = await Promise.all([
-            this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
+            this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'space',
                 spaceUuid,
-            ),
+            }),
             this.spacePermissionService.getGroupAccess(spaceUuid),
             this.spaceModel.getSpaceBreadcrumbs(spaceUuid, space.projectUuid),
         ]);
@@ -416,9 +415,9 @@ export class SpaceService
             inheritParentPermissions === false;
 
         if (turnInheritOff) {
-            const ctx = await this.spacePermissionService.getSpaceAccessContext(
+            const ctx = await this.spacePermissionService.resolveAccess(
                 user.userUuid,
-                spaceUuid,
+                { type: 'space', spaceUuid },
             );
             const userAccess = ctx.access.find(
                 (a) => a.userUuid === user.userUuid,

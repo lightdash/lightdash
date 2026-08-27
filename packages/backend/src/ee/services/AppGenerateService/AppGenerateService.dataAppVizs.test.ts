@@ -98,7 +98,7 @@ function buildService(
         schedulerClient: {} as never,
         savedChartService: (overrides.savedChartService ?? {}) as never,
         spacePermissionService: {
-            getSpaceAccessContext: vi.fn().mockResolvedValue({
+            resolveAccess: vi.fn().mockResolvedValue({
                 inheritsFromOrgOrProject: false,
                 access: [],
             }),

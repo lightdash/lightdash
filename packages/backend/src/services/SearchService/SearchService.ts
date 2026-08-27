@@ -141,10 +141,13 @@ export class SearchService extends BaseService {
         const spaceUuids = [
             ...new Set(allContent.map((content) => content.spaceUuid)),
         ];
-        const [spaceContexts, visibleDataApps] = await Promise.all([
-            this.spacePermissionService.getSpacesAccessContext(
+        const [resolvedSpaceContexts, visibleDataApps] = await Promise.all([
+            this.spacePermissionService.resolveAccessBatch(
                 user.userUuid,
-                spaceUuids,
+                spaceUuids.map((spaceUuid) => ({
+                    type: 'space' as const,
+                    spaceUuid,
+                })),
             ),
             this.appGenerateService && dataAppSearchResults.length > 0
                 ? this.appGenerateService.filterAppsUserCanView(
@@ -155,6 +158,12 @@ export class SearchService extends BaseService {
                   )
                 : Promise.resolve([]),
         ]);
+        const spaceContexts = Object.fromEntries(
+            spaceUuids.map((spaceUuid, index) => [
+                spaceUuid,
+                resolvedSpaceContexts[index],
+            ]),
+        );
 
         const contentWithContext = allContent.flatMap((content) => {
             const spaceContext = spaceContexts[content.spaceUuid];

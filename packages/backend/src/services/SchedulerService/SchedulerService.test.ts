@@ -130,18 +130,12 @@ const dashboardModel = {
 };
 
 const spacePermissionService = {
-    getSpaceAccessContext: vi.fn(async () => ({
+    resolveAccess: vi.fn(async () => ({
+        organizationUuid,
+        projectUuid,
         inheritsFromOrgOrProject: false,
         access: [],
-    })),
-    getDashboardAccessContext: vi.fn(async () => ({
-        inheritsFromOrgOrProject: false,
-        access: [],
-        directOnly: false,
-    })),
-    getChartAccessContext: vi.fn(async () => ({
-        inheritsFromOrgOrProject: false,
-        access: [],
+        admins: [],
         directOnly: false,
     })),
 };
@@ -544,7 +538,7 @@ describe('SchedulerService', () => {
                 dashboardUuid: 'owningDashboardUuid',
             } as never);
             // Grant-only user: no space access, only a viewer grant row.
-            spacePermissionService.getChartAccessContext.mockResolvedValueOnce({
+            spacePermissionService.resolveAccess.mockResolvedValueOnce({
                 inheritsFromOrgOrProject: false,
                 access: [
                     {
@@ -569,13 +563,15 @@ describe('SchedulerService', () => {
             await expect(
                 service.getScheduler(user, 'schedulerUuid'),
             ).resolves.toEqual(chartScheduler);
-            expect(
-                spacePermissionService.getChartAccessContext,
-            ).toHaveBeenCalledWith('userUuid', {
-                uuid: savedChartUuid,
-                dashboardUuid: 'owningDashboardUuid',
-                spaceUuid: privateSpaceUuid,
-            });
+            expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+                'userUuid',
+                {
+                    type: 'chart',
+                    chartUuid: savedChartUuid,
+                    dashboardUuid: 'owningDashboardUuid',
+                    spaceUuid: privateSpaceUuid,
+                },
+            );
         });
 
         test('denies a dashboard-owned chart scheduler without a grant', async () => {

@@ -393,14 +393,12 @@ export class SchedulerService extends BaseService {
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
 
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getChartAccessContext(
-                    user.userUuid,
-                    {
-                        uuid: scheduler.savedChartUuid,
-                        dashboardUuid,
-                        spaceUuid,
-                    },
-                );
+                await this.spacePermissionService.resolveAccess(user.userUuid, {
+                    type: 'chart',
+                    chartUuid: scheduler.savedChartUuid,
+                    dashboardUuid,
+                    spaceUuid,
+                });
             if (
                 auditedAbility.cannot(
                     'view',
@@ -426,10 +424,11 @@ export class SchedulerService extends BaseService {
                 scheduler.dashboardUuid,
             );
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getDashboardAccessContext(
-                    user.userUuid,
-                    { uuid: dashboardUuid, spaceUuid },
-                );
+                await this.spacePermissionService.resolveAccess(user.userUuid, {
+                    type: 'dashboard',
+                    dashboardUuid,
+                    spaceUuid,
+                });
 
             if (
                 auditedAbility.cannot(
@@ -456,10 +455,10 @@ export class SchedulerService extends BaseService {
             const spaceUuid = sqlChart.space.uuid;
 
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
+                await this.spacePermissionService.resolveAccess(user.userUuid, {
+                    type: 'space',
                     spaceUuid,
-                );
+                });
             if (
                 auditedAbility.cannot(
                     'view',
@@ -481,9 +480,9 @@ export class SchedulerService extends BaseService {
                 throw new NotFoundError(`App not found: ${scheduler.appUuid}`);
             }
             const spaceContext = app.space_uuid
-                ? await this.spacePermissionService.getSpaceAccessContext(
+                ? await this.spacePermissionService.resolveAccess(
                       user.userUuid,
-                      app.space_uuid,
+                      { type: 'space', spaceUuid: app.space_uuid },
                   )
                 : {};
             if (
@@ -637,10 +636,10 @@ export class SchedulerService extends BaseService {
         }
         const auditedAbility = this.createAuditedAbility(user);
         const spaceContext = app.space_uuid
-            ? await this.spacePermissionService.getSpaceAccessContext(
-                  user.userUuid,
-                  app.space_uuid,
-              )
+            ? await this.spacePermissionService.resolveAccess(user.userUuid, {
+                  type: 'space',
+                  spaceUuid: app.space_uuid,
+              })
             : {};
         if (
             auditedAbility.cannot(

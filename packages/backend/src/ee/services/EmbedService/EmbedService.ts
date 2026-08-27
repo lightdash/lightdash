@@ -768,9 +768,9 @@ export class EmbedService extends BaseService {
                         chart.spaceUuid === writeSpaceUuid
                     ) {
                         const spaceAccessContext =
-                            await this.spacePermissionService.getSpaceAccessContext(
+                            await this.spacePermissionService.resolveAccess(
                                 embedWriteUser.userUuid,
-                                chart.spaceUuid,
+                                { type: 'space', spaceUuid: chart.spaceUuid },
                             );
                         const auditedAbility =
                             this.createAuditedAbility(embedWriteUser);
@@ -2719,9 +2719,9 @@ export class EmbedService extends BaseService {
 
         try {
             const spaceAccessContext =
-                await this.spacePermissionService.getSpaceAccessContext(
+                await this.spacePermissionService.resolveAccess(
                     embedWriteUser.userUuid,
-                    writeActions.spaceUuid,
+                    { type: 'space', spaceUuid: writeActions.spaceUuid },
                 );
 
             if (spaceAccessContext.projectUuid !== projectUuid) {

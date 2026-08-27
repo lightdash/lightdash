@@ -185,10 +185,10 @@ export class RenameService extends BaseService {
             name: chartName,
         } = chart;
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'space',
                 spaceUuid,
-            );
+            });
 
         const auditedAbility = this.createAuditedAbility(user);
         if (

@@ -148,7 +148,7 @@ function buildService(opts: {
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: 'org-1' }),
     };
     const spacePermissionService = {
-        getSpaceAccessContext: vi.fn().mockResolvedValue({}),
+        resolveAccess: vi.fn().mockResolvedValue({}),
     };
     const analytics = { track: vi.fn(), trackAccount: vi.fn() };
 

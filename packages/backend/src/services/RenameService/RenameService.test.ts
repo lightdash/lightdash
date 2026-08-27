@@ -44,7 +44,7 @@ const projectModel = {
     getExploreFromCache: vi.fn(async () => ({})),
 };
 const spacePermissionService = {
-    getSpaceAccessContext: vi.fn(async () => ({
+    resolveAccess: vi.fn(async () => ({
         inheritsFromOrgOrProject: true,
         access: [],
     })),
