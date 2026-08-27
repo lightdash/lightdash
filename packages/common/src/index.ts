@@ -122,6 +122,7 @@ export * from './types/content';
 export * from './types/contentSlug';
 export * from './types/contentVerification';
 export * from './types/dashboard';
+export * from './types/directAccess';
 export * from './types/emailWhitelabel';
 export * from './types/dataTimezonePreview';
 export * from './types/fieldImpact';
