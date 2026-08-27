@@ -1,3 +1,10 @@
+## [2.18.2](https://github.com/lightdash/lightdash/compare/2.18.1...2.18.2) (2026-08-27)
+
+
+### Bug Fixes
+
+* **embed:** preserve custom SQL chart provenance ([#28139](https://github.com/lightdash/lightdash/issues/28139)) ([f2d959d](https://github.com/lightdash/lightdash/commit/f2d959d927626ebd03480e87b7d302b00aaf55f6))
+
 ## [2.18.1](https://github.com/lightdash/lightdash/compare/2.18.0...2.18.1) (2026-08-27)
 
 
