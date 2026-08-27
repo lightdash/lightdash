@@ -6,7 +6,7 @@ Manage Docker dev environment. Args: (none) = show status & help, `start` = auto
 
 - **No arguments**: Show current status, assigned ports, and available commands. Read-only, safe to run anytime.
 - **`start`**: Bring this instance up. First runs **Step P: Instance profile selection** (capability multi-select → write secrets/flags), then the deterministic `scripts/dev-fast-start.sh` (idempotent, non-interactive); only falls back to agentic setup + **self-repair** if the script fails. Bootstraps new instances fast from a shared base snapshot.
-- **`start <profiles>`**: Provision for named capabilities, comma-separated — e.g. `start ee` (turnkey EE: all AI + GitHub), `start github` (Core + dbt-over-GitHub, no AI), `start ee,slack`. Skips the menu. The AI tier is just **Core vs EE** — all AI features (agents, writeback, reviews classifier) are bundled into `ee`. See `scripts/dev-profiles.json`. `ee` requires `github` so writeback opens PRs out of the box; profiles run their GitHub/dbt-repo + classifier reconcile + verify automatically.
+- **`start <profiles>`**: Provision selected profiles (`github`, `ee`, `slack`, `newux`), comma-separated — e.g. `start ee` (turnkey EE: all AI + GitHub), `start github` (Core + dbt-over-GitHub, no AI), `start ee,slack`. Skips the menu. The AI tier is just **Core vs EE** — all AI features (agents, writeback, reviews classifier) are bundled into `ee`. See `scripts/dev-profiles.json`. `ee` requires `github` so writeback opens PRs out of the box; profiles run their GitHub/dbt-repo + classifier reconcile + verify automatically.
 - **`start ee`** (also `start --ee`, "start with ee enabled", "enterprise"): The EE profile — provisions an Enterprise Edition license (`LIGHTDASH_LICENSE_KEY`), runs the EE migration/seed pass, and **bundles all AI features** (Copilot/agents, AI writeback, reviews classifier) plus the GitHub integration so writeback is turnkey. See **Enterprise Edition (EE) Mode** below. Auto-enabled if `.env.development.local` already contains `LIGHTDASH_LICENSE_KEY`. EE instances bootstrap from a dedicated EE base snapshot (`ld-shared_postgres_base_ee`) so they skip the slow EE migrate pass.
 - **`stop`**: Stop this instance's PM2 processes and PostgreSQL. Shared services stay running. Releases port slot.
 - **`destroy`**: Permanently remove this instance's PM2 processes, PostgreSQL containers, volumes, and port slot. Use when removing a worktree.
@@ -161,13 +161,16 @@ fi
 PM2_PROC=$(pm2 jlist 2>/dev/null | python3 -c "
 import sys, json
 procs = json.load(sys.stdin)
-instance_procs = [p for p in procs if p['name'].startswith('${LD_INSTANCE_ID}-')]
+service_names = ['api', 'api-routes-watch', 'scheduler', 'frontend', 'common-watch', 'formula-watch', 'warehouses-watch', 'sdk-test', 'maple']
+# Exact names avoid prefix-named sibling instances.
+expected = {'${LD_INSTANCE_ID}-' + service for service in service_names}
+instance_procs = [p for p in procs if p['name'] in expected]
 if instance_procs:
     cwd = instance_procs[0]['pm2_env']['pm_cwd']
     root = cwd.rsplit('/packages/', 1)[0] if '/packages/' in cwd else cwd
     print(f'RUNNING:{root}')
 else:
-    other = [p for p in procs if not p['name'].startswith('${LD_INSTANCE_ID}-')]
+    other = [p for p in procs if p['name'] not in expected]
     if other:
         print('OTHER')
     else:
@@ -349,7 +352,9 @@ To switch a local instance to E2B instead, add `E2B_API_KEY` and set `SANDBOX_PR
 
 ### Step P: Instance profile selection (run BEFORE the fast path)
 
-`start` provisions an instance for a set of *capabilities* (EE, AI agents, AI writeback, GitHub, reviews classifier, Slack). Each capability declares its feature flags, env, 1Password secrets, reconcile steps, and verification in `scripts/dev-profiles.json`. Resolve the selection, pull secrets from 1Password, write the env, **then** run the fast path. This is what removes the "re-explain the GitHub/writeback setup every time" friction — it's encoded, not recalled.
+`start` provisions an instance from the `github`, `ee`, `slack`, and `newux` profiles. Each profile declares its feature flags, env, 1Password secrets, reconcile steps, and verification in `scripts/dev-profiles.json`; AI features are bundled into `ee`. Resolve the selection, pull secrets from 1Password, write the env, **then** run the fast path. This is what removes the "re-explain the GitHub/writeback setup every time" friction — it's encoded, not recalled.
+
+`newux` is the new-onboarding profile and is required when testing the new onboarding or ask-AI flows.
 
 **1. Determine requested profiles.**
 - If the user named them (e.g. `/docker-dev start ee`, `start ee,slack`, `start github`), use those. The AI tier is Core vs EE — `ee` bundles all AI features.
@@ -507,6 +512,8 @@ fi
 
 ### Create Environment File
 
+The authoritative key list is `reconcile_env` in `scripts/dev-fast-start.sh`. This template is the first-boot fallback before that script reconciles the environment file.
+
 ```bash
 cat > .env.development.local << EOF
 # Local development overrides (instance: ${LD_INSTANCE_ID})
@@ -519,6 +526,7 @@ SCHEDULER_PORT=${SCHEDULER_PORT}
 DEBUG_PORT=${DEBUG_PORT}
 SDK_TEST_PORT=${SDK_TEST_PORT}
 MAPLE_PORT=${MAPLE_PORT}
+MAPLE_LOCAL_URL=http://127.0.0.1:${MAPLE_PORT}
 LIGHTDASH_PROMETHEUS_PORT=${LIGHTDASH_PROMETHEUS_PORT}
 SITE_URL=http://localhost:${FE_PORT}
 S3_ENDPOINT=http://localhost:9000
