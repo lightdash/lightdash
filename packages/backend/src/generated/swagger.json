@@ -342,90 +342,160 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ParameterValue": {
+            "FieldId": {
+                "type": "string"
+            },
+            "FilterGroup": {
                 "anyOf": [
                     {
-                        "type": "string"
+                        "$ref": "#/components/schemas/OrFilterGroup"
                     },
                     {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    {
-                        "items": {
-                            "type": "number",
-                            "format": "double"
-                        },
-                        "type": "array"
+                        "$ref": "#/components/schemas/AndFilterGroup"
                     }
                 ]
             },
-            "Record_string.ParameterValue_": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/ParameterValue"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ParametersValuesMap": {
-                "$ref": "#/components/schemas/Record_string.ParameterValue_"
-            },
-            "Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery-or-chartConfig__": {
+            "FieldTarget": {
                 "properties": {
-                    "name": {
+                    "fieldId": {
                         "type": "string",
-                        "description": "Display name of the chart"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "Optional description of what this chart displays"
-                    },
-                    "tableName": {
-                        "type": "string",
-                        "description": "The explore/table name this chart queries from"
-                    },
-                    "pivotConfig": {
-                        "properties": {
-                            "rows": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "columns": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columns"],
-                        "type": "object",
-                        "description": "Pivot table configuration"
-                    },
-                    "slug": {
-                        "type": "string",
-                        "description": "Unique identifier slug for this chart"
-                    },
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap",
-                        "description": "Parameter values for the chart query"
+                        "description": "Field ID to filter on"
                     }
                 },
-                "required": ["name", "tableName", "slug"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
+                "required": ["fieldId"],
+                "type": "object"
             },
-            "Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery-or-chartConfig_": {
-                "$ref": "#/components/schemas/Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery-or-chartConfig__",
-                "description": "Construct a type with the properties of T except for those in type K."
+            "FilterOperator": {
+                "enum": [
+                    "isNull",
+                    "notNull",
+                    "equals",
+                    "notEquals",
+                    "startsWith",
+                    "endsWith",
+                    "include",
+                    "doesNotInclude",
+                    "lessThan",
+                    "lessThanOrEqual",
+                    "greaterThan",
+                    "greaterThanOrEqual",
+                    "inThePast",
+                    "notInThePast",
+                    "inTheNext",
+                    "inTheCurrent",
+                    "notInTheCurrent",
+                    "inBetween",
+                    "notInBetween",
+                    "inPeriodToDate"
+                ],
+                "type": "string"
+            },
+            "FilterRule": {
+                "properties": {
+                    "includeNull": {
+                        "type": "boolean",
+                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
+                    },
+                    "values": {
+                        "items": {
+                            "$ref": "#/components/schemas/AnyType"
+                        },
+                        "type": "array",
+                        "description": "Values to filter by"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the filter"
+                    },
+                    "target": {
+                        "$ref": "#/components/schemas/FieldTarget",
+                        "description": "Target field for the filter"
+                    },
+                    "settings": {
+                        "$ref": "#/components/schemas/AnyType",
+                        "description": "Additional settings for date/time filters"
+                    },
+                    "disabled": {
+                        "type": "boolean",
+                        "description": "Whether this filter is disabled"
+                    },
+                    "required": {
+                        "type": "boolean",
+                        "description": "Whether this filter is required"
+                    },
+                    "caseSensitive": {
+                        "type": "boolean",
+                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
+                    }
+                },
+                "required": ["operator", "id", "target"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "FilterGroupItem": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/FilterGroup"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterRule"
+                    }
+                ]
+            },
+            "OrFilterGroup": {
+                "properties": {
+                    "or": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterGroupItem"
+                        },
+                        "type": "array",
+                        "description": "Array of filters or nested groups combined with OR logic"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the filter group"
+                    }
+                },
+                "required": ["or", "id"],
+                "type": "object"
+            },
+            "AndFilterGroup": {
+                "properties": {
+                    "and": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterGroupItem"
+                        },
+                        "type": "array",
+                        "description": "Array of filters or nested groups combined with AND logic"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the filter group"
+                    }
+                },
+                "required": ["and", "id"],
+                "type": "object"
+            },
+            "Filters": {
+                "properties": {
+                    "tableCalculations": {
+                        "$ref": "#/components/schemas/FilterGroup",
+                        "description": "Table calculation filter group"
+                    },
+                    "metrics": {
+                        "$ref": "#/components/schemas/FilterGroup",
+                        "description": "Metric filter group"
+                    },
+                    "dimensions": {
+                        "$ref": "#/components/schemas/FilterGroup",
+                        "description": "Dimension filter group"
+                    }
+                },
+                "type": "object"
             },
             "PivotSortAnchor": {
                 "properties": {
@@ -1061,31 +1131,6 @@
                 ],
                 "type": "string"
             },
-            "FilterOperator": {
-                "enum": [
-                    "isNull",
-                    "notNull",
-                    "equals",
-                    "notEquals",
-                    "startsWith",
-                    "endsWith",
-                    "include",
-                    "doesNotInclude",
-                    "lessThan",
-                    "lessThanOrEqual",
-                    "greaterThan",
-                    "greaterThanOrEqual",
-                    "inThePast",
-                    "notInThePast",
-                    "inTheNext",
-                    "inTheCurrent",
-                    "notInTheCurrent",
-                    "inBetween",
-                    "notInBetween",
-                    "inPeriodToDate"
-                ],
-                "type": "string"
-            },
             "MetricFilterRule": {
                 "description": "Filter rule for metrics, targeting fields by reference",
                 "properties": {
@@ -1139,9 +1184,6 @@
                 "required": ["operator", "id", "target"],
                 "type": "object",
                 "additionalProperties": true
-            },
-            "FieldId": {
-                "type": "string"
             },
             "AdditionalMetric": {
                 "properties": {
@@ -1613,6 +1655,331 @@
                 },
                 "type": "object"
             },
+            "Pick_CompiledDimension.label-or-name-or-table_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "table": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "label", "table"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "MetricQuery": {
+                "properties": {
+                    "metadata": {
+                        "properties": {
+                            "hasADateDimension": {
+                                "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name-or-table_"
+                            }
+                        },
+                        "required": ["hasADateDimension"],
+                        "type": "object"
+                    },
+                    "pivotDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array",
+                        "description": "Dimension field IDs used as pivot columns (from chart's pivotConfig.columns).\nUsed by row_total() to determine non-pivot dimensions for GROUP BY."
+                    },
+                    "timezone": {
+                        "type": "string",
+                        "description": "Timezone for date/time values (e.g., 'America/Los_Angeles', 'UTC')"
+                    },
+                    "dimensionOverrides": {
+                        "$ref": "#/components/schemas/DimensionOverrides",
+                        "description": "Override formatting options for existing dimensions"
+                    },
+                    "metricOverrides": {
+                        "$ref": "#/components/schemas/MetricOverrides",
+                        "description": "Override formatting options for existing metrics"
+                    },
+                    "customDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomDimension"
+                        },
+                        "type": "array",
+                        "description": "Custom dimensions defined inline"
+                    },
+                    "additionalMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AdditionalMetric"
+                        },
+                        "type": "array",
+                        "description": "Custom metrics defined inline (ad-hoc metrics not in the dbt model)"
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        "type": "array",
+                        "description": "Custom calculations to perform on query results"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Maximum number of rows to return"
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array",
+                        "description": "Sort configuration for query results"
+                    },
+                    "filters": {
+                        "$ref": "#/components/schemas/Filters",
+                        "description": "Filter rules to apply to the query"
+                    },
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array",
+                        "description": "List of metric field IDs to include"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array",
+                        "description": "List of dimension field IDs to include"
+                    },
+                    "exploreName": {
+                        "type": "string",
+                        "description": "The name of the explore to query"
+                    }
+                },
+                "required": [
+                    "tableCalculations",
+                    "limit",
+                    "sorts",
+                    "filters",
+                    "metrics",
+                    "dimensions",
+                    "exploreName"
+                ],
+                "type": "object"
+            },
+            "SavedMergeQuerySource": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": ["chart"],
+                                "nullable": false
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["kind", "id"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "metricQuery": {
+                                "$ref": "#/components/schemas/MetricQuery"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["query"],
+                                "nullable": false
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["metricQuery", "kind", "id"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A persisted merge source.\n\nThe chart source is a reference: its metric query already lives on the chart\nversion. Every additional source owns its query. This keeps one source of\ntruth while allowing more sources without adding `thirdQuery`, `fourthQuery`,\nand so on."
+            },
+            "Record_string.FieldId_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "MergeJoinKeyPart": {
+                "properties": {
+                    "fieldIdBySourceId": {
+                        "$ref": "#/components/schemas/Record_string.FieldId_",
+                        "description": "The field each source joins on. Every source must have an entry."
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Column name this key part takes in the merged result."
+                    }
+                },
+                "required": ["fieldIdBySourceId", "name"],
+                "type": "object",
+                "description": "One column of the join key. Sources name the same real-world key differently\n(`orders.order_date` vs `users.created_date`), so the mapping is explicit per\nsource rather than positional."
+            },
+            "MergeJoinType": {
+                "description": "How unmatched keys survive the merge. Mirrors the SQL join it compiles to.",
+                "enum": ["full", "left", "inner"],
+                "type": "string"
+            },
+            "MergeTableCalculation": {
+                "properties": {
+                    "sql": {
+                        "type": "string"
+                    },
+                    "displayName": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["sql", "displayName", "name"],
+                "type": "object",
+                "description": "A calculation over the *merged* result, which is the only place a row-wise\ncalculation across two queries can correctly live. References name a source\nand one of its fields, `${sourceId.fieldId}`, because the merged statement\nrenames columns to keep two sources from colliding."
+            },
+            "SavedMergeQuery": {
+                "properties": {
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeTableCalculation"
+                        },
+                        "type": "array"
+                    },
+                    "joinType": {
+                        "$ref": "#/components/schemas/MergeJoinType"
+                    },
+                    "joinKey": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeJoinKeyPart"
+                        },
+                        "type": "array"
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/SavedMergeQuerySource"
+                        },
+                        "type": "array"
+                    },
+                    "primarySourceId": {
+                        "type": "string",
+                        "description": "Source whose rows a LEFT merge preserves."
+                    }
+                },
+                "required": [
+                    "tableCalculations",
+                    "joinType",
+                    "joinKey",
+                    "sources",
+                    "primarySourceId"
+                ],
+                "type": "object",
+                "description": "Canonical, scalable representation of a merge stored on a chart version."
+            },
+            "ParameterValue": {
+                "anyOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    {
+                        "items": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "type": "array"
+                    }
+                ]
+            },
+            "Record_string.ParameterValue_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/ParameterValue"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ParametersValuesMap": {
+                "$ref": "#/components/schemas/Record_string.ParameterValue_"
+            },
+            "Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-merge-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-merge-or-slug-or-parameters_.metricQuery-or-chartConfig__": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Display name of the chart"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Optional description of what this chart displays"
+                    },
+                    "tableName": {
+                        "type": "string",
+                        "description": "The explore/table name this chart queries from"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "rows": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object",
+                        "description": "Pivot table configuration"
+                    },
+                    "merge": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SavedMergeQuery"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Second query this chart's query is merged with, when it has one. Absent\non the overwhelming majority of charts."
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Unique identifier slug for this chart"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for the chart query"
+                    }
+                },
+                "required": ["name", "tableName", "slug"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-merge-or-slug-or-parameters_.metricQuery-or-chartConfig_": {
+                "$ref": "#/components/schemas/Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-merge-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-merge-or-slug-or-parameters_.metricQuery-or-chartConfig__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
             "Pick_CompiledDimension.name-or-label-or-table_": {
                 "properties": {},
                 "type": "object",
@@ -1724,16 +2091,6 @@
                         "$ref": "#/components/schemas/AndFilterGroupInput"
                     }
                 ]
-            },
-            "FieldTarget": {
-                "properties": {
-                    "fieldId": {
-                        "type": "string",
-                        "description": "Field ID to filter on"
-                    }
-                },
-                "required": ["fieldId"],
-                "type": "object"
             },
             "Pick_FilterRule.Exclude_keyofFilterRule.id__": {
                 "properties": {
@@ -3936,7 +4293,7 @@
             "ChartAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery-or-chartConfig_"
+                        "$ref": "#/components/schemas/Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-merge-or-slug-or-parameters_.metricQuery-or-chartConfig_"
                     },
                     {
                         "properties": {
@@ -7985,236 +8342,6 @@
                     }
                 ]
             },
-            "FilterGroup": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/OrFilterGroup"
-                    },
-                    {
-                        "$ref": "#/components/schemas/AndFilterGroup"
-                    }
-                ]
-            },
-            "FilterRule": {
-                "properties": {
-                    "includeNull": {
-                        "type": "boolean",
-                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
-                    },
-                    "values": {
-                        "items": {
-                            "$ref": "#/components/schemas/AnyType"
-                        },
-                        "type": "array",
-                        "description": "Values to filter by"
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/FilterOperator",
-                        "description": "Filter operator"
-                    },
-                    "id": {
-                        "type": "string",
-                        "description": "Unique identifier for the filter"
-                    },
-                    "target": {
-                        "$ref": "#/components/schemas/FieldTarget",
-                        "description": "Target field for the filter"
-                    },
-                    "settings": {
-                        "$ref": "#/components/schemas/AnyType",
-                        "description": "Additional settings for date/time filters"
-                    },
-                    "disabled": {
-                        "type": "boolean",
-                        "description": "Whether this filter is disabled"
-                    },
-                    "required": {
-                        "type": "boolean",
-                        "description": "Whether this filter is required"
-                    },
-                    "caseSensitive": {
-                        "type": "boolean",
-                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
-                    }
-                },
-                "required": ["operator", "id", "target"],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "FilterGroupItem": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/FilterGroup"
-                    },
-                    {
-                        "$ref": "#/components/schemas/FilterRule"
-                    }
-                ]
-            },
-            "OrFilterGroup": {
-                "properties": {
-                    "or": {
-                        "items": {
-                            "$ref": "#/components/schemas/FilterGroupItem"
-                        },
-                        "type": "array",
-                        "description": "Array of filters or nested groups combined with OR logic"
-                    },
-                    "id": {
-                        "type": "string",
-                        "description": "Unique identifier for the filter group"
-                    }
-                },
-                "required": ["or", "id"],
-                "type": "object"
-            },
-            "AndFilterGroup": {
-                "properties": {
-                    "and": {
-                        "items": {
-                            "$ref": "#/components/schemas/FilterGroupItem"
-                        },
-                        "type": "array",
-                        "description": "Array of filters or nested groups combined with AND logic"
-                    },
-                    "id": {
-                        "type": "string",
-                        "description": "Unique identifier for the filter group"
-                    }
-                },
-                "required": ["and", "id"],
-                "type": "object"
-            },
-            "Filters": {
-                "properties": {
-                    "tableCalculations": {
-                        "$ref": "#/components/schemas/FilterGroup",
-                        "description": "Table calculation filter group"
-                    },
-                    "metrics": {
-                        "$ref": "#/components/schemas/FilterGroup",
-                        "description": "Metric filter group"
-                    },
-                    "dimensions": {
-                        "$ref": "#/components/schemas/FilterGroup",
-                        "description": "Dimension filter group"
-                    }
-                },
-                "type": "object"
-            },
-            "Pick_CompiledDimension.label-or-name-or-table_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "table": {
-                        "type": "string"
-                    }
-                },
-                "required": ["name", "label", "table"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "MetricQuery": {
-                "properties": {
-                    "metadata": {
-                        "properties": {
-                            "hasADateDimension": {
-                                "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name-or-table_"
-                            }
-                        },
-                        "required": ["hasADateDimension"],
-                        "type": "object"
-                    },
-                    "pivotDimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldId"
-                        },
-                        "type": "array",
-                        "description": "Dimension field IDs used as pivot columns (from chart's pivotConfig.columns).\nUsed by row_total() to determine non-pivot dimensions for GROUP BY."
-                    },
-                    "timezone": {
-                        "type": "string",
-                        "description": "Timezone for date/time values (e.g., 'America/Los_Angeles', 'UTC')"
-                    },
-                    "dimensionOverrides": {
-                        "$ref": "#/components/schemas/DimensionOverrides",
-                        "description": "Override formatting options for existing dimensions"
-                    },
-                    "metricOverrides": {
-                        "$ref": "#/components/schemas/MetricOverrides",
-                        "description": "Override formatting options for existing metrics"
-                    },
-                    "customDimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/CustomDimension"
-                        },
-                        "type": "array",
-                        "description": "Custom dimensions defined inline"
-                    },
-                    "additionalMetrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/AdditionalMetric"
-                        },
-                        "type": "array",
-                        "description": "Custom metrics defined inline (ad-hoc metrics not in the dbt model)"
-                    },
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/TableCalculation"
-                        },
-                        "type": "array",
-                        "description": "Custom calculations to perform on query results"
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Maximum number of rows to return"
-                    },
-                    "sorts": {
-                        "items": {
-                            "$ref": "#/components/schemas/SortField"
-                        },
-                        "type": "array",
-                        "description": "Sort configuration for query results"
-                    },
-                    "filters": {
-                        "$ref": "#/components/schemas/Filters",
-                        "description": "Filter rules to apply to the query"
-                    },
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldId"
-                        },
-                        "type": "array",
-                        "description": "List of metric field IDs to include"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldId"
-                        },
-                        "type": "array",
-                        "description": "List of dimension field IDs to include"
-                    },
-                    "exploreName": {
-                        "type": "string",
-                        "description": "The name of the explore to query"
-                    }
-                },
-                "required": [
-                    "tableCalculations",
-                    "limit",
-                    "sorts",
-                    "filters",
-                    "metrics",
-                    "dimensions",
-                    "exploreName"
-                ],
-                "type": "object"
-            },
             "DataAppVizChart": {
                 "properties": {
                     "optionValues": {
@@ -8282,124 +8409,6 @@
                         "$ref": "#/components/schemas/SankeyChartConfig"
                     }
                 ]
-            },
-            "SavedMergeQuerySource": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "kind": {
-                                "type": "string",
-                                "enum": ["chart"],
-                                "nullable": false
-                            },
-                            "id": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["kind", "id"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "metricQuery": {
-                                "$ref": "#/components/schemas/MetricQuery"
-                            },
-                            "kind": {
-                                "type": "string",
-                                "enum": ["query"],
-                                "nullable": false
-                            },
-                            "id": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["metricQuery", "kind", "id"],
-                        "type": "object"
-                    }
-                ],
-                "description": "A persisted merge source.\n\nThe chart source is a reference: its metric query already lives on the chart\nversion. Every additional source owns its query. This keeps one source of\ntruth while allowing more sources without adding `thirdQuery`, `fourthQuery`,\nand so on."
-            },
-            "Record_string.FieldId_": {
-                "properties": {},
-                "additionalProperties": {
-                    "type": "string"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "MergeJoinKeyPart": {
-                "properties": {
-                    "fieldIdBySourceId": {
-                        "$ref": "#/components/schemas/Record_string.FieldId_",
-                        "description": "The field each source joins on. Every source must have an entry."
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Column name this key part takes in the merged result."
-                    }
-                },
-                "required": ["fieldIdBySourceId", "name"],
-                "type": "object",
-                "description": "One column of the join key. Sources name the same real-world key differently\n(`orders.order_date` vs `users.created_date`), so the mapping is explicit per\nsource rather than positional."
-            },
-            "MergeJoinType": {
-                "description": "How unmatched keys survive the merge. Mirrors the SQL join it compiles to.",
-                "enum": ["full", "left", "inner"],
-                "type": "string"
-            },
-            "MergeTableCalculation": {
-                "properties": {
-                    "sql": {
-                        "type": "string"
-                    },
-                    "displayName": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    }
-                },
-                "required": ["sql", "displayName", "name"],
-                "type": "object",
-                "description": "A calculation over the *merged* result, which is the only place a row-wise\ncalculation across two queries can correctly live. References name a source\nand one of its fields, `${sourceId.fieldId}`, because the merged statement\nrenames columns to keep two sources from colliding."
-            },
-            "SavedMergeQuery": {
-                "properties": {
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/MergeTableCalculation"
-                        },
-                        "type": "array"
-                    },
-                    "joinType": {
-                        "$ref": "#/components/schemas/MergeJoinType"
-                    },
-                    "joinKey": {
-                        "items": {
-                            "$ref": "#/components/schemas/MergeJoinKeyPart"
-                        },
-                        "type": "array"
-                    },
-                    "sources": {
-                        "items": {
-                            "$ref": "#/components/schemas/SavedMergeQuerySource"
-                        },
-                        "type": "array"
-                    },
-                    "primarySourceId": {
-                        "type": "string",
-                        "description": "Source whose rows a LEFT merge preserves."
-                    }
-                },
-                "required": [
-                    "tableCalculations",
-                    "joinType",
-                    "joinKey",
-                    "sources",
-                    "primarySourceId"
-                ],
-                "type": "object",
-                "description": "Canonical, scalable representation of a merge stored on a chart version."
             },
             "ColorPaletteSource": {
                 "anyOf": [
@@ -8590,6 +8599,15 @@
                         "type": "object",
                         "description": "Pivot table configuration"
                     },
+                    "merge": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SavedMergeQuery"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Second query this chart's query is merged with, when it has one. Absent\non the overwhelming majority of charts."
+                    },
                     "slug": {
                         "type": "string",
                         "description": "Unique identifier slug for this chart"
@@ -8615,6 +8633,34 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true
+                    },
+                    "hasUnpublishedChanges": {
+                        "type": "boolean",
+                        "description": "The caller's unpublished content-as-code draft is applied."
+                    },
+                    "draftsAwaitingReview": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Open drafts from other authors visible to content-as-code reviewers."
+                    },
+                    "draftOverlayError": {
+                        "properties": {
+                            "draftUuid": {
+                                "type": "string"
+                            },
+                            "code": {
+                                "type": "string",
+                                "enum": ["invalid_chart_draft"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["draftUuid", "code"],
+                        "type": "object",
+                        "description": "The caller's draft could not be safely applied."
+                    },
+                    "dismissedDraftUuid": {
+                        "type": "string",
+                        "description": "The caller's latest dismissed draft, available to reopen."
                     },
                     "verification": {
                         "allOf": [
@@ -8662,15 +8708,6 @@
                         "required": ["lastName", "firstName", "userUuid"],
                         "type": "object",
                         "nullable": true
-                    },
-                    "merge": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/SavedMergeQuery"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "Second query this chart's query is merged with, when it has one. Absent\non the overwhelming majority of charts."
                     },
                     "tableConfig": {
                         "properties": {
@@ -8954,6 +8991,15 @@
                         "required": ["columns"],
                         "type": "object",
                         "description": "Pivot table configuration"
+                    },
+                    "merge": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SavedMergeQuery"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Second query this chart's query is merged with, when it has one. Absent\non the overwhelming majority of charts."
                     },
                     "slug": {
                         "type": "string",
@@ -15213,6 +15259,34 @@
                     "deletedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "draftOverlayError": {
+                        "properties": {
+                            "draftUuid": {
+                                "type": "string"
+                            },
+                            "code": {
+                                "type": "string",
+                                "enum": ["invalid_chart_draft"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["draftUuid", "code"],
+                        "type": "object",
+                        "description": "The caller's draft could not be safely applied."
+                    },
+                    "dismissedDraftUuid": {
+                        "type": "string",
+                        "description": "The caller's latest dismissed draft, available to reopen."
+                    },
+                    "draftsAwaitingReview": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Open drafts from other authors visible to content-as-code reviewers."
+                    },
+                    "hasUnpublishedChanges": {
+                        "type": "boolean",
+                        "description": "The caller's unpublished content-as-code draft is applied."
                     },
                     "verification": {
                         "allOf": [
@@ -45393,10 +45467,6 @@
                         "type": "object",
                         "description": "Pivot table configuration"
                     },
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap",
-                        "description": "Parameter values for the chart query"
-                    },
                     "merge": {
                         "allOf": [
                             {
@@ -45405,6 +45475,10 @@
                         ],
                         "nullable": true,
                         "description": "Second query this chart's query is merged with, when it has one. Absent\non the overwhelming majority of charts."
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for the chart query"
                     },
                     "tableConfig": {
                         "properties": {
@@ -57160,7 +57234,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.34.1",
+        "version": "2.35.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -57562,7 +57636,7 @@
                         }
                     }
                 },
-                "description": "Unpublished dashboard drafts awaiting review",
+                "description": "Unpublished content drafts awaiting review",
                 "summary": "List content drafts",
                 "tags": ["Projects"],
                 "security": [],
@@ -92061,6 +92135,14 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "includeUnpublishedDraft",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
                         }
                     }
                 ]

@@ -527,97 +527,129 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ParameterValue: {
+    FieldId: {
+        dataType: 'refAlias',
+        type: { dataType: 'string', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FilterGroup: {
         dataType: 'refAlias',
         type: {
             dataType: 'union',
-            subSchemas: [
-                { dataType: 'string' },
-                { dataType: 'double' },
-                { dataType: 'array', array: { dataType: 'string' } },
-                { dataType: 'array', array: { dataType: 'double' } },
-            ],
+            subSchemas: [{ ref: 'OrFilterGroup' }, { ref: 'AndFilterGroup' }],
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.ParameterValue_': {
+    FieldTarget: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: { ref: 'ParameterValue' },
+            nestedProperties: {
+                fieldId: { dataType: 'string', required: true },
+            },
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ParametersValuesMap: {
-        dataType: 'refAlias',
-        type: { ref: 'Record_string.ParameterValue_', validators: {} },
+    FilterOperator: {
+        dataType: 'refEnum',
+        enums: [
+            'isNull',
+            'notNull',
+            'equals',
+            'notEquals',
+            'startsWith',
+            'endsWith',
+            'include',
+            'doesNotInclude',
+            'lessThan',
+            'lessThanOrEqual',
+            'greaterThan',
+            'greaterThanOrEqual',
+            'inThePast',
+            'notInThePast',
+            'inTheNext',
+            'inTheCurrent',
+            'notInTheCurrent',
+            'inBetween',
+            'notInBetween',
+            'inPeriodToDate',
+        ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery-or-chartConfig__':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    name: { dataType: 'string', required: true },
-                    description: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    tableName: { dataType: 'string', required: true },
-                    pivotConfig: {
-                        dataType: 'union',
-                        subSchemas: [
-                            {
-                                dataType: 'nestedObjectLiteral',
-                                nestedProperties: {
-                                    rows: {
-                                        dataType: 'union',
-                                        subSchemas: [
-                                            {
-                                                dataType: 'array',
-                                                array: { dataType: 'string' },
-                                            },
-                                            { dataType: 'undefined' },
-                                        ],
-                                    },
-                                    columns: {
-                                        dataType: 'array',
-                                        array: { dataType: 'string' },
-                                        required: true,
-                                    },
-                                },
-                            },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    slug: { dataType: 'string', required: true },
-                    parameters: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { ref: 'ParametersValuesMap' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                },
-                validators: {},
+    FilterRule: {
+        dataType: 'refObject',
+        properties: {
+            includeNull: { dataType: 'boolean' },
+            values: {
+                dataType: 'array',
+                array: { dataType: 'refAlias', ref: 'AnyType' },
             },
+            operator: { ref: 'FilterOperator', required: true },
+            id: { dataType: 'string', required: true },
+            target: { ref: 'FieldTarget', required: true },
+            settings: { ref: 'AnyType' },
+            disabled: { dataType: 'boolean' },
+            required: { dataType: 'boolean' },
+            caseSensitive: { dataType: 'boolean' },
         },
+        additionalProperties: true,
+    },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery-or-chartConfig_':
-        {
-            dataType: 'refAlias',
-            type: {
-                ref: 'Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery-or-chartConfig__',
-                validators: {},
-            },
+    FilterGroupItem: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [{ ref: 'FilterGroup' }, { ref: 'FilterRule' }],
+            validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OrFilterGroup: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                or: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FilterGroupItem' },
+                    required: true,
+                },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AndFilterGroup: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                and: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FilterGroupItem' },
+                    required: true,
+                },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Filters: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                tableCalculations: { ref: 'FilterGroup' },
+                metrics: { ref: 'FilterGroup' },
+                dimensions: { ref: 'FilterGroup' },
+            },
+            validators: {},
+        },
+    },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PivotSortAnchor: {
         dataType: 'refAlias',
@@ -1244,32 +1276,6 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FilterOperator: {
-        dataType: 'refEnum',
-        enums: [
-            'isNull',
-            'notNull',
-            'equals',
-            'notEquals',
-            'startsWith',
-            'endsWith',
-            'include',
-            'doesNotInclude',
-            'lessThan',
-            'lessThanOrEqual',
-            'greaterThan',
-            'greaterThanOrEqual',
-            'inThePast',
-            'notInThePast',
-            'inTheNext',
-            'inTheCurrent',
-            'notInTheCurrent',
-            'inBetween',
-            'notInBetween',
-            'inPeriodToDate',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricFilterRule: {
         dataType: 'refObject',
         properties: {
@@ -1293,11 +1299,6 @@ const models: TsoaRoute.Models = {
             caseSensitive: { dataType: 'boolean' },
         },
         additionalProperties: true,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FieldId: {
-        dataType: 'refAlias',
-        type: { dataType: 'string', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AdditionalMetric: {
@@ -1599,6 +1600,285 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CompiledDimension.label-or-name-or-table_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                name: { dataType: 'string', required: true },
+                label: { dataType: 'string', required: true },
+                table: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricQuery: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                metadata: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        hasADateDimension: {
+                            ref: 'Pick_CompiledDimension.label-or-name-or-table_',
+                            required: true,
+                        },
+                    },
+                },
+                pivotDimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FieldId' },
+                },
+                timezone: { dataType: 'string' },
+                dimensionOverrides: { ref: 'DimensionOverrides' },
+                metricOverrides: { ref: 'MetricOverrides' },
+                customDimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'CustomDimension' },
+                },
+                additionalMetrics: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'AdditionalMetric' },
+                },
+                tableCalculations: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'TableCalculation' },
+                    required: true,
+                },
+                limit: { dataType: 'double', required: true },
+                sorts: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SortField' },
+                    required: true,
+                },
+                filters: { ref: 'Filters', required: true },
+                metrics: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FieldId' },
+                    required: true,
+                },
+                dimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FieldId' },
+                    required: true,
+                },
+                exploreName: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SavedMergeQuerySource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        kind: {
+                            dataType: 'enum',
+                            enums: ['chart'],
+                            required: true,
+                        },
+                        id: { dataType: 'string', required: true },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        metricQuery: { ref: 'MetricQuery', required: true },
+                        kind: {
+                            dataType: 'enum',
+                            enums: ['query'],
+                            required: true,
+                        },
+                        id: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.FieldId_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { dataType: 'string' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MergeJoinKeyPart: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                fieldIdBySourceId: {
+                    ref: 'Record_string.FieldId_',
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MergeJoinType: {
+        dataType: 'refEnum',
+        enums: ['full', 'left', 'inner'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MergeTableCalculation: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                sql: { dataType: 'string', required: true },
+                displayName: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SavedMergeQuery: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                tableCalculations: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'MergeTableCalculation',
+                    },
+                    required: true,
+                },
+                joinType: { ref: 'MergeJoinType', required: true },
+                joinKey: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'MergeJoinKeyPart' },
+                    required: true,
+                },
+                sources: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'SavedMergeQuerySource',
+                    },
+                    required: true,
+                },
+                primarySourceId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ParameterValue: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'string' },
+                { dataType: 'double' },
+                { dataType: 'array', array: { dataType: 'string' } },
+                { dataType: 'array', array: { dataType: 'double' } },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.ParameterValue_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'ParameterValue' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ParametersValuesMap: {
+        dataType: 'refAlias',
+        type: { ref: 'Record_string.ParameterValue_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-merge-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-merge-or-slug-or-parameters_.metricQuery-or-chartConfig__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    description: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    tableName: { dataType: 'string', required: true },
+                    pivotConfig: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    rows: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            {
+                                                dataType: 'array',
+                                                array: { dataType: 'string' },
+                                            },
+                                            { dataType: 'undefined' },
+                                        ],
+                                    },
+                                    columns: {
+                                        dataType: 'array',
+                                        array: { dataType: 'string' },
+                                        required: true,
+                                    },
+                                },
+                            },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    merge: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'SavedMergeQuery' },
+                            { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    slug: { dataType: 'string', required: true },
+                    parameters: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ParametersValuesMap' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-merge-or-slug-or-parameters_.metricQuery-or-chartConfig_':
+        {
+            dataType: 'refAlias',
+            type: {
+                ref: 'Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-merge-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-merge-or-slug-or-parameters_.metricQuery-or-chartConfig__',
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CompiledDimension.name-or-label-or-table_': {
         dataType: 'refAlias',
         type: {
@@ -1725,17 +2005,6 @@ const models: TsoaRoute.Models = {
                 { ref: 'OrFilterGroupInput' },
                 { ref: 'AndFilterGroupInput' },
             ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FieldTarget: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                fieldId: { dataType: 'string', required: true },
-            },
             validators: {},
         },
     },
@@ -3587,7 +3856,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery-or-chartConfig_',
+                    ref: 'Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-merge-or-slug-or-parameters_.metricQuery-or-chartConfig_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -7595,158 +7864,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FilterGroup: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [{ ref: 'OrFilterGroup' }, { ref: 'AndFilterGroup' }],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FilterRule: {
-        dataType: 'refObject',
-        properties: {
-            includeNull: { dataType: 'boolean' },
-            values: {
-                dataType: 'array',
-                array: { dataType: 'refAlias', ref: 'AnyType' },
-            },
-            operator: { ref: 'FilterOperator', required: true },
-            id: { dataType: 'string', required: true },
-            target: { ref: 'FieldTarget', required: true },
-            settings: { ref: 'AnyType' },
-            disabled: { dataType: 'boolean' },
-            required: { dataType: 'boolean' },
-            caseSensitive: { dataType: 'boolean' },
-        },
-        additionalProperties: true,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FilterGroupItem: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [{ ref: 'FilterGroup' }, { ref: 'FilterRule' }],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    OrFilterGroup: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                or: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'FilterGroupItem' },
-                    required: true,
-                },
-                id: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AndFilterGroup: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                and: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'FilterGroupItem' },
-                    required: true,
-                },
-                id: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    Filters: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                tableCalculations: { ref: 'FilterGroup' },
-                metrics: { ref: 'FilterGroup' },
-                dimensions: { ref: 'FilterGroup' },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_CompiledDimension.label-or-name-or-table_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                name: { dataType: 'string', required: true },
-                label: { dataType: 'string', required: true },
-                table: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MetricQuery: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                metadata: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        hasADateDimension: {
-                            ref: 'Pick_CompiledDimension.label-or-name-or-table_',
-                            required: true,
-                        },
-                    },
-                },
-                pivotDimensions: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'FieldId' },
-                },
-                timezone: { dataType: 'string' },
-                dimensionOverrides: { ref: 'DimensionOverrides' },
-                metricOverrides: { ref: 'MetricOverrides' },
-                customDimensions: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'CustomDimension' },
-                },
-                additionalMetrics: {
-                    dataType: 'array',
-                    array: { dataType: 'refObject', ref: 'AdditionalMetric' },
-                },
-                tableCalculations: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'TableCalculation' },
-                    required: true,
-                },
-                limit: { dataType: 'double', required: true },
-                sorts: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'SortField' },
-                    required: true,
-                },
-                filters: { ref: 'Filters', required: true },
-                metrics: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'FieldId' },
-                    required: true,
-                },
-                dimensions: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'FieldId' },
-                    required: true,
-                },
-                exploreName: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppVizChart: {
         dataType: 'refAlias',
         type: {
@@ -7789,115 +7906,6 @@ const models: TsoaRoute.Models = {
                 { ref: 'MapChartConfig' },
                 { ref: 'SankeyChartConfig' },
             ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SavedMergeQuerySource: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        kind: {
-                            dataType: 'enum',
-                            enums: ['chart'],
-                            required: true,
-                        },
-                        id: { dataType: 'string', required: true },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        metricQuery: { ref: 'MetricQuery', required: true },
-                        kind: {
-                            dataType: 'enum',
-                            enums: ['query'],
-                            required: true,
-                        },
-                        id: { dataType: 'string', required: true },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.FieldId_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: { dataType: 'string' },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MergeJoinKeyPart: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                fieldIdBySourceId: {
-                    ref: 'Record_string.FieldId_',
-                    required: true,
-                },
-                name: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MergeJoinType: {
-        dataType: 'refEnum',
-        enums: ['full', 'left', 'inner'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MergeTableCalculation: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                sql: { dataType: 'string', required: true },
-                displayName: { dataType: 'string', required: true },
-                name: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SavedMergeQuery: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                tableCalculations: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'MergeTableCalculation',
-                    },
-                    required: true,
-                },
-                joinType: { ref: 'MergeJoinType', required: true },
-                joinKey: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'MergeJoinKeyPart' },
-                    required: true,
-                },
-                sources: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'SavedMergeQuerySource',
-                    },
-                    required: true,
-                },
-                primarySourceId: { dataType: 'string', required: true },
-            },
             validators: {},
         },
     },
@@ -8075,6 +8083,14 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    merge: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'SavedMergeQuery' },
+                            { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     slug: { dataType: 'string', required: true },
                     parameters: {
                         dataType: 'union',
@@ -8101,6 +8117,47 @@ const models: TsoaRoute.Models = {
                             { dataType: 'enum', enums: [null] },
                         ],
                         required: true,
+                    },
+                    hasUnpublishedChanges: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    draftsAwaitingReview: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    draftOverlayError: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    draftUuid: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                    code: {
+                                        dataType: 'enum',
+                                        enums: ['invalid_chart_draft'],
+                                        required: true,
+                                    },
+                                },
+                            },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    dismissedDraftUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
                     },
                     verification: {
                         dataType: 'union',
@@ -8155,14 +8212,6 @@ const models: TsoaRoute.Models = {
                                     },
                                 },
                             },
-                            { dataType: 'enum', enums: [null] },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    merge: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { ref: 'SavedMergeQuery' },
                             { dataType: 'enum', enums: [null] },
                             { dataType: 'undefined' },
                         ],
@@ -8409,6 +8458,14 @@ const models: TsoaRoute.Models = {
                                 },
                             },
                         },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                merge: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'SavedMergeQuery' },
+                        { dataType: 'enum', enums: [null] },
                         { dataType: 'undefined' },
                     ],
                 },
@@ -14190,6 +14247,20 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 deletedAt: { dataType: 'datetime' },
+                draftOverlayError: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        draftUuid: { dataType: 'string', required: true },
+                        code: {
+                            dataType: 'enum',
+                            enums: ['invalid_chart_draft'],
+                            required: true,
+                        },
+                    },
+                },
+                dismissedDraftUuid: { dataType: 'string' },
+                draftsAwaitingReview: { dataType: 'double' },
+                hasUnpublishedChanges: { dataType: 'boolean' },
                 verification: {
                     dataType: 'union',
                     subSchemas: [
@@ -44983,18 +45054,18 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
-                    parameters: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { ref: 'ParametersValuesMap' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
                     merge: {
                         dataType: 'union',
                         subSchemas: [
                             { ref: 'SavedMergeQuery' },
                             { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    parameters: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ParametersValuesMap' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -108758,6 +108829,11 @@ export function RegisterRoutes(app: Router) {
             dataType: 'string',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        includeUnpublishedDraft: {
+            in: 'query',
+            name: 'includeUnpublishedDraft',
+            dataType: 'boolean',
+        },
     };
     app.get(
         '/api/v2/projects/:projectUuid/saved/:chartUuidOrSlug',

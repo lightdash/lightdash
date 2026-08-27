@@ -1,3 +1,17 @@
+# [2.35.0](https://github.com/lightdash/lightdash/compare/2.34.1...2.35.0) (2026-08-27)
+
+
+### Bug Fixes
+
+* **ai-agent:** keep composer enabled during background work ([#28217](https://github.com/lightdash/lightdash/issues/28217)) ([bae4df7](https://github.com/lightdash/lightdash/commit/bae4df75c9ed821be01caaaee5716644a0b5f160))
+
+
+### Features
+
+* **ai-agent:** data app build card with Storybook states ([#28229](https://github.com/lightdash/lightdash/issues/28229)) ([f8e2ed9](https://github.com/lightdash/lightdash/commit/f8e2ed990efc491e178d9c7bdd108fb5db30be66))
+* **ai-agent:** readContent reads data apps (type data_app) ([#28207](https://github.com/lightdash/lightdash/issues/28207)) ([0e1199d](https://github.com/lightdash/lightdash/commit/0e1199d390cfd9544da2d8a352ec3c6c0f0d0b4b)), closes [#28202](https://github.com/lightdash/lightdash/issues/28202)
+* **content-as-code:** save Git-backed chart edits as drafts ([#28222](https://github.com/lightdash/lightdash/issues/28222)) ([abbf8e2](https://github.com/lightdash/lightdash/commit/abbf8e2b92a52bc42be5b34fcfdcb8f496a2ec41))
+
 ## [2.34.1](https://github.com/lightdash/lightdash/compare/2.34.0...2.34.1) (2026-08-27)
 
 
