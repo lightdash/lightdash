@@ -773,13 +773,7 @@ export const AgentChatInput = ({
             </Box>
         );
 
-    const renderComposerActionsMenu = ({
-        actionSize,
-        iconSize,
-    }: {
-        actionSize: number | 'sm' | 'md';
-        iconSize: number;
-    }) => {
+    const renderComposerActionsMenu = () => {
         if (!showComposerActionsMenu) {
             return null;
         }
@@ -840,7 +834,7 @@ export const AgentChatInput = ({
                     <ActionIcon
                         variant="subtle"
                         color="ldGray.6"
-                        size={actionSize}
+                        size={30}
                         radius="xl"
                         aria-label="Composer options"
                         className={
@@ -853,7 +847,7 @@ export const AgentChatInput = ({
                     >
                         <MantineIcon
                             icon={IconPlus}
-                            size={iconSize}
+                            size={16}
                             color="ldGray.6"
                         />
                     </ActionIcon>
@@ -897,7 +891,7 @@ export const AgentChatInput = ({
                             </FileButton>
                             {(showSqlModeControl ||
                                 showDeepResearchInComposerMenu) && (
-                                <Menu.Divider role="separator" />
+                                <Menu.Divider role="separator" mx="sm" />
                             )}
                         </>
                     )}
@@ -1047,10 +1041,7 @@ export const AgentChatInput = ({
                         {...composerCommonProps}
                         variant="inline"
                         attachments={renderedAttachments}
-                        toolbarLeft={renderComposerActionsMenu({
-                            actionSize: 'sm',
-                            iconSize: 14,
-                        })}
+                        toolbarLeft={renderComposerActionsMenu()}
                         toolbarRight={
                             <Group gap={4} align="center" wrap="nowrap">
                                 {renderComposerAction('sm')}
@@ -1097,10 +1088,7 @@ export const AgentChatInput = ({
                 attachments={renderedAttachments}
                 toolbarLeft={
                     <Group gap="xs" align="center" wrap="nowrap">
-                        {renderComposerActionsMenu({
-                            actionSize: 30,
-                            iconSize: 16,
-                        })}
+                        {renderComposerActionsMenu()}
                     </Group>
                 }
                 toolbarRight={
