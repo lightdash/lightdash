@@ -1,5 +1,10 @@
 import { Knex } from 'knex';
 
+export const classification = {
+    kind: 'safe',
+    reason: 'Creates a new empty Linear installation table without reading or rewriting existing rows',
+} as const;
+
 const tableName = 'linear_app_installations';
 
 export async function up(knex: Knex): Promise<void> {
