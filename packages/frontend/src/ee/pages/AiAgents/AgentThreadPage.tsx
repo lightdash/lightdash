@@ -161,7 +161,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         },
     );
 
-    const { isStreaming, isPending } = usePendingThreadRefetch(
+    const { isStreaming, isThreadPending } = usePendingThreadRefetch(
         thread,
         threadUuid!,
         refetch,
@@ -354,7 +354,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const isBusy = Boolean(
         isCreatingMessage ||
         isStreaming ||
-        isPending ||
+        isThreadPending ||
         startDeepResearch.isLoading,
     );
     const retryPrompt = reviewItem?.remediation?.retryPrompt ?? null;
