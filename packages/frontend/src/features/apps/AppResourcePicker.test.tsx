@@ -1,10 +1,54 @@
+import { type ExternalConnection } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 import {
     ConnectionAttachButton,
+    ConnectionPickerView,
     SelectedQuerySection,
 } from './AppResourcePicker';
+
+vi.mock('../../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'project-1',
+}));
+vi.mock('../../hooks/useProject', () => ({
+    useProject: () => ({ data: undefined }),
+}));
+vi.mock('../../providers/App/useApp', () => ({
+    default: () => ({ user: { data: undefined } }),
+}));
+vi.mock('../externalConnections/hooks/useExternalConnections', () => ({
+    useExternalConnections: () => ({
+        isInitialLoading: false,
+        data: [
+            { externalConnectionUuid: 'c-linked', name: 'Linked API' },
+            { externalConnectionUuid: 'c-selected', name: 'Selected API' },
+            { externalConnectionUuid: 'c-plain', name: 'Plain API' },
+        ].map((connection) => ({
+            ...connection,
+            origin: `https://${connection.externalConnectionUuid}.example.com`,
+        })) as unknown as ExternalConnection[],
+    }),
+}));
+vi.mock('../externalConnections/hooks/useAppExternalConnections', () => ({
+    useAppExternalConnections: (
+        _projectUuid: string | undefined,
+        appUuid: string | undefined,
+    ) => ({
+        data: appUuid
+            ? [
+                  {
+                      alias: 'linked_api',
+                      connection: { externalConnectionUuid: 'c-linked' },
+                  },
+                  {
+                      alias: 'selected_api',
+                      connection: { externalConnectionUuid: 'c-selected' },
+                  },
+              ]
+            : undefined,
+    }),
+}));
 
 const baseChart = {
     uuid: 'c1',
@@ -84,6 +128,7 @@ it.each([
                     onDeselect={() => undefined}
                     disabled={false}
                     description="Choose connections"
+                    linkedAppUuid={null}
                 />
             </MantineProvider>,
         );
@@ -96,3 +141,44 @@ it.each([
         }
     },
 );
+
+it('marks connections the app already links, unless they are selected again', () => {
+    render(
+        <MantineProvider env="test">
+            <ConnectionPickerView
+                selectedConnections={[
+                    {
+                        externalConnectionUuid: 'c-selected',
+                        name: 'Selected API',
+                        alias: 'selected_api',
+                    },
+                ]}
+                onSelect={() => undefined}
+                onDeselect={() => undefined}
+                onDone={() => undefined}
+                enabled
+                linkedAppUuid="app-1"
+            />
+        </MantineProvider>,
+    );
+
+    const hints = screen.getAllByText('Linked');
+    expect(hints).toHaveLength(1);
+    expect(hints[0].parentElement).toHaveTextContent('Linked API');
+});
+
+it('shows no linked hint before a first build exists', () => {
+    render(
+        <MantineProvider env="test">
+            <ConnectionPickerView
+                selectedConnections={[]}
+                onSelect={() => undefined}
+                onDeselect={() => undefined}
+                onDone={() => undefined}
+                enabled
+            />
+        </MantineProvider>,
+    );
+
+    expect(screen.queryByText('Linked')).not.toBeInTheDocument();
+});

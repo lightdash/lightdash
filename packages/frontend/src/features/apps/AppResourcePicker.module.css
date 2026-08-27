@@ -91,6 +91,11 @@
     }
 }
 
+.chartItemHint {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
 .chartItemSelectedIcon {
     display: inline-flex;
     align-items: center;

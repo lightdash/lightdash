@@ -123,6 +123,13 @@ export type AppExternalConnectionLink = {
     alias: string;
 };
 
+/** A link as the app's connection list returns it: alias plus the
+ *  connection itself, not the uuid/alias pair the link request takes. */
+export type AppExternalConnectionLinked = {
+    alias: string;
+    connection: ExternalConnection;
+};
+
 /** Server-applied defaults for the optional numeric limits. */
 export const EXTERNAL_CONNECTION_DEFAULTS = {
     responseMaxBytes: 1048576,

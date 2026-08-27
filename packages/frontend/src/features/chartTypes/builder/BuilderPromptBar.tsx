@@ -229,10 +229,11 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
 
         // The pencil and Cancel end the same way: prompt back in the composer.
         const handleReclaimPrompt = () => {
-            const prompt = clarification.abandon();
-            if (prompt === null) return;
+            const request = clarification.abandon();
+            if (request === null) return;
+            setSelectedConnections(request.externalConnections);
             composerRef.current?.insertContent([
-                { type: 'text', text: prompt },
+                { type: 'text', text: request.description },
             ]);
             composerRef.current?.focus();
         };
@@ -592,7 +593,10 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     )
                                 }
                                 disabled={isComposerLocked}
-                                description="Let this chart type fetch from these APIs and display public images from allowed origins"
+                                description="Let this chart type fetch from these external APIs"
+                                linkedAppUuid={
+                                    hasVersions ? composerAppUuid : null
+                                }
                             />
                             <input
                                 ref={fileInputRef}

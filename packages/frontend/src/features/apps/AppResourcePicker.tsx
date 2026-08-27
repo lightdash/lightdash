@@ -62,6 +62,7 @@ import { useChartSummariesV2 } from '../../hooks/useChartSummariesV2';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
+import { useAppExternalConnections } from '../externalConnections/hooks/useAppExternalConnections';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
 import { uniqueAliasFromName } from '../externalConnections/utils/aliasFromName';
 import classes from './AppResourcePicker.module.css';
@@ -943,11 +944,34 @@ export const ConnectionPickerView: FC<{
     onDeselect: (uuid: string) => void;
     onDone: () => void;
     enabled: boolean;
-}> = ({ selectedConnections, onSelect, onDeselect, onDone, enabled }) => {
+    /** App whose existing links mark rows as already linked; omit before a
+     *  first build, when nothing can be linked yet. */
+    linkedAppUuid?: string;
+}> = ({
+    selectedConnections,
+    onSelect,
+    onDeselect,
+    onDone,
+    enabled,
+    linkedAppUuid,
+}) => {
     const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState('');
     const { data: connections, isInitialLoading } = useExternalConnections(
         enabled ? projectUuid : undefined,
+    );
+    const { data: existingLinks } = useAppExternalConnections(
+        enabled ? projectUuid : undefined,
+        linkedAppUuid,
+    );
+    const linkedUuids = useMemo(
+        () =>
+            new Set(
+                (existingLinks ?? []).map(
+                    (link) => link.connection.externalConnectionUuid,
+                ),
+            ),
+        [existingLinks],
     );
 
     // Only project/org admins can create connections; mirror the gate the
@@ -1044,6 +1068,9 @@ export const ConnectionPickerView: FC<{
                         const isSelected = selectedUuids.has(
                             connection.externalConnectionUuid,
                         );
+                        const isLinked = linkedUuids.has(
+                            connection.externalConnectionUuid,
+                        );
                         return (
                             <Box
                                 key={connection.externalConnectionUuid}
@@ -1061,6 +1088,15 @@ export const ConnectionPickerView: FC<{
                                         {connection.origin}
                                     </Text>
                                 </Box>
+                                {!isSelected && isLinked && (
+                                    <Text
+                                        size="xs"
+                                        c="dimmed"
+                                        className={classes.chartItemHint}
+                                    >
+                                        Linked
+                                    </Text>
+                                )}
                                 {isSelected && (
                                     <Box
                                         className={
@@ -1188,6 +1224,7 @@ export const AttachButton: FC<{
                     label="Add charts, dashboards, connections or files"
                     withArrow
                     position="top"
+                    disabled={opened}
                 >
                     <Button
                         variant="subtle"
@@ -1355,7 +1392,17 @@ export const ConnectionAttachButton: FC<{
     onDeselect: (uuid: string) => void;
     disabled: boolean;
     description: string;
-}> = ({ selectedConnections, onSelect, onDeselect, disabled, description }) => {
+    /** The built app whose links the picker marks as already linked; null
+     *  until a first build exists. */
+    linkedAppUuid: string | null;
+}> = ({
+    selectedConnections,
+    onSelect,
+    onDeselect,
+    disabled,
+    description,
+    linkedAppUuid,
+}) => {
     const [opened, setOpened] = useState(false);
     const selectedCount = selectedConnections.length;
     const triggerLabel =
@@ -1364,6 +1411,12 @@ export const ConnectionAttachButton: FC<{
                   selectedCount === 1 ? '' : 's'
               } attached`
             : 'Add external connections';
+    const tooltipLabel =
+        selectedCount > 0
+            ? `${triggerLabel}: ${selectedConnections
+                  .map((connection) => connection.name)
+                  .join(', ')}`
+            : triggerLabel;
 
     return (
         <Popover
@@ -1375,7 +1428,14 @@ export const ConnectionAttachButton: FC<{
             trapFocus
         >
             <Popover.Target>
-                <Tooltip label={triggerLabel} withArrow position="top">
+                <Tooltip
+                    label={tooltipLabel}
+                    withArrow
+                    position="top"
+                    multiline
+                    maw={280}
+                    disabled={opened}
+                >
                     <Indicator
                         inline
                         label={selectedCount}
@@ -1417,6 +1477,7 @@ export const ConnectionAttachButton: FC<{
                     onDeselect={onDeselect}
                     onDone={() => setOpened(false)}
                     enabled={opened}
+                    linkedAppUuid={linkedAppUuid ?? undefined}
                 />
             </Popover.Dropdown>
         </Popover>
