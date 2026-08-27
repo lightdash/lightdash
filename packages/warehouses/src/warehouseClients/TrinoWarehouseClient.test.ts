@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
-import { AnyType, QueryExecutionContext } from '@lightdash/common';
+import {
+    AnyType,
+    DimensionType,
+    QueryExecutionContext,
+} from '@lightdash/common';
 import { Columns, Iterator, QueryData, QueryResult, Trino } from 'trino-client';
 import {
     TrinoSqlBuilder,
@@ -82,6 +86,33 @@ describe('TrinoWarehouseClient', () => {
             warehouse.getCatalog(warehouseClient.config),
         ).resolves.toEqual(
             warehouseClient.expectedWarehouseSchemaWithNaiveTimestamp,
+        );
+    });
+
+    it('maps decimal precision and scale to a numeric dimension', async () => {
+        const warehouse = new TrinoWarehouseClient(credentials);
+        queryResultMock.mockReturnValue({
+            next: vi.fn().mockResolvedValue({
+                done: true,
+                value: {
+                    ...querySchemaResponse,
+                    data: [
+                        [
+                            'myDatabase',
+                            'mySchema',
+                            'myTable',
+                            'myDecimalColumn',
+                            'decimal(18,4)',
+                        ],
+                    ],
+                },
+            }),
+        });
+
+        const catalog = await warehouse.getCatalog(warehouseClient.config);
+
+        expect(catalog.myDatabase.mySchema.myTable.myDecimalColumn).toEqual(
+            DimensionType.NUMBER,
         );
     });
 
