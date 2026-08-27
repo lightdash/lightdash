@@ -158,13 +158,19 @@ const renderInput = (routerEnabled = false) => {
     });
     queryClient.setQueryData(['ai-router'], { enabled: routerEnabled });
 
-    return render(
+    const renderComponent = () => (
         <MantineProvider env="test">
             <QueryClientProvider client={queryClient}>
                 <DayOneAskInput projectUuid="project-1" hideSuggestions />
             </QueryClientProvider>
-        </MantineProvider>,
+        </MantineProvider>
     );
+    const result = render(renderComponent());
+
+    return {
+        ...result,
+        rerenderInput: () => result.rerender(renderComponent()),
+    };
 };
 
 const renderWithSuggestions = (labels: string[]) => {
@@ -341,5 +347,24 @@ describe('DayOneAskInput', () => {
         expect(createAgentThread).toHaveBeenCalledWith(
             expect.objectContaining({ enableSqlMode: true }),
         );
+    });
+
+    it('uses each selected agent SQL default instead of another agent override', () => {
+        agents.current = [
+            { uuid: 'agent-1', name: 'Data agent', enableSqlMode: false },
+        ];
+        const { rerenderInput } = renderInput();
+
+        act(() => {
+            agentChatInputProps.current?.onSqlModeChange?.(true);
+        });
+        expect(agentChatInputProps.current?.sqlMode).toBe(true);
+
+        agents.current = [
+            { uuid: 'agent-2', name: 'Finance agent', enableSqlMode: false },
+        ];
+        rerenderInput();
+
+        expect(agentChatInputProps.current?.sqlMode).toBe(false);
     });
 });

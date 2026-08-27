@@ -188,12 +188,15 @@ const DayOneAskInputInner: FC<Props> = ({
     const sqlModeAvailable = useAiAgentSqlModeAvailable(
         projectUuid ?? undefined,
     );
-    const [sqlModeOverride, setSqlModeOverride] = useState<boolean>();
-    const sqlMode = sqlModeOverride ?? selectedAgent?.enableSqlMode ?? true;
+    const [sqlModeOverride, setSqlModeOverride] = useState<{
+        agentUuid: string;
+        value: boolean;
+    }>();
+    const sqlMode =
+        sqlModeOverride && sqlModeOverride.agentUuid === selectedAgent?.uuid
+            ? sqlModeOverride.value
+            : (selectedAgent?.enableSqlMode ?? true);
     const enableSqlMode = sqlModeAvailable && sqlMode;
-    useEffect(() => {
-        setSqlModeOverride(undefined);
-    }, [selectedAgent?.uuid]);
     const suggestionsSqlMode =
         sqlModeAvailable && (referenceAgent?.enableSqlMode ?? true);
 
@@ -392,7 +395,11 @@ const DayOneAskInputInner: FC<Props> = ({
                     }
                     onSqlModeChange={
                         sqlModeAvailable && selectedAgent
-                            ? setSqlModeOverride
+                            ? (value) =>
+                                  setSqlModeOverride({
+                                      agentUuid: selectedAgent.uuid,
+                                      value,
+                                  })
                             : undefined
                     }
                     loading={isCreatingThread}
