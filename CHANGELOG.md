@@ -1,3 +1,10 @@
+# [2.29.0](https://github.com/lightdash/lightdash/compare/2.28.0...2.29.0) (2026-08-27)
+
+
+### Features
+
+* unpublished drafts with reviewer write-back (demo) ([#28048](https://github.com/lightdash/lightdash/issues/28048)) ([1a400f6](https://github.com/lightdash/lightdash/commit/1a400f6dbdc4dc46b7b61680abf250e4574492eb))
+
 # [2.28.0](https://github.com/lightdash/lightdash/compare/2.27.0...2.28.0) (2026-08-27)
 
 

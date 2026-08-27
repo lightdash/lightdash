@@ -192,6 +192,118 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ContentDraftSummary": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "prUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["open", "written_back", "dismissed"]
+                    },
+                    "authorName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "authorUserUuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "contentUuid": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "prUrl",
+                    "status",
+                    "authorName",
+                    "authorUserUuid",
+                    "slug",
+                    "contentUuid",
+                    "contentType",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ApiContentDraftsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentDraftSummary"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ContentDraftReview": {
+                "properties": {
+                    "draftYaml": {
+                        "type": "string"
+                    },
+                    "publishedYaml": {
+                        "type": "string"
+                    },
+                    "summary": {
+                        "$ref": "#/components/schemas/ContentDraftSummary"
+                    }
+                },
+                "required": ["draftYaml", "publishedYaml", "summary"],
+                "type": "object"
+            },
+            "ApiContentDraftReviewResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ContentDraftReview"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiContentDraftWriteBackResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ContentDraftSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ParameterValue": {
                 "anyOf": [
                     {
@@ -7670,6 +7782,15 @@
                         "format": "double",
                         "nullable": true
                     },
+                    "hasUnpublishedChanges": {
+                        "type": "boolean",
+                        "description": "Set when the viewer has an unpublished draft applied on top"
+                    },
+                    "draftsAwaitingReview": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "For reviewers: open drafts by other users awaiting review"
+                    },
                     "dashboardVersionId": {
                         "type": "number",
                         "format": "double"
@@ -14175,6 +14296,15 @@
                     "dashboardVersionId": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "draftsAwaitingReview": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "For reviewers: open drafts by other users awaiting review"
+                    },
+                    "hasUnpublishedChanges": {
+                        "type": "boolean",
+                        "description": "Set when the viewer has an unpublished draft applied on top"
                     },
                     "projectUuid": {
                         "type": "string"
@@ -56889,7 +57019,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.28.0",
+        "version": "2.29.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -57223,6 +57353,194 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/drafts": {
+            "get": {
+                "operationId": "listContentDrafts",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentDraftsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Unpublished dashboard drafts awaiting review",
+                "summary": "List content drafts",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/drafts/{draftUuid}/review": {
+            "get": {
+                "operationId": "getContentDraftReview",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentDraftReviewResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The review payload for one draft: published vs draft as canonical YAML",
+                "summary": "Get content draft review",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "draftUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/drafts/{draftUuid}/write-back": {
+            "post": {
+                "operationId": "writeBackContentDraft",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentDraftWriteBackResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Write a reviewed draft back to the repo as a pull request",
+                "summary": "Write back content draft",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "draftUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/drafts/{draftUuid}/dismiss": {
+            "post": {
+                "operationId": "dismissContentDraft",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Dismiss a draft without writing it back",
+                "summary": "Dismiss content draft",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "draftUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/code/charts": {
@@ -91582,7 +91900,7 @@
                         }
                     }
                 },
-                "description": "Get a dashboard by uuid or slug within a project",
+                "description": "Get a dashboard by uuid or slug within a project.\nPass includeUnpublishedDraft=true to see your own unpublished draft\napplied on top; omitted, the published dashboard is returned. Rendered\nand machine-driven reads must omit it so a draft never reaches an\nexport or a scheduled delivery.",
                 "summary": "Get dashboard",
                 "tags": ["v2", "Dashboards"],
                 "security": [],
@@ -91601,6 +91919,14 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "includeUnpublishedDraft",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
                         }
                     }
                 ]
