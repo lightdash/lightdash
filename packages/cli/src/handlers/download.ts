@@ -3196,6 +3196,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     logContentAsCodeDiscovery(`Found ${items.length} ${type} files`);
 
     const hasFilter = slugs.length > 0;
+    const shouldForce = force || hasFilter;
     const filteredItems = hasFilter
         ? items.filter((item) => slugs.includes(item.slug))
         : items;
@@ -3261,7 +3262,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 type,
                 projectId,
                 changes,
-                force,
+                shouldForce,
                 config,
                 skipSpaceCreate,
                 publicSpaceCreate,
@@ -3285,8 +3286,8 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
 
         Object.values(grouped).forEach((spaceItems: ItemWithUpdate[]) => {
             // Pick the first item that will actually trigger an API call
-            // (and thus create the space). If force is true, any item works.
-            const seedIndex = force
+            // (and thus create the space). Forced selections can use any item.
+            const seedIndex = shouldForce
                 ? 0
                 : spaceItems.findIndex((i) => i.needsUpdating);
             if (seedIndex >= 0) {
@@ -3319,7 +3320,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                     seedItems.has(item),
                 );
                 if (!alreadySeeded) {
-                    const seedIndex = force
+                    const seedIndex = shouldForce
                         ? 0
                         : dashboardItems.findIndex((i) => i.needsUpdating);
                     if (seedIndex >= 0) {
@@ -3344,7 +3345,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 type,
                 projectId,
                 changes,
-                force,
+                shouldForce,
                 config,
                 skipSpaceCreate,
                 publicSpaceCreate,
@@ -3364,7 +3365,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                         type,
                         projectId,
                         changes,
-                        force,
+                        shouldForce,
                         config,
                         skipSpaceCreate,
                         publicSpaceCreate,
@@ -4754,6 +4755,7 @@ export const testHelpers = {
     upsertAiAgents,
     upsertExternalConnections,
     upsertSpaces,
+    upsertResources,
     upsertVirtualViews,
     validateSpaceIdentity,
     writeSpaceFiles,

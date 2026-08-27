@@ -93,6 +93,7 @@ const {
     summarizeUploadChanges,
     upsertAiAgents,
     upsertExternalConnections,
+    upsertResources,
     upsertSpaces,
     upsertVirtualViews,
     validateSpaceIdentity,
@@ -428,6 +429,106 @@ const makeChart = (series: Series[]): ChartAsCode =>
         },
         dashboardSlug: undefined,
     }) as ChartAsCode;
+
+describe('upsertResources force behavior', () => {
+    let tmpDir: string;
+    const unchangedChart = () => ({
+        ...makeChart([]),
+        needsUpdating: false,
+    });
+    const upsertCharts = (force: boolean, slugs: string[]) =>
+        upsertResources(
+            'charts',
+            'project-uuid',
+            {},
+            force,
+            slugs,
+            true,
+            tmpDir,
+            false,
+            false,
+            false,
+            1,
+            [unchangedChart()],
+        );
+
+    beforeEach(async () => {
+        vi.mocked(lightdashApi).mockReset();
+        vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'upload-force-test-'));
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('skips an unchanged chart during an unfiltered upload', async () => {
+        await upsertCharts(false, []);
+
+        expect(lightdashApi).not.toHaveBeenCalled();
+    });
+
+    it('force-upserts an explicitly selected unchanged chart', async () => {
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            charts: [{ action: 'update', data: { uuid: 'chart-uuid' } }],
+            dashboards: [],
+            spaces: [],
+        } as never);
+
+        await upsertCharts(false, ['pivoted-chart']);
+
+        expect(lightdashApi).toHaveBeenCalledOnce();
+        expect(
+            JSON.parse(vi.mocked(lightdashApi).mock.calls[0][0].body as string),
+        ).toMatchObject({ force: true, slug: 'pivoted-chart' });
+    });
+
+    it('force-upserts an explicitly selected unchanged dashboard', async () => {
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            charts: [],
+            dashboards: [
+                { action: 'update', data: { uuid: 'dashboard-uuid' } },
+            ],
+            spaces: [],
+        } as never);
+
+        await upsertResources(
+            'dashboards',
+            'project-uuid',
+            {},
+            false,
+            ['revenue-dashboard'],
+            true,
+            tmpDir,
+            false,
+            false,
+            false,
+            1,
+            [makeLooseDashboard('revenue-dashboard', [])],
+        );
+
+        expect(lightdashApi).toHaveBeenCalledOnce();
+        expect(
+            JSON.parse(vi.mocked(lightdashApi).mock.calls[0][0].body as string),
+        ).toMatchObject({ force: true, slug: 'revenue-dashboard' });
+    });
+
+    it('keeps global force behavior for unfiltered uploads', async () => {
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            charts: [{ action: 'update', data: { uuid: 'chart-uuid' } }],
+            dashboards: [],
+            spaces: [],
+        } as never);
+
+        await upsertCharts(true, []);
+
+        expect(lightdashApi).toHaveBeenCalledOnce();
+        expect(
+            JSON.parse(vi.mocked(lightdashApi).mock.calls[0][0].body as string),
+        ).toMatchObject({ force: true, slug: 'pivoted-chart' });
+    });
+});
 
 describe('getDashboardChartSlugs', () => {
     let tmpDir: string;
