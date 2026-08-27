@@ -353,11 +353,8 @@ type AppGenerateServiceDeps = {
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
 
-/**
- * What the AI agent needs to render a code-free read of a data app: the
- * manifest fields, the read version's context and data references, and the
- * space/creator the agent applies its own scoping to.
- */
+// Inputs for the AI agent's code-free data app read: manifest fields, the
+// read version's context and data references, and the space for agent scoping.
 export type DataAppReadSource = {
     app: {
         uuid: string;
@@ -366,7 +363,6 @@ export type DataAppReadSource = {
         description: string;
         template: DbApp['template'];
         spaceUuid: string | null;
-        createdByUserUuid: string;
     };
     spaceSlug: string | null;
     externalConnections: DataAppManifestExternalConnection[];
@@ -10239,10 +10235,7 @@ export class AppGenerateService extends BaseService {
         return space.uuid;
     }
 
-    /**
-     * First half of the as-code download — resolve by slug, view check,
-     * latest ready version, manifest fields — without touching the source.
-     */
+    // First half of the as-code download, without downloading the source.
     async readDataApp(
         user: SessionUser,
         projectUuid: string,
@@ -10289,7 +10282,6 @@ export class AppGenerateService extends BaseService {
                 description: app.description,
                 template: app.template,
                 spaceUuid: app.space_uuid,
-                createdByUserUuid: app.created_by_user_uuid,
             },
             spaceSlug: appSpace
                 ? getContentAsCodePathFromLtreePath(appSpace.path)

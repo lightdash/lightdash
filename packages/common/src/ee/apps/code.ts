@@ -60,11 +60,8 @@ export type DataAppManifest = {
 };
 
 // ── Agent read ───────────────────────────────────────────────────────────
-// Code-free view of a data app's latest ready version, returned by the AI
-// agent and MCP `readContent` tools. Shaped after the manifest so the same
-// vocabulary can later feed agent-driven app creation. Source files, npm
-// dependencies, prompts, clarifications and custom SQL text are never part
-// of it.
+// Code-free view of a data app's latest ready version for the AI agent and
+// MCP `readContent` tools, shaped after the manifest.
 
 export type DataAppReadChart = {
     slug: string;

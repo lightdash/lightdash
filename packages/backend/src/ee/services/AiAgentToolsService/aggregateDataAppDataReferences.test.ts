@@ -56,7 +56,7 @@ describe('aggregateDataAppDataReferences', () => {
                 }),
                 query({ explore: 'customers', dimensions: ['customers_id'] }),
             ]),
-            new Map(),
+            {},
         );
 
         expect(result.explores).toEqual([
@@ -103,7 +103,7 @@ describe('aggregateDataAppDataReferences', () => {
                     location,
                 },
             ]),
-            new Map(),
+            {},
         );
 
         expect(result.explores).toHaveLength(1);
@@ -127,7 +127,7 @@ describe('aggregateDataAppDataReferences', () => {
                     },
                 }),
             ]),
-            new Map(),
+            {},
         );
 
         expect(result.explores[0].customSqlFieldCount).toBe(4);
@@ -160,7 +160,7 @@ describe('aggregateDataAppDataReferences', () => {
                     location,
                 },
             ]),
-            new Map([['chart-1', 'revenue-by-month']]),
+            { 'chart-1': 'revenue-by-month' },
         );
 
         expect(result.linkedCharts).toEqual([
@@ -196,7 +196,7 @@ describe('aggregateDataAppDataReferences', () => {
                     location,
                 },
             ]),
-            new Map(),
+            {},
         );
 
         expect(result.externalConnections).toEqual([
@@ -223,7 +223,7 @@ describe('aggregateDataAppDataReferences', () => {
                 ],
                 stats,
             ),
-            new Map(),
+            {},
         );
 
         expect(result.stats).toEqual(stats);

@@ -151,7 +151,6 @@ describe('AppGenerateService.readDataApp', () => {
                 description: 'Revenue by region',
                 template: 'dashboard',
                 spaceUuid: 'space-uuid',
-                createdByUserUuid: 'user-uuid',
             },
             spaceSlug: 'sales/emea',
             externalConnections: [{ alias: 'crm', connectionSlug: 'hubspot' }],

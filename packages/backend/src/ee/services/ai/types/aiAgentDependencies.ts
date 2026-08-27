@@ -34,6 +34,7 @@ import {
     ParametersValuesMap,
     PreviewDeploySetupResult,
     ProjectType,
+    ReadContentType,
     ResultColumns,
     SavedChart,
     SchedulerAndTargets,
@@ -300,7 +301,7 @@ export type GetDashboardChartsFn = (args: {
 
 export type ReadContentFn = (args: {
     slug: string;
-    type: 'dashboard' | 'chart' | 'data_app';
+    type: ReadContentType;
 }) => Promise<
     | {
           type: 'dashboard';

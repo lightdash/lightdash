@@ -1,6 +1,8 @@
 import {
+    READ_CONTENT_TYPE_LABELS,
     TOOL_DISPLAY_MESSAGES,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
+    type ReadContentType,
     type ToolName,
 } from '@lightdash/common';
 import { type ToolCallGroupDisplay } from './toolCallGrouping';
@@ -9,16 +11,7 @@ import { type ToolCallSummary } from './types';
 export type ToolCallDisplayStatus = 'running' | 'done';
 
 type ContentToolArgs = {
-    type?: 'dashboard' | 'chart' | 'data_app';
-};
-
-const CONTENT_TYPE_LABELS: Record<
-    NonNullable<ContentToolArgs['type']>,
-    string
-> = {
-    dashboard: 'dashboard',
-    chart: 'chart',
-    data_app: 'data app',
+    type?: ReadContentType;
 };
 
 const CONTENT_TOOL_LABELS: Partial<
@@ -56,7 +49,7 @@ const getContentToolDisplayMessage = (
 
     const [contentType] = contentTypes;
     return contentType
-        ? labelForTool[status](CONTENT_TYPE_LABELS[contentType])
+        ? labelForTool[status](READ_CONTENT_TYPE_LABELS[contentType])
         : null;
 };
 

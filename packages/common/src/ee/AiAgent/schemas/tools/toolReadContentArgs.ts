@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const TOOL_READ_CONTENT_DESCRIPTION =
-    'Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. A data app read is code-free: what the app shows, the context it was generated from, and its data footprint per explore (dimensions, metrics, filters, parameters, linked charts, external connections) with stats on how much of that footprint resolved.';
+    'Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. A data app read is code-free: what the app shows, the context it was generated from, and its data references per explore (dimensions, metrics, filters, parameters, linked charts, external connections) with stats on how much of them resolved.';
 
 export const toolReadContentArgsSchema = z.object({
     slug: z
@@ -29,4 +29,12 @@ export const toolReadContentOutputSchema = z.object({
 });
 
 export type ToolReadContentArgs = z.infer<typeof toolReadContentArgsSchema>;
+export type ReadContentType = ToolReadContentArgs['type'];
+
+/** Human labels for tool-call UI copy. */
+export const READ_CONTENT_TYPE_LABELS: Record<ReadContentType, string> = {
+    dashboard: 'dashboard',
+    chart: 'chart',
+    data_app: 'data app',
+};
 export type ToolReadContentOutput = z.infer<typeof toolReadContentOutputSchema>;

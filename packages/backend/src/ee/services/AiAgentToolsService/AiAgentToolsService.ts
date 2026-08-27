@@ -1790,7 +1790,7 @@ export class AiAgentToolsService extends BaseService {
             dataReferences: dataReferences
                 ? aggregateDataAppDataReferences(
                       dataReferences,
-                      new Map(Object.entries(chartSlugsByUuid)),
+                      chartSlugsByUuid,
                   )
                 : null,
         };

@@ -22,14 +22,11 @@ const emptyExplore = (name: string): DataAppReadExploreReferences => ({
     customSqlFieldCount: 0,
 });
 
-/**
- * Collapses per-call-site references into the per-explore summary the agent
- * reads. Source locations and custom SQL text are dropped; charts whose uuid
- * is missing from `chartSlugsByUuid` (deleted) are dropped.
- */
+// Per-call-site references → per-explore summary. Locations and custom SQL
+// text are dropped; charts missing from `chartSlugsByUuid` (deleted) too.
 export const aggregateDataAppDataReferences = (
     { references, stats }: PersistedDataAppDataReferences,
-    chartSlugsByUuid: ReadonlyMap<string, string>,
+    chartSlugsByUuid: Readonly<Record<string, string>>,
 ): DataAppReadDataReferences => {
     const explores = new Map<string, DataAppReadExploreReferences>();
     const linkedCharts = new Map<string, string[]>();
@@ -77,7 +74,7 @@ export const aggregateDataAppDataReferences = (
                 const slug =
                     ref.chartUuid === null
                         ? undefined
-                        : chartSlugsByUuid.get(ref.chartUuid);
+                        : chartSlugsByUuid[ref.chartUuid];
                 if (slug === undefined) break;
                 const filterFields = linkedCharts.get(slug) ?? [];
                 pushUnique(filterFields, ref.filterFields);

@@ -1,5 +1,6 @@
 import type {
     DiscoverFieldsInput,
+    ReadContentType,
     ToolGrepFieldsArgs,
     ToolGetMetadataArgs,
 } from '@lightdash/common';
@@ -63,7 +64,7 @@ import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
 type ToolReadContentArgs = {
     slug?: string;
-    type?: 'dashboard' | 'chart' | 'data_app';
+    type?: ReadContentType;
 };
 
 type ToolEditContentArgs = {
