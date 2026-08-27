@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ConflictError,
     DbtProjectType,
     PossibleAbilities,
     PullRequestSource,
@@ -29,7 +30,10 @@ type Overrides = {
     settings?: object | undefined;
     snapshot?: object | undefined;
     liveRow?: object | undefined;
+    liveRows?: (object | undefined)[];
     existingFile?: object | 'missing';
+    draft?: object | undefined;
+    createError?: Error;
 };
 
 const buildService = (overrides: Overrides = {}) => {
@@ -74,6 +78,11 @@ const buildService = (overrides: Overrides = {}) => {
         getCurrentContentVersionBySlug: vi
             .fn()
             .mockResolvedValue({ contentUuid: 'chart-uuid' }),
+        getDashboardAsCodeWithOverlay: vi.fn().mockResolvedValue({
+            name: 'Weekly KPIs draft',
+            slug: 'weekly-kpis',
+            tiles: [],
+        }),
     };
     const contentAsCodeProjectSettingsModel = {
         get: vi
@@ -94,19 +103,43 @@ const buildService = (overrides: Overrides = {}) => {
             ),
     };
     const contentAsCodeWritebackModel = {
-        findLive: vi
-            .fn()
-            .mockResolvedValue(
-                'liveRow' in overrides ? overrides.liveRow : undefined,
-            ),
+        findLive: vi.fn(
+            overrides.liveRows
+                ? async () => overrides.liveRows!.shift()
+                : async () =>
+                      'liveRow' in overrides ? overrides.liveRow : undefined,
+        ),
         findLatestForBranch: vi.fn().mockResolvedValue(undefined),
-        create: vi.fn().mockResolvedValue({
-            uuid: 'row-uuid',
-            branch: 'lightdash/write-back/app.lightdash.dev/monthly-revenue',
-            prUrl: null,
-            status: 'pending',
+        create: vi.fn().mockImplementation(async (args) => {
+            if (overrides.createError) throw overrides.createError;
+            return {
+                uuid: 'row-uuid',
+                branch: args.branch,
+                contentDraftUuid: args.contentDraftUuid ?? null,
+                prUrl: null,
+                status: 'pending',
+            };
         }),
         update: vi.fn().mockResolvedValue(undefined),
+    };
+    const contentDraftModel = {
+        get: vi.fn().mockResolvedValue(
+            'draft' in overrides
+                ? overrides.draft
+                : {
+                      uuid: 'draft-uuid',
+                      projectUuid: 'project-uuid',
+                      contentType: 'dashboard',
+                      contentUuid: 'dashboard-uuid',
+                      slug: 'weekly-kpis',
+                      authorUserUuid: 'author-uuid',
+                      draft: { name: 'Weekly KPIs draft' },
+                      status: 'open',
+                      prUrl: null,
+                  },
+        ),
+        listByProject: vi.fn(),
+        update: vi.fn(),
     };
     const service = new ContentAsCodeWritebackService({
         lightdashConfig: { siteUrl: 'https://app.lightdash.dev' } as never,
@@ -125,17 +158,14 @@ const buildService = (overrides: Overrides = {}) => {
             contentAsCodeProjectSettingsModel as never,
         contentAsCodeSnapshotModel: contentAsCodeSnapshotModel as never,
         contentAsCodeWritebackModel: contentAsCodeWritebackModel as never,
-        contentDraftModel: {
-            get: vi.fn(),
-            listByProject: vi.fn(),
-            update: vi.fn(),
-        } as never,
+        contentDraftModel: contentDraftModel as never,
     });
     return {
         service,
         gitIntegrationService,
         coderService,
         contentAsCodeWritebackModel,
+        contentDraftModel,
     };
 };
 
@@ -203,6 +233,7 @@ describe('ContentAsCodeWritebackService', () => {
         const { service, gitIntegrationService } = buildService({
             liveRow: {
                 uuid: 'row-uuid',
+                contentDraftUuid: null,
                 branch: 'lightdash/write-back/app.lightdash.dev/monthly-revenue',
                 prUrl: 'https://github.com/acme/analytics/pull/42',
                 status: 'open',
@@ -235,6 +266,7 @@ describe('ContentAsCodeWritebackService', () => {
         const { service, gitIntegrationService } = buildService({
             liveRow: {
                 uuid: 'row-uuid',
+                contentDraftUuid: null,
                 branch: 'lightdash/write-back/app.lightdash.dev/monthly-revenue',
                 prUrl: 'https://github.com/acme/analytics/pull/42',
                 status: 'open',
@@ -279,5 +311,218 @@ describe('ContentAsCodeWritebackService', () => {
             'row-uuid',
             { status: 'error', error: 'github says no' },
         );
+    });
+
+    it('gives a draft a stable branch and write-back owner', async () => {
+        const { service, gitIntegrationService, contentAsCodeWritebackModel } =
+            buildService();
+
+        await service.writeBackDraft(user, 'project-uuid', 'draft-uuid');
+
+        expect(contentAsCodeWritebackModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                contentDraftUuid: 'draft-uuid',
+                branch: 'lightdash/write-back/app.lightdash.dev/weekly-kpis/draft-draft-uuid',
+            }),
+        );
+        expect(
+            gitIntegrationService.createBranchFromSource,
+        ).toHaveBeenCalledWith(
+            user,
+            'project-uuid',
+            'lightdash/write-back/app.lightdash.dev/weekly-kpis/draft-draft-uuid',
+            'main',
+        );
+    });
+
+    it('reuses the branch and PR owned by the same draft', async () => {
+        const { service, gitIntegrationService, contentAsCodeWritebackModel } =
+            buildService({
+                liveRow: {
+                    uuid: 'row-uuid',
+                    contentType: 'dashboard',
+                    slug: 'weekly-kpis',
+                    contentDraftUuid: 'draft-uuid',
+                    branch: 'lightdash/write-back/app.lightdash.dev/weekly-kpis/draft-draft-uuid',
+                    prNumber: 42,
+                    prUrl: 'https://github.com/acme/analytics/pull/42',
+                    status: 'open',
+                },
+                existingFile: {
+                    type: 'file',
+                    content: 'stale: "content"\n',
+                    sha: 'old-sha',
+                    path: 'lightdash/dashboards/weekly-kpis.yml',
+                },
+            });
+
+        await service.writeBackDraft(user, 'project-uuid', 'draft-uuid');
+
+        expect(contentAsCodeWritebackModel.create).not.toHaveBeenCalled();
+        expect(
+            gitIntegrationService.createPullRequestFromBranch,
+        ).not.toHaveBeenCalled();
+        expect(gitIntegrationService.saveFile).toHaveBeenCalledWith(
+            user,
+            'project-uuid',
+            'lightdash/write-back/app.lightdash.dev/weekly-kpis/draft-draft-uuid',
+            'lightdash/dashboards/weekly-kpis.yml',
+            expect.any(String),
+            'old-sha',
+            expect.any(String),
+        );
+    });
+
+    it('opens the pending PR when a retry finds the draft content already committed', async () => {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+        const identical = require('js-yaml').dump(
+            {
+                name: 'Weekly KPIs draft',
+                slug: 'weekly-kpis',
+                tiles: [],
+            },
+            { quotingType: '"', sortKeys: true },
+        );
+        const { service, gitIntegrationService } = buildService({
+            liveRow: {
+                uuid: 'row-uuid',
+                contentType: 'dashboard',
+                slug: 'weekly-kpis',
+                contentDraftUuid: 'draft-uuid',
+                branch: 'lightdash/write-back/app.lightdash.dev/weekly-kpis/draft-draft-uuid',
+                prNumber: null,
+                prUrl: null,
+                status: 'pending',
+            },
+            existingFile: {
+                type: 'file',
+                content: identical,
+                sha: 'old-sha',
+                path: 'lightdash/dashboards/weekly-kpis.yml',
+            },
+        });
+
+        await service.writeBackDraft(user, 'project-uuid', 'draft-uuid');
+
+        expect(gitIntegrationService.saveFile).not.toHaveBeenCalled();
+        expect(
+            gitIntegrationService.createPullRequestFromBranch,
+        ).toHaveBeenCalledTimes(1);
+    });
+
+    it('refuses a competing draft before touching the existing branch', async () => {
+        const { service, gitIntegrationService, contentDraftModel } =
+            buildService({
+                liveRow: {
+                    uuid: 'row-uuid',
+                    contentType: 'dashboard',
+                    slug: 'weekly-kpis',
+                    contentDraftUuid: 'other-draft-uuid',
+                    branch: 'lightdash/write-back/app.lightdash.dev/weekly-kpis/draft-other-draft-uuid',
+                    prNumber: null,
+                    prUrl: null,
+                    status: 'pending',
+                },
+            });
+
+        await expect(
+            service.writeBackDraft(user, 'project-uuid', 'draft-uuid'),
+        ).rejects.toBeInstanceOf(ConflictError);
+
+        expect(gitIntegrationService.getProjectRepo).not.toHaveBeenCalled();
+        expect(
+            gitIntegrationService.createBranchFromSource,
+        ).not.toHaveBeenCalled();
+        expect(gitIntegrationService.saveFile).not.toHaveBeenCalled();
+        expect(contentDraftModel.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses the losing draft when another owner wins the database race', async () => {
+        const competingRow = {
+            uuid: 'other-row-uuid',
+            contentType: 'dashboard',
+            slug: 'weekly-kpis',
+            contentDraftUuid: 'other-draft-uuid',
+            branch: 'lightdash/write-back/app.lightdash.dev/weekly-kpis/draft-other-draft-uuid',
+            prNumber: null,
+            prUrl: null,
+            status: 'pending',
+        };
+        const { service, gitIntegrationService } = buildService({
+            liveRows: [undefined, competingRow],
+            createError: new Error('unique constraint'),
+        });
+
+        await expect(
+            service.writeBackDraft(user, 'project-uuid', 'draft-uuid'),
+        ).rejects.toBeInstanceOf(ConflictError);
+
+        expect(
+            gitIntegrationService.createBranchFromSource,
+        ).not.toHaveBeenCalled();
+        expect(gitIntegrationService.saveFile).not.toHaveBeenCalled();
+    });
+
+    it('lets exactly one of two concurrent drafts create git state', async () => {
+        const {
+            service,
+            gitIntegrationService,
+            contentAsCodeWritebackModel,
+            contentDraftModel,
+        } = buildService();
+        let owner: string | null = null;
+        let liveRow: object | undefined;
+        contentDraftModel.get.mockImplementation(async (draftUuid: string) => ({
+            uuid: draftUuid,
+            projectUuid: 'project-uuid',
+            contentType: 'dashboard',
+            contentUuid: 'dashboard-uuid',
+            slug: 'weekly-kpis',
+            authorUserUuid: `${draftUuid}-author`,
+            draft: { name: `${draftUuid} changes` },
+            status: 'open',
+            prUrl: null,
+        }));
+        contentAsCodeWritebackModel.findLive.mockImplementation(
+            async () => liveRow,
+        );
+        contentAsCodeWritebackModel.create.mockImplementation(async (args) => {
+            if (liveRow) throw new Error('unique constraint');
+            owner = args.contentDraftUuid;
+            liveRow = {
+                uuid: 'row-uuid',
+                contentType: args.contentType,
+                slug: args.slug,
+                contentDraftUuid: args.contentDraftUuid,
+                branch: args.branch,
+                prNumber: null,
+                prUrl: null,
+                status: 'pending',
+            };
+            return liveRow;
+        });
+
+        const results = await Promise.allSettled([
+            service.writeBackDraft(user, 'project-uuid', 'alice-draft'),
+            service.writeBackDraft(user, 'project-uuid', 'bob-draft'),
+        ]);
+
+        expect(
+            results.filter((result) => result.status === 'fulfilled'),
+        ).toHaveLength(1);
+        const [rejected] = results.filter(
+            (result): result is PromiseRejectedResult =>
+                result.status === 'rejected',
+        );
+        expect(rejected.reason).toBeInstanceOf(ConflictError);
+        expect(owner).toMatch(/^(alice|bob)-draft$/);
+        expect(
+            gitIntegrationService.createBranchFromSource,
+        ).toHaveBeenCalledTimes(1);
+        expect(gitIntegrationService.saveFile).toHaveBeenCalledTimes(1);
+        expect(
+            gitIntegrationService.createPullRequestFromBranch,
+        ).toHaveBeenCalledTimes(1);
+        expect(contentDraftModel.update).toHaveBeenCalledTimes(1);
     });
 });

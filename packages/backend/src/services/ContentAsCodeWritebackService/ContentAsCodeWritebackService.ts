@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ConflictError,
     ContentAsCodeType,
     DbtProjectType,
     ForbiddenError,
@@ -173,6 +174,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             contentType,
             contentUuid,
             slug,
+            contentDraftUuid: null,
         });
     }
 
@@ -275,6 +277,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             contentType: 'dashboard',
             contentUuid: draft.contentUuid,
             slug: draft.slug,
+            contentDraftUuid: draft.uuid,
             documentOverride: draftDoc,
         });
         await this.contentDraftModel.update(draft.uuid, {
@@ -364,6 +367,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             contentType: WritebackContentType;
             contentUuid: string;
             slug: string;
+            contentDraftUuid: string | null;
             documentOverride?: ChartAsCode | DashboardAsCode;
         },
     ): Promise<ContentAsCodeWriteback> {
@@ -392,13 +396,20 @@ export class ContentAsCodeWritebackService extends BaseService {
                 slug,
             );
         }
+        if (row !== undefined) {
+            this.assertWritebackOwner(row, target.contentDraftUuid);
+        }
         if (row === undefined) {
-            const branch = `lightdash/write-back/${this.getInstanceSlug()}/${slug}`;
+            const baseBranch = `lightdash/write-back/${this.getInstanceSlug()}/${slug}`;
+            const branch = target.contentDraftUuid
+                ? `${baseBranch}/draft-${target.contentDraftUuid}`
+                : baseBranch;
             try {
                 row = await this.contentAsCodeWritebackModel.create({
                     projectUuid,
                     contentType: snapshotType,
                     slug,
+                    contentDraftUuid: target.contentDraftUuid,
                     branch,
                     createdByUserUuid: user.userUuid,
                 });
@@ -411,6 +422,7 @@ export class ContentAsCodeWritebackService extends BaseService {
                     slug,
                 );
                 if (raced === undefined) throw error;
+                this.assertWritebackOwner(raced, target.contentDraftUuid);
                 row = raced;
             }
         }
@@ -436,6 +448,24 @@ export class ContentAsCodeWritebackService extends BaseService {
         return updated ?? row;
     }
 
+    private assertWritebackOwner(
+        row: ContentAsCodeWriteback,
+        requestedDraftUuid: string | null,
+    ): void {
+        if (row.contentDraftUuid === requestedDraftUuid) return;
+
+        throw new ConflictError(
+            `Content "${row.slug}" already has an active write-back proposal. Merge or close it before writing back another draft.`,
+            {
+                contentType: row.contentType,
+                slug: row.slug,
+                existingDraftUuid: row.contentDraftUuid,
+                requestedDraftUuid,
+                prUrl: row.prUrl,
+            },
+        );
+    }
+
     // For dashboards, the dashboard YAML plus its dashboard-owned tile
     // charts land on the same branch/PR; charts with their own open
     // write-back PR keep it and are only noted in the PR body.
@@ -446,6 +476,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             contentType: WritebackContentType;
             contentUuid: string;
             slug: string;
+            contentDraftUuid: string | null;
             documentOverride?: ChartAsCode | DashboardAsCode;
         },
         row: ContentAsCodeWriteback,
@@ -526,7 +557,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             this.logger.debug(
                 `Content-as-code write-back for ${slug}: branch already has this content`,
             );
-            return;
+            if (row.prUrl !== null && row.status === 'open') return;
         }
 
         if (row.prUrl !== null && row.status === 'open') {
