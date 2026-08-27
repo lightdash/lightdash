@@ -163,12 +163,46 @@ export class ProjectCoderController extends BaseController {
         @Path() projectUuid: string,
         @Path() slug: string,
         @Request() req: express.Request,
+        @Body() body?: { addToGit?: boolean },
     ): Promise<ApiContentAsCodeProposeResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         const row = await this.services
             .getContentAsCodeWritebackService()
-            .proposeChart(toSessionUser(req.account), projectUuid, slug);
+            .propose(toSessionUser(req.account), projectUuid, 'chart', slug, {
+                addToGit: body?.addToGit,
+            });
+        return codeSuccess(toWritebackSummary(row));
+    }
+
+    /**
+     * Propose the current instance version of a managed dashboard back to
+     * the connected repo, including its dashboard-owned tile charts. Pass
+     * addToGit to deliberately add UI-only content to the repo.
+     * @summary Propose dashboard to git
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/writebacks/dashboards/{slug}/propose')
+    @OperationId('proposeDashboardToGit')
+    async proposeDashboardToGit(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Request() req: express.Request,
+        @Body() body?: { addToGit?: boolean },
+    ): Promise<ApiContentAsCodeProposeResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const row = await this.services
+            .getContentAsCodeWritebackService()
+            .propose(
+                toSessionUser(req.account),
+                projectUuid,
+                'dashboard',
+                slug,
+                { addToGit: body?.addToGit },
+            );
         return codeSuccess(toWritebackSummary(row));
     }
 

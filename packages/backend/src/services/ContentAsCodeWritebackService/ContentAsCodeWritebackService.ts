@@ -6,6 +6,7 @@ import {
     ParameterError,
     PullRequestSource,
     type ChartAsCode,
+    type DashboardAsCode,
     type SessionUser,
 } from '@lightdash/common';
 import * as yaml from 'js-yaml';
@@ -32,10 +33,12 @@ type ContentAsCodeWritebackServiceArguments = {
     contentAsCodeWritebackModel: ContentAsCodeWritebackModel;
 };
 
+type WritebackContentType = 'chart' | 'dashboard';
+
 // Matches the CLI's writeContent (packages/cli/src/handlers/download.ts):
 // updatedAt/downloadedAt are transport metadata and verification is runtime
 // instance state — none of them land in the repo.
-const dumpContentAsCode = (content: ChartAsCode): string => {
+const dumpContentAsCode = (content: ChartAsCode | DashboardAsCode): string => {
     const { updatedAt, downloadedAt, verification, ...cleanContent } = content;
     return yaml.dump(cleanContent, { quotingType: '"', sortKeys: true });
 };
@@ -105,19 +108,28 @@ export class ContentAsCodeWritebackService extends BaseService {
         }
     }
 
-    private static getChartFilePath(repoPath: string, slug: string): string {
+    private static getContentFilePath(
+        repoPath: string,
+        contentType: WritebackContentType,
+        slug: string,
+    ): string {
         const prefix = repoPath.replace(/^\/+|\/+$/g, '');
-        const base = `lightdash/charts/${slug}.yml`;
+        const folder = contentType === 'chart' ? 'charts' : 'dashboards';
+        const base = `lightdash/${folder}/${slug}.yml`;
         return prefix === '' ? base : `${prefix}/${base}`;
     }
 
     // The migration path: instances are already ahead today, so drifted
     // content can be proposed back to the repo on demand using the same
     // plumbing as save-time write-back. Runs inline (user-initiated).
-    async proposeChart(
+    // With addToGit, UI-only content (no last-applied marker) is allowed:
+    // that is the deliberate promotion moment for new content.
+    async propose(
         user: SessionUser,
         projectUuid: string,
+        contentType: WritebackContentType,
         slug: string,
+        options: { addToGit?: boolean } = {},
     ): Promise<ContentAsCodeWriteback> {
         await this.assertCanManageContentAsCode(user, projectUuid);
         const settings =
@@ -132,22 +144,25 @@ export class ContentAsCodeWritebackService extends BaseService {
             await this.coderService.getCurrentContentVersionBySlug(
                 user,
                 projectUuid,
-                'chart',
+                contentType,
                 slug,
             );
         const snapshot = await this.contentAsCodeSnapshotModel.get(
             projectUuid,
-            ContentAsCodeType.CHART,
+            contentType === 'chart'
+                ? ContentAsCodeType.CHART
+                : ContentAsCodeType.DASHBOARD,
             slug,
         );
-        if (snapshot === undefined) {
+        if (snapshot === undefined && !options.addToGit) {
             throw new ParameterError(
-                `Chart "${slug}" is not managed as code; adding new content to git is an explicit add-to-git action`,
+                `Content "${slug}" is not managed as code; pass addToGit to deliberately add it to the repo`,
             );
         }
-        return this.writeChartToWritebackPr(user, {
+        return this.writeContentToWritebackPr(user, {
             projectUuid,
-            savedChartUuid: contentUuid,
+            contentType,
+            contentUuid,
             slug,
         });
     }
@@ -250,22 +265,46 @@ export class ContentAsCodeWritebackService extends BaseService {
         );
     }
 
-    private async writeChartToWritebackPr(
+    private async writeContentToWritebackPr(
         user: SessionUser,
-        target: { projectUuid: string; savedChartUuid: string; slug: string },
+        target: {
+            projectUuid: string;
+            contentType: WritebackContentType;
+            contentUuid: string;
+            slug: string;
+        },
     ): Promise<ContentAsCodeWriteback> {
-        const { projectUuid, slug } = target;
+        const { projectUuid, contentType, slug } = target;
+        const snapshotType =
+            contentType === 'chart'
+                ? ContentAsCodeType.CHART
+                : ContentAsCodeType.DASHBOARD;
         let row = await this.contentAsCodeWritebackModel.findLive(
             projectUuid,
-            ContentAsCodeType.CHART,
+            snapshotType,
             slug,
         );
+        if (
+            row !== undefined &&
+            row.status === 'open' &&
+            row.prNumber !== null
+        ) {
+            // The PR may have been merged or closed on the provider since the
+            // row was stamped; refresh first so a new edit opens a fresh PR
+            // instead of committing to a branch no open PR tracks.
+            await this.refreshOpenPullRequestStates(user, projectUuid, [row]);
+            row = await this.contentAsCodeWritebackModel.findLive(
+                projectUuid,
+                snapshotType,
+                slug,
+            );
+        }
         if (row === undefined) {
             const branch = `lightdash/write-back/${this.getInstanceSlug()}/${slug}`;
             try {
                 row = await this.contentAsCodeWritebackModel.create({
                     projectUuid,
-                    contentType: ContentAsCodeType.CHART,
+                    contentType: snapshotType,
                     slug,
                     branch,
                     createdByUserUuid: user.userUuid,
@@ -275,7 +314,7 @@ export class ContentAsCodeWritebackService extends BaseService {
                 // append to its row instead of surfacing a database error
                 const raced = await this.contentAsCodeWritebackModel.findLive(
                     projectUuid,
-                    ContentAsCodeType.CHART,
+                    snapshotType,
                     slug,
                 );
                 if (raced === undefined) throw error;
@@ -284,7 +323,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         }
 
         try {
-            await this.pushChartToBranch(user, target, row);
+            await this.pushContentToBranch(user, target, row);
         } catch (error) {
             const message = error instanceof Error ? error.message : `${error}`;
             this.logger.error(
@@ -298,18 +337,26 @@ export class ContentAsCodeWritebackService extends BaseService {
         }
         const updated = await this.contentAsCodeWritebackModel.findLive(
             projectUuid,
-            ContentAsCodeType.CHART,
+            snapshotType,
             slug,
         );
         return updated ?? row;
     }
 
-    private async pushChartToBranch(
+    // For dashboards, the dashboard YAML plus its dashboard-owned tile
+    // charts land on the same branch/PR; charts with their own open
+    // write-back PR keep it and are only noted in the PR body.
+    private async pushContentToBranch(
         user: SessionUser,
-        target: { projectUuid: string; savedChartUuid: string; slug: string },
+        target: {
+            projectUuid: string;
+            contentType: WritebackContentType;
+            contentUuid: string;
+            slug: string;
+        },
         row: ContentAsCodeWriteback,
     ): Promise<void> {
-        const { projectUuid, savedChartUuid, slug } = target;
+        const { projectUuid, contentType, contentUuid, slug } = target;
         const repo =
             await this.gitIntegrationService.getProjectRepo(projectUuid);
 
@@ -329,81 +376,276 @@ export class ContentAsCodeWritebackService extends BaseService {
             }
         }
 
-        const chartAsCode = await this.coderService.getPortableChartAsCode(
-            projectUuid,
-            savedChartUuid,
-        );
-        const content = dumpContentAsCode(chartAsCode);
-        const filePath = ContentAsCodeWritebackService.getChartFilePath(
-            repo.path,
-            slug,
-        );
+        const files: { path: string; content: string }[] = [];
+        const notes: string[] = [];
+        if (contentType === 'chart') {
+            const chartAsCode = await this.coderService.getPortableChartAsCode(
+                projectUuid,
+                contentUuid,
+            );
+            files.push({
+                path: ContentAsCodeWritebackService.getContentFilePath(
+                    repo.path,
+                    'chart',
+                    slug,
+                ),
+                content: dumpContentAsCode(chartAsCode),
+            });
+        } else {
+            const dashboardAsCode =
+                await this.coderService.getCurrentDashboardAsCode(contentUuid);
+            files.push({
+                path: ContentAsCodeWritebackService.getContentFilePath(
+                    repo.path,
+                    'dashboard',
+                    slug,
+                ),
+                content: dumpContentAsCode(dashboardAsCode),
+            });
+            const ownedChartFiles = await this.collectDashboardOwnedCharts(
+                user,
+                projectUuid,
+                dashboardAsCode,
+                repo.path,
+                notes,
+            );
+            files.push(...ownedChartFiles);
+        }
 
+        let committed = 0;
+        for (const file of files) {
+            // eslint-disable-next-line no-await-in-loop
+            const didCommit = await this.commitFileIfChanged(
+                user,
+                projectUuid,
+                row.branch,
+                file,
+            );
+            if (didCommit) committed += 1;
+        }
+        if (committed === 0) {
+            this.logger.debug(
+                `Content-as-code write-back for ${slug}: branch already has this content`,
+            );
+            return;
+        }
+
+        if (row.prUrl !== null && row.status === 'open') {
+            return;
+        }
+
+        const contentPath =
+            contentType === 'chart'
+                ? `/projects/${projectUuid}/saved/${contentUuid}`
+                : `/projects/${projectUuid}/dashboards/${contentUuid}`;
+        const contentUrl = new URL(contentPath, this.lightdashConfig.siteUrl)
+            .href;
+        const label = contentType === 'chart' ? 'chart' : 'dashboard';
+        let pullRequest;
+        try {
+            pullRequest =
+                await this.gitIntegrationService.createPullRequestFromBranch(
+                    user,
+                    projectUuid,
+                    row.branch,
+                    `Update ${label} \`${slug}\` from Lightdash`,
+                    [
+                        `This ${label} was edited in Lightdash and is managed as code; this PR proposes the change back to the repo.`,
+                        ``,
+                        `- Instance: ${this.lightdashConfig.siteUrl}`,
+                        `- Content: ${contentUrl}`,
+                        ...(notes.length > 0 ? ['', ...notes] : []),
+                    ].join('\n'),
+                    PullRequestSource.CONTENT_AS_CODE,
+                );
+        } catch (error) {
+            const message = error instanceof Error ? error.message : `${error}`;
+            if (!/pull request already exists/i.test(message)) {
+                throw error;
+            }
+            // The branch already has an open PR from a row we lost to an
+            // earlier error: adopt it instead of failing forever
+            const previous =
+                await this.contentAsCodeWritebackModel.findLatestForBranch(
+                    projectUuid,
+                    row.contentType,
+                    slug,
+                    row.branch,
+                );
+            if (previous?.prNumber == null || previous.prUrl === null) {
+                throw error;
+            }
+            await this.contentAsCodeWritebackModel.update(row.uuid, {
+                prNumber: previous.prNumber,
+                prUrl: previous.prUrl,
+                status: 'open',
+            });
+            return;
+        }
+        await this.contentAsCodeWritebackModel.update(row.uuid, {
+            prNumber: parsePullRequestNumber(pullRequest.prUrl),
+            prUrl: pullRequest.prUrl,
+            status: 'open',
+        });
+    }
+
+    private async collectDashboardOwnedCharts(
+        user: SessionUser,
+        projectUuid: string,
+        dashboardAsCode: DashboardAsCode,
+        repoPath: string,
+        notes: string[],
+    ): Promise<{ path: string; content: string }[]> {
+        const chartSlugs = Array.from(
+            new Set(
+                dashboardAsCode.tiles.flatMap((tile) =>
+                    'chartSlug' in tile.properties &&
+                    typeof tile.properties.chartSlug === 'string'
+                        ? [tile.properties.chartSlug]
+                        : [],
+                ),
+            ),
+        );
+        const files = await Promise.all(
+            chartSlugs.map(
+                async (
+                    chartSlug,
+                ): Promise<{ path: string; content: string } | null> => {
+                    try {
+                        const independentPr =
+                            await this.contentAsCodeWritebackModel.findLive(
+                                projectUuid,
+                                ContentAsCodeType.CHART,
+                                chartSlug,
+                            );
+                        if (independentPr?.prUrl) {
+                            notes.push(
+                                `- Tile chart \`${chartSlug}\` has its own open write-back PR: ${independentPr.prUrl}`,
+                            );
+                            return null;
+                        }
+                        const { contentUuid } =
+                            await this.coderService.getCurrentContentVersionBySlug(
+                                user,
+                                projectUuid,
+                                'chart',
+                                chartSlug,
+                            );
+                        const chartAsCode =
+                            await this.coderService.getCurrentChartAsCode(
+                                contentUuid,
+                            );
+                        // Only charts saved within this dashboard travel with
+                        // it; space charts referenced by tiles have their own
+                        // lifecycle
+                        if (
+                            chartAsCode.dashboardSlug !== dashboardAsCode.slug
+                        ) {
+                            return null;
+                        }
+                        return {
+                            path: ContentAsCodeWritebackService.getContentFilePath(
+                                repoPath,
+                                'chart',
+                                chartSlug,
+                            ),
+                            content: dumpContentAsCode(chartAsCode),
+                        };
+                    } catch (error) {
+                        this.logger.warn(
+                            `Skipping tile chart ${chartSlug} in dashboard write-back`,
+                            error,
+                        );
+                        return null;
+                    }
+                },
+            ),
+        );
+        return files.filter(
+            (file): file is { path: string; content: string } => file !== null,
+        );
+    }
+
+    // Returns true when a commit landed (false when the branch already has
+    // identical content)
+    private async commitFileIfChanged(
+        user: SessionUser,
+        projectUuid: string,
+        branch: string,
+        file: { path: string; content: string },
+    ): Promise<boolean> {
         let existingSha: string | undefined;
         try {
             const existing =
                 await this.gitIntegrationService.getFileOrDirectory(
                     user,
                     projectUuid,
-                    row.branch,
-                    filePath,
+                    branch,
+                    file.path,
                 );
             if (existing.type === 'file') {
                 existingSha = existing.sha;
-                if (existing.content === content) {
-                    this.logger.debug(
-                        `Content-as-code write-back for ${slug}: branch already has this content`,
-                    );
-                    return;
+                if (existing.content === file.content) {
+                    return false;
                 }
             }
         } catch {
             // File does not exist on the branch yet: create it
         }
-
-        await this.gitIntegrationService.saveFile(
-            user,
-            projectUuid,
-            row.branch,
-            filePath,
-            content,
-            existingSha,
-            buildCommitMessage(
-                slug,
-                user,
-                new URL(
-                    `/projects/${projectUuid}`,
-                    this.lightdashConfig.siteUrl,
-                ).href,
-            ),
-        );
-
-        if (row.prUrl !== null && row.status === 'open') {
-            return;
-        }
-
-        const contentUrl = new URL(
-            `/projects/${projectUuid}/saved/${savedChartUuid}`,
-            this.lightdashConfig.siteUrl,
-        ).href;
-        const pullRequest =
-            await this.gitIntegrationService.createPullRequestFromBranch(
+        const slug = file.path
+            .split('/')
+            .pop()
+            ?.replace(/\.yml$/, '');
+        try {
+            await this.gitIntegrationService.saveFile(
                 user,
                 projectUuid,
-                row.branch,
-                `Update chart \`${slug}\` from Lightdash`,
-                [
-                    `This chart was edited in Lightdash and is managed as code; this PR proposes the change back to the repo.`,
-                    ``,
-                    `- Project: ${new URL(`/projects/${projectUuid}`, this.lightdashConfig.siteUrl).href}`,
-                    `- Content: ${contentUrl}`,
-                ].join('\n'),
-                PullRequestSource.CONTENT_AS_CODE,
+                branch,
+                file.path,
+                file.content,
+                existingSha,
+                buildCommitMessage(
+                    slug,
+                    user,
+                    new URL(
+                        `/projects/${projectUuid}`,
+                        this.lightdashConfig.siteUrl,
+                    ).href,
+                ),
             );
-        await this.contentAsCodeWritebackModel.update(row.uuid, {
-            prNumber: parsePullRequestNumber(pullRequest.prUrl),
-            prUrl: pullRequest.prUrl,
-            status: 'open',
-        });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : `${error}`;
+            // Concurrent saves race on the file sha; re-read once and retry
+            if (!/but expected|does not match|409/i.test(message)) {
+                throw error;
+            }
+            const fresh = await this.gitIntegrationService.getFileOrDirectory(
+                user,
+                projectUuid,
+                branch,
+                file.path,
+            );
+            if (fresh.type === 'file' && fresh.content === file.content) {
+                // The racing save already landed this exact content
+                return false;
+            }
+            await this.gitIntegrationService.saveFile(
+                user,
+                projectUuid,
+                branch,
+                file.path,
+                file.content,
+                fresh.type === 'file' ? fresh.sha : undefined,
+                buildCommitMessage(
+                    slug,
+                    user,
+                    new URL(
+                        `/projects/${projectUuid}`,
+                        this.lightdashConfig.siteUrl,
+                    ).href,
+                ),
+            );
+        }
+        return true;
     }
 }
