@@ -2453,6 +2453,96 @@ describe('AsyncQueryService', () => {
             // THEN: Test completed successfully - all critical behaviors verified
         });
 
+        test('serves DuckDB compose node columns honest and bare through the standard results page (PROD-10681)', async () => {
+            // The composer interface contract: a DuckDB post-processing node
+            // is arbitrarily complex SQL, so its columns carry only what
+            // DuckDB honestly knows — reference, probed type, and the
+            // friendly label derived from the reference. No label, format
+            // or provenance is ever inferred from the queries it references,
+            // and the results page serves the persisted columns verbatim.
+            const composeColumns = {
+                revenue: {
+                    reference: 'revenue',
+                    type: DimensionType.NUMBER,
+                    label: 'Revenue',
+                },
+                order_month: {
+                    reference: 'order_month',
+                    type: DimensionType.TIMESTAMP,
+                    label: 'Order month',
+                },
+            };
+            const composeQueryHistory: QueryHistory = {
+                createdAt: new Date(),
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                createdByUserUuid: sessionAccount.user.id,
+                createdBy: sessionAccount.user.id,
+                createdByAccount: null,
+                createdByActorType: 'session',
+                queryUuid: 'compose-query-uuid',
+                projectUuid,
+                status: QueryHistoryStatus.READY,
+                error: null,
+                erroredAt: null,
+                // Compose rows persist the placeholder SqlQueryComposer
+                // metric query and an empty fields map
+                metricQuery: { ...metricQueryMock, timezone: undefined },
+                context: QueryExecutionContext.API,
+                fields: {},
+                compiledSql:
+                    'SELECT sum(orders_total_revenue) AS revenue, order_month FROM orders GROUP BY 2',
+                warehouseQueryId: null,
+                warehouseQueryMetadata: null,
+                requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                usedParameters: null,
+                totalRowCount: 2,
+                warehouseExecutionTimeMs: 5,
+                defaultPageSize: 10,
+                cacheKey: 'compose-cache-key',
+                pivotConfiguration: null,
+                pivotTotalColumnCount: null,
+                pivotValuesColumns: null,
+                resultsFileName: 'compose-results.jsonl',
+                resultsCreatedAt: new Date(),
+                resultsUpdatedAt: new Date(),
+                resultsExpiresAt: new Date(Date.now() + 60_000),
+                columns: composeColumns,
+                originalColumns: composeColumns,
+                preAggregateCompiledSql: null,
+                preAggregateExecution: null,
+                preAggregateFallbackReason: null,
+                processingStartedAt: null,
+            };
+
+            serviceWithCache.queryHistoryModel.get = vi
+                .fn()
+                .mockResolvedValue(composeQueryHistory);
+            serviceWithCache.getResultsPageFromS3 = vi
+                .fn()
+                .mockResolvedValue({ rows: [] });
+
+            const result = await serviceWithCache.getAsyncQueryResults({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'compose-query-uuid',
+                page: 1,
+                pageSize: 10,
+            });
+
+            expect(result).toMatchObject({
+                status: QueryHistoryStatus.READY,
+                columns: composeColumns,
+                resolvedTimezone: null,
+            });
+            // Bare means bare: nothing inferred at read time either.
+            if (result.status === QueryHistoryStatus.READY) {
+                Object.values(result.columns).forEach((column) => {
+                    expect(column).not.toHaveProperty('format');
+                    expect(column).not.toHaveProperty('provenance');
+                });
+            }
+        });
+
         test('returns SQL Runner value columns in configured y-axis order after JSONB persistence', async () => {
             const valuesColumns = [
                 {

@@ -11,8 +11,12 @@ import { buildAccount } from '../../auth/account/account.mock';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import type { AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import { QuerySourceRegistry } from './QuerySourceRegistry';
 import { QuerySourceService } from './QuerySourceService';
+import { DuckdbQuerySource } from './sources/DuckdbQuerySource';
+import { SemanticLayerQuerySource } from './sources/SemanticLayerQuerySource';
 import type { QuerySourceClient } from './types';
 
 const account = buildAccount();
@@ -357,5 +361,132 @@ describe('QuerySourceService', () => {
                 service.getSourceQueryStatuses(account, projectUuid, []),
             ).rejects.toThrow(ParameterError);
         });
+    });
+});
+
+/**
+ * The composer interface contract (PROD-10681, rescoped to no-inference):
+ * a pipeline whose terminal node is a semantic-layer query terminates at
+ * that metric query's own enriched result set — it is never wrapped in a
+ * DuckDB `SELECT *` that would strip the metadata the metric path stamps
+ * at query-write time. DuckDB nodes read upstream results by reference
+ * and produce their own honest columns; nothing is carried through.
+ */
+describe('composer pipelines speak the standard interface', () => {
+    const createRealSources = () => {
+        const asyncQueryService = {
+            executeAsyncMetricQuery: vi.fn().mockResolvedValue({
+                queryUuid: 'metric-query-uuid',
+            }),
+            executeAsyncComposeSqlQuery: vi.fn().mockResolvedValue({
+                queryUuid: 'compose-query-uuid',
+            }),
+        };
+        const registry = new QuerySourceRegistry();
+        registry.register(
+            new SemanticLayerQuerySource({
+                asyncQueryService:
+                    asyncQueryService as unknown as AsyncQueryService,
+                projectService: {} as ProjectService,
+            }),
+        );
+        registry.register(
+            new DuckdbQuerySource({
+                asyncQueryService:
+                    asyncQueryService as unknown as AsyncQueryService,
+            }),
+        );
+        return { registry, asyncQueryService };
+    };
+
+    it('a single-node semantic-layer pipeline terminates at the metric query itself, not a DuckDB wrap', async () => {
+        const { registry, asyncQueryService } = createRealSources();
+        const { service } = createService(registry);
+
+        const result = await service.executeSourceQueries({
+            account,
+            projectUuid,
+            context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+            queries: [
+                {
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    exploreName: 'orders',
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_total_revenue'],
+                },
+            ],
+        });
+
+        // The submission's queryUuid IS the metric query's own — results are
+        // served from that query's history row, which carries the enriched
+        // columns stamped by the metric execution path.
+        expect(result.queries).toHaveLength(1);
+        expect(result.queries[0].queryUuid).toEqual('metric-query-uuid');
+        expect(asyncQueryService.executeAsyncMetricQuery).toHaveBeenCalledTimes(
+            1,
+        );
+        expect(asyncQueryService.executeAsyncMetricQuery).toHaveBeenCalledWith(
+            expect.objectContaining({
+                metricQuery: expect.objectContaining({
+                    exploreName: 'orders',
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_total_revenue'],
+                }),
+            }),
+        );
+        // Never wrapped in a DuckDB SELECT * — the compose engine is not
+        // involved at all.
+        expect(
+            asyncQueryService.executeAsyncComposeSqlQuery,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('a DuckDB node reads the metric result by reference and leaves the metric node untouched', async () => {
+        const { registry, asyncQueryService } = createRealSources();
+        const { service } = createService(registry);
+
+        const result = await service.executeSourceQueries({
+            account,
+            projectUuid,
+            context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+            queries: [
+                {
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    nodeId: 'orders',
+                    exploreName: 'orders',
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_total_revenue'],
+                },
+                {
+                    sourceType: QuerySourceType.DUCKDB,
+                    nodeId: 'summary',
+                    sql: 'SELECT sum(orders_total_revenue) AS revenue FROM orders',
+                    references: ['orders'],
+                },
+            ],
+        });
+
+        // The semantic node still terminates at its own result set…
+        const bySourceType = Object.fromEntries(
+            result.queries.map((submission) => [
+                submission.sourceType,
+                submission.queryUuid,
+            ]),
+        );
+        expect(bySourceType[QuerySourceType.SEMANTIC_LAYER]).toEqual(
+            'metric-query-uuid',
+        );
+        // …and the DuckDB node runs as its own compose query, reading the
+        // metric result by queryUuid reference.
+        expect(bySourceType[QuerySourceType.DUCKDB]).toEqual(
+            'compose-query-uuid',
+        );
+        expect(
+            asyncQueryService.executeAsyncComposeSqlQuery,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                references: { orders: 'metric-query-uuid' },
+            }),
+        );
     });
 });
