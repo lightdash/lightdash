@@ -397,6 +397,10 @@ unrelated:
   tag: old
 EOF
     fi
+    if [[ "$scenario" == "up_to_date_cleanup" ]]; then
+        sed 's/tag: 1.0.0/tag: 1.0.2/' "$scenario_dir/$bump_filename" >"$scenario_dir/up-to-date.yml"
+        mv "$scenario_dir/up-to-date.yml" "$scenario_dir/$bump_filename"
+    fi
     cp "$scenario_dir/$bump_filename" "$scenario_dir/fresh-1.$fresh_suffix"
     cp "$scenario_dir/$bump_filename" "$scenario_dir/fresh-2.$fresh_suffix"
     sed 's/tag: 1.0.0/tag: 1.0.2/' "$scenario_dir/$bump_filename" >"$scenario_dir/head-pinned.$fresh_suffix"
@@ -424,7 +428,7 @@ EOF
         nothing_changed)
             safety_gate=true
             ;;
-        main_moved | first_run_creation | scratch_collision | unexpected_commit_parent | freeze_mid_run | retry_exhaustion)
+        main_moved | first_run_creation | scratch_collision | unexpected_commit_parent | freeze_mid_run | retry_exhaustion | superseded_prs | up_to_date_cleanup | newer_target)
             ;;
         *)
             printf 'unknown transaction test scenario: %s\n' "$scenario" >&2
@@ -536,7 +540,7 @@ if [[ "$*" == *"contents/$GH_BUMP_FILE?ref="* ]]; then
 fi
 
 if [[ "$*" == *'git/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'* ]]; then
-    if [[ "$GH_SCENARIO" == "nothing_changed" ]]; then
+    if [[ "$GH_SCENARIO" == "nothing_changed" || "$GH_SCENARIO" == "superseded_prs" ]]; then
         printf '1111111111111111111111111111111111111111\n'
     else
         printf '0000000000000000000000000000000000000000\n'
@@ -599,7 +603,30 @@ if [[ "$*" == *graphql* ]]; then
 fi
 
 if [[ "$*" == "pr list"* ]]; then
-    if [[ "$GH_SCENARIO" == "nothing_changed" || "$GH_SCENARIO" == "main_moved" ]]; then
+    if [[ "$*" == *'--json number,url,headRefName'* ]]; then
+        case "$GH_SCENARIO" in
+            superseded_prs)
+                printf '10\thttps://example.test/pr/10\tlightdash-upgrade-1.0.0\n'
+                printf '11\thttps://example.test/pr/11\tlightdash-upgrade-1.0.1\n'
+                printf '12\thttps://example.test/pr/12\tproduction-upgrade-1.0.1\n'
+                printf '13\thttps://example.test/pr/13\tlightdash-upgrade-1.0.2\n'
+                ;;
+            up_to_date_cleanup)
+                printf '20\thttps://example.test/pr/20\tlightdash-upgrade-1.0.0\n'
+                printf '21\thttps://example.test/pr/21\tlightdash-upgrade-1.0.2\n'
+                printf '22\thttps://example.test/pr/22\tproduction-upgrade-1.0.1\n'
+                printf '23\thttps://example.test/pr/23\tlightdash-upgrade-1.0.3\n'
+                printf '24\thttps://example.test/pr/24\tlightdash-upgrade-1.0.4\n'
+                ;;
+            newer_target)
+                printf '30\thttps://example.test/pr/30\tlightdash-upgrade-1.0.1\n'
+                printf '31\thttps://example.test/pr/31\tlightdash-upgrade-1.0.3\n'
+                printf '32\thttps://example.test/pr/32\tproduction-upgrade-1.0.1\n'
+                ;;
+        esac
+    elif [[ "$GH_SCENARIO" == "superseded_prs" ]]; then
+        printf '{"number":13,"url":"https://example.test/pr/13","headRefOid":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}\n'
+    elif [[ "$GH_SCENARIO" == "nothing_changed" || "$GH_SCENARIO" == "main_moved" ]]; then
         printf '{"number":1,"url":"https://example.test/pr/1","headRefOid":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}\n'
     fi
     exit 0
@@ -620,6 +647,10 @@ if [[ "$*" == "pr comment"* ]]; then
 fi
 
 if [[ "$*" == "pr edit"* ]]; then
+    exit 0
+fi
+
+if [[ "$*" == "pr close"* ]]; then
     exit 0
 fi
 
@@ -787,6 +818,41 @@ EOF
                 exit 1
             fi
             ;;
+        superseded_prs)
+            if ! grep -Fq 'pr close https://example.test/pr/10 --comment main already pins deployed Lightdash version 1.0.0.' "$scenario_dir/gh.log" \
+                || ! grep -Fq 'pr close https://example.test/pr/11 --comment Superseded by https://example.test/pr/13, which targets Lightdash version 1.0.2.' "$scenario_dir/gh.log" \
+                || grep -Fq 'pr close https://example.test/pr/12' "$scenario_dir/gh.log" \
+                || grep -Fq 'pr close https://example.test/pr/13' "$scenario_dir/gh.log" \
+                || grep -q '^pr create' "$scenario_dir/gh.log"; then
+                printf 'expected the exact target pull request to be reused and older same-prefix pull requests to close, gh calls were:\n%s\n' "$(cat "$scenario_dir/gh.log")" >&2
+                rm -rf "$scenario_dir"
+                exit 1
+            fi
+            ;;
+        up_to_date_cleanup)
+            if [[ "$output" != *'already up to date'* ]] \
+                || ! grep -Fq 'pr close https://example.test/pr/20 --comment main already pins deployed Lightdash version 1.0.2.' "$scenario_dir/gh.log" \
+                || ! grep -Fq 'pr close https://example.test/pr/21 --comment main already pins deployed Lightdash version 1.0.2.' "$scenario_dir/gh.log" \
+                || ! grep -Fq 'pr close https://example.test/pr/23 --comment Superseded by https://example.test/pr/24, which targets Lightdash version 1.0.4.' "$scenario_dir/gh.log" \
+                || grep -Fq 'pr close https://example.test/pr/22' "$scenario_dir/gh.log" \
+                || grep -Fq 'pr close https://example.test/pr/24' "$scenario_dir/gh.log" \
+                || grep -Eq -- 'api graphql|pr create' "$scenario_dir/gh.log"; then
+                printf 'expected the no-candidate path to close deployed and superseded same-prefix pull requests only, got:\n%s\ngh calls were:\n%s\n' "$output" "$(cat "$scenario_dir/gh.log")" >&2
+                rm -rf "$scenario_dir"
+                exit 1
+            fi
+            ;;
+        newer_target)
+            if [[ "$output" != *'newer upgrade target 1.0.3 is already open'* ]] \
+                || ! grep -Fq 'pr close https://example.test/pr/30 --comment Superseded by https://example.test/pr/31, which targets Lightdash version 1.0.3.' "$scenario_dir/gh.log" \
+                || grep -Fq 'pr close https://example.test/pr/31' "$scenario_dir/gh.log" \
+                || grep -Fq 'pr close https://example.test/pr/32' "$scenario_dir/gh.log" \
+                || grep -Eq -- '--method (POST|PATCH) repos/example/upgrade-test/git/refs|api graphql|pr create' "$scenario_dir/gh.log"; then
+                printf 'expected a stale run to preserve the newer target and close only its older same-prefix predecessor, got:\n%s\ngh calls were:\n%s\n' "$output" "$(cat "$scenario_dir/gh.log")" >&2
+                rm -rf "$scenario_dir"
+                exit 1
+            fi
+            ;;
     esac
 
     rm -rf "$scenario_dir"
@@ -806,6 +872,9 @@ run_transaction_test main_moved 'plan moved-main pull request reuse' 0
 run_transaction_test first_run_creation 'plan first-run pull request creation' 0
 run_transaction_test scratch_collision 'plan scratch ref collision' 1
 run_transaction_test unexpected_commit_parent 'plan unexpected commit parent' 1
+run_transaction_test superseded_prs 'plan superseded pull request cleanup' 0
+run_transaction_test up_to_date_cleanup 'plan up-to-date pull request cleanup' 0
+run_transaction_test newer_target 'plan newer target authority' 0
 
 run_auto_merge_test() {
     local test_name=$1
