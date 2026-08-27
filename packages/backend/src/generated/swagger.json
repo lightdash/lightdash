@@ -192,6 +192,30 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ContentAsCodeUploadAdvisory": {
+                "properties": {
+                    "openDraftCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["openDraftCount"],
+                "type": "object"
+            },
+            "ApiContentAsCodeUploadAdvisoryResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ContentAsCodeUploadAdvisory"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ContentDraftSummary": {
                 "properties": {
                     "updatedAt": {
@@ -57092,7 +57116,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.31.1",
+        "version": "2.32.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -57426,6 +57450,47 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/upload-advisory": {
+            "get": {
+                "operationId": "getContentAsCodeUploadAdvisory",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentAsCodeUploadAdvisoryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Advisory state shown by the CLI before an upload. It never gates upload.",
+                "summary": "Get content-as-code upload advisory",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/code/drafts": {

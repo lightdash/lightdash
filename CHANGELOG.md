@@ -1,3 +1,10 @@
+# [2.32.0](https://github.com/lightdash/lightdash/compare/2.31.1...2.32.0) (2026-08-27)
+
+
+### Features
+
+* **content-as-code:** report open drafts during upload ([#28199](https://github.com/lightdash/lightdash/issues/28199)) ([c088844](https://github.com/lightdash/lightdash/commit/c0888442dd7fdceb6c5b99913441e54180c161ce))
+
 ## [2.31.1](https://github.com/lightdash/lightdash/compare/2.31.0...2.31.1) (2026-08-27)
 
 
