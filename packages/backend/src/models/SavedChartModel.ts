@@ -2475,6 +2475,21 @@ export class SavedChartModel {
         return charts.map((chart) => chart.slug);
     }
 
+    /** uuid → slug for the given charts; deleted charts are omitted. */
+    async getSlugsByUuids(uuids: string[]): Promise<Record<string, string>> {
+        if (uuids.length === 0) return {};
+        const charts = await this.database(SavedChartsTableName)
+            .whereIn(`${SavedChartsTableName}.saved_query_uuid`, uuids)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .select({
+                uuid: `${SavedChartsTableName}.saved_query_uuid`,
+                slug: `${SavedChartsTableName}.slug`,
+            });
+        return Object.fromEntries(
+            charts.map((chart) => [chart.uuid, chart.slug]),
+        );
+    }
+
     async getSlugAliasesForUuids(uuids: string[]): Promise<string[]> {
         if (uuids.length === 0) return [];
         const aliases = await this.database(SavedChartSlugMappingsTableName)

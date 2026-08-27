@@ -28,7 +28,12 @@ Usage tips:
 - Dashboards with validation errors will be deprioritized.
 - Returns space breadcrumb/path metadata and canonical chart, dashboard, and Data App URLs when available.
 - Dashboards show a preview of the first 5 charts and the total chart count. Use "${dashboardDetailsToolName}" to see all charts for a specific dashboard.
-- It doesn't provide summaries for dashboards yet, so don't suggest this capability.`;
+${
+    dashboardDetailsToolName === 'getDashboardCharts'
+        ? ''
+        : `- Data Apps are readable: call "${dashboardDetailsToolName}" with type "data_app" and the app slug to see what the app shows, the charts and dashboard it was generated from, and the explores, fields, filters, parameters and external connections it queries.
+`
+}- It doesn't provide summaries for dashboards yet, so don't suggest this capability.`;
 
 export const TOOL_FIND_CONTENT_DESCRIPTION = ({
     runtime,

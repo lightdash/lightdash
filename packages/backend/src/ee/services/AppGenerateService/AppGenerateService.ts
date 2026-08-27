@@ -353,6 +353,36 @@ type AppGenerateServiceDeps = {
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
 
+/**
+ * What the AI agent needs to render a code-free read of a data app: the
+ * manifest fields, the read version's context and data references, and the
+ * space/creator the agent applies its own scoping to.
+ */
+export type DataAppReadSource = {
+    app: {
+        uuid: string;
+        slug: string;
+        name: string;
+        description: string;
+        template: DbApp['template'];
+        spaceUuid: string | null;
+        createdByUserUuid: string;
+    };
+    spaceSlug: string | null;
+    externalConnections: DataAppManifestExternalConnection[];
+    vizSchema: DataAppVizSchema | null;
+    version: number;
+    versionCount: number;
+    newerVersion: { version: number; status: AppVersionStatus } | null;
+    createdBy: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+    } | null;
+    resources: AppVersionResources | null;
+    dataReferences: PersistedDataAppDataReferences | null;
+};
+
 type GenerateAppOptions = {
     creationExperience?: DataAppCreationExperience;
     designUuidInput?: string | null;
@@ -10207,6 +10237,81 @@ export class AppGenerateService extends BaseService {
             true,
         );
         return space.uuid;
+    }
+
+    /**
+     * First half of the as-code download — resolve by slug, view check,
+     * latest ready version, manifest fields — without touching the source.
+     */
+    async readDataApp(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+    ): Promise<DataAppReadSource> {
+        const app = await this.appModel.findAppBySlug(projectUuid, slug);
+        if (!app) {
+            throw new NotFoundError(`Data app "${slug}" was not found`);
+        }
+        await this.assertCanViewApp(user, app);
+
+        const readyVersion = await this.appModel.getLatestReadyVersion(
+            app.app_id,
+        );
+        if (!readyVersion) {
+            throw new NotFoundError(
+                `Data app "${slug}" has no ready version yet, so it cannot be read`,
+            );
+        }
+
+        const [
+            latestVersion,
+            versionCount,
+            createdBy,
+            appLinks,
+            appSpace,
+            dataReferences,
+        ] = await Promise.all([
+            this.appModel.getLatestVersion(app.app_id),
+            this.appModel.countVersions(app.app_id),
+            this.appModel.findAppCreator(app.app_id),
+            this.externalConnectionModel.listAppLinks(app.app_id),
+            app.space_uuid
+                ? this.spaceModel.getSpaceSummary(app.space_uuid)
+                : null,
+            this.getVersionDataReferences(app.app_id, readyVersion.version),
+        ]);
+
+        return {
+            app: {
+                uuid: app.app_id,
+                slug: app.slug,
+                name: app.name,
+                description: app.description,
+                template: app.template,
+                spaceUuid: app.space_uuid,
+                createdByUserUuid: app.created_by_user_uuid,
+            },
+            spaceSlug: appSpace
+                ? getContentAsCodePathFromLtreePath(appSpace.path)
+                : null,
+            externalConnections: appLinks.map((link) => ({
+                alias: link.alias,
+                connectionSlug: link.connection.slug,
+            })),
+            vizSchema: readyVersion.viz_schema,
+            version: readyVersion.version,
+            versionCount,
+            newerVersion:
+                latestVersion && latestVersion.version > readyVersion.version
+                    ? {
+                          version: latestVersion.version,
+                          status: latestVersion.status,
+                      }
+                    : null,
+            createdBy,
+            resources: readyVersion.resources,
+            dataReferences,
+        };
     }
 
     async getAppCode(

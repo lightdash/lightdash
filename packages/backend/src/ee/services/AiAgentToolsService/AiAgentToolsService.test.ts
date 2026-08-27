@@ -18,9 +18,12 @@ import {
     UnitOfTime,
     WarehouseTypes,
     type DataAppSearchResult,
+    type DataAppVizSchema,
+    type PersistedDataAppDataReferences,
 } from '@lightdash/common';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
+import type { DataAppReadSource } from '../AppGenerateService/AppGenerateService';
 import {
     AiAgentToolsService,
     type AiAgentToolsRuntimeContext,
@@ -108,6 +111,9 @@ const makeService = ({
     querySourceService = {},
     contentService = {},
     searchService = {},
+    appGenerateService = {},
+    savedChartModel = {},
+    dashboardModel = {},
 }: {
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
@@ -131,6 +137,9 @@ const makeService = ({
     querySourceService?: Record<string, unknown>;
     contentService?: Record<string, unknown>;
     searchService?: Record<string, unknown>;
+    appGenerateService?: Record<string, unknown>;
+    savedChartModel?: Record<string, unknown>;
+    dashboardModel?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
         builtInSkills: {
@@ -200,6 +209,9 @@ const makeService = ({
         shareService: {},
         asyncQueryService,
         querySourceService,
+        appGenerateService,
+        savedChartModel,
+        dashboardModel,
     } as unknown as ConstructorParameters<typeof AiAgentToolsService>[0]);
 
 function makeRuntimeContext(
@@ -2317,5 +2329,334 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 terminalNodeId: 'joined',
             }),
         ).rejects.toThrow(/"orders" \(relation does not exist\)/);
+    });
+});
+
+describe('AiAgentToolsService readContent data_app', () => {
+    const location = { path: 'src/App.tsx', line: 1, column: 1 };
+    const dataReferences: PersistedDataAppDataReferences = {
+        references: [
+            {
+                kind: 'query',
+                explore: 'orders',
+                dimensions: ['orders_region'],
+                metrics: ['orders_revenue'],
+                dimensionFilterFields: ['orders_date'],
+                metricFilterFields: [],
+                sortFields: ['orders_revenue'],
+                parameterKeys: ['region'],
+                localFields: [],
+                customSql: {
+                    tableCalculations: ['SUM(${orders.revenue}) / 2'],
+                    customDimensions: [],
+                    additionalMetrics: [],
+                },
+                unresolved: [],
+                location,
+            },
+            {
+                kind: 'query',
+                explore: 'customers',
+                dimensions: ['customers_segment'],
+                metrics: ['customers_count'],
+                dimensionFilterFields: [],
+                metricFilterFields: [],
+                sortFields: [],
+                parameterKeys: [],
+                localFields: [],
+                unresolved: ['filters'],
+                location,
+            },
+            {
+                kind: 'savedChart',
+                chartUuid: 'chart-1',
+                filterFields: ['orders_date'],
+                unresolved: [],
+                location,
+            },
+            {
+                kind: 'externalFetch',
+                alias: 'crm',
+                path: '/accounts',
+                unresolved: [],
+                location,
+            },
+        ],
+        parseErrors: [],
+        stats: {
+            callSites: 4,
+            fullyResolved: 3,
+            partiallyResolved: 1,
+            unresolved: 0,
+        },
+    };
+
+    const makeReadSource = (
+        overrides: Partial<DataAppReadSource> = {},
+    ): DataAppReadSource => ({
+        app: {
+            uuid: 'app-uuid',
+            slug: 'sales-forecast',
+            name: 'Sales forecast',
+            description: 'Forecast revenue by region',
+            template: 'dashboard',
+            spaceUuid: 'sales-space-uuid',
+            createdByUserUuid: userUuid,
+        },
+        spaceSlug: 'sales',
+        externalConnections: [{ alias: 'crm', connectionSlug: 'hubspot' }],
+        vizSchema: null,
+        version: 3,
+        versionCount: 4,
+        newerVersion: { version: 4, status: 'building' },
+        createdBy: { userUuid, firstName: 'Ada', lastName: 'Lovelace' },
+        resources: {
+            images: [{ imageId: 'image-1' }],
+            files: [
+                {
+                    fileId: 'file-1',
+                    filename: 'brief.pdf',
+                    mimeType: 'application/pdf',
+                },
+            ],
+            charts: [
+                {
+                    chartUuid: 'chart-1',
+                    chartName: 'Revenue by month',
+                    chartKind: 'line',
+                    linkLive: true,
+                },
+                {
+                    chartUuid: 'deleted-chart',
+                    chartName: 'Deleted chart',
+                    chartKind: null,
+                },
+            ],
+            externalConnections: [
+                {
+                    externalConnectionUuid: 'connection-1',
+                    name: 'HubSpot',
+                    alias: 'crm',
+                },
+            ],
+            dashboardName: 'Sales overview',
+            dashboardUuid: 'dashboard-1',
+            clarifications: [
+                { question: 'Which region first?', answer: 'EMEA' },
+            ],
+        },
+        dataReferences,
+        ...overrides,
+    });
+
+    const makeReadService = ({
+        source = makeReadSource(),
+        spaceModel,
+    }: {
+        source?: DataAppReadSource;
+        spaceModel?: Record<string, unknown>;
+    } = {}) => {
+        const appGenerateService = {
+            readDataApp: vi.fn().mockResolvedValue(source),
+        };
+        const savedChartModel = {
+            getSlugsByUuids: vi
+                .fn()
+                .mockResolvedValue({ 'chart-1': 'revenue-by-month' }),
+        };
+        const dashboardModel = {
+            getSlugsForUuids: vi
+                .fn()
+                .mockResolvedValue({ 'dashboard-1': 'sales-overview' }),
+        };
+        const service = makeService({
+            appGenerateService,
+            savedChartModel,
+            dashboardModel,
+            spaceModel,
+        });
+        return { service, appGenerateService, savedChartModel };
+    };
+
+    it('reads the latest ready version as a code-free manifest-shaped view', async () => {
+        const { service, appGenerateService, savedChartModel } =
+            makeReadService();
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .readContent({ slug: 'sales-forecast', type: 'data_app' });
+
+        expect(appGenerateService.readDataApp).toHaveBeenCalledWith(
+            user,
+            projectUuid,
+            'sales-forecast',
+        );
+        expect(result).toEqual({
+            type: 'data_app',
+            href: '/projects/project-uuid/apps/app-uuid/view',
+            content: {
+                slug: 'sales-forecast',
+                name: 'Sales forecast',
+                description: 'Forecast revenue by region',
+                template: 'dashboard',
+                version: 3,
+                spaceSlug: 'sales',
+                externalConnections: [
+                    { alias: 'crm', connectionSlug: 'hubspot' },
+                ],
+                vizSchema: null,
+                createdBy: {
+                    userUuid,
+                    firstName: 'Ada',
+                    lastName: 'Lovelace',
+                },
+                versionCount: 4,
+                newerVersion: { version: 4, status: 'building' },
+                context: {
+                    charts: [
+                        {
+                            slug: 'revenue-by-month',
+                            name: 'Revenue by month',
+                            kind: 'line',
+                            linkLive: true,
+                        },
+                    ],
+                    dashboard: {
+                        slug: 'sales-overview',
+                        name: 'Sales overview',
+                    },
+                    files: ['brief.pdf'],
+                    imageCount: 1,
+                    externalConnectionAliases: ['crm'],
+                },
+                dataReferences: {
+                    explores: [
+                        {
+                            name: 'orders',
+                            dimensions: ['orders_region'],
+                            metrics: ['orders_revenue'],
+                            filterFields: ['orders_date'],
+                            sortFields: ['orders_revenue'],
+                            parameterKeys: ['region'],
+                            localFields: [],
+                            customSqlFieldCount: 1,
+                        },
+                        {
+                            name: 'customers',
+                            dimensions: ['customers_segment'],
+                            metrics: ['customers_count'],
+                            filterFields: [],
+                            sortFields: [],
+                            parameterKeys: [],
+                            localFields: [],
+                            customSqlFieldCount: 0,
+                        },
+                    ],
+                    linkedCharts: [
+                        {
+                            slug: 'revenue-by-month',
+                            filterFields: ['orders_date'],
+                        },
+                    ],
+                    externalConnections: [
+                        { alias: 'crm', paths: ['/accounts'] },
+                    ],
+                    stats: dataReferences.stats,
+                    unresolved: ['filters'],
+                },
+            },
+        });
+        // One batched lookup covers context charts and linked chart references.
+        expect(savedChartModel.getSlugsByUuids).toHaveBeenCalledTimes(1);
+        expect(savedChartModel.getSlugsByUuids).toHaveBeenCalledWith([
+            'chart-1',
+            'deleted-chart',
+        ]);
+        const serialized = JSON.stringify(result.content);
+        expect(serialized).not.toContain('Which region first?');
+        expect(serialized).not.toContain('SUM(');
+        expect(serialized).not.toContain('src/App.tsx');
+    });
+
+    it('includes the viz schema of a project chart type', async () => {
+        const vizSchema: DataAppVizSchema = {
+            fields: [],
+            configOptions: [],
+            colorPalette: null,
+        };
+        const { service } = makeReadService({
+            source: makeReadSource({
+                app: {
+                    uuid: 'viz-uuid',
+                    slug: 'funnel-viz',
+                    name: 'Funnel',
+                    description: '',
+                    template: 'data_app_viz',
+                    spaceUuid: null,
+                    createdByUserUuid: userUuid,
+                },
+                spaceSlug: null,
+                vizSchema,
+                resources: null,
+                dataReferences: null,
+            }),
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .readContent({ slug: 'funnel-viz', type: 'data_app' });
+
+        expect(result.type).toBe('data_app');
+        if (result.type !== 'data_app') return;
+        expect(result.content.vizSchema).toEqual(vizSchema);
+        expect(result.content.spaceSlug).toBeNull();
+        expect(result.content.dataReferences).toBeNull();
+        expect(result.content.context).toEqual({
+            charts: [],
+            dashboard: null,
+            files: [],
+            imageCount: 0,
+            externalConnectionAliases: [],
+        });
+    });
+
+    it('hides personal apps from space-scoped agents', async () => {
+        const personal = makeReadSource({
+            app: { ...makeReadSource().app, spaceUuid: null },
+            spaceSlug: null,
+        });
+        const { service } = makeReadService({ source: personal });
+
+        await expect(
+            service
+                .createRuntime(
+                    makeRuntimeContext({ spaceAccess: ['sales-space-uuid'] }),
+                )
+                .readContent({ slug: 'sales-forecast', type: 'data_app' }),
+        ).rejects.toThrow(NotFoundError);
+
+        const unrestricted = await service
+            .createRuntime(makeRuntimeContext())
+            .readContent({ slug: 'sales-forecast', type: 'data_app' });
+        expect(unrestricted.type).toBe('data_app');
+    });
+
+    it('does not read apps in spaces outside the scoped agent spaces', async () => {
+        const { service } = makeReadService();
+
+        await expect(
+            service
+                .createRuntime(
+                    makeRuntimeContext({ spaceAccess: ['other-space-uuid'] }),
+                )
+                .readContent({ slug: 'sales-forecast', type: 'data_app' }),
+        ).rejects.toThrow(NotFoundError);
+
+        const inScope = await service
+            .createRuntime(
+                makeRuntimeContext({ spaceAccess: ['sales-space-uuid'] }),
+            )
+            .readContent({ slug: 'sales-forecast', type: 'data_app' });
+        expect(inScope.type).toBe('data_app');
     });
 });

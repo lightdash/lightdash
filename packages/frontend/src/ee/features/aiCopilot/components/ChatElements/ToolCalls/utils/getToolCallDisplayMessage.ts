@@ -9,7 +9,16 @@ import { type ToolCallSummary } from './types';
 export type ToolCallDisplayStatus = 'running' | 'done';
 
 type ContentToolArgs = {
-    type?: 'dashboard' | 'chart';
+    type?: 'dashboard' | 'chart' | 'data_app';
+};
+
+const CONTENT_TYPE_LABELS: Record<
+    NonNullable<ContentToolArgs['type']>,
+    string
+> = {
+    dashboard: 'dashboard',
+    chart: 'chart',
+    data_app: 'data app',
 };
 
 const CONTENT_TOOL_LABELS: Partial<
@@ -46,7 +55,9 @@ const getContentToolDisplayMessage = (
     if (contentTypes.size !== 1) return null;
 
     const [contentType] = contentTypes;
-    return contentType ? labelForTool[status](contentType) : null;
+    return contentType
+        ? labelForTool[status](CONTENT_TYPE_LABELS[contentType])
+        : null;
 };
 
 export const getToolCallDisplayMessage = ({

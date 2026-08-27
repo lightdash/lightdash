@@ -5,7 +5,13 @@ import { ToolCallChip } from '../ToolCallChip';
 type Props = {
     action: 'read' | 'edit' | 'create';
     slug: string;
-    type: 'dashboard' | 'chart';
+    type: 'dashboard' | 'chart' | 'data_app';
+};
+
+const CONTENT_TYPE_LABELS: Record<Props['type'], string> = {
+    dashboard: 'dashboard',
+    chart: 'chart',
+    data_app: 'data app',
 };
 
 export const ContentEditorToolCallDescription: FC<Props> = ({
@@ -15,6 +21,7 @@ export const ContentEditorToolCallDescription: FC<Props> = ({
 }) => (
     <Text c="dimmed" size="xs">
         {action === 'read' ? 'Read' : action === 'edit' ? 'Edited' : 'Created'}{' '}
-        {type} <ToolCallChip mx={rem(2)}>{slug}</ToolCallChip>
+        {CONTENT_TYPE_LABELS[type]}{' '}
+        <ToolCallChip mx={rem(2)}>{slug}</ToolCallChip>
     </Text>
 );

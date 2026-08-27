@@ -526,6 +526,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     savedChartModel: models.getSavedChartModel(),
                     coderService: repository.getCoderService(),
                     contentService: repository.getContentService(),
+                    appGenerateService:
+                        repository.getAppGenerateService<AppGenerateService>(),
                     aiAgentContentValidation: new AiAgentContentValidation(),
                     projectContextModel:
                         models.getProjectContextModel<ProjectContextModel>(),

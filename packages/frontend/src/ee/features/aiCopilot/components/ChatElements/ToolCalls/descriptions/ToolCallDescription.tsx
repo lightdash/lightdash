@@ -63,7 +63,7 @@ import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
 type ToolReadContentArgs = {
     slug?: string;
-    type?: 'dashboard' | 'chart';
+    type?: 'dashboard' | 'chart' | 'data_app';
 };
 
 type ToolEditContentArgs = {

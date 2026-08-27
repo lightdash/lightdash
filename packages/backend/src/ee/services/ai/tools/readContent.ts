@@ -17,7 +17,7 @@ const contentResult = ({
 }: {
     content: unknown;
     href: string;
-    type: 'dashboard' | 'chart';
+    type: 'dashboard' | 'chart' | 'data_app';
 }) => `<${type} href="${href}" />\n---\n${JSON.stringify(content, null, 2)}`;
 
 export const getReadContent = ({ readContent }: Dependencies) =>
