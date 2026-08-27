@@ -4,7 +4,7 @@ import {
     FeatureFlags,
     type SummaryExplore,
 } from '@lightdash/common';
-import { ActionIcon, Button, Group, Stack, TextInput } from '@mantine-8/core';
+import { ActionIcon, Button, Group, Stack, TextInput } from '@mantine/core';
 import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import {
     IconAlertCircle,

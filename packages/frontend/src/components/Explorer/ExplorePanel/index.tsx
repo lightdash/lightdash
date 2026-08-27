@@ -13,7 +13,7 @@ import {
     Menu,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,

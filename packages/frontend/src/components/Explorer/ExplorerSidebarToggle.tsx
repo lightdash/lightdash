@@ -1,4 +1,4 @@
-import { ActionIcon, Group, Kbd, Text, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Group, Kbd, Text, Tooltip } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,

@@ -8,7 +8,7 @@ import {
     type EChartsSeries,
     type FieldId,
 } from '@lightdash/common';
-import { Button, Tooltip } from '@mantine-8/core';
+import { Button, Tooltip } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,

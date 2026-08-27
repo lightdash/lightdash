@@ -1,4 +1,4 @@
-import { Button, Group } from '@mantine-8/core';
+import { Button, Group } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { lazy, memo, Suspense, useEffect, useState } from 'react';
 import { Provider } from 'react-redux';

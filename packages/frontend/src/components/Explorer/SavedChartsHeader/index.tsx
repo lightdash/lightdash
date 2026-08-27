@@ -62,6 +62,7 @@ import {
     selectHasUnsavedChanges,
     selectIsChartTypeAuthoring,
     selectIsEditMode,
+    selectIsFieldSidebarOpen,
     selectIsValidQuery,
     selectSavedChart,
     selectUnsavedChartVersion,
@@ -164,6 +165,7 @@ const SavedChartsHeader: FC = () => {
     const dispatch = useExplorerDispatch();
 
     const isEditMode = useExplorerSelector(selectIsEditMode);
+    const isFieldSidebarOpen = useExplorerSelector(selectIsFieldSidebarOpen);
     // A chart type being authored is not the chart; it finishes or cancels first.
     const isChartTypeAuthoring = useExplorerSelector(
         selectIsChartTypeAuthoring,
@@ -479,6 +481,7 @@ const SavedChartsHeader: FC = () => {
             const resetState = {
                 savedChart,
                 isEditMode,
+                isFieldSidebarOpen,
                 parameterReferences: Object.keys(savedChart.parameters ?? {}),
                 parameterDefinitions: {},
                 cachedChartConfigs: {},
@@ -508,6 +511,7 @@ const SavedChartsHeader: FC = () => {
     }, [
         dispatch,
         isEditMode,
+        isFieldSidebarOpen,
         savedChart,
         isFromDashboard,
         navigate,

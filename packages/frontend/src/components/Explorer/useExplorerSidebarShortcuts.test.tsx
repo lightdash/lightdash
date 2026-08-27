@@ -59,18 +59,24 @@ describe('useExplorerSidebarShortcuts', () => {
         const store = renderHarness();
 
         expect(
-            fireEvent.keyDown(window, { key: 'b', ctrlKey: true }),
+            fireEvent.keyDown(document.documentElement, {
+                key: 'b',
+                ctrlKey: true,
+            }),
         ).toBe(false);
         expect(store.getState().explorer.isFieldSidebarOpen).toBe(false);
 
-        fireEvent.keyDown(window, { key: 'b', ctrlKey: true });
+        fireEvent.keyDown(document.documentElement, {
+            key: 'b',
+            ctrlKey: true,
+        });
         expect(store.getState().explorer.isFieldSidebarOpen).toBe(true);
     });
 
     it('opens the visualization card and chart sidebar with mod+alt+b', () => {
         const store = renderHarness();
 
-        fireEvent.keyDown(window, {
+        fireEvent.keyDown(document.documentElement, {
             key: 'b',
             ctrlKey: true,
             altKey: true,
@@ -81,7 +87,7 @@ describe('useExplorerSidebarShortcuts', () => {
             ExplorerSection.VISUALIZATION,
         );
 
-        fireEvent.keyDown(window, {
+        fireEvent.keyDown(document.documentElement, {
             key: 'b',
             ctrlKey: true,
             altKey: true,
@@ -94,7 +100,10 @@ describe('useExplorerSidebarShortcuts', () => {
     it('does not register shortcuts when disabled', () => {
         const store = renderHarness({ enabled: false });
 
-        fireEvent.keyDown(window, { key: 'b', ctrlKey: true });
+        fireEvent.keyDown(document.documentElement, {
+            key: 'b',
+            ctrlKey: true,
+        });
         expect(store.getState().explorer.isFieldSidebarOpen).toBe(true);
     });
 
@@ -102,7 +111,7 @@ describe('useExplorerSidebarShortcuts', () => {
         chartGalleryEnabled.current = false;
         const store = renderHarness();
 
-        fireEvent.keyDown(window, {
+        fireEvent.keyDown(document.documentElement, {
             key: 'b',
             ctrlKey: true,
             altKey: true,
