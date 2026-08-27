@@ -1,0 +1,69 @@
+.card {
+    container-type: inline-size;
+    /* ThemeIcon size="sm"; body text indents past it to line up with the title. */
+    --card-icon-size: 22px;
+}
+
+.cardUnavailable {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-ldDark-7)
+    );
+}
+
+/* Two columns: leading cells on the left, actions on the right; full-width
+   cells (body, narration) span both. Auto-placement keeps the actions on the
+   same row as whatever leading cell precedes them. */
+.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--mantine-spacing-sm);
+    row-gap: var(--mantine-spacing-xs);
+    align-items: center;
+    align-content: start;
+}
+
+.lead {
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+}
+
+.leadText {
+    min-width: 0;
+}
+
+.full {
+    grid-column: 1 / -1;
+}
+
+.body {
+    grid-column: 1 / -1;
+    padding-left: calc(var(--card-icon-size) + var(--mantine-spacing-xs));
+}
+
+.actions {
+    grid-column: 2;
+    justify-self: end;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+}
+
+/* Phone width: one column, actions always last. */
+@container (max-width: 420px) {
+    .layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .lead,
+    .actions {
+        grid-column: 1;
+    }
+    .actions {
+        order: 100;
+    }
+}
