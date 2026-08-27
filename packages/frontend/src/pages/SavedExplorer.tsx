@@ -30,6 +30,7 @@ import {
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
+import { defaultState } from '../providers/Explorer/defaultState';
 import { ExplorerSection } from '../providers/Explorer/types';
 import { getCandidateExploreNames } from '../utils/exploreSplitError';
 
@@ -109,7 +110,14 @@ const SavedExplorer = () => {
     }, [data, setDashboardChartInfo]);
 
     // Create store once with useState
-    const [store] = useState(() => createExplorerStore());
+    const [store] = useState(() =>
+        createExplorerStore({
+            explorer: {
+                ...defaultState,
+                isFieldSidebarOpen,
+            },
+        }),
+    );
 
     // Reset store state when data/mode changes
     useEffect(() => {

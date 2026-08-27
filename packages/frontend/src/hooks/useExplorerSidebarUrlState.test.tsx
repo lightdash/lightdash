@@ -23,9 +23,7 @@ const Harness = () => {
         <>
             <div data-testid="search">{location.search}</div>
             <button
-                onClick={() =>
-                    dispatch(explorerActions.toggleFieldSidebar())
-                }
+                onClick={() => dispatch(explorerActions.toggleFieldSidebar())}
             >
                 Toggle
             </button>

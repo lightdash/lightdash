@@ -388,6 +388,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                         }
                                         withArrow
                                         withinPortal
+                                        disabled={!isChartGalleryEnabled}
                                     >
                                         <Button
                                             {...COLLAPSABLE_CARD_BUTTON_PROPS}

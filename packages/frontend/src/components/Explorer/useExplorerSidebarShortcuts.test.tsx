@@ -92,9 +92,7 @@ describe('useExplorerSidebarShortcuts', () => {
             ctrlKey: true,
             altKey: true,
         });
-        expect(store.getState().explorer.isVisualizationConfigOpen).toBe(
-            false,
-        );
+        expect(store.getState().explorer.isVisualizationConfigOpen).toBe(false);
     });
 
     it('does not register shortcuts when disabled', () => {
@@ -116,18 +114,19 @@ describe('useExplorerSidebarShortcuts', () => {
             ctrlKey: true,
             altKey: true,
         });
-        expect(store.getState().explorer.isVisualizationConfigOpen).toBe(
-            false,
-        );
+        expect(store.getState().explorer.isVisualizationConfigOpen).toBe(false);
     });
 
     it('ignores shortcuts while typing in an input', () => {
         const store = renderHarness();
 
-        fireEvent.keyDown(screen.getByRole('textbox', { name: 'Field search' }), {
-            key: 'b',
-            ctrlKey: true,
-        });
+        fireEvent.keyDown(
+            screen.getByRole('textbox', { name: 'Field search' }),
+            {
+                key: 'b',
+                ctrlKey: true,
+            },
+        );
 
         expect(store.getState().explorer.isFieldSidebarOpen).toBe(true);
     });

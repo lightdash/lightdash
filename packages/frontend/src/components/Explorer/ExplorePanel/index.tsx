@@ -6,14 +6,7 @@ import {
     findReplaceableCustomMetrics,
     getMetrics,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Group,
-    HoverCard,
-    Menu,
-    Stack,
-    Text,
-} from '@mantine/core';
+import { ActionIcon, Group, HoverCard, Menu, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,

@@ -1,12 +1,5 @@
 import { FeatureFlags, type ChartType } from '@lightdash/common';
-import {
-    ActionIcon,
-    Anchor,
-    Group,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
     IconArrowLeft,
     IconFilePencil,
