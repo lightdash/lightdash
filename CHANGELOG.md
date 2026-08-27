@@ -1,3 +1,10 @@
+## [2.33.1](https://github.com/lightdash/lightdash/compare/2.33.0...2.33.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **warehouses:** infer Trino decimals as numbers ([#28203](https://github.com/lightdash/lightdash/issues/28203)) ([d78c9d1](https://github.com/lightdash/lightdash/commit/d78c9d1fd0b9d01d2157b57509913d0687d55d70))
+
 # [2.33.0](https://github.com/lightdash/lightdash/compare/2.32.0...2.33.0) (2026-08-27)
 
 
