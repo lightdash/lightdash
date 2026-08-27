@@ -27,6 +27,7 @@ export type DbContentAsCodeWriteback = {
     project_uuid: string;
     content_type: string;
     slug: string;
+    content_draft_uuid: string | null;
     branch: string;
     pr_number: number | null;
     pr_url: string | null;
@@ -42,6 +43,7 @@ export type CreateDbContentAsCodeWriteback = Pick<
     | 'project_uuid'
     | 'content_type'
     | 'slug'
+    | 'content_draft_uuid'
     | 'branch'
     | 'status'
     | 'created_by_user_uuid'

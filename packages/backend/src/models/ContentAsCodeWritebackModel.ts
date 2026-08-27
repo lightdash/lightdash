@@ -10,6 +10,7 @@ export type ContentAsCodeWriteback = {
     projectUuid: string;
     contentType: string;
     slug: string;
+    contentDraftUuid: string | null;
     branch: string;
     prNumber: number | null;
     prUrl: string | null;
@@ -32,6 +33,7 @@ const parseRow = (row: DbContentAsCodeWriteback): ContentAsCodeWriteback => ({
     projectUuid: row.project_uuid,
     contentType: row.content_type,
     slug: row.slug,
+    contentDraftUuid: row.content_draft_uuid,
     branch: row.branch,
     prNumber: row.pr_number,
     prUrl: row.pr_url,
@@ -100,6 +102,7 @@ export class ContentAsCodeWritebackModel {
         projectUuid: string;
         contentType: string;
         slug: string;
+        contentDraftUuid: string | null;
         branch: string;
         createdByUserUuid: string | null;
     }): Promise<ContentAsCodeWriteback> {
@@ -108,6 +111,7 @@ export class ContentAsCodeWritebackModel {
                 project_uuid: args.projectUuid,
                 content_type: args.contentType,
                 slug: args.slug,
+                content_draft_uuid: args.contentDraftUuid,
                 branch: args.branch,
                 status: 'pending',
                 created_by_user_uuid: args.createdByUserUuid,
