@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
+import { matchPath, useLocation } from 'react-router';
 import { useIsGitProject } from '../../components/Explorer/WriteBackModal/hooks';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import useApp from '../../providers/App/useApp';
@@ -113,13 +114,21 @@ export const useSettingsContext = (): SettingsContext => {
     } = useOrganization();
     const { activeProjectUuid, isLoading: isActiveProjectUuidLoading } =
         useActiveProjectUuid();
+    // When viewing a specific project's settings, the sidebar follows the
+    // project in the URL rather than the session's active project.
+    const { pathname } = useLocation();
+    const routeProjectUuid = matchPath(
+        { path: '/generalSettings/projectManagement/:projectUuid/*' },
+        pathname,
+    )?.params.projectUuid;
+    const settingsProjectUuid = routeProjectUuid ?? activeProjectUuid;
     const {
         data: project,
         isInitialLoading: isProjectLoading,
         error: projectError,
-    } = useProject(activeProjectUuid);
+    } = useProject(settingsProjectUuid);
 
-    const isGitProject = useIsGitProject(activeProjectUuid ?? '');
+    const isGitProject = useIsGitProject(settingsProjectUuid ?? '');
 
     // "Ask AI" settings are visible to org AI admins (all projects) and to
     // project-scoped AI admins (only the projects they can reach). These are
