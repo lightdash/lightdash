@@ -184,6 +184,10 @@ export enum EventName {
 
     DASHBOARD_CHART_LOADED = 'dashboard_chart.loaded',
 
+    // Map charts
+    MAP_TILE_USAGE = 'map_chart.tile_usage',
+    MAP_TILE_FALLBACK = 'map_chart.tile_fallback',
+
     // Spaces
     SPACE_BREADCRUMB_CLICKED = 'space_breadcrumb.clicked',
 

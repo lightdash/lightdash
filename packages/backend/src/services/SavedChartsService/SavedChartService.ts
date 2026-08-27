@@ -338,6 +338,25 @@ export class SavedChartService
                           dataInput: savedChart.chartConfig?.config?.dataInput,
                       }
                     : undefined,
+            map:
+                savedChart.chartConfig.type === ChartType.MAP
+                    ? {
+                          mapType: savedChart.chartConfig.config?.mapType,
+                          locationType:
+                              savedChart.chartConfig.config?.locationType,
+                          hasCustomGeoJson:
+                              !!savedChart.chartConfig.config?.customGeoJsonUrl,
+                          tileBackground:
+                              savedChart.chartConfig.config?.tileBackground ??
+                              null,
+                          darkModeTileBackground:
+                              savedChart.chartConfig.config
+                                  ?.darkModeTileBackground ?? null,
+                          savesMapExtent:
+                              savedChart.chartConfig.config?.saveMapExtent ??
+                              false,
+                      }
+                    : undefined,
             table:
                 savedChart.chartConfig.type === ChartType.TABLE
                     ? {
@@ -1572,6 +1591,7 @@ export class SavedChartService
                 projectId: savedChart.projectUuid,
                 parametersCount: Object.keys(savedChart.parameters || {})
                     .length,
+                chartType: savedChart.chartConfig.type,
             },
         });
 

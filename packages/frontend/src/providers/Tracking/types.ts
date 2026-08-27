@@ -4,6 +4,7 @@ import {
     type CustomFormatType,
     type DataAppTemplate,
     type HomepageRecommendedActionKey,
+    type MapTileBackground,
     type SearchItemType,
     type TableCalculationType,
     type TimeFrames,
@@ -878,8 +879,47 @@ type AgentOnboardingCompletionToastClickedEvent = {
     properties: AgentOnboardingCompletionToastProperties;
 };
 
+/** Where a map chart was rendered when tile telemetry was captured. */
+export type MapUsageContext = 'explore' | 'dashboard' | 'embed' | 'minimal';
+
+type MapTelemetryBaseProperties = {
+    userId: string | null;
+    organizationId: string | null;
+    projectId: string | null;
+    chartId: string | null;
+    context: MapUsageContext;
+};
+
+type MapTileUsageEvent = {
+    name: EventName.MAP_TILE_USAGE;
+    properties: MapTelemetryBaseProperties & {
+        tileBackground: MapTileBackground;
+        activeTileBackground: MapTileBackground;
+        didFallback: boolean;
+        tilesLoaded: number;
+        tileErrors: number;
+        zoomCount: number;
+        panCount: number;
+        minZoom: number | null;
+        maxZoom: number | null;
+        durationMs: number;
+    };
+};
+
+type MapTileFallbackEvent = {
+    name: EventName.MAP_TILE_FALLBACK;
+    properties: MapTelemetryBaseProperties & {
+        fromTileBackground: MapTileBackground;
+        toTileBackground: MapTileBackground;
+        errorCount: number;
+        successCount: number;
+    };
+};
+
 export type EventData =
     | GenericEvent
+    | MapTileUsageEvent
+    | MapTileFallbackEvent
     | AgentOnboardingDemoOfferShownEvent
     | AgentOnboardingDemoOfferAcceptedEvent
     | AgentOnboardingCompletionToastShownEvent

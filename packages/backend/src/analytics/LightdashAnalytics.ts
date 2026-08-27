@@ -51,6 +51,10 @@ import {
     type DataAppCodingAgentModel,
     type DataAppCreationExperience,
     type DataAppTemplate,
+    type FunnelChartDataInput,
+    type MapChartLocation,
+    type MapChartType,
+    type MapTileBackground,
     type PersistentDownloadFileAccessMode,
     type PlaygroundProjectTrigger,
     type PullRequestProvider,
@@ -814,6 +818,27 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
         pie?: {
             isDonut: boolean;
         };
+        funnel?: {
+            dataInput: FunnelChartDataInput | undefined;
+        };
+        treemap?: {
+            visibleMin: number | undefined;
+            leafDepth: number | undefined;
+            dimensionCount: number;
+            startColor: string | undefined;
+            endColor: string | undefined;
+            useDynamicColors: boolean | undefined;
+            startColorThreshold: number | undefined;
+            endColorThreshold: number | undefined;
+        };
+        map?: {
+            mapType: MapChartLocation | undefined;
+            locationType: MapChartType | undefined;
+            hasCustomGeoJson: boolean;
+            tileBackground: MapTileBackground | null;
+            darkModeTileBackground: MapTileBackground | null;
+            savesMapExtent: boolean;
+        };
         table?: {
             conditionalFormattingRulesCount: number;
             hasMetricsAsRows: boolean;
@@ -1348,6 +1373,7 @@ type SavedChartView = BaseTrack & {
         projectId: string;
         organizationId: string;
         parametersCount: number;
+        chartType: ChartType;
     };
 };
 
