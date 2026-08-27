@@ -1,4 +1,7 @@
-import type { HealthState } from '@lightdash/common';
+import {
+    getCorsWildcardOriginRegexSource,
+    type HealthState,
+} from '@lightdash/common';
 import { addBreadcrumb, captureException } from '@sentry/react';
 import { type Exact } from 'type-fest';
 import {
@@ -6,6 +9,22 @@ import {
     type LightdashEventPayload,
     type LightdashEventType,
 } from './types';
+
+const isAllowedTargetOrigin = (
+    targetOrigin: string,
+    allowedOrigins: string[],
+): boolean =>
+    allowedOrigins.some((allowedOrigin) => {
+        if (allowedOrigin === targetOrigin) {
+            return true;
+        }
+
+        const wildcardRegexSource =
+            getCorsWildcardOriginRegexSource(allowedOrigin);
+        return wildcardRegexSource
+            ? new RegExp(wildcardRegexSource).test(targetOrigin)
+            : false;
+    });
 
 /**
  * LightdashUiEvent class for dispatching secure events in embedded dashboards.
@@ -41,7 +60,7 @@ export class LightdashUiEvent {
 
         // Validate targetOrigin against allowedOrigins if provided
         if (targetOrigin) {
-            if (!config.allowedOrigins.includes(targetOrigin)) {
+            if (!isAllowedTargetOrigin(targetOrigin, config.allowedOrigins)) {
                 addBreadcrumb({
                     category: 'embed.validation',
                     message: 'Target origin not in allowed list',

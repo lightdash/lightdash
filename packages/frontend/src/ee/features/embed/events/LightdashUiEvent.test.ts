@@ -23,7 +23,7 @@ describe('LightdashUiEvent', () => {
     let dispatchEventSpy: any;
     let postMessageSpy: any;
     let eventSystem: LightdashUiEvent;
-    let mockConfig: HealthState['embedding']['events'];
+    let mockConfig: NonNullable<HealthState['embedding']['events']>;
 
     beforeEach(() => {
         dispatchEventSpy = vi.spyOn(window, 'dispatchEvent');
@@ -160,6 +160,50 @@ describe('LightdashUiEvent', () => {
                 LightdashEventType.FilterChanged,
                 payload,
             );
+
+            expect(postMessageSpy).not.toHaveBeenCalled();
+        });
+
+        it('should allow postMessage for wildcard subdomain origins', () => {
+            const wildcardConfig = {
+                ...mockConfig,
+                allowedOrigins: ['https://*.lightdash.dev'],
+            };
+            const wildcardEventSystem = new LightdashUiEvent(
+                wildcardConfig,
+                'https://javi.preview.lightdash.dev',
+            );
+
+            wildcardEventSystem.dispatch(LightdashEventType.FilterChanged, {
+                hasFilters: false,
+                filterCount: 0,
+            });
+
+            expect(postMessageSpy).toHaveBeenCalledTimes(1);
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.any(Object),
+                'https://javi.preview.lightdash.dev',
+            );
+        });
+
+        it.each([
+            'https://lightdash.dev',
+            'http://javi.lightdash.dev',
+            'https://javi.lightdash.dev.example.com',
+        ])('should reject non-matching wildcard origin %s', (targetOrigin) => {
+            const wildcardConfig = {
+                ...mockConfig,
+                allowedOrigins: ['https://*.lightdash.dev'],
+            };
+            const wildcardEventSystem = new LightdashUiEvent(
+                wildcardConfig,
+                targetOrigin,
+            );
+
+            wildcardEventSystem.dispatch(LightdashEventType.FilterChanged, {
+                hasFilters: false,
+                filterCount: 0,
+            });
 
             expect(postMessageSpy).not.toHaveBeenCalled();
         });
