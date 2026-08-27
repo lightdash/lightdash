@@ -72,6 +72,16 @@ const mockField = {
     hidden: false,
 } as unknown as DashboardFilterableField;
 
+const mockTimestampField = {
+    ...mockField,
+    name: 'created_at',
+    type: DimensionType.TIMESTAMP,
+    table: 'orders',
+    tableLabel: 'Orders',
+    label: 'Created at',
+    sql: 'created_at',
+} as unknown as DashboardFilterableField;
+
 const anyValueRule: DashboardFilterRule = {
     id: 'filter-1',
     target: {
@@ -163,6 +173,49 @@ describe('FilterConfiguration', () => {
         expect(
             screen.getByRole('button', { name: 'Single value' }),
         ).toBeVisible();
+    });
+
+    it('preserves a timestamp value when changing to is between', async () => {
+        const user = userEvent.setup();
+        const onSave = vi.fn();
+        const timestampValue = '2024-11-01T10:00:00-05:00';
+        const timestampRule: DashboardFilterRule = {
+            ...anyValueRule,
+            target: {
+                fieldId: 'orders_created_at',
+                tableName: 'orders',
+            },
+            values: [timestampValue],
+            disabled: false,
+        };
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode={false}
+                isTemporary
+                tiles={[]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockTimestampField}
+                defaultFilterRule={timestampRule}
+                originalFilterRule={timestampRule}
+                onSave={onSave}
+            />,
+        );
+
+        await user.click(screen.getByDisplayValue('is'));
+        await user.click(
+            await screen.findByRole('option', { name: 'is between' }),
+        );
+        fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
+
+        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+        expect(onSave).toHaveBeenCalledWith(
+            expect.objectContaining({
+                operator: FilterOperator.IN_BETWEEN,
+                values: [timestampValue],
+            }),
+        );
     });
 
     it('keeps the required toggle on and lists rule siblings for a rule member', () => {

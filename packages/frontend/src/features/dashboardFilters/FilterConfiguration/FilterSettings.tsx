@@ -2,6 +2,8 @@ import {
     FilterOperator,
     FilterType,
     getFilterRuleWithDefaultValue,
+    isRelativeDateFilterOperator,
+    isWithValueFilter,
     supportsSingleValue,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -71,11 +73,27 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     }, [filterLabel, filterRule.label, field?.label]);
 
     const handleChangeFilterOperator = (operator: FilterRule['operator']) => {
+        // Absolute date values are already normalized. Running them through
+        // the defaults again can shift timezones.
+        const shouldPreserveValues =
+            filterType === FilterType.DATE &&
+            (filterRule.values?.length ?? 0) > 0 &&
+            isWithValueFilter(filterRule.operator) &&
+            isWithValueFilter(operator) &&
+            !isRelativeDateFilterOperator(filterRule.operator) &&
+            !isRelativeDateFilterOperator(operator);
+
         onChangeFilterRule(
-            getFilterRuleWithDefaultValue(filterType, field, {
-                ...filterRule,
-                operator,
-            }),
+            shouldPreserveValues
+                ? {
+                      ...filterRule,
+                      operator,
+                      settings: undefined,
+                  }
+                : getFilterRuleWithDefaultValue(filterType, field, {
+                      ...filterRule,
+                      operator,
+                  }),
         );
     };
 
