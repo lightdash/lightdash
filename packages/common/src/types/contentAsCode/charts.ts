@@ -30,7 +30,10 @@ import type { SpaceAsCode } from './spaces';
  * only in legacy files that predate slugs (accepted on upload, never
  * emitted).
  */
-export type DataAppVizChartAsCode = Omit<DataAppVizChart, 'dataAppVizUuid'> & {
+export type DataAppVizChartAsCode = Omit<
+    DataAppVizChart,
+    'dataAppVizUuid' | 'dataAppVizVersion'
+> & {
     dataAppVizSlug?: string;
     dataAppVizUuid?: string;
 };

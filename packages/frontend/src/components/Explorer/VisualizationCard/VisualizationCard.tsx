@@ -314,6 +314,14 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 columnOrder={visualizationColumnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
                 savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
+                savedChartReference={
+                    savedChart
+                        ? {
+                              uuid: savedChart.uuid,
+                              chartConfig: savedChart.chartConfig,
+                          }
+                        : undefined
+                }
                 onChartConfigChange={handleSetChartConfig}
                 onChartTypeChange={handleSetChartType}
                 onPivotDimensionsChange={handleSetPivotFields}

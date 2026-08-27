@@ -39,6 +39,16 @@ export const selectUnsavedChartVersion = createSelector(
     (explorer) => explorer.unsavedChartVersion,
 );
 
+export const selectIsDataAppVizVersionReadyForSave = createSelector(
+    [selectUnsavedChartVersion],
+    ({ chartConfig }) =>
+        chartConfig.type !== ChartType.DATA_APP_VIZ ||
+        chartConfig.config?.dataAppVizUuid === undefined ||
+        (Number.isInteger(chartConfig.config.dataAppVizVersion) &&
+            chartConfig.config.dataAppVizVersion !== undefined &&
+            chartConfig.config.dataAppVizVersion > 0),
+);
+
 export const selectUnsavedColorPaletteUuid = createSelector(
     [selectExplorerState],
     (explorer) => explorer.unsavedColorPaletteUuid,

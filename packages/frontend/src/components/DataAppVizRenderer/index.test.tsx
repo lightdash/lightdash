@@ -46,6 +46,8 @@ const mocks = vi.hoisted(() => ({
     },
     embedToken: { current: undefined as string | undefined },
     dataAppVizUuid: { current: 'viz-uuid' as string | null },
+    dataAppVizVersion: { current: 7 as number | undefined },
+    setDataAppVizVersion: vi.fn(),
     iframePreview: vi.fn(() => null),
     renderMetadataHook: vi.fn(),
     previewTokenHook: vi.fn(),
@@ -124,9 +126,12 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
                         ? null
                         : {
                               dataAppVizUuid: mocks.dataAppVizUuid.current,
+                              dataAppVizVersion:
+                                  mocks.dataAppVizVersion.current,
                               fieldMapping: { category: 'orders.category' },
                               optionValues: { title: 12 },
                           },
+                setDataAppVizVersion: mocks.setDataAppVizVersion,
             },
         },
         savedChartUuid: 'saved-chart-uuid',
@@ -187,6 +192,8 @@ describe('DataAppVizRenderer', () => {
         mocks.tokenError.current = undefined;
         mocks.embedToken.current = undefined;
         mocks.dataAppVizUuid.current = 'viz-uuid';
+        mocks.dataAppVizVersion.current = 7;
+        mocks.setDataAppVizVersion.mockClear();
         mocks.iframePreview.mockClear();
         mocks.renderMetadataHook.mockClear();
         mocks.previewTokenHook.mockClear();
@@ -341,6 +348,50 @@ describe('DataAppVizRenderer', () => {
             }),
             undefined,
         );
+    });
+
+    it('pins an unsaved project chart type to the version it previews', () => {
+        mocks.dataAppVizVersion.current = undefined;
+        mocks.vizContextOverrides.current = {
+            savedChartUuid: undefined,
+            isEditMode: true,
+        };
+
+        renderRenderer();
+
+        expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
+    });
+
+    it('keeps an unchanged edited chart on its persisted project chart type version', () => {
+        mocks.metadata.current = { ...readyMetadata(), version: 3 };
+        mocks.dataAppVizVersion.current = 3;
+        mocks.vizContextOverrides.current = {
+            savedChartUuid: undefined,
+            isEditMode: true,
+            savedChartReference: {
+                uuid: 'saved-chart-uuid',
+                chartConfig: {
+                    type: 'data_app_viz',
+                    config: {
+                        dataAppVizUuid: 'viz-uuid',
+                        dataAppVizVersion: 3,
+                        fieldMapping: { category: 'orders.category' },
+                    },
+                },
+            },
+        };
+
+        renderRenderer();
+
+        expect(mocks.renderMetadataHook).toHaveBeenCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            {
+                isEmbedded: false,
+                savedChartUuid: 'saved-chart-uuid',
+            },
+        );
+        expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
     });
 
     it('renders the last good version while a newer build is running', () => {

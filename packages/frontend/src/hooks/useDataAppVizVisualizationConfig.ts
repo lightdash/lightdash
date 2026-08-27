@@ -12,7 +12,7 @@ import { useCallback, useLayoutEffect, useRef, useState } from 'react';
  */
 export type SelectedDataAppViz = Pick<
     DataAppVizChart,
-    'dataAppVizUuid' | 'fieldMapping'
+    'dataAppVizUuid' | 'dataAppVizVersion' | 'fieldMapping'
 > &
     Required<Pick<DataAppVizChart, 'optionValues'>>;
 
@@ -28,6 +28,7 @@ export interface DataAppVizVisualizationConfigAndData {
         dataAppVizUuid: string,
         fieldMapping: DataAppVizFieldMapping,
     ) => void;
+    setDataAppVizVersion: (dataAppVizVersion: number) => void;
     /** Back to pointing at no viz; bindings and options go with it. */
     clearDataAppViz: () => void;
     setField: (fieldName: string, fieldId: string | null) => void;
@@ -55,6 +56,7 @@ const toSelected = (
     return chartConfig !== undefined && dataAppVizUuid !== null
         ? {
               dataAppVizUuid,
+              dataAppVizVersion: chartConfig.dataAppVizVersion,
               fieldMapping: chartConfig.fieldMapping,
               optionValues: chartConfig.optionValues ?? {},
           }
@@ -93,13 +95,20 @@ const useDataAppVizVisualizationConfig = (
     // A viz switched from outside this hook (the chart gallery goes through
     // the store) arrives as a new initial config while the hook stays mounted.
     const externalDataAppVizUuid = readDataAppVizUuid(initialChartConfig);
+    const externalDataAppVizVersion = initialChartConfig?.dataAppVizVersion;
     useLayoutEffect(() => {
         const currentUuid = configRef.current?.dataAppVizUuid ?? null;
-        if (externalDataAppVizUuid === currentUuid) return;
+        const currentVersion = configRef.current?.dataAppVizVersion;
+        if (
+            externalDataAppVizUuid === currentUuid &&
+            externalDataAppVizVersion === currentVersion
+        ) {
+            return;
+        }
         const next = toSelected(initialChartConfig);
         configRef.current = next;
         setConfigState(next);
-    }, [externalDataAppVizUuid, initialChartConfig]);
+    }, [externalDataAppVizUuid, externalDataAppVizVersion, initialChartConfig]);
 
     const commit = useCallback((next: SelectedDataAppViz | null) => {
         configRef.current = next;
@@ -122,6 +131,20 @@ const useDataAppVizVisualizationConfig = (
     );
 
     const clearDataAppViz = useCallback(() => commit(null), [commit]);
+
+    const setDataAppVizVersion = useCallback(
+        (dataAppVizVersion: number) => {
+            const selected = configRef.current;
+            if (
+                selected === null ||
+                selected.dataAppVizVersion === dataAppVizVersion
+            ) {
+                return;
+            }
+            commit({ ...selected, dataAppVizVersion });
+        },
+        [commit],
+    );
 
     const setField = useCallback(
         (fieldName: string, fieldId: string | null) => {
@@ -163,6 +186,7 @@ const useDataAppVizVisualizationConfig = (
         validConfig: config,
         dataAppVizUuid: config?.dataAppVizUuid ?? null,
         setDataAppVizUuid,
+        setDataAppVizVersion,
         clearDataAppViz,
         setField,
         setOption,

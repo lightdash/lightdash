@@ -39,7 +39,10 @@ import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
-import Context, { type EmbeddedDashboardInteractivity } from './context';
+import Context, {
+    type EmbeddedDashboardInteractivity,
+    type SavedChartReference,
+} from './context';
 import { type useVisualizationContext } from './useVisualizationContext';
 import VisualizationBigNumberConfig from './VisualizationBigNumberConfig';
 import VisualizationCartesianConfig from './VisualizationConfigCartesian';
@@ -76,6 +79,7 @@ export type VisualizationProviderProps = {
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
     onPivotRowsChange?: (value: string[] | undefined) => void;
     savedChartUuid?: string;
+    savedChartReference?: SavedChartReference;
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
     colorPalette: string[];
@@ -109,6 +113,7 @@ const VisualizationProvider: FC<
     onPivotRowsChange,
     children,
     savedChartUuid,
+    savedChartReference,
     dashboardFilters,
     invalidateCache,
     colorPalette,
@@ -364,6 +369,7 @@ const VisualizationProvider: FC<
         getSeriesColor,
         chartConfig,
         savedChartUuid,
+        savedChartReference,
         parameters,
         containerWidth,
         containerHeight,

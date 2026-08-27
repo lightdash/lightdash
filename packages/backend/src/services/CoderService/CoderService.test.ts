@@ -1840,6 +1840,7 @@ describe('CoderService', () => {
                         type: ChartType.DATA_APP_VIZ,
                         config: {
                             dataAppVizUuid: 'viz-uuid',
+                            dataAppVizVersion: 4,
                             fieldMapping: {},
                         },
                     },
@@ -1882,13 +1883,21 @@ describe('CoderService', () => {
         const buildResolver = ({
             findAppsBySlugs = vi.fn().mockResolvedValue([]),
             findAppsByUuids = vi.fn().mockResolvedValue([]),
+            getLatestRenderableDataAppVizVersion = vi
+                .fn()
+                .mockResolvedValue({ version: 9 }),
         }: {
             findAppsBySlugs?: ReturnType<typeof vi.fn>;
             findAppsByUuids?: ReturnType<typeof vi.fn>;
+            getLatestRenderableDataAppVizVersion?: ReturnType<typeof vi.fn>;
         } = {}) => {
             const warn = vi.fn();
             const service = {
-                appModel: { findAppsBySlugs, findAppsByUuids },
+                appModel: {
+                    findAppsBySlugs,
+                    findAppsByUuids,
+                    getLatestRenderableDataAppVizVersion,
+                },
                 logger: { warn },
                 resolveDataAppVizBinding: (CoderService.prototype as AnyType)
                     .resolveDataAppVizBinding,
@@ -1920,6 +1929,7 @@ describe('CoderService', () => {
             });
             expect(result.config).toEqual({
                 dataAppVizUuid: 'target-viz-uuid',
+                dataAppVizVersion: 9,
                 fieldMapping: { x: 'field_x' },
             });
             expect(service.appModel.findAppsBySlugs).toHaveBeenCalledWith(
@@ -1947,6 +1957,7 @@ describe('CoderService', () => {
             });
             expect(result.config).toEqual({
                 dataAppVizUuid: 'source-viz-uuid',
+                dataAppVizVersion: 9,
                 fieldMapping: {},
             });
             expect(service.appModel.findAppsByUuids).toHaveBeenCalledWith(
@@ -2008,7 +2019,13 @@ describe('CoderService', () => {
             };
             expect(
                 await service.resolveDataAppVizBinding('proj', legacyViz),
-            ).toEqual(legacyViz);
+            ).toEqual({
+                ...legacyViz,
+                config: {
+                    ...legacyViz.config,
+                    dataAppVizVersion: 9,
+                },
+            });
             expect(findAppsBySlugs).not.toHaveBeenCalled();
             expect(service.appModel.findAppsByUuids).toHaveBeenCalledWith(
                 'proj',

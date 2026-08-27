@@ -799,6 +799,11 @@ export type DataAppVizChart = {
      * see DataAppVizChartAsCode.
      */
     dataAppVizUuid: string;
+    /**
+     * The version of the project chart type this saved chart renders.
+     * @minimum 1
+     */
+    dataAppVizVersion?: number;
     fieldMapping: DataAppVizFieldMapping;
     /**
      * Only options the user explicitly changed — declared defaults are never

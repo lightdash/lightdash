@@ -23,6 +23,11 @@ export type EmbeddedDashboardInteractivity = {
     canCrossFilter: boolean;
 };
 
+export type SavedChartReference = {
+    uuid: string;
+    chartConfig: ChartConfig;
+};
+
 type VisualizationContext = {
     minimal: boolean;
     chartRef: RefObject<EChartsReact | null>;
@@ -55,6 +60,7 @@ type VisualizationContext = {
     colorPalette: string[];
     chartConfig: ChartConfig;
     savedChartUuid?: string;
+    savedChartReference?: SavedChartReference;
     apiErrorDetail?: ApiErrorDetail | null;
     parameters?: ParametersValuesMap;
     // Container dimensions for responsive visualizations
