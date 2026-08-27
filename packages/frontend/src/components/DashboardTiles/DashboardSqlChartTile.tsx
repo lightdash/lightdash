@@ -115,6 +115,9 @@ const SqlChartTile: FC<Props> = ({
     const markTileScreenshotErrored = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotErrored,
     );
+    const markEmbedTileComplete = useDashboardTileStatusContext(
+        (c) => c.markEmbedTileComplete,
+    );
     const dashboardFilters = useDashboardFiltersForTile(tile.uuid);
 
     const closeDataExportModal = useCallback(
@@ -158,7 +161,6 @@ const SqlChartTile: FC<Props> = ({
                   parameters,
               },
     );
-
     // Charts in Dashboard shouldn't have animation
     const specWithoutAnimation = useMemo(() => {
         if (!chartResultsData?.chartSpec) return chartResultsData?.chartSpec;
@@ -215,6 +217,28 @@ const SqlChartTile: FC<Props> = ({
         tile.uuid,
         markTileScreenshotReady,
         markTileScreenshotErrored,
+    ]);
+
+    useEffect(() => {
+        const hasLoadError = !savedSqlUuid || !!chartError;
+        const hasResultsError = !!chartResultsError;
+        const hasResults = !!chartResultsData;
+
+        if (
+            (!isChartLoading && hasLoadError) ||
+            (!isChartResultsFetching && (hasResultsError || hasResults))
+        ) {
+            markEmbedTileComplete(tile.uuid);
+        }
+    }, [
+        chartError,
+        chartResultsData,
+        chartResultsError,
+        isChartLoading,
+        isChartResultsFetching,
+        markEmbedTileComplete,
+        savedSqlUuid,
+        tile.uuid,
     ]);
 
     const userCanExportData = user.data?.ability.can(

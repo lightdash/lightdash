@@ -2309,11 +2309,29 @@ export const GenericDashboardChartTile: FC<
     const markTileScreenshotErrored = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotErrored,
     );
+    const markEmbedTileComplete = useDashboardTileStatusContext(
+        (c) => c.markEmbedTileComplete,
+    );
     useEffect(() => {
         if (error !== null) {
             markTileScreenshotErrored(tile.uuid);
         }
     }, [error, markTileScreenshotErrored, tile.uuid]);
+    useEffect(() => {
+        if (
+            error !== null ||
+            (!isLoading && dashboardChartReadyQuery && resultsData)
+        ) {
+            markEmbedTileComplete(tile.uuid);
+        }
+    }, [
+        dashboardChartReadyQuery,
+        error,
+        isLoading,
+        markEmbedTileComplete,
+        resultsData,
+        tile.uuid,
+    ]);
 
     const userCanManageChart =
         dashboardChartReadyQuery?.chart &&

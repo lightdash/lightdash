@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import { type Exact } from 'type-fest';
 import useHealth from '../../../../hooks/health/useHealth';
 import { LightdashUiEvent } from '../events/LightdashUiEvent';
@@ -16,29 +16,28 @@ import type {
  */
 export const useEmbedEventEmitter = () => {
     const { data: health } = useHealth();
-    const eventEmitter = useRef<LightdashUiEvent | null>(null);
-
-    // Initialize event system when health data is available
-    useEffect(() => {
-        if (health?.embedding?.events) {
-            const targetOrigin = LightdashUiEvent.getTargetOriginFromUrl();
-            eventEmitter.current = new LightdashUiEvent(
-                health.embedding.events,
-                targetOrigin,
-            );
-        }
-    }, [health]);
-
-    return useMemo(() => {
-        const dispatchEmbedEvent = <T extends Exact<LightdashEventPayload, T>>(
+    const eventEmitter = useMemo(
+        () =>
+            health?.embedding?.events
+                ? new LightdashUiEvent(
+                      health.embedding.events,
+                      LightdashUiEvent.getTargetOriginFromUrl(),
+                  )
+                : null,
+        [health?.embedding?.events],
+    );
+    const dispatchEmbedEvent = useCallback(
+        <T extends Exact<LightdashEventPayload, T>>(
             eventType: LightdashEventType,
             payload?: T,
         ) => {
-            if (eventEmitter.current) {
-                eventEmitter.current.dispatch(eventType, payload);
-            }
-        };
+            if (!eventEmitter) return false;
 
-        return { dispatchEmbedEvent };
-    }, []);
+            eventEmitter.dispatch(eventType, payload);
+            return true;
+        },
+        [eventEmitter],
+    );
+
+    return useMemo(() => ({ dispatchEmbedEvent }), [dispatchEmbedEvent]);
 };
