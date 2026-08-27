@@ -100,6 +100,10 @@ export const getUserAbilityBuilder = ({
                         isEnterprise,
                         organizationRole: user.role,
                         permissionsConfig,
+                        // The primary slot replaces the system role outright,
+                        // so its scopes decide PAT access rather than
+                        // inheriting the deployment default.
+                        applyPatConfigFallback: false,
                     },
                     builder,
                 ),

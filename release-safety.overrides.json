@@ -29,6 +29,10 @@
         "1.112.0": {
             "minPreviousVersion": "1.111.0",
             "note": "Auto-recorded at release 1.112.0: a destructive migration here is safe to roll past only when upgrading from 1.111.0 or later."
+        },
+        "2.49.0": {
+            "requiredStop": true,
+            "note": "Introduces config-capped interpretation of manage:PersonalAccessToken and must be deployed before later releases backfill that scope into existing organization custom roles."
         }
     }
 }

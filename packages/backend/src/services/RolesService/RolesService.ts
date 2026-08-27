@@ -1218,16 +1218,7 @@ export class RolesService extends BaseService {
         let ownerType: Role['ownerType'] = 'system';
         let roleScopes = isCustomRole
             ? []
-            : getOrganizationSystemRoleScopes(
-                  roleId as OrganizationMemberRole,
-                  {
-                      includePersonalAccessToken:
-                          this.lightdashConfig.auth?.pat?.enabled === true &&
-                          this.lightdashConfig.auth.pat.allowedOrgRoles.includes(
-                              roleId as OrganizationMemberRole,
-                          ),
-                  },
-              );
+            : getOrganizationSystemRoleScopes(roleId as OrganizationMemberRole);
 
         if (isCustomRole) {
             const role = await this.rolesModel.getRoleWithScopesByUuid(roleId);
@@ -1829,14 +1820,7 @@ export class RolesService extends BaseService {
             organizationUuid: orgUuid,
             grantedScopes: [
                 ...(roleSet.systemRole
-                    ? getOrganizationSystemRoleScopes(roleSet.systemRole, {
-                          includePersonalAccessToken:
-                              this.lightdashConfig.auth?.pat?.enabled ===
-                                  true &&
-                              this.lightdashConfig.auth.pat.allowedOrgRoles.includes(
-                                  roleSet.systemRole,
-                              ),
-                      })
+                    ? getOrganizationSystemRoleScopes(roleSet.systemRole)
                     : []),
                 ...customRoles.flatMap((role) => role.scopes),
             ],

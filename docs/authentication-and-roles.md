@@ -229,6 +229,21 @@ This means the **same custom role** behaves differently:
 | Bound to `organization_memberships.role_uuid` (e.g. an SA token) | Can deploy any project + manage org members |
 | Bound to `project_memberships.role_uuid` for project A | Can deploy project A + content-as-code on project A; **silently cannot** manage org members |
 
+### Personal access tokens are the exception
+
+`manage:PersonalAccessToken` is the one scope where the organization
+primary slot has the final say. Every other scope set inherits token
+access from the deployment config (`DISABLE_PAT`, `PAT_ALLOWED_ORG_ROLES`)
+when it doesn't list the scope, so a project or extra role can never
+strip a permission the org layer granted. A custom role in
+`organization_memberships.role_uuid` replaces the system role outright,
+so it is read literally: omit the scope and its users cannot create
+tokens; list it and they can, still capped by the deployment config,
+which can deny but never grant.
+
+That makes an org-level custom role the supported way to deny tokens to
+a set of users. A project-level role cannot do it, by design.
+
 ### What `BASE_ROLE_SCOPES` returns when you duplicate "Admin"
 
 When an operator clicks **Duplicate role** on a system role, the new

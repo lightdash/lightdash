@@ -71,7 +71,6 @@ describe('validateOrganizationScopesCanBeGranted', () => {
                 organizationUuid: ORG,
                 grantedScopes: getOrganizationSystemRoleScopes(
                     OrganizationMemberRole.MEMBER,
-                    { includePersonalAccessToken: true },
                 ),
                 rolesModel: rolesModelWithScopes(managerScopes),
             }),
@@ -87,7 +86,6 @@ describe('validateOrganizationScopesCanBeGranted', () => {
                 organizationUuid: ORG,
                 grantedScopes: getOrganizationSystemRoleScopes(
                     OrganizationMemberRole.ADMIN,
-                    { includePersonalAccessToken: true },
                 ),
                 rolesModel: rolesModelWithScopes(managerScopes),
             }),
@@ -139,5 +137,22 @@ describe('validateOrganizationScopesCanBeGranted', () => {
                 rolesModel: rolesModelWithScopes(managerScopes),
             }),
         ).rejects.toThrow('Cannot grant permissions exceeding your own');
+    });
+
+    it('lets a token-restricted caller grant a system role', async () => {
+        // A system role takes token access from deployment config, not from the
+        // grant, so it must not block a caller whose own role denies tokens.
+        await expect(
+            validateOrganizationScopesCanBeGranted({
+                user: customRoleCaller({
+                    canManagePersonalAccessToken: false,
+                }),
+                organizationUuid: ORG,
+                grantedScopes: getOrganizationSystemRoleScopes(
+                    OrganizationMemberRole.MEMBER,
+                ),
+                rolesModel: rolesModelWithScopes(managerScopes),
+            }),
+        ).resolves.toBeUndefined();
     });
 });

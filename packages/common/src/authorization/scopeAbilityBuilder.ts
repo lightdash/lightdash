@@ -5,6 +5,12 @@ import { parseScope, parseScopes } from './parseScopes';
 import { getAllScopeMap } from './scopes';
 import { type MemberAbility } from './types';
 
+/**
+ * Compatibility grant for scope sets that were never able to express PAT
+ * access: without it, a project or extra custom role would strip the token
+ * permission its organization layer already granted. Skipped for the
+ * organization primary slot, where the role's scopes are authoritative.
+ */
 const handlePatConfigApplication = (
     context: ScopeContext,
     builder: AbilityBuilder<MemberAbility>,
@@ -34,6 +40,7 @@ const handlePatConfigApplication = (
 const applyScopeAbilities = (
     context: ScopeContext,
     builder: AbilityBuilder<MemberAbility>,
+    applyPatConfigFallback: boolean,
 ): void => {
     const scopeMap = getAllScopeMap({ isEnterprise: context.isEnterprise });
 
@@ -60,7 +67,9 @@ const applyScopeAbilities = (
         }
     });
 
-    handlePatConfigApplication(context, builder);
+    if (applyPatConfigFallback) {
+        handlePatConfigApplication(context, builder);
+    }
 };
 
 type OptionalIdContext =
@@ -88,6 +97,12 @@ type BuilderOptions = {
             allowedOrgRoles: string[];
         };
     };
+    /**
+     * Whether a scope set that omits `manage:PersonalAccessToken` still
+     * inherits it from the deployment config. False only for the organization
+     * primary slot, whose scopes fully define the user's organization layer.
+     */
+    applyPatConfigFallback?: boolean;
 } & OptionalIdContext;
 
 /**
@@ -101,18 +116,19 @@ export const buildAbilityFromScopes = (
     context: BuilderOptions,
     builder: AbilityBuilder<MemberAbility>,
 ): string[] => {
+    const { applyPatConfigFallback = true, ...scopeContext } = context;
     const isEnterprise = context.isEnterprise ?? false;
     const { valid, invalid } = parseScopes({
         scopes: context.scopes,
         isEnterprise,
     });
     const parsedContext = {
-        ...context,
+        ...scopeContext,
         scopes: valid,
         isEnterprise,
     };
 
-    applyScopeAbilities(parsedContext, builder);
+    applyScopeAbilities(parsedContext, builder, applyPatConfigFallback);
 
     return invalid;
 };
