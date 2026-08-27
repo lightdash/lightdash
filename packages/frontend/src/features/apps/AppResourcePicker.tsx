@@ -3,6 +3,7 @@ import {
     ChartKind,
     type ChartContent,
     type AiModelOption,
+    type AppVersionExternalConnectionResource,
     type DataAppCodingAgent,
     type DataAppCodingAgentModel,
     type ExternalConnection,
@@ -10,7 +11,6 @@ import {
 import {
     ActionIcon,
     Anchor,
-    Badge,
     Box,
     Button,
     CloseButton,
@@ -62,7 +62,7 @@ import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
-import { aliasFromName } from '../externalConnections/utils/aliasFromName';
+import { uniqueAliasFromName } from '../externalConnections/utils/aliasFromName';
 import classes from './AppResourcePicker.module.css';
 import {
     useAttachResourceLink,
@@ -98,12 +98,7 @@ export type SelectedDashboard = {
     includeSampleData: boolean;
 };
 
-export type SelectedConnection = {
-    externalConnectionUuid: string;
-    name: string;
-    /** Handle the generated app calls it by: client.externalFetch(alias, …). */
-    alias: string;
-};
+export type SelectedConnection = AppVersionExternalConnectionResource;
 
 const SAMPLE_DATA_TOOLTIP =
     'Include sample data - runs this query and shares up to 10 rows with the app generator so it can see actual values (date ranges, labels, magnitudes). Off by default because rows can be sensitive.';
@@ -1004,11 +999,14 @@ export const ConnectionPickerView: FC<{
                 onSelect({
                     externalConnectionUuid: connection.externalConnectionUuid,
                     name: connection.name,
-                    alias: aliasFromName(connection.name),
+                    alias: uniqueAliasFromName(
+                        connection.name,
+                        selectedConnections.map((selected) => selected.alias),
+                    ),
                 });
             }
         },
-        [onSelect, onDeselect, selectedUuids],
+        [onSelect, onDeselect, selectedConnections, selectedUuids],
     );
 
     return (
@@ -1346,32 +1344,6 @@ export const AttachButton: FC<{
     );
 };
 
-/** A removable pill for a connection selected on this prompt. */
-export const SelectedConnectionChip: FC<{
-    name: string;
-    onRemove: () => void;
-}> = ({ name, onRemove }) => (
-    <Badge
-        variant="light"
-        color="gray"
-        size="md"
-        leftSection={<MantineIcon icon={IconPlugConnected} size={12} />}
-        rightSection={
-            <ActionIcon
-                size="xs"
-                variant="transparent"
-                color="gray"
-                onClick={onRemove}
-                aria-label={`Remove ${name}`}
-            >
-                <MantineIcon icon={IconX} size={10} />
-            </ActionIcon>
-        }
-    >
-        {name}
-    </Badge>
-);
-
 /**
  * Opens the external-connection picker directly — used by surfaces that
  * attach connections without the rest of the data-app resource menu.
@@ -1381,15 +1353,8 @@ export const ConnectionAttachButton: FC<{
     onSelect: (connection: SelectedConnection) => void;
     onDeselect: (uuid: string) => void;
     disabled: boolean;
-    /** Picker subtitle; defaults to the data-app wording. */
-    description?: string;
-}> = ({
-    selectedConnections,
-    onSelect,
-    onDeselect,
-    disabled,
-    description = 'Let the app fetch from these external APIs',
-}) => {
+    description: string;
+}> = ({ selectedConnections, onSelect, onDeselect, disabled, description }) => {
     const [opened, setOpened] = useState(false);
 
     return (

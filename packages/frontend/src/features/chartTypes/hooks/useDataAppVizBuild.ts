@@ -5,6 +5,7 @@ import {
     type ApiAppVersionSummary,
     type AppClarification,
     type AppExternalConnectionReference,
+    type AppVersionExternalConnectionResource,
     type DataAppClaudeModel,
     type DataAppCodexModel,
     type DataAppVizFieldMapping,
@@ -35,10 +36,6 @@ type Args = {
 };
 
 /** What was asked for, kept so a failure can be retried as it was sent. */
-export type VizBuildConnection = AppExternalConnectionReference & {
-    name: string;
-};
-
 export type VizBuildRequest = {
     description: string;
     fileIds: string[];
@@ -46,7 +43,7 @@ export type VizBuildRequest = {
      *  fell through, or never ran. Only a first build can carry them. */
     clarifications: AppClarification[];
     /** Connections to link before this generate/iterate. Empty when none. */
-    externalConnections: VizBuildConnection[];
+    externalConnections: AppVersionExternalConnectionResource[];
 } & (
     | { claudeModel: DataAppClaudeModel; codexModel?: never }
     | { codexModel: DataAppCodexModel; claudeModel?: never }

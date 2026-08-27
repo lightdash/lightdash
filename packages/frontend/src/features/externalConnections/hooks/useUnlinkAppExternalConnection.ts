@@ -1,6 +1,6 @@
-import { type ApiError } from '@lightdash/common'; // pragma: allowlist secret
+import { type ApiError } from '@lightdash/common'; // pragma: allowlist secret (product-name false positive)
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api'; // pragma: allowlist secret
+import { lightdashApi } from '../../../api'; // pragma: allowlist secret (product-name false positive)
 import useToaster from '../../../hooks/toaster/useToaster';
 import { invalidateAppConnectionQueries } from './invalidateAppConnectionQueries';
 
@@ -15,8 +15,11 @@ const unlinkAppExternalConnection = async ({
     appUuid,
     alias,
 }: UnlinkParams) =>
-    // oxfmt-ignore
-    lightdashApi<undefined>({ url: `/ee/projects/${projectUuid}/apps/${appUuid}/external-connections/${encodeURIComponent(alias)}`, method: 'DELETE', body: undefined }); // pragma: allowlist secret
+    lightdashApi<undefined>({ // pragma: allowlist secret (product-name false positive)
+        url: `/ee/projects/${projectUuid}/apps/${appUuid}/external-connections/${encodeURIComponent(alias)}`,
+        method: 'DELETE',
+        body: undefined,
+    });
 
 export const useUnlinkAppExternalConnection = () => {
     const queryClient = useQueryClient();

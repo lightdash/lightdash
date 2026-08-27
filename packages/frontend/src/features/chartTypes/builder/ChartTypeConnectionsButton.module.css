@@ -1,15 +1,3 @@
-.dropdown {
-    min-width: 340px;
-    max-width: 400px;
-}
-
-.header {
-    display: flex;
-    align-items: center;
-    gap: var(--mantine-spacing-xs);
-    margin-bottom: var(--mantine-spacing-xs);
-}
-
 .linkRow {
     display: flex;
     align-items: center;

@@ -5,6 +5,7 @@ import {
     generateSlug,
     NotFoundError,
     type CreateExternalConnection,
+    type AppExternalConnectionLinked,
     type ExternalConnection,
     type ExternalConnectionListItem,
     type ExternalConnectionSample,
@@ -877,9 +878,7 @@ export class ExternalConnectionModel {
         }
     }
 
-    async listAppLinks(
-        appId: string,
-    ): Promise<Array<{ alias: string; connection: ExternalConnection }>> {
+    async listAppLinks(appId: string): Promise<AppExternalConnectionLinked[]> {
         const rows = await this.database(AppExternalConnectionsTableName)
             .innerJoin(
                 ExternalConnectionsTableName,

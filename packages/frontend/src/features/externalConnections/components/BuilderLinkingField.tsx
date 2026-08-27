@@ -23,7 +23,7 @@ export const BuilderLinkingField: FC<Props> = ({
                 { value: 'admins', label: 'Admins only' },
                 {
                     value: 'builders',
-                    label: 'All builders',
+                    label: 'Data app and chart type builders',
                 },
             ]}
             value={value ? 'builders' : 'admins'}

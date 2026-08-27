@@ -1,16 +1,19 @@
 import {
     type ApiError,
     type AppExternalConnectionLinked,
-} from '@lightdash/common'; // pragma: allowlist secret
+} from '@lightdash/common'; // pragma: allowlist secret (product-name false positive)
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api'; // pragma: allowlist secret
+import { lightdashApi } from '../../../api'; // pragma: allowlist secret (product-name false positive)
 
 const getAppExternalConnections = async (
     projectUuid: string,
     appUuid: string,
 ) =>
-    // oxfmt-ignore
-    lightdashApi<AppExternalConnectionLinked[]>({ url: `/ee/projects/${projectUuid}/apps/${appUuid}/external-connections`, method: 'GET', body: undefined }); // pragma: allowlist secret
+    lightdashApi<AppExternalConnectionLinked[]>({ // pragma: allowlist secret (product-name false positive)
+        url: `/ee/projects/${projectUuid}/apps/${appUuid}/external-connections`,
+        method: 'GET',
+        body: undefined,
+    });
 
 export const useAppExternalConnections = (
     projectUuid: string | undefined,

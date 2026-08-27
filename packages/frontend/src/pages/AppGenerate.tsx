@@ -99,6 +99,7 @@ import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppPreview from '../features/apps/components/AppPreview';
 import AppVersionNarration from '../features/apps/components/AppVersionNarration';
 import ClarificationQuestionList from '../features/apps/components/ClarificationQuestionList';
+import ConnectionChip from '../features/apps/components/ConnectionChip';
 import LoadingDots from '../features/apps/components/LoadingDots';
 import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
@@ -268,32 +269,6 @@ const ThemeChip: FC<{
             ))}
         </Menu.Dropdown>
     </Menu>
-);
-
-/** A removable pill for a connection selected for this prompt. */
-const ConnectionChip: FC<{ name: string; onRemove: () => void }> = ({
-    name,
-    onRemove,
-}) => (
-    <Badge
-        variant="light"
-        color="gray"
-        size="md"
-        leftSection={<MantineIcon icon={IconPlugConnected} size={12} />}
-        rightSection={
-            <ActionIcon
-                size="xs"
-                variant="transparent"
-                color="gray"
-                onClick={onRemove}
-                aria-label={`Remove ${name}`}
-            >
-                <MantineIcon icon={IconX} size={10} />
-            </ActionIcon>
-        }
-    >
-        {name}
-    </Badge>
 );
 
 /** A removable pill for an element picked with the inspector. Matches the

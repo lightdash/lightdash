@@ -10,6 +10,7 @@ import {
     type ApiTestExternalConnectionConfigRequest,
     type ApiTestExternalConnectionRequest,
     type ApiTestExternalConnectionResponse,
+    type AppExternalConnectionLinked,
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionListItem,
@@ -53,7 +54,7 @@ type ApiExternalConnectionListResponse = {
 
 type ApiAppExternalConnectionListResponse = {
     status: 'ok';
-    results: Array<{ alias: string; connection: ExternalConnection }>;
+    results: AppExternalConnectionLinked[];
 };
 
 type ApiExternalFetchResponse = {

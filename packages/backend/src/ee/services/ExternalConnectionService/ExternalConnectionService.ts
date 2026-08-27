@@ -11,6 +11,7 @@ import {
     TooManyRequestsError,
     type Account,
     type ApiSaveExternalConnectionSampleRequest,
+    type AppExternalConnectionLinked,
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionConfigProposal,
@@ -513,7 +514,7 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         appUuid: string,
-    ): Promise<Array<{ alias: string; connection: ExternalConnection }>> {
+    ): Promise<AppExternalConnectionLinked[]> {
         const app = await this.assertCanManageApp(account, appUuid);
         if (app.project_uuid !== projectUuid) {
             throw new NotFoundError('Data app not found');

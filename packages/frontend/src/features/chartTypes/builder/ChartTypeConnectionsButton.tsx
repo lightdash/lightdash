@@ -11,10 +11,10 @@ import {
     ConnectionPickerView,
     type SelectedConnection,
 } from '../../apps/AppResourcePicker';
+import appPickerClasses from '../../apps/AppResourcePicker.module.css';
 import { useAppExternalConnections } from '../../externalConnections/hooks/useAppExternalConnections';
 import { useLinkAppExternalConnection } from '../../externalConnections/hooks/useLinkAppExternalConnection';
 import { useUnlinkAppExternalConnection } from '../../externalConnections/hooks/useUnlinkAppExternalConnection';
-import { aliasFromName } from '../../externalConnections/utils/aliasFromName';
 import classes from './ChartTypeConnectionsButton.module.css';
 
 type Props = {
@@ -34,18 +34,18 @@ const ChartTypeConnectionsButton: FC<Props> = ({ projectUuid, appUuid }) => {
         projectUuid,
         appUuid,
     );
-    const { mutate: link, isLoading: isLinking } =
+    const { mutate: linkConnection, isLoading: isLinking } =
         useLinkAppExternalConnection();
-    const { mutate: unlink, isLoading: isUnlinking } =
+    const { mutate: unlinkConnection, isLoading: isUnlinking } =
         useUnlinkAppExternalConnection();
     const isBusy = isLinking || isUnlinking;
 
     const selectedConnections: SelectedConnection[] = useMemo(
         () =>
-            links.map((link) => ({
-                externalConnectionUuid: link.connection.externalConnectionUuid,
-                name: link.connection.name,
-                alias: link.alias,
+            links.map((item) => ({
+                externalConnectionUuid: item.connection.externalConnectionUuid,
+                name: item.connection.name,
+                alias: item.alias,
             })),
         [links],
     );
@@ -57,14 +57,22 @@ const ChartTypeConnectionsButton: FC<Props> = ({ projectUuid, appUuid }) => {
 
     const handleSelect = useCallback(
         (connection: SelectedConnection) => {
-            link({
+            if (isBusy) return;
+            linkConnection({
                 projectUuid,
                 appUuid,
                 externalConnectionUuid: connection.externalConnectionUuid,
-                alias: connection.alias || aliasFromName(connection.name),
+                alias: connection.alias,
             });
         },
-        [appUuid, link, projectUuid],
+        [appUuid, isBusy, linkConnection, projectUuid],
+    );
+
+    const handleUnlink = useCallback(
+        (alias: string) => {
+            unlinkConnection({ projectUuid, appUuid, alias });
+        },
+        [appUuid, projectUuid, unlinkConnection],
     );
 
     const handleDeselect = useCallback(
@@ -73,13 +81,9 @@ const ChartTypeConnectionsButton: FC<Props> = ({ projectUuid, appUuid }) => {
                 (item) => item.connection.externalConnectionUuid === uuid,
             );
             if (!linked) return;
-            unlink({
-                projectUuid,
-                appUuid,
-                alias: linked.alias,
-            });
+            handleUnlink(linked.alias);
         },
-        [appUuid, links, projectUuid, unlink],
+        [handleUnlink, links],
     );
 
     return (
@@ -108,10 +112,14 @@ const ChartTypeConnectionsButton: FC<Props> = ({ projectUuid, appUuid }) => {
                         : 'Connections'}
                 </Button>
             </Popover.Target>
-            <Popover.Dropdown className={classes.dropdown} p={0}>
+            <Popover.Dropdown className={appPickerClasses.queryDropdown} p={0}>
                 {view === 'add' ? (
                     <>
-                        <Box p="xs" pb={0} className={classes.header}>
+                        <Box
+                            p="xs"
+                            pb={0}
+                            className={appPickerClasses.attachPickerHeader}
+                        >
                             <ActionIcon
                                 variant="subtle"
                                 size="sm"
@@ -166,7 +174,9 @@ const ChartTypeConnectionsButton: FC<Props> = ({ projectUuid, appUuid }) => {
                                             </Text>
                                             <Text size="xs" c="dimmed" truncate>
                                                 {item.connection.origin}
-                                                {item.connection
+                                                {item.connection.type ===
+                                                    'none' &&
+                                                item.connection
                                                     .allowBrowserImages
                                                     ? ' · public images'
                                                     : ''}
@@ -178,10 +188,7 @@ const ChartTypeConnectionsButton: FC<Props> = ({ projectUuid, appUuid }) => {
                                             size="xs"
                                             aria-label={`Unlink ${item.connection.name}`}
                                             onClick={() =>
-                                                handleDeselect(
-                                                    item.connection
-                                                        .externalConnectionUuid,
-                                                )
+                                                handleUnlink(item.alias)
                                             }
                                             disabled={isBusy}
                                         >

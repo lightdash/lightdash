@@ -29,13 +29,13 @@ import PromptComposer, {
     type PromptComposerHandle,
 } from '../../../components/common/PromptComposer/PromptComposer';
 import {
+    ConnectionAttachButton,
     ModelPicker,
     SelectedAttachmentSection,
-    SelectedConnectionChip,
-    ConnectionAttachButton,
     type SelectedConnection,
 } from '../../apps/AppResourcePicker';
 import AppVersionNarration from '../../apps/components/AppVersionNarration';
+import ConnectionChip from '../../apps/components/ConnectionChip';
 import { type ClarificationRound } from '../../apps/hooks/useClarificationRound';
 import { type DataAppModelSelection } from '../../apps/hooks/useDataAppModelSelection';
 import {
@@ -538,7 +538,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     <Group gap="xs">
                                         {selectedConnections.map(
                                             (connection) => (
-                                                <SelectedConnectionChip
+                                                <ConnectionChip
                                                     key={
                                                         connection.externalConnectionUuid
                                                     }
