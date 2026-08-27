@@ -102,17 +102,38 @@ if [[ "\$*" == *'contents/values.yml?ref='* ]]; then
     exit 0
 fi
 
+if [[ "\$*" == *'git/commits/2222222222222222222222222222222222222222'* ]]; then
+    printf '1111111111111111111111111111111111111111\n'
+    exit 0
+fi
+
 if [[ "\$*" == *'git/ref/heads/'* ]]; then
+    if [[ "\$*" == *'-build-'* && -f "$test_dir/scratch-sha" ]]; then
+        cat "$test_dir/scratch-sha"
+        exit 0
+    fi
     exit 1
 fi
 
 if [[ "\$*" == *'git/refs'* ]]; then
+    if [[ "\$*" == *'-build-'* ]]; then
+        if [[ "\$*" == *'--method DELETE'* ]]; then
+            rm -f "$test_dir/scratch-sha"
+        else
+            for arg in "\$@"; do
+                if [[ "\$arg" == sha=* ]]; then
+                    printf '%s\n' "\${arg#sha=}" >"$test_dir/scratch-sha"
+                fi
+            done
+        fi
+    fi
     printf '{}\n'
     exit 0
 fi
 
 if [[ "\$*" == *graphql* ]]; then
     cat >"$test_dir/graphql-input"
+    printf '2222222222222222222222222222222222222222\n' >"$test_dir/scratch-sha"
     printf '{"data":{"createCommitOnBranch":{"commit":{"oid":"2222222222222222222222222222222222222222","url":"https://example.test/c"}}}}\n'
     exit 0
 fi
@@ -349,8 +370,10 @@ run_transaction_test() {
     local committed_target
     local committed_unrelated
     local graphql_count
+    local scratch_delete_count
     local bump_filename=values.yml
     local fresh_suffix=yml
+    local safety_gate=false
 
     if [[ "$scenario" == "json_round_trip" ]]; then
         bump_filename=values.json
@@ -376,6 +399,7 @@ EOF
     fi
     cp "$scenario_dir/$bump_filename" "$scenario_dir/fresh-1.$fresh_suffix"
     cp "$scenario_dir/$bump_filename" "$scenario_dir/fresh-2.$fresh_suffix"
+    sed 's/tag: 1.0.0/tag: 1.0.2/' "$scenario_dir/$bump_filename" >"$scenario_dir/head-pinned.$fresh_suffix"
 
     case "$scenario" in
         stale_checkout)
@@ -397,7 +421,10 @@ EOF
         json_round_trip)
             sed 's/"old"/"new"/' "$scenario_dir/$bump_filename" >"$scenario_dir/fresh-1.$fresh_suffix"
             ;;
-        freeze_mid_run | retry_exhaustion)
+        nothing_changed)
+            safety_gate=true
+            ;;
+        main_moved | first_run_creation | scratch_collision | unexpected_commit_parent | freeze_mid_run | retry_exhaustion)
             ;;
         *)
             printf 'unknown transaction test scenario: %s\n' "$scenario" >&2
@@ -416,11 +443,31 @@ EOF
 }
 EOF
     : >"$scenario_dir/gh.log"
+    : >"$scenario_dir/slack.log"
+
+    mkdir -p "$scenario_dir/runner-temp/lightdash-upgrade-cli/node_modules/.bin"
+    cat >"$scenario_dir/runner-temp/lightdash-upgrade-cli/node_modules/.bin/lightdash" <<'EOF'
+#!/usr/bin/env bash
+
+printf '{"coveredVersions":[],"direction":"upgrade","fromVersion":"1.0.0","minPreviousVersion":null,"missingRanges":[],"requiredStops":[],"safe":false,"toVersion":"1.0.2","verdict":"unknown"}\n'
+exit 1
+EOF
+
+    cat >"$scenario_dir/bin/npm" <<'EOF'
+#!/usr/bin/env bash
+
+exit 0
+EOF
 
     cat >"$scenario_dir/bin/curl" <<'EOF'
 #!/usr/bin/env bash
 
 set -euo pipefail
+
+if [[ "$*" == *slack.test* ]]; then
+    printf '%s\n' "$*" >>"$TEST_SCENARIO_DIR/slack.log"
+    exit 0
+fi
 
 out=
 prev=
@@ -475,6 +522,10 @@ if [[ "$*" == *'git/ref/heads/main'* ]]; then
 fi
 
 if [[ "$*" == *"contents/$GH_BUMP_FILE?ref="* ]]; then
+    if [[ "$*" == *'ref=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'* ]]; then
+        base64 <"$TEST_SCENARIO_DIR/head-pinned.$GH_FRESH_SUFFIX" | tr -d '\n'
+        exit 0
+    fi
     content_count=$(next_count "$TEST_SCENARIO_DIR/content-count")
     fresh_file="$TEST_SCENARIO_DIR/fresh-1.$GH_FRESH_SUFFIX"
     if [[ "$GH_SCENARIO" == "retry_rederive" && "$content_count" -gt 1 ]]; then
@@ -484,8 +535,30 @@ if [[ "$*" == *"contents/$GH_BUMP_FILE?ref="* ]]; then
     exit 0
 fi
 
+if [[ "$*" == *'git/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'* ]]; then
+    if [[ "$GH_SCENARIO" == "nothing_changed" ]]; then
+        printf '1111111111111111111111111111111111111111\n'
+    else
+        printf '0000000000000000000000000000000000000000\n'
+    fi
+    exit 0
+fi
+
+if [[ "$*" == *'git/commits/2222222222222222222222222222222222222222'* ]]; then
+    if [[ "$GH_SCENARIO" == "unexpected_commit_parent" ]]; then
+        printf '0000000000000000000000000000000000000000\n'
+    else
+        cat "$TEST_SCENARIO_DIR/commit-parent"
+    fi
+    exit 0
+fi
+
 if [[ "$*" == *'git/ref/heads/'* ]]; then
-    if [[ -f "$TEST_SCENARIO_DIR/branch-created" ]]; then
+    if [[ "$*" == *'-build-'* && -f "$TEST_SCENARIO_DIR/scratch-sha" ]]; then
+        cat "$TEST_SCENARIO_DIR/scratch-sha"
+        exit 0
+    fi
+    if [[ "$*" != *'-build-'* && ( "$GH_SCENARIO" == "nothing_changed" || "$GH_SCENARIO" == "main_moved" || -f "$TEST_SCENARIO_DIR/upgrade-created" ) ]]; then
         printf '{}\n'
         exit 0
     fi
@@ -493,7 +566,22 @@ if [[ "$*" == *'git/ref/heads/'* ]]; then
 fi
 
 if [[ "$*" == *'git/refs'* ]]; then
-    : >"$TEST_SCENARIO_DIR/branch-created"
+    if [[ "$*" == *'-build-'* ]]; then
+        if [[ "$*" == *'--method DELETE'* ]]; then
+            rm -f "$TEST_SCENARIO_DIR/scratch-sha"
+        else
+            if [[ "$GH_SCENARIO" == "scratch_collision" ]]; then
+                exit 1
+            fi
+            for arg in "$@"; do
+                if [[ "$arg" == sha=* ]]; then
+                    printf '%s\n' "${arg#sha=}" >"$TEST_SCENARIO_DIR/scratch-sha"
+                fi
+            done
+        fi
+    else
+        : >"$TEST_SCENARIO_DIR/upgrade-created"
+    fi
     printf '{}\n'
     exit 0
 fi
@@ -504,11 +592,16 @@ if [[ "$*" == *graphql* ]]; then
     if [[ "$GH_SCENARIO" == "retry_exhaustion" || ( "$GH_SCENARIO" == "retry_rederive" && "$graphql_count" == "1" ) ]]; then
         exit 1
     fi
+    cp "$TEST_SCENARIO_DIR/scratch-sha" "$TEST_SCENARIO_DIR/commit-parent"
+    printf '2222222222222222222222222222222222222222\n' >"$TEST_SCENARIO_DIR/scratch-sha"
     printf '{"data":{"createCommitOnBranch":{"commit":{"oid":"2222222222222222222222222222222222222222","url":"https://example.test/c"}}}}\n'
     exit 0
 fi
 
 if [[ "$*" == "pr list"* ]]; then
+    if [[ "$GH_SCENARIO" == "nothing_changed" || "$GH_SCENARIO" == "main_moved" ]]; then
+        printf '{"number":1,"url":"https://example.test/pr/1","headRefOid":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}\n'
+    fi
     exit 0
 fi
 
@@ -526,22 +619,31 @@ if [[ "$*" == "pr comment"* ]]; then
     exit 0
 fi
 
+if [[ "$*" == "pr edit"* ]]; then
+    exit 0
+fi
+
 printf 'unexpected gh invocation: %s\n' "$*" >&2
 exit 1
 EOF
 
-    chmod +x "$scenario_dir/bin/curl" "$scenario_dir/bin/gh"
+    chmod +x "$scenario_dir/bin/curl" "$scenario_dir/bin/gh" "$scenario_dir/bin/npm" \
+        "$scenario_dir/runner-temp/lightdash-upgrade-cli/node_modules/.bin/lightdash"
 
     set +e
     output=$(cd "$scenario_dir" && \
         PATH="$scenario_dir/bin:$PATH" \
         TEST_SCENARIO_DIR="$scenario_dir" \
+        RUNNER_TEMP="$scenario_dir/runner-temp" \
         GH_SCENARIO="$scenario" \
         GH_BUMP_FILE="$bump_filename" \
         GH_FRESH_SUFFIX="$fresh_suffix" \
+        GITHUB_RUN_ID=12345 \
+        GITHUB_RUN_ATTEMPT=1 \
         GITHUB_REPOSITORY=example/upgrade-test \
         BUMP_TARGET="$bump_filename#image.tag" \
-        SAFETY_GATE=false \
+        SAFETY_GATE="$safety_gate" \
+        ESCALATION=https://slack.test/webhook \
         FREEZE_LABEL=upgrade-freeze \
         GH_TOKEN=test-token \
         "${BASH:-bash}" "$root/examples/upgrade-automation/scripts/plan.sh" 2>&1)
@@ -625,8 +727,62 @@ EOF
             ;;
         retry_exhaustion)
             graphql_count=$(<"$scenario_dir/graphql-count")
-            if [[ "$graphql_count" != "3" || "$output" != *'failed to commit values.yml after 3 attempts'* ]] || grep -q '^pr create' "$scenario_dir/gh.log"; then
+            scratch_delete_count=$(grep -c -- '--method DELETE repos/example/upgrade-test/git/refs/heads/lightdash-upgrade-1.0.2-build-12345-1' "$scenario_dir/gh.log")
+            if [[ "$graphql_count" != "3" || "$scratch_delete_count" != "3" || -f "$scenario_dir/scratch-sha" \
+                || "$output" != *'failed to commit values.yml after 3 attempts'* ]] || grep -q '^pr create' "$scenario_dir/gh.log"; then
                 printf 'expected three failed commits and no PR, got:\n%s\ngh calls were:\n%s\n' "$output" "$(cat "$scenario_dir/gh.log")" >&2
+                rm -rf "$scenario_dir"
+                exit 1
+            fi
+            ;;
+        nothing_changed)
+            if [[ "$output" != *'already pins 1.0.2 on current main'* ]] \
+                || [[ "$output" != *'not repeating the escalation'* ]] \
+                || grep -Eq -- '--method (POST|PATCH|DELETE) repos/example/upgrade-test/git/refs|api graphql|pr create|pr edit' "$scenario_dir/gh.log" \
+                || [[ -s "$scenario_dir/slack.log" ]]; then
+                printf 'expected an unchanged held pull request to skip every mutation and escalation, got:\n%s\ngh calls were:\n%s\nslack calls were:\n%s\n' \
+                    "$output" "$(cat "$scenario_dir/gh.log")" "$(cat "$scenario_dir/slack.log")" >&2
+                rm -rf "$scenario_dir"
+                exit 1
+            fi
+            ;;
+        main_moved)
+            if grep -q '^pr create' "$scenario_dir/gh.log" \
+                || ! grep -q '^pr edit https://example.test/pr/1' "$scenario_dir/gh.log" \
+                || ! grep -q -- '-f ref=refs/heads/lightdash-upgrade-1.0.2-build-12345-1 -f sha=1111111111111111111111111111111111111111' "$scenario_dir/gh.log" \
+                || ! grep -q -- 'git/refs/heads/lightdash-upgrade-1.0.2 -f sha=2222222222222222222222222222222222222222' "$scenario_dir/gh.log" \
+                || grep -q -- 'git/refs/heads/lightdash-upgrade-1.0.2 -f sha=1111111111111111111111111111111111111111' "$scenario_dir/gh.log" \
+                || ! grep -q -- '--method DELETE repos/example/upgrade-test/git/refs/heads/lightdash-upgrade-1.0.2-build-12345-1' "$scenario_dir/gh.log" \
+                || ! jq -e '.variables.input.branch.branchName == "lightdash-upgrade-1.0.2-build-12345-1"' "$scenario_dir/graphql-input-1" >/dev/null; then
+                printf 'expected a moved main branch to rebuild through a scratch ref and reuse the pull request, gh calls were:\n%s\n' "$(cat "$scenario_dir/gh.log")" >&2
+                rm -rf "$scenario_dir"
+                exit 1
+            fi
+            ;;
+        first_run_creation)
+            if ! grep -q -- '-f ref=refs/heads/lightdash-upgrade-1.0.2-build-12345-1 -f sha=1111111111111111111111111111111111111111' "$scenario_dir/gh.log" \
+                || ! grep -q -- '-f ref=refs/heads/lightdash-upgrade-1.0.2 -f sha=2222222222222222222222222222222222222222' "$scenario_dir/gh.log" \
+                || ! grep -q '^pr create' "$scenario_dir/gh.log" \
+                || ! grep -q -- '--method DELETE repos/example/upgrade-test/git/refs/heads/lightdash-upgrade-1.0.2-build-12345-1' "$scenario_dir/gh.log"; then
+                printf 'expected a first run to build on a scratch ref, create the upgrade branch, and open a pull request, gh calls were:\n%s\n' "$(cat "$scenario_dir/gh.log")" >&2
+                rm -rf "$scenario_dir"
+                exit 1
+            fi
+            ;;
+        scratch_collision)
+            if grep -Eq -- 'api graphql|git/refs/heads/lightdash-upgrade-1.0.2|--method DELETE' "$scenario_dir/gh.log"; then
+                printf 'expected a scratch ref collision to abort without overwriting or deleting any ref, gh calls were:\n%s\n' "$(cat "$scenario_dir/gh.log")" >&2
+                rm -rf "$scenario_dir"
+                exit 1
+            fi
+            ;;
+        unexpected_commit_parent)
+            if [[ "$output" != *'created commit is not the expected child'* ]] \
+                || grep -q -- 'git/refs/heads/lightdash-upgrade-1.0.2 ' "$scenario_dir/gh.log" \
+                || ! grep -q -- '--method DELETE repos/example/upgrade-test/git/refs/heads/lightdash-upgrade-1.0.2-build-12345-1' "$scenario_dir/gh.log" \
+                || [[ -f "$scenario_dir/scratch-sha" ]]; then
+                printf 'expected an unexpected commit parent to block the upgrade ref and clean up the scratch ref, got:\n%s\ngh calls were:\n%s\n' \
+                    "$output" "$(cat "$scenario_dir/gh.log")" >&2
                 rm -rf "$scenario_dir"
                 exit 1
             fi
@@ -645,6 +801,11 @@ run_transaction_test key_moved 'plan key moved mid-plan' 0
 run_transaction_test retry_rederive 'plan retry re-derives from a fresh base' 0
 run_transaction_test freeze_mid_run 'plan freeze armed mid-run' 0
 run_transaction_test retry_exhaustion 'plan retry exhaustion' 1
+run_transaction_test nothing_changed 'plan unchanged held pull request' 0
+run_transaction_test main_moved 'plan moved-main pull request reuse' 0
+run_transaction_test first_run_creation 'plan first-run pull request creation' 0
+run_transaction_test scratch_collision 'plan scratch ref collision' 1
+run_transaction_test unexpected_commit_parent 'plan unexpected commit parent' 1
 
 run_auto_merge_test() {
     local test_name=$1
@@ -730,17 +891,38 @@ if [[ "$*" == *'contents/values.yml?ref='* ]]; then
     exit 0
 fi
 
+if [[ "$*" == *'git/commits/2222222222222222222222222222222222222222'* ]]; then
+    printf '1111111111111111111111111111111111111111\n'
+    exit 0
+fi
+
 if [[ "$*" == *'git/ref/heads/'* ]]; then
+    if [[ "$*" == *'-build-'* && -f "$TEST_SCENARIO_DIR/scratch-sha" ]]; then
+        cat "$TEST_SCENARIO_DIR/scratch-sha"
+        exit 0
+    fi
     exit 1
 fi
 
 if [[ "$*" == *'git/refs'* ]]; then
+    if [[ "$*" == *'-build-'* ]]; then
+        if [[ "$*" == *'--method DELETE'* ]]; then
+            rm -f "$TEST_SCENARIO_DIR/scratch-sha"
+        else
+            for arg in "$@"; do
+                if [[ "$arg" == sha=* ]]; then
+                    printf '%s\n' "${arg#sha=}" >"$TEST_SCENARIO_DIR/scratch-sha"
+                fi
+            done
+        fi
+    fi
     printf '{}\n'
     exit 0
 fi
 
 if [[ "$*" == *graphql* ]]; then
     cat >"$TEST_SCENARIO_DIR/graphql-input"
+    printf '2222222222222222222222222222222222222222\n' >"$TEST_SCENARIO_DIR/scratch-sha"
     printf '{"data":{"createCommitOnBranch":{"commit":{"oid":"2222222222222222222222222222222222222222","url":"https://example.test/c"}}}}\n'
     exit 0
 fi
