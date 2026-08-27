@@ -7,6 +7,7 @@ import {
     type UUID,
 } from '@lightdash/common';
 import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
+import { type ChartSavedAction } from '../../features/embed/events/types';
 
 export const EMBED_KEY = 'lightdash-embed';
 
@@ -49,9 +50,9 @@ export interface EmbedContext {
     t: (input: string) => string | undefined;
     // The function to call when the user clicks "Back to dashboard" from an Explore
     onBackToDashboard?: () => void;
-    // Called after a chart is created from an embedded Explore. The dashboard
-    // builder's "New chart" flow uses this to turn the chart into a tile.
-    onChartSaved?: (chart: SavedChart) => void;
+    // Called after a chart is created or updated from an embedded Explore. The
+    // dashboard builder uses this to update its chart editor state.
+    onChartSaved?: (chart: SavedChart, action: ChartSavedAction) => void;
     // The chart that the user is exploring
     savedChart?: EmbedExploreChart;
     // The saved chart whose persisted custom SQL seeded this Explore. This is
