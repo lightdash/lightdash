@@ -276,6 +276,12 @@
     min-width: 0;
 }
 
+/* The root's 4px gap plus this inset matches its 10px horizontal padding,
+ * keeping a leading action visually centered between the border and text. */
+.inlineActions + .inlineEditorWrap {
+    --composer-inline-inset: rem(6px);
+}
+
 .inlineEditorContent {
     padding: 0 var(--mantine-spacing-xs) 0 0;
     font-size: var(--mantine-font-size-sm);

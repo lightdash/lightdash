@@ -130,11 +130,10 @@ const SuggestionPills: FC<{
 // experience looks and feels identical, not a lookalike. Selecting a
 // different agent from the built-in AgentSelector navigates to that agent's
 // thread page (same as everywhere else it's used); picking one before typing
-// leaves day-0, which is expected. No sql-mode toggle: onSqlModeChange is
-// intentionally omitted. Suggestion chips are fetched and rendered locally
-// (not via AgentChatInput's own `showSuggestions`) so they keep the design's
-// pill styling, and so a specific reference agent can power them even when
-// the composer itself is in Auto mode.
+// leaves day-0, which is expected. Suggestion chips are fetched and rendered
+// locally (not via AgentChatInput's own `showSuggestions`) so they keep the
+// design's pill styling, and so a specific reference agent can power them
+// even when the composer itself is in Auto mode.
 const DayOneAskInputInner: FC<Props> = ({
     projectUuid,
     preview = false,
@@ -189,8 +188,15 @@ const DayOneAskInputInner: FC<Props> = ({
     const sqlModeAvailable = useAiAgentSqlModeAvailable(
         projectUuid ?? undefined,
     );
-    const enableSqlMode =
-        sqlModeAvailable && (selectedAgent?.enableSqlMode ?? true);
+    const [sqlModeOverride, setSqlModeOverride] = useState<{
+        agentUuid: string;
+        value: boolean;
+    }>();
+    const sqlMode =
+        sqlModeOverride && sqlModeOverride.agentUuid === selectedAgent?.uuid
+            ? sqlModeOverride.value
+            : (selectedAgent?.enableSqlMode ?? true);
+    const enableSqlMode = sqlModeAvailable && sqlMode;
     const suggestionsSqlMode =
         sqlModeAvailable && (referenceAgent?.enableSqlMode ?? true);
 
@@ -382,6 +388,18 @@ const DayOneAskInputInner: FC<Props> = ({
                     onStartDeepResearch={
                         selectedAgent && canStartDeepResearch
                             ? handleStartDeepResearch
+                            : undefined
+                    }
+                    sqlMode={
+                        sqlModeAvailable && selectedAgent ? sqlMode : undefined
+                    }
+                    onSqlModeChange={
+                        sqlModeAvailable && selectedAgent
+                            ? (value) =>
+                                  setSqlModeOverride({
+                                      agentUuid: selectedAgent.uuid,
+                                      value,
+                                  })
                             : undefined
                     }
                     loading={isCreatingThread}
