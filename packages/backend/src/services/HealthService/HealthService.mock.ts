@@ -8,6 +8,7 @@ import {
 export const BaseResponse: HealthState = {
     healthy: true,
     requiresMigration: false,
+    migrationWarnings: undefined,
     license: {
         hasLicenseKey: false,
         valid: false,
@@ -23,6 +24,7 @@ export const BaseResponse: HealthState = {
     isAuthenticated: false,
     requiresOrgRegistration: false,
     localDbtEnabled: true,
+    defaultProject: undefined,
     siteUrl: 'https://test.lightdash.cloud',
     staticIp: '',
     signupUrl: undefined,
@@ -34,7 +36,7 @@ export const BaseResponse: HealthState = {
     hasMicrosoftTeams: false,
     hasGithub: false,
     hasGitlab: false,
-    hasLinear: false,
+    hasLinear: true,
     hasHeadlessBrowser: false,
     hasSlack: false,
     auth: {
