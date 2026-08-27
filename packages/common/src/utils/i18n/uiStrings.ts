@@ -1,5 +1,16 @@
 // Single source of truth for embed UI-chrome strings. Keys are flat dot-paths;
 // SdkUiOverrides/UiStringKey are derived from this object so they cannot drift.
+//
+// Contract:
+// - Shipped keys are a public API for SDK consumers (`uiOverrides`): additive
+//   only — never rename, remove, or repurpose a key.
+// - English defaults live only here. Call sites resolve via useUiStrings()
+//   (frontend) or an optional UiStringResolver param (pure common code) —
+//   never an inline fallback.
+// - Dynamic parts use {token} placeholders with interpolateUiString; one key
+//   per English plural form, no ICU.
+// See packages/frontend/src/components/common/Filters/CLAUDE.md for the full
+// mandate on adding strings to embed-reachable surfaces.
 export const DEFAULT_UI_STRINGS = {
     'tileMenu.exploreFromHere': 'Explore from here',
     'tileMenu.downloadData': 'Download data',

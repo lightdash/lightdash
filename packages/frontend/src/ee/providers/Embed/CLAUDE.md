@@ -43,27 +43,29 @@ The provider automatically extracts JWT tokens from URL hashes (e.g., `/embed/pr
 <codeExample>
 
 ```typescript
-// Embedding a dashboard with filters
+// Embedding a dashboard with translations:
+// - contentOverrides is a slug-keyed LanguageMap (chart/dashboard content)
+// - uiOverrides is a flat UiStringKey→string map (UI chrome: filters,
+//   date zoom, tile menus)
 <EmbedProvider
     projectUuid={projectUuid}
     filters={dashboardFilters}
-    contentOverrides={{
-        'common.explore': 'Analyze',
-        'common.back_to_dashboard': 'Return',
+    contentOverrides={languageMap}
+    uiOverrides={{
+        'tileMenu.exploreFromHere': 'Analyser',
+        'filters.apply': 'Appliquer',
     }}
 >
     <EmbeddedDashboard />
 </EmbedProvider>;
 
-// Consuming embed context
-function EmbeddedChart() {
-    const { embedToken, onExplore, t } = useEmbed();
-
-    return (
-        <button onClick={() => onExplore({ chart: savedChart })}>
-            {t('common.explore') || 'Explore'}
-        </button>
-    );
+// Consuming a UI string in a shared component: NEVER call t() directly with
+// an inline fallback. Use useUiStrings — it resolves override ?? the English
+// default from DEFAULT_UI_STRINGS (packages/common/src/utils/i18n/uiStrings.ts)
+// and works outside embed contexts too.
+function SomeSharedComponent() {
+    const getUiString = useUiStrings();
+    return <button>{getUiString('tileMenu.exploreFromHere')}</button>;
 }
 
 // Filter type structure
@@ -84,6 +86,7 @@ const filter: SdkFilter = {
 - User abilities are automatically updated based on the embedded user's permissions
 - The provider supports navigation between dashboard and explore views while maintaining context
 - Content can be customized through language maps for white-label deployments
+- UI chrome strings are translated via the `uiOverrides` prop: `t()` on the context looks up a `UiStringKey` in it, and `useUiStrings()` adds the English-default fallback. `t()` resolves at a single point in the provider so a future direct-embed transport can add its source there. Shipped `UiStringKey`s are a public SDK contract — additive only, never rename or remove. See `packages/frontend/src/components/common/Filters/CLAUDE.md` for the full mandate on adding strings.
 - Embed tokens contain permissions, user attributes, and expiration settings configured server-side
 </importantToKnow>
 
