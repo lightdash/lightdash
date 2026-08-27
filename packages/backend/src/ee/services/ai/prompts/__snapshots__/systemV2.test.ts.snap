@@ -8,8 +8,8 @@ exports[`getSystemPromptV2 filter expressions > renders expression-only filter g
 For \`generateVisualization\`, \`dimensions\`, \`metrics\`, and \`tableCalculations\` are independent string expressions or null.
 
 - A non-null category contains one raw string expression.
-- Dimension fields belong only in \`dimensions\`.
-- Metric fields belong only in \`metrics\`.
+- Choose the category from discovered field metadata (its dimension/metric kind), never from a field name or whether a numeric field sounds metric-like. A raw numeric dimension belongs in \`dimensions\`; only metrics and custom metrics belong in \`metrics\`.
+- A field used only to restrict rows stays in its filter expression. Do not add it to \`queryConfig.dimensions\` unless the user asked to group by or display it: extra selected dimensions change aggregation and table-calculation grain.
 - Table calculations belong only in \`tableCalculations\`.
 - Each category is flat and uses AND or OR, never both.
 - The three categories combine implicitly with AND.

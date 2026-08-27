@@ -91,10 +91,36 @@ describe('getSystemPromptV2 filter expressions', () => {
         expect(section).not.toContain('filter objects');
         expect(section).not.toContain('filters: {');
         expect(section).not.toContain('"filters"');
-        expect(section).not.toContain('queryConfig');
+        expect(section).not.toContain('queryConfig: {');
+        expect(section).not.toContain('"queryConfig"');
         expect(
             content.match(/### Generated raw expression matrix/g),
         ).toHaveLength(1);
+    });
+
+    test('uses metadata-based filter categories without changing query grain', () => {
+        const section = extractExpressionFilterSection(
+            promptText({
+                availableExplores: [],
+                enableFilterExpressions: true,
+            }),
+        );
+
+        expect(section).toContain(
+            'category from discovered field metadata (its dimension/metric kind)',
+        );
+        expect(section).toContain(
+            'raw numeric dimension belongs in `dimensions`',
+        );
+        expect(section).toContain(
+            'only metrics and custom metrics belong in `metrics`',
+        );
+        expect(section).toContain(
+            'Do not add it to `queryConfig.dimensions` unless the user asked to group by or display it',
+        );
+        expect(section).toContain(
+            'extra selected dimensions change aggregation and table-calculation grain',
+        );
     });
 
     test('leaves no template placeholders in either mode', () => {
