@@ -5616,6 +5616,8 @@ export class AiAgentModel {
                 responded_at: this.database.raw('NULL'),
                 error_message: null,
                 token_usage: null,
+                needs_user_input: null,
+                needs_user_input_metadata: null,
                 retried_at: this.database.fn.now(),
             })
             .where('ai_prompt_uuid', promptUuid)
