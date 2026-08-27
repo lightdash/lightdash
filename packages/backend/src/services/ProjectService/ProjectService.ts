@@ -2757,6 +2757,16 @@ export class ProjectService extends BaseService {
                 internalProvisioning?.source,
             );
 
+        if (
+            createProject.type === ProjectType.PREVIEW &&
+            createProject.upstreamProjectUuid
+        ) {
+            await this.projectDbtSourcesModel.copySources(
+                createProject.upstreamProjectUuid,
+                projectUuid,
+            );
+        }
+
         const onboardingFlow = await this.getOnboardingFlow(user);
         // Do not give this user admin permissions on this new project,
         // as it could be an interactive viewer creating a preview

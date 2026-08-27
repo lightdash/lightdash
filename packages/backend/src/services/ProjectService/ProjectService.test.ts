@@ -405,7 +405,9 @@ const getMockedProjectService = (
         projectModel: projectModel as unknown as ProjectModel,
         projectDbtSourcesModel:
             overrides.projectDbtSourcesModel ??
-            ({} as unknown as ProjectDbtSourcesModel),
+            ({
+                copySources: vi.fn(async () => undefined),
+            } as unknown as ProjectDbtSourcesModel),
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
@@ -1365,6 +1367,107 @@ describe('ProjectService', () => {
         createWithoutCompileSpy.mockRestore();
         scheduleCompileProjectSpy.mockRestore();
     });
+
+    test.each([RequestMethod.WEB_APP, RequestMethod.CLI])(
+        'copies additional dbt sources when creating a preview through %s',
+        async (requestMethod) => {
+            const upstreamProjectUuid = 'upstream-project-uuid';
+            const previewProjectUuid = 'created-preview-project-uuid';
+            const primaryDbtConnection = {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'installation_id',
+                repository: 'lightdash/primary-models',
+                branch: 'preview-primary-branch',
+                project_sub_path: '/primary',
+                installation_id: 'primary-installation-id',
+            } as const;
+            const copySources = vi.fn(async () => undefined);
+            const previewService = getMockedProjectService(
+                lightdashConfigMock,
+                {
+                    projectDbtSourcesModel: {
+                        copySources,
+                    } as unknown as ProjectDbtSourcesModel,
+                },
+            );
+            const previewUser: SessionUser = {
+                ...user,
+                organizationUuid: projectWithSensitiveFields.organizationUuid,
+                organizationName: 'Test organization',
+                organizationCreatedAt: new Date(),
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'create' },
+                ]),
+            };
+            const validateSpy = vi
+                .spyOn(
+                    previewService as unknown as {
+                        validateProjectCreationPermissions: () => Promise<true>;
+                    },
+                    'validateProjectCreationPermissions',
+                )
+                .mockResolvedValue(true);
+            const expirationSpy = vi
+                .spyOn(previewService, 'getPreviewExpiresAt')
+                .mockResolvedValue(null);
+            const copyAccessSpy = vi
+                .spyOn(previewService, 'copyUserAccessOnPreview')
+                .mockResolvedValue();
+            projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+                previewProjectUuid,
+            );
+            projectModel.get
+                .mockResolvedValueOnce({
+                    ...projectWithSensitiveFields,
+                    projectUuid: upstreamProjectUuid,
+                    dbtConnection: {
+                        ...primaryDbtConnection,
+                        branch: 'upstream-primary-branch',
+                    },
+                })
+                .mockResolvedValueOnce({
+                    ...projectWithSensitiveFields,
+                    projectUuid: previewProjectUuid,
+                    type: ProjectType.PREVIEW,
+                    dbtConnection: primaryDbtConnection,
+                });
+
+            try {
+                await previewService.createWithoutCompile(
+                    previewUser,
+                    {
+                        name: 'Preview with additional sources',
+                        type: ProjectType.PREVIEW,
+                        dbtConnection: primaryDbtConnection,
+                        upstreamProjectUuid,
+                        copyContent: false,
+                        dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    },
+                    requestMethod,
+                );
+
+                expect(copySources).toHaveBeenCalledWith(
+                    upstreamProjectUuid,
+                    previewProjectUuid,
+                );
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).toHaveBeenCalledWith(
+                    previewUser.userUuid,
+                    previewUser.organizationUuid,
+                    expect.objectContaining({
+                        dbtConnection: primaryDbtConnection,
+                    }),
+                    null,
+                    undefined,
+                );
+            } finally {
+                validateSpy.mockRestore();
+                expirationSpy.mockRestore();
+                copyAccessSpy.mockRestore();
+            }
+        },
+    );
 
     test('attempts content copying when preview access copying fails', async () => {
         const upstreamProjectUuid = 'upstream-project-uuid';
