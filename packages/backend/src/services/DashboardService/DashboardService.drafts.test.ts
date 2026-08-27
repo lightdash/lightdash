@@ -15,6 +15,7 @@ const editorUser = {
     userUuid: 'editor-uuid',
     ability: new Ability<PossibleAbilities>([
         { action: 'delete', subject: 'Dashboard' },
+        { action: 'update', subject: 'Dashboard' },
     ]),
 } as unknown as SessionUser;
 
@@ -23,6 +24,7 @@ const reviewerUser = {
     ability: new Ability<PossibleAbilities>([
         { action: 'delete', subject: 'Dashboard' },
         { action: 'manage', subject: 'ContentAsCode' },
+        { action: 'update', subject: 'Dashboard' },
     ]),
 } as unknown as SessionUser;
 
@@ -46,6 +48,8 @@ type Overrides = {
     openDraftsForContent?: { draft: object }[];
     orphanedCharts?: { uuid: string }[];
     softDeleteEnabled?: boolean;
+    dashboards?: AnyType[];
+    managedSlugs?: string[];
 };
 
 const buildService = (overrides: Overrides = {}) => {
@@ -56,14 +60,22 @@ const buildService = (overrides: Overrides = {}) => {
                 ? overrides.settings
                 : { syncEnabled: true },
         );
-    const snapshotGet = vi
-        .fn()
-        .mockResolvedValue(
-            'snapshot' in overrides
+    const snapshotGet = vi.fn(
+        async (_projectUuid: string, _contentType: string, slug: string) => {
+            if (overrides.managedSlugs) {
+                return overrides.managedSlugs.includes(slug)
+                    ? { snapshotHash: 'abc' }
+                    : undefined;
+            }
+            return 'snapshot' in overrides
                 ? overrides.snapshot
-                : { snapshotHash: 'abc' },
-        );
-    const upsertOpenDraft = vi.fn().mockResolvedValue(undefined);
+                : { snapshotHash: 'abc' };
+        },
+    );
+    const upsertOpenDraft = vi.fn(async (args: AnyType) => ({
+        uuid: 'draft-uuid',
+        draft: args.draft,
+    }));
     const listOpenForContent = vi
         .fn()
         .mockResolvedValue(overrides.openDraftsForContent ?? []);
@@ -77,6 +89,16 @@ const buildService = (overrides: Overrides = {}) => {
         );
     const dashboardPermanentDelete = vi.fn().mockResolvedValue(dashboardDao);
     const dashboardSoftDelete = vi.fn().mockResolvedValue(dashboardDao);
+    const dashboards = overrides.dashboards ?? [dashboardDao];
+    const getDashboard = (uuid: string) =>
+        dashboards.find((candidate) => candidate.uuid === uuid) ?? dashboardDao;
+    const dashboardUpdateMultiple = vi.fn(
+        async (_projectUuid: string, updates: AnyType[]) =>
+            updates.map((update) => ({
+                ...getDashboard(update.uuid),
+                ...update,
+            })),
+    );
     const service = new DashboardService({
         lightdashConfig: {
             ...lightdashConfigMock,
@@ -88,7 +110,8 @@ const buildService = (overrides: Overrides = {}) => {
         analytics: analyticsMock,
         dashboardModel: {
             getOrphanedCharts,
-            getByIdOrSlug: vi.fn().mockResolvedValue(dashboardDao),
+            getByIdOrSlug: vi.fn(async (uuid: string) => getDashboard(uuid)),
+            updateMultiple: dashboardUpdateMultiple,
             permanentDelete: dashboardPermanentDelete,
             softDelete: dashboardSoftDelete,
         } as AnyType,
@@ -137,6 +160,7 @@ const buildService = (overrides: Overrides = {}) => {
         permanentDelete,
         dashboardPermanentDelete,
         dashboardSoftDelete,
+        dashboardUpdateMultiple,
     };
 };
 
@@ -222,6 +246,139 @@ describe('DashboardService drafts gating (sync + git-backed only)', () => {
         );
         expect(result).toBeUndefined();
         expect(upsertOpenDraft).not.toHaveBeenCalled();
+    });
+
+    it('turns a Git-backed dashboard move into a portable draft field', async () => {
+        const { service, upsertOpenDraft } = buildService();
+
+        const result = await service.update(editorUser, dashboardDao.uuid, {
+            name: dashboardDao.name,
+            spaceUuid: 'new-space-uuid',
+        });
+
+        expect(result).toMatchObject({
+            spaceUuid: 'new-space-uuid',
+            hasUnpublishedChanges: true,
+        });
+        expect(upsertOpenDraft).toHaveBeenCalledWith(
+            expect.objectContaining({
+                draft: expect.objectContaining({
+                    spaceUuid: 'new-space-uuid',
+                }),
+            }),
+        );
+    });
+
+    it('drafts only Git-backed dashboards in a mixed bulk update', async () => {
+        const managedDashboard = {
+            ...dashboardDao,
+            uuid: 'managed-dashboard',
+            slug: 'managed-dashboard',
+        };
+        const uiOnlyDashboard = {
+            ...dashboardDao,
+            uuid: 'ui-only-dashboard',
+            slug: 'ui-only-dashboard',
+        };
+        const { service, dashboardUpdateMultiple, upsertOpenDraft } =
+            buildService({
+                dashboards: [managedDashboard, uiOnlyDashboard],
+                managedSlugs: [managedDashboard.slug],
+            });
+        const updates = [managedDashboard, uiOnlyDashboard].map((item) => ({
+            uuid: item.uuid,
+            name: `${item.name} updated`,
+            description: 'Updated description',
+            spaceUuid: 'new-space-uuid',
+        }));
+
+        const results = await service.updateMultiple(
+            editorUser,
+            PROJECT_UUID,
+            updates,
+        );
+
+        expect(upsertOpenDraft).toHaveBeenCalledTimes(1);
+        expect(upsertOpenDraft).toHaveBeenCalledWith(
+            expect.objectContaining({
+                contentUuid: managedDashboard.uuid,
+                draft: expect.objectContaining({
+                    spaceUuid: 'new-space-uuid',
+                }),
+            }),
+        );
+        expect(dashboardUpdateMultiple).toHaveBeenCalledWith(PROJECT_UUID, [
+            updates[1],
+        ]);
+        expect(results).toMatchObject([
+            { uuid: managedDashboard.uuid, hasUnpublishedChanges: true },
+            { uuid: uiOnlyDashboard.uuid },
+        ]);
+        expect(results[1]).not.toHaveProperty('hasUnpublishedChanges');
+    });
+
+    it('persists safe drafts before a mixed bulk publish failure', async () => {
+        const managedDashboard = {
+            ...dashboardDao,
+            uuid: 'managed-dashboard',
+            slug: 'managed-dashboard',
+        };
+        const uiOnlyDashboard = {
+            ...dashboardDao,
+            uuid: 'ui-only-dashboard',
+            slug: 'ui-only-dashboard',
+        };
+        const { service, dashboardUpdateMultiple, upsertOpenDraft } =
+            buildService({
+                dashboards: [managedDashboard, uiOnlyDashboard],
+                managedSlugs: [managedDashboard.slug],
+            });
+        dashboardUpdateMultiple.mockRejectedValueOnce(
+            new Error('published transaction failed'),
+        );
+        const updates = [managedDashboard, uiOnlyDashboard].map((item) => ({
+            uuid: item.uuid,
+            name: `${item.name} updated`,
+            description: 'Updated description',
+            spaceUuid: item.spaceUuid,
+        }));
+
+        await expect(
+            service.updateMultiple(editorUser, PROJECT_UUID, updates),
+        ).rejects.toThrow('published transaction failed');
+        expect(upsertOpenDraft).toHaveBeenCalledTimes(1);
+        expect(upsertOpenDraft.mock.invocationCallOrder[0]).toBeLessThan(
+            dashboardUpdateMultiple.mock.invocationCallOrder[0],
+        );
+    });
+
+    it('publishes every bulk dashboard update for a Content as Code manager', async () => {
+        const managedDashboard = {
+            ...dashboardDao,
+            uuid: 'managed-dashboard',
+            slug: 'managed-dashboard',
+        };
+        const { service, dashboardUpdateMultiple, upsertOpenDraft } =
+            buildService({
+                dashboards: [managedDashboard],
+                managedSlugs: [managedDashboard.slug],
+            });
+        const updates = [
+            {
+                uuid: managedDashboard.uuid,
+                name: 'Manager update',
+                description: 'Updated description',
+                spaceUuid: managedDashboard.spaceUuid,
+            },
+        ];
+
+        await service.updateMultiple(reviewerUser, PROJECT_UUID, updates);
+
+        expect(upsertOpenDraft).not.toHaveBeenCalled();
+        expect(dashboardUpdateMultiple).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            updates,
+        );
     });
 
     it('blocks an editor from deleting a Git-backed dashboard', async () => {

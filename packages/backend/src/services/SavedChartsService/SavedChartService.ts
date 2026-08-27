@@ -142,6 +142,7 @@ type ChartDraftOverlay = Partial<
         | 'pivotConfig'
         | 'parameters'
         | 'merge'
+        | 'spaceUuid'
     >
 > & { verified?: boolean };
 
@@ -165,6 +166,7 @@ const assertChartDraftOverlay: (
         pivotConfig: isRecord,
         parameters: isRecord,
         merge: (value) => value === null || isRecord(value),
+        spaceUuid: (value) => typeof value === 'string',
         verified: (value) => typeof value === 'boolean',
     };
     for (const [field, validate] of Object.entries(validators)) {
@@ -773,6 +775,9 @@ export class SavedChartService
                 parameters: draft.parameters,
             }),
             ...(draft.merge !== undefined && { merge: draft.merge }),
+            ...(draft.spaceUuid !== undefined && {
+                spaceUuid: draft.spaceUuid,
+            }),
         };
     }
 
@@ -787,21 +792,51 @@ export class SavedChartService
         },
     ): Promise<SavedChart | undefined> {
         if (Object.keys(draftFields).length === 0) return undefined;
+        if (!(await this.shouldStoreDraft(user, existingChart))) {
+            return undefined;
+        }
+        return this.storeDraft(
+            user,
+            existingChart,
+            draftFields,
+            verificationAfterUpdate,
+            spaceContext,
+        );
+    }
+
+    private async shouldStoreDraft(
+        user: SessionUser,
+        existingChart: Pick<SavedChartDAO, 'projectUuid' | 'slug'>,
+    ): Promise<boolean> {
         const settings = await this.contentAsCodeProjectSettingsModel.get(
             existingChart.projectUuid,
         );
-        if (!settings?.syncEnabled) return undefined;
+        if (!settings?.syncEnabled) return false;
         const snapshot = await this.contentAsCodeSnapshotModel.get(
             existingChart.projectUuid,
             ContentAsCodeType.CHART,
             existingChart.slug,
         );
-        if (snapshot === undefined) return undefined;
+        if (snapshot === undefined) return false;
         if (
             await this.canManageContentAsCode(user, existingChart.projectUuid)
         ) {
-            return undefined;
+            return false;
         }
+        return true;
+    }
+
+    private async storeDraft(
+        user: SessionUser,
+        existingChart: SavedChartDAO | ChartSummary,
+        draftFields: ChartDraftOverlay,
+        verificationAfterUpdate: ContentVerificationInfo | null,
+        spaceContext: {
+            inheritsFromOrgOrProject: boolean;
+            access: SpaceAccess[];
+        },
+    ): Promise<SavedChart> {
+        assertChartDraftOverlay(draftFields);
         const stored = await this.contentDraftModel.upsertOpenDraft({
             projectUuid: existingChart.projectUuid,
             contentType: 'chart',
@@ -1274,6 +1309,9 @@ export class SavedChartService
             ...(chartUpdate.description !== undefined && {
                 description: chartUpdate.description,
             }),
+            ...(chartUpdate.spaceUuid !== undefined && {
+                spaceUuid: chartUpdate.spaceUuid,
+            }),
             ...(chartUpdate.name !== undefined ||
             chartUpdate.description !== undefined
                 ? { verified: verificationAfterUpdate !== null }
@@ -1483,17 +1521,30 @@ export class SavedChartService
         // current and target space are checked with space access.
         const chartSpaceContexts = await Promise.all(
             data.map(async (chart) => {
-                const { spaceUuid: currentSpaceUuid } =
-                    await this.savedChartModel.getSummary(chart.uuid);
-                const spaceContexts = await Promise.all(
-                    [currentSpaceUuid, chart.spaceUuid].map((spaceUuid) =>
-                        this.spacePermissionService.resolveAccess(
-                            user.userUuid,
-                            { type: 'space', spaceUuid },
+                const existingChart = await this.savedChartModel.getSummary(
+                    chart.uuid,
+                );
+                const { spaceUuid: currentSpaceUuid } = existingChart;
+                const [spaceContexts, verification] = await Promise.all([
+                    Promise.all(
+                        [currentSpaceUuid, chart.spaceUuid].map((spaceUuid) =>
+                            this.spacePermissionService.resolveAccess(
+                                user.userUuid,
+                                { type: 'space', spaceUuid },
+                            ),
                         ),
                     ),
-                );
-                return { chart, spaceContexts };
+                    this.contentVerificationModel.getByContent(
+                        ContentType.CHART,
+                        chart.uuid,
+                    ),
+                ]);
+                return {
+                    chart,
+                    existingChart,
+                    spaceContexts,
+                    verification,
+                };
             }),
         );
         const auditedAbility = this.createAuditedAbility(user);
@@ -1518,23 +1569,55 @@ export class SavedChartService
         }
 
         await Promise.all(
-            data.map(async (chart) => {
-                const summary = await this.savedChartModel.getSummary(
-                    chart.uuid,
-                );
+            chartSpaceContexts.map(async ({ existingChart }) => {
                 await this.assertCanMutateVerifiedChart({
                     user,
-                    chartUuid: chart.uuid,
-                    projectUuid: summary.projectUuid,
-                    organizationUuid: summary.organizationUuid,
+                    chartUuid: existingChart.uuid,
+                    projectUuid: existingChart.projectUuid,
+                    organizationUuid: existingChart.organizationUuid,
                 });
             }),
         );
 
-        const savedChartsDaos = await this.savedChartModel.updateMultiple(
-            projectUuid,
-            data,
+        const shouldStoreDraft = await Promise.all(
+            chartSpaceContexts.map(({ existingChart }) =>
+                this.shouldStoreDraft(user, existingChart),
+            ),
         );
+        // Draft upserts are idempotent and happen before the transactional
+        // published update, so a retry cannot duplicate or partially publish.
+        const draftResults = await Promise.all(
+            chartSpaceContexts.map(
+                async (
+                    { chart, existingChart, spaceContexts, verification },
+                    index,
+                ) =>
+                    shouldStoreDraft[index]
+                        ? this.storeDraft(
+                              user,
+                              existingChart,
+                              {
+                                  name: chart.name,
+                                  description: chart.description,
+                                  spaceUuid: chart.spaceUuid,
+                              },
+                              verification,
+                              spaceContexts[1],
+                          )
+                        : undefined,
+            ),
+        );
+
+        const directUpdates = data.filter(
+            (_chart, index) => !shouldStoreDraft[index],
+        );
+        const savedChartsDaos =
+            directUpdates.length > 0
+                ? await this.savedChartModel.updateMultiple(
+                      projectUuid,
+                      directUpdates,
+                  )
+                : [];
         const savedCharts = await Promise.all(
             savedChartsDaos.map(async (savedChart) => {
                 const { inheritsFromOrgOrProject, access } =
@@ -1549,6 +1632,9 @@ export class SavedChartService
                 };
             }),
         );
+        const savedChartsByUuid = new Map(
+            savedCharts.map((savedChart) => [savedChart.uuid, savedChart]),
+        );
         this.analytics.track({
             event: 'saved_chart.updated_multiple',
             userId: user.userUuid,
@@ -1557,7 +1643,12 @@ export class SavedChartService
                 projectId: projectUuid,
             },
         });
-        return savedCharts;
+        return data.map((chart, index) => {
+            const result =
+                draftResults[index] ?? savedChartsByUuid.get(chart.uuid);
+            if (!result) throw new NotFoundError('Saved query not found');
+            return result;
+        });
     }
 
     async delete(
