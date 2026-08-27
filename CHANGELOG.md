@@ -1,3 +1,18 @@
+# [2.25.0](https://github.com/lightdash/lightdash/compare/2.24.0...2.25.0) (2026-08-27)
+
+
+### Bug Fixes
+
+* **dev:** dev-ports.sh gc completes on macOS bash 3.2 ([#28177](https://github.com/lightdash/lightdash/issues/28177)) ([664eea4](https://github.com/lightdash/lightdash/commit/664eea44202a2ff14ed14044a8fbf9f60a9d46ac))
+* **dev:** resolve statusline instance from the LD_INSTANCE_ID pin ([#28172](https://github.com/lightdash/lightdash/issues/28172)) ([f5dfe8c](https://github.com/lightdash/lightdash/commit/f5dfe8cb65ffdd46623e76385f459cf970be6d8c))
+* **sdk:** include @mantine/dates styles in the SDK bundle ([#28171](https://github.com/lightdash/lightdash/issues/28171)) ([6eeb75c](https://github.com/lightdash/lightdash/commit/6eeb75cdfb8d06617f6c53f533a1a36049b9761e))
+
+
+### Features
+
+* **dev:** report docker dev resource usage at session start ([#28168](https://github.com/lightdash/lightdash/issues/28168)) ([e95f481](https://github.com/lightdash/lightdash/commit/e95f481856c3f2d6768b8ebda3129229aa35c3bf))
+* **dev:** script the docker dev teardown ([#28176](https://github.com/lightdash/lightdash/issues/28176)) ([e462780](https://github.com/lightdash/lightdash/commit/e462780a8c039af7b2cb1533c321ba37be406e0e))
+
 # [2.24.0](https://github.com/lightdash/lightdash/compare/2.23.0...2.24.0) (2026-08-27)
 
 
