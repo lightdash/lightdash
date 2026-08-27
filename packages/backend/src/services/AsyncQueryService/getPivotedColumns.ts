@@ -3,6 +3,7 @@ import {
     getResultColumnMetadataFromItem,
     normalizeIndexColumns,
     type ItemsMap,
+    type ParametersValuesMap,
     type PivotValuesColumn,
     type QueryHistory,
     type ResultColumns,
@@ -13,6 +14,7 @@ export function getPivotedColumns(
     pivotConfiguration: NonNullable<QueryHistory['pivotConfiguration']>,
     pivotValuesColumns: PivotValuesColumn[],
     itemsMap?: ItemsMap,
+    usedParameters?: ParametersValuesMap | null,
 ): ResultColumns {
     const { indexColumn, passthroughDimensions } = pivotConfiguration;
     const indexColumns = normalizeIndexColumns(indexColumn);
@@ -54,6 +56,7 @@ export function getPivotedColumns(
             const metadata = getResultColumnMetadataFromItem(
                 sourceItem,
                 valueColumn.referenceField,
+                usedParameters,
             );
             // Compose the label from the source metric's label and the
             // (already formatted) pivot values, mirroring how the frontend

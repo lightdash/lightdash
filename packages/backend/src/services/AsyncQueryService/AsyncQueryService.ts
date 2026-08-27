@@ -2368,6 +2368,7 @@ export class AsyncQueryService extends ProjectService {
         write,
         pivotConfiguration,
         itemsMap,
+        usedParameters,
         dataTimezone,
         displayTimezone,
     }: {
@@ -2377,6 +2378,7 @@ export class AsyncQueryService extends ProjectService {
         write?: (rows: Record<string, unknown>[]) => void | Promise<void>;
         pivotConfiguration?: PivotConfiguration;
         itemsMap: ItemsMap;
+        usedParameters?: ParametersValuesMap | null;
         dataTimezone?: string;
         displayTimezone: string | null;
     }): Promise<{
@@ -2429,6 +2431,7 @@ export class AsyncQueryService extends ProjectService {
                       unpivotedColumns,
                       fields,
                       itemsMap,
+                      usedParameters,
                   );
 
                   const {
@@ -2634,6 +2637,7 @@ export class AsyncQueryService extends ProjectService {
                       unpivotedColumns,
                       fields,
                       itemsMap,
+                      usedParameters,
                   );
                   await write?.(rows);
               };
@@ -2674,6 +2678,7 @@ export class AsyncQueryService extends ProjectService {
                   pivotConfiguration,
                   Array.from(valuesColumnData.values()),
                   itemsMap,
+                  usedParameters,
               )
             : unpivotedColumns;
 
@@ -2823,6 +2828,7 @@ export class AsyncQueryService extends ProjectService {
         queryUuid,
         queryTags,
         fieldsMap,
+        usedParameters,
         cacheKey,
         warehouseCredentialsOverrides,
         pivotConfiguration,
@@ -2854,6 +2860,7 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 query: preAggregateQuery,
                 fieldsMap,
+                usedParameters,
                 cacheKey,
                 warehouseCredentialsOverrides,
                 pivotConfiguration,
@@ -2969,6 +2976,7 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 query: warehouseQuery,
                 fieldsMap,
+                usedParameters,
                 cacheKey,
                 warehouseCredentialsOverrides,
                 pivotConfiguration,
@@ -3209,6 +3217,7 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         query,
         fieldsMap,
+        usedParameters,
         queryTags,
         warehouseCredentialsOverrides,
         queryUuid,
@@ -3406,6 +3415,7 @@ export class AsyncQueryService extends ProjectService {
                         write: stream?.write,
                         pivotConfiguration,
                         itemsMap: fieldsMap,
+                        usedParameters,
                         dataTimezone: resolvedDataTimezone,
                         displayTimezone,
                     }),
@@ -3752,6 +3762,7 @@ export class AsyncQueryService extends ProjectService {
             onboardingFlow,
             queryTags,
             fieldsMap: query.fields,
+            usedParameters: query.usedParameters,
             cacheKey: query.cacheKey,
             warehouseCredentialsOverrides,
             pivotConfiguration: query.pivotConfiguration ?? undefined,
@@ -3813,6 +3824,7 @@ export class AsyncQueryService extends ProjectService {
             onboardingFlow,
             queryTags,
             fieldsMap: query.fields,
+            usedParameters: query.usedParameters,
             cacheKey: query.cacheKey,
             warehouseCredentialsOverrides,
             pivotConfiguration: query.pivotConfiguration ?? undefined,
@@ -4462,6 +4474,7 @@ export class AsyncQueryService extends ProjectService {
                             fields: fieldsMap,
                             compiledSql: query,
                             requestParameters,
+                            usedParameters: queryComposer.getUsedParameters(),
                             // Persist the gated display timezone (matches
                             // what the SQL was built with). Storing the
                             // ungated resolvedTimezone leaks a +TZ shift
@@ -4762,6 +4775,7 @@ export class AsyncQueryService extends ProjectService {
                         projectUuid,
                         query: executionPlan.warehouseQuery,
                         fieldsMap,
+                        usedParameters: queryComposer.getUsedParameters(),
                         queryTags,
                         warehouseCredentialsOverrides,
                         queryUuid: queryHistoryUuid,
@@ -5491,6 +5505,7 @@ export class AsyncQueryService extends ProjectService {
                 compiledSql:
                     '-- served from curated filter_autocomplete values, no warehouse query',
                 requestParameters: staticRequestParameters,
+                usedParameters: null,
                 metricQuery,
                 cacheKey: `static-autocomplete-${fieldId}`,
                 pivotConfiguration: null,
@@ -7146,6 +7161,7 @@ export class AsyncQueryService extends ProjectService {
             fields: {},
             compiledSql: sql,
             requestParameters,
+            usedParameters: placeholderComposer.getUsedParameters(),
             metricQuery: placeholderComposer.getMetricQuery(),
             cacheKey,
             pivotConfiguration: null,
@@ -7362,6 +7378,7 @@ export class AsyncQueryService extends ProjectService {
             fields: {},
             compiledSql: sql,
             requestParameters,
+            usedParameters: placeholderComposer.getUsedParameters(),
             metricQuery: placeholderComposer.getMetricQuery(),
             cacheKey,
             pivotConfiguration: null,
@@ -7639,6 +7656,7 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 query,
                 fieldsMap,
+                usedParameters: composer.getUsedParameters(),
                 cacheKey,
                 originalColumns,
                 queryCreatedAt,
@@ -8175,6 +8193,7 @@ export class AsyncQueryService extends ProjectService {
             fields: fieldsMap,
             compiledSql: sql,
             requestParameters,
+            usedParameters: composer.getUsedParameters(),
             metricQuery: composer.getMetricQuery(),
             cacheKey,
             pivotConfiguration: pivotConfiguration ?? null,
@@ -8208,6 +8227,7 @@ export class AsyncQueryService extends ProjectService {
             cacheKey,
             context,
             fieldsMap,
+            usedParameters: composer.getUsedParameters(),
             pivotConfiguration,
             originalColumns,
         }).catch((e) => {
@@ -8292,6 +8312,7 @@ export class AsyncQueryService extends ProjectService {
         cacheKey,
         context,
         fieldsMap,
+        usedParameters,
         pivotConfiguration,
         originalColumns,
     }: {
@@ -8309,6 +8330,7 @@ export class AsyncQueryService extends ProjectService {
         cacheKey: string;
         context: QueryExecutionContext;
         fieldsMap: ItemsMap;
+        usedParameters: ParametersValuesMap | null;
         pivotConfiguration: PivotConfiguration | undefined;
         originalColumns: ResultColumns;
     }): Promise<void> {
@@ -8348,6 +8370,7 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 query,
                 fieldsMap,
+                usedParameters,
                 cacheKey,
                 pivotConfiguration,
                 originalColumns,

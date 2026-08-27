@@ -92,17 +92,47 @@ describe('getResultColumnMetadataFromItem', () => {
         ).toEqual('[$$]#,##0.00');
     });
 
-    test('parameter-dependent format expressions are omitted (not self-contained)', () => {
+    test('parameter-dependent format expressions interpolate against used parameter values', () => {
         const parameterised: Metric = {
             ...metric,
-            format: '${ld.parameters.currency=="usd"?"$":""}0.00',
+            format: '${ld.parameters.currency=="usd"?"$":"€"}0.00',
         };
+        expect(
+            getResultColumnMetadataFromItem(parameterised, 'orders_revenue', {
+                currency: 'usd',
+            }),
+        ).toEqual({
+            label: 'Orders Revenue',
+            provenance: { fieldId: 'orders_revenue' },
+            format: '$0.00',
+        });
+        expect(
+            getResultColumnMetadataFromItem(parameterised, 'orders_revenue', {
+                currency: 'eur',
+            }).format,
+        ).toEqual('€0.00');
+    });
+
+    test('parameter-dependent formats are omitted when values are missing', () => {
+        const parameterised: Metric = {
+            ...metric,
+            format: '${ld.parameters.currency=="usd"?"$":"€"}0.00',
+        };
+        // No parameter values at all.
         expect(
             getResultColumnMetadataFromItem(parameterised, 'orders_revenue'),
         ).toEqual({
             label: 'Orders Revenue',
             provenance: { fieldId: 'orders_revenue' },
         });
+        // Values that leave the placeholder unresolved.
+        expect(
+            getResultColumnMetadataFromItem(
+                { ...metric, format: '"${ld.parameters.suffix}"0.00' },
+                'orders_revenue',
+                {},
+            ).format,
+        ).toBeUndefined();
     });
 
     test('non-expressible structured formats ride the formatOptions escape hatch', () => {

@@ -1,6 +1,7 @@
 import {
     getResultColumnMetadataFromItem,
     ItemsMap,
+    ParametersValuesMap,
     ResultColumns,
     WarehouseResults,
 } from '@lightdash/common';
@@ -9,6 +10,7 @@ export function getUnpivotedColumns(
     unpivotedColumns: ResultColumns,
     fields: WarehouseResults['fields'],
     itemsMap?: ItemsMap,
+    usedParameters?: ParametersValuesMap | null,
 ): ResultColumns {
     if (!Object.keys(unpivotedColumns).length && fields) {
         return Object.entries(fields).reduce<ResultColumns>(
@@ -18,7 +20,11 @@ export function getUnpivotedColumns(
                 acc[key] = {
                     reference: key,
                     type: value.type,
-                    ...getResultColumnMetadataFromItem(itemsMap?.[key], key),
+                    ...getResultColumnMetadataFromItem(
+                        itemsMap?.[key],
+                        key,
+                        usedParameters,
+                    ),
                 };
                 return acc;
             },

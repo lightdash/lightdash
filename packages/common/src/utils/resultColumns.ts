@@ -1,6 +1,9 @@
+import { isValidFormat } from 'numfmt';
 import { isDimension, isTableCalculation, type Item } from '../types/field';
+import { type ParametersValuesMap } from '../types/parameters';
 import { type ResultColumn } from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
+import { evaluateConditionalFormatExpression } from './conditionalFormatExpressions';
 import {
     formatExpressionHasParameters,
     getCustomFormat,
@@ -22,6 +25,7 @@ type ResultColumnMetadata = Omit<ResultColumn, 'reference' | 'type'>;
 export function getResultColumnMetadataFromItem(
     item: Item | undefined,
     fieldId: string,
+    parameters?: ParametersValuesMap | null,
 ): ResultColumnMetadata {
     if (!item) return {};
 
@@ -50,14 +54,29 @@ export function getResultColumnMetadataFromItem(
         }
     }
 
-    // Parameter-dependent expressions are not self-contained: resolved
-    // parameter values are not persisted on query history, so the queue
-    // execution path cannot interpolate them. Omit the format entirely
-    // rather than store a placeholder that renders wrong.
+    // Parameter placeholders resolve here, at column-build time, so the
+    // stored format is self-contained (parameter values are fixed for the
+    // lifetime of an execution). When values are missing or interpolation
+    // leaves placeholders behind, omit the format entirely — never store an
+    // un-interpolated placeholder, it throws at render.
     if (
         hasValidFormatExpression(item) &&
         formatExpressionHasParameters(item.format)
     ) {
+        const interpolated = parameters
+            ? evaluateConditionalFormatExpression(item.format, parameters)
+            : undefined;
+        if (
+            interpolated !== undefined &&
+            !formatExpressionHasParameters(interpolated) &&
+            isValidFormat(interpolated)
+        ) {
+            metadata.format = interpolated;
+            const separator = getEffectiveSeparator(item);
+            if (separator) {
+                metadata.separator = separator;
+            }
+        }
         return metadata;
     }
 

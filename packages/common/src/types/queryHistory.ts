@@ -5,6 +5,7 @@ import type { ExecuteAsyncQueryRequestParams } from './api/paginatedQuery';
 import type { AuthType } from './auth';
 import type { ItemsMap } from './field';
 import type { MetricQuery } from './metricQuery';
+import type { ParametersValuesMap } from './parameters';
 import type { WarehouseTypes } from './projects';
 
 export interface IWarehouseQueryMetadata {
@@ -54,6 +55,9 @@ export type QueryHistory = {
     metricQuery: MetricQuery;
     fields: ItemsMap;
     requestParameters: ExecuteAsyncQueryRequestParams;
+    /** Resolved parameter values in effect for this execution (request values
+     *  merged with defaults). Null on rows written before the column existed. */
+    usedParameters: ParametersValuesMap | null;
     status: QueryHistoryStatus;
     totalRowCount: number | null;
     warehouseExecutionTimeMs: number | null;

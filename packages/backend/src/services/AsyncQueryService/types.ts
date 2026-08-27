@@ -267,6 +267,9 @@ export type RunAsyncWarehouseQueryArgs = {
     onboardingFlow: OnboardingFlow;
     queryTags: RunQueryTags;
     fieldsMap: ItemsMap;
+    /** Resolved parameter values for this execution — interpolates parameter
+     *  placeholders in column format expressions at column-build time. */
+    usedParameters: ParametersValuesMap | null;
     cacheKey: string;
     warehouseCredentialsOverrides?: {
         snowflakeVirtualWarehouse?: string;

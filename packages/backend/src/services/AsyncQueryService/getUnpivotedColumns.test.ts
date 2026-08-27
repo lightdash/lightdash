@@ -69,6 +69,31 @@ describe('getUnpivotedColumns', () => {
         });
     });
 
+    test('parameter placeholders interpolate against used parameter values', () => {
+        const parameterisedItemsMap: ItemsMap = {
+            orders_revenue: {
+                ...revenueMetric,
+                format: '${ld.parameters.currency=="usd"?"$":"€"}0.00',
+            },
+        };
+        const withValues = getUnpivotedColumns(
+            {},
+            { orders_revenue: { type: DimensionType.NUMBER } },
+            parameterisedItemsMap,
+            { currency: 'usd' },
+        );
+        expect(withValues.orders_revenue.format).toEqual('$0.00');
+
+        // No values persisted (pre-migration rows) → format omitted.
+        const withoutValues = getUnpivotedColumns(
+            {},
+            { orders_revenue: { type: DimensionType.NUMBER } },
+            parameterisedItemsMap,
+            null,
+        );
+        expect(withoutValues.orders_revenue.format).toBeUndefined();
+    });
+
     test('columns are bare when no items map is provided', () => {
         const columns = getUnpivotedColumns({}, warehouseFields);
         expect(columns.orders_status).toEqual({
