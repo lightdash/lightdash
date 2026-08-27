@@ -871,9 +871,9 @@ export class CoderService extends BaseService {
 
         if (access.inheritParentPermissions && parentSpaceUuid !== null) {
             const parentContext =
-                await this.spacePermissionService.getSpaceAccessContext(
+                await this.spacePermissionService.resolveAccess(
                     user.userUuid,
-                    parentSpaceUuid,
+                    { type: 'space', spaceUuid: parentSpaceUuid },
                     { trx },
                 );
             inheritsFromOrgOrProject = parentContext.inheritsFromOrgOrProject;
@@ -3250,9 +3250,9 @@ export class CoderService extends BaseService {
             // Fetched once, reused by the placeholder-dashboard check below
             const spaceAccessContexts = canUploadAnyContent
                 ? null
-                : await this.spacePermissionService.getSpacesAccessContext(
+                : await this.spacePermissionService.resolveAccessBatch(
                       user.userUuid,
-                      [space.uuid],
+                      [{ type: 'space', spaceUuid: space.uuid }],
                   );
             if (spaceAccessContexts !== null) {
                 await this.assertSpaceContentAccess({
@@ -3573,9 +3573,9 @@ export class CoderService extends BaseService {
                 });
                 if (!canUploadAnyContent) {
                     const { inheritsFromOrgOrProject, access } =
-                        await this.spacePermissionService.getSpaceAccessContext(
+                        await this.spacePermissionService.resolveAccess(
                             user.userUuid,
-                            chart.spaceUuid,
+                            { type: 'space', spaceUuid: chart.spaceUuid },
                         );
                     if (
                         auditedAbility.cannot(
@@ -3847,10 +3847,10 @@ export class CoderService extends BaseService {
         if (spaceUuid === null) return undefined;
 
         const accessContexts =
-            await this.spacePermissionService.getSpacesAccessContext(userUuid, [
-                spaceUuid,
+            await this.spacePermissionService.resolveAccessBatch(userUuid, [
+                { type: 'space', spaceUuid },
             ]);
-        return accessContexts[spaceUuid];
+        return accessContexts[0];
     }
 
     // Throws unless the caller can write content as code. `canUploadAnyContent`
@@ -3920,31 +3920,42 @@ export class CoderService extends BaseService {
         errorMessage: string;
         // Pre-fetched contexts to avoid refetching for the same spaces
         accessContexts?: Awaited<
-            ReturnType<SpacePermissionService['getSpacesAccessContext']>
+            ReturnType<SpacePermissionService['resolveAccessBatch']>
         >;
     }): Promise<void> {
         const uniqueSpaceUuids = [...new Set(spaceUuids)];
         if (uniqueSpaceUuids.length === 0) return;
         const spaceAccessContexts =
             accessContexts ??
-            (await this.spacePermissionService.getSpacesAccessContext(
+            (await this.spacePermissionService.resolveAccessBatch(
                 userUuid,
-                uniqueSpaceUuids,
+                uniqueSpaceUuids.map((spaceUuid) => ({
+                    type: 'space' as const,
+                    spaceUuid,
+                })),
             ));
-        const lacksAccess = auditedAbility
-            .canBulk(
-                action,
-                uniqueSpaceUuids.map((spaceUuid) =>
-                    subject(subjectType, {
-                        ...spaceAccessContexts[spaceUuid],
-                        metadata: {
-                            spaceUuid,
-                            ...(metadata ?? {}),
-                        },
-                    }),
-                ),
-            )
-            .some((allowed) => !allowed);
+        const contextsWithSpace = uniqueSpaceUuids.flatMap(
+            (spaceUuid, index) => {
+                const context = spaceAccessContexts[index];
+                return context ? [{ context, spaceUuid }] : [];
+            },
+        );
+        const lacksAccess =
+            contextsWithSpace.length !== uniqueSpaceUuids.length ||
+            auditedAbility
+                .canBulk(
+                    action,
+                    contextsWithSpace.map(({ context, spaceUuid }) =>
+                        subject(subjectType, {
+                            ...context,
+                            metadata: {
+                                spaceUuid,
+                                ...(metadata ?? {}),
+                            },
+                        }),
+                    ),
+                )
+                .some((allowed) => !allowed);
         if (lacksAccess) {
             throw new ForbiddenError(errorMessage);
         }
@@ -4042,22 +4053,47 @@ export class CoderService extends BaseService {
         ];
         if (referencedCharts.length === 0) return;
 
-        const spaceAccessContexts =
-            await this.spacePermissionService.getSpacesAccessContext(userUuid, [
-                ...new Set(referencedCharts.map((chart) => chart.spaceUuid)),
-            ]);
+        const uniqueSpaceUuids = [
+            ...new Set(referencedCharts.map((chart) => chart.spaceUuid)),
+        ];
+        const resolvedSpaceContexts =
+            await this.spacePermissionService.resolveAccessBatch(
+                userUuid,
+                uniqueSpaceUuids.map((spaceUuid) => ({
+                    type: 'space',
+                    spaceUuid,
+                })),
+            );
+        const spaceAccessContexts = Object.fromEntries(
+            uniqueSpaceUuids.map((spaceUuid, index) => [
+                spaceUuid,
+                resolvedSpaceContexts[index],
+            ]),
+        );
+        const chartsWithContext = referencedCharts.flatMap((chart) => {
+            const context = spaceAccessContexts[chart.spaceUuid];
+            return context ? [{ chart, context }] : [];
+        });
         const accessResults = auditedAbility.canBulk(
             'view',
-            referencedCharts.map((chart) =>
+            chartsWithContext.map(({ chart, context }) =>
                 subject('SavedChart', {
-                    ...spaceAccessContexts[chart.spaceUuid],
+                    ...context,
                     metadata: chart.metadata,
                 }),
             ),
         );
-        const inaccessibleChartSlugs = referencedCharts
-            .filter((_, index) => !accessResults[index])
-            .map((chart) => chart.slug);
+        const inaccessibleChartSlugs = [
+            ...referencedCharts
+                .filter(
+                    (chart) =>
+                        spaceAccessContexts[chart.spaceUuid] === undefined,
+                )
+                .map((chart) => chart.slug),
+            ...chartsWithContext
+                .filter((_, index) => !accessResults[index])
+                .map(({ chart }) => chart.slug),
+        ];
         if (inaccessibleChartSlugs.length > 0) {
             throw new ForbiddenError(
                 `You don't have access to chart(s) referenced by this dashboard: ${inaccessibleChartSlugs.join(

@@ -125,21 +125,7 @@ const contentVerificationModel = {
 };
 
 const spacePermissionService = {
-    getSpaceAccessContext: vi.fn(async () => ({
-        organizationUuid: 'org-uuid',
-        projectUuid: 'project-uuid',
-        inheritsFromOrgOrProject: true,
-        access: [],
-    })),
-    getDashboardAccessContext: vi.fn(async () => ({
-        organizationUuid: 'org-uuid',
-        projectUuid: 'project-uuid',
-        inheritsFromOrgOrProject: true,
-        access: [],
-        admins: [],
-        directOnly: false,
-    })),
-    getChartAccessContext: vi.fn(async () => ({
+    resolveAccess: vi.fn(async () => ({
         organizationUuid: 'org-uuid',
         projectUuid: 'project-uuid',
         inheritsFromOrgOrProject: true,

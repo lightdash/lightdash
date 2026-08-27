@@ -86,7 +86,7 @@ const dashboardModel = {
     find: vi.fn(async () => []),
 };
 const spacePermissionService = {
-    getSpaceAccessContext: vi.fn(async () => ({
+    resolveAccess: vi.fn(async () => ({
         organizationUuid: 'org-uuid',
         projectUuid: 'project-uuid',
         inheritsFromOrgOrProject: true,

@@ -209,9 +209,13 @@ export class DashboardService
             // real session, so it is not available to embed/JWT callers.
             assertRegisteredAccount(account);
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getDashboardAccessContext(
+                await this.spacePermissionService.resolveAccess(
                     account.user.userUuid,
-                    { uuid: dashboard.uuid, spaceUuid: dashboard.spaceUuid },
+                    {
+                        type: 'dashboard',
+                        dashboardUuid: dashboard.uuid,
+                        spaceUuid: dashboard.spaceUuid,
+                    },
                 );
 
             if (
@@ -563,14 +567,19 @@ export class DashboardService
         // a grant must never move content beyond the dashboard it covers.
         const staysInOwningDashboard =
             chartToDuplicate.dashboardUuid === dashboardUuid;
-        const sourceContext =
-            await this.spacePermissionService.getDashboardAccessContext(
-                user.userUuid,
-                {
-                    uuid: staysInOwningDashboard ? dashboardUuid : null,
-                    spaceUuid: chartToDuplicate.spaceUuid,
-                },
-            );
+        const sourceContext = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            staysInOwningDashboard
+                ? {
+                      type: 'dashboard',
+                      dashboardUuid,
+                      spaceUuid: chartToDuplicate.spaceUuid,
+                  }
+                : {
+                      type: 'space',
+                      spaceUuid: chartToDuplicate.spaceUuid,
+                  },
+        );
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
@@ -676,11 +685,20 @@ export class DashboardService
         const spaceUuids = [
             ...new Set(dashboards.map((dashboard) => dashboard.spaceUuid)),
         ];
-        const spaceContexts =
-            await this.spacePermissionService.getSpacesAccessContext(
+        const resolvedSpaceContexts =
+            await this.spacePermissionService.resolveAccessBatch(
                 user.userUuid,
-                spaceUuids,
+                spaceUuids.map((spaceUuid) => ({
+                    type: 'space' as const,
+                    spaceUuid,
+                })),
             );
+        const spaceContexts = Object.fromEntries(
+            spaceUuids.map((spaceUuid, index) => [
+                spaceUuid,
+                resolvedSpaceContexts[index],
+            ]),
+        );
 
         const dashboardsWithContext = dashboards.flatMap((dashboard) => {
             const spaceContext = spaceContexts[dashboard.spaceUuid];
@@ -720,10 +738,11 @@ export class DashboardService
         );
 
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getDashboardAccessContext(
-                user.userUuid,
-                { uuid: dashboardDao.uuid, spaceUuid: dashboardDao.spaceUuid },
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboardDao.uuid,
+                spaceUuid: dashboardDao.spaceUuid,
+            });
         const dashboard = {
             ...dashboardDao,
             inheritsFromOrgOrProject,
@@ -810,11 +829,14 @@ export class DashboardService
             dashboardUuidOrSlug,
             { projectUuid },
         );
-        const spaceContext =
-            await this.spacePermissionService.getDashboardAccessContext(
-                user.userUuid,
-                { uuid: dashboard.uuid, spaceUuid: dashboard.spaceUuid },
-            );
+        const spaceContext = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            },
+        );
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -1048,9 +1070,9 @@ export class DashboardService
                 }
 
                 const spaceAccessContext =
-                    await this.spacePermissionService.getSpaceAccessContext(
+                    await this.spacePermissionService.resolveAccess(
                         user.userUuid,
-                        savedChart.spaceUuid,
+                        { type: 'space', spaceUuid: savedChart.spaceUuid },
                     );
                 const auditedAbility = this.createAuditedAbility(user);
                 if (
@@ -1104,9 +1126,9 @@ export class DashboardService
                 }
 
                 const spaceAccessContext =
-                    await this.spacePermissionService.getSpaceAccessContext(
+                    await this.spacePermissionService.resolveAccess(
                         user.userUuid,
-                        savedSqlChart.space.uuid,
+                        { type: 'space', spaceUuid: savedSqlChart.space.uuid },
                     );
                 const auditedAbility = this.createAuditedAbility(user);
                 if (
@@ -1215,10 +1237,10 @@ export class DashboardService
         }
 
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                space.uuid,
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'space',
+                spaceUuid: space.uuid,
+            });
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -1413,10 +1435,10 @@ export class DashboardService
             );
         }
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboardDao.spaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'space',
+                spaceUuid: dashboardDao.spaceUuid,
+            });
         const dashboard = {
             ...dashboardDao,
             inheritsFromOrgOrProject,
@@ -1424,10 +1446,10 @@ export class DashboardService
         };
         const targetSpaceUuid = options?.targetSpaceUuid ?? dashboard.spaceUuid;
         const targetSpaceAccess =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                targetSpaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'space',
+                spaceUuid: targetSpaceUuid,
+            });
         if (targetSpaceAccess.projectUuid !== projectUuid) {
             throw new ForbiddenError(
                 'Target space does not belong to this project',
@@ -1740,9 +1762,9 @@ export class DashboardService
             existingDashboardDao,
             dashboardFields,
         );
-        const space = await this.spacePermissionService.getSpaceAccessContext(
+        const space = await this.spacePermissionService.resolveAccess(
             user.userUuid,
-            existingDashboardDao.spaceUuid,
+            { type: 'space', spaceUuid: existingDashboardDao.spaceUuid },
         );
         return {
             ...overlaid,
@@ -1812,14 +1834,14 @@ export class DashboardService
         );
         const { preserveVerification, ...dashboardFields } = dashboard;
 
-        const currentSpace =
-            await this.spacePermissionService.getDashboardAccessContext(
-                user.userUuid,
-                {
-                    uuid: existingDashboardDao.uuid,
-                    spaceUuid: existingDashboardDao.spaceUuid,
-                },
-            );
+        const currentSpace = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid: existingDashboardDao.uuid,
+                spaceUuid: existingDashboardDao.spaceUuid,
+            },
+        );
         const auditedAbility = this.createAuditedAbility(user);
         const canUpdateDashboardInCurrentSpace = auditedAbility.can(
             'update',
@@ -1861,9 +1883,9 @@ export class DashboardService
         if (isDashboardUnversionedFields(dashboardFields)) {
             if (dashboardFields.spaceUuid) {
                 const newSpace =
-                    await this.spacePermissionService.getSpaceAccessContext(
+                    await this.spacePermissionService.resolveAccess(
                         user.userUuid,
-                        dashboardFields.spaceUuid,
+                        { type: 'space', spaceUuid: dashboardFields.spaceUuid },
                     );
                 const canUpdateDashboardInNewSpace = auditedAbility.can(
                     'update',
@@ -2069,14 +2091,14 @@ export class DashboardService
         const updatedNewDashboard = await this.dashboardModel.getByIdOrSlug(
             existingDashboardDao.uuid,
         );
-        const updatedSpace =
-            await this.spacePermissionService.getDashboardAccessContext(
-                user.userUuid,
-                {
-                    uuid: updatedNewDashboard.uuid,
-                    spaceUuid: updatedNewDashboard.spaceUuid,
-                },
-            );
+        const updatedSpace = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid: updatedNewDashboard.uuid,
+                spaceUuid: updatedNewDashboard.spaceUuid,
+            },
+        );
 
         return {
             ...updatedNewDashboard,
@@ -2162,13 +2184,11 @@ export class DashboardService
         const existingDashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getDashboardAccessContext(
-                user.userUuid,
-                {
-                    uuid: existingDashboardDao.uuid,
-                    spaceUuid: existingDashboardDao.spaceUuid,
-                },
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: existingDashboardDao.uuid,
+                spaceUuid: existingDashboardDao.spaceUuid,
+            });
         const existingDashboard = {
             ...existingDashboardDao,
             inheritsFromOrgOrProject,
@@ -2258,10 +2278,11 @@ export class DashboardService
                     dashboardToUpdate.uuid,
                 );
                 const currentSpaceContext =
-                    await this.spacePermissionService.getDashboardAccessContext(
+                    await this.spacePermissionService.resolveAccess(
                         user.userUuid,
                         {
-                            uuid: dashboard.uuid,
+                            type: 'dashboard',
+                            dashboardUuid: dashboard.uuid,
                             spaceUuid: dashboard.spaceUuid,
                         },
                     );
@@ -2273,9 +2294,12 @@ export class DashboardService
                     }),
                 );
                 const newSpaceContext =
-                    await this.spacePermissionService.getSpaceAccessContext(
+                    await this.spacePermissionService.resolveAccess(
                         user.userUuid,
-                        dashboardToUpdate.spaceUuid,
+                        {
+                            type: 'space',
+                            spaceUuid: dashboardToUpdate.spaceUuid,
+                        },
                     );
                 const canUpdateDashboardInNewSpace = auditedAbility.can(
                     'update',
@@ -2328,10 +2352,11 @@ export class DashboardService
         const updatedDashboardsWithSpacesAccess = updatedDashboards.map(
             async (dashboard) => {
                 const dashboardSpaceContext =
-                    await this.spacePermissionService.getDashboardAccessContext(
+                    await this.spacePermissionService.resolveAccess(
                         user.userUuid,
                         {
-                            uuid: dashboard.uuid,
+                            type: 'dashboard',
+                            dashboardUuid: dashboard.uuid,
                             spaceUuid: dashboard.spaceUuid,
                         },
                     );
@@ -2363,10 +2388,11 @@ export class DashboardService
 
         if (!options?.bypassPermissions) {
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getDashboardAccessContext(
-                    user.userUuid,
-                    { uuid: dashboardToDelete.uuid, spaceUuid },
-                );
+                await this.spacePermissionService.resolveAccess(user.userUuid, {
+                    type: 'dashboard',
+                    dashboardUuid: dashboardToDelete.uuid,
+                    spaceUuid,
+                });
             const auditedAbility = this.createAuditedAbility(user);
             if (
                 auditedAbility.cannot(
@@ -2479,10 +2505,11 @@ export class DashboardService
             });
         } else {
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getDashboardAccessContext(
-                    user.userUuid,
-                    { uuid: dashboard.uuid, spaceUuid: dashboard.spaceUuid },
-                );
+                await this.spacePermissionService.resolveAccess(user.userUuid, {
+                    type: 'dashboard',
+                    dashboardUuid: dashboard.uuid,
+                    spaceUuid: dashboard.spaceUuid,
+                });
             const auditedAbility = this.createAuditedAbility(user);
             if (
                 auditedAbility.cannot(
@@ -2817,10 +2844,11 @@ export class DashboardService
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getDashboardAccessContext(
-                user.userUuid,
-                { uuid: dashboardDao.uuid, spaceUuid: dashboardDao.spaceUuid },
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboardDao.uuid,
+                spaceUuid: dashboardDao.spaceUuid,
+            });
         const dashboard = {
             ...dashboardDao,
             inheritsFromOrgOrProject,
@@ -2882,9 +2910,13 @@ export class DashboardService
             throw new NotFoundError('Dashboard not found');
         }
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getDashboardAccessContext(
+            await this.spacePermissionService.resolveAccess(
                 actor.user.userUuid,
-                { uuid: dashboard.uuid, spaceUuid: dashboard.spaceUuid },
+                {
+                    type: 'dashboard',
+                    dashboardUuid: dashboard.uuid,
+                    spaceUuid: dashboard.spaceUuid,
+                },
             );
 
         const auditedAbility = this.createAuditedAbility(actor.user);
@@ -2906,11 +2938,10 @@ export class DashboardService
         }
 
         if (resource.spaceUuid && dashboard.spaceUuid !== resource.spaceUuid) {
-            const newSpace =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    actor.user.userUuid,
-                    resource.spaceUuid,
-                );
+            const newSpace = await this.spacePermissionService.resolveAccess(
+                actor.user.userUuid,
+                { type: 'space', spaceUuid: resource.spaceUuid },
+            );
 
             const isActorAllowedToPerformActionInNewSpace = auditedAbility.can(
                 action,
@@ -2938,10 +2969,11 @@ export class DashboardService
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getDashboardAccessContext(
-                user.userUuid,
-                { uuid: dashboardDao.uuid, spaceUuid: dashboardDao.spaceUuid },
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboardDao.uuid,
+                spaceUuid: dashboardDao.spaceUuid,
+            });
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
@@ -2987,10 +3019,11 @@ export class DashboardService
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getDashboardAccessContext(
-                user.userUuid,
-                { uuid: dashboardDao.uuid, spaceUuid: dashboardDao.spaceUuid },
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboardDao.uuid,
+                spaceUuid: dashboardDao.spaceUuid,
+            });
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
@@ -3136,10 +3169,11 @@ export class DashboardService
         }
 
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getDashboardAccessContext(
-                user.userUuid,
-                { uuid: dashboardDao.uuid, spaceUuid: dashboardDao.spaceUuid },
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboardDao.uuid,
+                spaceUuid: dashboardDao.spaceUuid,
+            });
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(

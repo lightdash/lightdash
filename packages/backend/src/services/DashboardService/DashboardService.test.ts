@@ -40,7 +40,10 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
-import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import {
+    SpacePermissionService,
+    type AccessTarget,
+} from '../SpaceService/SpacePermissionService';
 import { DashboardService } from './DashboardService';
 import {
     chart,
@@ -187,20 +190,16 @@ const lookupSpaceContext = (spaceUuid: string) => {
 };
 
 const spacePermissionService = {
-    getSpaceAccessContext: vi.fn(async (_userUuid: string, spaceUuid: string) =>
-        lookupSpaceContext(spaceUuid),
-    ),
-    getDashboardAccessContext: vi.fn(
-        async (
-            _userUuid: string,
-            dashboardRef: { uuid: string | null; spaceUuid: string },
-        ) => ({
-            ...lookupSpaceContext(dashboardRef.spaceUuid),
-            directOnly: false,
-        }),
-    ),
-    getSpacesAccessContext: vi.fn(
-        async (_userUuid: string, spaceUuids: string[]) => spaceContexts,
+    resolveAccess: vi.fn(async (_userUuid: string, target: AccessTarget) => ({
+        ...lookupSpaceContext(target.spaceUuid),
+        directOnly: false,
+    })),
+    resolveAccessBatch: vi.fn(
+        async (_userUuid: string, targets: { spaceUuid: string }[]) =>
+            targets.map(({ spaceUuid }) => ({
+                ...lookupSpaceContext(spaceUuid),
+                directOnly: false,
+            })),
     ),
     getFirstViewableSpaceUuid: vi.fn(async () => publicSpace.uuid),
 };
@@ -314,12 +313,16 @@ describe('DashboardService', () => {
         });
         // The user holds a viewer grant on the chart's owning dashboard; the
         // grant must still not authorize copying it into another dashboard.
-        spacePermissionService.getDashboardAccessContext.mockImplementationOnce(
-            async (_userUuid: string, ref: { uuid: string | null }) =>
-                ({
+        spacePermissionService.resolveAccess.mockImplementationOnce(
+            async (_userUuid: string, target: AccessTarget) => {
+                const targetDashboardUuid =
+                    target.type === 'dashboard'
+                        ? target.dashboardUuid
+                        : undefined;
+                return {
                     ...spaceContexts[privateSpace.uuid],
                     access:
-                        ref.uuid === 'other-dashboard-uuid'
+                        targetDashboardUuid === 'other-dashboard-uuid'
                             ? [
                                   {
                                       userUuid: user.userUuid,
@@ -329,8 +332,9 @@ describe('DashboardService', () => {
                                   },
                               ]
                             : [],
-                    directOnly: ref.uuid === 'other-dashboard-uuid',
-                }) as never,
+                    directOnly: targetDashboardUuid === 'other-dashboard-uuid',
+                } as never;
+            },
         );
 
         await expect(
@@ -342,12 +346,13 @@ describe('DashboardService', () => {
                 user: grantOnlyUser,
             }),
         ).rejects.toThrow(ForbiddenError);
-        expect(
-            spacePermissionService.getDashboardAccessContext,
-        ).toHaveBeenCalledWith(user.userUuid, {
-            uuid: null,
-            spaceUuid: privateSpace.uuid,
-        });
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            user.userUuid,
+            {
+                type: 'space',
+                spaceUuid: privateSpace.uuid,
+            },
+        );
         expect(savedChartModel.create).not.toHaveBeenCalled();
     });
 
@@ -368,7 +373,7 @@ describe('DashboardService', () => {
             ...chart,
             spaceUuid: privateSpace.uuid,
         });
-        spacePermissionService.getDashboardAccessContext.mockResolvedValueOnce({
+        spacePermissionService.resolveAccess.mockResolvedValueOnce({
             ...spaceContexts[privateSpace.uuid],
             access: [
                 {
@@ -390,12 +395,14 @@ describe('DashboardService', () => {
                 user: grantOnlyUser,
             }),
         ).resolves.toBe('duplicated-chart-uuid');
-        expect(
-            spacePermissionService.getDashboardAccessContext,
-        ).toHaveBeenCalledWith(user.userUuid, {
-            uuid: dashboardUuid,
-            spaceUuid: privateSpace.uuid,
-        });
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            user.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid,
+                spaceUuid: privateSpace.uuid,
+            },
+        );
     });
 
     test('should get dashboard by uuid', async () => {
@@ -433,7 +440,7 @@ describe('DashboardService', () => {
             spaceName: 'Private finance',
         };
         dashboardModel.getByIdOrSlug.mockResolvedValueOnce(privateDashboard);
-        spacePermissionService.getDashboardAccessContext.mockResolvedValueOnce({
+        spacePermissionService.resolveAccess.mockResolvedValueOnce({
             ...spaceContexts[privateSpace.uuid],
             access: [
                 {
@@ -465,12 +472,14 @@ describe('DashboardService', () => {
                 }),
             ],
         });
-        expect(
-            spacePermissionService.getDashboardAccessContext,
-        ).toHaveBeenCalledWith(user.userUuid, {
-            uuid: privateDashboard.uuid,
-            spaceUuid: privateSpace.uuid,
-        });
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            user.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid: privateDashboard.uuid,
+                spaceUuid: privateSpace.uuid,
+            },
+        );
     });
 
     test('denies the same private dashboard without a direct grant', async () => {
@@ -492,7 +501,7 @@ describe('DashboardService', () => {
             ...dashboard,
             spaceUuid: privateSpace.uuid,
         });
-        spacePermissionService.getDashboardAccessContext.mockResolvedValueOnce({
+        spacePermissionService.resolveAccess.mockResolvedValueOnce({
             ...spaceContexts[privateSpace.uuid],
             directOnly: false,
         });
@@ -626,7 +635,7 @@ describe('DashboardService', () => {
     });
 
     test('keeps the space name in the update response for a grant-only editor', async () => {
-        spacePermissionService.getDashboardAccessContext
+        spacePermissionService.resolveAccess
             .mockResolvedValueOnce({
                 ...lookupSpaceContext(dashboard.spaceUuid),
                 directOnly: true,

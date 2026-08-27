@@ -970,10 +970,11 @@ export class UnfurlService extends BaseService {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getDashboardAccessContext(
-                user.userUuid,
-                { uuid: dashboard.uuid, spaceUuid: dashboard.spaceUuid },
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            });
 
         validateSelectedTabs(selectedTabs, dashboard.tiles);
 
@@ -1069,14 +1070,12 @@ export class UnfurlService extends BaseService {
             projectUuid ? { projectUuid } : undefined,
         );
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getChartAccessContext(
-                user.userUuid,
-                {
-                    uuid: chart.uuid,
-                    dashboardUuid: chart.dashboardUuid,
-                    spaceUuid: chart.spaceUuid,
-                },
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'chart',
+                chartUuid: chart.uuid,
+                dashboardUuid: chart.dashboardUuid,
+                spaceUuid: chart.spaceUuid,
+            });
 
         const auditedAbility = this.createAuditedAbility(user);
         if (

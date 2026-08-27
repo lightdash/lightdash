@@ -396,7 +396,7 @@ describe('EmbedService', () => {
                     }),
                 },
                 spacePermissionService: {
-                    getSpaceAccessContext: vi
+                    resolveAccess: vi
                         .fn()
                         .mockResolvedValue(spaceAccessContext),
                 },

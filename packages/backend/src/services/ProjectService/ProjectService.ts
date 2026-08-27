@@ -5244,11 +5244,19 @@ export class ProjectService extends BaseService {
             ];
             const viewableSpaceUuids = new Set<string>();
             if (candidateSpaceUuids.length > 0) {
-                const spaceContexts = Object.entries(
-                    await this.spacePermissionService.getSpacesAccessContext(
+                const resolvedSpaceContexts =
+                    await this.spacePermissionService.resolveAccessBatch(
                         account.user.id,
-                        candidateSpaceUuids,
-                    ),
+                        candidateSpaceUuids.map((spaceUuid) => ({
+                            type: 'space',
+                            spaceUuid,
+                        })),
+                    );
+                const spaceContexts = candidateSpaceUuids.flatMap(
+                    (spaceUuid, index) => {
+                        const context = resolvedSpaceContexts[index];
+                        return context ? [[spaceUuid, context] as const] : [];
+                    },
                 );
                 const accessResults = auditedAbility.canBulk(
                     'view',
@@ -6672,8 +6680,9 @@ export class ProjectService extends BaseService {
         const { organizationUuid, projectUuid } = savedChart;
 
         const [spaceCtx, explore] = await Promise.all([
-            this.spacePermissionService.getChartAccessContext(account.user.id, {
-                uuid: savedChart.uuid,
+            this.spacePermissionService.resolveAccess(account.user.id, {
+                type: 'chart',
+                chartUuid: savedChart.uuid,
                 dashboardUuid: savedChart.dashboardUuid,
                 spaceUuid: savedChart.spaceUuid,
             }),
@@ -6773,8 +6782,9 @@ export class ProjectService extends BaseService {
         const { organizationUuid, projectUuid } = savedChart;
 
         const [spaceCtx, explore] = await Promise.all([
-            this.spacePermissionService.getChartAccessContext(account.user.id, {
-                uuid: savedChart.uuid,
+            this.spacePermissionService.resolveAccess(account.user.id, {
+                type: 'chart',
+                chartUuid: savedChart.uuid,
                 dashboardUuid: savedChart.dashboardUuid,
                 spaceUuid: savedChart.spaceUuid,
             }),
@@ -9798,10 +9808,11 @@ export class ProjectService extends BaseService {
                     ]);
 
                 const spaceCtx =
-                    await this.spacePermissionService.getChartAccessContext(
+                    await this.spacePermissionService.resolveAccess(
                         account.user.id,
                         {
-                            uuid: savedChart.uuid,
+                            type: 'chart',
+                            chartUuid: savedChart.uuid,
                             dashboardUuid: savedChart.dashboardUuid,
                             spaceUuid: savedChart.spaceUuid,
                         },
@@ -9872,10 +9883,11 @@ export class ProjectService extends BaseService {
                 }
 
                 const [chartContexts, exploresMap] = await Promise.all([
-                    this.spacePermissionService.getChartsAccessContext(
+                    this.spacePermissionService.resolveAccessBatch(
                         account.user.id,
                         savedCharts.map((chart) => ({
-                            uuid: chart.uuid,
+                            type: 'chart',
+                            chartUuid: chart.uuid,
                             dashboardUuid: chart.dashboardUuid,
                             spaceUuid: chart.spaceUuid,
                         })),
@@ -10640,16 +10652,19 @@ export class ProjectService extends BaseService {
 
         const spaces = await this.spaceModel.find({ projectUuid });
         const spaceUuids = spaces.map((s) => s.uuid);
-        const [userSpacesCtx, directAccessMap] = await Promise.all([
-            this.spacePermissionService.getSpacesAccessContext(
+        const [userSpaceContexts, directAccessMap] = await Promise.all([
+            this.spacePermissionService.resolveAccessBatch(
                 user.userUuid,
-                spaceUuids,
+                spaceUuids.map((spaceUuid) => ({
+                    type: 'space' as const,
+                    spaceUuid,
+                })),
             ),
             this.spacePermissionService.getDirectAccessUserUuids(spaceUuids),
         ]);
 
-        const spacesWithContext = spaces.flatMap((space) => {
-            const ctx = userSpacesCtx[space.uuid];
+        const spacesWithContext = spaces.flatMap((space, index) => {
+            const ctx = userSpaceContexts[index];
             return ctx ? [{ space, ctx }] : [];
         });
         const accessResults = auditedAbility.canBulk(

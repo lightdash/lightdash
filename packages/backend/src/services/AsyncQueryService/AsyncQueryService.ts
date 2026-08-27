@@ -739,9 +739,9 @@ export class AsyncQueryService extends ProjectService {
             space: Pick<SpaceSummaryBase, 'uuid'>;
         },
     ) {
-        const ctx = await this.spacePermissionService.getSpaceAccessContext(
+        const ctx = await this.spacePermissionService.resolveAccess(
             account.user.id,
-            savedChart.space.uuid,
+            { type: 'space', spaceUuid: savedChart.space.uuid },
         );
 
         const auditedAbility = this.createAuditedAbility(account);
@@ -773,9 +773,9 @@ export class AsyncQueryService extends ProjectService {
             savedSqlUuid?: string;
         },
     ) {
-        const ctx = await this.spacePermissionService.getSpaceAccessContext(
+        const ctx = await this.spacePermissionService.resolveAccess(
             user.userUuid,
-            savedChart.spaceUuid,
+            { type: 'space', spaceUuid: savedChart.spaceUuid },
         );
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -809,9 +809,9 @@ export class AsyncQueryService extends ProjectService {
             spaceUuid: string;
         },
     ) {
-        const ctx = await this.spacePermissionService.getSpaceAccessContext(
+        const ctx = await this.spacePermissionService.resolveAccess(
             user.userUuid,
-            dashboard.spaceUuid,
+            { type: 'space', spaceUuid: dashboard.spaceUuid },
         );
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -5698,10 +5698,11 @@ export class AsyncQueryService extends ProjectService {
                 );
             inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
         } else {
-            const ctx = await this.spacePermissionService.getChartAccessContext(
+            const ctx = await this.spacePermissionService.resolveAccess(
                 account.user.id,
                 {
-                    uuid: savedChart.uuid,
+                    type: 'chart',
+                    chartUuid: savedChart.uuid,
                     dashboardUuid: savedChart.dashboardUuid,
                     spaceUuid: savedChartSpaceUuid,
                 },
@@ -6037,10 +6038,11 @@ export class AsyncQueryService extends ProjectService {
             );
         } else {
             const auditedAbility = this.createAuditedAbility(account);
-            const ctx = await this.spacePermissionService.getChartAccessContext(
+            const ctx = await this.spacePermissionService.resolveAccess(
                 account.user.id,
                 {
-                    uuid: savedChartUuid,
+                    type: 'chart',
+                    chartUuid: savedChartUuid,
                     dashboardUuid: owningDashboardUuid,
                     spaceUuid: space.uuid,
                 },
@@ -9586,15 +9588,15 @@ export class AsyncQueryService extends ProjectService {
               )
             : savedChart.metricQuery;
 
-        const spaceCtx =
-            await this.spacePermissionService.getChartAccessContext(
-                account.user.id,
-                {
-                    uuid: savedChart.uuid,
-                    dashboardUuid: savedChart.dashboardUuid,
-                    spaceUuid: savedChart.spaceUuid,
-                },
-            );
+        const spaceCtx = await this.spacePermissionService.resolveAccess(
+            account.user.id,
+            {
+                type: 'chart',
+                chartUuid: savedChart.uuid,
+                dashboardUuid: savedChart.dashboardUuid,
+                spaceUuid: savedChart.spaceUuid,
+            },
+        );
 
         const auditedAbility = this.createAuditedAbility(account);
         if (

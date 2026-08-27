@@ -716,11 +716,11 @@ export class AppGenerateService extends BaseService {
         await assertUserCanViewApp(
             {
                 auditedAbility: this.createAuditedAbility(user),
-                getSpaceAccessContext: (userUuid, spaceUuid) =>
-                    this.spacePermissionService.getSpaceAccessContext(
-                        userUuid,
+                resolveAccess: (userUuid, spaceUuid) =>
+                    this.spacePermissionService.resolveAccess(userUuid, {
+                        type: 'space',
                         spaceUuid,
-                    ),
+                    }),
                 getProjectContext: (projectUuid) =>
                     this.getDataAppProjectContext(projectUuid),
             },
@@ -749,10 +749,10 @@ export class AppGenerateService extends BaseService {
         extraContext: Record<string, unknown> = {},
     ): Promise<DataAppProjectContext> {
         const spaceContext = app.space_uuid
-            ? await this.spacePermissionService.getSpaceAccessContext(
-                  user.userUuid,
-                  app.space_uuid,
-              )
+            ? await this.spacePermissionService.resolveAccess(user.userUuid, {
+                  type: 'space',
+                  spaceUuid: app.space_uuid,
+              })
             : {};
         return this.assertDataAppAbility(
             user,
@@ -1210,10 +1210,10 @@ export class AppGenerateService extends BaseService {
     ): Promise<boolean> {
         const [spaceContext, resolvedProjectContext] = await Promise.all([
             app.space_uuid
-                ? this.spacePermissionService.getSpaceAccessContext(
-                      user.userUuid,
-                      app.space_uuid,
-                  )
+                ? this.spacePermissionService.resolveAccess(user.userUuid, {
+                      type: 'space',
+                      spaceUuid: app.space_uuid,
+                  })
                 : Promise.resolve({}),
             projectContext ?? this.getDataAppProjectContext(app.project_uuid),
         ]);
@@ -1231,7 +1231,7 @@ export class AppGenerateService extends BaseService {
     /**
      * Bulk filter for callers that have a list of apps already loaded
      * (e.g. SearchService). Resolves space access contexts in parallel —
-     * one `getSpaceAccessContext` call per app with a space.
+     * one `resolveAccess` call per app with a space.
      */
     async filterAppsUserCanView<
         T extends {
@@ -6000,10 +6000,10 @@ export class AppGenerateService extends BaseService {
         // (or project admin) already pass through `manage:DataApp@space`.
         if (spaceUuid) {
             const spaceContext =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
+                await this.spacePermissionService.resolveAccess(user.userUuid, {
+                    type: 'space',
                     spaceUuid,
-                );
+                });
             await this.assertDataAppAbility(
                 user,
                 'manage',
@@ -9103,10 +9103,10 @@ export class AppGenerateService extends BaseService {
             // …and manage on the target space, otherwise a user could move an
             // app into a space they don't own.
             const targetSpaceContext =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
-                    targetSpaceUuid,
-                );
+                await this.spacePermissionService.resolveAccess(user.userUuid, {
+                    type: 'space',
+                    spaceUuid: targetSpaceUuid,
+                });
             await this.assertDataAppAbility(
                 user,
                 'manage',
@@ -10075,10 +10075,10 @@ export class AppGenerateService extends BaseService {
         if (!app || app.organization_uuid !== organizationUuid) return empty();
         const [spaceContext, projectContext] = await Promise.all([
             app.space_uuid
-                ? this.spacePermissionService.getSpaceAccessContext(
-                      account.user.id,
-                      app.space_uuid,
-                  )
+                ? this.spacePermissionService.resolveAccess(account.user.id, {
+                      type: 'space',
+                      spaceUuid: app.space_uuid,
+                  })
                 : Promise.resolve({}),
             this.getDataAppProjectContext(projectUuid),
         ]);
@@ -11018,9 +11018,9 @@ export class AppGenerateService extends BaseService {
                     manifestSpaceUuid !== existingApp.space_uuid
                 ) {
                     const spaceContext =
-                        await this.spacePermissionService.getSpaceAccessContext(
+                        await this.spacePermissionService.resolveAccess(
                             user.userUuid,
-                            manifestSpaceUuid,
+                            { type: 'space', spaceUuid: manifestSpaceUuid },
                         );
                     await this.assertDataAppAbility(
                         user,
@@ -11088,9 +11088,9 @@ export class AppGenerateService extends BaseService {
             }
             if (targetSpaceUuid) {
                 const spaceContext =
-                    await this.spacePermissionService.getSpaceAccessContext(
+                    await this.spacePermissionService.resolveAccess(
                         user.userUuid,
-                        targetSpaceUuid,
+                        { type: 'space', spaceUuid: targetSpaceUuid },
                     );
                 await this.assertDataAppAbility(
                     user,

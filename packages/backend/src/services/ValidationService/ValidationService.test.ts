@@ -103,16 +103,15 @@ const spaceModel = {
     find: vi.fn(async () => []),
 };
 const spacePermissionService = {
-    getSpaceAccessContext: vi.fn(async () => ({
+    resolveAccess: vi.fn(async () => ({
+        organizationUuid: 'orgUuid',
+        projectUuid: 'projectUuid',
         inheritsFromOrgOrProject: false,
         access: [],
-    })),
-    getDashboardAccessContext: vi.fn(async () => ({
-        inheritsFromOrgOrProject: false,
-        access: [],
+        admins: [],
         directOnly: false,
     })),
-    getSpacesAccessContext: vi.fn(async () => ({})),
+    resolveAccessBatch: vi.fn(async () => []),
     getAccessibleSpaceUuids: vi.fn(async () => []),
 };
 describe('validation', () => {

@@ -25,7 +25,7 @@ export type DataAppProjectContext = {
 
 export type AppViewAuthzDeps = {
     auditedAbility: CaslAuditWrapper<Ability>;
-    getSpaceAccessContext: (
+    resolveAccess: (
         userUuid: string,
         spaceUuid: string,
     ) => Promise<Record<string, unknown>>;
@@ -39,7 +39,7 @@ async function userCanViewApp(
 ): Promise<boolean> {
     const [spaceContext, projectContext] = await Promise.all([
         app.space_uuid
-            ? deps.getSpaceAccessContext(user.userUuid, app.space_uuid)
+            ? deps.resolveAccess(user.userUuid, app.space_uuid)
             : Promise.resolve({}),
         deps.getProjectContext(app.project_uuid),
     ]);

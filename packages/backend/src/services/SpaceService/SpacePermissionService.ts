@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     getHighestSpaceRole,
     getOrganizationRoleForRoleSetSpaceAccess,
     getProjectRoleForRoleSetSpaceAccess,
@@ -50,14 +51,31 @@ export type SpaceAccessContextForCasl = {
     admins: SpaceAdmin[];
 };
 
+export type AccessTarget =
+    | { type: 'space'; spaceUuid: string }
+    | { type: 'dashboard'; dashboardUuid: string; spaceUuid: string }
+    | {
+          type: 'chart';
+          chartUuid: string;
+          dashboardUuid: string | null;
+          spaceUuid: string;
+      };
+
 // A content type's direct-grant lookup (e.g. DashboardAccessModel.getUserAccess
 // or SavedChartAccessModel.getUserAccess), pre-bound to the requesting user.
 type GrantLookup = (
     resourceUuids: string[],
-    opts: { organizationUuid: string },
+    opts: { organizationUuid: string; trx?: Knex },
 ) => Promise<Record<string, DirectAccess>>;
 
-export type DashboardAccessContextForCasl = SpaceAccessContextForCasl & {
+type DirectGrantTarget = {
+    source: GrantSource;
+    resourceUuid: string;
+    resourceLabel: string;
+    spaceUuid: string;
+};
+
+export type AccessContextForCasl = SpaceAccessContextForCasl & {
     /**
      * True when the requester has no space-derived access path (membership,
      * inheritance, or admin standing) and reaches the content only through
@@ -180,34 +198,8 @@ export class SpacePermissionService extends BaseService {
     }
 
     /**
-     * Returns the CASL context for a space (organizationUuid, projectUuid, inheritsFromOrgOrProject, access)
-     * without performing any permission checks. Callers use this to build their own
-     * `subject(...)` checks when the resource type is not Space.
-     */
-    async getSpaceAccessContext(
-        userUuid: string,
-        spaceUuid: string,
-        { trx }: { trx?: Knex } = {},
-    ): Promise<SpaceAccessContextForCasl> {
-        const accessContext = await this.getSpacesCaslContext(
-            [spaceUuid],
-            {
-                userUuid,
-            },
-            { trx },
-        );
-        const ctx = accessContext[spaceUuid];
-        if (!ctx) {
-            throw new NotFoundError(
-                `Couldn't find access context for space ${spaceUuid}`,
-            );
-        }
-        return ctx;
-    }
-
-    /**
-     * The single choke point for authorizing a dashboard-owned chart through
-     * a direct dashboard grant. Read this before touching any grant call site.
+     * Resolves effective access to one supported target. Space permissions are
+     * always the baseline; direct content grants are added when applicable.
      *
      * THE BOUNDARY RULE. A direct grant on a dashboard authorizes operations
      * whose effect stays INSIDE that dashboard; anything that reads, moves, or
@@ -231,268 +223,244 @@ export class SpacePermissionService extends BaseService {
      * feature gate; with the flag off the result equals the plain space
      * context.
      *
-     * Pass `uuid: null` for a chart with no owning dashboard, AND at every
-     * boundary-crossing call site (copying or moving content out of the
-     * dashboard) where the grant must not count: the space-only context is
-     * returned and no grant lookup runs. The `expectNoGrantRows` test tripwire
-     * guards those sites. See also `ld-permissions` skill and this service's
-     * CLAUDE.md.
+     * Boundary-crossing operations pass a `space` target so content grants do
+     * not count. A `chart` target routes through its owning dashboard when it
+     * has one, otherwise through the saved chart's own direct grants.
      */
-    async getDashboardAccessContext(
+    async resolveAccess(
         userUuid: string,
-        dashboard: { uuid: string | null; spaceUuid: string },
-    ): Promise<DashboardAccessContextForCasl> {
-        return this.resolveGrantAccessContext(userUuid, dashboard, {
-            grantedVia: 'dashboard',
-            resourceLabel: 'Dashboard',
-            lookupGrants: (uuids, opts) =>
-                this.dashboardAccessModel.getUserAccess(uuids, userUuid, opts),
+        target: AccessTarget,
+        { trx }: { trx?: Knex } = {},
+    ): Promise<AccessContextForCasl> {
+        const [context] = await this.resolveAccessTargets(userUuid, [target], {
+            onMismatch: 'throw',
+            trx,
         });
-    }
-
-    /**
-     * Direct-grant access context for a saved (explore) chart. Same kernel and
-     * boundary rule as `getDashboardAccessContext` (read its doc); grants are
-     * tagged `grantedVia: 'saved_chart'`. Pass `uuid: null` for a chart with no
-     * direct policy, or at a boundary-crossing site where grants must not
-     * count.
-     */
-    async getSavedChartAccessContext(
-        userUuid: string,
-        chart: { uuid: string | null; spaceUuid: string },
-    ): Promise<DashboardAccessContextForCasl> {
-        return this.resolveGrantAccessContext(userUuid, chart, {
-            grantedVia: 'saved_chart',
-            resourceLabel: 'Saved chart',
-            lookupGrants: (uuids, opts) =>
-                this.savedChartAccessModel.getUserAccess(uuids, userUuid, opts),
-        });
-    }
-
-    /** Batched `getSavedChartAccessContext` for hot paths (listings, tiles). */
-    async getSavedChartsAccessContext(
-        userUuid: string,
-        charts: { uuid: string | null; spaceUuid: string }[],
-    ): Promise<(DashboardAccessContextForCasl | undefined)[]> {
-        return this.resolveGrantsAccessContext(userUuid, charts, {
-            grantedVia: 'saved_chart',
-            lookupGrants: (uuids, opts) =>
-                this.savedChartAccessModel.getUserAccess(uuids, userUuid, opts),
-        });
-    }
-
-    /**
-     * Access context for a chart, routed by ownership: a dashboard-owned chart
-     * (`dashboardUuid` set) resolves through the owning dashboard's grants; a
-     * space-saved chart resolves through its own grants. Callers pass the
-     * chart's own uuid, its dashboardUuid, and its space; this is the entry
-     * point every chart read/write path should use.
-     */
-    async getChartAccessContext(
-        userUuid: string,
-        chart: {
-            uuid: string;
-            dashboardUuid: string | null;
-            spaceUuid: string;
-        },
-    ): Promise<DashboardAccessContextForCasl> {
-        return chart.dashboardUuid
-            ? this.getDashboardAccessContext(userUuid, {
-                  uuid: chart.dashboardUuid,
-                  spaceUuid: chart.spaceUuid,
-              })
-            : this.getSavedChartAccessContext(userUuid, {
-                  uuid: chart.uuid,
-                  spaceUuid: chart.spaceUuid,
-              });
-    }
-
-    /**
-     * Batched `getChartAccessContext`, aligned with the input. Owned charts
-     * resolve in one dashboard-grant batch and space charts in one
-     * chart-grant batch (non-applicable entries take the no-lookup null path),
-     * so a mixed dashboard load costs two grant queries, never N+1.
-     */
-    async getChartsAccessContext(
-        userUuid: string,
-        charts: {
-            uuid: string;
-            dashboardUuid: string | null;
-            spaceUuid: string;
-        }[],
-    ): Promise<(DashboardAccessContextForCasl | undefined)[]> {
-        const [dashboardContexts, chartContexts] = await Promise.all([
-            this.getDashboardsAccessContext(
-                userUuid,
-                charts.map((chart) => ({
-                    uuid: chart.dashboardUuid,
-                    spaceUuid: chart.spaceUuid,
-                })),
-            ),
-            this.getSavedChartsAccessContext(
-                userUuid,
-                charts.map((chart) => ({
-                    uuid: chart.dashboardUuid ? null : chart.uuid,
-                    spaceUuid: chart.spaceUuid,
-                })),
-            ),
-        ]);
-        return charts.map((chart, index) =>
-            chart.dashboardUuid
-                ? dashboardContexts[index]
-                : chartContexts[index],
-        );
-    }
-
-    /**
-     * Batched `getDashboardAccessContext` for hot paths that resolve many
-     * (dashboard, space) refs at once. Returns contexts aligned with the input;
-     * undefined where the space context could not be resolved. Doubtful refs
-     * degrade to the space-only context — never to more access.
-     */
-    async getDashboardsAccessContext(
-        userUuid: string,
-        dashboards: { uuid: string | null; spaceUuid: string }[],
-    ): Promise<(DashboardAccessContextForCasl | undefined)[]> {
-        return this.resolveGrantsAccessContext(userUuid, dashboards, {
-            grantedVia: 'dashboard',
-            lookupGrants: (uuids, opts) =>
-                this.dashboardAccessModel.getUserAccess(uuids, userUuid, opts),
-        });
-    }
-
-    // The canonical single-ref grant kernel that every getXAccessContext
-    // delegates to. See the getDashboardAccessContext doc for the boundary
-    // rule. One space fetch, one gate check, one grant lookup; a space the
-    // resource does not belong to is a caller bug and throws.
-    private async resolveGrantAccessContext(
-        userUuid: string,
-        ref: { uuid: string | null; spaceUuid: string },
-        {
-            grantedVia,
-            resourceLabel,
-            lookupGrants,
-        }: {
-            grantedVia: GrantSource;
-            resourceLabel: string;
-            lookupGrants: GrantLookup;
-        },
-    ): Promise<DashboardAccessContextForCasl> {
-        const spaceContext = await this.getSpaceAccessContext(
-            userUuid,
-            ref.spaceUuid,
-        );
-        const spaceOnlyContext = { ...spaceContext, directOnly: false };
-        if (ref.uuid === null) {
-            return spaceOnlyContext;
-        }
-        if (
-            !(await this.directAccessFeatureGate.isEnabledForUser({
-                userUuid,
-                organizationUuid: spaceContext.organizationUuid,
-            }))
-        ) {
-            return spaceOnlyContext;
-        }
-        const grants = await lookupGrants([ref.uuid], {
-            organizationUuid: spaceContext.organizationUuid,
-        });
-        const grant = grants[ref.uuid];
-        if (grant === undefined) {
-            return spaceOnlyContext;
-        }
-        const grantRoles = [
-            ...(grant.userRole ? [grant.userRole] : []),
-            ...grant.groupRoles,
-        ];
-        if (grantRoles.length === 0) {
-            return spaceOnlyContext;
-        }
-        if (grant.spaceUuid !== ref.spaceUuid) {
-            throw new ParameterError(
-                `${resourceLabel} ${ref.uuid} does not belong to space ${ref.spaceUuid}`,
+        if (context === undefined) {
+            throw new NotFoundError(
+                `Couldn't find access context for space ${target.spaceUuid}`,
             );
         }
-        return SpacePermissionService.withGrantAccess(
-            spaceContext,
-            userUuid,
-            grantRoles,
-            grantedVia,
-        );
+        return context;
     }
 
-    // Batched sibling of resolveGrantAccessContext: one space batch, one gate
-    // check, one grant lookup. Doubtful refs degrade to space-only rather than
-    // throwing, so one bad ref never fails a whole hot-path request.
-    private async resolveGrantsAccessContext(
+    /**
+     * Batched access resolution aligned with the input. Missing spaces and
+     * mismatched resource refs degrade to `undefined` or space-only access so
+     * one doubtful target never fails an entire hot-path request.
+     */
+    async resolveAccessBatch(
         userUuid: string,
-        refs: { uuid: string | null; spaceUuid: string }[],
-        {
-            grantedVia,
-            lookupGrants,
-        }: { grantedVia: GrantSource; lookupGrants: GrantLookup },
-    ): Promise<(DashboardAccessContextForCasl | undefined)[]> {
-        const uniqueSpaceUuids = [...new Set(refs.map((ref) => ref.spaceUuid))];
-        const spaceContexts = await this.getSpacesAccessContext(
-            userUuid,
-            uniqueSpaceUuids,
-        );
-        const spaceOnly = (ref: {
-            spaceUuid: string;
-        }): DashboardAccessContextForCasl | undefined => {
-            const ctx = spaceContexts[ref.spaceUuid];
-            return ctx ? { ...ctx, directOnly: false } : undefined;
-        };
+        targets: AccessTarget[],
+        { trx }: { trx?: Knex } = {},
+    ): Promise<(AccessContextForCasl | undefined)[]> {
+        return this.resolveAccessTargets(userUuid, targets, {
+            onMismatch: 'fallback',
+            trx,
+        });
+    }
 
-        const resourceUuids = [
-            ...new Set(
-                refs.flatMap((ref) =>
-                    ref.uuid !== null && spaceContexts[ref.spaceUuid]
-                        ? [ref.uuid]
-                        : [],
-                ),
-            ),
-        ];
-        const organizationUuid = refs
-            .map((ref) => spaceContexts[ref.spaceUuid]?.organizationUuid)
-            .find((uuid) => uuid !== undefined);
-        if (
-            resourceUuids.length === 0 ||
-            organizationUuid === undefined ||
-            !(await this.directAccessFeatureGate.isEnabledForUser({
-                userUuid,
-                organizationUuid,
-            }))
-        ) {
-            return refs.map(spaceOnly);
+    private static getDirectGrantTarget(
+        target: AccessTarget,
+    ): DirectGrantTarget | undefined {
+        switch (target.type) {
+            case 'space':
+                return undefined;
+            case 'dashboard':
+                return {
+                    source: 'dashboard',
+                    resourceUuid: target.dashboardUuid,
+                    resourceLabel: 'Dashboard',
+                    spaceUuid: target.spaceUuid,
+                };
+            case 'chart':
+                return target.dashboardUuid
+                    ? {
+                          source: 'dashboard',
+                          resourceUuid: target.dashboardUuid,
+                          resourceLabel: 'Dashboard',
+                          spaceUuid: target.spaceUuid,
+                      }
+                    : {
+                          source: 'saved_chart',
+                          resourceUuid: target.chartUuid,
+                          resourceLabel: 'Saved chart',
+                          spaceUuid: target.spaceUuid,
+                      };
+            default:
+                return assertUnreachable(
+                    target,
+                    'Unsupported access target type',
+                );
+        }
+    }
+
+    private getGrantLookup(userUuid: string, source: GrantSource): GrantLookup {
+        switch (source) {
+            case 'dashboard':
+                return (resourceUuids, opts) =>
+                    this.dashboardAccessModel.getUserAccess(
+                        resourceUuids,
+                        userUuid,
+                        opts,
+                    );
+            case 'saved_chart':
+                return (resourceUuids, opts) =>
+                    this.savedChartAccessModel.getUserAccess(
+                        resourceUuids,
+                        userUuid,
+                        opts,
+                    );
+            default:
+                return assertUnreachable(
+                    source,
+                    'Unsupported direct grant source',
+                );
+        }
+    }
+
+    private async resolveAccessTargets(
+        userUuid: string,
+        targets: AccessTarget[],
+        {
+            onMismatch,
+            trx,
+        }: {
+            onMismatch: 'throw' | 'fallback';
+            trx?: Knex;
+        },
+    ): Promise<(AccessContextForCasl | undefined)[]> {
+        if (targets.length === 0) {
+            return [];
         }
 
-        const grants = await lookupGrants(resourceUuids, { organizationUuid });
-        return refs.map((ref) => {
-            const spaceContext = spaceContexts[ref.spaceUuid];
-            if (spaceContext === undefined || ref.uuid === null) {
-                return spaceOnly(ref);
+        const uniqueSpaceUuids = [
+            ...new Set(targets.map((target) => target.spaceUuid)),
+        ];
+        const spaceContexts = await this.getSpacesCaslContext(
+            uniqueSpaceUuids,
+            { userUuid },
+            { trx },
+        );
+        const spaceOnly = (
+            target: AccessTarget,
+        ): AccessContextForCasl | undefined => {
+            const context = spaceContexts[target.spaceUuid];
+            return context ? { ...context, directOnly: false } : undefined;
+        };
+        const grantTargets = targets.flatMap((target) => {
+            const spaceContext = spaceContexts[target.spaceUuid];
+            const grantTarget =
+                SpacePermissionService.getDirectGrantTarget(target);
+            return grantTarget && spaceContext
+                ? [
+                      {
+                          ...grantTarget,
+                          organizationUuid: spaceContext.organizationUuid,
+                      },
+                  ]
+                : [];
+        });
+        if (grantTargets.length === 0) {
+            return targets.map(spaceOnly);
+        }
+
+        const organizationUuids = [
+            ...new Set(grantTargets.map((target) => target.organizationUuid)),
+        ];
+        const directAccessEnabledByOrganization = new Map(
+            await Promise.all(
+                organizationUuids.map(
+                    async (organizationUuid) =>
+                        [
+                            organizationUuid,
+                            await this.directAccessFeatureGate.isEnabledForUser(
+                                {
+                                    userUuid,
+                                    organizationUuid,
+                                },
+                            ),
+                        ] as const,
+                ),
+            ),
+        );
+
+        const grantBatches = new Map<string, Map<GrantSource, Set<string>>>();
+        grantTargets.forEach((target) => {
+            if (
+                !directAccessEnabledByOrganization.get(target.organizationUuid)
+            ) {
+                return;
             }
-            const grant = grants[ref.uuid];
+            const batchesBySource =
+                grantBatches.get(target.organizationUuid) ?? new Map();
+            const resourceUuids =
+                batchesBySource.get(target.source) ?? new Set();
+            resourceUuids.add(target.resourceUuid);
+            batchesBySource.set(target.source, resourceUuids);
+            grantBatches.set(target.organizationUuid, batchesBySource);
+        });
+        if (grantBatches.size === 0) {
+            return targets.map(spaceOnly);
+        }
+
+        const grantResults = await Promise.all(
+            [...grantBatches].flatMap(([organizationUuid, batchesBySource]) =>
+                [...batchesBySource].map(async ([source, resourceUuids]) => ({
+                    organizationUuid,
+                    source,
+                    grants: await this.getGrantLookup(userUuid, source)(
+                        [...resourceUuids],
+                        trx ? { organizationUuid, trx } : { organizationUuid },
+                    ),
+                })),
+            ),
+        );
+        const grantsByOrganization = new Map<
+            string,
+            Map<GrantSource, Record<string, DirectAccess>>
+        >();
+        grantResults.forEach(({ organizationUuid, source, grants }) => {
+            const grantsBySource =
+                grantsByOrganization.get(organizationUuid) ?? new Map();
+            grantsBySource.set(source, grants);
+            grantsByOrganization.set(organizationUuid, grantsBySource);
+        });
+
+        return targets.map((target) => {
+            const spaceContext = spaceContexts[target.spaceUuid];
+            const grantTarget =
+                SpacePermissionService.getDirectGrantTarget(target);
+            if (spaceContext === undefined || grantTarget === undefined) {
+                return spaceOnly(target);
+            }
+            const grant = grantsByOrganization
+                .get(spaceContext.organizationUuid)
+                ?.get(grantTarget.source)?.[grantTarget.resourceUuid];
             if (grant === undefined) {
-                return spaceOnly(ref);
+                return spaceOnly(target);
             }
             const grantRoles = [
                 ...(grant.userRole ? [grant.userRole] : []),
                 ...grant.groupRoles,
             ];
-            if (
-                grantRoles.length === 0 ||
-                grant.spaceUuid !== ref.spaceUuid ||
-                spaceContext.organizationUuid !== organizationUuid
-            ) {
-                return spaceOnly(ref);
+            if (grantRoles.length === 0) {
+                return spaceOnly(target);
+            }
+            const isMismatched = grant.spaceUuid !== target.spaceUuid;
+            if (isMismatched && onMismatch === 'throw') {
+                throw new ParameterError(
+                    `${grantTarget.resourceLabel} ${grantTarget.resourceUuid} does not belong to space ${target.spaceUuid}`,
+                );
+            }
+            if (isMismatched) {
+                return spaceOnly(target);
             }
             return SpacePermissionService.withGrantAccess(
                 spaceContext,
                 userUuid,
                 grantRoles,
-                grantedVia,
+                grantTarget.source,
             );
         });
     }
@@ -502,7 +470,7 @@ export class SpacePermissionService extends BaseService {
         userUuid: string,
         grantRoles: SpaceMemberRole[],
         grantedVia: GrantSource,
-    ): DashboardAccessContextForCasl {
+    ): AccessContextForCasl {
         const hasSpacePath =
             spaceContext.access.some(
                 (access) => access.userUuid === userUuid,
@@ -524,20 +492,6 @@ export class SpacePermissionService extends BaseService {
             ],
             directOnly: !hasSpacePath,
         };
-    }
-
-    /**
-     * Gets the access context for a list of space uuids
-     * @param userUuid - The user uuid to get the access context for
-     * @param spaceUuids - The space uuids to get the access context for
-     * @returns The access context for the given space uuids
-     */
-    async getSpacesAccessContext(
-        userUuid: string,
-        spaceUuids: string[],
-        { trx }: { trx?: Knex } = {},
-    ): Promise<Record<string, SpaceAccessContextForCasl>> {
-        return this.getSpacesCaslContext(spaceUuids, { userUuid }, { trx });
     }
 
     /**

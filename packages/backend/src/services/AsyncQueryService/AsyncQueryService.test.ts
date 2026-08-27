@@ -380,21 +380,7 @@ const getMockedAsyncQueryService = (
         projectCompileLogModel: {} as ProjectCompileLogModel,
         adminNotificationService: {} as AdminNotificationService,
         spacePermissionService: {
-            getSpaceAccessContext: vi.fn(async () => ({
-                organizationUuid: projectSummary.organizationUuid,
-                projectUuid,
-                inheritsFromOrgOrProject: true,
-                access: [],
-            })),
-            getDashboardAccessContext: vi.fn(async () => ({
-                organizationUuid: projectSummary.organizationUuid,
-                projectUuid,
-                inheritsFromOrgOrProject: true,
-                access: [],
-                admins: [],
-                directOnly: false,
-            })),
-            getChartAccessContext: vi.fn(async () => ({
+            resolveAccess: vi.fn(async () => ({
                 organizationUuid: projectSummary.organizationUuid,
                 projectUuid,
                 inheritsFromOrgOrProject: true,
@@ -4296,21 +4282,7 @@ describe('AsyncQueryService', () => {
                     }),
                 };
                 (service as AnyType).spacePermissionService = {
-                    getSpaceAccessContext: vi.fn().mockResolvedValue({
-                        organizationUuid: projectSummary.organizationUuid,
-                        projectUuid,
-                        inheritsFromOrgOrProject: true,
-                        access: [],
-                    }),
-                    getDashboardAccessContext: vi.fn().mockResolvedValue({
-                        organizationUuid: projectSummary.organizationUuid,
-                        projectUuid,
-                        inheritsFromOrgOrProject: true,
-                        access: [],
-                        admins: [],
-                        directOnly: false,
-                    }),
-                    getChartAccessContext: vi.fn().mockResolvedValue({
+                    resolveAccess: vi.fn().mockResolvedValue({
                         organizationUuid: projectSummary.organizationUuid,
                         projectUuid,
                         inheritsFromOrgOrProject: true,
@@ -5065,25 +5037,29 @@ describe('checkDashboardChartQueryPermissions', () => {
     const buildSpacePermissionService = (
         dashboardAccess: { userUuid: string }[],
     ) => ({
-        getChartAccessContext: vi.fn(async () => ({
-            organizationUuid: projectSummary.organizationUuid,
-            projectUuid: projectSummary.projectUuid,
-            inheritsFromOrgOrProject: false,
-            access: dashboardAccess.map(({ userUuid }) => ({
-                userUuid,
-                role: 'viewer',
-                hasDirectAccess: true,
-            })),
-            admins: [],
-            directOnly: true,
-        })),
-        getSpaceAccessContext: vi.fn(async () => ({
-            organizationUuid: projectSummary.organizationUuid,
-            projectUuid: projectSummary.projectUuid,
-            inheritsFromOrgOrProject: false,
-            access: [],
-            admins: [],
-        })),
+        resolveAccess: vi.fn(async (_userUuid, target) =>
+            target.type === 'space'
+                ? {
+                      organizationUuid: projectSummary.organizationUuid,
+                      projectUuid: projectSummary.projectUuid,
+                      inheritsFromOrgOrProject: false,
+                      access: [],
+                      admins: [],
+                      directOnly: false,
+                  }
+                : {
+                      organizationUuid: projectSummary.organizationUuid,
+                      projectUuid: projectSummary.projectUuid,
+                      inheritsFromOrgOrProject: false,
+                      access: dashboardAccess.map(({ userUuid }) => ({
+                          userUuid,
+                          role: 'viewer',
+                          hasDirectAccess: true,
+                      })),
+                      admins: [],
+                      directOnly: true,
+                  },
+        ),
     });
 
     it('authorizes a dashboard-owned chart through the dashboard grant', async () => {
@@ -5103,16 +5079,16 @@ describe('checkDashboardChartQueryPermissions', () => {
                 owningDashboardUuid,
             ),
         ).resolves.toBeUndefined();
-        expect(
-            spacePermissionService.getChartAccessContext,
-        ).toHaveBeenCalledWith(account.user.id, {
-            uuid: 'chart-uuid',
-            dashboardUuid: owningDashboardUuid,
-            spaceUuid: chartSpace.uuid,
-        });
-        expect(
-            spacePermissionService.getSpaceAccessContext,
-        ).not.toHaveBeenCalled();
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            account.user.id,
+            {
+                type: 'chart',
+                chartUuid: 'chart-uuid',
+                dashboardUuid: owningDashboardUuid,
+                spaceUuid: chartSpace.uuid,
+            },
+        );
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledTimes(1);
     });
 
     it('denies a dashboard-owned chart without a grant or space access', async () => {
@@ -5147,12 +5123,14 @@ describe('checkDashboardChartQueryPermissions', () => {
                 null,
             ),
         ).rejects.toThrow(ForbiddenError);
-        expect(
-            spacePermissionService.getChartAccessContext,
-        ).toHaveBeenCalledWith(account.user.id, {
-            uuid: 'chart-uuid',
-            dashboardUuid: null,
-            spaceUuid: chartSpace.uuid,
-        });
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            account.user.id,
+            {
+                type: 'chart',
+                chartUuid: 'chart-uuid',
+                dashboardUuid: null,
+                spaceUuid: chartSpace.uuid,
+            },
+        );
     });
 });

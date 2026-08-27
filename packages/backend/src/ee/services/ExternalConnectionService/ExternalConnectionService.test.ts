@@ -175,7 +175,7 @@ function buildService(opts: {
         externalConnectionModel: model as never,
         appModel: {} as never,
         spacePermissionService: {
-            getSpaceAccessContext: vi.fn().mockResolvedValue({}),
+            resolveAccess: vi.fn().mockResolvedValue({}),
         } as never,
         analytics: { track: vi.fn() } as never,
         googleTokenProvider: {

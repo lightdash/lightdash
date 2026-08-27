@@ -6217,25 +6217,22 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
     } as unknown as ReturnType<typeof buildAccount>;
 
     const spacePermissionService = {
-        getSpaceAccessContext: vi.fn(async () => ({
+        resolveAccess: vi.fn(async () => ({
             organizationUuid,
             projectUuid,
             inheritsFromOrgOrProject: true,
             access: [],
         })),
-        getSpacesAccessContext: vi.fn(
-            async (_userUuid: string, spaceUuids: string[]) =>
-                Object.fromEntries(
-                    spaceUuids.map((s) => [
-                        s,
-                        {
-                            organizationUuid,
-                            projectUuid,
-                            inheritsFromOrgOrProject: true,
-                            access: [],
-                        },
-                    ]),
-                ),
+        resolveAccessBatch: vi.fn(
+            async (_userUuid: string, targets: { spaceUuid: string }[]) =>
+                targets.map(() => ({
+                    organizationUuid,
+                    projectUuid,
+                    inheritsFromOrgOrProject: true,
+                    access: [],
+                    admins: [],
+                    directOnly: false,
+                })),
         ),
     } as unknown as SpacePermissionService;
 

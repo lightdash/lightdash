@@ -68,11 +68,11 @@ const accessContext = (projectUuid: string = PROJECT_UUID) => ({
 
 const buildService = (
     savedSqlModel: AnyType,
-    getSpacesAccessContext: AnyType = vi.fn(
-        async (_userUuid: string, spaceUuids: string[]) =>
-            Object.fromEntries(
-                spaceUuids.map((uuid) => [uuid, accessContext()]),
-            ),
+    resolveAccessBatch: AnyType = vi.fn(
+        async (
+            _userUuid: string,
+            targets: { type: 'space'; spaceUuid: string }[],
+        ) => targets.map(() => ({ ...accessContext(), directOnly: false })),
     ),
 ) =>
     new CoderService({
@@ -100,7 +100,7 @@ const buildService = (
         schedulerClient: {} as unknown as SchedulerClient,
         promoteService: {} as unknown as PromoteService,
         spacePermissionService: {
-            getSpacesAccessContext,
+            resolveAccessBatch,
             can: vi.fn(async () => true),
         } as unknown as SpacePermissionService,
         contentAsCodeSnapshotModel: {
@@ -201,16 +201,17 @@ describe('CoderService.upsertSqlChart - permissions', () => {
                 service.spaceModel.findClosestAncestorByPath,
             ).mockResolvedValue(PARENT_SPACE_UUID);
             vi.mocked(
-                service.spacePermissionService.getSpacesAccessContext,
-            ).mockResolvedValue({
-                [PARENT_SPACE_UUID]: {
+                service.spacePermissionService.resolveAccessBatch,
+            ).mockResolvedValue([
+                {
                     organizationUuid: ORG_UUID,
                     projectUuid: PROJECT_UUID,
                     inheritsFromOrgOrProject: false,
                     access: [],
                     admins: [],
+                    directOnly: false,
                 },
-            });
+            ]);
             const user = makeUser([
                 { subject: 'ContentAsCode', action: 'create' },
                 { subject: 'CustomSql', action: 'manage' },
@@ -298,18 +299,18 @@ describe('CoderService.upsertSqlChart - permissions', () => {
                 update: vi.fn(),
                 create: vi.fn(),
             };
-            const getSpacesAccessContext = vi.fn(
-                async (_userUuid: string, spaceUuids: string[]) =>
-                    Object.fromEntries(
-                        spaceUuids.map((uuid) => [
-                            uuid,
-                            uuid === SPACE_UUID
-                                ? accessContext(PROJECT_UUID)
-                                : accessContext('inaccessible-project'),
-                        ]),
+            const resolveAccessBatch = vi.fn(
+                async (
+                    _userUuid: string,
+                    targets: { type: 'space'; spaceUuid: string }[],
+                ) =>
+                    targets.map(({ spaceUuid }) =>
+                        spaceUuid === SPACE_UUID
+                            ? accessContext(PROJECT_UUID)
+                            : accessContext('inaccessible-project'),
                     ),
             );
-            const service = buildService(savedSqlModel, getSpacesAccessContext);
+            const service = buildService(savedSqlModel, resolveAccessBatch);
             stubSpace(service, SPACE_UUID);
             const user = makeUser([
                 { subject: 'ContentAsCode', action: 'create' },
@@ -326,9 +327,9 @@ describe('CoderService.upsertSqlChart - permissions', () => {
             );
             expect(savedSqlModel.update).not.toHaveBeenCalled();
             // both the target and the current space were checked
-            expect(getSpacesAccessContext).toHaveBeenCalledWith('user-uuid', [
-                SPACE_UUID,
-                OTHER_SPACE_UUID,
+            expect(resolveAccessBatch).toHaveBeenCalledWith('user-uuid', [
+                { type: 'space', spaceUuid: SPACE_UUID },
+                { type: 'space', spaceUuid: OTHER_SPACE_UUID },
             ]);
         });
     });

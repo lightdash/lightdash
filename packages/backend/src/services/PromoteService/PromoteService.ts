@@ -262,11 +262,10 @@ export class PromoteService extends BaseService {
         const upstreamSpace =
             upstreamSpaces.length === 1 ? upstreamSpaces[0] : undefined;
 
-        const promotedCtx =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                promotedSpace.uuid,
-            );
+        const promotedCtx = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            { type: 'space', spaceUuid: promotedSpace.uuid },
+        );
         let upstreamCtx: SpaceAccessContextForCasl | undefined;
         if (upstreamSpace === undefined) {
             upstreamCtx = undefined;
@@ -275,11 +274,10 @@ export class PromoteService extends BaseService {
             // space, so the access context is identical — skip the re-query.
             upstreamCtx = promotedCtx;
         } else {
-            upstreamCtx =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
-                    upstreamSpace.uuid,
-                );
+            upstreamCtx = await this.spacePermissionService.resolveAccess(
+                user.userUuid,
+                { type: 'space', spaceUuid: upstreamSpace.uuid },
+            );
         }
 
         return {
@@ -356,16 +354,15 @@ export class PromoteService extends BaseService {
         const upstreamSpace =
             upstreamSpaces.length === 1 ? upstreamSpaces[0] : undefined;
 
-        const promotedCtx =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                promotedSpace.uuid,
-            );
+        const promotedCtx = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            { type: 'space', spaceUuid: promotedSpace.uuid },
+        );
         const upstreamCtx = upstreamSpace
-            ? await this.spacePermissionService.getSpaceAccessContext(
-                  user.userUuid,
-                  upstreamSpace.uuid,
-              )
+            ? await this.spacePermissionService.resolveAccess(user.userUuid, {
+                  type: 'space',
+                  spaceUuid: upstreamSpace.uuid,
+              })
             : undefined;
 
         return {
@@ -2515,11 +2512,10 @@ export class PromoteService extends BaseService {
             );
         }
 
-        const promotedCtx =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                promotedSpace.uuid,
-            );
+        const promotedCtx = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            { type: 'space', spaceUuid: promotedSpace.uuid },
+        );
 
         const promotedDashboard: PromotedDashboard = {
             dashboard,
@@ -2532,10 +2528,10 @@ export class PromoteService extends BaseService {
             upstreamSpaces.length === 1 ? upstreamSpaces[0] : undefined;
 
         const upstreamCtx = upstreamSpace
-            ? await this.spacePermissionService.getSpaceAccessContext(
-                  user.userUuid,
-                  upstreamSpace.uuid,
-              )
+            ? await this.spacePermissionService.resolveAccess(user.userUuid, {
+                  type: 'space',
+                  spaceUuid: upstreamSpace.uuid,
+              })
             : undefined;
 
         const upstreamDashboard: UpstreamDashboard = {

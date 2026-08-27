@@ -164,10 +164,10 @@ export class ExternalConnectionService extends BaseService {
         }
 
         const spaceContext = app.space_uuid
-            ? await this.spacePermissionService.getSpaceAccessContext(
-                  account.user.id,
-                  app.space_uuid,
-              )
+            ? await this.spacePermissionService.resolveAccess(account.user.id, {
+                  type: 'space',
+                  spaceUuid: app.space_uuid,
+              })
             : {};
         const projectContext = await this.getDataAppProjectContext(
             app.project_uuid,
@@ -623,11 +623,11 @@ export class ExternalConnectionService extends BaseService {
             await assertCanViewApp(
                 {
                     auditedAbility: this.createAuditedAbility(user),
-                    getSpaceAccessContext: (userUuid, spaceUuid) =>
-                        this.spacePermissionService.getSpaceAccessContext(
-                            userUuid,
+                    resolveAccess: (userUuid, spaceUuid) =>
+                        this.spacePermissionService.resolveAccess(userUuid, {
+                            type: 'space',
                             spaceUuid,
-                        ),
+                        }),
                     getProjectContext: (appProjectUuid) =>
                         this.getDataAppProjectContext(appProjectUuid),
                 },
