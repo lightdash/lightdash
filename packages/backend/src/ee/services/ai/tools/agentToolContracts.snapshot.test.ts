@@ -19,6 +19,7 @@ import { getFindCustomChartTypes } from './findCustomChartTypes';
 import { getFindExplores } from './findExplores';
 import { getFindFields } from './findFields';
 import { getGenerateDashboardV2 } from './generateDashboardV2';
+import { getGenerateDataApp } from './generateDataApp';
 import { getGenerateHashes } from './generateHashes';
 import { getGenerateUuids } from './generateUuids';
 import { getGenerateVisualization } from './generateVisualization';
@@ -135,6 +136,7 @@ const makeAgentTools = () => {
         }),
         loadSkill: getLoadSkill({ loadSkill: noop }),
         loadMcpTools: getLoadMcpTools(['mcp_linear__get_issue']),
+        generateDataApp: getGenerateDataApp({ generateDataApp: noop }),
         editDbtProject: getEditDbtProject({
             editDbtProject: noop,
         }),

@@ -8,9 +8,10 @@ enforced by Lightdash, not the app. Content is source code, not a block
 model, and every prompt adds a version.
 
 Three different agents touch data apps. Name them precisely when more than
-one is in scope: the **coding agent** writes them, the **AI agent** finds
-and reads them, an **external agent** reads them through MCP or edits their
-source through the CLI. Only the coding agent generates data apps.
+one is in scope: the **coding agent** writes them, the **AI agent** finds,
+reads, and starts builds of them, an **external agent** reads them through
+MCP or edits their source through the CLI. Only the coding agent writes a
+data app's source; the AI agent can start a build, never write the app.
 
 ## Language
 
@@ -177,8 +178,10 @@ _Avoid_: Claude (as the generic name), generator, sandbox agent, the agent
 (where more than one agent is in scope)
 
 **AI agent**:
-Lightdash's in-app conversational agent — surfaced as Ask AI — that finds and
-reads data apps on a user's behalf.
+Lightdash's in-app conversational agent — surfaced as Ask AI — that finds,
+reads, and starts builds of data apps on a user's behalf. A build it starts
+is a personal app with creation experience `ai_agent`; the coding agent
+still writes the app.
 _Avoid_: AI analyst, copilot (in code and docs), assistant, the agent
 (where more than one agent is in scope)
 

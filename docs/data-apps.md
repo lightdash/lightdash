@@ -26,10 +26,13 @@ finer-grained. User-facing behaviour is documented at
 | ------------------ | ------------------------------------------------------------------------------------------ |
 | **User / builder** | Writes prompts, attaches context, previews, iterates, shares.                              |
 | **Coding agent**   | The model inside the sandbox that writes and rebuilds the source (Claude Code or Codex).    |
-| **AI agent**       | Lightdash's conversational agent (Ask AI). Finds and reads data apps; does not generate.   |
+| **AI agent**       | Lightdash's conversational agent (Ask AI). Finds, reads, and starts builds of data apps; the build itself runs through the same pipeline as the builder. |
 | **External agent** | MCP clients read apps; the CLI edits source through data apps as code. Neither generates.  |
 
-Only the coding agent generates data apps.
+Only the coding agent writes a data app's source. The AI agent's `generateDataApp` tool creates a personal app
+(creation experience `ai_agent`) and enqueues the build; the tool result starts pending and the worker patches it to
+success (builder link) or error when the version reaches a terminal status, with a thread-read self-heal for anything
+the worker missed.
 
 ---
 

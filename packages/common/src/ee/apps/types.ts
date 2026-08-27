@@ -114,6 +114,7 @@ export const DATA_APP_CREATION_EXPERIENCES = [
     'app_builder',
     'explorer_chart_config',
     'chart_type_builder',
+    'ai_agent',
 ] as const;
 export type DataAppCreationExperience =
     (typeof DATA_APP_CREATION_EXPERIENCES)[number];

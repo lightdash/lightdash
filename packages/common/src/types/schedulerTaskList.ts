@@ -100,6 +100,9 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     // and system-prompt augmentation entirely. Absent on jobs enqueued
     // before the theme picker shipped.
     designUuid?: string | null;
+    // The AI agent tool call that started this build; the worker patches its
+    // pending result on the terminal transition. Absent on builder-started jobs.
+    aiAgentToolCall?: { promptUuid: string; toolCallId: string };
 };
 
 export type AppBuildFromSourceJobPayload = TraceTaskBase & {

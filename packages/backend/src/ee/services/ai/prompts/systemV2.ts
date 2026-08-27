@@ -21,6 +21,7 @@ import { getCodingAgentSection } from './systemV2CodingAgent';
 import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
+import { GENERATE_DATA_APP_SECTION } from './systemV2DataApps';
 import { MEMORIES_SECTION } from './systemV2Memories';
 import {
     REPO_FS_SECTION,
@@ -56,6 +57,7 @@ export const getSystemPromptV2 = (args: {
     // GitLab no). Defaults true; when false the prompt steers off `search`.
     repoFsSupportsCodeSearch?: boolean;
     enableContentTools?: boolean;
+    enableGenerateDataApp?: boolean;
     enableAiAgentMemory?: boolean;
     // Originating Slack channel for "this channel" scheduling targets; null on
     // web and MCP prompts.
@@ -87,6 +89,7 @@ export const getSystemPromptV2 = (args: {
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
         enableContentTools = false,
+        enableGenerateDataApp = false,
         enableAiAgentMemory = false,
         slackChannelId = null,
         canRunSql = false,
@@ -288,6 +291,10 @@ export const getSystemPromptV2 = (args: {
         .replace(
             '{{content_tools_section}}',
             enableContentTools ? CONTENT_TOOLS_SECTION : '',
+        )
+        .replace(
+            '{{generate_data_app_section}}',
+            enableGenerateDataApp ? GENERATE_DATA_APP_SECTION : '',
         )
         .replace(
             '{{scheduling_tools_section}}',
