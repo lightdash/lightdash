@@ -203,16 +203,12 @@ import {
     type PullRequestPreview,
 } from './gitIntegration';
 import type {
-    LinearInstallation,
-    LinearProject,
-    LinearTeam,
-} from './linear';
-import type {
     ApiGroupAsCodeListResponse,
     ApiGroupAsCodeUpsertResponse,
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
+import type { LinearInstallation, LinearProject, LinearTeam } from './linear';
 import {
     type ApiCompiledMergeQueryResults,
     type MergeFieldOrigins,

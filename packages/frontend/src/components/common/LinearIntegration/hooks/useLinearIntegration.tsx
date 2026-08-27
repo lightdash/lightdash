@@ -13,7 +13,8 @@ const LINEAR_TEAMS_QUERY_KEY = ['linear_teams'];
 const LINEAR_PROJECTS_QUERY_KEY = ['linear_projects'];
 
 const getLinearInstallation = async (): Promise<LinearInstallation> =>
-    lightdashApi<LinearInstallation>({ // pragma: allowlist secret
+    lightdashApi<LinearInstallation>({
+        // pragma: allowlist secret
         url: `/linear/`,
         method: 'GET',
         body: undefined,
@@ -39,7 +40,8 @@ export const useLinearInstallation = (options?: { enabled?: boolean }) => {
 };
 
 const getLinearTeams = async (): Promise<LinearTeam[]> =>
-    lightdashApi<LinearTeam[]>({ // pragma: allowlist secret
+    lightdashApi<LinearTeam[]>({
+        // pragma: allowlist secret
         url: `/linear/teams`,
         method: 'GET',
         body: undefined,
@@ -65,7 +67,8 @@ export const useLinearTeams = (options?: { enabled?: boolean }) => {
 };
 
 const getLinearProjects = async (teamId: string): Promise<LinearProject[]> =>
-    lightdashApi<LinearProject[]>({ // pragma: allowlist secret
+    lightdashApi<LinearProject[]>({
+        // pragma: allowlist secret
         url: `/linear/projects?teamId=${encodeURIComponent(teamId)}`,
         method: 'GET',
         body: undefined,
@@ -95,7 +98,8 @@ export const useLinearProjects = (options: {
 };
 
 const deleteLinearInstallation = async (): Promise<void> =>
-    lightdashApi<undefined>({ // pragma: allowlist secret
+    lightdashApi<undefined>({
+        // pragma: allowlist secret
         url: `/linear/uninstall`,
         method: 'DELETE',
         body: undefined,

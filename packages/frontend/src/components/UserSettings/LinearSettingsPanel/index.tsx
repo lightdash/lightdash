@@ -12,6 +12,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
+import linearIcon from '../../../svgs/linear-icon.svg';
 import {
     useDeleteLinearInstallationMutation,
     useLinearInstallation,
@@ -19,7 +20,6 @@ import {
 } from '../../common/LinearIntegration/hooks/useLinearIntegration';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
-import linearIcon from '../../../svgs/linear-icon.svg';
 
 const LINEAR_INSTALL_URL = `/api/v1/linear/install`;
 
