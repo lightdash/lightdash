@@ -1,28 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.31.0",
-  "previousVersion": "2.30.0",
-  "releaseDate": "2026-08-27T12:45:59.445Z",
+  "version": "2.31.1",
+  "previousVersion": "2.31.0",
+  "releaseDate": "2026-08-27T12:52:47.938Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260827130000_add_content_draft_writeback_ownership.ts",
-        "edition": "core",
-        "tables": [
-          "content_as_code_writebacks",
-          "content_drafts"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -34,25 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/dashboards/{dashboardUuidOrSlug}/version/{versionUuid} — added the new `saved_chart` enum value to the `results/allOf[subschema #2]/dashboard/access/items/grantedVia` response property for the response status `200`",
-        "PATCH /api/v1/projects/{projectUuid}/dashboards — added the new `saved_chart` enum value to the `results/items/access/items/grantedVia` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/dashboards — added the new `saved_chart` enum value to the `results/access/items/grantedVia` response property for the response status `201`",
-        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — added the new `saved_chart` enum value to the `results/access/items/grantedVia` response property for the response status `201`",
-        "GET /api/v1/projects/{projectUuid}/spaces — added the new `saved_chart` enum value to the `results/items/allOf[subschema #2]/userAccess/grantedVia` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/spaces — added the new `saved_chart` enum value to the `results/access/items/allOf[#/components/schemas/SpaceAccess]/grantedVia` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/spaces/{spaceUuid} — added the new `saved_chart` enum value to the `results/access/items/allOf[#/components/schemas/SpaceAccess]/grantedVia` response property for the response status `200`",
-        "PATCH /api/v1/projects/{projectUuid}/spaces/{spaceUuid} — added the new `saved_chart` enum value to the `results/access/items/allOf[#/components/schemas/SpaceAccess]/grantedVia` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/spaces/{spaceUuid}/access — added the new `saved_chart` enum value to the `results/data/items/allOf[#/components/schemas/SpaceAccess]/grantedVia` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/sqlRunner/saved/slug/{slug} — added the new `saved_chart` enum value to the `results/space/userAccess/grantedVia` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/sqlRunner/saved/{uuid} — added the new `saved_chart` enum value to the `results/space/userAccess/grantedVia` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/sqlRunner/saved/{uuid}/promote — added the new `saved_chart` enum value to the `results/space/userAccess/grantedVia` response property for the response status `200`",
-        "GET /api/v1/saved/{chartUuid}/version/{versionUuid} — added the new `saved_chart` enum value to the `results/chart/access/items/grantedVia` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/dashboards/{dashboardUuidOrSlug} — added the new `saved_chart` enum value to the `results/access/items/grantedVia` response property for the response status `200`",
-        "PATCH /api/v2/projects/{projectUuid}/dashboards/{dashboardUuidOrSlug} — added the new `saved_chart` enum value to the `results/access/items/grantedVia` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/saved/{chartUuidOrSlug} — added the new `saved_chart` enum value to the `results/access/items/grantedVia` response property for the response status `200`"
-      ],
-      "advisoryCount": 16
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

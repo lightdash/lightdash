@@ -14446,6 +14446,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 sqlPath: { dataType: 'string' },
                 ymlPath: { dataType: 'string' },
+                dbtSourceUuid: { dataType: 'string' },
                 dbtPackageName: { dataType: 'string' },
                 warnings: {
                     dataType: 'array',

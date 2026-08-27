@@ -1,3 +1,10 @@
+## [2.31.1](https://github.com/lightdash/lightdash/compare/2.31.0...2.31.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* preserve dbt source identity in AI writeback ([#28194](https://github.com/lightdash/lightdash/issues/28194)) ([cc793ab](https://github.com/lightdash/lightdash/commit/cc793abd822d6151b90fb2a48c05a07d0dd446b3))
+
 # [2.31.0](https://github.com/lightdash/lightdash/compare/2.30.0...2.31.0) (2026-08-27)
 
 
