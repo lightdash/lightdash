@@ -61,7 +61,7 @@ describe('getUnpivotedColumns', () => {
         });
     });
 
-    test('columns without a matching item get a friendly label and nothing else', () => {
+    test('columns without a matching item get only a label derived from the reference', () => {
         const columns = getUnpivotedColumns({}, warehouseFields, itemsMap);
         expect(columns.computed_col).toEqual({
             reference: 'computed_col',
@@ -70,11 +70,11 @@ describe('getUnpivotedColumns', () => {
         });
     });
 
-    test('raw SQL columns never enrich from virtual-view items (PROD-9832)', () => {
+    test('raw SQL columns get no metadata from virtual-view items', () => {
         // SqlQueryComposer keys its items map `${table}_${column}` while raw
-        // SQL warehouse columns use bare names — and even a bare-keyed map
-        // must not stamp provenance, because the item's identity is not the
-        // column reference.
+        // SQL warehouse columns use unprefixed names. Even a map keyed by
+        // unprefixed names must not contribute provenance, because the item's
+        // field id is not the column reference.
         const virtualViewItemsMap: ItemsMap = {
             sql_query_explorer_payment_method: {
                 ...statusDimension,
@@ -124,7 +124,7 @@ describe('getUnpivotedColumns', () => {
         expect(withoutValues.orders_revenue.format).toBeUndefined();
     });
 
-    test('columns get friendly labels when no items map is provided', () => {
+    test('columns get labels derived from their references when no items map is provided', () => {
         const columns = getUnpivotedColumns({}, warehouseFields);
         expect(columns.orders_status).toEqual({
             reference: 'orders_status',

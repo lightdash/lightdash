@@ -163,7 +163,7 @@ describe('buildComposeMergeOriginalColumns', () => {
         legQueryUuidBySourceId: { orders: 'orders-leg-uuid' },
     });
 
-    test('source-owned columns point provenance at the leg query field', () => {
+    test('source-owned columns set provenance to the field in the leg query', () => {
         expect(columns.orders_count).toEqual({
             reference: 'orders_count',
             type: DimensionType.NUMBER,
@@ -185,7 +185,7 @@ describe('buildComposeMergeOriginalColumns', () => {
         });
     });
 
-    test('table calculations carry label but never provenance', () => {
+    test('table calculations get a label and no provenance', () => {
         expect(columns.merged_calc).toEqual({
             reference: 'merged_calc',
             type: DimensionType.NUMBER,

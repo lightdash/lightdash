@@ -7632,10 +7632,9 @@ export class AsyncQueryService extends ProjectService {
             });
             const fieldsMap = composer.getFields();
 
-            // Compose columns carry only what DuckDB honestly knows — the
-            // reference, the probed type, and the friendly label the no-item
-            // rule derives from the reference. Metadata is never inferred
-            // from referenced queries (PROD-10681).
+            // Compose columns carry only the reference, the probed type, and
+            // a label derived from the reference. Metadata is never inferred
+            // from the referenced queries' columns.
             const originalColumns: ResultColumns = columns.reduce(
                 (acc, col) => {
                     acc[col.name] = {

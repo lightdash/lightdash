@@ -365,14 +365,14 @@ describe('QuerySourceService', () => {
 });
 
 /**
- * The composer interface contract (PROD-10681, rescoped to no-inference):
- * a pipeline whose terminal node is a semantic-layer query terminates at
- * that metric query's own enriched result set — it is never wrapped in a
- * DuckDB `SELECT *` that would strip the metadata the metric path stamps
- * at query-write time. DuckDB nodes read upstream results by reference
- * and produce their own honest columns; nothing is carried through.
+ * The composer interface contract: a pipeline whose terminal node is a
+ * semantic-layer query resolves to that metric query's own result set — it
+ * is never wrapped in a DuckDB `SELECT *`, which would remove the column
+ * metadata the metric path persists at query-write time. DuckDB nodes read
+ * upstream results by reference and produce their own columns; no metadata
+ * is carried through.
  */
-describe('composer pipelines speak the standard interface', () => {
+describe('composer pipelines return the standard results interface', () => {
     const createRealSources = () => {
         const asyncQueryService = {
             executeAsyncMetricQuery: vi.fn().mockResolvedValue({
@@ -399,7 +399,7 @@ describe('composer pipelines speak the standard interface', () => {
         return { registry, asyncQueryService };
     };
 
-    it('a single-node semantic-layer pipeline terminates at the metric query itself, not a DuckDB wrap', async () => {
+    it('resolves a single-node semantic-layer pipeline to the metric query itself, without a DuckDB wrapper', async () => {
         const { registry, asyncQueryService } = createRealSources();
         const { service } = createService(registry);
 
@@ -417,9 +417,9 @@ describe('composer pipelines speak the standard interface', () => {
             ],
         });
 
-        // The submission's queryUuid IS the metric query's own — results are
-        // served from that query's history row, which carries the enriched
-        // columns stamped by the metric execution path.
+        // The submission's queryUuid is the metric query's own uuid — results
+        // are served from that query's history row, which carries the column
+        // metadata the metric execution path persists.
         expect(result.queries).toHaveLength(1);
         expect(result.queries[0].queryUuid).toEqual('metric-query-uuid');
         expect(asyncQueryService.executeAsyncMetricQuery).toHaveBeenCalledTimes(
@@ -434,14 +434,14 @@ describe('composer pipelines speak the standard interface', () => {
                 }),
             }),
         );
-        // Never wrapped in a DuckDB SELECT * — the compose engine is not
-        // involved at all.
+        // The query is not wrapped in a DuckDB SELECT *; the compose engine
+        // is not involved.
         expect(
             asyncQueryService.executeAsyncComposeSqlQuery,
         ).not.toHaveBeenCalled();
     });
 
-    it('a DuckDB node reads the metric result by reference and leaves the metric node untouched', async () => {
+    it('runs a DuckDB node as its own compose query that reads the metric result by reference', async () => {
         const { registry, asyncQueryService } = createRealSources();
         const { service } = createService(registry);
 
@@ -466,7 +466,7 @@ describe('composer pipelines speak the standard interface', () => {
             ],
         });
 
-        // The semantic node still terminates at its own result set…
+        // The semantic-layer node still resolves to its own result set.
         const bySourceType = Object.fromEntries(
             result.queries.map((submission) => [
                 submission.sourceType,
@@ -476,7 +476,7 @@ describe('composer pipelines speak the standard interface', () => {
         expect(bySourceType[QuerySourceType.SEMANTIC_LAYER]).toEqual(
             'metric-query-uuid',
         );
-        // …and the DuckDB node runs as its own compose query, reading the
+        // The DuckDB node runs as a separate compose query that reads the
         // metric result by queryUuid reference.
         expect(bySourceType[QuerySourceType.DUCKDB]).toEqual(
             'compose-query-uuid',

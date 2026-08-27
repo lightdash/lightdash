@@ -2453,13 +2453,12 @@ describe('AsyncQueryService', () => {
             // THEN: Test completed successfully - all critical behaviors verified
         });
 
-        test('serves DuckDB compose node columns honest and bare through the standard results page (PROD-10681)', async () => {
-            // The composer interface contract: a DuckDB post-processing node
-            // is arbitrarily complex SQL, so its columns carry only what
-            // DuckDB honestly knows — reference, probed type, and the
-            // friendly label derived from the reference. No label, format
-            // or provenance is ever inferred from the queries it references,
-            // and the results page serves the persisted columns verbatim.
+        test('serves DuckDB compose query columns from the persisted row without adding metadata', async () => {
+            // A DuckDB compose query runs arbitrary SQL, so its columns carry
+            // only the reference, the probed type, and a label derived from
+            // the reference. No label, format, or provenance is inferred from
+            // the queries it references, and the results page serves the
+            // persisted columns unchanged.
             const composeColumns = {
                 revenue: {
                     reference: 'revenue',
@@ -2534,7 +2533,7 @@ describe('AsyncQueryService', () => {
                 columns: composeColumns,
                 resolvedTimezone: null,
             });
-            // Bare means bare: nothing inferred at read time either.
+            // No metadata is added at read time either.
             if (result.status === QueryHistoryStatus.READY) {
                 Object.values(result.columns).forEach((column) => {
                     expect(column).not.toHaveProperty('format');

@@ -110,7 +110,7 @@ describe('getPivotedColumns', () => {
         });
     });
 
-    test('value columns without an items map compose a friendly label and never provenance', () => {
+    test('value columns without an items map get a reference-derived label and no provenance', () => {
         const columns = getPivotedColumns(
             unpivotedColumns,
             pivotConfiguration,

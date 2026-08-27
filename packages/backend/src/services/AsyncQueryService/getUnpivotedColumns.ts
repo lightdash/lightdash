@@ -18,8 +18,8 @@ export function getUnpivotedColumns(
                 // For metric queries the warehouse column name is the field id,
                 // so the item lookup enriches the column with display metadata.
                 // Raw SQL columns never match an item (SqlQueryComposer keys
-                // its virtual-view items `${table}_${column}`) and get the
-                // friendly-label-only rule instead.
+                // its virtual-view items `${table}_${column}`) and get only a
+                // label derived from the column reference.
                 acc[key] = {
                     reference: key,
                     type: value.type,

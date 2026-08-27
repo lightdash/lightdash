@@ -9,13 +9,13 @@ import {
 } from '@lightdash/common';
 
 /**
- * Pre-pivot original columns of a compose-mode merge, enriched with what is
- * in hand at the build site: display metadata from the merged items map and
- * provenance from each typed column's origin. A source-owned column's
- * provenance points at the field in the leg query that produced it (fieldId +
- * sourceQueryUuid — two sources can both expose `orders_status`, so a bare
- * fieldId is ambiguous). Join keys keep the merged field's own provenance
- * (they descend from no single source); table calculations carry none.
+ * Builds the pre-pivot original columns of a compose-mode merge: display
+ * metadata from the merged items map, and provenance from each typed
+ * column's origin. A source-owned column's provenance identifies the field
+ * in the leg query that produced it (fieldId + sourceQueryUuid — two sources
+ * can both expose `orders_status`, so a fieldId alone is ambiguous). Join
+ * keys are shared by every source, so they keep the merged field's own
+ * provenance; table calculations have none.
  */
 export const buildComposeMergeOriginalColumns = ({
     typedColumns,

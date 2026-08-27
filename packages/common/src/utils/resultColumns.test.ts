@@ -44,17 +44,18 @@ const tableCalculation: TableCalculation = {
 };
 
 describe('getResultColumnMetadataFromItem', () => {
-    test('columns with no item behind them get a friendly label and nothing else', () => {
+    test('returns only a label derived from the reference when there is no item', () => {
         expect(
             getResultColumnMetadataFromItem(undefined, 'payment_method'),
         ).toEqual({ label: 'Payment method' });
     });
 
-    test('an item keyed by anything other than its own field id never enriches (the raw-SQL guard)', () => {
+    test('returns no metadata from an item whose field id differs from the column reference', () => {
         // SqlQueryComposer keys virtual-view items `${table}_${column}` while
-        // raw SQL warehouse columns are bare names. Even if a future change
-        // made the lookup hit, the identity mismatch must keep synthesized
-        // dimensions from stamping fake-field provenance.
+        // raw SQL warehouse columns use unprefixed names. Even if a lookup
+        // matches, an item with a different field id must not contribute
+        // provenance, because its synthesized dimension is not a semantic
+        // field.
         const virtualViewDimension: Dimension = {
             ...dimension,
             name: 'status',
