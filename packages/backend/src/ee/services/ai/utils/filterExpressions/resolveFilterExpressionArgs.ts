@@ -33,6 +33,7 @@ import { z } from 'zod';
 import { populateCustomMetricsSQL } from '../populateCustomMetricsSQL';
 import { suggestClosestFieldIds } from '../suggestClosestFieldIds';
 import type {
+    FilterExpressionFieldSuggestion,
     FilterExpressionResolutionError,
     FilterExpressionSource,
     QueryFilterExpressionCategory,
@@ -136,6 +137,25 @@ const getCategoryLabel = (category: QueryFilterExpressionCategory): string => {
     }
 };
 
+const getOperatorDefinition = (operator: FilterOperator) => {
+    const definition = filterExpressionOperatorDefinitions.find(
+        (candidate) => candidate.operator === operator,
+    );
+    if (!definition) {
+        throw new Error(
+            `Missing filter expression operator definition for ${operator}`,
+        );
+    }
+    return definition;
+};
+
+const operatorSupportsFilterType = (
+    operator: FilterOperator,
+    filterType: FilterType,
+): boolean =>
+    getOperatorDefinition(operator).argumentCountByFilterType[filterType] !==
+    null;
+
 const formatFieldId = (fieldId: string): string => {
     if (
         /^[A-Za-z0-9_.-]+$/.test(fieldId) &&
@@ -199,16 +219,6 @@ const exampleArguments = (
     return illustrativeValue(filterType);
 };
 
-const isOperatorAvailableForFilterType = (
-    operator: FilterOperator,
-    filterType: FilterType,
-): boolean =>
-    filterExpressionOperatorDefinitions.some(
-        ({ operator: candidate, argumentCountByFilterType }) =>
-            candidate === operator &&
-            argumentCountByFilterType[filterType] !== null,
-    );
-
 const supportedOperatorsForFilterType = (filterType: FilterType): string =>
     filterExpressionOperatorDefinitions
         .filter(
@@ -243,6 +253,23 @@ const makeExploreFields = (
         category: isDimension(field) ? 'dimensions' : 'metrics',
     }));
 
+const makeTableCalculationFields = (
+    tableCalculations: ExpressionQueryConfig['tableCalculations'],
+): ResolvedField[] =>
+    convertAiTableCalcsSchemaToTableCalcs(tableCalculations ?? null).map(
+        (tableCalculation): ResolvedField => {
+            const fieldType =
+                tableCalculation.type ?? TableCalculationType.NUMBER;
+            return {
+                id: tableCalculation.name,
+                table: null,
+                fieldType,
+                filterType: getFilterTypeFromItemType(fieldType),
+                category: 'tableCalculations',
+            };
+        },
+    );
+
 const makeQueryFields = ({
     explore,
     transformedCustomMetrics,
@@ -272,23 +299,10 @@ const makeQueryFields = ({
         ];
     });
 
-    const tableCalculationFields = convertAiTableCalcsSchemaToTableCalcs(
-        tableCalculations ?? null,
-    ).map((tableCalculation): ResolvedField => {
-        const fieldType = tableCalculation.type ?? TableCalculationType.NUMBER;
-        return {
-            id: tableCalculation.name,
-            table: null,
-            fieldType,
-            filterType: getFilterTypeFromItemType(fieldType),
-            category: 'tableCalculations',
-        };
-    });
-
     return [
         ...makeExploreFields(explore),
         ...customMetricFields,
-        ...tableCalculationFields,
+        ...makeTableCalculationFields(tableCalculations),
     ];
 };
 
@@ -310,55 +324,83 @@ const isSupportedAiFilterField = (field: ResolvedField): boolean =>
         operator: FilterOperator.NULL,
     }).success;
 
+const isFieldInSourceCategory = (
+    field: ResolvedField,
+    source: FilterExpressionSource,
+): boolean => {
+    switch (source.kind) {
+        case 'queryFilter':
+            return field.category === source.category;
+        case 'customMetricFilter':
+            return field.category === 'dimensions';
+        default:
+            return assertUnreachable(source, 'Unknown expression source');
+    }
+};
+
+const getAllowedFieldLabel = (source: FilterExpressionSource): string => {
+    switch (source.kind) {
+        case 'queryFilter':
+            return getCategoryLabel(source.category);
+        case 'customMetricFilter':
+            return 'dimension';
+        default:
+            return assertUnreachable(source, 'Unknown expression source');
+    }
+};
+
+const getSuggestionFields = ({
+    fields,
+    rule,
+    source,
+}: {
+    fields: ResolvedField[];
+    rule: FilterExpressionRule;
+    source: FilterExpressionSource;
+}): ResolvedField[] =>
+    fields.filter(
+        (field) =>
+            getFieldMatches(fields, field.id).length === 1 &&
+            isFieldInSourceCategory(field, source) &&
+            (field.category !== 'tableCalculations' ||
+                field.filterType === FilterType.NUMBER) &&
+            operatorSupportsFilterType(rule.operator.value, field.filterType),
+    );
+
+const toFieldSuggestion = (
+    field: ResolvedField,
+): FilterExpressionFieldSuggestion => ({
+    fieldId: field.id,
+    category: field.category,
+    filterType: field.filterType,
+});
+
+const formatFieldSuggestion = ({
+    fieldId,
+    category,
+    filterType,
+}: FilterExpressionFieldSuggestion): string =>
+    `${formatFieldId(fieldId)} (${getCategoryLabel(category)}, ${filterType})`;
+
 const compareFieldIds = (left: ResolvedField, right: ResolvedField): number => {
     if (left.id < right.id) return -1;
     if (left.id > right.id) return 1;
     return 0;
 };
 
-const suggestedFieldRepairExample = ({
-    expressionInput,
-    rule,
-    suggestedField,
-}: {
-    expressionInput: string;
-    rule: FilterExpressionRule;
-    suggestedField: ResolvedField;
-}): string | null => {
-    const candidate = `${expressionInput.slice(0, rule.field.span.start.offset)}${formatFieldId(suggestedField.id)}${expressionInput.slice(rule.field.span.end.offset)}`;
-    return parseFilterExpression(candidate).success ? candidate : null;
-};
-
 const scopedExample = (
     source: FilterExpressionSource,
     fields: ResolvedField[],
 ): string => {
-    const uniqueFields = fields.filter(
-        ({ id }) => getFieldMatches(fields, id).length === 1,
-    );
-    const matchingFields = (() => {
-        switch (source.kind) {
-            case 'customMetricFilter': {
-                const dimensions = uniqueFields
-                    .filter(({ category }) => category === 'dimensions')
-                    .sort(compareFieldIds);
-                return dimensions.length > 0
-                    ? dimensions
-                    : uniqueFields.sort(compareFieldIds);
-            }
-            case 'queryFilter':
-                return uniqueFields
-                    .filter(
-                        ({ category, filterType }) =>
-                            category === source.category &&
-                            (category !== 'tableCalculations' ||
-                                filterType === FilterType.NUMBER),
-                    )
-                    .sort(compareFieldIds);
-            default:
-                return assertUnreachable(source, 'Unknown expression source');
-        }
-    })();
+    const matchingFields = fields
+        .filter(
+            (field) =>
+                getFieldMatches(fields, field.id).length === 1 &&
+                isFieldInSourceCategory(field, source) &&
+                (field.category !== 'tableCalculations' ||
+                    field.filterType === FilterType.NUMBER),
+        )
+        .sort(compareFieldIds);
     const field = matchingFields[0];
     return field
         ? expressionExample(field.id, FilterOperator.EQUALS, field.filterType)
@@ -406,42 +448,27 @@ const resolveField = ({
 }): ResolutionResult<ResolvedField> => {
     const matches = getFieldMatches(fields, rule.field.value);
     if (matches.length !== 1) {
-        const suggestionFields =
-            source.kind === 'queryFilter'
-                ? fields.filter(({ category }) => category === source.category)
-                : fields;
-        const compatibleSuggestionFields = suggestionFields.filter(
-            ({ filterType }) =>
-                isOperatorAvailableForFilterType(
-                    rule.operator.value,
-                    filterType,
-                ),
-        );
-        const suggestions =
+        const suggestionFields = getSuggestionFields({ fields, rule, source });
+        const suggestionIds =
             matches.length === 0
                 ? suggestClosestFieldIds(
                       rule.field.value,
-                      compatibleSuggestionFields.map(({ id }) => id),
+                      suggestionFields.map(({ id }) => id),
                       1,
                   )
                 : [];
-        const suggestedField = suggestions[0]
-            ? compatibleSuggestionFields.find(
-                  ({ id }) =>
-                      id === suggestions[0] &&
-                      getFieldMatches(fields, id).length === 1,
-              )
+        const suggestedField = suggestionIds[0]
+            ? suggestionFields.find(({ id }) => id === suggestionIds[0])
             : undefined;
-        const example = suggestedField
-            ? suggestedFieldRepairExample({
-                  expressionInput,
-                  rule,
-                  suggestedField,
-              })
-            : null;
+        const suggestedFields = suggestedField
+            ? [toFieldSuggestion(suggestedField)]
+            : [];
+        const suggestions = suggestedFields.map(({ fieldId }) => fieldId);
         const reason = matches.length === 0 ? 'notFound' : 'ambiguous';
-        const suggestionText = suggestions.length
-            ? ` Did you mean: ${suggestions.join(', ')}?`
+        const suggestionText = suggestedFields.length
+            ? ` Did you mean: ${suggestedFields
+                  .map(formatFieldSuggestion)
+                  .join(', ')}?`
             : '';
         return failure({
             code: 'FILTER_EXPRESSION_UNKNOWN_FIELD',
@@ -450,48 +477,76 @@ const resolveField = ({
             fieldId: rule.field.value,
             reason,
             suggestions,
+            suggestedFields,
             problem:
                 reason === 'notFound'
                     ? `The field does not exist in explore "${source.exploreName}".${suggestionText}`
                     : `The field ID matches multiple fields in explore "${source.exploreName}" and cannot be resolved safely.`,
             guidance:
                 reason === 'notFound'
-                    ? `Replace it with an existing ${source.kind === 'queryFilter' ? getCategoryLabel(source.category) : 'explore'} field ID, or use field discovery to find the field.`
+                    ? `Replace it with an existing ${getAllowedFieldLabel(source)} field ID, or use field discovery to find the field.`
                     : 'Rename or remove the colliding custom metric or table calculation, then use an unambiguous field ID.',
-            example,
+            example: null,
         });
     }
 
     const field = matches[0];
-    if (source.kind === 'queryFilter' && field.category !== source.category) {
-        const operatorIsAvailable = isOperatorAvailableForFilterType(
-            rule.operator.value,
-            field.filterType,
-        );
-        const originalRule = expressionInput.slice(
-            rule.span.start.offset,
-            rule.span.end.offset,
-        );
-        return failure({
-            code: 'FILTER_EXPRESSION_WRONG_CATEGORY',
-            source,
-            span: rule.field.span,
-            fieldId: field.id,
-            expectedCategory: field.category,
-            actualCategory: source.category,
-            problem: `The field is a ${getCategoryLabel(field.category)}, not a ${getCategoryLabel(source.category)}.`,
-            guidance: `Move this rule from the ${getCategoryLabel(source.category)} filters to the ${getCategoryLabel(field.category)} filters.`,
-            example: operatorIsAvailable
-                ? originalRule
-                : expressionExample(
-                      field.id,
-                      FilterOperator.EQUALS,
-                      field.filterType,
-                  ),
-        });
+    switch (source.kind) {
+        case 'queryFilter': {
+            if (field.category === source.category) return success(field);
+            const operatorIsAvailable = operatorSupportsFilterType(
+                rule.operator.value,
+                field.filterType,
+            );
+            const originalRule = expressionInput.slice(
+                rule.span.start.offset,
+                rule.span.end.offset,
+            );
+            return failure({
+                code: 'FILTER_EXPRESSION_WRONG_CATEGORY',
+                source,
+                span: rule.field.span,
+                fieldId: field.id,
+                expectedCategory: field.category,
+                actualCategory: source.category,
+                problem: `The field is a ${getCategoryLabel(field.category)}, not a ${getCategoryLabel(source.category)}.`,
+                guidance: `Move this rule from the ${getCategoryLabel(source.category)} filters to the ${getCategoryLabel(field.category)} filters.`,
+                example: operatorIsAvailable
+                    ? originalRule
+                    : expressionExample(
+                          field.id,
+                          FilterOperator.EQUALS,
+                          field.filterType,
+                      ),
+            });
+        }
+        case 'customMetricFilter':
+            switch (field.category) {
+                case 'dimensions':
+                    return success(field);
+                case 'metrics':
+                case 'tableCalculations':
+                    return failure({
+                        code: 'FILTER_EXPRESSION_CUSTOM_METRIC_WRONG_CATEGORY',
+                        source,
+                        span: rule.field.span,
+                        fieldId: field.id,
+                        allowedCategory: 'dimensions',
+                        fieldCategory: field.category,
+                        problem: `The field is a ${getCategoryLabel(field.category)}, but custom metric filters only accept dimension fields.`,
+                        guidance:
+                            'Replace it with an existing dimension field ID, or use field discovery to find one.',
+                        example: null,
+                    });
+                default:
+                    return assertUnreachable(
+                        field.category,
+                        'Unknown resolved field category',
+                    );
+            }
+        default:
+            return assertUnreachable(source, 'Unknown expression source');
     }
-
-    return success(field);
 };
 
 const strictNumber = (scalar: FilterExpressionScalar): number | null => {
@@ -992,14 +1047,7 @@ const resolveRule = ({
         );
     }
 
-    const definition = filterExpressionOperatorDefinitions.find(
-        ({ operator }) => operator === rule.operator.value,
-    );
-    if (!definition) {
-        throw new Error(
-            `Missing filter expression operator definition for ${rule.operator.value}`,
-        );
-    }
+    const definition = getOperatorDefinition(rule.operator.value);
     const expectedArity =
         definition.argumentCountByFilterType[field.filterType];
     if (expectedArity === null) {
@@ -1169,6 +1217,57 @@ const validateRepairCandidate = ({
         : null;
 };
 
+const replaceRuleField = ({
+    input,
+    rule,
+    fieldId,
+}: {
+    input: string;
+    rule: FilterExpressionRule;
+    fieldId: string;
+}): string =>
+    `${input.slice(0, rule.field.span.start.offset)}${formatFieldId(fieldId)}${input.slice(rule.field.span.end.offset)}`;
+
+const resolveRuleWithRepair = ({
+    rule,
+    fields,
+    source,
+    input,
+}: {
+    rule: FilterExpressionRule;
+    fields: ResolvedField[];
+    source: FilterExpressionSource;
+    input: string;
+}): ResolutionResult<RawFilterRule> => {
+    const result = resolveRule({
+        expressionInput: input,
+        rule,
+        fields,
+        source,
+    });
+    if (
+        result.success ||
+        result.error.code !== 'FILTER_EXPRESSION_UNKNOWN_FIELD'
+    ) {
+        return result;
+    }
+
+    const suggestedField = result.error.suggestedFields[0];
+    if (!suggestedField) return result;
+
+    const candidate = replaceRuleField({
+        input,
+        rule,
+        fieldId: suggestedField.fieldId,
+    });
+    return failure({
+        ...result.error,
+        example: validateRepairCandidate({ candidate, fields, source })
+            ? candidate
+            : null,
+    });
+};
+
 const getRuleField = ({
     rule,
     fields,
@@ -1181,10 +1280,7 @@ const getRuleField = ({
     const matches = getFieldMatches(fields, rule.field.value);
     if (matches.length !== 1) return null;
     const field = matches[0];
-    if (!field) return null;
-    if (source.kind === 'queryFilter' && field.category !== source.category) {
-        return null;
-    }
+    if (!field || !isFieldInSourceCategory(field, source)) return null;
     if (
         field.category === 'tableCalculations' &&
         field.filterType !== FilterType.NUMBER
@@ -1640,9 +1736,11 @@ const parseExpression = (
 
 const resolveCustomMetrics = ({
     customMetrics,
+    tableCalculations,
     explore,
 }: {
     customMetrics: ExpressionQueryConfig['customMetrics'];
+    tableCalculations: ExpressionQueryConfig['tableCalculations'];
     explore: Parameters<typeof getFields>[0];
 }): ResolutionResult<{
     raw: unknown;
@@ -1652,7 +1750,10 @@ const resolveCustomMetrics = ({
         return success({ raw: null, transformed: null });
     }
 
-    const exploreFields = makeExploreFields(explore);
+    const fields = [
+        ...makeExploreFields(explore),
+        ...makeTableCalculationFields(tableCalculations),
+    ];
     const rawCustomMetrics: unknown[] = [];
     for (const customMetric of customMetrics) {
         if (
@@ -1668,7 +1769,7 @@ const resolveCustomMetrics = ({
             const parsedResult = parseExpression(
                 customMetric.filters,
                 source,
-                exploreFields,
+                fields,
             );
             if (!parsedResult.success) return parsedResult;
             const expression = parsedResult.data;
@@ -1687,16 +1788,16 @@ const resolveCustomMetrics = ({
 
             const filters: { table: string; filter: RawFilterRule }[] = [];
             for (const rule of expression.rules) {
-                const ruleResult = resolveRule({
-                    expressionInput: customMetric.filters,
+                const ruleResult = resolveRuleWithRepair({
                     rule,
-                    fields: exploreFields,
+                    fields,
                     source,
+                    input: customMetric.filters,
                 });
                 if (!ruleResult.success) return ruleResult;
                 const fieldResult = resolveField({
                     expressionInput: customMetric.filters,
-                    fields: exploreFields,
+                    fields,
                     rule,
                     source,
                 });
@@ -1771,11 +1872,11 @@ const resolveQueryFilters = ({
 
             const categoryRules: RawFilterRule[] = [];
             for (const rule of expression.rules) {
-                const ruleResult = resolveRule({
-                    expressionInput,
+                const ruleResult = resolveRuleWithRepair({
                     rule,
                     fields,
                     source,
+                    input: expressionInput,
                 });
                 if (!ruleResult.success) return ruleResult;
                 categoryRules.push(ruleResult.data);
@@ -1831,6 +1932,7 @@ const resolveQueryConfig = ({
 }): ResolutionResult<ResolvedQueryConfigParts> => {
     const customMetricsResult = resolveCustomMetrics({
         customMetrics: queryConfig.customMetrics,
+        tableCalculations: queryConfig.tableCalculations,
         explore,
     });
     if (!customMetricsResult.success) return customMetricsResult;

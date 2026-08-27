@@ -11,28 +11,48 @@ export type QueryFilterExpressionCategory =
     | 'metrics'
     | 'tableCalculations';
 
-export type FilterExpressionSource =
-    | {
-          kind: 'queryFilter';
-          exploreName: string;
-          category: QueryFilterExpressionCategory;
-      }
-    | {
-          kind: 'customMetricFilter';
-          exploreName: string;
-          category: 'customMetric';
-          customMetricName: string;
-      };
+export type FilterExpressionFieldSuggestion = {
+    fieldId: string;
+    category: QueryFilterExpressionCategory;
+    filterType: FilterType;
+};
 
-type FilterExpressionErrorBase = {
-    source: FilterExpressionSource;
+export type QueryFilterExpressionSource = {
+    kind: 'queryFilter';
+    exploreName: string;
+    category: QueryFilterExpressionCategory;
+};
+
+export type CustomMetricFilterExpressionSource = {
+    kind: 'customMetricFilter';
+    exploreName: string;
+    category: 'customMetric';
+    customMetricName: string;
+};
+
+export type FilterExpressionSource =
+    | QueryFilterExpressionSource
+    | CustomMetricFilterExpressionSource;
+
+type FilterExpressionErrorBase<
+    TSource extends FilterExpressionSource = FilterExpressionSource,
+> = {
+    source: TSource;
     span: FilterExpressionSpan;
     problem: string;
     guidance: string;
 };
 
-type FilterExpressionErrorWithExample = FilterExpressionErrorBase & {
+type FilterExpressionErrorWithExample<
+    TSource extends FilterExpressionSource = FilterExpressionSource,
+> = FilterExpressionErrorBase<TSource> & {
     example: string;
+};
+
+type FilterExpressionErrorWithNullableExample<
+    TSource extends FilterExpressionSource = FilterExpressionSource,
+> = FilterExpressionErrorBase<TSource> & {
+    example: string | null;
 };
 
 export type FilterExpressionResolutionError =
@@ -52,18 +72,24 @@ export type FilterExpressionResolutionError =
           maximum: number;
           actual: number;
       })
-    | (FilterExpressionErrorBase & {
+    | (FilterExpressionErrorWithNullableExample & {
           code: 'FILTER_EXPRESSION_UNKNOWN_FIELD';
-          example: string | null;
           fieldId: string;
           reason: 'notFound' | 'ambiguous';
           suggestions: string[];
+          suggestedFields: FilterExpressionFieldSuggestion[];
       })
-    | (FilterExpressionErrorWithExample & {
+    | (FilterExpressionErrorWithExample<QueryFilterExpressionSource> & {
           code: 'FILTER_EXPRESSION_WRONG_CATEGORY';
           fieldId: string;
           expectedCategory: QueryFilterExpressionCategory;
           actualCategory: QueryFilterExpressionCategory;
+      })
+    | (FilterExpressionErrorWithNullableExample<CustomMetricFilterExpressionSource> & {
+          code: 'FILTER_EXPRESSION_CUSTOM_METRIC_WRONG_CATEGORY';
+          fieldId: string;
+          allowedCategory: 'dimensions';
+          fieldCategory: Exclude<QueryFilterExpressionCategory, 'dimensions'>;
       })
     | (FilterExpressionErrorBase & {
           code: 'FILTER_EXPRESSION_INVALID_VALUE';

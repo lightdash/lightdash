@@ -1,5 +1,6 @@
 import {
     MergeJoinType,
+    MetricType,
     TimeFrames,
     type AiWebAppPrompt,
     type SlackPrompt,
@@ -613,6 +614,73 @@ describe('getRunQuery', () => {
         });
         expect(output.result).toContain('Problem:');
         expect(output.result).toContain('How to fix:');
+        expect(runAsyncQuery).not.toHaveBeenCalled();
+        expect(createOrUpdateArtifact).not.toHaveBeenCalled();
+        expect(Sentry.captureException).not.toHaveBeenCalled();
+    });
+
+    it('returns custom metric category failures without execution or Sentry capture', async () => {
+        vi.mocked(Sentry.captureException).mockClear();
+        const runAsyncQuery = vi.fn<RunAsyncQueryFn>();
+        const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
+        const queryTool = getRunQuery({
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            runAsyncQuery,
+            runAsyncMergeQuery: vi.fn<RunAsyncMergeQueryFn>(),
+            enableMergeQueries: false,
+            enableFilterExpressions: true,
+            projectParameterDefinitions: {},
+            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+            sendFile: vi.fn().mockResolvedValue(undefined),
+            createOrUpdateArtifact,
+            maxLimit: 500,
+            maxContextRows: Number.POSITIVE_INFINITY,
+            exposeQueryUuid: false,
+            enableDataAccess: true,
+            resolveCustomChartType: vi.fn().mockResolvedValue(null),
+            exportCustomChartTypeImage: vi.fn<ExportCustomChartTypeImageFn>(),
+        });
+
+        if (!queryTool.execute) {
+            throw new Error('Expected run query to be executable');
+        }
+        const output = await queryTool.execute(
+            {
+                ...toolInput,
+                queryConfig: {
+                    ...toolInput.queryConfig,
+                    customMetrics: [
+                        {
+                            kind: 'aggregation',
+                            name: 'conditional_count',
+                            label: 'Conditional count',
+                            description: 'Count with an internal filter',
+                            baseDimensionName: 'a_dim1',
+                            table: 'a',
+                            type: MetricType.COUNT,
+                            filters: 'a_met1 equals=one',
+                        },
+                    ],
+                },
+            },
+            {
+                messages: [],
+                toolCallId: 'tool-call-1',
+                experimental_context: new AgentContext([validExplore]),
+            },
+        );
+        if (Symbol.asyncIterator in output) {
+            throw new Error('Expected a non-streaming tool result');
+        }
+
+        expect(output).toMatchObject({
+            result: expect.stringContaining(
+                '[FILTER_EXPRESSION_CUSTOM_METRIC_WRONG_CATEGORY]',
+            ),
+            metadata: { status: 'error' },
+        });
+        expect(output.result).toContain('dimension field ID');
+        expect(output.result).not.toContain('parserMessage');
         expect(runAsyncQuery).not.toHaveBeenCalled();
         expect(createOrUpdateArtifact).not.toHaveBeenCalled();
         expect(Sentry.captureException).not.toHaveBeenCalled();
