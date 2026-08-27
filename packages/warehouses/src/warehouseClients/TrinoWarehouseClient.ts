@@ -34,6 +34,9 @@ import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
 const TRINO_CLIENT_TAGS_HEADER = 'X-Trino-Client-Tags';
 
+const removeNumericTypeParameters = (type: string): string =>
+    type.replace(/\(\s*\d+(?:\s*,\s*\d+)?\s*\)/, '');
+
 // Trino splits the header on commas and Node rejects non-latin1 header values,
 // so tag keys/values are restricted to a safe charset
 const sanitizeClientTag = (tag: DriftedTagValue): string =>
@@ -103,7 +106,7 @@ const queryTableSchema = ({
 export const getTrinoTimestampDomain = (
     type: TrinoTypes | string,
 ): TimestampDomain | undefined => {
-    switch (type.replace(/\(\d+\)/, '')) {
+    switch (removeNumericTypeParameters(type)) {
         case TrinoTypes.TIMESTAMP:
             return 'naive';
         case TrinoTypes.TIMESTAMP_TZ:
@@ -116,8 +119,8 @@ export const getTrinoTimestampDomain = (
 const convertDataTypeToDimensionType = (
     type: TrinoTypes | string,
 ): DimensionType => {
-    const typeWithoutTimePrecision = type.replace(/\(\d+\)/, '');
-    switch (typeWithoutTimePrecision) {
+    const typeWithoutParameters = removeNumericTypeParameters(type);
+    switch (typeWithoutParameters) {
         case TrinoTypes.BOOLEAN:
             return DimensionType.BOOLEAN;
         case TrinoTypes.TINYINT:
