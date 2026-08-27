@@ -27,11 +27,74 @@ export const resolveDataAppVisualizationForRender = async (
     return dataAppViz;
 };
 
+export async function resolveRenderableDataAppVizVersion(
+    appModel: AppModel,
+    appUuid: string,
+    version: number,
+): Promise<
+    DbAppVersion & { viz_schema: NonNullable<DbAppVersion['viz_schema']> }
+> {
+    if (!Number.isInteger(version) || version < 1) {
+        throw new ParameterError('Version must be a positive integer');
+    }
+
+    const appVersion = await appModel.getVersion(appUuid, version);
+    if (
+        appVersion === null ||
+        appVersion.status !== 'ready' ||
+        appVersion.viz_schema === null
+    ) {
+        throw new NotFoundError(
+            'Renderable data app visualization version not found',
+        );
+    }
+    return { ...appVersion, viz_schema: appVersion.viz_schema };
+}
+
 export const resolveDataAppVizRenderMetadata = async (
     appModel: AppModel,
     appUuid: string,
     isBundleServable: BundleServableChecker,
+    pinnedVersion?: number,
 ): Promise<DataAppVizRenderMetadata> => {
+    if (pinnedVersion !== undefined) {
+        let appVersion: Awaited<
+            ReturnType<typeof resolveRenderableDataAppVizVersion>
+        >;
+        try {
+            appVersion = await resolveRenderableDataAppVizVersion(
+                appModel,
+                appUuid,
+                pinnedVersion,
+            );
+        } catch (error) {
+            if (
+                error instanceof NotFoundError ||
+                error instanceof ParameterError
+            ) {
+                return {
+                    state: 'unavailable',
+                    latestBuildInProgress: false,
+                };
+            }
+            throw error;
+        }
+
+        if (!(await isBundleServable(appUuid, appVersion.version))) {
+            return {
+                state: 'unavailable',
+                latestBuildInProgress: false,
+            };
+        }
+
+        return {
+            state: 'ready',
+            version: appVersion.version,
+            schema: appVersion.viz_schema,
+            latestBuildInProgress: false,
+        };
+    }
+
     const [latestVersion, latestRenderableVersion] = await Promise.all([
         appModel.getLatestVersion(appUuid),
         appModel.getLatestRenderableDataAppVizVersion(appUuid),
@@ -80,26 +143,4 @@ export const resolveDataAppVizRenderMetadata = async (
         state: 'failed',
         latestBuildInProgress: false,
     };
-};
-
-export const resolveRenderableDataAppVizVersion = async (
-    appModel: AppModel,
-    appUuid: string,
-    version: number,
-): Promise<DbAppVersion> => {
-    if (!Number.isInteger(version) || version < 1) {
-        throw new ParameterError('Version must be a positive integer');
-    }
-
-    const appVersion = await appModel.getVersion(appUuid, version);
-    if (
-        appVersion === null ||
-        appVersion.status !== 'ready' ||
-        appVersion.viz_schema === null
-    ) {
-        throw new NotFoundError(
-            'Renderable data app visualization version not found',
-        );
-    }
-    return appVersion;
 };

@@ -264,11 +264,27 @@ describe('DataAppVizRenderer', () => {
         renderRenderer();
 
         expect(
-            screen.getByText('Custom chart type preview is unavailable.'),
+            screen.getByText(
+                'The saved custom chart type version is unavailable.',
+            ),
         ).toBeInTheDocument();
         expect(
             screen.queryByText('Custom chart type failed to generate.'),
         ).not.toBeInTheDocument();
+    });
+
+    it('keeps the generic unavailable state for an unsaved preview', () => {
+        mocks.metadata.current = {
+            state: 'unavailable',
+            latestBuildInProgress: false,
+        };
+        mocks.vizContextOverrides.current = { savedChartUuid: undefined };
+
+        renderRenderer();
+
+        expect(
+            screen.getByText('Custom chart type preview is unavailable.'),
+        ).toBeInTheDocument();
     });
 
     it.each([
@@ -359,6 +375,36 @@ describe('DataAppVizRenderer', () => {
 
         renderRenderer();
 
+        expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
+    });
+
+    it('lazily pins a legacy saved chart when it is next edited', () => {
+        mocks.dataAppVizVersion.current = undefined;
+        mocks.vizContextOverrides.current = {
+            savedChartUuid: undefined,
+            isEditMode: true,
+            savedChartReference: {
+                uuid: 'saved-chart-uuid',
+                chartConfig: {
+                    type: 'data_app_viz',
+                    config: {
+                        dataAppVizUuid: 'viz-uuid',
+                        fieldMapping: { category: 'orders.category' },
+                    },
+                },
+            },
+        };
+
+        renderRenderer();
+
+        expect(mocks.renderMetadataHook).toHaveBeenCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            {
+                isEmbedded: false,
+                savedChartUuid: 'saved-chart-uuid',
+            },
+        );
         expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
     });
 

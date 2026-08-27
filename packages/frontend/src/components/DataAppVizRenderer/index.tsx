@@ -417,7 +417,13 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
 
     if (renderMetadata.state === 'unavailable') {
         return (
-            <DataAppVizPlaceholder message="Custom chart type preview is unavailable." />
+            <DataAppVizPlaceholder
+                message={
+                    renderSavedChartUuid
+                        ? 'The saved custom chart type version is unavailable.'
+                        : 'Custom chart type preview is unavailable.'
+                }
+            />
         );
     }
 

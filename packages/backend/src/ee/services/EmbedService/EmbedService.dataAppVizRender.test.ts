@@ -194,6 +194,49 @@ describe('EmbedService data app viz rendering', () => {
         expect(savedChartModel.get).toHaveBeenCalledWith(SAVED_CHART_UUID);
     });
 
+    it('renders the project chart type version pinned by the embedded chart', async () => {
+        const appModel = {
+            findVisualizationApp: vi
+                .fn()
+                .mockResolvedValue(makeDataAppVizRow()),
+            getVersion: vi.fn().mockResolvedValue(makeVersion({ version: 2 })),
+            getLatestVersion: vi
+                .fn()
+                .mockResolvedValue(makeVersion({ version: 4 })),
+            getLatestRenderableDataAppVizVersion: vi
+                .fn()
+                .mockResolvedValue(makeVersion({ version: 4 })),
+        };
+        const service = buildService({
+            appModel,
+            savedChartModel: {
+                get: vi.fn().mockResolvedValue(
+                    makeSavedChart({
+                        chartConfig: {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: {
+                                dataAppVizUuid: DATA_APP_VIZ_UUID,
+                                dataAppVizVersion: 2,
+                                fieldMapping: {},
+                            },
+                        },
+                    }),
+                ),
+            },
+        });
+
+        await expect(
+            service.getEmbedDataAppVizRenderMetadata(
+                chartAccount(),
+                PROJECT_UUID,
+                SAVED_CHART_UUID,
+                DATA_APP_VIZ_UUID,
+            ),
+        ).resolves.toMatchObject({ state: 'ready', version: 2 });
+        expect(appModel.getVersion).toHaveBeenCalledWith(DATA_APP_VIZ_UUID, 2);
+        expect(appModel.getLatestVersion).not.toHaveBeenCalled();
+    });
+
     it('rejects a different chart than the standalone chart named by the JWT', async () => {
         const savedChartModel = { get: vi.fn() };
         const service = buildService({

@@ -8582,16 +8582,18 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        return dataAppViz;
+        return { dataAppViz, chart };
     }
 
     private resolveVizRenderMetadata(
         appUuid: string,
+        pinnedVersion?: number,
     ): Promise<DataAppVizRenderMetadata> {
         return resolveDataAppVizRenderMetadata(
             this.appModel,
             appUuid,
             getBundleServableChecker(this.lightdashConfig.appRuntime.s3),
+            pinnedVersion,
         );
     }
 
@@ -8646,14 +8648,19 @@ export class AppGenerateService extends BaseService {
         dataAppVizUuid: string,
         chartVersionUuid?: string,
     ): Promise<DataAppVizRenderMetadata> {
-        const dataAppViz = await this.getAuthorizedDataAppVizForChart(
-            user,
-            projectUuid,
-            savedChartUuid,
-            dataAppVizUuid,
-            chartVersionUuid,
-        );
-        return this.resolveVizRenderMetadata(dataAppViz.app_id);
+        const { dataAppViz, chart } =
+            await this.getAuthorizedDataAppVizForChart(
+                user,
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+                chartVersionUuid,
+            );
+        const pinnedVersion =
+            chart.chartConfig.type === ChartType.DATA_APP_VIZ
+                ? chart.chartConfig.config?.dataAppVizVersion
+                : undefined;
+        return this.resolveVizRenderMetadata(dataAppViz.app_id, pinnedVersion);
     }
 
     async getChartDataAppVizPreviewToken(
@@ -8664,7 +8671,7 @@ export class AppGenerateService extends BaseService {
         version: number,
         chartVersionUuid?: string,
     ): Promise<string> {
-        const dataAppViz = await this.getAuthorizedDataAppVizForChart(
+        const { dataAppViz } = await this.getAuthorizedDataAppVizForChart(
             user,
             projectUuid,
             savedChartUuid,

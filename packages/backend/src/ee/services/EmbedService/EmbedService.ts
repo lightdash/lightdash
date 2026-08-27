@@ -1825,7 +1825,7 @@ export class EmbedService extends BaseService {
             );
         }
 
-        return dataAppViz;
+        return { dataAppViz, chart };
     }
 
     async getEmbedDataAppVizRenderMetadata(
@@ -1834,16 +1834,22 @@ export class EmbedService extends BaseService {
         savedChartUuid: string,
         dataAppVizUuid: string,
     ): Promise<DataAppVizRenderMetadata> {
-        const dataAppViz = await this.getAuthorizedDataAppVizForEmbed(
-            account,
-            projectUuid,
-            savedChartUuid,
-            dataAppVizUuid,
-        );
+        const { dataAppViz, chart } =
+            await this.getAuthorizedDataAppVizForEmbed(
+                account,
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+            );
+        const pinnedVersion =
+            chart.chartConfig.type === ChartType.DATA_APP_VIZ
+                ? chart.chartConfig.config?.dataAppVizVersion
+                : undefined;
         return resolveDataAppVizRenderMetadata(
             this.appModel,
             dataAppViz.app_id,
             getBundleServableChecker(this.lightdashConfig.appRuntime.s3),
+            pinnedVersion,
         );
     }
 
@@ -1854,7 +1860,7 @@ export class EmbedService extends BaseService {
         dataAppVizUuid: string,
         version: number,
     ): Promise<string> {
-        const dataAppViz = await this.getAuthorizedDataAppVizForEmbed(
+        const { dataAppViz } = await this.getAuthorizedDataAppVizForEmbed(
             account,
             projectUuid,
             savedChartUuid,
