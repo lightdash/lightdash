@@ -945,79 +945,39 @@ Run the report at any time with:
 
 ## `stop`: Stop This Instance
 
-Stop this instance's services. Shared services and other instances are not affected.
-For permanent worktree removal, use `destroy` instead.
+Stop this instance and release its port slot. Shared services and other instances are not affected.
 
 ```bash
-# One name per call — `pm2 delete a b c` aborts at the first name it cannot
-# find (e.g. sdk-test on an instance that never ran SDK test mode), leaving
-# every later name running.
-for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
-  pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
-done
-
-docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml down
-
-./scripts/dev-ports.sh release
+./scripts/dev-stop.sh stop
 ```
+
+Volumes are kept — sweep orphans with `./scripts/dev-ports.sh gc`.
+<details><summary>Fallback</summary>Follow `scripts/dev-stop.sh`, which is the reference for the teardown steps.</details>
 
 ---
 
 ## `destroy`: Permanently Remove This Instance
 
-Permanently remove this instance's services, PostgreSQL volumes, and port slot. Shared services and other instances are not affected.
+Permanently remove this instance's services, PostgreSQL volumes, named snapshots, and port slot.
 
 ```bash
-# One name per call — see the note under `stop`.
-for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
-  pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
-done
-
-# Volumes are removed by name, not with `down -v`: the compose file names the
-# data volume `${LD_VOLUME_PREFIX:-docker}_postgres_data`, so `-v` targets the
-# wrong volume unless LD_VOLUME_PREFIX is exported — and the snapshot volume is
-# created outside compose, so no `-v` invocation ever removes it.
-docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml down
-
-for volume in "${LD_VOLUME_PREFIX}_postgres_data" "${LD_VOLUME_PREFIX}_postgres_data_snapshot"; do
-  docker volume rm "$volume" 2>/dev/null || true
-done
-
-./scripts/dev-ports.sh release --instance-id "$LD_INSTANCE_ID"
+./scripts/dev-stop.sh destroy
 ```
+
+<details><summary>Fallback</summary>Follow `scripts/dev-stop.sh`, which is the reference for the teardown steps and volume guards.</details>
 
 ---
 
 ## `stop-all`: Stop Everything
 
-Stop ALL instances, shared services, and release all port slots.
+Stop all registered instances and shared services, then release all port slots.
 
 ```bash
-# Delete only Lightdash instance PM2 processes (not unrelated PM2 apps)
-for f in ~/.lightdash/dev-instances/*.json; do
-  [ -f "$f" ] || continue
-  INST_ID=$(python3 -c "import json; print(json.load(open('$f'))['instanceId'])")
-  # One name per call — see the note under `stop`.
-  for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
-    pm2 delete "${INST_ID}-${suffix}" 2>/dev/null || true
-  done
-done
-
-for f in ~/.lightdash/dev-instances/*.json; do
-  [ -f "$f" ] || continue
-  PROJECT=$(python3 -c "import json; print(json.load(open('$f'))['composeProject'])")
-  docker compose -p "$PROJECT" -f docker/docker-compose.dev.instance.yml down 2>/dev/null || true
-done
-
-docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml down
-
-for f in ~/.lightdash/dev-instances/*.json; do
-  [ -f "$f" ] || continue
-  rm "$f"
-done
-
-echo "All instances and shared services stopped."
+./scripts/dev-stop.sh stop-all
 ```
+
+Volumes are kept — sweep orphans with `./scripts/dev-ports.sh gc`.
+<details><summary>Fallback</summary>Follow `scripts/dev-stop.sh`, which is the reference for the teardown steps.</details>
 
 ---
 
