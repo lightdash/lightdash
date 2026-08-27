@@ -22,6 +22,12 @@ import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { GENERATE_DATA_APP_SECTION } from './systemV2DataApps';
+import {
+    EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+    FILTER_EXPRESSION_GUIDANCE_SECTION,
+    STRUCTURED_FILTER_GUIDANCE_SECTION,
+    STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+} from './systemV2FilterGuidance';
 import { MEMORIES_SECTION } from './systemV2Memories';
 import {
     REPO_FS_SECTION,
@@ -34,12 +40,6 @@ import { getSchedulingToolsSection } from './systemV2SchedulingTools';
 import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
-
-const STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE =
-    'If `filters` is non-null, include `type`, `dimensions`, `metrics`, and `tableCalculations`, using null or [] for every unused category.';
-
-const EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE =
-    'If `filters` is non-null, pass one raw AND filter-expression string containing dimension fields only; do not pass `type`, rule arrays, or filter objects.';
 
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
@@ -257,6 +257,12 @@ export const getSystemPromptV2 = (args: {
             enableFilterExpressions
                 ? EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE
                 : STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+        )
+        .replace(
+            '{{filter_guidance_section}}',
+            enableFilterExpressions
+                ? FILTER_EXPRESSION_GUIDANCE_SECTION
+                : STRUCTURED_FILTER_GUIDANCE_SECTION,
         )
         .replace(
             '{{ai_writeback_section}}',

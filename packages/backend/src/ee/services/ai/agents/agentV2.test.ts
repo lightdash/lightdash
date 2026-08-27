@@ -1012,16 +1012,22 @@ describe('getAgentTools workstream tool gate', () => {
         enableContentTools?: boolean;
         enableDataAccess?: boolean;
         enableGenerateDataApp?: boolean;
+        enableFilterExpressions?: boolean;
     };
 
     const buildArgs = (flags: ToolFlags): AiAgentArgs =>
         ({
             canCreateDashboards: true,
-            agentSettings: { name: 'test-agent' },
+            agentSettings: {
+                uuid: 'agent-1',
+                name: 'test-agent',
+                projectUuid: 'project-1',
+            },
             autoApproveSql: false,
             autoApproveSqlUserUuid: null,
             availableSkills: [],
             callOptions: {},
+            compactionSummary: null,
             canManageAgent: false,
             canRunSql: true,
             debugLoggingEnabled: false,
@@ -1031,12 +1037,15 @@ describe('getAgentTools workstream tool gate', () => {
             enableGenerateDataApp: false,
             enablePreviewDeploySetup: false,
             enableRepoDiscovery: false,
+            enableFilterExpressions: false,
             execution: {
                 mode: 'standard',
                 maxSteps: 10,
             },
             getDashboardChartsPageSize: 10,
             maxQueryLimit: 5000,
+            messageHistory: [{ role: 'user', content: 'Question' }],
+            mcpServers: [],
             model: {},
             organizationId: 'org-1',
             aiAgentMemoryEnabled: false,
@@ -1048,14 +1057,15 @@ describe('getAgentTools workstream tool gate', () => {
             telemetryEnabled: false,
             threadUuid: 'thread-1',
             toolDescriptionMaxChars: 1000,
+            toolHints: [],
             userId: 'user-1',
             useSlackStreamCard: false,
             ...flags,
         }) as unknown as AiAgentArgs;
 
-    const buildTools = (flags: ToolFlags) =>
+    const buildToolsForArgs = (args: AiAgentArgs) =>
         getAgentTools(
-            buildArgs(flags),
+            args,
             depsStub(),
             [],
             mcpStub,
@@ -1067,7 +1077,53 @@ describe('getAgentTools workstream tool gate', () => {
             },
         );
 
+    const buildTools = (flags: ToolFlags) =>
+        buildToolsForArgs(buildArgs(flags));
+
     const toolNames = (flags: ToolFlags) => Object.keys(buildTools(flags));
+
+    it.each([false, true])(
+        'matches the %s filter prompt to the selected tool contracts',
+        (enableFilterExpressions) => {
+            const args = buildArgs({
+                enableCodingAgent: false,
+                enableAiWriteback: false,
+                enableDataAccess: true,
+                enableFilterExpressions,
+            });
+            const tools = buildToolsForArgs(args);
+            const systemMessage = getAgentMessages(
+                args,
+                [],
+                mcpStub,
+                tools,
+                new Map(),
+                null,
+                { types: [], totalCount: 0 },
+            ).find(({ role }) => role === 'system');
+            if (!systemMessage || typeof systemMessage.content !== 'string') {
+                throw new Error('Expected a string system message');
+            }
+
+            expect({
+                promptUsesExpressions: systemMessage.content.includes(
+                    '## Filter expressions',
+                ),
+                visualizationUsesExpressions:
+                    tools.generateVisualization.description?.includes(
+                        'Filter expression syntax:',
+                    ) ?? false,
+                fieldValueSearchUsesExpressions:
+                    tools.searchFieldValues.description?.includes(
+                        'When filters is provided, pass one flat AND expression',
+                    ) ?? false,
+            }).toEqual({
+                promptUsesExpressions: enableFilterExpressions,
+                visualizationUsesExpressions: enableFilterExpressions,
+                fieldValueSearchUsesExpressions: enableFilterExpressions,
+            });
+        },
+    );
 
     it('exposes listWorkstreams + closePullRequest when AI writeback is enabled (coding agent off)', () => {
         const names = toolNames({
