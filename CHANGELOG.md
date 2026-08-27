@@ -1,3 +1,10 @@
+# [2.30.0](https://github.com/lightdash/lightdash/compare/2.29.0...2.30.0) (2026-08-27)
+
+
+### Features
+
+* **ai:** move Linear setup into agent reviews ([#28193](https://github.com/lightdash/lightdash/issues/28193)) ([234f506](https://github.com/lightdash/lightdash/commit/234f506bfa49c481f96ec8bc3fe66983ecee25ae))
+
 # [2.29.0](https://github.com/lightdash/lightdash/compare/2.28.0...2.29.0) (2026-08-27)
 
 

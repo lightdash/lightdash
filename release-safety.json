@@ -1,21 +1,33 @@
 {
   "schemaVersion": "2",
-  "version": "2.29.0",
-  "previousVersion": "2.28.0",
-  "releaseDate": "2026-08-27T11:47:16.473Z",
+  "version": "2.30.0",
+  "previousVersion": "2.29.0",
+  "releaseDate": "2026-08-27T12:12:54.415Z",
   "migrations": {
     "present": true,
-    "count": 1,
+    "count": 2,
     "coreCount": 1,
-    "eeCount": 0,
+    "eeCount": 1,
     "files": [
       {
-        "name": "20260825150000_create_content_drafts.ts",
+        "name": "20260827120000_add_oauth_client_id_to_linear_installations.ts",
         "edition": "core",
         "tables": [
-          "content_drafts",
-          "projects",
-          "users"
+          "linear_app_installations"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      },
+      {
+        "name": "20260827130000_create_ai_review_linear_destinations.ts",
+        "edition": "ee",
+        "tables": [
+          "ai_agent_review_linear_destinations",
+          "organizations",
+          "projects"
         ],
         "heaviness": {
           "locksTable": true,
@@ -26,8 +38,8 @@
     ]
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": false,
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
@@ -49,8 +61,24 @@
   },
   "config": {
     "checked": true,
-    "breaking": false,
-    "changes": []
+    "breaking": true,
+    "changes": [
+      {
+        "type": "removed",
+        "name": "LINEAR_CLIENT_ID",
+        "previousDefault": null
+      },
+      {
+        "type": "removed",
+        "name": "LINEAR_CLIENT_SECRET",
+        "previousDefault": null
+      },
+      {
+        "type": "removed",
+        "name": "LINEAR_REDIRECT_DOMAIN",
+        "previousDefault": null
+      }
+    ]
   },
   "upgrade": {
     "minPreviousVersion": "1.111.0",

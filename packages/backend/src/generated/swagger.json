@@ -36879,6 +36879,73 @@
                 "required": ["slackChannelId", "enabled"],
                 "type": "object"
             },
+            "AiReviewLinearDestination": {
+                "properties": {
+                    "linearProjectId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "linearTeamId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "linearProjectId",
+                    "linearTeamId",
+                    "enabled",
+                    "projectUuid",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiReviewLinearDestination_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiReviewLinearDestination"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiReviewLinearDestinationResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiReviewLinearDestination_"
+            },
+            "Pick_AiReviewLinearDestination.enabled-or-linearTeamId-or-linearProjectId_": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "linearTeamId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "linearProjectId": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["enabled", "linearTeamId", "linearProjectId"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "UpdateAiReviewLinearDestination": {
+                "$ref": "#/components/schemas/Pick_AiReviewLinearDestination.enabled-or-linearTeamId-or-linearProjectId_"
+            },
             "AiOrgProviderModelVisibility": {
                 "properties": {
                     "allowedModels": {
@@ -49125,6 +49192,9 @@
             },
             "LinearInstallation": {
                 "properties": {
+                    "requiresReconnect": {
+                        "type": "boolean"
+                    },
                     "organizationUrlKey": {
                         "type": "string"
                     },
@@ -49136,6 +49206,7 @@
                     }
                 },
                 "required": [
+                    "requiresReconnect",
                     "organizationUrlKey",
                     "organizationName",
                     "organizationUuid"
@@ -57019,7 +57090,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.29.0",
+        "version": "2.30.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -71675,6 +71746,94 @@
                 }
             }
         },
+        "/api/v1/aiAgents/admin/review-linear-destination/{projectUuid}": {
+            "get": {
+                "operationId": "getAiReviewLinearDestination",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiReviewLinearDestinationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a project's Linear destination for AI reviews",
+                "summary": "Get AI review Linear destination",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "updateAiReviewLinearDestination",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiReviewLinearDestinationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update a project's Linear destination for AI reviews",
+                "summary": "Update AI review Linear destination",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAiReviewLinearDestination"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/aiAgents/admin/settings": {
             "get": {
                 "operationId": "getAiOrganizationSettings",
@@ -83822,11 +83981,20 @@
                         "description": "Redirect to Linear OAuth"
                     }
                 },
-                "description": "Initiate Linear OAuth integration",
-                "summary": "Install Linear integration",
+                "description": "Start Linear OAuth with PKCE",
+                "summary": "Connect Linear",
                 "tags": ["Integrations"],
                 "security": [],
-                "parameters": []
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "clientId",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/linear/oauth/callback": {
@@ -83837,7 +84005,7 @@
                         "description": "No content"
                     }
                 },
-                "description": "Linear OAuth callback handler",
+                "description": "Finish Linear OAuth and return to Ask AI settings",
                 "summary": "Linear OAuth callback",
                 "tags": ["Integrations"],
                 "security": [],
