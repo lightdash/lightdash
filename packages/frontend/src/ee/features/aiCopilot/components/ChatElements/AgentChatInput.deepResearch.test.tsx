@@ -130,7 +130,7 @@ describe('AgentChatInput Deep Research mode', () => {
             screen
                 .getAllByRole('menuitem')
                 .map((menuItem) => menuItem.textContent),
-        ).toEqual(['Attach CSV', 'SQL Runner', 'Deep research']);
+        ).toEqual(['Attach a CSV', 'SQL Runner', 'Deep research']);
         expect(
             screen.getByRole('menuitem', { name: 'Enable SQL Runner' }),
         ).toBeInTheDocument();
@@ -152,6 +152,12 @@ describe('AgentChatInput Deep Research mode', () => {
         expect(
             screen.queryByRole('button', { name: 'Toggle SQL Runner' }),
         ).not.toBeInTheDocument();
+        expect(
+            screen
+                .getByRole('button', { name: 'Composer options' })
+                .compareDocumentPosition(screen.getByRole('textbox')) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
 
         await openComposerOptions();
 
@@ -179,7 +185,9 @@ describe('AgentChatInput Deep Research mode', () => {
         const user = await openComposerOptions();
         const inputClick = vi.spyOn(HTMLInputElement.prototype, 'click');
 
-        await user.click(screen.getByRole('menuitem', { name: 'Attach CSV' }));
+        await user.click(
+            screen.getByRole('menuitem', { name: 'Attach a CSV' }),
+        );
 
         expect(inputClick).toHaveBeenCalledOnce();
         inputClick.mockRestore();
@@ -210,7 +218,7 @@ describe('AgentChatInput Deep Research mode', () => {
     });
 
     it('keeps the action menu open in deep research mode', async () => {
-        renderInput();
+        renderInput({ enableCsvAttachment: true });
         const user = await openComposerOptions();
 
         await user.click(
@@ -220,6 +228,11 @@ describe('AgentChatInput Deep Research mode', () => {
         expect(
             screen.getByRole('menuitem', { name: 'Disable deep research' }),
         ).toBeInTheDocument();
+        expect(
+            screen.getByRole('menuitem', {
+                name: 'Attach a CSV unavailable in deep research',
+            }),
+        ).toBeDisabled();
     });
 
     it('starts research after selection and resets the mode after submission', async () => {

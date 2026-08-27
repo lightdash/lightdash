@@ -584,16 +584,14 @@ export const AgentChatInput = ({
             }),
         ),
     );
-    const canShowAttachControl = Boolean(
-        canAttachExternalSource &&
-        !disabled &&
-        !canSteer &&
-        composerMode === 'ask',
+    const showAttachControl = Boolean(
+        canAttachExternalSource && !disabled && !canSteer,
     );
+    const canUseAttachControl = showAttachControl && composerMode === 'ask';
     const showDeepResearchInComposerMenu = canStartDeepResearch && !disabled;
     const showComposerActionsMenu = Boolean(
         showSqlModeControl ||
-        canShowAttachControl ||
+        showAttachControl ||
         showDeepResearchInComposerMenu,
     );
 
@@ -861,7 +859,7 @@ export const AgentChatInput = ({
                     </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
-                    {canShowAttachControl && (
+                    {showAttachControl && (
                         <>
                             <FileButton
                                 accept=".csv,.tsv,text/csv,text/tab-separated-values"
@@ -877,7 +875,15 @@ export const AgentChatInput = ({
                                 {(fileButtonProps) => (
                                     <Menu.Item
                                         {...fileButtonProps}
-                                        disabled={isPreparingCsv}
+                                        aria-label={
+                                            canUseAttachControl
+                                                ? 'Attach a CSV'
+                                                : 'Attach a CSV unavailable in deep research'
+                                        }
+                                        disabled={
+                                            isPreparingCsv ||
+                                            !canUseAttachControl
+                                        }
                                         leftSection={
                                             <MantineIcon
                                                 icon={IconPaperclip}
@@ -885,7 +891,7 @@ export const AgentChatInput = ({
                                             />
                                         }
                                     >
-                                        Attach CSV
+                                        Attach a CSV
                                     </Menu.Item>
                                 )}
                             </FileButton>
@@ -1041,12 +1047,12 @@ export const AgentChatInput = ({
                         {...composerCommonProps}
                         variant="inline"
                         attachments={renderedAttachments}
+                        toolbarLeft={renderComposerActionsMenu({
+                            actionSize: 'sm',
+                            iconSize: 14,
+                        })}
                         toolbarRight={
                             <Group gap={4} align="center" wrap="nowrap">
-                                {renderComposerActionsMenu({
-                                    actionSize: 'sm',
-                                    iconSize: 14,
-                                })}
                                 {renderComposerAction('sm')}
                             </Group>
                         }
