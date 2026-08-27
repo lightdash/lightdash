@@ -31,7 +31,12 @@ import { ContentVerificationService } from './ContentVerificationService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DeployService } from './DeployService';
+import { AppAccessHandler } from './DirectAccess/AppAccessHandler';
+import { DashboardAccessHandler } from './DirectAccess/DashboardAccessHandler';
 import { DirectAccessFeatureGate } from './DirectAccess/DirectAccessFeatureGate';
+import { DirectAccessService } from './DirectAccess/DirectAccessService';
+import { SavedChartAccessHandler } from './DirectAccess/SavedChartAccessHandler';
+import { SavedSqlAccessHandler } from './DirectAccess/SavedSqlAccessHandler';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
 import { EmailWhitelabelService } from './EmailWhitelabelService/EmailWhitelabelService';
 import { FavoritesService } from './FavoritesService/FavoritesService';
@@ -101,6 +106,8 @@ interface ServiceManifest {
     csvService: CsvService;
     dashboardService: DashboardService;
     deployService: DeployService;
+    directAccessFeatureGate: DirectAccessFeatureGate;
+    directAccessService: DirectAccessService;
     downloadFileService: DownloadFileService;
     favoritesService: FavoritesService;
     gitIntegrationService: GitIntegrationService;
@@ -379,6 +386,51 @@ export class ServiceRepository
                     csvService: this.getCsvService(),
                 }),
         );
+    }
+
+    public getDirectAccessFeatureGate(): DirectAccessFeatureGate {
+        return this.getService(
+            'directAccessFeatureGate',
+            () =>
+                new DirectAccessFeatureGate(
+                    this.models.getFeatureFlagModel(),
+                    this.getLicenseService(),
+                ),
+        );
+    }
+
+    public getDirectAccessService(): DirectAccessService {
+        return this.getService('directAccessService', () => {
+            const spacePermissionService = this.getSpacePermissionService();
+            const featureGate = this.getDirectAccessFeatureGate();
+            return new DirectAccessService({
+                dashboard: new DashboardAccessHandler({
+                    dashboardAccessModel: this.models.getDashboardAccessModel(),
+                    dashboardModel: this.models.getDashboardModel(),
+                    spacePermissionService,
+                    featureGate,
+                }),
+                savedChart: new SavedChartAccessHandler({
+                    savedChartAccessModel:
+                        this.models.getSavedChartAccessModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    spacePermissionService,
+                    featureGate,
+                }),
+                savedSqlChart: new SavedSqlAccessHandler({
+                    savedSqlAccessModel: this.models.getSavedSqlAccessModel(),
+                    savedSqlModel: this.models.getSavedSqlModel(),
+                    spacePermissionService,
+                    featureGate,
+                }),
+                dataApp: new AppAccessHandler({
+                    appAccessModel: this.models.getAppAccessModel(),
+                    appModel: this.models.getAppModel(),
+                    spacePermissionService,
+                    featureGate,
+                }),
+            });
+        });
     }
 
     public getCommentService(): CommentService {
@@ -1148,10 +1200,7 @@ export class ServiceRepository
                     savedChartAccessModel:
                         this.models.getSavedChartAccessModel(),
                     savedSqlAccessModel: this.models.getSavedSqlAccessModel(),
-                    directAccessFeatureGate: new DirectAccessFeatureGate(
-                        this.models.getFeatureFlagModel(),
-                        this.getLicenseService(),
-                    ),
+                    directAccessFeatureGate: this.getDirectAccessFeatureGate(),
                 }),
         );
     }
