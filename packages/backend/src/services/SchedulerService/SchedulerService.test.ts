@@ -139,6 +139,11 @@ const spacePermissionService = {
         access: [],
         directOnly: false,
     })),
+    getChartAccessContext: vi.fn(async () => ({
+        inheritsFromOrgOrProject: false,
+        access: [],
+        directOnly: false,
+    })),
 };
 
 const schedulerClient = {
@@ -539,20 +544,18 @@ describe('SchedulerService', () => {
                 dashboardUuid: 'owningDashboardUuid',
             } as never);
             // Grant-only user: no space access, only a viewer grant row.
-            spacePermissionService.getDashboardAccessContext.mockResolvedValueOnce(
-                {
-                    inheritsFromOrgOrProject: false,
-                    access: [
-                        {
-                            userUuid: 'userUuid',
-                            role: SpaceMemberRole.VIEWER,
-                            hasDirectAccess: true,
-                            grantedVia: 'dashboard',
-                        },
-                    ],
-                    directOnly: true,
-                } as never,
-            );
+            spacePermissionService.getChartAccessContext.mockResolvedValueOnce({
+                inheritsFromOrgOrProject: false,
+                access: [
+                    {
+                        userUuid: 'userUuid',
+                        role: SpaceMemberRole.VIEWER,
+                        hasDirectAccess: true,
+                        grantedVia: 'dashboard',
+                    },
+                ],
+                directOnly: true,
+            } as never);
             const user = buildUser([
                 {
                     subject: 'SavedChart',
@@ -567,9 +570,10 @@ describe('SchedulerService', () => {
                 service.getScheduler(user, 'schedulerUuid'),
             ).resolves.toEqual(chartScheduler);
             expect(
-                spacePermissionService.getDashboardAccessContext,
+                spacePermissionService.getChartAccessContext,
             ).toHaveBeenCalledWith('userUuid', {
-                uuid: 'owningDashboardUuid',
+                uuid: savedChartUuid,
+                dashboardUuid: 'owningDashboardUuid',
                 spaceUuid: privateSpaceUuid,
             });
         });

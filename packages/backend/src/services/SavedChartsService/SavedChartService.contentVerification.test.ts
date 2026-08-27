@@ -139,6 +139,14 @@ const spacePermissionService = {
         admins: [],
         directOnly: false,
     })),
+    getChartAccessContext: vi.fn(async () => ({
+        organizationUuid: 'org-uuid',
+        projectUuid: 'project-uuid',
+        inheritsFromOrgOrProject: true,
+        access: [],
+        admins: [],
+        directOnly: false,
+    })),
     getFirstViewableSpaceUuid: vi.fn(async () => 'space-uuid'),
 };
 

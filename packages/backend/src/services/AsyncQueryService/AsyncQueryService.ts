@@ -5698,14 +5698,14 @@ export class AsyncQueryService extends ProjectService {
                 );
             inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
         } else {
-            const ctx =
-                await this.spacePermissionService.getDashboardAccessContext(
-                    account.user.id,
-                    {
-                        uuid: savedChart.dashboardUuid,
-                        spaceUuid: savedChartSpaceUuid,
-                    },
-                );
+            const ctx = await this.spacePermissionService.getChartAccessContext(
+                account.user.id,
+                {
+                    uuid: savedChart.uuid,
+                    dashboardUuid: savedChart.dashboardUuid,
+                    spaceUuid: savedChartSpaceUuid,
+                },
+            );
             access = ctx.access;
             inheritsFromOrgOrProject = ctx.inheritsFromOrgOrProject;
         }
@@ -6037,11 +6037,14 @@ export class AsyncQueryService extends ProjectService {
             );
         } else {
             const auditedAbility = this.createAuditedAbility(account);
-            const ctx =
-                await this.spacePermissionService.getDashboardAccessContext(
-                    account.user.id,
-                    { uuid: owningDashboardUuid, spaceUuid: space.uuid },
-                );
+            const ctx = await this.spacePermissionService.getChartAccessContext(
+                account.user.id,
+                {
+                    uuid: savedChartUuid,
+                    dashboardUuid: owningDashboardUuid,
+                    spaceUuid: space.uuid,
+                },
+            );
 
             if (
                 auditedAbility.cannot(
@@ -9584,10 +9587,11 @@ export class AsyncQueryService extends ProjectService {
             : savedChart.metricQuery;
 
         const spaceCtx =
-            await this.spacePermissionService.getDashboardAccessContext(
+            await this.spacePermissionService.getChartAccessContext(
                 account.user.id,
                 {
-                    uuid: savedChart.dashboardUuid,
+                    uuid: savedChart.uuid,
+                    dashboardUuid: savedChart.dashboardUuid,
                     spaceUuid: savedChart.spaceUuid,
                 },
             );

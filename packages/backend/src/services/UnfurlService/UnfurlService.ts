@@ -1069,9 +1069,13 @@ export class UnfurlService extends BaseService {
             projectUuid ? { projectUuid } : undefined,
         );
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getDashboardAccessContext(
+            await this.spacePermissionService.getChartAccessContext(
                 user.userUuid,
-                { uuid: chart.dashboardUuid, spaceUuid: chart.spaceUuid },
+                {
+                    uuid: chart.uuid,
+                    dashboardUuid: chart.dashboardUuid,
+                    spaceUuid: chart.spaceUuid,
+                },
             );
 
         const auditedAbility = this.createAuditedAbility(user);

@@ -1139,6 +1139,8 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     spacePermissionModel: this.models.getSpacePermissionModel(),
                     dashboardAccessModel: this.models.getDashboardAccessModel(),
+                    savedChartAccessModel:
+                        this.models.getSavedChartAccessModel(),
                     directAccessFeatureGate: new DirectAccessFeatureGate(
                         this.models.getFeatureFlagModel(),
                         this.getLicenseService(),

@@ -24,6 +24,8 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { type DashboardAccessModel } from '../../models/DashboardAccessModel';
+import { type DirectAccess } from '../../models/directAccessModelUtils';
+import { type SavedChartAccessModel } from '../../models/SavedChartAccessModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import {
     SpacePermissionModel,
@@ -48,6 +50,13 @@ export type SpaceAccessContextForCasl = {
     admins: SpaceAdmin[];
 };
 
+// A content type's direct-grant lookup (e.g. DashboardAccessModel.getUserAccess
+// or SavedChartAccessModel.getUserAccess), pre-bound to the requesting user.
+type GrantLookup = (
+    resourceUuids: string[],
+    opts: { organizationUuid: string },
+) => Promise<Record<string, DirectAccess>>;
+
 export type DashboardAccessContextForCasl = SpaceAccessContextForCasl & {
     /**
      * True when the requester has no space-derived access path (membership,
@@ -64,23 +73,28 @@ export class SpacePermissionService extends BaseService {
 
     private readonly dashboardAccessModel: DashboardAccessModel;
 
+    private readonly savedChartAccessModel: SavedChartAccessModel;
+
     private readonly directAccessFeatureGate: DirectAccessFeatureGate;
 
     constructor({
         spaceModel,
         spacePermissionModel,
         dashboardAccessModel,
+        savedChartAccessModel,
         directAccessFeatureGate,
     }: {
         spaceModel: SpaceModel;
         spacePermissionModel: SpacePermissionModel;
         dashboardAccessModel: DashboardAccessModel;
+        savedChartAccessModel: SavedChartAccessModel;
         directAccessFeatureGate: DirectAccessFeatureGate;
     }) {
         super();
         this.spaceModel = spaceModel;
         this.spacePermissionModel = spacePermissionModel;
         this.dashboardAccessModel = dashboardAccessModel;
+        this.savedChartAccessModel = savedChartAccessModel;
         this.directAccessFeatureGate = directAccessFeatureGate;
     }
 
@@ -228,12 +242,148 @@ export class SpacePermissionService extends BaseService {
         userUuid: string,
         dashboard: { uuid: string | null; spaceUuid: string },
     ): Promise<DashboardAccessContextForCasl> {
+        return this.resolveGrantAccessContext(userUuid, dashboard, {
+            grantedVia: 'dashboard',
+            resourceLabel: 'Dashboard',
+            lookupGrants: (uuids, opts) =>
+                this.dashboardAccessModel.getUserAccess(uuids, userUuid, opts),
+        });
+    }
+
+    /**
+     * Direct-grant access context for a saved (explore) chart. Same kernel and
+     * boundary rule as `getDashboardAccessContext` (read its doc); grants are
+     * tagged `grantedVia: 'saved_chart'`. Pass `uuid: null` for a chart with no
+     * direct policy, or at a boundary-crossing site where grants must not
+     * count.
+     */
+    async getSavedChartAccessContext(
+        userUuid: string,
+        chart: { uuid: string | null; spaceUuid: string },
+    ): Promise<DashboardAccessContextForCasl> {
+        return this.resolveGrantAccessContext(userUuid, chart, {
+            grantedVia: 'saved_chart',
+            resourceLabel: 'Saved chart',
+            lookupGrants: (uuids, opts) =>
+                this.savedChartAccessModel.getUserAccess(uuids, userUuid, opts),
+        });
+    }
+
+    /** Batched `getSavedChartAccessContext` for hot paths (listings, tiles). */
+    async getSavedChartsAccessContext(
+        userUuid: string,
+        charts: { uuid: string | null; spaceUuid: string }[],
+    ): Promise<(DashboardAccessContextForCasl | undefined)[]> {
+        return this.resolveGrantsAccessContext(userUuid, charts, {
+            grantedVia: 'saved_chart',
+            lookupGrants: (uuids, opts) =>
+                this.savedChartAccessModel.getUserAccess(uuids, userUuid, opts),
+        });
+    }
+
+    /**
+     * Access context for a chart, routed by ownership: a dashboard-owned chart
+     * (`dashboardUuid` set) resolves through the owning dashboard's grants; a
+     * space-saved chart resolves through its own grants. Callers pass the
+     * chart's own uuid, its dashboardUuid, and its space; this is the entry
+     * point every chart read/write path should use.
+     */
+    async getChartAccessContext(
+        userUuid: string,
+        chart: {
+            uuid: string;
+            dashboardUuid: string | null;
+            spaceUuid: string;
+        },
+    ): Promise<DashboardAccessContextForCasl> {
+        return chart.dashboardUuid
+            ? this.getDashboardAccessContext(userUuid, {
+                  uuid: chart.dashboardUuid,
+                  spaceUuid: chart.spaceUuid,
+              })
+            : this.getSavedChartAccessContext(userUuid, {
+                  uuid: chart.uuid,
+                  spaceUuid: chart.spaceUuid,
+              });
+    }
+
+    /**
+     * Batched `getChartAccessContext`, aligned with the input. Owned charts
+     * resolve in one dashboard-grant batch and space charts in one
+     * chart-grant batch (non-applicable entries take the no-lookup null path),
+     * so a mixed dashboard load costs two grant queries, never N+1.
+     */
+    async getChartsAccessContext(
+        userUuid: string,
+        charts: {
+            uuid: string;
+            dashboardUuid: string | null;
+            spaceUuid: string;
+        }[],
+    ): Promise<(DashboardAccessContextForCasl | undefined)[]> {
+        const [dashboardContexts, chartContexts] = await Promise.all([
+            this.getDashboardsAccessContext(
+                userUuid,
+                charts.map((chart) => ({
+                    uuid: chart.dashboardUuid,
+                    spaceUuid: chart.spaceUuid,
+                })),
+            ),
+            this.getSavedChartsAccessContext(
+                userUuid,
+                charts.map((chart) => ({
+                    uuid: chart.dashboardUuid ? null : chart.uuid,
+                    spaceUuid: chart.spaceUuid,
+                })),
+            ),
+        ]);
+        return charts.map((chart, index) =>
+            chart.dashboardUuid
+                ? dashboardContexts[index]
+                : chartContexts[index],
+        );
+    }
+
+    /**
+     * Batched `getDashboardAccessContext` for hot paths that resolve many
+     * (dashboard, space) refs at once. Returns contexts aligned with the input;
+     * undefined where the space context could not be resolved. Doubtful refs
+     * degrade to the space-only context — never to more access.
+     */
+    async getDashboardsAccessContext(
+        userUuid: string,
+        dashboards: { uuid: string | null; spaceUuid: string }[],
+    ): Promise<(DashboardAccessContextForCasl | undefined)[]> {
+        return this.resolveGrantsAccessContext(userUuid, dashboards, {
+            grantedVia: 'dashboard',
+            lookupGrants: (uuids, opts) =>
+                this.dashboardAccessModel.getUserAccess(uuids, userUuid, opts),
+        });
+    }
+
+    // The canonical single-ref grant kernel that every getXAccessContext
+    // delegates to. See the getDashboardAccessContext doc for the boundary
+    // rule. One space fetch, one gate check, one grant lookup; a space the
+    // resource does not belong to is a caller bug and throws.
+    private async resolveGrantAccessContext(
+        userUuid: string,
+        ref: { uuid: string | null; spaceUuid: string },
+        {
+            grantedVia,
+            resourceLabel,
+            lookupGrants,
+        }: {
+            grantedVia: GrantSource;
+            resourceLabel: string;
+            lookupGrants: GrantLookup;
+        },
+    ): Promise<DashboardAccessContextForCasl> {
         const spaceContext = await this.getSpaceAccessContext(
             userUuid,
-            dashboard.spaceUuid,
+            ref.spaceUuid,
         );
         const spaceOnlyContext = { ...spaceContext, directOnly: false };
-        if (dashboard.uuid === null) {
+        if (ref.uuid === null) {
             return spaceOnlyContext;
         }
         if (
@@ -244,13 +394,10 @@ export class SpacePermissionService extends BaseService {
         ) {
             return spaceOnlyContext;
         }
-
-        const grants = await this.dashboardAccessModel.getUserAccess(
-            [dashboard.uuid],
-            userUuid,
-            { organizationUuid: spaceContext.organizationUuid },
-        );
-        const grant = grants[dashboard.uuid];
+        const grants = await lookupGrants([ref.uuid], {
+            organizationUuid: spaceContext.organizationUuid,
+        });
+        const grant = grants[ref.uuid];
         if (grant === undefined) {
             return spaceOnlyContext;
         }
@@ -261,38 +408,31 @@ export class SpacePermissionService extends BaseService {
         if (grantRoles.length === 0) {
             return spaceOnlyContext;
         }
-        // Grants must never extend a context for a space the dashboard does
-        // not live in; a mismatch is a caller bug, so fail loudly.
-        if (grant.spaceUuid !== dashboard.spaceUuid) {
+        if (grant.spaceUuid !== ref.spaceUuid) {
             throw new ParameterError(
-                `Dashboard ${dashboard.uuid} does not belong to space ${dashboard.spaceUuid}`,
+                `${resourceLabel} ${ref.uuid} does not belong to space ${ref.spaceUuid}`,
             );
         }
-
         return SpacePermissionService.withGrantAccess(
             spaceContext,
             userUuid,
             grantRoles,
-            'dashboard',
+            grantedVia,
         );
     }
 
-    /**
-     * Batched getDashboardAccessContext for hot paths that resolve many
-     * (dashboard, space) refs at once: one space-context batch, one gate
-     * check, and one grant lookup. Returns contexts aligned with the input;
-     * undefined where the space context could not be resolved. Anything
-     * doubtful (missing grant, organization mismatch, dashboard not in the
-     * given space) degrades to the space-only context — never to more
-     * access.
-     */
-    async getDashboardsAccessContext(
+    // Batched sibling of resolveGrantAccessContext: one space batch, one gate
+    // check, one grant lookup. Doubtful refs degrade to space-only rather than
+    // throwing, so one bad ref never fails a whole hot-path request.
+    private async resolveGrantsAccessContext(
         userUuid: string,
-        dashboards: { uuid: string | null; spaceUuid: string }[],
+        refs: { uuid: string | null; spaceUuid: string }[],
+        {
+            grantedVia,
+            lookupGrants,
+        }: { grantedVia: GrantSource; lookupGrants: GrantLookup },
     ): Promise<(DashboardAccessContextForCasl | undefined)[]> {
-        const uniqueSpaceUuids = [
-            ...new Set(dashboards.map((ref) => ref.spaceUuid)),
-        ];
+        const uniqueSpaceUuids = [...new Set(refs.map((ref) => ref.spaceUuid))];
         const spaceContexts = await this.getSpacesAccessContext(
             userUuid,
             uniqueSpaceUuids,
@@ -304,35 +444,31 @@ export class SpacePermissionService extends BaseService {
             return ctx ? { ...ctx, directOnly: false } : undefined;
         };
 
-        const dashboardUuids = [
+        const resourceUuids = [
             ...new Set(
-                dashboards.flatMap((ref) =>
+                refs.flatMap((ref) =>
                     ref.uuid !== null && spaceContexts[ref.spaceUuid]
                         ? [ref.uuid]
                         : [],
                 ),
             ),
         ];
-        const organizationUuid = dashboards
+        const organizationUuid = refs
             .map((ref) => spaceContexts[ref.spaceUuid]?.organizationUuid)
             .find((uuid) => uuid !== undefined);
         if (
-            dashboardUuids.length === 0 ||
+            resourceUuids.length === 0 ||
             organizationUuid === undefined ||
             !(await this.directAccessFeatureGate.isEnabledForUser({
                 userUuid,
                 organizationUuid,
             }))
         ) {
-            return dashboards.map(spaceOnly);
+            return refs.map(spaceOnly);
         }
 
-        const grants = await this.dashboardAccessModel.getUserAccess(
-            dashboardUuids,
-            userUuid,
-            { organizationUuid },
-        );
-        return dashboards.map((ref) => {
+        const grants = await lookupGrants(resourceUuids, { organizationUuid });
+        return refs.map((ref) => {
             const spaceContext = spaceContexts[ref.spaceUuid];
             if (spaceContext === undefined || ref.uuid === null) {
                 return spaceOnly(ref);
@@ -356,7 +492,7 @@ export class SpacePermissionService extends BaseService {
                 spaceContext,
                 userUuid,
                 grantRoles,
-                'dashboard',
+                grantedVia,
             );
         });
     }

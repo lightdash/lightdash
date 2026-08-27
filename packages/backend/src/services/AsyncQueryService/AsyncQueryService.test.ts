@@ -394,6 +394,14 @@ const getMockedAsyncQueryService = (
                 admins: [],
                 directOnly: false,
             })),
+            getChartAccessContext: vi.fn(async () => ({
+                organizationUuid: projectSummary.organizationUuid,
+                projectUuid,
+                inheritsFromOrgOrProject: true,
+                access: [],
+                admins: [],
+                directOnly: false,
+            })),
         } as unknown as SpacePermissionService,
         organizationSettingsModel: {
             get: vi.fn(async () => ({
@@ -4302,6 +4310,14 @@ describe('AsyncQueryService', () => {
                         admins: [],
                         directOnly: false,
                     }),
+                    getChartAccessContext: vi.fn().mockResolvedValue({
+                        organizationUuid: projectSummary.organizationUuid,
+                        projectUuid,
+                        inheritsFromOrgOrProject: true,
+                        access: [],
+                        admins: [],
+                        directOnly: false,
+                    }),
                 };
                 service.pollForQueryCompletion = vi
                     .fn()
@@ -5049,7 +5065,7 @@ describe('checkDashboardChartQueryPermissions', () => {
     const buildSpacePermissionService = (
         dashboardAccess: { userUuid: string }[],
     ) => ({
-        getDashboardAccessContext: vi.fn(async () => ({
+        getChartAccessContext: vi.fn(async () => ({
             organizationUuid: projectSummary.organizationUuid,
             projectUuid: projectSummary.projectUuid,
             inheritsFromOrgOrProject: false,
@@ -5088,9 +5104,10 @@ describe('checkDashboardChartQueryPermissions', () => {
             ),
         ).resolves.toBeUndefined();
         expect(
-            spacePermissionService.getDashboardAccessContext,
+            spacePermissionService.getChartAccessContext,
         ).toHaveBeenCalledWith(account.user.id, {
-            uuid: owningDashboardUuid,
+            uuid: 'chart-uuid',
+            dashboardUuid: owningDashboardUuid,
             spaceUuid: chartSpace.uuid,
         });
         expect(
@@ -5115,7 +5132,7 @@ describe('checkDashboardChartQueryPermissions', () => {
         ).rejects.toThrow(ForbiddenError);
     });
 
-    it('keeps the space check for reusable charts', async () => {
+    it('routes a reusable chart through its own chart context and denies without a grant', async () => {
         const account = buildGrantOnlyAccount();
         const service = getMockedAsyncQueryService(lightdashConfigMock);
         const spacePermissionService = buildSpacePermissionService([]);
@@ -5131,9 +5148,10 @@ describe('checkDashboardChartQueryPermissions', () => {
             ),
         ).rejects.toThrow(ForbiddenError);
         expect(
-            spacePermissionService.getDashboardAccessContext,
+            spacePermissionService.getChartAccessContext,
         ).toHaveBeenCalledWith(account.user.id, {
-            uuid: null,
+            uuid: 'chart-uuid',
+            dashboardUuid: null,
             spaceUuid: chartSpace.uuid,
         });
     });
