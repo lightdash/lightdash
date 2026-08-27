@@ -1377,10 +1377,15 @@ export const ConnectionAttachButton: FC<{
             <Popover.Target>
                 <Tooltip label={triggerLabel} withArrow position="top">
                     <Indicator
+                        inline
                         label={selectedCount}
-                        size={16}
-                        offset={4}
+                        size={12}
+                        offset={3}
+                        color="blue"
                         disabled={selectedCount === 0}
+                        classNames={{
+                            indicator: classes.connectionCountIndicator,
+                        }}
                     >
                         <ActionIcon
                             variant="subtle"
