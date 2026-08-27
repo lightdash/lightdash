@@ -604,6 +604,35 @@ export class AppModel {
         return row ?? null;
     }
 
+    async countVersions(appId: string): Promise<number> {
+        const [row] = await this.database(AppVersionsTableName)
+            .where({ app_id: appId })
+            .count<{ count: string }[]>({ count: '*' });
+        return parseInt(row.count, 10);
+    }
+
+    /** null when the creator's user row is gone (hard-deleted user). */
+    async findAppCreator(appId: string): Promise<{
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+    } | null> {
+        const row = await this.database(AppsTableName)
+            .innerJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${AppsTableName}.created_by_user_uuid`,
+            )
+            .where(`${AppsTableName}.app_id`, appId)
+            .select({
+                userUuid: `${UserTableName}.user_uuid`,
+                firstName: `${UserTableName}.first_name`,
+                lastName: `${UserTableName}.last_name`,
+            })
+            .first();
+        return row ?? null;
+    }
+
     async getLatestReadyVersion(appId: string): Promise<DbAppVersion | null> {
         const row = await this.database(AppVersionsTableName)
             .where({ app_id: appId, status: 'ready' })

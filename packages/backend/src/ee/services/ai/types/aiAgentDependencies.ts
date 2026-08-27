@@ -33,6 +33,7 @@ import {
     ParametersValuesMap,
     PreviewDeploySetupResult,
     ProjectType,
+    ReadContentType,
     ResultColumns,
     SavedChart,
     SchedulerAndTargets,
@@ -53,6 +54,7 @@ import {
     AiAgentToolCallEvent,
 } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
+import type { DataAppRead } from '../../AiAgentToolsService/dataAppRead';
 import { AiAgentSkill } from '../skills/types';
 
 type Pagination = KnexPaginateArgs & {
@@ -299,7 +301,7 @@ export type GetDashboardChartsFn = (args: {
 
 export type ReadContentFn = (args: {
     slug: string;
-    type: 'dashboard' | 'chart';
+    type: ReadContentType;
 }) => Promise<
     | {
           type: 'dashboard';
@@ -309,6 +311,11 @@ export type ReadContentFn = (args: {
     | {
           type: 'chart';
           content: ChartAsCode;
+          href: string;
+      }
+    | {
+          type: 'data_app';
+          content: DataAppRead;
           href: string;
       }
 >;

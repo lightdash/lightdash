@@ -44,6 +44,7 @@ import {
     type DataAppVizSchema,
     type FieldValueSearchResult,
     type ParameterDefinitions,
+    type PersistedDataAppDataReferences,
     type SchedulerAiAugmentation,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
@@ -140,13 +141,22 @@ import {
     formatSqlScopeError,
     formatWarehouseTableScopeError,
 } from '../ai/utils/sqlScope';
+import type {
+    AppGenerateService,
+    DataAppReadSource,
+} from '../AppGenerateService/AppGenerateService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import type { SchedulerAiAugmentationService } from '../SchedulerAiAugmentationService/SchedulerAiAugmentationService';
+import type {
+    DataAppRead,
+    DataAppReadDataReferences,
+    DataAppReadExploreReferences,
+} from './dataAppRead';
 
 type AgentListContentResult = Awaited<ReturnType<ListContentFn>>;
 type AgentListContentItem = AgentListContentResult['items'][number];
 type ProjectSpace = Awaited<ReturnType<ProjectService['getSpaces']>>[number];
-type ContentAsCodeType = Parameters<ReadContentFn>[0]['type'];
+type ContentAsCodeType = Parameters<EditContentFn>[0]['type'];
 type SearchContentResult = Awaited<
     ReturnType<SearchService['findContent']>
 >['content'][number];
@@ -302,6 +312,7 @@ type AiAgentToolsServiceDependencies = {
     savedChartModel: SavedChartModel;
     coderService: CoderService;
     contentService: ContentService;
+    appGenerateService: AppGenerateService;
     aiAgentContentValidation: AiAgentContentValidation;
     projectContextModel: ProjectContextModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
@@ -359,6 +370,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly coderService: CoderService;
 
     private readonly contentService: ContentService;
+
+    private readonly appGenerateService: AppGenerateService;
 
     private readonly aiAgentContentValidation: AiAgentContentValidation;
 
@@ -433,6 +446,7 @@ export class AiAgentToolsService extends BaseService {
         savedChartModel,
         coderService,
         contentService,
+        appGenerateService,
         aiAgentContentValidation,
         aiAgentDocumentModel,
         aiDeepResearchRunModel,
@@ -465,6 +479,7 @@ export class AiAgentToolsService extends BaseService {
         this.savedChartModel = savedChartModel;
         this.coderService = coderService;
         this.contentService = contentService;
+        this.appGenerateService = appGenerateService;
         this.aiAgentContentValidation = aiAgentContentValidation;
         this.aiAgentDocumentModel = aiAgentDocumentModel;
         this.aiDeepResearchRunModel = aiDeepResearchRunModel;
@@ -1583,69 +1598,27 @@ export class AiAgentToolsService extends BaseService {
             { slug, type },
             async () => {
                 switch (type) {
-                    case 'dashboard': {
-                        const { dashboards } =
-                            await this.coderService.getDashboards(
+                    case 'dashboard':
+                    case 'chart':
+                        return this.readContentAsCode(context, { slug, type });
+                    case 'data_app': {
+                        const source =
+                            await this.appGenerateService.readDataApp(
                                 context.user,
                                 context.projectUuid,
-                                [slug],
+                                slug,
                             );
-                        const dashboard = dashboards[0];
-                        if (!dashboard) {
-                            throw new NotFoundError(
-                                `Dashboard "${slug}" was not found`,
-                            );
-                        }
-                        await this.assertContentSpaceInScope(
+                        AiAgentToolsService.assertDataAppInAgentScope(
                             context,
-                            dashboard.spaceSlug,
-                            `Dashboard "${slug}" was not found`,
-                        );
-                        const savedDashboard =
-                            await this.dashboardService.getByIdOrSlug(
-                                context.user,
-                                dashboard.slug,
-                                { projectUuid: context.projectUuid },
-                            );
-                        return {
-                            type: 'dashboard',
-                            content: dashboard,
-                            href: AiAgentToolsService.getContentUrl(
-                                context,
-                                'dashboard',
-                                savedDashboard.uuid,
-                            ),
-                        };
-                    }
-                    case 'chart': {
-                        const { charts } = await this.coderService.getCharts(
-                            context.user,
-                            context.projectUuid,
-                            [slug],
-                        );
-                        const chart = charts[0];
-                        if (!chart) {
-                            throw new NotFoundError(
-                                `Chart "${slug}" was not found`,
-                            );
-                        }
-                        await this.assertContentSpaceInScope(
-                            context,
-                            chart.spaceSlug,
-                            `Chart "${slug}" was not found`,
-                        );
-                        const savedChart = await this.savedChartService.get(
-                            chart.slug,
-                            context.account,
-                            { projectUuid: context.projectUuid },
+                            source,
+                            slug,
                         );
                         return {
-                            type: 'chart',
-                            content: chart,
-                            href: AiAgentToolsService.getContentUrl(
+                            type: 'data_app',
+                            content: await this.buildDataAppRead(source),
+                            href: AiAgentToolsService.getDataAppUrl(
                                 context,
-                                'chart',
-                                savedChart.uuid,
+                                source.app.uuid,
                             ),
                         };
                     }
@@ -1654,6 +1627,280 @@ export class AiAgentToolsService extends BaseService {
                 }
             },
         );
+    }
+
+    private async readContentAsCode(
+        context: AiAgentToolsRuntimeContext,
+        { slug, type }: { slug: string; type: ContentAsCodeType },
+    ): Promise<
+        Extract<Awaited<ReturnType<ReadContentFn>>, { type: ContentAsCodeType }>
+    > {
+        switch (type) {
+            case 'dashboard': {
+                const { dashboards } = await this.coderService.getDashboards(
+                    context.user,
+                    context.projectUuid,
+                    [slug],
+                );
+                const dashboard = dashboards[0];
+                if (!dashboard) {
+                    throw new NotFoundError(
+                        `Dashboard "${slug}" was not found`,
+                    );
+                }
+                await this.assertContentSpaceInScope(
+                    context,
+                    dashboard.spaceSlug,
+                    `Dashboard "${slug}" was not found`,
+                );
+                const savedDashboard =
+                    await this.dashboardService.getByIdOrSlug(
+                        context.user,
+                        dashboard.slug,
+                        { projectUuid: context.projectUuid },
+                    );
+                return {
+                    type: 'dashboard',
+                    content: dashboard,
+                    href: AiAgentToolsService.getContentUrl(
+                        context,
+                        'dashboard',
+                        savedDashboard.uuid,
+                    ),
+                };
+            }
+            case 'chart': {
+                const { charts } = await this.coderService.getCharts(
+                    context.user,
+                    context.projectUuid,
+                    [slug],
+                );
+                const chart = charts[0];
+                if (!chart) {
+                    throw new NotFoundError(`Chart "${slug}" was not found`);
+                }
+                await this.assertContentSpaceInScope(
+                    context,
+                    chart.spaceSlug,
+                    `Chart "${slug}" was not found`,
+                );
+                const savedChart = await this.savedChartService.get(
+                    chart.slug,
+                    context.account,
+                    { projectUuid: context.projectUuid },
+                );
+                return {
+                    type: 'chart',
+                    content: chart,
+                    href: AiAgentToolsService.getContentUrl(
+                        context,
+                        'chart',
+                        savedChart.uuid,
+                    ),
+                };
+            }
+            default:
+                return assertUnreachable(type, 'Invalid content type');
+        }
+    }
+
+    /** Same scoping as findContent: personal apps only under unrestricted search. */
+    private static assertDataAppInAgentScope(
+        context: AiAgentToolsRuntimeContext,
+        source: DataAppReadSource,
+        slug: string,
+    ) {
+        const scoped =
+            context.spaceAccess !== null && context.spaceAccess.length > 0;
+        const inScope =
+            source.app.spaceUuid === null
+                ? !scoped
+                : AiAgentToolsService.hasAgentSpaceAccess(
+                      context.spaceAccess,
+                      source.app.spaceUuid,
+                  );
+        if (!inScope) {
+            throw new NotFoundError(`Data app "${slug}" was not found`);
+        }
+    }
+
+    // Per-call-site references → per-explore summary. Locations and custom SQL
+    // text are dropped; charts missing from `chartSlugsByUuid` (deleted) too.
+    static aggregateDataAppDataReferences(
+        { references, stats }: PersistedDataAppDataReferences,
+        chartSlugsByUuid: Readonly<Record<string, string>>,
+    ): DataAppReadDataReferences {
+        const pushUnique = (target: string[], values: string[]) => {
+            const seen = new Set(target);
+            for (const value of values) {
+                if (!seen.has(value)) {
+                    target.push(value);
+                    seen.add(value);
+                }
+            }
+        };
+        const explores = new Map<string, DataAppReadExploreReferences>();
+        const linkedCharts = new Map<string, string[]>();
+        const externalConnections = new Map<string, string[]>();
+        const unresolved = new Set<string>();
+
+        const exploreFor = (name: string) => {
+            const existing = explores.get(name);
+            if (existing) return existing;
+            const created: DataAppReadExploreReferences = {
+                name,
+                dimensions: [],
+                metrics: [],
+                filterFields: [],
+                sortFields: [],
+                parameterKeys: [],
+                localFields: [],
+                customSqlFieldCount: 0,
+            };
+            explores.set(name, created);
+            return created;
+        };
+
+        for (const ref of references) {
+            ref.unresolved.forEach((part) => unresolved.add(part));
+            switch (ref.kind) {
+                case 'query': {
+                    if (ref.explore === null) break;
+                    const explore = exploreFor(ref.explore);
+                    pushUnique(explore.dimensions, ref.dimensions);
+                    pushUnique(explore.metrics, ref.metrics);
+                    pushUnique(explore.filterFields, [
+                        ...ref.dimensionFilterFields,
+                        ...ref.metricFilterFields,
+                    ]);
+                    pushUnique(explore.sortFields, ref.sortFields);
+                    pushUnique(explore.parameterKeys, ref.parameterKeys);
+                    pushUnique(explore.localFields, ref.localFields);
+                    if (ref.customSql) {
+                        explore.customSqlFieldCount +=
+                            ref.customSql.tableCalculations.length +
+                            ref.customSql.customDimensions.length +
+                            ref.customSql.additionalMetrics.length;
+                    }
+                    break;
+                }
+                case 'globalFilter': {
+                    if (ref.explore === null) break;
+                    const fields = ref.fields ?? (ref.field ? [ref.field] : []);
+                    pushUnique(exploreFor(ref.explore).filterFields, fields);
+                    break;
+                }
+                case 'savedChart': {
+                    const slug =
+                        ref.chartUuid === null
+                            ? undefined
+                            : chartSlugsByUuid[ref.chartUuid];
+                    if (slug === undefined) break;
+                    const filterFields = linkedCharts.get(slug) ?? [];
+                    pushUnique(filterFields, ref.filterFields);
+                    linkedCharts.set(slug, filterFields);
+                    break;
+                }
+                case 'externalFetch': {
+                    if (ref.alias === null) break;
+                    const paths = externalConnections.get(ref.alias) ?? [];
+                    if (ref.path !== null) pushUnique(paths, [ref.path]);
+                    externalConnections.set(ref.alias, paths);
+                    break;
+                }
+                default:
+                    assertUnreachable(ref, 'Unknown data reference kind');
+            }
+        }
+
+        return {
+            explores: [...explores.values()],
+            linkedCharts: [...linkedCharts].map(([slug, filterFields]) => ({
+                slug,
+                filterFields,
+            })),
+            externalConnections: [...externalConnections].map(
+                ([alias, paths]) => ({ alias, paths }),
+            ),
+            stats,
+            unresolved: [...unresolved].sort(),
+        };
+    }
+
+    private async buildDataAppRead(
+        source: DataAppReadSource,
+    ): Promise<DataAppRead> {
+        const { resources, dataReferences } = source;
+        const contextCharts = resources?.charts ?? [];
+        const linkedChartUuids = (dataReferences?.references ?? []).flatMap(
+            (ref) =>
+                ref.kind === 'savedChart' && ref.chartUuid !== null
+                    ? [ref.chartUuid]
+                    : [],
+        );
+        const chartUuids = [
+            ...new Set([
+                ...contextCharts.map((chart) => chart.chartUuid),
+                ...linkedChartUuids,
+            ]),
+        ];
+        const [chartSlugsByUuid, dashboardSlugsByUuid] = await Promise.all([
+            chartUuids.length > 0
+                ? this.savedChartModel.getSlugsByUuids(chartUuids)
+                : Promise.resolve<Record<string, string>>({}),
+            resources?.dashboardUuid
+                ? this.dashboardModel.getSlugsForUuids([
+                      resources.dashboardUuid,
+                  ])
+                : Promise.resolve<Record<string, string>>({}),
+        ]);
+        const dashboardSlug = resources?.dashboardUuid
+            ? dashboardSlugsByUuid[resources.dashboardUuid]
+            : undefined;
+
+        return {
+            slug: source.app.slug,
+            name: source.app.name,
+            description: source.app.description,
+            template: source.app.template,
+            version: source.version,
+            spaceSlug: source.spaceSlug,
+            externalConnections: source.externalConnections,
+            vizSchema: source.vizSchema,
+            createdBy: source.createdBy,
+            versionCount: source.versionCount,
+            newerVersion: source.newerVersion,
+            context: {
+                charts: contextCharts.flatMap((chart) => {
+                    const chartSlug = chartSlugsByUuid[chart.chartUuid];
+                    return chartSlug === undefined
+                        ? []
+                        : [
+                              {
+                                  slug: chartSlug,
+                                  name: chart.chartName,
+                                  kind: chart.chartKind,
+                                  linkLive: chart.linkLive ?? false,
+                              },
+                          ];
+                }),
+                dashboard:
+                    dashboardSlug !== undefined && resources?.dashboardName
+                        ? { slug: dashboardSlug, name: resources.dashboardName }
+                        : null,
+                files: (resources?.files ?? []).map((file) => file.filename),
+                imageCount: resources?.images.length ?? 0,
+                externalConnectionAliases: (
+                    resources?.externalConnections ?? []
+                ).map((connection) => connection.alias),
+            },
+            dataReferences: dataReferences
+                ? AiAgentToolsService.aggregateDataAppDataReferences(
+                      dataReferences,
+                      chartSlugsByUuid,
+                  )
+                : null,
+        };
     }
 
     private resolveUrl(
@@ -1716,7 +1963,7 @@ export class AiAgentToolsService extends BaseService {
                 }
                 this.aiAgentContentValidation.validatePatch(type, patch);
 
-                const currentContent = await this.readContent(context, {
+                const currentContent = await this.readContentAsCode(context, {
                     slug,
                     type,
                 });
@@ -1798,7 +2045,7 @@ export class AiAgentToolsService extends BaseService {
                         return assertUnreachable(type, 'Invalid content type');
                 }
 
-                const editedContent = await this.readContent(context, {
+                const editedContent = await this.readContentAsCode(context, {
                     slug: patchedSlug,
                     type,
                 });
@@ -1867,10 +2114,13 @@ export class AiAgentToolsService extends BaseService {
                                 `Created dashboard "${finalSlug}" was not found`,
                             );
                         }
-                        const createdContent = await this.readContent(context, {
-                            slug: finalSlug,
-                            type,
-                        });
+                        const createdContent = await this.readContentAsCode(
+                            context,
+                            {
+                                slug: finalSlug,
+                                type,
+                            },
+                        );
                         return {
                             ...createdContent,
                             uuid,
@@ -1899,10 +2149,13 @@ export class AiAgentToolsService extends BaseService {
                                 `Created chart "${finalSlug}" was not found`,
                             );
                         }
-                        const createdContent = await this.readContent(context, {
-                            slug: finalSlug,
-                            type,
-                        });
+                        const createdContent = await this.readContentAsCode(
+                            context,
+                            {
+                                slug: finalSlug,
+                                type,
+                            },
+                        );
                         return {
                             ...createdContent,
                             uuid,

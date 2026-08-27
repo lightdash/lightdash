@@ -1,4 +1,7 @@
-import { readContentToolDefinition } from '@lightdash/common';
+import {
+    readContentToolDefinition,
+    type ReadContentType,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type { ReadContentFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
@@ -17,7 +20,7 @@ const contentResult = ({
 }: {
     content: unknown;
     href: string;
-    type: 'dashboard' | 'chart';
+    type: ReadContentType;
 }) => `<${type} href="${href}" />\n---\n${JSON.stringify(content, null, 2)}`;
 
 export const getReadContent = ({ readContent }: Dependencies) =>
