@@ -23,7 +23,6 @@ import AppUpgradeModal from '../../apps/components/AppUpgradeModal';
 import { type SdkUpgradeOffer } from '../../apps/hooks/useSdkUpgradeStatus';
 import { type ChartTypeAppMeta } from './appMeta';
 import classes from './ChartTypeBuilderHeader.module.css';
-import ChartTypeConnectionsButton from './ChartTypeConnectionsButton';
 
 type Props = {
     projectUuid: string;
@@ -129,12 +128,6 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                 </Box>
             </Box>
             <Group gap="xs" wrap="nowrap">
-                {app && (
-                    <ChartTypeConnectionsButton
-                        projectUuid={projectUuid}
-                        appUuid={app.appUuid}
-                    />
-                )}
                 {upgradeAvailable && (
                     <Button
                         size="xs"
