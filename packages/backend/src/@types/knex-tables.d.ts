@@ -134,6 +134,10 @@ import {
     JobStepsTableName,
 } from '../database/entities/jobs';
 import {
+    LinearAppInstallationTable,
+    LinearAppInstallationTableName,
+} from '../database/entities/linearAppInstallation';
+import {
     NotificationsTable,
     NotificationsTableName,
 } from '../database/entities/notifications';
@@ -669,6 +673,7 @@ declare module 'knex/types/tables' {
         [DownloadAuditTableName]: DownloadAuditTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [GitlabAppInstallationTableName]: GitlabAppInstallationTable;
+        [LinearAppInstallationTableName]: LinearAppInstallationTable;
         [GitUserCredentialsTableName]: GitUserCredentialsTable;
         [UserOAuthGrantsTableName]: UserOAuthGrantsTable;
         [PullRequestsTableName]: PullRequestsTable;

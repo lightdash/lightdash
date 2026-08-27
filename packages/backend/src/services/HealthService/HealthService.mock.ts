@@ -34,6 +34,7 @@ export const BaseResponse: HealthState = {
     hasMicrosoftTeams: false,
     hasGithub: false,
     hasGitlab: false,
+    hasLinear: false,
     hasHeadlessBrowser: false,
     hasSlack: false,
     auth: {

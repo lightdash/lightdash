@@ -208,6 +208,7 @@ import type {
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
+import type { LinearInstallation, LinearProject, LinearTeam } from './linear';
 import {
     type ApiCompiledMergeQueryResults,
     type MergeFieldOrigins,
@@ -678,6 +679,7 @@ export type HealthState = {
     hasSlack: boolean;
     hasGithub: boolean;
     hasGitlab: boolean;
+    hasLinear: boolean;
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
@@ -1276,6 +1278,9 @@ type ApiResults =
     | ApiGitFileContent
     | GitIntegrationConfiguration
     | GithubUserCredential
+    | LinearInstallation
+    | Array<LinearTeam>
+    | Array<LinearProject>
     | CiChecks
     | MergePullRequestResult
     | ClosePullRequestResult

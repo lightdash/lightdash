@@ -45,6 +45,7 @@ import { HeadlessBrowserService } from './HeadlessBrowserService';
 import { HealthService } from './HealthService/HealthService';
 import { LicenseService } from './LicenseService/LicenseService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
+import { LinearAppService } from './LinearAppService/LinearAppService';
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OAuthService } from './OAuthService/OAuthService';
@@ -106,6 +107,7 @@ interface ServiceManifest {
     pullRequestsService: PullRequestsService;
     githubAppService: GithubAppService;
     gitlabAppService: GitlabAppService;
+    linearAppService: LinearAppService;
     gdriveService: GdriveService;
     groupService: GroupsService;
     headlessBrowserService: HeadlessBrowserService;
@@ -552,6 +554,20 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
+                }),
+        );
+    }
+
+    public getLinearAppService(): LinearAppService {
+        return this.getService(
+            'linearAppService',
+            () =>
+                new LinearAppService({
+                    linearAppInstallationsModel:
+                        this.models.getLinearAppInstallationsModel(),
+                    userModel: this.models.getUserModel(),
+                    lightdashConfig: this.context.lightdashConfig, // pragma: allowlist secret
+                    analytics: this.context.lightdashAnalytics, // pragma: allowlist secret
                 }),
         );
     }

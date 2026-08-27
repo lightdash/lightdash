@@ -25,6 +25,7 @@ import { GroupsModel } from './GroupsModel';
 import { HeadlessBrowserLoginGrantModel } from './HeadlessBrowserLoginGrantModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
+import { LinearAppInstallationsModel } from './LinearAppInstallations/LinearAppInstallationsModel';
 import { McpContextModel } from './McpContextModel';
 import { MigrationModel } from './MigrationModel/MigrationModel';
 import { NotificationsModel } from './NotificationsModel/NotificationsModel';
@@ -94,6 +95,7 @@ export type ModelManifest = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
     gitUserCredentialsModel: GitUserCredentialsModel;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
+    linearAppInstallationsModel: LinearAppInstallationsModel;
     groupsModel: GroupsModel;
     headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
     inviteLinkModel: InviteLinkModel;
@@ -380,6 +382,17 @@ export class ModelRepository
             'gitlabAppInstallationsModel',
             () =>
                 new GitlabAppInstallationsModel({
+                    database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                }),
+        );
+    }
+
+    public getLinearAppInstallationsModel(): LinearAppInstallationsModel {
+        return this.getModel(
+            'linearAppInstallationsModel',
+            () =>
+                new LinearAppInstallationsModel({
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
