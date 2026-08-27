@@ -1119,17 +1119,6 @@ export class AiAgentAdminService extends BaseService {
         });
     }
 
-    async clearReviewLinearDestinations(user: SessionUser): Promise<void> {
-        const { organizationUuid } = user;
-        if (!organizationUuid) {
-            throw new ForbiddenError('Organization not found');
-        }
-        this.checkOrganizationAdminAccess(user);
-        await this.aiAgentReviewNotificationModel.clearLinearDestinations(
-            organizationUuid,
-        );
-    }
-
     async listReviewItems(
         user: SessionUser,
         statuses?: AiAgentReviewItemStatus[],

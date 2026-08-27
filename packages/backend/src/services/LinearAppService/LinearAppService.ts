@@ -13,6 +13,7 @@ import {
     type LinearTeam,
 } from '@lightdash/common'; // pragma: allowlist secret
 import { SessionData } from 'express-session';
+import { type Knex } from 'knex';
 import { nanoid } from 'nanoid';
 import { createHash, randomBytes } from 'node:crypto';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics'; // pragma: allowlist secret
@@ -33,6 +34,14 @@ type LinearAppServiceArguments = {
     linearAppInstallationsModel: LinearAppInstallationsModel;
     lightdashConfig: LightdashConfig; // pragma: allowlist secret
     analytics: LightdashAnalytics; // pragma: allowlist secret
+    onWorkspaceChanged?: (
+        organizationUuid: string,
+        trx: Knex.Transaction,
+    ) => Promise<void>;
+    onInstallationDeleted?: (
+        organizationUuid: string,
+        trx: Knex.Transaction,
+    ) => Promise<void>;
 };
 
 export class LinearAppService extends BaseService {
@@ -42,11 +51,23 @@ export class LinearAppService extends BaseService {
 
     private readonly lightdashConfig: LightdashConfig; // pragma: allowlist secret
 
+    private readonly onWorkspaceChanged: NonNullable<
+        LinearAppServiceArguments['onWorkspaceChanged']
+    >;
+
+    private readonly onInstallationDeleted: NonNullable<
+        LinearAppServiceArguments['onInstallationDeleted']
+    >;
+
     constructor(args: LinearAppServiceArguments) {
         super();
         this.linearAppInstallationsModel = args.linearAppInstallationsModel;
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
+        this.onWorkspaceChanged =
+            args.onWorkspaceChanged ?? (() => Promise.resolve());
+        this.onInstallationDeleted =
+            args.onInstallationDeleted ?? (() => Promise.resolve());
     }
 
     private canManageOrg(
@@ -172,13 +193,25 @@ export class LinearAppService extends BaseService {
                 await this.linearAppInstallationsModel.findInstallation(
                     user.organizationUuid,
                 );
-            await this.linearAppInstallationsModel.upsertInstallation(user, {
-                installationId: linearOrganization.id,
-                token,
-                refreshToken,
-                clientId,
-                organizationName: linearOrganization.name,
-                organizationUrlKey: linearOrganization.urlKey,
+            const workspaceChanged =
+                existingInstallation?.organizationUrlKey !==
+                linearOrganization.urlKey;
+            await this.linearAppInstallationsModel.transaction(async (trx) => {
+                await this.linearAppInstallationsModel.upsertInstallation(
+                    user,
+                    {
+                        installationId: linearOrganization.id,
+                        token,
+                        refreshToken,
+                        clientId,
+                        organizationName: linearOrganization.name,
+                        organizationUrlKey: linearOrganization.urlKey,
+                    },
+                    trx,
+                );
+                if (workspaceChanged) {
+                    await this.onWorkspaceChanged(user.organizationUuid, trx);
+                }
             });
 
             this.analytics.track({
@@ -192,12 +225,6 @@ export class LinearAppService extends BaseService {
             const returnToUrl = new URL(
                 oauth.returnTo ?? this.lightdashConfig.siteUrl, // pragma: allowlist secret
             );
-            if (
-                existingInstallation?.organizationUrlKey !==
-                linearOrganization.urlKey
-            ) {
-                returnToUrl.searchParams.set('linearWorkspaceChanged', 'true');
-            }
             return returnToUrl.href;
         } catch (error) {
             this.analytics.track({
@@ -222,9 +249,13 @@ export class LinearAppService extends BaseService {
     async deleteAppInstallation(user: SessionUser) {
         this.canManageOrg(user);
 
-        await this.linearAppInstallationsModel.deleteInstallation(
-            user.organizationUuid!,
-        );
+        await this.linearAppInstallationsModel.transaction(async (trx) => {
+            await this.linearAppInstallationsModel.deleteInstallation(
+                user.organizationUuid!,
+                trx,
+            );
+            await this.onInstallationDeleted(user.organizationUuid!, trx);
+        });
 
         this.analytics.track({
             event: 'linear_install.uninstalled',

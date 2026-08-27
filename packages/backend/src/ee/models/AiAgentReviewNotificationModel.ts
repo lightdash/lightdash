@@ -157,20 +157,21 @@ export class AiAgentReviewNotificationModel {
         return AiAgentReviewNotificationModel.mapLinearDestination(row);
     }
 
-    async clearLinearDestinations(organizationUuid: string): Promise<void> {
-        await this.database.transaction(async (trx) => {
-            await trx(AiReviewLinearDestinationTableName)
-                .where({ organization_uuid: organizationUuid })
-                .delete();
-            await trx(AiReviewNotificationSettingsTableName)
-                .where({ organization_uuid: organizationUuid })
-                .update({
-                    linear_enabled: false,
-                    linear_team_id: null,
-                    linear_project_id: null,
-                    updated_at: new Date(),
-                });
-        });
+    async clearLinearDestinations(
+        organizationUuid: string,
+        database: Knex = this.database,
+    ): Promise<void> {
+        await database(AiReviewLinearDestinationTableName)
+            .where({ organization_uuid: organizationUuid })
+            .delete();
+        await database(AiReviewNotificationSettingsTableName)
+            .where({ organization_uuid: organizationUuid })
+            .update({
+                linear_enabled: false,
+                linear_team_id: null,
+                linear_project_id: null,
+                updated_at: new Date(),
+            });
     }
 
     async recordSent(args: LogArgs): Promise<string> {

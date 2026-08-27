@@ -1037,29 +1037,6 @@ export class AiAgentAdminController extends BaseController {
     }
 
     /**
-     * Clear all Linear destinations after changing Linear workspace
-     * @summary Clear AI review Linear destinations
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Delete('/review-linear-destinations')
-    @OperationId('clearAiReviewLinearDestinations')
-    async clearReviewLinearDestinations(
-        @Request() req: express.Request,
-    ): Promise<ApiSuccessEmpty> {
-        assertRegisteredAccount(req.account);
-        await this.getAiAgentAdminService().clearReviewLinearDestinations(
-            toSessionUser(req.account),
-        );
-        this.setStatus(200);
-        return { status: 'ok', results: undefined };
-    }
-
-    /**
      * Get AI organization settings
      * @summary Get AI settings
      */

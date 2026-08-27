@@ -129,28 +129,3 @@ export const useUpdateReviewLinearDestination = () => {
         },
     });
 };
-
-const clearReviewLinearDestinations = async (): Promise<void> =>
-    lightdashApi<undefined>({
-        url: `/aiAgents/admin/review-linear-destinations`,
-        method: 'DELETE',
-        body: undefined,
-    });
-
-export const useClearReviewLinearDestinations = () => {
-    const queryClient = useQueryClient();
-    const { showToastApiError } = useToaster();
-
-    return useMutation<void, ApiError, void>({
-        mutationFn: clearReviewLinearDestinations,
-        onSuccess: async () => {
-            await queryClient.invalidateQueries(LINEAR_DESTINATION_QUERY_KEY);
-        },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to clear old Linear destinations',
-                apiError: error,
-            });
-        },
-    });
-};

@@ -29,6 +29,12 @@ export class LinearAppInstallationsModel {
         this.encryptionUtil = args.encryptionUtil;
     }
 
+    async transaction<T>(
+        callback: (trx: Knex.Transaction) => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(callback);
+    }
+
     private decrypt(value: Buffer, label: string): string {
         try {
             return this.encryptionUtil.decrypt(value);
@@ -76,8 +82,9 @@ export class LinearAppInstallationsModel {
             organizationName: string;
             organizationUrlKey: string;
         },
+        database: Knex = this.database,
     ): Promise<void> {
-        await this.database(LinearAppInstallationTableName)
+        await database(LinearAppInstallationTableName)
             .insert({
                 organization_uuid: user.organizationUuid,
                 encrypted_installation_id: this.encryptionUtil.encrypt(
@@ -151,8 +158,11 @@ export class LinearAppInstallationsModel {
             });
     }
 
-    async deleteInstallation(organizationUuid: string): Promise<void> {
-        await this.database(LinearAppInstallationTableName)
+    async deleteInstallation(
+        organizationUuid: string,
+        database: Knex = this.database,
+    ): Promise<void> {
+        await database(LinearAppInstallationTableName)
             .where({ organization_uuid: organizationUuid })
             .delete();
     }

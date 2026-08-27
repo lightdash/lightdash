@@ -1,12 +1,11 @@
 import { MantineProvider } from '@mantine/core';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { LinearReviewSettings } from './LinearReviewSettings';
 import { buildLinearAppSetupUrl } from './linearReviewSettingsUtils';
 
 const mocks = vi.hoisted(() => ({
-    clearDestinations: vi.fn(),
     deleteLinear: vi.fn(),
     updateDestination: vi.fn(),
 }));
@@ -42,10 +41,6 @@ vi.mock(
 );
 
 vi.mock('../../../hooks/useReviewNotificationSettings', () => ({
-    useClearReviewLinearDestinations: () => ({
-        mutate: mocks.clearDestinations,
-        isLoading: false,
-    }),
     useReviewLinearDestination: () => ({
         data: undefined,
         isInitialLoading: false,
@@ -94,17 +89,9 @@ describe('LinearReviewSettings', () => {
         expect(connect).toBeEnabled();
     });
 
-    it('clears stale project destinations after connecting a different workspace', async () => {
-        mocks.clearDestinations.mockImplementation(
-            (_value, options: { onSuccess?: () => void }) =>
-                options.onSuccess?.(),
-        );
-        renderSettings(
-            '/generalSettings/ai/general?linearWorkspaceChanged=true',
-        );
+    it('discloses that issue creation is one-way', () => {
+        renderSettings();
 
-        await waitFor(() =>
-            expect(mocks.clearDestinations).toHaveBeenCalledOnce(),
-        );
+        expect(screen.getByText(/This is a one-way export/)).toBeVisible();
     });
 });

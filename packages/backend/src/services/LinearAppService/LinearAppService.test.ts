@@ -59,7 +59,11 @@ const makeUser = (canManageOrg: boolean): SessionUser =>
     }) as SessionUser;
 
 const makeService = () => {
+    const transaction = {};
     const linearAppInstallationsModel = {
+        transaction: vi
+            .fn()
+            .mockImplementation((callback) => callback(transaction)),
         findInstallation: vi.fn().mockResolvedValue(undefined),
         getInstallation: vi.fn(),
         getAuth: vi.fn().mockResolvedValue({
@@ -74,15 +78,26 @@ const makeService = () => {
     const analytics = {
         track: vi.fn(),
     };
+    const onWorkspaceChanged = vi.fn().mockResolvedValue(undefined);
+    const onInstallationDeleted = vi.fn().mockResolvedValue(undefined);
     const service = new LinearAppService({
         linearAppInstallationsModel,
         lightdashConfig: {
             siteUrl: 'https://app.example.com',
         },
         analytics,
+        onWorkspaceChanged,
+        onInstallationDeleted,
     } as unknown as ConstructorParameters<typeof LinearAppService>[0]);
 
-    return { service, linearAppInstallationsModel, analytics };
+    return {
+        service,
+        linearAppInstallationsModel,
+        analytics,
+        onWorkspaceChanged,
+        onInstallationDeleted,
+        transaction,
+    };
 };
 
 describe('LinearAppService', () => {
@@ -129,8 +144,13 @@ describe('LinearAppService', () => {
     });
 
     it('stores OAuth tokens and client ID for the organization', async () => {
-        const { service, linearAppInstallationsModel, analytics } =
-            makeService();
+        const {
+            service,
+            linearAppInstallationsModel,
+            analytics,
+            onWorkspaceChanged,
+            transaction,
+        } = makeService();
         vi.mocked(exchangeLinearCodeForToken).mockResolvedValue({
             token: 'access-2',
             refreshToken: 'refresh-2',
@@ -158,9 +178,7 @@ describe('LinearAppService', () => {
                 'code-1',
                 'state-1',
             ),
-        ).resolves.toBe(
-            'https://app.example.com/generalSettings/ai/general?linearWorkspaceChanged=true',
-        );
+        ).resolves.toBe('https://app.example.com/generalSettings/ai/general');
         expect(exchangeLinearCodeForToken).toHaveBeenCalledWith(
             'code-1',
             'client-1',
@@ -179,6 +197,11 @@ describe('LinearAppService', () => {
                 organizationName: 'Acme Linear',
                 organizationUrlKey: 'acme',
             },
+            transaction,
+        );
+        expect(onWorkspaceChanged).toHaveBeenCalledWith(
+            ORGANIZATION_UUID,
+            transaction,
         );
         expect(analytics.track).toHaveBeenCalledWith(
             expect.objectContaining({ event: 'linear_install.completed' }),
@@ -220,14 +243,23 @@ describe('LinearAppService', () => {
     });
 
     it('tracks uninstall when an admin removes Linear', async () => {
-        const { service, linearAppInstallationsModel, analytics } =
-            makeService();
+        const {
+            service,
+            linearAppInstallationsModel,
+            analytics,
+            onInstallationDeleted,
+            transaction,
+        } = makeService();
 
         await service.deleteAppInstallation(makeUser(true));
 
         expect(
             linearAppInstallationsModel.deleteInstallation,
-        ).toHaveBeenCalledWith(ORGANIZATION_UUID);
+        ).toHaveBeenCalledWith(ORGANIZATION_UUID, transaction);
+        expect(onInstallationDeleted).toHaveBeenCalledWith(
+            ORGANIZATION_UUID,
+            transaction,
+        );
         expect(analytics.track).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: 'linear_install.uninstalled',

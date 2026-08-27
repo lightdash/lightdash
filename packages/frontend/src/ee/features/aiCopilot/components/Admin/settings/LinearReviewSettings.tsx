@@ -14,7 +14,6 @@ import {
 } from '@mantine/core';
 import { IconExternalLink, IconKey, IconTrash } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { useSearchParams } from 'react-router';
 import {
     useDeleteLinearInstallationMutation,
     useLinearInstallation,
@@ -25,7 +24,6 @@ import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useProjects } from '../../../../../../hooks/useProjects';
 import useApp from '../../../../../../providers/App/useApp';
 import {
-    useClearReviewLinearDestinations,
     useReviewLinearDestination,
     useUpdateReviewLinearDestination,
 } from '../../../hooks/useReviewNotificationSettings';
@@ -33,7 +31,6 @@ import { buildLinearAppSetupUrl } from './linearReviewSettingsUtils';
 
 export const LinearReviewSettings = () => {
     const { health, user } = useApp();
-    const [searchParams, setSearchParams] = useSearchParams();
     const [linearClientId, setLinearClientId] = useState('');
     const [selectedProjectUuid, setSelectedProjectUuid] = useState<
         string | null
@@ -64,28 +61,9 @@ export const LinearReviewSettings = () => {
         });
     const { mutate: updateDestination, isLoading: destinationUpdating } =
         useUpdateReviewLinearDestination();
-    const { mutate: clearDestinations, isLoading: destinationsClearing } =
-        useClearReviewLinearDestinations();
     const { mutate: deleteLinear, isLoading: linearDeleting } =
         useDeleteLinearInstallationMutation();
-    const isUpdating =
-        destinationUpdating || destinationsClearing || linearDeleting;
-
-    useEffect(() => {
-        if (searchParams.get('linearWorkspaceChanged') !== 'true') return;
-        clearDestinations(undefined, {
-            onSuccess: () => {
-                setSearchParams(
-                    (current) => {
-                        const next = new URLSearchParams(current);
-                        next.delete('linearWorkspaceChanged');
-                        return next;
-                    },
-                    { replace: true },
-                );
-            },
-        });
-    }, [clearDestinations, searchParams, setSearchParams]);
+    const isUpdating = destinationUpdating || linearDeleting;
 
     const submitLinearOAuth = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -258,11 +236,7 @@ export const LinearReviewSettings = () => {
                         color="red"
                         disabled={!canEdit || isUpdating}
                         leftSection={<MantineIcon icon={IconTrash} size={14} />}
-                        onClick={() =>
-                            deleteLinear(undefined, {
-                                onSuccess: () => clearDestinations(),
-                            })
-                        }
+                        onClick={() => deleteLinear()}
                     >
                         Remove
                     </Button>

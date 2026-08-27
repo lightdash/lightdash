@@ -18,6 +18,7 @@ import { registerPreAggregateStream } from '../nats/natsConfig';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { DeployService } from '../services/DeployService';
 import { InstanceConfigurationService } from '../services/InstanceConfigurationService/InstanceConfigurationService';
+import { LinearAppService } from '../services/LinearAppService/LinearAppService';
 import { OrganizationService } from '../services/OrganizationService/OrganizationService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { QuerySourceRegistry } from '../services/QuerySourceService/QuerySourceRegistry';
@@ -158,6 +159,26 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new EnterpriseLicenseService({
                     licenseKey: lightdashConfig.license.licenseKey,
                 }),
+            linearAppService: ({ models, context }) => {
+                const aiAgentReviewNotificationModel =
+                    models.getAiAgentReviewNotificationModel<AiAgentReviewNotificationModel>();
+                return new LinearAppService({
+                    linearAppInstallationsModel:
+                        models.getLinearAppInstallationsModel(),
+                    lightdashConfig: context.lightdashConfig,
+                    analytics: context.lightdashAnalytics,
+                    onWorkspaceChanged: (organizationUuid, trx) =>
+                        aiAgentReviewNotificationModel.clearLinearDestinations(
+                            organizationUuid,
+                            trx,
+                        ),
+                    onInstallationDeleted: (organizationUuid, trx) =>
+                        aiAgentReviewNotificationModel.clearLinearDestinations(
+                            organizationUuid,
+                            trx,
+                        ),
+                });
+            },
             aiAgentMemoryService: ({
                 models,
                 clients,
