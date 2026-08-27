@@ -4,6 +4,7 @@ import {
     type SpaceMemberRole,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { DashboardsTableName } from '../database/entities/dashboards';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
@@ -30,6 +31,21 @@ import {
 
 export type SavedChartDirectAccess = DirectAccess;
 
+type SavedChartOwnership = {
+    spaceId: number | null;
+    dashboardUuid: string | null;
+};
+
+type SavedChartMutationTarget = {
+    context: DirectAccessMutationContext;
+    ownership: SavedChartOwnership;
+};
+
+export const canReceiveSavedChartDirectAccess = ({
+    spaceId,
+    dashboardUuid,
+}: SavedChartOwnership): boolean => spaceId !== null && dashboardUuid === null;
+
 /**
  * Pure data access for saved (explore) chart direct grants. Mirrors
  * DashboardAccessModel: authorization (CASL, role delegation) is the calling
@@ -41,63 +57,163 @@ export type SavedChartDirectAccess = DirectAccess;
 export class SavedChartAccessModel {
     constructor(private readonly database: Knex) {}
 
-    /**
-     * Locks the target space-saved chart and returns its tenant context.
-     * SPK-1450: a dashboard-owned chart (space_id null / dashboard_uuid set)
-     * inherits access through its dashboard, so a direct chart grant is
-     * refused — the boundary keeps one chart from carrying two grant sources.
-     */
-    private static async getMutationContext(
+    private static async getMutationTarget(
         trx: Knex,
         resourceUuid: string,
         expectedOrganizationUuid: string,
-    ): Promise<DirectAccessMutationContext> {
-        const chart = await trx(SavedChartsTableName)
+    ): Promise<SavedChartMutationTarget> {
+        // Discover optimistically, then lock parents before children to match
+        // FK cascade order. The final chart lock/re-read rejects ownership races.
+        const candidateChart = await trx(SavedChartsTableName)
+            .where(`${SavedChartsTableName}.saved_query_uuid`, resourceUuid)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .select<
+                SavedChartOwnership & {
+                    storedProjectUuid: string;
+                }
+            >({
+                spaceId: `${SavedChartsTableName}.space_id`,
+                dashboardUuid: `${SavedChartsTableName}.dashboard_uuid`,
+                storedProjectUuid: `${SavedChartsTableName}.project_uuid`,
+            })
+            .first();
+
+        if (candidateChart === undefined) {
+            throw new NotFoundError('Direct access target not found');
+        }
+
+        let ownerSpaceId = candidateChart.spaceId;
+        if (ownerSpaceId === null) {
+            if (candidateChart.dashboardUuid === null) {
+                throw new NotFoundError('Direct access target not found');
+            }
+            const candidateDashboard = await trx(DashboardsTableName)
+                .where('dashboard_uuid', candidateChart.dashboardUuid)
+                .whereNull('deleted_at')
+                .select<{ spaceId: number }>({ spaceId: 'space_id' })
+                .first();
+            if (candidateDashboard === undefined) {
+                throw new NotFoundError('Direct access target not found');
+            }
+            ownerSpaceId = candidateDashboard.spaceId;
+        }
+
+        const candidateOwner = await trx(SpaceTableName)
             .innerJoin(
                 ProjectTableName,
-                `${ProjectTableName}.project_uuid`,
-                `${SavedChartsTableName}.project_uuid`,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
             )
             .innerJoin(
                 OrganizationTableName,
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
             )
-            .where(`${SavedChartsTableName}.saved_query_uuid`, resourceUuid)
-            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .where(`${SpaceTableName}.space_id`, ownerSpaceId)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .where(
                 `${OrganizationTableName}.organization_uuid`,
                 expectedOrganizationUuid,
             )
-            .select<
-                DirectAccessMutationContext & {
-                    spaceId: number | null;
-                    dashboardUuid: string | null;
-                }
-            >({
-                spaceId: `${SavedChartsTableName}.space_id`,
-                dashboardUuid: `${SavedChartsTableName}.dashboard_uuid`,
+            .select<DirectAccessMutationContext>({
                 organizationId: `${OrganizationTableName}.organization_id`,
                 organizationUuid: `${OrganizationTableName}.organization_uuid`,
                 projectId: `${ProjectTableName}.project_id`,
                 projectUuid: `${ProjectTableName}.project_uuid`,
             })
-            .forUpdate(SavedChartsTableName)
             .first();
-
-        if (chart === undefined) {
+        if (candidateOwner === undefined) {
             throw new NotFoundError('Direct access target not found');
         }
-        if (chart.dashboardUuid !== null || chart.spaceId === null) {
-            throw new ParameterError(
-                'Cannot grant direct access to a dashboard-owned chart; grant access to its dashboard instead',
-            );
+
+        const organization = await trx(OrganizationTableName)
+            .where('organization_id', candidateOwner.organizationId)
+            .where('organization_uuid', expectedOrganizationUuid)
+            .select<{ organizationId: number; organizationUuid: string }>({
+                organizationId: 'organization_id',
+                organizationUuid: 'organization_uuid',
+            })
+            .forNoKeyUpdate(OrganizationTableName)
+            .first();
+        if (organization === undefined) {
+            throw new NotFoundError('Direct access target not found');
         }
+
+        const project = await trx(ProjectTableName)
+            .where('project_id', candidateOwner.projectId)
+            .where('organization_id', organization.organizationId)
+            .select<{ projectId: number; projectUuid: string }>({
+                projectId: 'project_id',
+                projectUuid: 'project_uuid',
+            })
+            .forNoKeyUpdate(ProjectTableName)
+            .first();
+        if (project === undefined) {
+            throw new NotFoundError('Direct access target not found');
+        }
+
+        const space = await trx(SpaceTableName)
+            .where('space_id', ownerSpaceId)
+            .where('project_id', project.projectId)
+            .whereNull('deleted_at')
+            .select('space_id')
+            .forNoKeyUpdate(SpaceTableName)
+            .first();
+        if (space === undefined) {
+            throw new NotFoundError('Direct access target not found');
+        }
+
+        if (
+            candidateChart.spaceId === null &&
+            candidateChart.dashboardUuid !== null
+        ) {
+            const dashboard = await trx(DashboardsTableName)
+                .where('dashboard_uuid', candidateChart.dashboardUuid)
+                .where('space_id', ownerSpaceId)
+                .where('project_uuid', project.projectUuid)
+                .whereNull('deleted_at')
+                .select('dashboard_uuid')
+                .forNoKeyUpdate(DashboardsTableName)
+                .first();
+            if (dashboard === undefined) {
+                throw new NotFoundError('Direct access target not found');
+            }
+        }
+
+        const chart = await trx(SavedChartsTableName)
+            .where('saved_query_uuid', resourceUuid)
+            .whereNull('deleted_at')
+            .select<
+                SavedChartOwnership & {
+                    storedProjectUuid: string;
+                }
+            >({
+                spaceId: 'space_id',
+                dashboardUuid: 'dashboard_uuid',
+                storedProjectUuid: 'project_uuid',
+            })
+            .forUpdate(SavedChartsTableName)
+            .first();
+        if (
+            chart === undefined ||
+            chart.spaceId !== candidateChart.spaceId ||
+            chart.dashboardUuid !== candidateChart.dashboardUuid ||
+            chart.storedProjectUuid !== project.projectUuid
+        ) {
+            throw new NotFoundError('Direct access target not found');
+        }
+
         return {
-            organizationId: chart.organizationId,
-            organizationUuid: chart.organizationUuid,
-            projectId: chart.projectId,
-            projectUuid: chart.projectUuid,
+            context: {
+                organizationId: organization.organizationId,
+                organizationUuid: organization.organizationUuid,
+                projectId: project.projectId,
+                projectUuid: project.projectUuid,
+            },
+            ownership: {
+                spaceId: chart.spaceId,
+                dashboardUuid: chart.dashboardUuid,
+            },
         };
     }
 
@@ -115,11 +231,17 @@ export class SavedChartAccessModel {
         grantedByUserUuid: string;
     }): Promise<DirectAccessMutationResult> {
         return this.database.transaction(async (trx) => {
-            const context = await SavedChartAccessModel.getMutationContext(
-                trx,
-                resourceUuid,
-                organizationUuid,
-            );
+            const { context, ownership } =
+                await SavedChartAccessModel.getMutationTarget(
+                    trx,
+                    resourceUuid,
+                    organizationUuid,
+                );
+            if (!canReceiveSavedChartDirectAccess(ownership)) {
+                throw new ParameterError(
+                    'Cannot grant direct access to a dashboard-owned chart; grant access to its dashboard instead',
+                );
+            }
             if (!(await validateDirectAccessUser(trx, context, userUuid))) {
                 throw new NotFoundError('Direct access target not found');
             }
@@ -162,11 +284,17 @@ export class SavedChartAccessModel {
         grantedByUserUuid: string;
     }): Promise<DirectAccessMutationResult> {
         return this.database.transaction(async (trx) => {
-            const context = await SavedChartAccessModel.getMutationContext(
-                trx,
-                resourceUuid,
-                organizationUuid,
-            );
+            const { context, ownership } =
+                await SavedChartAccessModel.getMutationTarget(
+                    trx,
+                    resourceUuid,
+                    organizationUuid,
+                );
+            if (!canReceiveSavedChartDirectAccess(ownership)) {
+                throw new ParameterError(
+                    'Cannot grant direct access to a dashboard-owned chart; grant access to its dashboard instead',
+                );
+            }
             if (!(await validateDirectAccessGroup(trx, context, groupUuid))) {
                 throw new NotFoundError('Direct access target not found');
             }
@@ -198,9 +326,8 @@ export class SavedChartAccessModel {
         });
     }
 
-    // Revokes are idempotent: revoking a grant that does not exist succeeds as
-    // a no-op ({ beforeRole: null, afterRole: null }). A missing, cross-org, or
-    // dashboard-owned chart still fails (NotFoundError / ParameterError).
+    // Revokes are idempotent so stale grants can be removed after ownership
+    // changes, including when a chart becomes dashboard-owned.
     async revokeUserAccess({
         resourceUuid,
         userUuid,
@@ -211,7 +338,7 @@ export class SavedChartAccessModel {
         organizationUuid: string;
     }): Promise<DirectAccessMutationResult> {
         return this.database.transaction(async (trx) => {
-            const context = await SavedChartAccessModel.getMutationContext(
+            const { context } = await SavedChartAccessModel.getMutationTarget(
                 trx,
                 resourceUuid,
                 organizationUuid,
@@ -244,7 +371,7 @@ export class SavedChartAccessModel {
         organizationUuid: string;
     }): Promise<DirectAccessMutationResult> {
         return this.database.transaction(async (trx) => {
-            const context = await SavedChartAccessModel.getMutationContext(
+            const { context } = await SavedChartAccessModel.getMutationTarget(
                 trx,
                 resourceUuid,
                 organizationUuid,
@@ -281,7 +408,7 @@ export class SavedChartAccessModel {
         organizationUuid: string;
     }): Promise<DirectAccessResetResult> {
         return this.database.transaction(async (trx) => {
-            const context = await SavedChartAccessModel.getMutationContext(
+            const { context } = await SavedChartAccessModel.getMutationTarget(
                 trx,
                 resourceUuid,
                 organizationUuid,
@@ -370,6 +497,11 @@ export class SavedChartAccessModel {
                 organizationUuid,
             )
             .where(getActiveProjectMemberPredicate(trx))
+            .where(
+                `${SavedChartsTableName}.project_uuid`,
+                trx.ref(`${ProjectTableName}.project_uuid`),
+            )
+            .whereNull(`${SavedChartsTableName}.dashboard_uuid`)
             .whereNull(`${SavedChartsTableName}.deleted_at`)
             .whereNull(`${SpaceTableName}.deleted_at`)
             .unionAll(
@@ -444,6 +576,11 @@ export class SavedChartAccessModel {
                             SavedChartGroupAccessTableName,
                         ),
                     )
+                    .where(
+                        `${SavedChartsTableName}.project_uuid`,
+                        trx.ref(`${ProjectTableName}.project_uuid`),
+                    )
+                    .whereNull(`${SavedChartsTableName}.dashboard_uuid`)
                     .whereNull(`${SavedChartsTableName}.deleted_at`)
                     .whereNull(`${SpaceTableName}.deleted_at`),
             );
