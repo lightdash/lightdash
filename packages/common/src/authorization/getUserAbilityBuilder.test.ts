@@ -599,3 +599,108 @@ describe('getUserAbilityBuilder — role sets (extra custom roles)', () => {
         expect(builder.rules.some((r) => r.inverted)).toBe(false);
     });
 });
+
+describe('getUserAbilityBuilder — personal access tokens', () => {
+    const PAT_ROLE_UUID = '33333333-3333-4333-a333-333333333333';
+    const PAT_SCOPE = 'manage:PersonalAccessToken';
+
+    const patAllowed = {
+        pat: {
+            enabled: true,
+            allowedOrgRoles: Object.values(OrganizationMemberRole),
+        },
+    };
+
+    // Mirrors PersonalAccessTokenService, which checks `create` on the subject
+    // carrying the caller's organization.
+    const canCreatePat = (builder: AbilityBuilder<MemberAbility>) =>
+        builder
+            .build()
+            .can(
+                'create',
+                subject('PersonalAccessToken', { organizationUuid: ORG_UUID }),
+            );
+
+    const buildWithOrgCustomRole = (
+        scopes: string[],
+        permissionsConfig: {
+            pat: {
+                enabled: boolean;
+                allowedOrgRoles: OrganizationMemberRole[];
+            };
+        },
+    ) =>
+        getUserAbilityBuilder({
+            user: {
+                role: OrganizationMemberRole.MEMBER,
+                organizationUuid: ORG_UUID,
+                userUuid: USER_UUID,
+                roleUuid: PAT_ROLE_UUID,
+            },
+            projectProfiles: [],
+            permissionsConfig,
+            customRoleScopes: { [PAT_ROLE_UUID]: scopes },
+            customRolesEnabled: true,
+            isEnterprise: true,
+        }).builder;
+
+    describe('deployment config caps a listed scope', () => {
+        it('grants when the deployment allows tokens', () => {
+            expect(
+                canCreatePat(buildWithOrgCustomRole([PAT_SCOPE], patAllowed)),
+            ).toBe(true);
+        });
+
+        it('denies when the deployment disabled tokens', () => {
+            expect(
+                canCreatePat(
+                    buildWithOrgCustomRole([PAT_SCOPE], {
+                        pat: { enabled: false, allowedOrgRoles: [] },
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('denies when the org role is outside allowedOrgRoles', () => {
+            expect(
+                canCreatePat(
+                    buildWithOrgCustomRole([PAT_SCOPE], {
+                        pat: {
+                            enabled: true,
+                            allowedOrgRoles: [OrganizationMemberRole.ADMIN],
+                        },
+                    }),
+                ),
+            ).toBe(false);
+        });
+    });
+
+    it('still inherits tokens when a role omits the scope', () => {
+        // The config fallback stays on for every scope set until the
+        // organization-role backfill has landed everywhere.
+        expect(
+            canCreatePat(
+                buildWithOrgCustomRole(['view:Dashboard'], patAllowed),
+            ),
+        ).toBe(true);
+    });
+
+    it.each([OrganizationMemberRole.MEMBER, OrganizationMemberRole.ADMIN])(
+        'system role %s keeps the deployment default',
+        (role) => {
+            const { builder } = getUserAbilityBuilder({
+                user: {
+                    role,
+                    organizationUuid: ORG_UUID,
+                    userUuid: USER_UUID,
+                    roleUuid: undefined,
+                },
+                projectProfiles: [],
+                permissionsConfig: patAllowed,
+                customRolesEnabled: true,
+                isEnterprise: true,
+            });
+            expect(canCreatePat(builder)).toBe(true);
+        },
+    );
+});
