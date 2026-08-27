@@ -4,10 +4,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Agent skills
 
-### Issue tracker
-
-GitHub issues are canonical; Linear is a synchronized planning view. See `docs/agents/issue-tracker.md`.
-
 ### Triage labels
 
 Use the repository's mapped triage vocabulary. See `docs/agents/triage-labels.md`.
