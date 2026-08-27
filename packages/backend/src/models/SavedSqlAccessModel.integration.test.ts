@@ -1,4 +1,5 @@
 import {
+    DirectAccessOrigin,
     OrganizationMemberRole,
     ProjectMemberRole,
     SEED_ORG_1_ADMIN,
@@ -110,6 +111,173 @@ describe('SavedSqlAccessModel PostgreSQL integration', () => {
             .returning('saved_sql_uuid');
         return chart.saved_sql_uuid;
     };
+
+    const createProjectGroup = async () => {
+        const [group] = await transaction(GroupTableName)
+            .insert({
+                organization_id: organizationId,
+                name: `SQL access group ${randomUUID()}`,
+                created_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+                updated_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+            })
+            .returning('group_uuid');
+        await transaction(GroupMembershipTableName).insert({
+            organization_id: organizationId,
+            group_uuid: group.group_uuid,
+            user_id: adminUserId,
+        });
+        await transaction(ProjectGroupAccessTableName).insert({
+            project_uuid: projectUuid,
+            group_uuid: group.group_uuid,
+            role: ProjectMemberRole.VIEWER,
+        });
+        return group.group_uuid;
+    };
+
+    it('writes, lists, revokes, and resets direct grants', async () => {
+        const savedSqlUuid = await createSpaceChart();
+        const groupUuid = await createProjectGroup();
+        const expectation = {
+            organizationUuid,
+            projectUuid,
+            spaceUuid,
+            dashboardUuid: null,
+        };
+
+        await expect(
+            model.upsertUserAccess({
+                resourceUuid: savedSqlUuid,
+                userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                role: SpaceMemberRole.VIEWER,
+                grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                ...expectation,
+            }),
+        ).resolves.toMatchObject({
+            beforeRole: null,
+            afterRole: SpaceMemberRole.VIEWER,
+        });
+        await expect(
+            model.upsertGroupAccess({
+                resourceUuid: savedSqlUuid,
+                groupUuid,
+                role: SpaceMemberRole.EDITOR,
+                grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                ...expectation,
+            }),
+        ).resolves.toMatchObject({
+            beforeRole: null,
+            afterRole: SpaceMemberRole.EDITOR,
+        });
+
+        const { data } = await model.getDirectAccessList(
+            savedSqlUuid,
+            organizationUuid,
+            projectUuid,
+        );
+        expect(data).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    origin: DirectAccessOrigin.USER,
+                    principalUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    directRole: SpaceMemberRole.VIEWER,
+                }),
+                expect.objectContaining({
+                    origin: DirectAccessOrigin.GROUP,
+                    principalUuid: groupUuid,
+                    directRole: SpaceMemberRole.EDITOR,
+                }),
+            ]),
+        );
+        await expect(
+            model.getGroupRolesForUsers(
+                savedSqlUuid,
+                organizationUuid,
+                projectUuid,
+                [SEED_ORG_1_ADMIN.user_uuid],
+            ),
+        ).resolves.toEqual({
+            [SEED_ORG_1_ADMIN.user_uuid]: [SpaceMemberRole.EDITOR],
+        });
+
+        await expect(
+            model.revokeUserAccess({
+                resourceUuid: savedSqlUuid,
+                userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                ...expectation,
+            }),
+        ).resolves.toMatchObject({
+            beforeRole: SpaceMemberRole.VIEWER,
+            afterRole: null,
+        });
+        await expect(
+            model.revokeUserAccess({
+                resourceUuid: savedSqlUuid,
+                userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                ...expectation,
+            }),
+        ).resolves.toMatchObject({ beforeRole: null, afterRole: null });
+        await expect(
+            model.resetAccess({ resourceUuid: savedSqlUuid, ...expectation }),
+        ).resolves.toMatchObject({ revokedUsers: 0, revokedGroups: 1 });
+    });
+
+    it('rejects writes to dashboard-owned SQL charts', async () => {
+        const [dashboard] = await transaction(DashboardsTableName)
+            .insert({
+                project_uuid: projectUuid,
+                name: `SQL owner ${randomUUID()}`,
+                description: undefined,
+                space_id: spaceId,
+                slug: `sql-owner-${randomUUID()}`,
+            })
+            .returning('dashboard_uuid');
+        const [chart] = await transaction(SavedSqlTableName)
+            .insert({
+                project_uuid: projectUuid,
+                space_uuid: null,
+                dashboard_uuid: dashboard.dashboard_uuid,
+                name: `Owned SQL chart ${randomUUID()}`,
+                description: null,
+                slug: `owned-sql-${randomUUID()}`,
+                created_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+            })
+            .returning('saved_sql_uuid');
+
+        await expect(
+            model.upsertUserAccess({
+                resourceUuid: chart.saved_sql_uuid,
+                userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                role: SpaceMemberRole.VIEWER,
+                grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                organizationUuid,
+                projectUuid,
+                spaceUuid: null,
+                dashboardUuid: dashboard.dashboard_uuid,
+            }),
+        ).rejects.toMatchObject({ name: 'ParameterError' });
+    });
+
+    it('rejects stale target expectations before writing', async () => {
+        const savedSqlUuid = await createSpaceChart();
+
+        await expect(
+            model.upsertUserAccess({
+                resourceUuid: savedSqlUuid,
+                userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                role: SpaceMemberRole.VIEWER,
+                grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                organizationUuid,
+                projectUuid: randomUUID(),
+                spaceUuid,
+                dashboardUuid: null,
+            }),
+        ).rejects.toMatchObject({ name: 'NotFoundError' });
+        await expect(
+            transaction(SavedSqlUserAccessTableName).where({
+                saved_sql_uuid: savedSqlUuid,
+            }),
+        ).resolves.toHaveLength(0);
+    });
 
     it('resolves current user and group grants for active space charts only', async () => {
         const activeChartUuid = await createSpaceChart();
