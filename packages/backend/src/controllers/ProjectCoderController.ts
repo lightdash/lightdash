@@ -12,6 +12,7 @@ import {
     type ApiChartAsCodeUpsertResponse,
     type ApiContentAsCodeProposeResponse,
     type ApiContentAsCodeSettingsResponse,
+    type ApiContentAsCodeUploadAdvisoryResponse,
     type ApiContentAsCodeWritebacksResponse,
     type ApiContentDraftReviewResponse,
     type ApiContentDraftsResponse,
@@ -232,6 +233,28 @@ export class ProjectCoderController extends BaseController {
                     toSessionUser(req.account),
                     projectUuid,
                 ),
+        );
+    }
+
+    /**
+     * Advisory state shown by the CLI before an upload. It never gates upload.
+     * @summary Get content-as-code upload advisory
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/upload-advisory')
+    @OperationId('getContentAsCodeUploadAdvisory')
+    async getContentAsCodeUploadAdvisory(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentAsCodeUploadAdvisoryResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getContentAsCodeWritebackService()
+                .getUploadAdvisory(toSessionUser(req.account), projectUuid),
         );
     }
 

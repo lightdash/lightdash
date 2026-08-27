@@ -150,6 +150,16 @@ export class ContentDraftModel {
         return Number(row?.count ?? 0);
     }
 
+    async countOpenByProject(projectUuid: string): Promise<number> {
+        const [row] = await this.database(ContentDraftsTableName)
+            .where({
+                project_uuid: projectUuid,
+                status: 'open',
+            })
+            .count<{ count: string }[]>('* as count');
+        return Number(row?.count ?? 0);
+    }
+
     async get(uuid: string): Promise<ContentDraft | undefined> {
         const row = await this.database(ContentDraftsTableName)
             .leftJoin(
