@@ -13,7 +13,17 @@ const SPACE_UUID = 'space-uuid';
 
 const editorUser = {
     userUuid: 'editor-uuid',
-    ability: new Ability<PossibleAbilities>([]),
+    ability: new Ability<PossibleAbilities>([
+        { action: 'delete', subject: 'Dashboard' },
+    ]),
+} as unknown as SessionUser;
+
+const reviewerUser = {
+    userUuid: 'reviewer-uuid',
+    ability: new Ability<PossibleAbilities>([
+        { action: 'delete', subject: 'Dashboard' },
+        { action: 'manage', subject: 'ContentAsCode' },
+    ]),
 } as unknown as SessionUser;
 
 const dashboardDao = {
@@ -35,6 +45,7 @@ type Overrides = {
     snapshot?: object | undefined;
     openDraftsForContent?: { draft: object }[];
     orphanedCharts?: { uuid: string }[];
+    softDeleteEnabled?: boolean;
 };
 
 const buildService = (overrides: Overrides = {}) => {
@@ -64,16 +75,31 @@ const buildService = (overrides: Overrides = {}) => {
         .mockImplementation((uuid: string) =>
             Promise.resolve({ uuid, projectUuid: PROJECT_UUID }),
         );
+    const dashboardPermanentDelete = vi.fn().mockResolvedValue(dashboardDao);
+    const dashboardSoftDelete = vi.fn().mockResolvedValue(dashboardDao);
     const service = new DashboardService({
-        lightdashConfig: lightdashConfigMock,
+        lightdashConfig: {
+            ...lightdashConfigMock,
+            softDelete: {
+                ...lightdashConfigMock.softDelete,
+                enabled: overrides.softDeleteEnabled ?? false,
+            },
+        },
         analytics: analyticsMock,
-        dashboardModel: { getOrphanedCharts } as AnyType,
+        dashboardModel: {
+            getOrphanedCharts,
+            getByIdOrSlug: vi.fn().mockResolvedValue(dashboardDao),
+            permanentDelete: dashboardPermanentDelete,
+            softDelete: dashboardSoftDelete,
+        } as AnyType,
         spaceModel: {} as AnyType,
         analyticsModel: {} as AnyType,
         pinnedListModel: {} as AnyType,
         schedulerModel: {} as AnyType,
         searchModel: {} as AnyType,
-        schedulerService: {} as AnyType,
+        schedulerService: {
+            softDeleteByDashboardUuid: vi.fn(),
+        } as AnyType,
         savedChartModel: { permanentDelete } as AnyType,
         savedSqlModel: {} as AnyType,
         savedChartService: {} as AnyType,
@@ -98,7 +124,9 @@ const buildService = (overrides: Overrides = {}) => {
                 directOnly: false,
             }),
         } as AnyType,
-        contentVerificationModel: {} as AnyType,
+        contentVerificationModel: {
+            getByContent: vi.fn().mockResolvedValue(undefined),
+        } as AnyType,
     });
     return {
         service,
@@ -107,6 +135,8 @@ const buildService = (overrides: Overrides = {}) => {
         upsertOpenDraft,
         listOpenForContent,
         permanentDelete,
+        dashboardPermanentDelete,
+        dashboardSoftDelete,
     };
 };
 
@@ -185,20 +215,96 @@ describe('DashboardService drafts gating (sync + git-backed only)', () => {
 
     it('publishes normally for content-as-code managers', async () => {
         const { service, upsertOpenDraft } = buildService();
-        const reviewer = {
-            userUuid: 'reviewer-uuid',
-            ability: new Ability<PossibleAbilities>([
-                { action: 'manage', subject: 'ContentAsCode' },
-            ]),
-        } as unknown as SessionUser;
         const result = await service['maybeStoreDraft'](
-            reviewer,
+            reviewerUser,
             dashboardDao,
             draftFields,
         );
         expect(result).toBeUndefined();
         expect(upsertOpenDraft).not.toHaveBeenCalled();
     });
+
+    it('blocks an editor from deleting a Git-backed dashboard', async () => {
+        const { service, dashboardPermanentDelete, dashboardSoftDelete } =
+            buildService();
+
+        await expect(
+            service.delete(editorUser, dashboardDao.uuid),
+        ).rejects.toThrow('This dashboard is managed by Content as Code');
+        expect(dashboardPermanentDelete).not.toHaveBeenCalled();
+        expect(dashboardSoftDelete).not.toHaveBeenCalled();
+    });
+
+    it('deletes a UI-only dashboard normally', async () => {
+        const { service, dashboardPermanentDelete } = buildService({
+            snapshot: undefined,
+        });
+
+        await expect(
+            service.delete(editorUser, dashboardDao.uuid),
+        ).resolves.toBeUndefined();
+        expect(dashboardPermanentDelete).toHaveBeenCalledWith(
+            dashboardDao.uuid,
+        );
+    });
+
+    it('soft-deletes a UI-only dashboard normally', async () => {
+        const { service, dashboardPermanentDelete, dashboardSoftDelete } =
+            buildService({
+                snapshot: undefined,
+                softDeleteEnabled: true,
+            });
+
+        await expect(
+            service.delete(editorUser, dashboardDao.uuid),
+        ).resolves.toBeUndefined();
+        expect(dashboardSoftDelete).toHaveBeenCalledWith(
+            dashboardDao.uuid,
+            editorUser.userUuid,
+        );
+        expect(dashboardPermanentDelete).not.toHaveBeenCalled();
+    });
+
+    it('deletes normally when Content as Code sync is disabled', async () => {
+        const { service, dashboardPermanentDelete, snapshotGet } = buildService(
+            { settings: { syncEnabled: false } },
+        );
+
+        await expect(
+            service.delete(editorUser, dashboardDao.uuid),
+        ).resolves.toBeUndefined();
+        expect(snapshotGet).not.toHaveBeenCalled();
+        expect(dashboardPermanentDelete).toHaveBeenCalledWith(
+            dashboardDao.uuid,
+        );
+    });
+
+    it('lets a content-as-code manager delete a Git-backed dashboard', async () => {
+        const { service, dashboardPermanentDelete } = buildService();
+
+        await expect(
+            service.delete(reviewerUser, dashboardDao.uuid),
+        ).resolves.toBeUndefined();
+        expect(dashboardPermanentDelete).toHaveBeenCalledWith(
+            dashboardDao.uuid,
+        );
+    });
+
+    it.each(['softDelete', 'permanentDelete'] as const)(
+        'does not let an internal %s call bypass the Git-backed policy',
+        async (method) => {
+            const { service, dashboardPermanentDelete, dashboardSoftDelete } =
+                buildService();
+
+            await expect(
+                service[method](editorUser, dashboardDao.uuid, {
+                    bypassPermissions: true,
+                }),
+            ).rejects.toThrow('This dashboard is managed by Content as Code');
+            expect(dashboardPermanentDelete).not.toHaveBeenCalled();
+            expect(dashboardSoftDelete).not.toHaveBeenCalled();
+        },
+    );
 });
 
 describe('DashboardService draft overlay is opt-in', () => {

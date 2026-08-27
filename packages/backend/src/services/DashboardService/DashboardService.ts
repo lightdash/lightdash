@@ -138,6 +138,10 @@ type DashboardServiceArguments = {
     contentVerificationModel: ContentVerificationModel;
 };
 
+type ContentAsCodeDeleteOptions = SoftDeleteOptions & {
+    contentAsCodePolicyChecked?: boolean;
+};
+
 type DashboardDraftOverlay = Partial<
     Pick<
         DashboardDAO,
@@ -1739,6 +1743,31 @@ export class DashboardService
         );
     }
 
+    private async assertCanDeleteGitBackedDashboard(
+        user: SessionUser,
+        dashboard: Pick<DashboardDAO, 'projectUuid' | 'slug'>,
+    ): Promise<void> {
+        const settings = await this.contentAsCodeProjectSettingsModel.get(
+            dashboard.projectUuid,
+        );
+        if (!settings?.syncEnabled) return;
+
+        const snapshot = await this.contentAsCodeSnapshotModel.get(
+            dashboard.projectUuid,
+            ContentAsCodeType.DASHBOARD,
+            dashboard.slug,
+        );
+        if (snapshot === undefined) return;
+        if (await this.canManageContentAsCode(user, dashboard.projectUuid)) {
+            return;
+        }
+
+        throw new ForbiddenError(
+            'This dashboard is managed by Content as Code and can only be deleted by a Content as Code manager.',
+            { contentAsCodeManaged: true },
+        );
+    }
+
     private static mergeDraftIntoDashboard<T extends DashboardDAO>(
         dashboard: T,
         draft: unknown,
@@ -2447,7 +2476,7 @@ export class DashboardService
     async delete(
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
-        options?: SoftDeleteOptions & { projectUuid?: string },
+        options?: ContentAsCodeDeleteOptions,
     ): Promise<void> {
         const dashboardToDelete = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
@@ -2490,6 +2519,8 @@ export class DashboardService
                 organizationUuid,
             });
         }
+
+        await this.assertCanDeleteGitBackedDashboard(user, dashboardToDelete);
 
         if (hasChartsInDashboard(dashboardToDelete)) {
             try {
@@ -2544,10 +2575,12 @@ export class DashboardService
         if (this.lightdashConfig.softDelete.enabled) {
             await this.softDelete(user, resolvedUuid, {
                 bypassPermissions: true, // perms checked above
+                contentAsCodePolicyChecked: true,
             });
         } else {
             await this.permanentDelete(user, resolvedUuid, {
                 bypassPermissions: true, // perms checked above
+                contentAsCodePolicyChecked: true,
             });
         }
 
@@ -2565,7 +2598,7 @@ export class DashboardService
     async softDelete(
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
-        options?: SoftDeleteOptions,
+        options?: ContentAsCodeDeleteOptions,
     ): Promise<void> {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
@@ -2606,6 +2639,10 @@ export class DashboardService
                 projectUuid: dashboard.projectUuid,
                 organizationUuid: dashboard.organizationUuid,
             });
+        }
+
+        if (!options?.contentAsCodePolicyChecked) {
+            await this.assertCanDeleteGitBackedDashboard(user, dashboard);
         }
 
         const deletedDashboard = await this.dashboardModel.softDelete(
@@ -2682,7 +2719,7 @@ export class DashboardService
     async permanentDelete(
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
-        options?: SoftDeleteOptions,
+        options?: ContentAsCodeDeleteOptions,
     ): Promise<void> {
         // 'any' so this works whether called directly on a soft-deleted
         // dashboard (restore-then-purge flow) or via `delete()` on a
@@ -2711,6 +2748,10 @@ export class DashboardService
             ) {
                 throw new ForbiddenError();
             }
+        }
+
+        if (!options?.contentAsCodePolicyChecked) {
+            await this.assertCanDeleteGitBackedDashboard(user, dashboard);
         }
 
         await this.dashboardModel.permanentDelete(dashboard.uuid);

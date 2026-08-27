@@ -126,6 +126,10 @@ type SavedChartServiceArguments = {
     contentDraftModel: ContentDraftModel;
 };
 
+type ContentAsCodeDeleteOptions = SoftDeleteOptions & {
+    contentAsCodePolicyChecked?: boolean;
+};
+
 type ChartDraftOverlay = Partial<
     Pick<
         SavedChartDAO,
@@ -713,6 +717,29 @@ export class SavedChartService
                 createdByUserUuid: project.createdByUserUuid,
                 metadata: { slug: '' },
             }),
+        );
+    }
+
+    private async assertCanDeleteGitBackedChart(
+        user: SessionUser,
+        chart: Pick<SavedChartDAO, 'projectUuid' | 'slug'>,
+    ): Promise<void> {
+        const settings = await this.contentAsCodeProjectSettingsModel.get(
+            chart.projectUuid,
+        );
+        if (!settings?.syncEnabled) return;
+
+        const snapshot = await this.contentAsCodeSnapshotModel.get(
+            chart.projectUuid,
+            ContentAsCodeType.CHART,
+            chart.slug,
+        );
+        if (snapshot === undefined) return;
+        if (await this.canManageContentAsCode(user, chart.projectUuid)) return;
+
+        throw new ForbiddenError(
+            'This chart is managed by Content as Code and can only be deleted by a Content as Code manager.',
+            { contentAsCodeManaged: true },
         );
     }
 
@@ -1536,7 +1563,7 @@ export class SavedChartService
     async delete(
         user: SessionUser,
         savedChartUuid: string,
-        options?: SoftDeleteOptions & { projectUuid?: string },
+        options?: ContentAsCodeDeleteOptions,
     ): Promise<void> {
         const {
             uuid: resolvedUuid,
@@ -1544,6 +1571,7 @@ export class SavedChartService
             projectUuid,
             spaceUuid,
             dashboardUuid,
+            slug,
             metricQuery: { metrics, dimensions },
             tableName,
         } = await this.savedChartModel.get(savedChartUuid, undefined, {
@@ -1595,13 +1623,20 @@ export class SavedChartService
             });
         }
 
+        await this.assertCanDeleteGitBackedChart(user, {
+            projectUuid,
+            slug,
+        });
+
         if (this.lightdashConfig.softDelete.enabled) {
             await this.softDelete(user, resolvedUuid, {
                 bypassPermissions: true, // perms checked above
+                contentAsCodePolicyChecked: true,
             });
         } else {
             await this.permanentDelete(user, resolvedUuid, {
                 bypassPermissions: true, // perms checked above
+                contentAsCodePolicyChecked: true,
             });
         }
 
@@ -1643,8 +1678,14 @@ export class SavedChartService
     async softDelete(
         user: SessionUser,
         savedChartUuid: string,
-        options?: SoftDeleteOptions,
+        options?: ContentAsCodeDeleteOptions,
     ): Promise<void> {
+        const chart =
+            !options?.contentAsCodePolicyChecked || !options?.bypassPermissions
+                ? await this.savedChartModel.get(savedChartUuid, undefined, {
+                      projectUuid: options?.projectUuid,
+                  })
+                : undefined;
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'delete', {
                 type: 'SavedChart',
@@ -1652,7 +1693,7 @@ export class SavedChartService
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
-            const chart = await this.savedChartModel.get(savedChartUuid);
+            if (!chart) throw new NotFoundError('Chart not found');
             const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.resolveAccess(user.userUuid, {
                     type: 'chart',
@@ -1685,6 +1726,10 @@ export class SavedChartService
                 projectUuid: chart.projectUuid,
                 organizationUuid: chart.organizationUuid,
             });
+        }
+
+        if (!options?.contentAsCodePolicyChecked && chart) {
+            await this.assertCanDeleteGitBackedChart(user, chart);
         }
 
         const deletedChart = await this.savedChartModel.softDelete(
@@ -3110,8 +3155,15 @@ export class SavedChartService
     async permanentDelete(
         user: SessionUser,
         chartUuid: string,
-        options?: SoftDeleteOptions,
+        options?: ContentAsCodeDeleteOptions,
     ): Promise<void> {
+        const deletedChart =
+            !options?.contentAsCodePolicyChecked || !options?.bypassPermissions
+                ? await this.savedChartModel.get(chartUuid, undefined, {
+                      deleted: true,
+                      projectUuid: options?.projectUuid,
+                  })
+                : undefined;
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
@@ -3119,11 +3171,7 @@ export class SavedChartService
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
-            const deletedChart = await this.savedChartModel.get(
-                chartUuid,
-                undefined,
-                { deleted: true, projectUuid: options?.projectUuid },
-            );
+            if (!deletedChart) throw new NotFoundError('Chart not found');
             const { organizationUuid, projectUuid } = deletedChart;
 
             const auditedAbility = this.createAuditedAbility(user);
@@ -3157,6 +3205,10 @@ export class SavedChartService
                     'You can only permanently delete content you deleted',
                 );
             }
+        }
+
+        if (!options?.contentAsCodePolicyChecked && deletedChart) {
+            await this.assertCanDeleteGitBackedChart(user, deletedChart);
         }
 
         await this.savedChartModel.permanentDelete(chartUuid);

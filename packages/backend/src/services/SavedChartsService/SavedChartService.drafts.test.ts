@@ -47,7 +47,7 @@ const chart = {
 const editor = {
     userUuid: 'editor-uuid',
     ability: new Ability<PossibleAbilities>([
-        { action: ['view', 'update'], subject: 'SavedChart' },
+        { action: ['view', 'update', 'delete'], subject: 'SavedChart' },
     ]),
     abilityRules: [],
 } as unknown as SessionUser;
@@ -56,6 +56,7 @@ const reviewer = {
     userUuid: 'reviewer-uuid',
     ability: new Ability<PossibleAbilities>([
         { action: 'manage', subject: 'ContentAsCode' },
+        { action: 'delete', subject: 'SavedChart' },
     ]),
 } as unknown as SessionUser;
 
@@ -66,6 +67,7 @@ const buildService = (
         settings?: object;
         snapshot?: object;
         draft?: object;
+        softDeleteEnabled?: boolean;
     } = {},
 ) => {
     const settingsGet = vi
@@ -98,22 +100,35 @@ const buildService = (
         getSummary: vi.fn().mockResolvedValue(chart),
         createVersion: vi.fn(),
         update: vi.fn(),
+        permanentDelete: vi.fn().mockResolvedValue(chart),
+        softDelete: vi.fn().mockResolvedValue(chart),
     };
     const service = new SavedChartService({
         analytics: analyticsMock,
-        lightdashConfig: lightdashConfigMock,
+        lightdashConfig: {
+            ...lightdashConfigMock,
+            softDelete: {
+                ...lightdashConfigMock.softDelete,
+                enabled: overrides.softDeleteEnabled ?? false,
+            },
+        },
         projectModel: {
             get: vi.fn().mockResolvedValue({
                 projectUuid: chart.projectUuid,
                 organizationUuid: chart.organizationUuid,
             }),
+            getExploreFromCache: vi
+                .fn()
+                .mockRejectedValue(new Error('No cached explore in unit test')),
         },
         savedChartModel,
         spaceModel: {},
         analyticsModel: {},
         pinnedListModel: {},
         schedulerModel: {},
-        schedulerService: {},
+        schedulerService: {
+            softDeleteByChartUuid: vi.fn(),
+        },
         schedulerClient: {},
         slackClient: {},
         dashboardModel: {},
@@ -239,6 +254,85 @@ describe('SavedChartService chart drafts', () => {
         expect(result).toBeUndefined();
         expect(upsertOpenDraft).not.toHaveBeenCalled();
     });
+
+    it('blocks an editor from deleting a Git-backed chart', async () => {
+        const { service, savedChartModel } = buildService();
+
+        await expect(service.delete(editor, chart.uuid)).rejects.toThrow(
+            'This chart is managed by Content as Code',
+        );
+        expect(savedChartModel.permanentDelete).not.toHaveBeenCalled();
+        expect(savedChartModel.softDelete).not.toHaveBeenCalled();
+    });
+
+    it('deletes a UI-only chart normally', async () => {
+        const { service, savedChartModel } = buildService({
+            snapshot: undefined,
+        });
+
+        await expect(
+            service.delete(editor, chart.uuid),
+        ).resolves.toBeUndefined();
+        expect(savedChartModel.permanentDelete).toHaveBeenCalledWith(
+            chart.uuid,
+        );
+    });
+
+    it('soft-deletes a UI-only chart normally', async () => {
+        const { service, savedChartModel } = buildService({
+            snapshot: undefined,
+            softDeleteEnabled: true,
+        });
+
+        await expect(
+            service.delete(editor, chart.uuid),
+        ).resolves.toBeUndefined();
+        expect(savedChartModel.softDelete).toHaveBeenCalledWith(
+            chart.uuid,
+            editor.userUuid,
+        );
+        expect(savedChartModel.permanentDelete).not.toHaveBeenCalled();
+    });
+
+    it('deletes normally when Content as Code sync is disabled', async () => {
+        const { service, savedChartModel, snapshotGet } = buildService({
+            settings: { syncEnabled: false },
+        });
+
+        await expect(
+            service.delete(editor, chart.uuid),
+        ).resolves.toBeUndefined();
+        expect(snapshotGet).not.toHaveBeenCalled();
+        expect(savedChartModel.permanentDelete).toHaveBeenCalledWith(
+            chart.uuid,
+        );
+    });
+
+    it('lets a content-as-code manager delete a Git-backed chart', async () => {
+        const { service, savedChartModel } = buildService();
+
+        await expect(
+            service.delete(reviewer, chart.uuid),
+        ).resolves.toBeUndefined();
+        expect(savedChartModel.permanentDelete).toHaveBeenCalledWith(
+            chart.uuid,
+        );
+    });
+
+    it.each(['softDelete', 'permanentDelete'] as const)(
+        'does not let an internal %s call bypass the Git-backed policy',
+        async (method) => {
+            const { service, savedChartModel } = buildService();
+
+            await expect(
+                service[method](editor, chart.uuid, {
+                    bypassPermissions: true,
+                }),
+            ).rejects.toThrow('This chart is managed by Content as Code');
+            expect(savedChartModel.permanentDelete).not.toHaveBeenCalled();
+            expect(savedChartModel.softDelete).not.toHaveBeenCalled();
+        },
+    );
 
     it("overlays only the caller's draft", async () => {
         const { service, findOpenDraft } = buildService({
