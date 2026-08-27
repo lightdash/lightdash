@@ -30,14 +30,6 @@ export class LinearApiError extends LightdashError {
     }
 }
 
-type LinearTokenResponse = {
-    access_token?: string;
-    refresh_token?: string;
-    token_type?: string;
-    expires_in?: number;
-    scope?: string;
-};
-
 type LinearGraphqlError = {
     message?: string;
 };
@@ -66,10 +58,16 @@ export type LinearTokens = {
     refreshToken: string | null;
 };
 
+type LinearTokenResponse = {
+    access_token?: string;
+    refresh_token?: string;
+};
+
 export const getLinearAuthorizationUrl = (
     clientId: string,
     redirectUri: string,
     state: string,
+    codeChallenge: string,
 ): string => {
     const params = new URLSearchParams({
         client_id: clientId,
@@ -77,8 +75,10 @@ export const getLinearAuthorizationUrl = (
         response_type: 'code',
         scope: LINEAR_SCOPES.join(','),
         state,
-        actor: 'application',
+        actor: 'app',
         prompt: 'consent',
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
     });
 
     return `${LINEAR_AUTHORIZE_URL}?${params.toString()}`;
@@ -98,11 +98,8 @@ const parseTokenResponse = async (
     };
 };
 
-export const exchangeLinearCodeForToken = async (
-    code: string,
-    clientId: string,
-    clientSecret: string,
-    redirectUri: string,
+const requestLinearToken = async (
+    body: URLSearchParams,
 ): Promise<LinearTokens> => {
     try {
         const response = await fetch(LINEAR_TOKEN_URL, {
@@ -110,53 +107,45 @@ export const exchangeLinearCodeForToken = async (
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: new URLSearchParams({
-                grant_type: 'authorization_code',
-                client_id: clientId,
-                client_secret: clientSecret,
-                redirect_uri: redirectUri,
-                code,
-            }),
+            body,
         });
 
         return await parseTokenResponse(response);
     } catch (error) {
         if (error instanceof LightdashError) {
-            // pragma: allowlist secret
             throw error;
         }
         throw new UnexpectedServerError(getErrorMessage(error));
     }
 };
+
+export const exchangeLinearCodeForToken = async (
+    code: string,
+    clientId: string,
+    redirectUri: string,
+    codeVerifier: string,
+): Promise<LinearTokens> =>
+    requestLinearToken(
+        new URLSearchParams({
+            grant_type: 'authorization_code',
+            client_id: clientId,
+            redirect_uri: redirectUri,
+            code,
+            code_verifier: codeVerifier,
+        }),
+    );
 
 export const refreshLinearToken = async (
     refreshToken: string,
     clientId: string,
-    clientSecret: string,
-): Promise<LinearTokens> => {
-    try {
-        const response = await fetch(LINEAR_TOKEN_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                grant_type: 'refresh_token',
-                client_id: clientId,
-                client_secret: clientSecret,
-                refresh_token: refreshToken,
-            }),
-        });
-
-        return await parseTokenResponse(response);
-    } catch (error) {
-        if (error instanceof LightdashError) {
-            // pragma: allowlist secret
-            throw error;
-        }
-        throw new UnexpectedServerError(getErrorMessage(error));
-    }
-};
+): Promise<LinearTokens> =>
+    requestLinearToken(
+        new URLSearchParams({
+            grant_type: 'refresh_token',
+            client_id: clientId,
+            refresh_token: refreshToken,
+        }),
+    );
 
 export const linearGraphql = async <T>(
     token: string,

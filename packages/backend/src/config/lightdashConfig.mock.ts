@@ -323,11 +323,6 @@ export const lightdashConfigMock: LightdashConfig = {
         clientSecret: undefined,
         redirectDomain: 'test',
     },
-    linear: {
-        clientId: undefined,
-        clientSecret: undefined,
-        redirectDomain: 'test',
-    },
     headlessBrowser: {
         internalLightdashHost: 'https://test.lightdash.cloud',
         internalLightdashHostIgnoreHttpsErrors: false,

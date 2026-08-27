@@ -13,44 +13,59 @@ describe('Linear client', () => {
         vi.unstubAllGlobals();
     });
 
-    it('builds the OAuth authorize URL with application actor and issue scopes', () => {
-        const url = getLinearAuthorizationUrl(
-            'client-1',
-            'https://app.example.com/api/v1/linear/oauth/callback',
-            'state-1',
+    it('builds an app-actor PKCE authorization URL', () => {
+        const url = new URL(
+            getLinearAuthorizationUrl(
+                'client-1',
+                'https://app.example.com/api/v1/linear/oauth/callback',
+                'state-1',
+                'challenge-1',
+            ),
         );
 
-        expect(url).toContain('https://linear.app/oauth/authorize?');
-        expect(url).toContain('client_id=client-1');
-        expect(url).toContain('response_type=code');
-        expect(url).toContain('scope=read%2Cissues%3Acreate');
-        expect(url).toContain('actor=application');
-        expect(url).toContain('state=state-1');
+        expect(url.origin + url.pathname).toBe(
+            'https://linear.app/oauth/authorize',
+        );
+        expect(url.searchParams.get('client_id')).toBe('client-1');
+        expect(url.searchParams.get('scope')).toBe('read,issues:create');
+        expect(url.searchParams.get('actor')).toBe('app');
+        expect(url.searchParams.get('state')).toBe('state-1');
+        expect(url.searchParams.get('code_challenge')).toBe('challenge-1');
+        expect(url.searchParams.get('code_challenge_method')).toBe('S256');
     });
 
-    it('exchanges an authorization code for tokens', async () => {
-        vi.stubGlobal(
-            'fetch',
-            vi.fn().mockResolvedValue({
-                ok: true,
-                json: async () => ({
-                    access_token: 'access-1',
-                    refresh_token: 'refresh-1',
-                }),
+    it('exchanges an authorization code using PKCE without a secret', async () => {
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                access_token: 'access-1',
+                refresh_token: 'refresh-1',
             }),
-        );
+        });
+        vi.stubGlobal('fetch', fetchMock);
 
         await expect(
             exchangeLinearCodeForToken(
                 'code-1',
                 'client-1',
-                'secret-1',
                 'https://app.example.com/callback',
+                'verifier-1',
             ),
         ).resolves.toEqual({
             token: 'access-1',
             refreshToken: 'refresh-1',
         });
+        expect(fetchMock).toHaveBeenCalledWith(
+            'https://api.linear.app/oauth/token',
+            expect.objectContaining({
+                body: expect.objectContaining({
+                    get: expect.any(Function),
+                }),
+            }),
+        );
+        const request = fetchMock.mock.calls[0][1];
+        expect(request.body.get('client_secret')).toBeNull();
+        expect(request.body.get('code_verifier')).toBe('verifier-1');
     });
 
     it('rejects a token response without an access token', async () => {
@@ -66,8 +81,8 @@ describe('Linear client', () => {
             exchangeLinearCodeForToken(
                 'code-1',
                 'client-1',
-                'secret-1',
                 'https://app.example.com/callback',
+                'verifier-1',
             ),
         ).rejects.toBeInstanceOf(ForbiddenError);
     });
@@ -141,6 +156,14 @@ describe('Linear client', () => {
         await expect(getLinearProjects('token', 'team-1')).resolves.toEqual([
             { id: 'project-1', name: 'Fix data' },
         ]);
+        expect(fetchMock).toHaveBeenCalledWith(
+            'https://api.linear.app/graphql',
+            expect.objectContaining({
+                headers: expect.objectContaining({
+                    Authorization: 'Bearer token',
+                }),
+            }),
+        );
     });
 
     it('follows pagination until the last page of teams', async () => {
