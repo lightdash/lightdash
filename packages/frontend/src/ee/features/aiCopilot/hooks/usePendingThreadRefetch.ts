@@ -57,14 +57,16 @@ export const usePendingThreadRefetch = (
     const isRecoveryActive = useAiAgentThreadRecoveryActive(threadUuid);
     const [expirationClock, setExpirationClock] = useState(0);
     const pendingWritebackExpiresAt = getPendingWritebackExpiresAt(thread);
-    const hasPendingWriteback =
+    const isBackgroundWorkPending =
         pendingWritebackExpiresAt !== null &&
         pendingWritebackExpiresAt > Math.max(Date.now(), expirationClock);
-    const isPending =
+    const isThreadPending = Boolean(
         thread?.messages?.some(
             (message) =>
                 message.role === 'assistant' && message.status === 'pending',
-        ) || hasPendingWriteback;
+        ),
+    );
+    const shouldPoll = isThreadPending || isBackgroundWorkPending;
 
     useEffect(() => {
         if (pendingWritebackExpiresAt === null) {
@@ -89,7 +91,7 @@ export const usePendingThreadRefetch = (
     }, [pendingWritebackExpiresAt, refetch]);
 
     useEffect(() => {
-        if (!isPending || isStreaming) return;
+        if (!shouldPoll || isStreaming) return;
 
         const pollThread = async () => {
             try {
@@ -107,18 +109,18 @@ export const usePendingThreadRefetch = (
         return () => clearInterval(interval);
     }, [
         dispatch,
-        isPending,
         isRecoveryActive,
         isStreaming,
         refetch,
+        shouldPoll,
         threadUuid,
     ]);
 
     useEffect(() => {
-        if (thread !== undefined && isRecoveryActive && !isPending) {
+        if (thread !== undefined && isRecoveryActive && !isThreadPending) {
             dispatch(stopStreaming({ threadUuid }));
         }
-    }, [dispatch, isPending, isRecoveryActive, thread, threadUuid]);
+    }, [dispatch, isRecoveryActive, isThreadPending, thread, threadUuid]);
 
-    return { isStreaming, isPending };
+    return { isStreaming, isThreadPending, isBackgroundWorkPending };
 };

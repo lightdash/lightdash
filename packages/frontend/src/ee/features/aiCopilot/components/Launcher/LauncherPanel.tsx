@@ -478,7 +478,7 @@ const ExistingThreadPanel: FC<{
         refetch,
     } = useAiAgentThread(projectUuid, agent.uuid, threadId);
 
-    const { isStreaming, isPending } = usePendingThreadRefetch(
+    const { isStreaming, isThreadPending } = usePendingThreadRefetch(
         thread,
         threadId,
         refetch,
@@ -536,7 +536,7 @@ const ExistingThreadPanel: FC<{
     const isBusy = Boolean(
         isCreatingMessage ||
         isStreaming ||
-        isPending ||
+        isThreadPending ||
         startDeepResearch.isLoading,
     );
     const isInputDisabled =
