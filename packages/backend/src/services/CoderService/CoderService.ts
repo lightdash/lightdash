@@ -1457,6 +1457,7 @@ export class CoderService extends BaseService {
             },
             chartConfig: chart.chartConfig,
             pivotConfig: chart.pivotConfig,
+            ...(chart.merge ? { merge: chart.merge } : {}),
             dashboardSlug: chart.dashboardUuid
                 ? dashboardSlugs[chart.dashboardUuid]
                 : undefined,
@@ -2847,6 +2848,13 @@ export class CoderService extends BaseService {
         chartUuid: string,
     ): Promise<ChartAsCode> {
         const chartAsCode = await this.getCurrentChartAsCode(chartUuid);
+        return this.makeChartAsCodePortable(projectUuid, chartAsCode);
+    }
+
+    private async makeChartAsCodePortable(
+        projectUuid: string,
+        chartAsCode: ChartAsCode,
+    ): Promise<ChartAsCode> {
         const dataAppVizUuid =
             chartAsCode.chartConfig.type === ChartType.DATA_APP_VIZ
                 ? chartAsCode.chartConfig.config?.dataAppVizUuid
@@ -2862,6 +2870,64 @@ export class CoderService extends BaseService {
             new Map(dataAppVizRows.map((row) => [row.app_id, row.slug])),
         );
         return transformed;
+    }
+
+    async getPortableChartAsCodeWithOverlay(
+        projectUuid: string,
+        chartUuid: string,
+        overlay: object,
+    ): Promise<ChartAsCode> {
+        const chart = await this.savedChartModel.get(chartUuid);
+        const fields = overlay as Partial<typeof chart> & {
+            verified?: boolean;
+        };
+        const merged = {
+            ...chart,
+            ...(fields.name !== undefined && { name: fields.name }),
+            ...(fields.description !== undefined && {
+                description: fields.description,
+            }),
+            ...(fields.tableName !== undefined && {
+                tableName: fields.tableName,
+            }),
+            ...(fields.metricQuery !== undefined && {
+                metricQuery: fields.metricQuery,
+            }),
+            ...(fields.chartConfig !== undefined && {
+                chartConfig: fields.chartConfig,
+            }),
+            ...(fields.tableConfig !== undefined && {
+                tableConfig: fields.tableConfig,
+            }),
+            ...(fields.pivotConfig !== undefined && {
+                pivotConfig: fields.pivotConfig,
+            }),
+            ...(fields.parameters !== undefined && {
+                parameters: fields.parameters,
+            }),
+            ...(fields.merge !== undefined && { merge: fields.merge }),
+        };
+        const spaces = await this.spaceModel.find({
+            spaceUuids: merged.spaceUuid ? [merged.spaceUuid] : [],
+        });
+        const dashboardSlugs = merged.dashboardUuid
+            ? await this.dashboardModel.getSlugsForUuids([merged.dashboardUuid])
+            : {};
+        const verificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.CHART,
+                [merged.uuid],
+            );
+        const chartAsCode = CoderService.transformChart(
+            merged,
+            spaces,
+            dashboardSlugs,
+            verificationMap,
+        );
+        if (fields.verified !== undefined) {
+            chartAsCode.verified = fields.verified;
+        }
+        return this.makeChartAsCodePortable(projectUuid, chartAsCode);
     }
 
     async getCurrentDashboardAsCode(

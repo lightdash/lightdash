@@ -24,4 +24,20 @@ describe('DraftOverlayFailureAlert', () => {
             screen.getByText(/Ask a Content as Code admin/),
         ).toBeInTheDocument();
     });
+
+    it('identifies the published chart when a chart overlay fails', () => {
+        renderWithProviders(
+            <DraftOverlayFailureAlert
+                error={{
+                    code: 'invalid_chart_draft',
+                    draftUuid: 'chart-draft-uuid',
+                }}
+                contentType="chart"
+            />,
+        );
+
+        expect(
+            screen.getByText(/You're viewing the published chart/),
+        ).toBeInTheDocument();
+    });
 });

@@ -9,6 +9,7 @@ import {
     ChartSummary,
     ChartType,
     ChartVersion,
+    ContentAsCodeType,
     ContentType,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
@@ -78,6 +79,9 @@ import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
+import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
+import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
+import { ContentDraftModel } from '../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -117,6 +121,57 @@ type SavedChartServiceArguments = {
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
     organizationModel: OrganizationModel;
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+    contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+    contentDraftModel: ContentDraftModel;
+};
+
+type ChartDraftOverlay = Partial<
+    Pick<
+        SavedChartDAO,
+        | 'name'
+        | 'description'
+        | 'tableName'
+        | 'metricQuery'
+        | 'chartConfig'
+        | 'tableConfig'
+        | 'pivotConfig'
+        | 'parameters'
+        | 'merge'
+    >
+> & { verified?: boolean };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const assertChartDraftOverlay: (
+    draft: unknown,
+) => asserts draft is ChartDraftOverlay = (draft) => {
+    if (!isRecord(draft)) throw new Error('Chart draft must be an object');
+    const validators: Record<
+        keyof ChartDraftOverlay,
+        (value: unknown) => boolean
+    > = {
+        name: (value) => typeof value === 'string',
+        description: (value) => typeof value === 'string',
+        tableName: (value) => typeof value === 'string',
+        metricQuery: isRecord,
+        chartConfig: isRecord,
+        tableConfig: isRecord,
+        pivotConfig: isRecord,
+        parameters: isRecord,
+        merge: (value) => value === null || isRecord(value),
+        verified: (value) => typeof value === 'boolean',
+    };
+    for (const [field, validate] of Object.entries(validators)) {
+        if (
+            Object.prototype.hasOwnProperty.call(draft, field) &&
+            draft[field] !== undefined &&
+            !validate(draft[field])
+        ) {
+            throw new Error(`Invalid chart draft field: ${field}`);
+        }
+    }
 };
 
 type GoogleSheetValidationOptions = {
@@ -176,6 +231,12 @@ export class SavedChartService
 
     private readonly organizationModel: OrganizationModel;
 
+    private readonly contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+
+    private readonly contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+
+    private readonly contentDraftModel: ContentDraftModel;
+
     constructor(args: SavedChartServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -197,6 +258,10 @@ export class SavedChartService
         this.spacePermissionService = args.spacePermissionService;
         this.contentVerificationModel = args.contentVerificationModel;
         this.organizationModel = args.organizationModel;
+        this.contentAsCodeProjectSettingsModel =
+            args.contentAsCodeProjectSettingsModel;
+        this.contentAsCodeSnapshotModel = args.contentAsCodeSnapshotModel;
+        this.contentDraftModel = args.contentDraftModel;
     }
 
     private async checkUpdateAccess(
@@ -633,6 +698,189 @@ export class SavedChartService
         );
     }
 
+    private async canManageContentAsCode(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const project = await this.projectModel.get(projectUuid);
+        return this.createAuditedAbility(user).can(
+            'manage',
+            subject('ContentAsCode', {
+                projectUuid: project.projectUuid,
+                organizationUuid: project.organizationUuid,
+                upstreamProjectUuid: project.upstreamProjectUuid,
+                type: project.type,
+                createdByUserUuid: project.createdByUserUuid,
+                metadata: { slug: '' },
+            }),
+        );
+    }
+
+    private static mergeDraftIntoChart<T extends SavedChartDAO>(
+        chart: T,
+        draft: unknown,
+    ): T {
+        assertChartDraftOverlay(draft);
+        return {
+            ...chart,
+            ...(draft.name !== undefined && { name: draft.name }),
+            ...(draft.description !== undefined && {
+                description: draft.description,
+            }),
+            ...(draft.tableName !== undefined && {
+                tableName: draft.tableName,
+            }),
+            ...(draft.metricQuery !== undefined && {
+                metricQuery: draft.metricQuery,
+            }),
+            ...(draft.chartConfig !== undefined && {
+                chartConfig: draft.chartConfig,
+            }),
+            ...(draft.tableConfig !== undefined && {
+                tableConfig: draft.tableConfig,
+            }),
+            ...(draft.pivotConfig !== undefined && {
+                pivotConfig: draft.pivotConfig,
+            }),
+            ...(draft.parameters !== undefined && {
+                parameters: draft.parameters,
+            }),
+            ...(draft.merge !== undefined && { merge: draft.merge }),
+        };
+    }
+
+    private async maybeStoreDraft(
+        user: SessionUser,
+        existingChart: SavedChartDAO | ChartSummary,
+        draftFields: ChartDraftOverlay,
+        verificationAfterUpdate: ContentVerificationInfo | null,
+        spaceContext: {
+            inheritsFromOrgOrProject: boolean;
+            access: SpaceAccess[];
+        },
+    ): Promise<SavedChart | undefined> {
+        if (Object.keys(draftFields).length === 0) return undefined;
+        const settings = await this.contentAsCodeProjectSettingsModel.get(
+            existingChart.projectUuid,
+        );
+        if (!settings?.syncEnabled) return undefined;
+        const snapshot = await this.contentAsCodeSnapshotModel.get(
+            existingChart.projectUuid,
+            ContentAsCodeType.CHART,
+            existingChart.slug,
+        );
+        if (snapshot === undefined) return undefined;
+        if (
+            await this.canManageContentAsCode(user, existingChart.projectUuid)
+        ) {
+            return undefined;
+        }
+        const stored = await this.contentDraftModel.upsertOpenDraft({
+            projectUuid: existingChart.projectUuid,
+            contentType: 'chart',
+            contentUuid: existingChart.uuid,
+            slug: existingChart.slug,
+            authorUserUuid: user.userUuid,
+            draft: draftFields,
+        });
+        const chartForOverlay =
+            'metricQuery' in existingChart
+                ? existingChart
+                : await this.savedChartModel.get(existingChart.uuid);
+        return {
+            ...SavedChartService.mergeDraftIntoChart(
+                chartForOverlay,
+                stored.draft,
+            ),
+            verification: verificationAfterUpdate,
+            ...spaceContext,
+            hasUnpublishedChanges: true,
+        };
+    }
+
+    private async applyOpenDraftOverlay(
+        user: SessionUser,
+        chart: SavedChart,
+    ): Promise<SavedChart> {
+        try {
+            const settings = await this.contentAsCodeProjectSettingsModel.get(
+                chart.projectUuid,
+            );
+            if (!settings?.syncEnabled) return chart;
+            const draft = await this.contentDraftModel.findOpenDraft(
+                chart.projectUuid,
+                'chart',
+                chart.uuid,
+                user.userUuid,
+            );
+            if (draft) {
+                try {
+                    assertChartDraftOverlay(draft.draft);
+                    return {
+                        ...SavedChartService.mergeDraftIntoChart(
+                            chart,
+                            draft.draft,
+                        ),
+                        verification:
+                            draft.draft.verified === false
+                                ? null
+                                : chart.verification,
+                        hasUnpublishedChanges: true,
+                    };
+                } catch (error) {
+                    this.logger.warn(
+                        'Chart draft overlay failed; serving published chart',
+                        {
+                            projectUuid: chart.projectUuid,
+                            chartUuid: chart.uuid,
+                            draftUuid: draft.uuid,
+                            error:
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error),
+                        },
+                    );
+                    return {
+                        ...chart,
+                        draftOverlayError: {
+                            code: 'invalid_chart_draft',
+                            draftUuid: draft.uuid,
+                        },
+                    };
+                }
+            }
+            const dismissedDraft =
+                await this.contentDraftModel.findLatestDismissedDraft(
+                    chart.projectUuid,
+                    'chart',
+                    chart.uuid,
+                    user.userUuid,
+                );
+            const chartForViewer = dismissedDraft
+                ? { ...chart, dismissedDraftUuid: dismissedDraft.uuid }
+                : chart;
+            if (await this.canManageContentAsCode(user, chart.projectUuid)) {
+                const awaiting =
+                    await this.contentDraftModel.countOpenForContent(
+                        chart.projectUuid,
+                        'chart',
+                        chart.uuid,
+                        user.userUuid,
+                    );
+                if (awaiting > 0) {
+                    return {
+                        ...chartForViewer,
+                        draftsAwaitingReview: awaiting,
+                    };
+                }
+            }
+            return chartForViewer;
+        } catch (error) {
+            this.logger.warn('Chart draft overlay failed', error);
+            return chart;
+        }
+    }
+
     async createVersion(
         account: Account,
         savedChartUuid: string,
@@ -641,6 +889,7 @@ export class SavedChartService
         // Embed writes run as the write actor and only inside the write space
         const { user, embedWriteActions } = getAccountWriteContext(account);
         const { preserveVerification, ...chartVersion } = data;
+        const existingChart = await this.savedChartModel.get(savedChartUuid);
         const {
             organizationUuid,
             projectUuid,
@@ -652,7 +901,7 @@ export class SavedChartService
                 customDimensions: oldCustomDimensions,
                 tableCalculations: oldTableCalculations,
             },
-        } = await this.savedChartModel.get(savedChartUuid);
+        } = existingChart;
 
         if (embedWriteActions && spaceUuid !== embedWriteActions.spaceUuid) {
             throw new ForbiddenError(
@@ -770,6 +1019,26 @@ export class SavedChartService
                 preserveVerification,
             });
 
+        if (!embedWriteActions) {
+            const draftResult = await this.maybeStoreDraft(
+                user,
+                existingChart,
+                {
+                    tableName: chartVersion.tableName,
+                    metricQuery: chartVersion.metricQuery,
+                    chartConfig: chartVersion.chartConfig,
+                    tableConfig: chartVersion.tableConfig,
+                    pivotConfig: chartVersion.pivotConfig,
+                    parameters: chartVersion.parameters,
+                    merge: chartVersion.merge,
+                    verified: verificationAfterUpdate !== null,
+                },
+                verificationAfterUpdate,
+                { inheritsFromOrgOrProject, access },
+            );
+            if (draftResult) return draftResult;
+        }
+
         const savedChart = await this.savedChartModel.createVersion(
             savedChartUuid,
             chartVersion,
@@ -879,13 +1148,15 @@ export class SavedChartService
         data: UpdateSavedChart,
     ): Promise<SavedChart> {
         const { preserveVerification, ...chartUpdate } = data;
+        const existingChart =
+            await this.savedChartModel.getSummary(savedChartUuid);
         const {
             organizationUuid,
             projectUuid,
             spaceUuid,
             dashboardUuid,
             name,
-        } = await this.savedChartModel.getSummary(savedChartUuid);
+        } = existingChart;
 
         const { inheritsFromOrgOrProject, access, directOnly } =
             await this.spacePermissionService.resolveAccess(user.userUuid, {
@@ -970,6 +1241,25 @@ export class SavedChartService
                 organizationUuid,
                 preserveVerification,
             });
+
+        const chartDraftFields: ChartDraftOverlay = {
+            ...(chartUpdate.name !== undefined && { name: chartUpdate.name }),
+            ...(chartUpdate.description !== undefined && {
+                description: chartUpdate.description,
+            }),
+            ...(chartUpdate.name !== undefined ||
+            chartUpdate.description !== undefined
+                ? { verified: verificationAfterUpdate !== null }
+                : {}),
+        };
+        const draftResult = await this.maybeStoreDraft(
+            user,
+            existingChart,
+            chartDraftFields,
+            verificationAfterUpdate,
+            { inheritsFromOrgOrProject, access },
+        );
+        if (draftResult) return draftResult;
 
         const savedChart = await this.savedChartModel.update(
             savedChartUuid,
@@ -1592,6 +1882,18 @@ export class SavedChartService
             inheritsFromOrgOrProject,
             access,
         };
+    }
+
+    // Interactive chart pages opt into the caller's unpublished overlay.
+    // Other consumers keep using `get`, which is always published-only.
+    async getForViewer(
+        user: SessionUser,
+        savedChartUuidOrSlug: string,
+        account: Account,
+        options?: { projectUuid?: string },
+    ): Promise<SavedChart> {
+        const chart = await this.get(savedChartUuidOrSlug, account, options);
+        return this.applyOpenDraftOverlay(user, chart);
     }
 
     async verifyChart(

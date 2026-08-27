@@ -176,6 +176,11 @@ describe('SavedChartService - Content Verification', () => {
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
         organizationModel: {} as unknown as OrganizationModel,
+        contentAsCodeProjectSettingsModel: {
+            get: vi.fn(async () => undefined),
+        } as never,
+        contentAsCodeSnapshotModel: {} as never,
+        contentDraftModel: {} as never,
     });
 
     afterEach(() => {

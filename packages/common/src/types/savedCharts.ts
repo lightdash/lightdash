@@ -987,6 +987,17 @@ export type SavedChart = {
     /** Unique identifier slug for this chart */
     slug: string;
     verification: ContentVerificationInfo | null;
+    /** The caller's unpublished content-as-code draft is applied. */
+    hasUnpublishedChanges?: boolean;
+    /** Open drafts from other authors visible to content-as-code reviewers. */
+    draftsAwaitingReview?: number;
+    /** The caller's latest dismissed draft, available to reopen. */
+    dismissedDraftUuid?: string;
+    /** The caller's draft could not be safely applied. */
+    draftOverlayError?: {
+        code: 'invalid_chart_draft';
+        draftUuid: string;
+    };
     deletedAt?: Date;
     deletedBy?: {
         userUuid: string;

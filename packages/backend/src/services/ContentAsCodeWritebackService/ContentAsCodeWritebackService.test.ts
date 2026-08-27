@@ -61,6 +61,10 @@ const buildService = (overrides: Overrides = {}) => {
     };
     const coderService = {
         getPortableChartAsCode: vi.fn().mockResolvedValue(chartAsCode),
+        getPortableChartAsCodeWithOverlay: vi.fn().mockResolvedValue({
+            ...chartAsCode,
+            name: 'Monthly revenue draft',
+        }),
         getCurrentDashboardAsCode: vi.fn().mockResolvedValue({
             name: 'Weekly KPIs',
             slug: 'weekly-kpis',
@@ -480,6 +484,45 @@ describe('ContentAsCodeWritebackService', () => {
             'project-uuid',
             'lightdash/write-back/app.lightdash.dev/weekly-kpis/draft-draft-uuid',
             'main',
+        );
+    });
+
+    it('reviews and writes a chart draft to the chart file', async () => {
+        const { service, coderService, gitIntegrationService } = buildService({
+            draft: {
+                uuid: 'chart-draft-uuid',
+                projectUuid: 'project-uuid',
+                contentType: 'chart',
+                contentUuid: 'chart-uuid',
+                slug: 'monthly-revenue',
+                authorUserUuid: 'author-uuid',
+                draft: { name: 'Monthly revenue draft' },
+                status: 'open',
+                prUrl: null,
+            },
+        });
+
+        const review = await service.getDraftReview(
+            user,
+            'project-uuid',
+            'chart-draft-uuid',
+        );
+        await service.writeBackDraft(user, 'project-uuid', 'chart-draft-uuid');
+
+        expect(review.draftYaml).toContain('Monthly revenue draft');
+        expect(
+            coderService.getPortableChartAsCodeWithOverlay,
+        ).toHaveBeenCalledWith('project-uuid', 'chart-uuid', {
+            name: 'Monthly revenue draft',
+        });
+        expect(gitIntegrationService.saveFile).toHaveBeenCalledWith(
+            user,
+            'project-uuid',
+            expect.stringContaining('/draft-chart-draft-uuid'),
+            'lightdash/charts/monthly-revenue.yml',
+            expect.stringContaining('Monthly revenue draft'),
+            undefined,
+            expect.any(String),
         );
     });
 

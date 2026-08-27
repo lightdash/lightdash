@@ -90,9 +90,12 @@ const updateSavedQuery = async (
 export const getSavedQuery = async (
     id: string,
     projectUuid: string,
+    includeUnpublishedDraft = false,
 ): Promise<SavedChart> =>
     lightdashApi<SavedChart>({
-        url: `/projects/${projectUuid}/saved/${id}`,
+        url: `/projects/${projectUuid}/saved/${id}${
+            includeUnpublishedDraft ? '?includeUnpublishedDraft=true' : ''
+        }`,
         version: 'v2',
         method: 'GET',
         body: undefined,
@@ -123,6 +126,7 @@ const addVersionSavedQuery = async ({
 interface Args {
     uuidOrSlug?: string;
     projectUuid?: string;
+    includeUnpublishedDraft?: boolean;
     useQueryOptions?: UseQueryOptions<SavedChart, ApiError>;
 }
 
@@ -130,12 +134,22 @@ export const useSavedQuery = ({
     uuidOrSlug,
     projectUuid,
     useQueryOptions,
+    includeUnpublishedDraft = false,
 }: Args) =>
     useQuery<SavedChart, ApiError>({
-        queryKey: ['saved_query', uuidOrSlug, projectUuid],
+        queryKey: [
+            'saved_query',
+            uuidOrSlug,
+            projectUuid,
+            includeUnpublishedDraft,
+        ],
         queryFn: async () => {
             if (!projectUuid) throw new Error('projectUuid is required');
-            return getSavedQuery(uuidOrSlug || '', projectUuid);
+            return getSavedQuery(
+                uuidOrSlug || '',
+                projectUuid,
+                includeUnpublishedDraft,
+            );
         },
         enabled: uuidOrSlug !== undefined && !!projectUuid,
         retry: false,
@@ -318,12 +332,20 @@ export const useUpdateMutation = (
                     'color-palette',
                 ]);
 
-                queryClient.setQueryData(
-                    ['saved_query', data.uuid, data.projectUuid],
+                queryClient.setQueriesData(
+                    {
+                        queryKey: ['saved_query', data.uuid, data.projectUuid],
+                    },
                     data,
                 );
-                queryClient.setQueryData(
-                    ['saved_query', params.savedQueryUuid, data.projectUuid],
+                queryClient.setQueriesData(
+                    {
+                        queryKey: [
+                            'saved_query',
+                            params.savedQueryUuid,
+                            data.projectUuid,
+                        ],
+                    },
                     data,
                 );
 
@@ -336,7 +358,9 @@ export const useUpdateMutation = (
                 });
 
                 showToastSuccess({
-                    title: `Success! Chart was saved.`,
+                    title: data.hasUnpublishedChanges
+                        ? 'Chart draft saved for review'
+                        : 'Success! Chart was saved.',
                     action: dashboardUuid
                         ? {
                               children: 'Open dashboard',
@@ -529,12 +553,20 @@ export const useAddVersionMutation = (options?: {
                 'color-palette',
             ]);
 
-            queryClient.setQueryData(
-                ['saved_query', data.uuid, data.projectUuid],
+            queryClient.setQueriesData(
+                {
+                    queryKey: ['saved_query', data.uuid, data.projectUuid],
+                },
                 data,
             );
-            queryClient.setQueryData(
-                ['saved_query', params.savedQueryUuid, data.projectUuid],
+            queryClient.setQueriesData(
+                {
+                    queryKey: [
+                        'saved_query',
+                        params.savedQueryUuid,
+                        data.projectUuid,
+                    ],
+                },
                 data,
             );
             await queryClient.resetQueries(['savedChartResults', data.uuid]);
@@ -556,7 +588,9 @@ export const useAddVersionMutation = (options?: {
 
             if (dashboardUuid)
                 showToastSuccess({
-                    title: `Success! Chart was updated.`,
+                    title: data.hasUnpublishedChanges
+                        ? 'Chart draft saved for review'
+                        : 'Success! Chart was updated.',
                     action: {
                         children: 'Open dashboard',
                         icon: IconArrowRight,
@@ -568,7 +602,9 @@ export const useAddVersionMutation = (options?: {
                 });
             else {
                 showToastSuccess({
-                    title: `Success! Chart was updated.`,
+                    title: data.hasUnpublishedChanges
+                        ? 'Chart draft saved for review'
+                        : 'Success! Chart was updated.',
                 });
                 if (redirectOnSuccess) {
                     void navigate(

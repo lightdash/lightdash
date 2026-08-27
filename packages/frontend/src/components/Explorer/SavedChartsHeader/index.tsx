@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
     Group,
@@ -54,9 +55,12 @@ import {
     useState,
     type FC,
 } from 'react';
-import { useBlocker, useLocation, useNavigate } from 'react-router';
+import { Link, useBlocker, useLocation, useNavigate } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import ChartAsCodeModal from '../../../features/contentAsCode/components/ChartAsCodeModal';
+import DismissedDraftAlert from '../../../features/contentAsCode/components/DismissedDraftAlert';
+import DraftOverlayFailureAlert from '../../../features/contentAsCode/components/DraftOverlayFailureAlert';
+import { useReopenDraftMutation } from '../../../features/contentAsCode/hooks/useContentDrafts';
 import {
     explorerActions,
     selectHasUnsavedChanges,
@@ -171,6 +175,8 @@ const SavedChartsHeader: FC = () => {
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     const savedChart = useExplorerSelector(selectSavedChart);
+    const { mutate: reopenDraft, isLoading: isReopeningDraft } =
+        useReopenDraftMutation(projectUuid);
     const dashboardIdentifier = savedChart?.dashboardSlug ?? dashboardUuid;
 
     const hasUnsavedChanges = useExplorerSelector(selectHasUnsavedChanges);
@@ -576,6 +582,45 @@ const SavedChartsHeader: FC = () => {
                                 >
                                     {savedChart.name}
                                 </Title>
+
+                                {savedChart.hasUnpublishedChanges && (
+                                    <Tooltip
+                                        label="Only you can see these changes. A reviewer can write them back to the repo from Content review."
+                                        multiline
+                                        maw={280}
+                                        withinPortal
+                                    >
+                                        <Badge
+                                            color="yellow"
+                                            variant="dot"
+                                            size="sm"
+                                            radius="sm"
+                                            tt="none"
+                                            fw={500}
+                                        >
+                                            Unpublished changes
+                                        </Badge>
+                                    </Tooltip>
+                                )}
+
+                                {!!savedChart.draftsAwaitingReview && (
+                                    <Badge
+                                        component={Link}
+                                        to={`/generalSettings/projectManagement/${savedChart.projectUuid}/contentReview`}
+                                        color="blue"
+                                        variant="dot"
+                                        size="sm"
+                                        radius="sm"
+                                        tt="none"
+                                        fw={500}
+                                    >
+                                        {savedChart.draftsAwaitingReview} draft
+                                        {savedChart.draftsAwaitingReview === 1
+                                            ? ''
+                                            : 's'}{' '}
+                                        to review
+                                    </Badge>
+                                )}
 
                                 {isChartVerified && (
                                     <Tooltip
@@ -1081,6 +1126,20 @@ const SavedChartsHeader: FC = () => {
                     )}
                 </Group>
             </PageHeader>
+
+            {savedChart?.draftOverlayError ? (
+                <DraftOverlayFailureAlert
+                    error={savedChart.draftOverlayError}
+                    contentType="chart"
+                />
+            ) : null}
+
+            {savedChart?.dismissedDraftUuid ? (
+                <DismissedDraftAlert
+                    isReopening={isReopeningDraft}
+                    onReopen={() => reopenDraft(savedChart.dismissedDraftUuid!)}
+                />
+            ) : null}
 
             {savedChart && isAddToDashboardModalOpen && projectUuid && (
                 <AddTilesToDashboardModal
