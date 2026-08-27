@@ -126,6 +126,40 @@ export class ProjectDbtSourcesModel {
         return row !== undefined;
     }
 
+    async copySources(
+        sourceProjectUuid: string,
+        targetProjectUuid: string,
+    ): Promise<void> {
+        const sources = await this.database(ProjectDbtSourcesTableName)
+            .select(
+                'name',
+                'is_primary',
+                'precedence',
+                'dbt_connection_type',
+                'dbt_connection',
+                'warehouse_database',
+                'warehouse_schema',
+            )
+            .where('project_uuid', sourceProjectUuid);
+
+        if (sources.length === 0) {
+            return;
+        }
+
+        await this.database(ProjectDbtSourcesTableName).insert(
+            sources.map((source) => ({
+                project_uuid: targetProjectUuid,
+                name: source.name,
+                is_primary: source.is_primary,
+                precedence: source.precedence,
+                dbt_connection_type: source.dbt_connection_type,
+                dbt_connection: source.dbt_connection,
+                warehouse_database: source.warehouse_database,
+                warehouse_schema: source.warehouse_schema,
+            })),
+        );
+    }
+
     async getSource(projectDbtSourceUuid: string): Promise<ProjectDbtSource> {
         const row = await this.database(ProjectDbtSourcesTableName)
             .where('project_dbt_source_uuid', projectDbtSourceUuid)
