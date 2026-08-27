@@ -66,6 +66,7 @@ import {
 import { getConfig, setAnswer } from '../config';
 import { CLI_VERSION } from '../env';
 import GlobalState from '../globalState';
+import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import * as styles from '../styles';
 import {
     createContentAsCodeOutput,
@@ -3606,6 +3607,45 @@ export const uploadHandler = async (
 
     // Log current project info
     logSelectedProject(projectSelection, config, 'Uploading to');
+
+    // Persist repo-owned sync settings for the review/write-back workflow.
+    let syncEnabled: boolean | undefined;
+    const configExists = await fs
+        .access(path.join(process.cwd(), 'lightdash.config.yml'))
+        .then(() => true)
+        .catch(() => false);
+    if (configExists) {
+        try {
+            const projectConfig = await readAndLoadLightdashProjectConfig(
+                process.cwd(),
+                projectId,
+            );
+            syncEnabled = projectConfig.content_as_code?.sync === true;
+        } catch (error) {
+            throw new LightdashError({
+                message: `Upload aborted: lightdash.config.yml exists but could not be read, so the repo's content_as_code.sync opt-in cannot be honoured. Fix the config and retry. ${getErrorMessage(error)}`,
+                name: 'ParseError',
+                statusCode: 400,
+                data: {},
+            });
+        }
+        try {
+            await lightdashApi({
+                method: 'POST',
+                url: `/api/v1/projects/${projectId}/code/sync-settings`,
+                body: JSON.stringify({
+                    sync: syncEnabled,
+                }),
+            });
+        } catch (error) {
+            // Older servers don't have this endpoint; stamping is advisory.
+            GlobalState.debug(
+                `Could not stamp content-as-code settings: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
+    }
 
     let changes: Record<string, number> = {};
     const counts: ProjectContentAsCodeCounts = {};

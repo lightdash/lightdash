@@ -101,6 +101,7 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { getAccountApiAccessContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AppModel } from '../../models/AppModel';
+import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
 import {
     ContentAsCodeSnapshotModel,
     type ContentAsCodeSnapshotType,
@@ -182,6 +183,7 @@ type CoderServiceArguments = {
     promoteService: PromoteService;
     spacePermissionService: SpacePermissionService;
     contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
     contentVerificationModel: ContentVerificationModel;
     projectService?: ProjectService;
     groupsModel: GroupsModel;
@@ -233,6 +235,7 @@ export class CoderService extends BaseService {
     spacePermissionService: SpacePermissionService;
 
     contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
 
     contentVerificationModel: ContentVerificationModel;
 
@@ -272,6 +275,7 @@ export class CoderService extends BaseService {
         promoteService,
         spacePermissionService,
         contentAsCodeSnapshotModel,
+        contentAsCodeProjectSettingsModel,
         contentVerificationModel,
         projectService,
         groupsModel,
@@ -295,6 +299,8 @@ export class CoderService extends BaseService {
         this.promoteService = promoteService;
         this.spacePermissionService = spacePermissionService;
         this.contentAsCodeSnapshotModel = contentAsCodeSnapshotModel;
+        this.contentAsCodeProjectSettingsModel =
+            contentAsCodeProjectSettingsModel;
         this.contentVerificationModel = contentVerificationModel;
         this.projectService = projectService;
         this.groupsModel = groupsModel;
@@ -2808,10 +2814,128 @@ export class CoderService extends BaseService {
         });
     }
 
-    // Snapshot stamping is bookkeeping for drift detection; it must never
-    // fail an upload, so each stamp method swallows and logs its errors.
-    // Recording only happens for repos that opted into content_as_code.sync
-    // - there is nothing to detect drift against otherwise.
+    // The instance content in its canonical as-code form — the same document
+    // an upload of the current state would have applied.
+    async getCurrentChartAsCode(chartUuid: string): Promise<ChartAsCode> {
+        const chart = await this.savedChartModel.get(chartUuid);
+        const spaces = await this.spaceModel.find({
+            spaceUuids: chart.spaceUuid ? [chart.spaceUuid] : [],
+        });
+        const dashboardSlugs = chart.dashboardUuid
+            ? await this.dashboardModel.getSlugsForUuids([chart.dashboardUuid])
+            : {};
+        const verificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.CHART,
+                [chart.uuid],
+            );
+        return CoderService.transformChart(
+            chart,
+            spaces,
+            dashboardSlugs,
+            verificationMap,
+        );
+    }
+
+    // The repo form uses portable dataAppVizSlug bindings rather than
+    // instance-local UUIDs.
+    async getPortableChartAsCode(
+        projectUuid: string,
+        chartUuid: string,
+    ): Promise<ChartAsCode> {
+        const chartAsCode = await this.getCurrentChartAsCode(chartUuid);
+        const dataAppVizUuid =
+            chartAsCode.chartConfig.type === ChartType.DATA_APP_VIZ
+                ? chartAsCode.chartConfig.config?.dataAppVizUuid
+                : undefined;
+        if (dataAppVizUuid === undefined) return chartAsCode;
+        const dataAppVizRows = await this.appModel.findAppsByUuids(
+            projectUuid,
+            [dataAppVizUuid],
+            { dataAppVizsFilter: 'only' },
+        );
+        const [transformed] = CoderService.withDataAppVizSlugs(
+            [chartAsCode],
+            new Map(dataAppVizRows.map((row) => [row.app_id, row.slug])),
+        );
+        return transformed;
+    }
+
+    private async getCurrentDashboardAsCode(
+        dashboardUuid: string,
+    ): Promise<DashboardAsCode> {
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const spaces = await this.spaceModel.find({
+            spaceUuids: dashboard.spaceUuid ? [dashboard.spaceUuid] : [],
+        });
+        const verificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.DASHBOARD,
+                [dashboard.uuid],
+            );
+        return CoderService.transformDashboard(
+            dashboard,
+            spaces,
+            verificationMap,
+        );
+    }
+
+    // The repo's content_as_code flags travel with uploads; stamping them as
+    // project-level state is how the instance (settings UI, write-back)
+    // learns what the repo has opted into.
+    async stampContentAsCodeSettings(
+        user: SessionUser,
+        projectUuid: string,
+        settings: { sync: boolean },
+    ): Promise<void> {
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ContentAsCode', {
+                    projectUuid: project.projectUuid,
+                    organizationUuid: project.organizationUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
+                    metadata: { slug: '' },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `You don't have permission to update content-as-code settings on this project`,
+            );
+        }
+        await this.contentAsCodeProjectSettingsModel.upsert({
+            projectUuid,
+            syncEnabled: settings.sync,
+        });
+    }
+
+    // Stamped project settings keep snapshot recording consistent for callers
+    // that do not send the repo-owned sync flag on every request.
+    private async resolveSyncEnabled(
+        projectUuid: string,
+        options: UpsertContentAsCodeOptions,
+    ): Promise<boolean> {
+        if (options.syncEnabled === true) return true;
+        try {
+            const settings =
+                await this.contentAsCodeProjectSettingsModel.get(projectUuid);
+            return settings?.syncEnabled === true;
+        } catch (error) {
+            this.logger.warn(
+                `Could not read content-as-code settings for project ${projectUuid}; treating sync as request-flag only`,
+                error,
+            );
+            return false;
+        }
+    }
+
+    // Snapshot stamping marks uploaded content as Git-backed. It never fails
+    // an upload and only runs for repos opted into content_as_code.sync.
     private async stampAppliedChartSnapshot(
         user: SessionUser,
         projectUuid: string,
@@ -2990,6 +3114,7 @@ export class CoderService extends BaseService {
         } = options;
         const shouldUpdateExistingContent = mode === 'upsert';
         const shouldUseExactSlug = mode === 'upsert';
+        const syncEnabled = await this.resolveSyncEnabled(projectUuid, options);
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -3190,7 +3315,7 @@ export class CoderService extends BaseService {
                     user,
                     projectUuid,
                     newChart.uuid,
-                    options.syncEnabled ?? false,
+                    syncEnabled,
                 );
             }
 
@@ -3348,7 +3473,7 @@ export class CoderService extends BaseService {
                 user,
                 projectUuid,
                 chart.uuid,
-                options.syncEnabled ?? false,
+                syncEnabled,
             );
         }
 
@@ -3552,9 +3677,8 @@ export class CoderService extends BaseService {
                 `Finished creating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
             );
 
-            // SQL charts don't support content_as_code.sync drift detection
-            // yet (positional-args upsert needs an options refactor first),
-            // so there is no baseline to gate recording on here.
+            // SQL charts do not record Git-backed snapshots yet because their
+            // positional upsert arguments do not carry sync settings.
             await this.stampAppliedSqlChartSnapshot(
                 user,
                 projectUuid,
@@ -4075,6 +4199,7 @@ export class CoderService extends BaseService {
         } = options;
         const shouldUpdateExistingContent = mode === 'upsert';
         const shouldUseExactSlug = mode === 'upsert';
+        const syncEnabled = await this.resolveSyncEnabled(projectUuid, options);
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -4211,7 +4336,7 @@ export class CoderService extends BaseService {
                     user,
                     projectUuid,
                     newDashboard.uuid,
-                    options.syncEnabled ?? false,
+                    syncEnabled,
                 );
             }
 
@@ -4375,7 +4500,7 @@ export class CoderService extends BaseService {
                 user,
                 projectUuid,
                 dashboard.uuid,
-                options.syncEnabled ?? false,
+                syncEnabled,
             );
         }
 
