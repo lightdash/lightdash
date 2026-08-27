@@ -110,7 +110,7 @@ describe('getPivotedColumns', () => {
         });
     });
 
-    test('value columns stay bare without an items map', () => {
+    test('value columns without an items map compose a friendly label and never provenance', () => {
         const columns = getPivotedColumns(
             unpivotedColumns,
             pivotConfiguration,
@@ -119,6 +119,7 @@ describe('getPivotedColumns', () => {
         expect(columns.orders_revenue_any_completed).toEqual({
             reference: 'orders_revenue_any_completed',
             type: DimensionType.NUMBER,
+            label: 'Orders revenue - Completed',
         });
     });
 });

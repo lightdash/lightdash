@@ -44,10 +44,25 @@ const tableCalculation: TableCalculation = {
 };
 
 describe('getResultColumnMetadataFromItem', () => {
-    test('returns empty metadata when there is no item behind the column', () => {
-        expect(getResultColumnMetadataFromItem(undefined, 'orders_x')).toEqual(
-            {},
-        );
+    test('columns with no item behind them get a friendly label and nothing else', () => {
+        expect(
+            getResultColumnMetadataFromItem(undefined, 'payment_method'),
+        ).toEqual({ label: 'Payment method' });
+    });
+
+    test('an item keyed by anything other than its own field id never enriches (the raw-SQL guard)', () => {
+        // SqlQueryComposer keys virtual-view items `${table}_${column}` while
+        // raw SQL warehouse columns are bare names. Even if a future change
+        // made the lookup hit, the identity mismatch must keep synthesized
+        // dimensions from stamping fake-field provenance.
+        const virtualViewDimension: Dimension = {
+            ...dimension,
+            name: 'status',
+            table: 'sql_query_explorer',
+        };
+        expect(
+            getResultColumnMetadataFromItem(virtualViewDimension, 'status'),
+        ).toEqual({ label: 'Status' });
     });
 
     test('enriches a plain dimension with label and provenance', () => {
@@ -158,6 +173,7 @@ describe('getResultColumnMetadataFromItem', () => {
     test('timestamp dimensions carry timeInterval and shiftsTimezone', () => {
         const timestampDimension: Dimension = {
             ...dimension,
+            name: 'created_at',
             type: DimensionType.TIMESTAMP,
             timeInterval: TimeFrames.SECOND,
         };
@@ -177,6 +193,7 @@ describe('getResultColumnMetadataFromItem', () => {
     test('date dimensions carry timeInterval without shifting', () => {
         const dateDimension: Dimension = {
             ...dimension,
+            name: 'created_month',
             type: DimensionType.DATE,
             timeInterval: TimeFrames.MONTH,
         };
@@ -191,6 +208,7 @@ describe('getResultColumnMetadataFromItem', () => {
     test('year-number dimensions carry no format at all', () => {
         const yearNumDimension: Dimension = {
             ...dimension,
+            name: 'created_year_num',
             type: DimensionType.NUMBER,
             timeInterval: TimeFrames.YEAR_NUM,
         };

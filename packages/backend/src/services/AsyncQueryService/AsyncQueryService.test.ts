@@ -2323,11 +2323,14 @@ describe('AsyncQueryService', () => {
                 pageSize: 10,
             });
 
-            // THEN: Returns READY status with complete result structure
+            // THEN: Returns READY status with complete result structure and
+            // the persisted display timezone (null when the metric query was
+            // built without one)
             expect(result).toMatchObject({
                 status: QueryHistoryStatus.READY,
                 queryUuid: 'test-query-uuid',
                 rows: expect.any(Array),
+                resolvedTimezone: metricQueryMock.timezone ?? null,
             });
 
             // THEN: Includes execution metadata

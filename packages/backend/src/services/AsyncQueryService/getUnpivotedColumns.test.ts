@@ -61,11 +61,41 @@ describe('getUnpivotedColumns', () => {
         });
     });
 
-    test('columns without a matching item stay bare', () => {
+    test('columns without a matching item get a friendly label and nothing else', () => {
         const columns = getUnpivotedColumns({}, warehouseFields, itemsMap);
         expect(columns.computed_col).toEqual({
             reference: 'computed_col',
             type: DimensionType.NUMBER,
+            label: 'Computed col',
+        });
+    });
+
+    test('raw SQL columns never enrich from virtual-view items (PROD-9832)', () => {
+        // SqlQueryComposer keys its items map `${table}_${column}` while raw
+        // SQL warehouse columns use bare names — and even a bare-keyed map
+        // must not stamp provenance, because the item's identity is not the
+        // column reference.
+        const virtualViewItemsMap: ItemsMap = {
+            sql_query_explorer_payment_method: {
+                ...statusDimension,
+                name: 'payment_method',
+                table: 'sql_query_explorer',
+            },
+            payment_method: {
+                ...statusDimension,
+                name: 'payment_method',
+                table: 'sql_query_explorer',
+            },
+        };
+        const columns = getUnpivotedColumns(
+            {},
+            { payment_method: { type: DimensionType.STRING } },
+            virtualViewItemsMap,
+        );
+        expect(columns.payment_method).toEqual({
+            reference: 'payment_method',
+            type: DimensionType.STRING,
+            label: 'Payment method',
         });
     });
 
@@ -94,11 +124,44 @@ describe('getUnpivotedColumns', () => {
         expect(withoutValues.orders_revenue.format).toBeUndefined();
     });
 
-    test('columns are bare when no items map is provided', () => {
+    test('columns get friendly labels when no items map is provided', () => {
         const columns = getUnpivotedColumns({}, warehouseFields);
         expect(columns.orders_status).toEqual({
             reference: 'orders_status',
             type: DimensionType.STRING,
+            label: 'Orders status',
+        });
+    });
+
+    test('column metadata overrides win and keep the live reference and type', () => {
+        const columns = getUnpivotedColumns(
+            {},
+            warehouseFields,
+            itemsMap,
+            null,
+            {
+                computed_col: {
+                    reference: 'computed_col',
+                    type: DimensionType.STRING,
+                    label: 'Orders Revenue',
+                    format: '#,##0.00',
+                    provenance: {
+                        fieldId: 'orders_revenue',
+                        sourceQueryUuid: 'referenced-query-uuid',
+                    },
+                },
+            },
+        );
+        expect(columns.computed_col).toEqual({
+            reference: 'computed_col',
+            // The live execution type wins over the override's
+            type: DimensionType.NUMBER,
+            label: 'Orders Revenue',
+            format: '#,##0.00',
+            provenance: {
+                fieldId: 'orders_revenue',
+                sourceQueryUuid: 'referenced-query-uuid',
+            },
         });
     });
 

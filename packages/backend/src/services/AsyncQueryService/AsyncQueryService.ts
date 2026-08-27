@@ -41,6 +41,7 @@ import {
     formatRawValue,
     formatRow,
     formatRows,
+    friendlyName,
     getAccountUserTimezone,
     getAvailableFilterFieldIds,
     getColumnTimezone,
@@ -244,7 +245,14 @@ import {
 import { getValidatedDashboardSorts } from './dashboardSorts';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
-import { applyMergeExportLimit } from './mergeQueryExecution';
+import {
+    getInheritedReferencedColumns,
+    type ReferencedQueryColumns,
+} from './inheritReferencedColumns';
+import {
+    applyMergeExportLimit,
+    buildComposeMergeOriginalColumns,
+} from './mergeQueryExecution';
 import {
     NoOpPreAggregateStrategy,
     type PreAggregateExecutionResolution,
@@ -1468,6 +1476,10 @@ export class AsyncQueryService extends ProjectService {
         return {
             rows,
             columns,
+            // The gated display timezone the SQL was built with — persisted on
+            // the metric query at creation, same value execute responses
+            // return as resolvedTimezone.
+            resolvedTimezone: displayTimezone,
             totalPageCount: pageCount,
             totalResults: totalRowCount ?? 0,
             queryUuid: queryHistory.queryUuid,
@@ -2364,6 +2376,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         itemsMap,
         usedParameters,
+        columnMetadataOverrides,
         dataTimezone,
         displayTimezone,
     }: {
@@ -2374,6 +2387,9 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration?: PivotConfiguration;
         itemsMap: ItemsMap;
         usedParameters?: ParametersValuesMap | null;
+        /** Pre-resolved metadata for columns the query inherits from the
+         *  queries it references (compose pass-through columns). */
+        columnMetadataOverrides?: ResultColumns;
         dataTimezone?: string;
         displayTimezone: string | null;
     }): Promise<{
@@ -2427,6 +2443,7 @@ export class AsyncQueryService extends ProjectService {
                       fields,
                       itemsMap,
                       usedParameters,
+                      columnMetadataOverrides,
                   );
 
                   const {
@@ -2633,6 +2650,7 @@ export class AsyncQueryService extends ProjectService {
                       fields,
                       itemsMap,
                       usedParameters,
+                      columnMetadataOverrides,
                   );
                   await write?.(rows);
               };
@@ -3223,10 +3241,15 @@ export class AsyncQueryService extends ProjectService {
         displayTimezone,
         warehouseClientOverride,
         warehouseCredentialsTypeOverride,
+        columnMetadataOverrides,
         rethrowOnError,
     }: RunAsyncWarehouseQueryArgs & {
         warehouseClientOverride?: WarehouseClient;
         warehouseCredentialsTypeOverride?: CreateWarehouseCredentials['type'];
+        /** Metadata for columns inherited from referenced queries (compose
+         *  pass-through columns). In-memory only: compose queries always run
+         *  in-process, never rebuilt from history. */
+        columnMetadataOverrides?: ResultColumns;
         rethrowOnError?: boolean;
     }) {
         type StreamMetrics = {
@@ -3411,6 +3434,7 @@ export class AsyncQueryService extends ProjectService {
                         pivotConfiguration,
                         itemsMap: fieldsMap,
                         usedParameters,
+                        columnMetadataOverrides,
                         dataTimezone: resolvedDataTimezone,
                         displayTimezone,
                     }),
@@ -6961,6 +6985,10 @@ export class AsyncQueryService extends ProjectService {
      * a query that reads another query's results starts once those results
      * exist, and fails if the referenced query fails. References must
      * already be authorized (authorizeQueryReferences).
+     *
+     * Each reference also carries the referenced query's persisted result
+     * columns, so compose output columns can inherit metadata from the
+     * queries they pass through (getInheritedReferencedColumns).
      */
     private async buildQueryReferenceCtes({
         account,
@@ -6970,7 +6998,7 @@ export class AsyncQueryService extends ProjectService {
         account: Account;
         projectUuid: string;
         references: Record<string, string>;
-    }): Promise<string[]> {
+    }): Promise<Array<{ cte: string } & ReferencedQueryColumns>> {
         return Promise.all(
             Object.entries(references).map(async ([tableName, queryUuid]) => {
                 let queryHistory: QueryHistory;
@@ -7020,9 +7048,13 @@ export class AsyncQueryService extends ProjectService {
                     queryHistory.columns,
                 );
 
-                return `${quoteDuckdbIdentifier(
-                    tableName,
-                )} AS (SELECT * FROM ${table})`;
+                return {
+                    cte: `${quoteDuckdbIdentifier(
+                        tableName,
+                    )} AS (SELECT * FROM ${table})`,
+                    queryUuid,
+                    columns: queryHistory.columns,
+                };
             }),
         );
     }
@@ -7505,7 +7537,13 @@ export class AsyncQueryService extends ProjectService {
                 queryUuid,
                 resolvedSql: AsyncQueryService.wrapSqlWithReferenceCtes(
                     sql,
-                    referenceCtes,
+                    referenceCtes.map(({ cte }) => cte),
+                ),
+                referencedResults: referenceCtes.map(
+                    ({ queryUuid: referencedQueryUuid, columns }) => ({
+                        queryUuid: referencedQueryUuid,
+                        columns,
+                    }),
                 ),
                 limit,
                 warehouseClient,
@@ -7538,6 +7576,7 @@ export class AsyncQueryService extends ProjectService {
         queryUuid,
         resolvedSql,
         storedCompiledSql,
+        referencedResults,
         limit,
         warehouseClient,
         queryTags,
@@ -7554,6 +7593,9 @@ export class AsyncQueryService extends ProjectService {
         resolvedSql: string;
         /** Safe SQL persisted instead of resolved SQL containing private URIs. */
         storedCompiledSql?: string;
+        /** Columns of the queries the SQL references, so pass-through output
+         *  columns inherit their metadata. */
+        referencedResults?: ReferencedQueryColumns[];
         limit: number | undefined;
         warehouseClient: WarehouseClient;
         queryTags: RunQueryTags;
@@ -7615,9 +7657,18 @@ export class AsyncQueryService extends ProjectService {
             });
             const fieldsMap = composer.getFields();
 
+            // Pass-through columns inherit label/format/provenance from the
+            // referenced queries; the rest get the raw-SQL friendly label.
+            const inheritedColumns = referencedResults
+                ? getInheritedReferencedColumns(columns, referencedResults)
+                : {};
             const originalColumns: ResultColumns = columns.reduce(
                 (acc, col) => {
-                    acc[col.name] = { reference: col.name, type: col.type };
+                    acc[col.name] = inheritedColumns[col.name] ?? {
+                        reference: col.name,
+                        type: col.type,
+                        label: friendlyName(col.name),
+                    };
                     return acc;
                 },
                 {} as ResultColumns,
@@ -7660,6 +7711,7 @@ export class AsyncQueryService extends ProjectService {
                 usedParameters: composer.getUsedParameters(),
                 cacheKey,
                 originalColumns,
+                columnMetadataOverrides: inheritedColumns,
                 queryCreatedAt,
                 displayTimezone: null,
                 warehouseClientOverride: warehouseClient,
@@ -8156,11 +8208,13 @@ export class AsyncQueryService extends ProjectService {
             references,
         });
 
-        const originalColumns: ResultColumns = Object.fromEntries(
-            compiledMerge.typedColumns.map((column) => [
-                column.reference,
-                { reference: column.reference, type: column.type },
-            ]),
+        const originalColumns: ResultColumns = buildComposeMergeOriginalColumns(
+            {
+                typedColumns: compiledMerge.typedColumns,
+                itemsMap: compiledMerge.itemsMap,
+                usedParametersValues: compiledMerge.usedParametersValues,
+                legQueryUuidBySourceId,
+            },
         );
 
         const queryTags: RunQueryTags = {
@@ -8343,7 +8397,7 @@ export class AsyncQueryService extends ProjectService {
             });
             const query = AsyncQueryService.wrapSqlWithReferenceCtes(
                 sql,
-                referenceCtes,
+                referenceCtes.map(({ cte }) => cte),
             );
             await this.queryHistoryModel.update(
                 queryUuid,

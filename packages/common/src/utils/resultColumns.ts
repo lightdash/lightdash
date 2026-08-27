@@ -1,5 +1,10 @@
 import { isValidFormat } from 'numfmt';
-import { isDimension, isTableCalculation, type Item } from '../types/field';
+import {
+    friendlyName,
+    isDimension,
+    isTableCalculation,
+    type Item,
+} from '../types/field';
 import { type ParametersValuesMap } from '../types/parameters';
 import { type ResultColumn } from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
@@ -12,22 +17,35 @@ import {
     hasValidFormatExpression,
     shouldShiftItemTimezone,
 } from './formatting';
-import { getItemLabel } from './item';
+import { getItemId, getItemLabel } from './item';
 
 type ResultColumnMetadata = Omit<ResultColumn, 'reference' | 'type'>;
 
 /**
  * The display/format metadata a semantic item contributes to its result
  * column, resolved once at query-write time (docs/composer-viz-plan/01-design.md §3).
- * Returns an empty object for columns with no item behind them, so callers can
- * spread it unconditionally.
+ *
+ * An item enriches a column only when the column reference IS the item's own
+ * field id. Raw SQL columns fail that identity check by construction —
+ * `SqlQueryComposer` keys its virtual-view items `${table}_${column}` while
+ * warehouse columns use bare names — and the mismatch is the contract, not an
+ * accident: virtual-view dimensions are synthesized from probed columns, so
+ * stamping them as provenance would resurrect the merge-path fake-field
+ * failure mode (01-design.md §1). The guard means a future re-keying of that
+ * map still cannot mark them semantic.
+ *
+ * Columns with no semantic item behind them get a friendly display label
+ * derived from the reference and nothing else — never provenance, never a
+ * format (the PROD-9832 raw-SQL rule).
  */
 export function getResultColumnMetadataFromItem(
     item: Item | undefined,
     fieldId: string,
     parameters?: ParametersValuesMap | null,
 ): ResultColumnMetadata {
-    if (!item) return {};
+    if (!item || getItemId(item) !== fieldId) {
+        return { label: friendlyName(fieldId) };
+    }
 
     const metadata: ResultColumnMetadata = {
         label: getItemLabel(item),

@@ -1,4 +1,60 @@
-import { isMergeMetricSource, type MergeQuery } from '@lightdash/common';
+import {
+    getResultColumnMetadataFromItem,
+    isMergeMetricSource,
+    type ItemsMap,
+    type MergeQuery,
+    type MergeTypedColumn,
+    type ParametersValuesMap,
+    type ResultColumns,
+} from '@lightdash/common';
+
+/**
+ * Pre-pivot original columns of a compose-mode merge, enriched with what is
+ * in hand at the build site: display metadata from the merged items map and
+ * provenance from each typed column's origin. A source-owned column's
+ * provenance points at the field in the leg query that produced it (fieldId +
+ * sourceQueryUuid — two sources can both expose `orders_status`, so a bare
+ * fieldId is ambiguous). Join keys keep the merged field's own provenance
+ * (they descend from no single source); table calculations carry none.
+ */
+export const buildComposeMergeOriginalColumns = ({
+    typedColumns,
+    itemsMap,
+    usedParametersValues,
+    legQueryUuidBySourceId,
+}: {
+    typedColumns: MergeTypedColumn[];
+    itemsMap: ItemsMap;
+    usedParametersValues: ParametersValuesMap;
+    legQueryUuidBySourceId: Record<string, string>;
+}): ResultColumns =>
+    Object.fromEntries(
+        typedColumns.map((column) => {
+            const metadata = getResultColumnMetadataFromItem(
+                itemsMap[column.reference],
+                column.reference,
+                usedParametersValues,
+            );
+            if (column.origin.kind === 'source') {
+                const sourceQueryUuid =
+                    legQueryUuidBySourceId[column.origin.sourceId];
+                if (sourceQueryUuid) {
+                    metadata.provenance = {
+                        fieldId: column.origin.sourceFieldId,
+                        sourceQueryUuid,
+                    };
+                }
+            }
+            return [
+                column.reference,
+                {
+                    reference: column.reference,
+                    type: column.type,
+                    ...metadata,
+                },
+            ];
+        }),
+    );
 
 export const getMergeOutputColumnCount = (mergeQuery: MergeQuery): number =>
     mergeQuery.joinKey.length +
