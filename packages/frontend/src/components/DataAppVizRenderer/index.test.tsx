@@ -48,7 +48,11 @@ const mocks = vi.hoisted(() => ({
     dataAppVizUuid: { current: 'viz-uuid' as string | null },
     dataAppVizVersion: { current: 7 as number | undefined },
     setDataAppVizVersion: vi.fn(),
-    iframePreview: vi.fn(() => null),
+    iframePreview: vi.fn(
+        (_props: {
+            onScreenshotAvailabilityChange: (available: boolean) => void;
+        }) => null,
+    ),
     renderMetadataHook: vi.fn(),
     previewTokenHook: vi.fn(),
     setFetchAll: vi.fn(),
@@ -165,6 +169,12 @@ const renderRenderer = (props?: Parameters<typeof DataAppVizRenderer>[0]) =>
             <DataAppVizRenderer {...props} />
         </MantineProvider>,
     );
+
+const announceIframeAvailable = () => {
+    const iframeProps = mocks.iframePreview.mock.lastCall?.[0];
+    if (!iframeProps) throw new Error('Expected the iframe preview to render');
+    act(() => iframeProps.onScreenshotAvailabilityChange(true));
+};
 
 const readyMetadata = () => ({
     state: 'ready' as const,
@@ -366,7 +376,7 @@ describe('DataAppVizRenderer', () => {
         );
     });
 
-    it('pins an unsaved project chart type to the version it previews', () => {
+    it('pins an unsaved project chart type only after its iframe is available', () => {
         mocks.dataAppVizVersion.current = undefined;
         mocks.vizContextOverrides.current = {
             savedChartUuid: undefined,
@@ -374,6 +384,10 @@ describe('DataAppVizRenderer', () => {
         };
 
         renderRenderer();
+
+        expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
+
+        announceIframeAvailable();
 
         expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
     });
@@ -405,6 +419,10 @@ describe('DataAppVizRenderer', () => {
                 savedChartUuid: 'saved-chart-uuid',
             },
         );
+        expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
+
+        announceIframeAvailable();
+
         expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
     });
 
@@ -437,6 +455,9 @@ describe('DataAppVizRenderer', () => {
                 savedChartUuid: 'saved-chart-uuid',
             },
         );
+
+        announceIframeAvailable();
+
         expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
     });
 

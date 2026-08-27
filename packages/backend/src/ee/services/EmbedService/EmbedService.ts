@@ -1860,12 +1860,22 @@ export class EmbedService extends BaseService {
         dataAppVizUuid: string,
         version: number,
     ): Promise<string> {
-        const { dataAppViz } = await this.getAuthorizedDataAppVizForEmbed(
-            account,
-            projectUuid,
-            savedChartUuid,
-            dataAppVizUuid,
-        );
+        const { dataAppViz, chart } =
+            await this.getAuthorizedDataAppVizForEmbed(
+                account,
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+            );
+        const pinnedVersion =
+            chart.chartConfig.type === ChartType.DATA_APP_VIZ
+                ? chart.chartConfig.config?.dataAppVizVersion
+                : undefined;
+        if (pinnedVersion !== undefined && version !== pinnedVersion) {
+            throw new ForbiddenError(
+                'Not authorized to access this visualization version',
+            );
+        }
         await resolveRenderableDataAppVizVersion(
             this.appModel,
             dataAppViz.app_id,

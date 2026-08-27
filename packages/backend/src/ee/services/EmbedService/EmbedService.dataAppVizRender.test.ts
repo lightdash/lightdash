@@ -237,6 +237,43 @@ describe('EmbedService data app viz rendering', () => {
         expect(appModel.getLatestVersion).not.toHaveBeenCalled();
     });
 
+    it('rejects a preview token for a version other than the embedded chart pin', async () => {
+        const appModel = {
+            findVisualizationApp: vi
+                .fn()
+                .mockResolvedValue(makeDataAppVizRow()),
+            getVersion: vi.fn().mockResolvedValue(makeVersion({ version: 4 })),
+        };
+        const service = buildService({
+            appModel,
+            savedChartModel: {
+                get: vi.fn().mockResolvedValue(
+                    makeSavedChart({
+                        chartConfig: {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: {
+                                dataAppVizUuid: DATA_APP_VIZ_UUID,
+                                dataAppVizVersion: 2,
+                                fieldMapping: {},
+                            },
+                        },
+                    }),
+                ),
+            },
+        });
+
+        await expect(
+            service.getEmbedDataAppVizPreviewToken(
+                chartAccount(),
+                PROJECT_UUID,
+                SAVED_CHART_UUID,
+                DATA_APP_VIZ_UUID,
+                4,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(appModel.getVersion).not.toHaveBeenCalled();
+    });
+
     it('rejects a different chart than the standalone chart named by the JWT', async () => {
         const savedChartModel = { get: vi.fn() };
         const service = buildService({

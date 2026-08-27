@@ -148,7 +148,10 @@ import {
 } from '../../../database/entities/apps';
 import { type CaslAuditWrapper } from '../../../logging/caslAuditWrapper';
 import { AnalyticsModel } from '../../../models/AnalyticsModel';
-import { AppModel } from '../../../models/AppModel';
+import {
+    AppModel,
+    type PreviewChartVizBindingMapping,
+} from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
@@ -7880,11 +7883,7 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const mappings: {
-            sourceAppUuid: string;
-            previewAppUuid: string;
-            previewAppVersion: number;
-        }[] = [];
+        const mappings: PreviewChartVizBindingMapping[] = [];
 
         /* eslint-disable no-await-in-loop */
         for (const sourceApp of sourceApps) {
@@ -8671,13 +8670,24 @@ export class AppGenerateService extends BaseService {
         version: number,
         chartVersionUuid?: string,
     ): Promise<string> {
-        const { dataAppViz } = await this.getAuthorizedDataAppVizForChart(
-            user,
-            projectUuid,
-            savedChartUuid,
-            dataAppVizUuid,
-            chartVersionUuid,
-        );
+        const { dataAppViz, chart } =
+            await this.getAuthorizedDataAppVizForChart(
+                user,
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+                chartVersionUuid,
+            );
+
+        const pinnedVersion =
+            chart.chartConfig.type === ChartType.DATA_APP_VIZ
+                ? chart.chartConfig.config?.dataAppVizVersion
+                : undefined;
+        if (pinnedVersion !== undefined && version !== pinnedVersion) {
+            throw new ForbiddenError(
+                'Not authorized to access this visualization version',
+            );
+        }
 
         await resolveRenderableDataAppVizVersion(
             this.appModel,

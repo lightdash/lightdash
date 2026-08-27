@@ -641,6 +641,43 @@ describe('AppGenerateService data app vizs', () => {
             expect(appModel.getLatestVersion).not.toHaveBeenCalled();
         });
 
+        it('rejects a preview token for a version other than the saved chart pin', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+            };
+            const service = buildService(appModel, {
+                savedChartService: { hasAccess: vi.fn().mockResolvedValue([]) },
+                savedChartModel: {
+                    get: vi.fn().mockResolvedValue({
+                        uuid: 'chart-1',
+                        chartConfig: {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: {
+                                dataAppVizUuid: 'data-app-viz-1',
+                                dataAppVizVersion: 2,
+                            },
+                        },
+                    }),
+                },
+            });
+
+            await expect(
+                service.getChartDataAppVizPreviewToken(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                    4,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(appModel.getVersion).not.toHaveBeenCalled();
+        });
+
         it('propagates the chart denial and mints no token', async () => {
             const appModel = {
                 findVisualizationApp: vi
