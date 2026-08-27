@@ -214,6 +214,7 @@ function buildService(
         analytics: analytics as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: featureFlagModel as never,
         organizationDesignModel: {} as never,

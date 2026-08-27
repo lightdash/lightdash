@@ -1143,9 +1143,11 @@ export class ServiceRepository
                 new SpacePermissionService({
                     spaceModel: this.models.getSpaceModel(),
                     spacePermissionModel: this.models.getSpacePermissionModel(),
+                    appAccessModel: this.models.getAppAccessModel(),
                     dashboardAccessModel: this.models.getDashboardAccessModel(),
                     savedChartAccessModel:
                         this.models.getSavedChartAccessModel(),
+                    savedSqlAccessModel: this.models.getSavedSqlAccessModel(),
                     directAccessFeatureGate: new DirectAccessFeatureGate(
                         this.models.getFeatureFlagModel(),
                         this.getLicenseService(),

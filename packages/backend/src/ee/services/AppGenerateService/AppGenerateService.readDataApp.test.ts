@@ -77,6 +77,7 @@ function buildService(appModel: Record<string, unknown>): AppGenerateService {
         analytics: { track: vi.fn() } as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: {
             findAppBySlug: vi.fn().mockResolvedValue(fakeApp),
             countVersions: vi.fn().mockResolvedValue(2),

@@ -11,6 +11,12 @@ import {
     AnalyticsDashboardViewsTableName,
 } from '../database/entities/analytics';
 import {
+    AppGroupAccessTable,
+    AppGroupAccessTableName,
+    AppUserAccessTable,
+    AppUserAccessTableName,
+} from '../database/entities/appAccess';
+import {
     AppsTable,
     AppsTableName,
     AppVersionsTable,
@@ -314,6 +320,12 @@ import {
     SavedSqlVersionsTableName,
 } from '../database/entities/savedSql';
 import {
+    SavedSqlGroupAccessTable,
+    SavedSqlGroupAccessTableName,
+    SavedSqlUserAccessTable,
+    SavedSqlUserAccessTableName,
+} from '../database/entities/savedSqlAccess';
+import {
     SchedulerEmailTargetTable,
     SchedulerEmailTargetTableName,
     SchedulerGoogleChatTargetTable,
@@ -616,6 +628,8 @@ declare module 'knex/types/tables' {
         [SavedChartAdditionalMetricTableName]: SavedChartAdditionalMetricTable;
         [SavedSqlTableName]: SavedSqlTable;
         [SavedSqlVersionsTableName]: SavedSqlVersionsTable;
+        [SavedSqlUserAccessTableName]: SavedSqlUserAccessTable;
+        [SavedSqlGroupAccessTableName]: SavedSqlGroupAccessTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
         [DashboardUserAccessTableName]: DashboardUserAccessTable;
@@ -781,6 +795,8 @@ declare module 'knex/types/tables' {
         [ContentVerificationTableName]: ContentVerificationTable;
         [AppsTableName]: AppsTable;
         [AppVersionsTableName]: AppVersionsTable;
+        [AppUserAccessTableName]: AppUserAccessTable;
+        [AppGroupAccessTableName]: AppGroupAccessTable;
         [AiRouterTableName]: AiRouterTable;
         [AiRouterDecisionTableName]: AiRouterDecisionTable;
         [ExternalConnectionsTableName]: ExternalConnectionsTable;

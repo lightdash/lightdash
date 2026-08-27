@@ -21,7 +21,7 @@ vi.mock('ai', () => ({
 
 // Mock appAuthz so permission checks are controllable in tests
 vi.mock('./appAuthz', () => ({
-    assertCanViewApp: vi.fn().mockResolvedValue(undefined),
+    assertCanViewApp: vi.fn().mockResolvedValue({ directOnly: false } as never),
 }));
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -212,6 +212,7 @@ function buildService(overrides: {
         analytics: { track: analyticsTrackSpy } as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: fullAppModel as never,
         featureFlagModel: featureFlagModel as never,
         organizationDesignModel: fullOrganizationDesignModel as never,
@@ -260,7 +261,9 @@ describe('AppGenerateService.getAppCode', () => {
     });
 
     beforeEach(() => {
-        vi.mocked(assertCanViewApp).mockResolvedValue(undefined);
+        vi.mocked(assertCanViewApp).mockResolvedValue({
+            directOnly: false,
+        } as never);
         analyticsTrackSpy.mockClear();
     });
 

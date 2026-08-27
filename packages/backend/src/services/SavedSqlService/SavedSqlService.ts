@@ -44,7 +44,10 @@ import type {
     SoftDeletableService,
     SoftDeleteOptions,
 } from '../SoftDeletableService';
-import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import {
+    SpacePermissionService,
+    type AccessTarget,
+} from '../SpaceService/SpacePermissionService';
 
 type SavedSqlServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -182,19 +185,30 @@ export class SavedSqlService
                 ? resource.spaceUuid
                 : null;
 
-        const targetSpaceUuids = newSpaceUuid
-            ? [spaceUuid, newSpaceUuid]
-            : [spaceUuid];
+        const destinationTargets: AccessTarget[] =
+            newSpaceUuid !== null
+                ? [{ type: 'space', spaceUuid: newSpaceUuid }]
+                : [];
+
+        const currentTarget: AccessTarget =
+            destinationTargets.length === 0 && resource.savedSqlUuid !== null
+                ? {
+                      type: 'sqlChart',
+                      savedSqlUuid: resource.savedSqlUuid,
+                      spaceUuid,
+                  }
+                : { type: 'space', spaceUuid };
+        const targets = [currentTarget, ...destinationTargets];
+        const accessResults =
+            await this.spacePermissionService.resolveAccessBatch(
+                actor.user.userUuid,
+                targets,
+            );
         const contextsBySpaceUuid = new Map(
-            (
-                await this.spacePermissionService.resolveAccessBatch(
-                    actor.user.userUuid,
-                    targetSpaceUuids.map((targetSpaceUuid) => ({
-                        type: 'space' as const,
-                        spaceUuid: targetSpaceUuid,
-                    })),
-                )
-            ).map(({ target, context }) => [target.spaceUuid, context]),
+            accessResults.map(({ target, context }) => [
+                target.spaceUuid,
+                context,
+            ]),
         );
         const currentContext = contextsBySpaceUuid.get(spaceUuid);
         if (currentContext === undefined) {
@@ -219,7 +233,7 @@ export class SavedSqlService
             );
         }
 
-        if (newSpaceUuid) {
+        if (newSpaceUuid !== null) {
             const targetContext = contextsBySpaceUuid.get(newSpaceUuid);
             if (targetContext === undefined) {
                 throw new ForbiddenError(
@@ -242,6 +256,21 @@ export class SavedSqlService
         }
 
         return currentContext;
+    }
+
+    private async hasChartSpaceAccess(
+        user: SessionUser,
+        spaceUuid: string,
+    ): Promise<boolean> {
+        try {
+            return await this.spacePermissionService.can(
+                'view',
+                user,
+                spaceUuid,
+            );
+        } catch (e) {
+            return false;
+        }
     }
 
     async getSqlChart(
@@ -333,9 +362,12 @@ export class SavedSqlService
                 user,
                 projectUuid,
             },
-            {
-                savedSqlUuid: savedChart.savedSqlUuid,
-            },
+            embedWriteActions
+                ? {
+                      savedSqlUuid: null,
+                      spaceUuid: savedChart.space.uuid,
+                  }
+                : { savedSqlUuid: savedChart.savedSqlUuid },
         );
 
         this.analytics.track({
@@ -751,11 +783,11 @@ export class SavedSqlService
             if (!savedChart) {
                 throw new Error('Saved chart not found');
             }
-            await this.hasAccess(
-                'view',
-                { user, projectUuid },
-                { savedSqlUuid: savedChart.savedSqlUuid },
-            );
+            if (
+                !(await this.hasChartSpaceAccess(user, savedChart.space.uuid))
+            ) {
+                throw new ForbiddenError();
+            }
         } else {
             // If it's not a saved chart, check if the user has access to run a pivot query
             const auditedAbility = this.createAuditedAbility(user);
@@ -816,11 +848,9 @@ export class SavedSqlService
             throw new Error('Either chartUuid or slug must be provided');
         }
 
-        await this.hasAccess(
-            'view',
-            { user, projectUuid },
-            { savedSqlUuid: savedChart.savedSqlUuid },
-        );
+        if (!(await this.hasChartSpaceAccess(user, savedChart.space.uuid))) {
+            throw new ForbiddenError();
+        }
 
         const jobId = await this.schedulerClient.runSql({
             userUuid: user.userUuid,
@@ -904,21 +934,6 @@ export class SavedSqlService
         }
     }
 
-    private async hasChartSpaceAccess(
-        user: SessionUser,
-        spaceUuid: string,
-    ): Promise<boolean> {
-        try {
-            return await this.spacePermissionService.can(
-                'view',
-                user,
-                spaceUuid,
-            );
-        } catch (e) {
-            return false;
-        }
-    }
-
     private async checkCreateScheduledDeliveryAccess(
         user: SessionUser,
         projectUuid: string,
@@ -944,11 +959,7 @@ export class SavedSqlService
             throw new ForbiddenError();
         }
 
-        if (!(await this.hasChartSpaceAccess(user, spaceUuid))) {
-            throw new ForbiddenError(
-                "You don't have access to the space this chart belongs to",
-            );
-        }
+        await this.hasAccess('view', { user, projectUuid }, { savedSqlUuid });
 
         return { organizationUuid, spaceUuid };
     }

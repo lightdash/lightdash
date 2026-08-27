@@ -738,14 +738,23 @@ export class AsyncQueryService extends ProjectService {
         account: Account,
         action: 'view' | 'create' | 'update' | 'delete' | 'manage',
         savedChart: {
+            savedSqlUuid: string;
             project: Pick<Project, 'projectUuid'>;
             organization: Pick<Organization, 'organizationUuid'>;
             space: Pick<SpaceSummaryBase, 'uuid'>;
         },
     ) {
+        // JWT/embed identities stay on their existing space-scoped contract.
+        // Direct user grants are only resolved for registered accounts.
         const ctx = await this.spacePermissionService.resolveAccess(
             account.user.id,
-            { type: 'space', spaceUuid: savedChart.space.uuid },
+            isJwtUser(account)
+                ? { type: 'space', spaceUuid: savedChart.space.uuid }
+                : {
+                      type: 'sqlChart',
+                      savedSqlUuid: savedChart.savedSqlUuid,
+                      spaceUuid: savedChart.space.uuid,
+                  },
         );
 
         const auditedAbility = this.createAuditedAbility(account);

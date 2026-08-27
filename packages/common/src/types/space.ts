@@ -156,7 +156,7 @@ export type SpaceInheritanceChain = {
 
 // Which content type's direct grant synthesized an access row. Grows one
 // member per content type that ships direct grants.
-export type GrantSource = 'dashboard' | 'saved_chart';
+export type GrantSource = 'app' | 'dashboard' | 'saved_chart' | 'sql_chart';
 
 // Access data for checking Space access permissions with CASL where only the role/access data matters.
 export type SpaceAccess = {

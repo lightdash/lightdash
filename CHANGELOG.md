@@ -1,3 +1,24 @@
+# [2.40.0](https://github.com/lightdash/lightdash/compare/2.39.0...2.40.0) (2026-08-27)
+
+
+### Features
+
+* **sql-charts:** apply direct access to lifecycle ([#28214](https://github.com/lightdash/lightdash/issues/28214)) ([6bf178a](https://github.com/lightdash/lightdash/commit/6bf178a34a7121d50da9195321e6a42e35920122)), closes [#28213](https://github.com/lightdash/lightdash/issues/28213)
+
+# [2.39.0](https://github.com/lightdash/lightdash/compare/2.38.0...2.39.0) (2026-08-27)
+
+
+### Features
+
+* **sql-charts:** apply direct access to reads ([#28213](https://github.com/lightdash/lightdash/issues/28213)) ([bf2ef30](https://github.com/lightdash/lightdash/commit/bf2ef305d1e15a35a0ae91409aa9f906f0717b9d))
+
+# [2.38.0](https://github.com/lightdash/lightdash/compare/2.37.0...2.38.0) (2026-08-27)
+
+
+### Features
+
+* **backend:** stamp result columns with display metadata at query-write time ([#28146](https://github.com/lightdash/lightdash/issues/28146)) ([033a700](https://github.com/lightdash/lightdash/commit/033a700a52ad7697543a33ef91a51849a4752326))
+
 # [2.37.0](https://github.com/lightdash/lightdash/compare/2.36.1...2.37.0) (2026-08-27)
 
 

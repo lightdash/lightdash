@@ -2,8 +2,10 @@ import { SpaceMemberRole } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
+import { AppUserAccessTableName } from '../database/entities/appAccess';
 import { DashboardUserAccessTableName } from '../database/entities/dashboardAccess';
 import { type UtilRepository } from '../utils/UtilRepository';
+import { AppAccessModel } from './AppAccessModel';
 import { DashboardAccessModel } from './DashboardAccessModel';
 import { ModelRepository } from './ModelRepository';
 
@@ -71,6 +73,64 @@ describe('dashboard direct access read model', () => {
     });
 });
 
+describe('app direct access read model', () => {
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('does not query for an empty resource list', async () => {
+        await expect(
+            new AppAccessModel(database).getUserAccess([], 'user-uuid', {
+                organizationUuid: 'organization-uuid',
+            }),
+        ).resolves.toEqual({});
+        expect(tracker.history.select).toHaveLength(0);
+    });
+
+    it('preserves personal app location while grouping user and group roles', async () => {
+        tracker.on.select(AppUserAccessTableName).responseOnce([
+            {
+                resourceUuid: 'app-a',
+                organizationUuid: 'organization-uuid',
+                projectUuid: 'project-uuid',
+                spaceUuid: null,
+                role: SpaceMemberRole.VIEWER,
+                groupUuid: null,
+            },
+            {
+                resourceUuid: 'app-a',
+                organizationUuid: 'organization-uuid',
+                projectUuid: 'project-uuid',
+                spaceUuid: null,
+                role: SpaceMemberRole.EDITOR,
+                groupUuid: 'group-a',
+            },
+        ]);
+
+        await expect(
+            new AppAccessModel(database).getUserAccess(
+                ['app-a', 'app-a'],
+                'user-uuid',
+                { organizationUuid: 'organization-uuid' },
+            ),
+        ).resolves.toEqual({
+            'app-a': {
+                organizationUuid: 'organization-uuid',
+                projectUuid: 'project-uuid',
+                spaceUuid: null,
+                userRole: SpaceMemberRole.VIEWER,
+                groupRoles: [SpaceMemberRole.EDITOR],
+            },
+        });
+    });
+});
+
 describe('dashboard direct access model wiring', () => {
     it('exposes a memoized DashboardAccessModel', () => {
         const models = new ModelRepository({
@@ -84,5 +144,17 @@ describe('dashboard direct access model wiring', () => {
         expect(models.getDashboardAccessModel()).toBe(
             models.getDashboardAccessModel(),
         );
+    });
+});
+
+describe('app direct access model wiring', () => {
+    it('exposes a memoized AppAccessModel', () => {
+        const models = new ModelRepository({
+            database: {} as Knex,
+            lightdashConfig: lightdashConfigMock,
+            utils: {} as UtilRepository,
+        });
+        expect(models.getAppAccessModel()).toBeInstanceOf(AppAccessModel);
+        expect(models.getAppAccessModel()).toBe(models.getAppAccessModel());
     });
 });

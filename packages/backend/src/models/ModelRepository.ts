@@ -4,6 +4,7 @@ import { PreAggregateDailyStatsModel } from '../ee/models/PreAggregateDailyStats
 import { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
+import { AppAccessModel } from './AppAccessModel';
 import { AppModel } from './AppModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
 import { CommentModel } from './CommentModel/CommentModel';
@@ -57,6 +58,7 @@ import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { RolesModel } from './RolesModel';
 import { SavedChartAccessModel } from './SavedChartAccessModel';
 import { SavedChartModel } from './SavedChartModel';
+import { SavedSqlAccessModel } from './SavedSqlAccessModel';
 import { SavedSqlModel } from './SavedSqlModel';
 import { SchedulerModel } from './SchedulerModel';
 import { SearchModel } from './SearchModel';
@@ -87,11 +89,13 @@ import { WarehouseConnectCodeModel } from './WarehouseConnectCodeModel';
 
 export type ModelManifest = {
     analyticsModel: AnalyticsModel;
+    appAccessModel: AppAccessModel;
     appModel: AppModel;
     commentModel: CommentModel;
     dashboardModel: DashboardModel;
     dashboardAccessModel: DashboardAccessModel;
     savedChartAccessModel: SavedChartAccessModel;
+    savedSqlAccessModel: SavedSqlAccessModel;
     deploySessionModel: DeploySessionModel;
     downloadFileModel: DownloadFileModel;
     downloadAuditModel: DownloadAuditModel;
@@ -292,6 +296,13 @@ export class ModelRepository
         );
     }
 
+    public getAppAccessModel(): AppAccessModel {
+        return this.getModel(
+            'appAccessModel',
+            () => new AppAccessModel(this.database),
+        );
+    }
+
     public getAppModel(): AppModel {
         return this.getModel(
             'appModel',
@@ -329,6 +340,13 @@ export class ModelRepository
         return this.getModel(
             'savedChartAccessModel',
             () => new SavedChartAccessModel(this.database),
+        );
+    }
+
+    public getSavedSqlAccessModel(): SavedSqlAccessModel {
+        return this.getModel(
+            'savedSqlAccessModel',
+            () => new SavedSqlAccessModel(this.database),
         );
     }
 

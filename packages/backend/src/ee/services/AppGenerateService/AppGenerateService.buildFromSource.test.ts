@@ -36,6 +36,7 @@ type ServiceWithPrivates = {
     uploadToS3: ReturnType<typeof vi.fn>;
     suspendSandbox: ReturnType<typeof vi.fn>;
     markError: ReturnType<typeof vi.fn>;
+    authorizePipelineExecution: ReturnType<typeof vi.fn>;
 };
 
 const fakeSandbox: SandboxStub = {
@@ -94,6 +95,7 @@ function buildService(
         analytics: {} as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
@@ -139,6 +141,7 @@ function buildService(
     service.uploadToS3 = vi.fn().mockResolvedValue(100);
     service.suspendSandbox = vi.fn().mockResolvedValue(undefined);
     service.markError = vi.fn().mockResolvedValue(true);
+    service.authorizePipelineExecution = vi.fn().mockResolvedValue({});
 
     return { service, appModel };
 }
@@ -149,6 +152,26 @@ describe('AppGenerateService.runBuildFromSourcePipeline', () => {
         fakeSandbox.pause.mockReset().mockResolvedValue(undefined);
     });
 
+    it('stops before build setup when queued authorization is no longer valid', async () => {
+        const { service } = buildService();
+        service.authorizePipelineExecution.mockRejectedValueOnce(
+            new Error('revoked'),
+        );
+        service.runBuild = vi.fn();
+
+        await service.runBuildFromSourcePipeline(makePayload());
+
+        expect(service.markError).toHaveBeenCalledWith(
+            'app-uuid-1',
+            1,
+            expect.any(Error),
+            'Build stopped because access is no longer available.',
+        );
+        expect(service.getS3Client).not.toHaveBeenCalled();
+        expect(service.createSandbox).not.toHaveBeenCalled();
+        expect(service.runBuild).not.toHaveBeenCalled();
+    });
+
     it('happy path: advances sandbox→building→packaging→ready, uploads, no markError', async () => {
         const { service, appModel } = buildService();
 
@@ -157,6 +180,10 @@ describe('AppGenerateService.runBuildFromSourcePipeline', () => {
             .mockResolvedValue({ exitCode: 0, stdout: '', stderr: '' });
 
         await service.runBuildFromSourcePipeline(makePayload());
+
+        expect(service.authorizePipelineExecution).toHaveBeenCalledWith(
+            makePayload(),
+        );
 
         const calls = appModel.updateVersionStatusIfInProgress.mock
             .calls as unknown[][];

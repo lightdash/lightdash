@@ -12,7 +12,10 @@ vi.mock('ai', () => ({
     generateObject: vi.fn(),
 }));
 vi.mock('./appAuthz', () => ({
-    assertCanViewApp: vi.fn().mockResolvedValue(undefined),
+    assertCanViewApp: vi.fn().mockResolvedValue({ directOnly: false }),
+    getAppViewAuthorizationContext: vi
+        .fn()
+        .mockResolvedValue({ directOnly: false }),
 }));
 
 const PROJECT_UUID = 'proj-uuid-1';
@@ -144,6 +147,7 @@ function buildService() {
         analytics: { track: vi.fn() } as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: featureFlagModel as never,
         organizationDesignModel: organizationDesignModel as never,
@@ -155,7 +159,14 @@ function buildService() {
         schedulerClient: {} as never,
         savedChartService: {} as never,
         spacePermissionService: {
-            resolveAccess: vi.fn().mockResolvedValue({}),
+            resolveAccess: vi.fn().mockResolvedValue({
+                organizationUuid: ORG_UUID,
+                projectUuid: PROJECT_UUID,
+                inheritsFromOrgOrProject: false,
+                access: [],
+                admins: [],
+                directOnly: false,
+            }),
         } as never,
         coderService: {} as never,
         dashboardService: {} as never,
