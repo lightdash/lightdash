@@ -1,3 +1,10 @@
+# [2.40.0](https://github.com/lightdash/lightdash/compare/2.39.0...2.40.0) (2026-08-27)
+
+
+### Features
+
+* **sql-charts:** apply direct access to lifecycle ([#28214](https://github.com/lightdash/lightdash/issues/28214)) ([6bf178a](https://github.com/lightdash/lightdash/commit/6bf178a34a7121d50da9195321e6a42e35920122)), closes [#28213](https://github.com/lightdash/lightdash/issues/28213)
+
 # [2.39.0](https://github.com/lightdash/lightdash/compare/2.38.0...2.39.0) (2026-08-27)
 
 
