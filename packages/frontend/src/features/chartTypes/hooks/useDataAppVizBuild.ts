@@ -4,6 +4,7 @@ import {
     getErrorMessage,
     type ApiAppVersionSummary,
     type AppClarification,
+    type AppVersionExternalConnectionResource,
     type DataAppClaudeModel,
     type DataAppCodexModel,
     type DataAppVizFieldMapping,
@@ -40,6 +41,8 @@ export type VizBuildRequest = {
     /** Answers to the pre-build clarifying round; empty when it was skipped,
      *  fell through, or never ran. Only a first build can carry them. */
     clarifications: AppClarification[];
+    /** Connections to link before this generate/iterate. Empty when none. */
+    externalConnections: AppVersionExternalConnectionResource[];
 } & (
     | { claudeModel: DataAppClaudeModel; codexModel?: never }
     | { codexModel: DataAppCodexModel; claudeModel?: never }
@@ -171,6 +174,15 @@ export const useDataAppVizBuild = ({
             const prompt = request.description;
             const files =
                 request.fileIds.length > 0 ? request.fileIds : undefined;
+            const externalConnections =
+                request.externalConnections.length > 0
+                    ? request.externalConnections.map(
+                          ({ externalConnectionUuid, alias }) => ({
+                              externalConnectionUuid,
+                              alias,
+                          }),
+                      )
+                    : undefined;
             const onError = (err: unknown) => {
                 setInFlight(null);
                 setFailed({ message: getErrorMessage(err), request });
@@ -185,6 +197,7 @@ export const useDataAppVizBuild = ({
                         creationExperience,
                         appUuid: draftAppUuid,
                         fileIds: files,
+                        externalConnections,
                         ...(request.codexModel
                             ? { codexModel: request.codexModel }
                             : { claudeModel: request.claudeModel }),
@@ -215,6 +228,7 @@ export const useDataAppVizBuild = ({
                     prompt,
                     creationExperience,
                     fileIds: files,
+                    externalConnections,
                     ...(request.codexModel
                         ? { codexModel: request.codexModel }
                         : { claudeModel: request.claudeModel }),

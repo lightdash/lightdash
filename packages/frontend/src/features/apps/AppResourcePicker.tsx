@@ -3,6 +3,7 @@ import {
     ChartKind,
     type ChartContent,
     type AiModelOption,
+    type AppVersionExternalConnectionResource,
     type DataAppCodingAgent,
     type DataAppCodingAgentModel,
     type ExternalConnection,
@@ -15,6 +16,7 @@ import {
     CloseButton,
     Group,
     Image,
+    Indicator,
     Loader,
     LoadingOverlay,
     Popover,
@@ -60,7 +62,9 @@ import { useChartSummariesV2 } from '../../hooks/useChartSummariesV2';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
+import { useAppExternalConnections } from '../externalConnections/hooks/useAppExternalConnections';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
+import { uniqueAliasFromName } from '../externalConnections/utils/aliasFromName';
 import classes from './AppResourcePicker.module.css';
 import {
     useAttachResourceLink,
@@ -96,19 +100,7 @@ export type SelectedDashboard = {
     includeSampleData: boolean;
 };
 
-export type SelectedConnection = {
-    externalConnectionUuid: string;
-    name: string;
-    /** Handle the generated app calls it by: client.externalFetch(alias, …). */
-    alias: string;
-};
-
-/** Derive a stable, code-safe alias from a connection name. */
-const aliasFromName = (name: string): string =>
-    name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '');
+export type SelectedConnection = AppVersionExternalConnectionResource;
 
 const SAMPLE_DATA_TOOLTIP =
     'Include sample data - runs this query and shares up to 10 rows with the app generator so it can see actual values (date ranges, labels, magnitudes). Off by default because rows can be sensitive.';
@@ -942,21 +934,44 @@ const DashboardPickerView: FC<{
 };
 
 /**
- * Internal: external-connection list with search. Mirrors `QueryPickerView`.
+ * External-connection list with search. Mirrors `QueryPickerView`.
  * Selecting a connection adds it to the parent and keeps the picker open so
  * multiple can be added in one flow.
  */
-const ConnectionPickerView: FC<{
+export const ConnectionPickerView: FC<{
     selectedConnections: SelectedConnection[];
     onSelect: (connection: SelectedConnection) => void;
     onDeselect: (uuid: string) => void;
     onDone: () => void;
     enabled: boolean;
-}> = ({ selectedConnections, onSelect, onDeselect, onDone, enabled }) => {
+    /** App whose existing links mark rows as already linked; omit before a
+     *  first build, when nothing can be linked yet. */
+    linkedAppUuid?: string;
+}> = ({
+    selectedConnections,
+    onSelect,
+    onDeselect,
+    onDone,
+    enabled,
+    linkedAppUuid,
+}) => {
     const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState('');
     const { data: connections, isInitialLoading } = useExternalConnections(
         enabled ? projectUuid : undefined,
+    );
+    const { data: existingLinks } = useAppExternalConnections(
+        enabled ? projectUuid : undefined,
+        linkedAppUuid,
+    );
+    const linkedUuids = useMemo(
+        () =>
+            new Set(
+                (existingLinks ?? []).map(
+                    (link) => link.connection.externalConnectionUuid,
+                ),
+            ),
+        [existingLinks],
     );
 
     // Only project/org admins can create connections; mirror the gate the
@@ -1009,11 +1024,14 @@ const ConnectionPickerView: FC<{
                 onSelect({
                     externalConnectionUuid: connection.externalConnectionUuid,
                     name: connection.name,
-                    alias: aliasFromName(connection.name),
+                    alias: uniqueAliasFromName(
+                        connection.name,
+                        selectedConnections.map((selected) => selected.alias),
+                    ),
                 });
             }
         },
-        [onSelect, onDeselect, selectedUuids],
+        [onSelect, onDeselect, selectedConnections, selectedUuids],
     );
 
     return (
@@ -1050,6 +1068,9 @@ const ConnectionPickerView: FC<{
                         const isSelected = selectedUuids.has(
                             connection.externalConnectionUuid,
                         );
+                        const isLinked = linkedUuids.has(
+                            connection.externalConnectionUuid,
+                        );
                         return (
                             <Box
                                 key={connection.externalConnectionUuid}
@@ -1067,6 +1088,15 @@ const ConnectionPickerView: FC<{
                                         {connection.origin}
                                     </Text>
                                 </Box>
+                                {!isSelected && isLinked && (
+                                    <Text
+                                        size="xs"
+                                        c="dimmed"
+                                        className={classes.chartItemHint}
+                                    >
+                                        Linked
+                                    </Text>
+                                )}
                                 {isSelected && (
                                     <Box
                                         className={
@@ -1194,6 +1224,7 @@ export const AttachButton: FC<{
                     label="Add charts, dashboards, connections or files"
                     withArrow
                     position="top"
+                    disabled={opened}
                 >
                     <Button
                         variant="subtle"
@@ -1346,6 +1377,126 @@ export const AttachButton: FC<{
                         )}
                     </>
                 )}
+            </Popover.Dropdown>
+        </Popover>
+    );
+};
+
+/**
+ * Opens the external-connection picker directly — used by surfaces that
+ * attach connections without the rest of the data-app resource menu.
+ */
+export const ConnectionAttachButton: FC<{
+    selectedConnections: SelectedConnection[];
+    onSelect: (connection: SelectedConnection) => void;
+    onDeselect: (uuid: string) => void;
+    disabled: boolean;
+    description: string;
+    /** The built app whose links the picker marks as already linked; null
+     *  until a first build exists. */
+    linkedAppUuid: string | null;
+}> = ({
+    selectedConnections,
+    onSelect,
+    onDeselect,
+    disabled,
+    description,
+    linkedAppUuid,
+}) => {
+    const projectUuid = useProjectUuid();
+    const [opened, setOpened] = useState(false);
+    const { data: existingLinks } = useAppExternalConnections(
+        projectUuid,
+        linkedAppUuid ?? undefined,
+    );
+    // Already-linked connections count as attached alongside the pending
+    // selection; re-selecting a linked one does not count it twice.
+    const attachedNames = useMemo(() => {
+        const names = new Map<string, string>();
+        (existingLinks ?? []).forEach((link) =>
+            names.set(
+                link.connection.externalConnectionUuid,
+                link.connection.name,
+            ),
+        );
+        selectedConnections.forEach((connection) =>
+            names.set(connection.externalConnectionUuid, connection.name),
+        );
+        return [...names.values()];
+    }, [existingLinks, selectedConnections]);
+    const attachedCount = attachedNames.length;
+    const triggerLabel =
+        attachedCount > 0
+            ? `${attachedCount} external connection${
+                  attachedCount === 1 ? '' : 's'
+              } attached`
+            : 'Add external connections';
+    const tooltipLabel =
+        attachedCount > 0
+            ? `${triggerLabel}: ${attachedNames.join(', ')}`
+            : triggerLabel;
+
+    return (
+        <Popover
+            opened={opened}
+            onChange={setOpened}
+            position="top-start"
+            offset={8}
+            shadow="md"
+            trapFocus
+        >
+            <Popover.Target>
+                <Tooltip
+                    label={tooltipLabel}
+                    withArrow
+                    position="top"
+                    multiline
+                    maw={280}
+                    disabled={opened}
+                >
+                    <Indicator
+                        inline
+                        label={attachedCount}
+                        size={12}
+                        offset={3}
+                        color="blue"
+                        disabled={attachedCount === 0}
+                        classNames={{
+                            indicator: classes.connectionCountIndicator,
+                        }}
+                    >
+                        <ActionIcon
+                            variant="subtle"
+                            color="ldGray"
+                            size="sm"
+                            aria-label={triggerLabel}
+                            onClick={() => setOpened((value) => !value)}
+                            disabled={disabled}
+                        >
+                            <MantineIcon icon={IconPlugConnected} />
+                        </ActionIcon>
+                    </Indicator>
+                </Tooltip>
+            </Popover.Target>
+            <Popover.Dropdown className={classes.queryDropdown} p={0}>
+                <Box p="xs" pb={0} className={classes.attachPickerHeader}>
+                    <Box>
+                        <Text size="sm" fw={500}>
+                            Add external connections
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                            {description}
+                        </Text>
+                    </Box>
+                </Box>
+                <ConnectionPickerView
+                    selectedConnections={selectedConnections}
+                    onSelect={onSelect}
+                    onDeselect={onDeselect}
+                    onDone={() => setOpened(false)}
+                    enabled={opened}
+                    linkedAppUuid={linkedAppUuid ?? undefined}
+                />
             </Popover.Dropdown>
         </Popover>
     );

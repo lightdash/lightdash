@@ -4,6 +4,11 @@
     max-width: 400px;
 }
 
+.connectionCountIndicator {
+    padding: 0;
+    font-size: 10px;
+}
+
 .attachMenuItem {
     display: flex;
     align-items: center;
@@ -84,6 +89,11 @@
             background-color: var(--mantine-color-blue-8);
         }
     }
+}
+
+.chartItemHint {
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .chartItemSelectedIcon {

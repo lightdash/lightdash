@@ -14,6 +14,7 @@ import {
     IconPlayerStop,
     IconX,
 } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
     forwardRef,
     useEffect,
@@ -29,8 +30,10 @@ import PromptComposer, {
     type PromptComposerHandle,
 } from '../../../components/common/PromptComposer/PromptComposer';
 import {
+    ConnectionAttachButton,
     ModelPicker,
     SelectedAttachmentSection,
+    type SelectedConnection,
 } from '../../apps/AppResourcePicker';
 import AppVersionNarration from '../../apps/components/AppVersionNarration';
 import { type ClarificationRound } from '../../apps/hooks/useClarificationRound';
@@ -175,6 +178,28 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const [interruptNext, setInterruptNext] = useState<QueuedPrompt | null>(
             null,
         );
+        const [selectedConnections, setSelectedConnections] = useState<
+            SelectedConnection[]
+        >([]);
+        const queryClient = useQueryClient();
+
+        // A finished build may have linked connections; refresh the count.
+        useEffect(() => {
+            if (!hasVersions) return;
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    'app-external-connections',
+                    projectUuid,
+                    composerAppUuid,
+                ],
+            });
+        }, [
+            composerAppUuid,
+            hasVersions,
+            latestReadyVersion,
+            projectUuid,
+            queryClient,
+        ]);
 
         useImperativeHandle(ref, () => ({
             setPrompt: (text) => {
@@ -204,6 +229,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                         : (editing?.request.fileIds ?? []),
                 ...modelSelection.modelRequest,
                 clarifications: [],
+                externalConnections: selectedConnections,
             };
             const queuedPrompt: QueuedPrompt = {
                 id: editing?.id ?? nextQueueId.current++,
@@ -212,6 +238,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             editingPrompt.current = null;
             composerRef.current?.clear();
             attachments.clear();
+            setSelectedConnections([]);
 
             if (isBuilding) {
                 setQueuedPrompts((current) => [...current, queuedPrompt]);
@@ -222,10 +249,11 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
 
         // The pencil and Cancel end the same way: prompt back in the composer.
         const handleReclaimPrompt = () => {
-            const prompt = clarification.abandon();
-            if (prompt === null) return;
+            const request = clarification.abandon();
+            if (request === null) return;
+            setSelectedConnections(request.externalConnections);
             composerRef.current?.insertContent([
-                { type: 'text', text: prompt },
+                { type: 'text', text: request.description },
             ]);
             composerRef.current?.focus();
         };
@@ -238,6 +266,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             modelSelection.setModel(
                 item.request.codexModel ?? item.request.claudeModel,
             );
+            setSelectedConnections(item.request.externalConnections);
             composerRef.current?.clear();
             composerRef.current?.insertContent([
                 { type: 'text', text: item.request.description },
@@ -566,6 +595,29 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     codingAgent={modelSelection.codingAgent}
                                 />
                             )}
+                            <ConnectionAttachButton
+                                selectedConnections={selectedConnections}
+                                onSelect={(connection) =>
+                                    setSelectedConnections((current) => [
+                                        ...current,
+                                        connection,
+                                    ])
+                                }
+                                onDeselect={(uuid) =>
+                                    setSelectedConnections((current) =>
+                                        current.filter(
+                                            (connection) =>
+                                                connection.externalConnectionUuid !==
+                                                uuid,
+                                        ),
+                                    )
+                                }
+                                disabled={isComposerLocked}
+                                description="Let this chart type fetch from these external APIs"
+                                linkedAppUuid={
+                                    hasVersions ? composerAppUuid : null
+                                }
+                            />
                             <input
                                 ref={fileInputRef}
                                 type="file"
