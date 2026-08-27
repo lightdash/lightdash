@@ -1,3 +1,10 @@
+# [2.39.0](https://github.com/lightdash/lightdash/compare/2.38.0...2.39.0) (2026-08-27)
+
+
+### Features
+
+* **sql-charts:** apply direct access to reads ([#28213](https://github.com/lightdash/lightdash/issues/28213)) ([bf2ef30](https://github.com/lightdash/lightdash/commit/bf2ef305d1e15a35a0ae91409aa9f906f0717b9d))
+
 # [2.38.0](https://github.com/lightdash/lightdash/compare/2.37.0...2.38.0) (2026-08-27)
 
 

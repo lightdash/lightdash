@@ -13490,6 +13490,7 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { dataType: 'enum', enums: ['dashboard'] },
                 { dataType: 'enum', enums: ['saved_chart'] },
+                { dataType: 'enum', enums: ['sql_chart'] },
             ],
             validators: {},
         },
