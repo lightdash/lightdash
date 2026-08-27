@@ -27,6 +27,7 @@ import { Knex } from 'knex';
 import { type DashboardAccessModel } from '../../models/DashboardAccessModel';
 import { type DirectAccess } from '../../models/directAccessModelUtils';
 import { type SavedChartAccessModel } from '../../models/SavedChartAccessModel';
+import { type SavedSqlAccessModel } from '../../models/SavedSqlAccessModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import {
     SpacePermissionModel,
@@ -59,7 +60,8 @@ export type AccessTarget =
           chartUuid: string;
           dashboardUuid: string | null;
           spaceUuid: string;
-      };
+      }
+    | { type: 'sqlChart'; savedSqlUuid: string; spaceUuid: string };
 
 // A content type's direct-grant lookup (e.g. DashboardAccessModel.getUserAccess
 // or SavedChartAccessModel.getUserAccess), pre-bound to the requesting user.
@@ -110,6 +112,8 @@ export class SpacePermissionService extends BaseService {
 
     private readonly savedChartAccessModel: SavedChartAccessModel;
 
+    private readonly savedSqlAccessModel: SavedSqlAccessModel;
+
     private readonly directAccessFeatureGate: DirectAccessFeatureGate;
 
     constructor({
@@ -117,12 +121,14 @@ export class SpacePermissionService extends BaseService {
         spacePermissionModel,
         dashboardAccessModel,
         savedChartAccessModel,
+        savedSqlAccessModel,
         directAccessFeatureGate,
     }: {
         spaceModel: SpaceModel;
         spacePermissionModel: SpacePermissionModel;
         dashboardAccessModel: DashboardAccessModel;
         savedChartAccessModel: SavedChartAccessModel;
+        savedSqlAccessModel: SavedSqlAccessModel;
         directAccessFeatureGate: DirectAccessFeatureGate;
     }) {
         super();
@@ -130,6 +136,7 @@ export class SpacePermissionService extends BaseService {
         this.spacePermissionModel = spacePermissionModel;
         this.dashboardAccessModel = dashboardAccessModel;
         this.savedChartAccessModel = savedChartAccessModel;
+        this.savedSqlAccessModel = savedSqlAccessModel;
         this.directAccessFeatureGate = directAccessFeatureGate;
     }
 
@@ -310,6 +317,13 @@ export class SpacePermissionService extends BaseService {
                           resourceLabel: 'Saved chart',
                           spaceUuid: target.spaceUuid,
                       };
+            case 'sqlChart':
+                return {
+                    source: 'sql_chart',
+                    resourceUuid: target.savedSqlUuid,
+                    resourceLabel: 'Saved SQL chart',
+                    spaceUuid: target.spaceUuid,
+                };
             default:
                 return assertUnreachable(
                     target,
@@ -330,6 +344,13 @@ export class SpacePermissionService extends BaseService {
             case 'saved_chart':
                 return (resourceUuids, opts) =>
                     this.savedChartAccessModel.getUserAccess(
+                        resourceUuids,
+                        userUuid,
+                        opts,
+                    );
+            case 'sql_chart':
+                return (resourceUuids, opts) =>
+                    this.savedSqlAccessModel.getUserAccess(
                         resourceUuids,
                         userUuid,
                         opts,
