@@ -1,4 +1,6 @@
 import {
+    DirectAccessOrigin,
+    OrganizationMemberRole,
     ProjectMemberRole,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
@@ -13,6 +15,7 @@ import {
 import { AppsTableName } from '../database/entities/apps';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { GroupTableName } from '../database/entities/groups';
+import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
 import { ProjectTableName } from '../database/entities/projects';
@@ -159,6 +162,174 @@ describe('AppAccessModel PostgreSQL integration', () => {
                 groupRoles: [SpaceMemberRole.EDITOR],
             },
         });
+    });
+
+    it.each(['personal', 'space-backed'] as const)(
+        'writes, lists, revokes, and resets %s app grants',
+        async (kind) => {
+            const appUuid =
+                kind === 'personal' ? personalAppUuid : spaceAppUuid;
+            const expectation = {
+                organizationUuid,
+                projectUuid,
+                spaceUuid: kind === 'personal' ? null : spaceUuid,
+            };
+
+            await expect(
+                model.upsertUserAccess({
+                    resourceUuid: appUuid,
+                    userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    role: SpaceMemberRole.ADMIN,
+                    grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    ...expectation,
+                }),
+            ).resolves.toMatchObject({
+                beforeRole: SpaceMemberRole.VIEWER,
+                afterRole: SpaceMemberRole.ADMIN,
+            });
+            await expect(
+                model.upsertGroupAccess({
+                    resourceUuid: appUuid,
+                    groupUuid,
+                    role: SpaceMemberRole.VIEWER,
+                    grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    ...expectation,
+                }),
+            ).resolves.toMatchObject({
+                beforeRole: SpaceMemberRole.EDITOR,
+                afterRole: SpaceMemberRole.VIEWER,
+            });
+
+            const { data } = await model.getDirectAccessList(
+                appUuid,
+                organizationUuid,
+                projectUuid,
+            );
+            expect(data).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        origin: DirectAccessOrigin.USER,
+                        principalUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        directRole: SpaceMemberRole.ADMIN,
+                    }),
+                    expect.objectContaining({
+                        origin: DirectAccessOrigin.GROUP,
+                        principalUuid: groupUuid,
+                        directRole: SpaceMemberRole.VIEWER,
+                    }),
+                ]),
+            );
+            await expect(
+                model.getGroupRolesForUsers(
+                    appUuid,
+                    organizationUuid,
+                    projectUuid,
+                    [SEED_ORG_1_ADMIN.user_uuid],
+                ),
+            ).resolves.toEqual({
+                [SEED_ORG_1_ADMIN.user_uuid]: [SpaceMemberRole.VIEWER],
+            });
+
+            await expect(
+                model.revokeUserAccess({
+                    resourceUuid: appUuid,
+                    userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    ...expectation,
+                }),
+            ).resolves.toMatchObject({
+                beforeRole: SpaceMemberRole.ADMIN,
+                afterRole: null,
+            });
+            await expect(
+                model.revokeUserAccess({
+                    resourceUuid: appUuid,
+                    userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    ...expectation,
+                }),
+            ).resolves.toMatchObject({ beforeRole: null, afterRole: null });
+            await expect(
+                model.resetAccess({ resourceUuid: appUuid, ...expectation }),
+            ).resolves.toMatchObject({ revokedUsers: 0, revokedGroups: 1 });
+        },
+    );
+
+    it('reports organization, project, and group administrators for personal apps', async () => {
+        await expect(
+            model.getAdminRolesForUsers(organizationUuid, projectUuid, [
+                SEED_ORG_1_ADMIN.user_uuid,
+            ]),
+        ).resolves.toEqual({
+            [SEED_ORG_1_ADMIN.user_uuid]: [SpaceMemberRole.ADMIN],
+        });
+
+        await transaction(OrganizationMembershipsTableName)
+            .where({ organization_id: organizationId, user_id: userId })
+            .update({ role: OrganizationMemberRole.MEMBER });
+        await transaction(ProjectGroupAccessTableName)
+            .where({ project_uuid: projectUuid, group_uuid: groupUuid })
+            .update({ role: ProjectMemberRole.ADMIN });
+        await expect(
+            model.getAdminRolesForUsers(organizationUuid, projectUuid, [
+                SEED_ORG_1_ADMIN.user_uuid,
+            ]),
+        ).resolves.toEqual({
+            [SEED_ORG_1_ADMIN.user_uuid]: [SpaceMemberRole.ADMIN],
+        });
+    });
+
+    it('rejects stale app locations before writing', async () => {
+        await transaction(AppsTableName)
+            .where('app_id', personalAppUuid)
+            .update({ space_uuid: spaceUuid });
+        await expect(
+            model.upsertUserAccess({
+                resourceUuid: personalAppUuid,
+                userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                role: SpaceMemberRole.EDITOR,
+                grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                organizationUuid,
+                projectUuid,
+                spaceUuid: null,
+            }),
+        ).rejects.toMatchObject({ name: 'NotFoundError' });
+        await expect(
+            transaction(AppUserAccessTableName)
+                .where({
+                    app_uuid: personalAppUuid,
+                    user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+                })
+                .first('space_role'),
+        ).resolves.toMatchObject({ space_role: SpaceMemberRole.VIEWER });
+    });
+
+    it('rejects deleted apps and deleted owner spaces before writing', async () => {
+        await transaction(AppsTableName)
+            .where('app_id', personalAppUuid)
+            .update({ deleted_at: new Date() });
+        await transaction(SpaceTableName)
+            .where('space_uuid', spaceUuid)
+            .update({
+                deleted_at: new Date(),
+                deleted_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+            });
+
+        await Promise.all(
+            (
+                [
+                    [personalAppUuid, null],
+                    [spaceAppUuid, spaceUuid],
+                ] as const
+            ).map(async ([resourceUuid, appSpaceUuid]) =>
+                expect(
+                    model.resetAccess({
+                        resourceUuid,
+                        organizationUuid,
+                        projectUuid,
+                        spaceUuid: appSpaceUuid,
+                    }),
+                ).rejects.toMatchObject({ name: 'NotFoundError' }),
+            ),
+        );
     });
 
     it('tracks moves without transferring grants to new app identities', async () => {
