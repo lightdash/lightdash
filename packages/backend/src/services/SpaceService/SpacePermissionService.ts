@@ -54,7 +54,6 @@ export type SpaceAccessContextForCasl = {
 export type AccessTarget =
     | { type: 'space'; spaceUuid: string }
     | { type: 'dashboard'; dashboardUuid: string; spaceUuid: string }
-    | { type: 'saved_chart'; savedChartUuid: string; spaceUuid: string }
     | {
           type: 'chart';
           chartUuid: string;
@@ -272,13 +271,6 @@ export class SpacePermissionService extends BaseService {
                     source: 'dashboard',
                     resourceUuid: target.dashboardUuid,
                     resourceLabel: 'Dashboard',
-                    spaceUuid: target.spaceUuid,
-                };
-            case 'saved_chart':
-                return {
-                    source: 'saved_chart',
-                    resourceUuid: target.savedChartUuid,
-                    resourceLabel: 'Saved chart',
                     spaceUuid: target.spaceUuid,
                 };
             case 'chart':

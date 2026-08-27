@@ -2101,8 +2101,9 @@ describe('resolveAccessBatch', () => {
                 spaceUuid: 'space-a',
             },
             {
-                type: 'saved_chart',
-                savedChartUuid: 'chart-1',
+                type: 'chart',
+                chartUuid: 'chart-1',
+                dashboardUuid: null,
                 spaceUuid: 'space-a',
             },
         ]);
@@ -2308,7 +2309,7 @@ describe('resolveAccessBatch', () => {
     });
 });
 
-describe('resolveAccess saved chart target', () => {
+describe('resolveAccess space-saved chart target', () => {
     const spaceContext: SpaceAccessContextForCasl = {
         organizationUuid: 'organization-uuid',
         projectUuid: 'project-uuid',
@@ -2317,8 +2318,9 @@ describe('resolveAccess saved chart target', () => {
         admins: [],
     };
     const savedChartTarget = {
-        type: 'saved_chart' as const,
-        savedChartUuid: 'chart-uuid',
+        type: 'chart' as const,
+        chartUuid: 'chart-uuid',
+        dashboardUuid: null,
         spaceUuid: 'space-uuid',
     };
 
