@@ -274,3 +274,75 @@ Each lands green on its own; 1–2 are inert to users.
 Linear mapping (Standardize project M1): PR1 ≈ PROD-9829/9830, PR2 ≈
 PROD-9831, PR3 ≈ PROD-9833 + PROD-9835, PR6 closes the composer half of M1;
 PROD-9832 (honest SQL column metadata) is the SQL-path rule in §3.
+
+## 7. Findings from implementation (PRs 1–2) and M1 convergence gaps
+
+Date: 2026-08-27. Two of this design's assumptions did not survive contact
+with the code, and the M1 "interface feels right" bar needs items this doc
+under-specified. Corrections first, then the decision they force, then the
+remaining gap list.
+
+### Corrections to §3
+
+- **Parameter interpolation needs a migration first.** §3 assumed
+  `usedParametersValues` is in scope at column-build time. It is not on the
+  queue path: when NATS is enabled, the worker rebuilds
+  `RunAsyncWarehouseQueryArgs` entirely from the `query_history` row
+  (`buildWarehouseQueryArgs`), and only `request_parameters` (caller-supplied
+  values, without resolved project defaults) is persisted — the composer that
+  knows the resolved values is gone. Prerequisite: persist the composer's
+  `getUsedParameters()` output to a new `query_history.used_parameters` jsonb
+  at creation, thread it into `runQueryAndTransformRows`, and interpolate in
+  `getResultColumnMetadataFromItem`. Until then, population omits
+  parameter-dependent formats entirely (never store an un-interpolated
+  placeholder — it throws at render and falls back to `String(value)`).
+- **The SQL path gets nothing for free.** §3 claimed `label =
+  friendlyName(reference)` "comes free from the metric-path change". False:
+  `SqlQueryComposer` keys its fields map by virtual-view field id
+  (`getItemMap` → `${table}_${column}`) while raw-SQL warehouse columns are
+  keyed by bare column name, so the items-map lookup always misses and SQL
+  columns stay bare *by accident*. PROD-9832 must make the rule explicit
+  code: `label = friendlyName(reference)`, and **never** provenance for
+  virtual-view dimensions (a guard, so a future key match cannot silently
+  stamp fake-field provenance).
+
+### Decision — rows are raw; columns carry the rendering recipe
+
+There are two row dialects today: the formatted `ResultValue`
+(`{raw, formatted}`) served by the page endpoint via the server-side
+per-page formatter, and raw JSONL streamed by the SQL runner directly from
+`/query/{uuid}/results`, bypassing formatting entirely. With self-describing
+columns, the interface contract is: **rows are raw values; the column carries
+everything needed to render them** (format expression + separator +
+formatOptions + timeInterval, rendered only through
+`formatValueWithExpression`, plus page-level `resolvedTimezone` and — once
+persisted — parameter values). The server-formatted `{raw, formatted}` shape
+and the per-page formatter closure are legacy: existing consumers keep
+working, but **no new consumer may depend on server-formatted values**, and
+M2 (shared formatter, PROD-9834) converges the existing ones. This is the
+single-formatting-path decision; revisiting it per-consumer is not allowed.
+
+### M1 gap list (the "interface feels right" bar)
+
+An engine (metric layer, raw SQL, composer) is inside the contract when its
+results page carries columns a consumer can label, format, and chart without
+knowing the engine. Remaining work, with tickets:
+
+| Gap | Where | Ticket |
+|---|---|---|
+| Used parameter values not persisted → parameter formats un-interpolatable on the queue path | `query_history` migration + `QueryHistoryModel` + create sites + `getResultColumnMetadataFromItem` | PROD-10680 |
+| Composer terminal nodes produce bare columns — the step-1 exit criterion | `buildQueryReferenceCtes` discards referenced columns/fields; propagate to pass-through columns per §3 | PROD-10681 |
+| Results page lacks `resolvedTimezone` — temporal rendering impossible from the page alone | `ReadyQueryResultsPage` (execute responses already carry it) | PROD-10682 |
+| Merged results drop metadata already in hand | the `originalColumns` build site: `compiledMerge.itemsMap` + `typedColumns[].origin` both in scope and discarded | PROD-10683 |
+| Pivoted value columns hardcode `type: NUMBER` — lies for MAX-of-timestamp / boolean ANY | `getPivotedColumns` via `convertItemTypeToDimensionType`; behavior change, staged alone | PROD-10690 |
+| SQL columns bare by accident, rule never made explicit | §3 SQL-path rule as deliberate code | PROD-9832 |
+
+### Revised sequencing
+
+Population must not re-land ahead of the parameters prerequisite — columns
+should be born self-contained, not patched later. Revised order for the rest
+of M1: (1) `used_parameters` persistence folded into the population PR so
+enrichment ships complete; (2) SQL-path rule + merge path + page
+`resolvedTimezone` (small, independent); (3) composer propagation (exit
+criterion); (4) pivot type honesty (staged behavior change); then the M2
+export/formatter flips prove the decoupling.
