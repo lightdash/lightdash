@@ -4,17 +4,24 @@
 
 ### `agent-exedev-dev.sh <start|wait|sync|url|ssh|exe>`
 
-When `LIGHTDASH_EXEDEV_SSH_KEY` is set, clones this session's VM from the
-`ld-linear-agent-template` exe.dev template (copy-on-write), pushes git-computed deltas
-of the working tree over SSH, and launches the preview stack in the background;
-`wait` blocks until the app is healthy and prints the public test URL
-(`READY: https://<vm>.exe.xyz`). Hook commands (`hook-start`, `hook-sync`,
-`hook-stop`) are wired in `.claude/settings.json` and no-op when the key is
-unset. See `docs/agent-exedev.md`.
+When `LIGHTDASH_EXEDEV_SSH_KEY` (SSH transport) or `LIGHTDASH_EXEDEV_API_KEY`
+(HTTPS transport) is set, clones this session's VM from the
+`ld-linear-agent-template` exe.dev template (copy-on-write), syncs the working
+tree, and launches the preview stack in the background; `wait` blocks until the
+app is healthy and prints the public test URL (`READY: https://<vm>.exe.xyz`).
+Hook commands (`hook-start`, `hook-sync`, `hook-stop`) are wired in
+`.claude/settings.json` and no-op when neither is set. See `docs/agent-exedev.md`.
 
 Use `agent-exedev-dev.sh ssh <cmd>` to run commands on the session VM and
 `agent-exedev-dev.sh exe <cmd>` for exe.dev control commands (`ls`, `share`,
 `tag`, ...) with the session identity already wired up.
+
+The transport auto-selects: SSH when a key is present, otherwise HTTPS (for
+Claude Code on the web, where outbound SSH is blocked). The HTTPS transport
+routes control commands through `POST https://exe.dev/exec` and VM
+commands/file sync through the VM's Shelley agent via
+`scripts/exedev-shelley-exec.py` (a stdlib-only client for the `/api/exec-ws`
+websocket and `/api/write-file`). Force one with `LIGHTDASH_EXEDEV_TRANSPORT`.
 
 ## Claude Code Okteto Environment
 

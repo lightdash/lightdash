@@ -22,24 +22,70 @@ SSH_TIMEOUT_SECONDS="${EXEDEV_SSH_TIMEOUT_SECONDS:-180}"
 POLL_INTERVAL_SECONDS="${EXEDEV_POLL_INTERVAL_SECONDS:-5}"
 SETUP_DOC="docs/agent-exedev.md"
 
+# HTTPS-only transport (Claude Code on the web, where outbound SSH is blocked).
+# This is a dedicated opt-in, mirroring LIGHTDASH_EXEDEV_SSH_KEY: the workflow
+# activates only when LIGHTDASH_EXEDEV_API_KEY is set, so a session that merely
+# has a general-purpose exe.dev key is never hijacked into provisioning a VM.
+# When active without an SSH key, all exe.dev control and VM commands go over
+# HTTPS instead of SSH:
+#   - control plane -> POST https://exe.dev/exec   (Bearer LIGHTDASH_EXEDEV_API_KEY)
+#   - VM commands   -> scripts/exedev-shelley-exec.py (Shelley exec websocket,
+#                      Bearer a VM-scoped token minted per session)
+API_KEY_ENV_VAR="LIGHTDASH_EXEDEV_API_KEY"
+VM_TOKEN_ENV_VAR="LIGHTDASH_EXE_VM_TOKEN"
+EXEC_API_URL="https://$CONTROL_HOST/exec"
+SHELLEY_CLIENT="$SCRIPT_DIR/exedev-shelley-exec.py"
+# TRANSPORT is resolved by select_transport(): "ssh" or "http".
+TRANSPORT="${LIGHTDASH_EXEDEV_TRANSPORT:-}"
+
 fail() {
     echo "ERROR: $*" >&2
     exit 1
+}
+
+have_ssh_key() {
+    [ -n "${!KEY_ENV_VAR:-}" ]
+}
+
+have_api_key() {
+    [ -n "${!API_KEY_ENV_VAR:-}" ]
+}
+
+# The workflow is active when either credential is present.
+exedev_enabled() {
+    have_ssh_key || have_api_key
+}
+
+# Prefer SSH when a key is present (fast persistent connections); otherwise fall
+# back to the HTTPS transport. An explicit LIGHTDASH_EXEDEV_TRANSPORT wins.
+select_transport() {
+    if [ -n "$TRANSPORT" ]; then
+        return
+    fi
+    if have_ssh_key; then
+        TRANSPORT="ssh"
+    else
+        TRANSPORT="http"
+    fi
 }
 
 usage() {
     cat <<'EOF'
 Usage: ./scripts/agent-exedev-dev.sh <start|wait|sync|url|ssh|exe>
 
-Requires LIGHTDASH_EXEDEV_SSH_KEY. Commands safely skip when it is unset.
+Requires LIGHTDASH_EXEDEV_SSH_KEY (SSH transport) or LIGHTDASH_EXEDEV_API_KEY
+(HTTPS transport, for environments where outbound SSH is blocked). Commands
+safely skip when neither is set.
 
   start          Clone this session's VM from the template, sync the working
                  tree, and launch the preview stack in the background.
   wait           Sync, then block until the app is healthy: READY: <url>.
   sync           Push the full local repository state to the session VM.
   url            Print the public URL for this Claude session.
-  ssh <args...>  Run a command on the session VM over SSH.
-  exe <args...>  Run an exe.dev control command (ls, cp, tag, share, ...).
+  ssh <args...>  Run a command on the session VM (SSH, or the Shelley exec
+                 websocket over HTTPS).
+  exe <args...>  Run an exe.dev control command (ls, cp, tag, share, ...) over
+                 SSH or the HTTPS /exec endpoint.
 EOF
 }
 
@@ -123,13 +169,20 @@ load_session_config() {
 }
 
 require_runtime() {
-    [ -n "${!KEY_ENV_VAR:-}" ] ||
-        fail "$KEY_ENV_VAR is not set. See $SETUP_DOC."
+    exedev_enabled ||
+        fail "Neither $KEY_ENV_VAR nor $API_KEY_ENV_VAR is set. See $SETUP_DOC."
 
-    require_command ssh
+    select_transport
     require_command git
     require_command curl
     require_command tar
+    if [ "$TRANSPORT" = "ssh" ]; then
+        require_command ssh
+    else
+        require_command python3
+        [ -f "$SHELLEY_CLIENT" ] ||
+            fail "Shelley exec client not found: $SHELLEY_CLIENT"
+    fi
 }
 
 # The key env var holds either a path to a private key or the key material
@@ -149,6 +202,12 @@ ensure_key_file() {
 }
 
 configure_ssh() {
+    # The HTTPS transport needs no SSH client, key, or control socket.
+    select_transport
+    if [ "$TRANSPORT" = "http" ]; then
+        return
+    fi
+
     # Control sockets need a short path: unix sockets cap at ~104 bytes and
     # macOS TMPDIRs alone exceed that.
     local control_dir="/tmp/ld-exe-cm-$(id -u)"
@@ -178,16 +237,108 @@ git_ssh_command() {
     printf '%s' "$out"
 }
 
+# --- exe.dev control plane -------------------------------------------------
+# Run an exe.dev control command (ls, cp, tag, share, ...). Over SSH this is
+# `ssh exe.dev <args>`; over HTTPS it is `POST /exec` with the args as the body.
+# JSON output is always on for /exec, so callers that parse output must tolerate
+# JSON in http mode (vm_exists handles both).
 exe_ctl() {
-    ssh "${SSH_OPTS[@]}" "$CONTROL_HOST" "$@" </dev/null
+    if [ "$TRANSPORT" = "http" ]; then
+        exec_http_ctl "$@"
+    else
+        ssh "${SSH_OPTS[@]}" "$CONTROL_HOST" "$@" </dev/null
+    fi
 }
 
+exec_http_ctl() {
+    local body http_code response
+    printf -v body '%s ' "$@"
+    body="${body% }"
+    response="$(
+        curl --silent --show-error --max-time 45 \
+            --write-out '\n%{http_code}' \
+            -X POST "$EXEC_API_URL" \
+            -H "Authorization: Bearer ${!API_KEY_ENV_VAR}" \
+            --data "$body"
+    )" || return 1
+    http_code="${response##*$'\n'}"
+    printf '%s' "${response%$'\n'*}"
+    [ "$http_code" = "200" ]
+}
+
+# --- VM commands -----------------------------------------------------------
+# Run a shell command on the session VM. Over SSH this is `ssh exedev@vm <cmd>`;
+# over HTTPS it is the Shelley exec websocket. The Shelley transport has no
+# stdin, so callers that pipe data in (tar, git apply) must use the file-sync
+# helpers, never vm_ssh, in http mode.
 vm_ssh() {
-    ssh "${SSH_OPTS[@]}" "$REMOTE_USER@$VM_HOST" "$@"
+    if [ "$TRANSPORT" = "http" ]; then
+        vm_exec_http "$@"
+    else
+        ssh "${SSH_OPTS[@]}" "$REMOTE_USER@$VM_HOST" "$@"
+    fi
 }
 
+vm_exec_http() {
+    ensure_vm_token
+    LIGHTDASH_EXE_VM_TOKEN="$VM_TOKEN" python3 "$SHELLEY_CLIENT" exec \
+        --vm "$VM_NAME" --cwd "$REMOTE_REPO" --token-env LIGHTDASH_EXE_VM_TOKEN "$@"
+}
+
+# Upload a local file to an absolute path on the VM via write-file (http mode).
+vm_put_abs_http() {
+    local local_path="$1" remote_path="$2"
+    ensure_vm_token
+    LIGHTDASH_EXE_VM_TOKEN="$VM_TOKEN" python3 "$SHELLEY_CLIENT" put-file \
+        --vm "$VM_NAME" --token-env LIGHTDASH_EXE_VM_TOKEN \
+        --remote-path "$remote_path" --local-path "$local_path"
+}
+
+# Upload one repository file (path relative to REPO_ROOT) to the VM checkout.
+vm_put_file_http() {
+    local rel_path="$1"
+    vm_put_abs_http "$REPO_ROOT/$rel_path" "$REMOTE_REPO/$rel_path"
+}
+
+# A VM-scoped exe.dev token (namespace v0@<vm>.exe.xyz) authenticates the
+# Shelley proxy. Reuse LIGHTDASH_EXE_VM_TOKEN when it is already provided for
+# this VM; otherwise mint one for the session VM with the control API key.
+ensure_vm_token() {
+    if [ -n "${VM_TOKEN:-}" ]; then
+        return
+    fi
+    if [ -n "${!VM_TOKEN_ENV_VAR:-}" ] && [ "$VM_NAME" = "$TEMPLATE_VM" ]; then
+        VM_TOKEN="${!VM_TOKEN_ENV_VAR}"
+        return
+    fi
+    mint_vm_token
+}
+
+mint_vm_token() {
+    local response status token
+    # exec_http_ctl prints the response body even on a non-200; capture it
+    # either way so the error can show why minting failed (e.g. no such VM).
+    response="$(exec_http_ctl ssh-key generate-api-key \
+        "--vm=$VM_NAME" --label="lightdash-claude-session" --exp=1d)"
+    status=$?
+    # The /exec response is JSON; the token lives under a key such as "key" or
+    # "token". Extract the exe0./exe1. value without assuming which key.
+    token="$(
+        printf '%s' "$response" |
+            grep -oE 'exe[0-9]+\.[A-Za-z0-9._-]+' |
+            head -n 1
+    )"
+    if [ -n "$token" ]; then
+        VM_TOKEN="$token"
+        return
+    fi
+    fail "Could not mint a VM token for $VM_NAME over $EXEC_API_URL (exec status $status): ${response:-<empty response>}"
+}
+
+# Matches both the SSH table output and the /exec JSON (dns_name field): the
+# literal "<vm>.exe.xyz" appears in both, so a fixed-string search covers each.
 vm_exists() {
-    exe_ctl ls 2>/dev/null | grep -Eq "(^|[[:space:]])${VM_NAME}\.exe\.xyz([[:space:]]|$)"
+    exe_ctl ls 2>/dev/null | grep -Fq "${VM_NAME}.exe.xyz"
 }
 
 ensure_vm() {
@@ -208,12 +359,14 @@ ensure_vm() {
     fi
 }
 
+# Block until the VM accepts commands (SSH sshd up, or the Shelley agent
+# answering over HTTPS), whichever transport is active.
 wait_for_vm_ssh() {
     local deadline=$((SECONDS + SSH_TIMEOUT_SECONDS))
 
     while ! vm_ssh true </dev/null >/dev/null 2>&1; do
         ((SECONDS < deadline)) ||
-            fail "Cannot reach $VM_HOST over SSH after ${SSH_TIMEOUT_SECONDS}s."
+            fail "Cannot reach $VM_HOST after ${SSH_TIMEOUT_SECONDS}s."
         sleep "$POLL_INTERVAL_SECONDS"
     done
 }
@@ -234,10 +387,98 @@ set_session_ref() {
         fail "Could not update the session ref on $VM_HOST."
 }
 
+# --- HTTPS working-tree sync ----------------------------------------------
+# The Shelley exec websocket has no stdin, so the SSH transport's git-delta
+# push and tar pipes are unavailable. Instead reconcile the VM's checkout to the
+# local working tree by writing every differing file via write-file:
+#   changed = (files differing from the VM's current commit) + (untracked)
+# Existing paths are uploaded; paths deleted locally are removed on the VM.
+# Ignored files (node_modules, .env, build output) never enter the set.
+http_full_sync() {
+    local vm_head changed_file="$RUN_DIR/http-changed.list" path
+    local -a existing=() deleted=()
+
+    mkdir -p "$RUN_DIR"
+    echo "Syncing repository state to $VM_NAME over HTTPS..."
+
+    vm_head="$(vm_ssh "git -C $REMOTE_REPO_Q rev-parse HEAD 2>/dev/null" | tr -d '\r\n')"
+    # Diffing against the VM's commit needs that commit locally; fetch if absent.
+    if [ -n "$vm_head" ] && ! git -C "$REPO_ROOT" cat-file -e "$vm_head" 2>/dev/null; then
+        git -C "$REPO_ROOT" fetch --quiet origin 2>/dev/null || true
+    fi
+
+    {
+        if [ -n "$vm_head" ] && git -C "$REPO_ROOT" cat-file -e "$vm_head" 2>/dev/null; then
+            # Every path whose content differs from the VM checkout (committed
+            # delta + staged + unstaged), plus untracked files.
+            git -C "$REPO_ROOT" diff --name-only "$vm_head" --
+        else
+            # Unknown VM commit: fall back to the local diff against HEAD.
+            git -C "$REPO_ROOT" diff --name-only HEAD --
+        fi
+        git -C "$REPO_ROOT" ls-files -o --exclude-standard
+    } | sort -u >"$changed_file"
+
+    while IFS= read -r path; do
+        [ -n "$path" ] || continue
+        if [ -e "$REPO_ROOT/$path" ]; then
+            existing+=("$path")
+        else
+            deleted+=("$path")
+        fi
+    done <"$changed_file"
+
+    for path in "${existing[@]}"; do
+        vm_put_file_http "$path" ||
+            fail "Could not upload $path to $VM_NAME over HTTPS."
+    done
+    if [ "${#deleted[@]}" -gt 0 ]; then
+        vm_ssh "cd $REMOTE_REPO_Q && rm -f -- $(printf '%q ' "${deleted[@]}")" ||
+            echo "WARNING: could not remove deleted files on $VM_NAME." >&2
+    fi
+}
+
+http_sync_changed() {
+    local changed_file="$RUN_DIR/http-status.list" path
+    local -a deleted=()
+
+    mkdir -p "$RUN_DIR"
+    git -C "$REPO_ROOT" ls-files -m -o --exclude-standard >"$changed_file"
+    [ -s "$changed_file" ] || return 0
+
+    while IFS= read -r path; do
+        [ -n "$path" ] || continue
+        if [ -e "$REPO_ROOT/$path" ]; then
+            vm_put_file_http "$path" ||
+                echo "WARNING: could not sync $path to $VM_NAME." >&2
+        else
+            deleted+=("$path")
+        fi
+    done <"$changed_file"
+
+    if [ "${#deleted[@]}" -gt 0 ]; then
+        vm_ssh "cd $REMOTE_REPO_Q && rm -f -- $(printf '%q ' "${deleted[@]}")" ||
+            echo "WARNING: could not remove deleted files on $VM_NAME." >&2
+    fi
+}
+
+http_sync_single_file() {
+    local rel_path="$1"
+    if [ -e "$REPO_ROOT/$rel_path" ]; then
+        vm_put_file_http "$rel_path"
+    else
+        vm_ssh "cd $REMOTE_REPO_Q && rm -f -- $(printf '%q' "$rel_path")"
+    fi
+}
+
 # Full one-way sync: git computes the delta against the template's baked
 # checkout, so nothing ever scans the working tree. Ignored files (node_modules,
 # .env, build output) never cross the wire.
 full_sync() {
+    if [ "$TRANSPORT" = "http" ]; then
+        http_full_sync
+        return
+    fi
     local diff_file="$RUN_DIR/worktree.diff" untracked_file="$RUN_DIR/untracked.z" head_sha
 
     mkdir -p "$RUN_DIR"
@@ -289,6 +530,10 @@ full_sync() {
 # Sync only what `git status` reports changed since HEAD. Fast enough for a
 # PostToolUse hook; deletions of tracked files propagate via `rm` on the VM.
 sync_changed() {
+    if [ "$TRANSPORT" = "http" ]; then
+        http_sync_changed
+        return
+    fi
     local changed_file="$RUN_DIR/changed.z" path
     local -a existing=() deleted=()
 
@@ -322,6 +567,11 @@ sync_single_file() {
         *) return 0 ;;
     esac
     git -C "$REPO_ROOT" check-ignore -q "$rel_path" && return 0
+
+    if [ "$TRANSPORT" = "http" ]; then
+        http_sync_single_file "$rel_path"
+        return
+    fi
 
     if [ -e "$abs_path" ]; then
         printf '%s\0' "$rel_path" |
@@ -371,8 +621,15 @@ launch_bootstrap() {
         fail "Bootstrap script not found: $BOOTSTRAP_SCRIPT"
 
     echo "Launching the preview stack on $VM_NAME (background)..."
-    vm_ssh "cat >$(printf '%q' "$REMOTE_BOOTSTRAP") && chmod +x $(printf '%q' "$REMOTE_BOOTSTRAP")" <"$BOOTSTRAP_SCRIPT" ||
-        fail "Could not upload the preview bootstrap to $VM_HOST."
+    if [ "$TRANSPORT" = "http" ]; then
+        vm_put_abs_http "$BOOTSTRAP_SCRIPT" "$REMOTE_BOOTSTRAP" ||
+            fail "Could not upload the preview bootstrap to $VM_HOST."
+        vm_ssh "chmod +x $(printf '%q' "$REMOTE_BOOTSTRAP")" ||
+            fail "Could not mark the preview bootstrap executable on $VM_HOST."
+    else
+        vm_ssh "cat >$(printf '%q' "$REMOTE_BOOTSTRAP") && chmod +x $(printf '%q' "$REMOTE_BOOTSTRAP")" <"$BOOTSTRAP_SCRIPT" ||
+            fail "Could not upload the preview bootstrap to $VM_HOST."
+    fi
 
     # A pidfile guard, not pgrep: the ssh wrapper shell's own command line
     # contains the script path and would self-match.
@@ -437,7 +694,7 @@ EOF
 hook_start() {
     local hook_input hook_output session_id
 
-    [ -n "${!KEY_ENV_VAR:-}" ] || return 0
+    exedev_enabled || return 0
 
     hook_input="$(cat)"
     if [ -z "${CLAUDE_ENV_FILE:-}" ]; then
@@ -483,7 +740,7 @@ hook_setup_failed() {
 hook_stop() {
     local hook_input hook_output last_message ready_line ready_url session_id
 
-    [ -n "${!KEY_ENV_VAR:-}" ] || return 0
+    exedev_enabled || return 0
 
     hook_input="$(cat)"
     session_id="$(extract_session_id "$hook_input")" || {
@@ -529,7 +786,7 @@ hook_stop() {
 hook_sync() {
     local hook_input tool_name file_path session_id
 
-    [ -n "${!KEY_ENV_VAR:-}" ] || return 0
+    exedev_enabled || return 0
 
     hook_input="$(cat)"
     session_id="$(extract_session_id "$hook_input")" || return 0
@@ -569,8 +826,8 @@ main() {
             ;;
         ssh | exe)
             shift || true
-            if [ -z "${!KEY_ENV_VAR:-}" ]; then
-                echo "SKIPPED: $KEY_ENV_VAR is not set."
+            if ! exedev_enabled; then
+                echo "SKIPPED: neither $KEY_ENV_VAR nor $API_KEY_ENV_VAR is set."
                 return
             fi
             load_session_config
@@ -581,8 +838,8 @@ main() {
             esac
             ;;
         start | wait | sync | url)
-            if [ -z "${!KEY_ENV_VAR:-}" ]; then
-                echo "SKIPPED: $KEY_ENV_VAR is not set."
+            if ! exedev_enabled; then
+                echo "SKIPPED: neither $KEY_ENV_VAR nor $API_KEY_ENV_VAR is set."
                 return
             fi
 

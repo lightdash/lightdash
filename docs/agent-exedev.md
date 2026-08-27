@@ -7,8 +7,35 @@ URL. It clones a prepared VM template (copy-on-write, sub-second) and pushes
 git-computed deltas of the working tree over SSH.
 
 The flow is opt-in: every command and hook is a silent no-op unless
-`LIGHTDASH_EXEDEV_SSH_KEY` is set. Configure one environment provider per
-session; do not set it together with `LIGHTDASH_OKTETO_TOKEN`.
+`LIGHTDASH_EXEDEV_SSH_KEY` (SSH transport) or `LIGHTDASH_EXEDEV_API_KEY` (HTTPS
+transport) is set. Configure one environment provider per session; do not set
+either together with `LIGHTDASH_OKTETO_TOKEN`.
+
+## Transports: SSH and HTTPS
+
+The same commands and hooks run over either of two transports, chosen
+automatically:
+
+-   **SSH** (`LIGHTDASH_EXEDEV_SSH_KEY` set): the default. Persistent SSH
+    connections carry control commands (`ssh exe.dev …`), VM commands
+    (`ssh exedev@<vm> …`), git-delta pushes, and tar pipes.
+-   **HTTPS** (`LIGHTDASH_EXEDEV_API_KEY` set, no SSH key): for environments
+    where outbound SSH (port 22) is blocked but HTTPS to `exe.dev` and
+    `*.exe.xyz` is allowed — notably Claude Code on the web. Nothing uses port
+    22. Set `LIGHTDASH_EXEDEV_TRANSPORT=http` to force it.
+
+    | Concern | HTTPS mechanism |
+    |---------|-----------------|
+    | Control plane (`ls`, `cp`, `tag`, `share`) | `POST https://exe.dev/exec`, `Authorization: Bearer $LIGHTDASH_EXEDEV_API_KEY` |
+    | VM commands (`ssh <cmd>`, bootstrap, health) | `scripts/exedev-shelley-exec.py exec` — the Shelley agent's `/api/exec-ws` websocket, a real pty with streamed output and exit codes |
+    | Working-tree sync | `scripts/exedev-shelley-exec.py put-file` — `POST /api/write-file`, reconciling every file that differs from the VM's checkout (the exec websocket has no stdin for tar/git pipes) |
+    | Per-VM auth | a VM-scoped token (namespace `v0@<vm>.exe.xyz`), minted per session with `ssh-key generate-api-key --vm=<vm>` and passed to the Shelley proxy as `X-Exedev-Authorization: Bearer …` |
+
+    The Shelley `exec` endpoint cannot run a one-shot command the way
+    `ssh <vm> <cmd>` does over the exe.dev SSH API; the `/exec` HTTPS endpoint
+    likewise rejects the `ssh` verb (no stdin, no pty, 30 s cap). The exec
+    websocket is the sanctioned HTTPS path to a VM shell, so the HTTPS transport
+    routes VM commands through it rather than through `/exec`.
 
 ## What you need
 
@@ -92,7 +119,10 @@ for code. Deleting a locally *untracked* file does not delete it on the VM.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `LIGHTDASH_EXEDEV_SSH_KEY` | — | Opt-in gate; key material or key path |
+| `LIGHTDASH_EXEDEV_SSH_KEY` | — | Opt-in gate (SSH transport); key material or key path |
+| `LIGHTDASH_EXEDEV_API_KEY` | — | Opt-in gate (HTTPS transport); exe.dev API key (`exe0.`/`exe1.`) for the control plane and for minting per-VM tokens |
+| `LIGHTDASH_EXEDEV_TRANSPORT` | auto | Force `ssh` or `http`; auto-selects SSH when a key is present, else HTTPS |
+| `LIGHTDASH_EXE_VM_TOKEN` | — | Optional pre-minted VM-scoped token; otherwise minted per session |
 | `LIGHTDASH_EXEDEV_TEMPLATE` | `ld-linear-agent-template` | Template VM to clone |
 | `LIGHTDASH_EXEDEV_TEAM_SHARE` | `true` | Root-share session VMs with the team |
 | `LIGHTDASH_EXEDEV_CONTROL_HOST` | `exe.dev` | Control-plane SSH host |
@@ -107,9 +137,16 @@ for code. Deleting a locally *untracked* file does not delete it on the VM.
 
 ## Claude Code on the web / desktop app
 
-Set `LIGHTDASH_EXEDEV_SSH_KEY` as a secret in the code-session environment
-configuration. Network access must allow outbound SSH (port 22) to `exe.dev`
-and `*.exe.xyz`, and HTTPS to `*.exe.xyz` for health checks.
+For environments that allow outbound SSH (port 22) to `exe.dev` and
+`*.exe.xyz`, set `LIGHTDASH_EXEDEV_SSH_KEY` as a secret in the code-session
+environment configuration.
+
+Claude Code on the web blocks outbound SSH, so use the HTTPS transport there:
+set `LIGHTDASH_EXEDEV_API_KEY` to an exe.dev API key instead. Network access
+must allow HTTPS to `exe.dev` (control plane) and `*.exe.xyz` (VM exec, file
+sync, health checks). The API key needs the control commands the workflow uses
+(`ls`, `cp`, `tag`, `share …`, `ssh-key generate-api-key`); a key with full
+scope covers them.
 
 ## Operations
 
