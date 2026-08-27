@@ -226,6 +226,7 @@ const reassignUserSchedulersQuery = async ({
     });
 
 const getUserDashboardsSummaryQuery = async (userUuid: string) =>
+    // prettier-ignore
     lightdashApi<ApiUserDashboardsSummaryResponse['results']>({ // pragma: allowlist secret
         url: `/org/user/${userUuid}/dashboards-summary`,
         method: 'GET',
@@ -252,6 +253,7 @@ const reassignUserDashboardsQuery = async ({
     userUuid: string;
     newOwnerUserUuid: string;
 }) =>
+    // prettier-ignore
     lightdashApi<ApiReassignUserDashboardsResponse['results']>({ // pragma: allowlist secret
         url: `/org/user/${userUuid}/reassign-dashboards`,
         method: 'PATCH',
