@@ -46,7 +46,7 @@ export type UserWarehouseCredentials = {
           >
         | Pick<CreateBigqueryCredentials, 'type'>
         | Pick<CreateDatabricksCredentials, 'type'>
-        | Pick<CreateAthenaCredentials, 'type'>
+        | Pick<CreateAthenaCredentials, 'type' | 'accessKeyId'>
         | Pick<CreateDuckdbCredentials, 'type'>;
     project: UserWarehouseCredentialsProject | null;
 };

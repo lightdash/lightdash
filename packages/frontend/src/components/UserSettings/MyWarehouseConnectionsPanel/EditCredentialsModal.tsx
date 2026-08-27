@@ -82,7 +82,6 @@ const getCredentialsWithPlaceholders = (
         case WarehouseTypes.ATHENA:
             return {
                 ...credentials,
-                accessKeyId: '',
                 secretAccessKey: '',
             };
         case WarehouseTypes.DUCKDB:
@@ -116,7 +115,11 @@ export const EditCredentialsModal: FC<
                 isDatabricksSsoEnabled,
             ),
         },
-        validate: validateUserWarehouseCredentials,
+        validate: (values) =>
+            validateUserWarehouseCredentials(
+                values,
+                userCredentials.credentials,
+            ),
     });
 
     // SSO-based credentials are only ever set through their OAuth popup. They
@@ -152,7 +155,16 @@ export const EditCredentialsModal: FC<
             <form
                 id={FORM_ID}
                 onSubmit={form.onSubmit(async (formData) => {
-                    await mutateAsync(formData);
+                    if (
+                        formData.credentials.type === WarehouseTypes.ATHENA &&
+                        !formData.credentials.secretAccessKey
+                    ) {
+                        const { secretAccessKey: _, ...credentials } =
+                            formData.credentials;
+                        await mutateAsync({ ...formData, credentials });
+                    } else {
+                        await mutateAsync(formData);
+                    }
                     onClose();
                 })}
             >
@@ -169,6 +181,12 @@ export const EditCredentialsModal: FC<
                         onClose={onClose}
                         form={form}
                         disabled={isSaving}
+                        existingAthenaAccessKeyId={
+                            userCredentials.credentials.type ===
+                            WarehouseTypes.ATHENA
+                                ? userCredentials.credentials.accessKeyId
+                                : undefined
+                        }
                     />
                 </Stack>
             </form>
