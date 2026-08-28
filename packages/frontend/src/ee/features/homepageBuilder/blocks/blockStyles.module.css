@@ -387,20 +387,11 @@ a .hoverCard:hover,
 .editableChipActions {
     display: none;
     position: absolute;
-    bottom: calc(100% + 4px);
+    /* Overlaps the chip's top edge so the two read as one piece. */
+    bottom: calc(100% - 6px);
     left: 50%;
     transform: translateX(-50%);
     z-index: 10;
-}
-
-/* Invisible bridge over the gap so moving up into the actions keeps hover. */
-.editableChipActions::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    height: 6px;
 }
 
 .editableChip:hover .editableChipActions,

@@ -293,7 +293,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
 
     return (
         <Stack gap="xs">
-            <Group gap={8} className={classes.editableChipRow}>
+            <Group gap={8} justify="center" className={classes.editableChipRow}>
                 {block.config.actions.map((action, index) => {
                     const presentation = actionPresentation(
                         action,
