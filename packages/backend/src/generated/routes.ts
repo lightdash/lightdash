@@ -3858,6 +3858,61 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SpaceMemberRole: {
+        dataType: 'refEnum',
+        enums: ['viewer', 'editor', 'admin'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ContentAsCodeDirectAccessUser: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                role: { ref: 'SpaceMemberRole', required: true },
+                email: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ContentAsCodeDirectAccessGroup: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                role: { ref: 'SpaceMemberRole', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ContentAsCodeDirectAccess: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                groups: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'ContentAsCodeDirectAccessGroup',
+                    },
+                    required: true,
+                },
+                users: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'ContentAsCodeDirectAccessUser',
+                    },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartAsCode: {
         dataType: 'refAlias',
         type: {
@@ -3869,6 +3924,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        access: { ref: 'ContentAsCodeDirectAccess' },
                         verification: {
                             dataType: 'union',
                             subSchemas: [
@@ -3968,11 +4024,6 @@ const models: TsoaRoute.Models = {
     'ContentAsCodeType.SPACE': {
         dataType: 'refEnum',
         enums: ['space'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SpaceMemberRole: {
-        dataType: 'refEnum',
-        enums: ['viewer', 'editor', 'admin'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SpaceAsCodeUserAccess: {
@@ -4957,6 +5008,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        access: { ref: 'ContentAsCodeDirectAccess' },
                         verification: {
                             dataType: 'union',
                             subSchemas: [
@@ -5761,6 +5813,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        access: { ref: 'ContentAsCodeDirectAccess' },
                         downloadedAt: { dataType: 'datetime' },
                         updatedAt: { dataType: 'datetime' },
                         spaceSlug: { dataType: 'string', required: true },
@@ -8489,6 +8542,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                access: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ContentAsCodeDirectAccess' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 verification: {
                     dataType: 'union',
                     subSchemas: [
@@ -8586,6 +8646,13 @@ const models: TsoaRoute.Models = {
                 limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
                 chartKind: { ref: 'ChartKind', required: true },
+                access: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ContentAsCodeDirectAccess' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 updatedAt: {
                     dataType: 'union',
                     subSchemas: [
@@ -8739,6 +8806,13 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { ref: 'DashboardConfig' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    access: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ContentAsCodeDirectAccess' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -17886,6 +17960,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 scaffoldingVersion: { dataType: 'string' },
                 downloadedAt: { dataType: 'string', required: true },
+                access: { ref: 'ContentAsCodeDirectAccess' },
                 spaceSlug: { dataType: 'string' },
                 externalConnections: {
                     dataType: 'array',

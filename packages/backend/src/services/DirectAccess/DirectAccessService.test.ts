@@ -126,6 +126,16 @@ const buildService = ({
             revokedUsers: 1,
             revokedGroups: 0,
         }),
+        replacePolicy: vi.fn().mockResolvedValue({
+            organizationId: 1,
+            organizationUuid: ORGANIZATION_UUID,
+            projectId: 1,
+            projectUuid: PROJECT_UUID,
+            revokedUsers: 2,
+            revokedGroups: 1,
+            appliedUsers: 1,
+            appliedGroups: 1,
+        }),
     };
     const directAccessFeatureGate = {
         assertEnabled: enabled
@@ -391,6 +401,73 @@ describe('DirectAccessService', () => {
                 }),
             }),
         );
+    });
+});
+
+describe('DirectAccessService.replacePolicy', () => {
+    beforeEach(() => {
+        vi.mocked(logAuditEvent).mockClear();
+    });
+
+    it('authorizes, replaces atomically through the model, and audits', async () => {
+        const { service, directAccessModel } = buildService({
+            context: spaceContext([
+                { userUuid: USER_UUID, role: SpaceMemberRole.ADMIN },
+            ]),
+        });
+        const assignments = [
+            {
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: 'aaaaaaaa-0000-0000-0000-0000000000aa',
+                },
+                role: SpaceMemberRole.VIEWER,
+            },
+        ];
+
+        await service.replacePolicy(
+            buildAccount(OrganizationMemberRole.ADMIN),
+            PROJECT_UUID,
+            DirectAccessResourceType.DASHBOARD,
+            DASHBOARD_UUID,
+            assignments,
+        );
+
+        expect(directAccessModel.replacePolicy).toHaveBeenCalledWith({
+            resourceType: DirectAccessResourceType.DASHBOARD,
+            resourceUuid: DASHBOARD_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            grantedByUserUuid: USER_UUID,
+            assignments,
+        });
+        const replaceEvents = vi
+            .mocked(logAuditEvent)
+            .mock.calls.map(([event]) => event)
+            .filter((event) => event.action === 'direct_access.replace');
+        expect(replaceEvents).toHaveLength(1);
+        expect(replaceEvents[0].resource.metadata).toMatchObject({
+            revokedUsers: 2,
+            appliedUsers: 1,
+        });
+    });
+
+    it('denies non-admin standing before any write', async () => {
+        const { service, directAccessModel } = buildService({
+            context: spaceContext([
+                { userUuid: USER_UUID, role: SpaceMemberRole.EDITOR },
+            ]),
+        });
+
+        await expect(
+            service.replacePolicy(
+                buildAccount(OrganizationMemberRole.MEMBER),
+                PROJECT_UUID,
+                DirectAccessResourceType.DASHBOARD,
+                DASHBOARD_UUID,
+                [],
+            ),
+        ).rejects.toThrowError(ForbiddenError);
+        expect(directAccessModel.replacePolicy).not.toHaveBeenCalled();
     });
 });
 
