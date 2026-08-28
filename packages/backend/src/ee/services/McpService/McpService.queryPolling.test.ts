@@ -575,6 +575,7 @@ const makeMcpService = ({
         mcpContentWritesEnabled: true,
         scheduledDeliveryEnabled: true,
         runSqlEnabled: true,
+        runMetricQueryEnabled: true,
     });
 
     return {
