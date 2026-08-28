@@ -11402,6 +11402,22 @@ export class AppGenerateService extends BaseService {
             );
         const warnings = [...linkWarnings];
 
+        // Access block preflight also runs up front: unresolvable or
+        // ambiguous principals reject the bundle before anything is written.
+        // Guarded like manifestLinks so pre-field bundles never touch the
+        // direct-access seam at all.
+        const directAccessAssignments =
+            code.manifest.access !== undefined
+                ? await this.coderService.prepareDirectAccessReplace({
+                      user,
+                      organizationUuid,
+                      access: code.manifest.access,
+                      contentLabel: `App ${
+                          code.manifest.slug ?? code.manifest.name
+                      }`,
+                  })
+                : null;
+
         // Validate the round-tripped viz schema up front and fail loud: the
         // build-from-source pipeline has no generation run to re-emit it, so
         // silently dropping a bad one would unlist the viz from the picker.
@@ -11672,6 +11688,17 @@ export class AppGenerateService extends BaseService {
                         resolvedLinks,
                     );
                 }
+                // An unchanged bundle still reconciles its declared policy —
+                // same contract as links and metadata above.
+                if (directAccessAssignments !== null) {
+                    await this.coderService.applyDirectAccessPolicy(
+                        user,
+                        projectUuid,
+                        DirectAccessResourceType.APP,
+                        existingApp.app_id,
+                        directAccessAssignments,
+                    );
+                }
                 this.analytics.track({
                     event: 'data_app.uploaded',
                     userId: user.userUuid,
@@ -11873,6 +11900,18 @@ export class AppGenerateService extends BaseService {
             await this.externalConnectionModel.replaceAppLinks(
                 newAppUuid,
                 resolvedLinks,
+            );
+        }
+
+        // Same reconciliation contract for the direct policy: present
+        // (including empty) → atomic replacement; absent → untouched.
+        if (directAccessAssignments !== null) {
+            await this.coderService.applyDirectAccessPolicy(
+                user,
+                projectUuid,
+                DirectAccessResourceType.APP,
+                newAppUuid,
+                directAccessAssignments,
             );
         }
 
