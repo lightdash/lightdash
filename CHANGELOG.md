@@ -1,3 +1,10 @@
+## [2.46.1](https://github.com/lightdash/lightdash/compare/2.46.0...2.46.1) (2026-08-28)
+
+
+### Bug Fixes
+
+* **backend:** report accurate types for pivoted value columns ([#28244](https://github.com/lightdash/lightdash/issues/28244)) ([5f1fcb8](https://github.com/lightdash/lightdash/commit/5f1fcb8d2b661c74229e5ae822c3fefe0980df26))
+
 # [2.46.0](https://github.com/lightdash/lightdash/compare/2.45.1...2.46.0) (2026-08-28)
 
 
