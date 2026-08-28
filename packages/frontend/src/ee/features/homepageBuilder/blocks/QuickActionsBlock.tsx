@@ -7,6 +7,7 @@ import {
     Group,
     Loader,
     Menu,
+    Paper,
     Stack,
     Text,
     TextInput,
@@ -292,7 +293,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
 
     return (
         <Stack gap="xs">
-            <Stack gap={4}>
+            <Group gap={8} className={classes.editableChipRow}>
                 {block.config.actions.map((action, index) => {
                     const presentation = actionPresentation(
                         action,
@@ -301,101 +302,120 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                     // Matches the view: no agent, no Ask AI row
                     if (action.type === 'ask-ai' && !canAskAi) return null;
                     return (
-                        <Group
+                        <Box
                             key={actionKey(action)}
-                            gap="xs"
-                            wrap="nowrap"
-                            p="xs"
-                            className={classes.actionRow}
+                            className={classes.editableChip}
                         >
-                            <MantineIcon
-                                icon={presentation.icon}
-                                color="ldGray.6"
-                            />
-                            <Text size="sm" fw={500} flex={1}>
-                                {presentation.title}
-                            </Text>
-                            <Tooltip
-                                label={
+                            <span
+                                className={`${classes.quickActionChip}${
                                     action.primary
-                                        ? 'Primary action'
-                                        : 'Make primary'
-                                }
-                                withinPortal
+                                        ? ` ${classes.quickActionChipPrimary}`
+                                        : ''
+                                }`}
                             >
-                                <ActionIcon
-                                    variant="subtle"
+                                <MantineIcon
+                                    icon={presentation.icon}
+                                    size={14}
                                     color={
-                                        action.primary ? 'yellow' : 'ldGray.6'
+                                        action.primary ? 'inherit' : 'ldGray.6'
                                     }
-                                    size="sm"
-                                    aria-label={`Make ${presentation.title} the primary action`}
-                                    aria-pressed={action.primary === true}
-                                    onClick={() =>
-                                        // Only one primary per row
-                                        setActions(
-                                            block.config.actions.map(
-                                                (item, i) => ({
-                                                    ...item,
-                                                    primary:
-                                                        i === index
-                                                            ? !action.primary
-                                                            : false,
-                                                }),
-                                            ),
-                                        )
-                                    }
-                                >
-                                    <MantineIcon
-                                        icon={
+                                />
+                                {presentation.title}
+                            </span>
+                            <Paper
+                                p={4}
+                                shadow="sm"
+                                className={classes.editableChipActions}
+                            >
+                                <Group gap={2} wrap="nowrap">
+                                    <Tooltip
+                                        label={
                                             action.primary
-                                                ? IconStarFilled
-                                                : IconStar
+                                                ? 'Primary action'
+                                                : 'Make primary'
                                         }
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                            <ActionIcon
-                                variant="subtle"
-                                color="ldGray.6"
-                                size="sm"
-                                disabled={index === 0}
-                                aria-label={`Move ${presentation.title} earlier`}
-                                onClick={() => move(index, -1)}
-                            >
-                                <MantineIcon icon={IconArrowLeft} />
-                            </ActionIcon>
-                            <ActionIcon
-                                variant="subtle"
-                                color="ldGray.6"
-                                size="sm"
-                                disabled={
-                                    index === block.config.actions.length - 1
-                                }
-                                aria-label={`Move ${presentation.title} later`}
-                                onClick={() => move(index, 1)}
-                            >
-                                <MantineIcon icon={IconArrowRight} />
-                            </ActionIcon>
-                            <ActionIcon
-                                variant="subtle"
-                                color="ldGray.6"
-                                size="sm"
-                                aria-label={`Remove ${presentation.title}`}
-                                onClick={() =>
-                                    setActions(
-                                        block.config.actions.filter(
-                                            (_, i) => i !== index,
-                                        ),
-                                    )
-                                }
-                            >
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        </Group>
+                                        withinPortal
+                                    >
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color={
+                                                action.primary
+                                                    ? 'yellow'
+                                                    : 'ldGray.6'
+                                            }
+                                            size="sm"
+                                            aria-label={`Make ${presentation.title} the primary action`}
+                                            aria-pressed={
+                                                action.primary === true
+                                            }
+                                            onClick={() =>
+                                                // Only one primary per row
+                                                setActions(
+                                                    block.config.actions.map(
+                                                        (item, i) => ({
+                                                            ...item,
+                                                            primary:
+                                                                i === index
+                                                                    ? !action.primary
+                                                                    : false,
+                                                        }),
+                                                    ),
+                                                )
+                                            }
+                                        >
+                                            <MantineIcon
+                                                icon={
+                                                    action.primary
+                                                        ? IconStarFilled
+                                                        : IconStar
+                                                }
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="ldGray.6"
+                                        size="sm"
+                                        disabled={index === 0}
+                                        aria-label={`Move ${presentation.title} earlier`}
+                                        onClick={() => move(index, -1)}
+                                    >
+                                        <MantineIcon icon={IconArrowLeft} />
+                                    </ActionIcon>
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="ldGray.6"
+                                        size="sm"
+                                        disabled={
+                                            index ===
+                                            block.config.actions.length - 1
+                                        }
+                                        aria-label={`Move ${presentation.title} later`}
+                                        onClick={() => move(index, 1)}
+                                    >
+                                        <MantineIcon icon={IconArrowRight} />
+                                    </ActionIcon>
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="ldGray.6"
+                                        size="sm"
+                                        aria-label={`Remove ${presentation.title}`}
+                                        onClick={() =>
+                                            setActions(
+                                                block.config.actions.filter(
+                                                    (_, i) => i !== index,
+                                                ),
+                                            )
+                                        }
+                                    >
+                                        <MantineIcon icon={IconX} />
+                                    </ActionIcon>
+                                </Group>
+                            </Paper>
+                        </Box>
                     );
                 })}
-            </Stack>
+            </Group>
             <Group gap="xs">
                 <Menu position="bottom-start">
                     <Menu.Target>
