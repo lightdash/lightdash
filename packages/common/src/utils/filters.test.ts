@@ -368,6 +368,40 @@ describe('addFilterRule', () => {
         });
         expect(result).toEqual(expectedFiltersWithCustomSqlDimension);
     });
+
+    test('adds a period-to-date filter with the requested period', () => {
+        const field = {
+            ...dimension('created_at_month', 'orders'),
+            type: DimensionType.DATE,
+            timeInterval: TimeFrames.MONTH,
+        } as const;
+
+        const result = addFilterRule({
+            filters: {},
+            field,
+            operator: FilterOperator.IN_PERIOD_TO_DATE,
+            settings: {
+                unitOfTime: UnitOfTime.months,
+                completed: false,
+            },
+        });
+
+        expect(result.dimensions).toEqual({
+            id: 'uuid',
+            and: [
+                {
+                    id: 'uuid',
+                    target: { fieldId: 'orders_created_at_month' },
+                    operator: FilterOperator.IN_PERIOD_TO_DATE,
+                    values: [],
+                    settings: {
+                        unitOfTime: UnitOfTime.months,
+                        completed: false,
+                    },
+                },
+            ],
+        });
+    });
 });
 
 describe('createFilterRuleFromField — time-interval DATE dims', () => {

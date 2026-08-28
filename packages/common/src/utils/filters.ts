@@ -39,6 +39,7 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
     type DateFilterRule,
+    type DateFilterSettings,
     type FilterDashboardToRule,
     type FilterGroup,
     type FilterGroupItem,
@@ -457,7 +458,7 @@ export const createFilterRuleFromField = (
     field: FilterableField,
     value?: AnyType,
     timezone?: string,
-    operator: QuickFilterOperator = FilterOperator.EQUALS,
+    operator: FilterOperator = FilterOperator.EQUALS,
 ): FilterRule => {
     const isExclude = operator === FilterOperator.NOT_EQUALS;
     let ruleOperator: FilterOperator = operator;
@@ -705,7 +706,8 @@ type AddFilterRuleArgs = {
     targetFieldId?: string;
     value?: AnyType;
     timezone?: string;
-    operator?: QuickFilterOperator;
+    operator?: FilterOperator;
+    settings?: DateFilterSettings;
 };
 
 export const addFilterRule = ({
@@ -715,6 +717,7 @@ export const addFilterRule = ({
     value,
     timezone,
     operator,
+    settings,
 }: AddFilterRuleArgs): Filters => {
     const groupKey = ((f: AnyType) => {
         if (isDimension(f) || isCustomSqlDimension(f)) {
@@ -732,15 +735,18 @@ export const addFilterRule = ({
         timezone,
         operator,
     );
-    const rule = targetFieldId
-        ? {
-              ...createdRule,
-              target: {
-                  ...createdRule.target,
-                  fieldId: targetFieldId,
-              },
-          }
-        : createdRule;
+    const rule = {
+        ...createdRule,
+        ...(settings ? { settings } : {}),
+        ...(targetFieldId
+            ? {
+                  target: {
+                      ...createdRule.target,
+                      fieldId: targetFieldId,
+                  },
+              }
+            : {}),
+    };
     return {
         ...filters,
         [groupKey]: {
