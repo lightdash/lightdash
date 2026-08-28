@@ -1,3 +1,10 @@
+# [2.44.0](https://github.com/lightdash/lightdash/compare/2.43.0...2.44.0) (2026-08-28)
+
+
+### Features
+
+* **frontend:** resolve embedded date zoom strings through uiOverrides ([#28012](https://github.com/lightdash/lightdash/issues/28012)) ([faf5210](https://github.com/lightdash/lightdash/commit/faf521046d837bdd056acd4e8bb77adef624ab13)), closes [#28010](https://github.com/lightdash/lightdash/issues/28010)
+
 # [2.43.0](https://github.com/lightdash/lightdash/compare/2.42.1...2.43.0) (2026-08-28)
 
 
