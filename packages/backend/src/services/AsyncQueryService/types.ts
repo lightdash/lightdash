@@ -17,6 +17,7 @@ import {
     type DownloadAsyncQueryResultsPayload,
     type ExternalSourceTableReference,
     type Filters,
+    type GroupLimit,
     type ItemsMap,
     type ParametersValuesMap,
     type PreAggregateExecutionEngine,
@@ -99,6 +100,7 @@ export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     pivotConfiguration?: PivotConfiguration;
     materializationRole?: UserAccessControls;
     dashboardFilters?: DashboardFilters;
+    groupLimit?: GroupLimit;
     /**
      * Collapse the query into a totals grain (calculate-total path only).
      * Mutually exclusive with `dashboardFilters`.

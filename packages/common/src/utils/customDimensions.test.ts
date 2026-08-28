@@ -63,6 +63,17 @@ describe('getCustomGroupSelectSql', () => {
         expect(result).toContain(`ELSE 'Other'`);
     });
 
+    it('uses and escapes a custom other label', () => {
+        const result = getCustomGroupSelectSql({
+            binGroups: [],
+            baseDimensionSql,
+            warehouseSqlBuilder: backslashEscapeBuilder,
+            otherLabel: "Other's",
+        });
+
+        expect(result).toContain(`ELSE 'Other\\'s'`);
+    });
+
     it('generates LIKE for starts_with with escaped underscore', () => {
         const result = getCustomGroupSelectSql({
             binGroups: [{ name: 'Prod', values: [startsWith('prod_')] }],

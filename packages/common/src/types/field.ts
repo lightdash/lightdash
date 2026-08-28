@@ -284,6 +284,8 @@ export interface CustomRangeBinDimension extends BaseCustomBinDimension {
 export interface CustomGroupBinDimension extends BaseCustomBinDimension {
     binType: BinType.CUSTOM_GROUP;
     customGroups: BinGroup[];
+    otherLabel?: string;
+    isGroupLimit?: boolean;
 }
 
 export type CustomBinDimension =
