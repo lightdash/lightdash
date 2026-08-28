@@ -1,3 +1,10 @@
+## [2.48.1](https://github.com/lightdash/lightdash/compare/2.48.0...2.48.1) (2026-08-28)
+
+
+### Bug Fixes
+
+* render saved charts with pinned chart types ([#28220](https://github.com/lightdash/lightdash/issues/28220)) ([0756633](https://github.com/lightdash/lightdash/commit/07566336833ed064a1f9a108952bae39e4eeeb01))
+
 # [2.48.0](https://github.com/lightdash/lightdash/compare/2.47.0...2.48.0) (2026-08-28)
 
 
