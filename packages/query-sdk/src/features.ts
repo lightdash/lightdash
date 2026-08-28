@@ -102,6 +102,13 @@ export const SDK_FEATURES: SdkFeature[] = [
         wiring: 'When useVizContext().pivotDetails is non-null, use valuesColumns to resolve generated row keys and use indexColumn, groupByColumns, originalColumns, sortBy, totalColumnCount, and passthroughDimensions when the visualization needs their layout semantics. Keep the existing fieldMapping path when pivotDetails is null.',
     },
     {
+        key: 'viz-resolved-colors',
+        label: 'Consistent visualization colors',
+        description:
+            'Honor model-defined colors and shared dashboard color assignments in reusable visualizations.',
+        wiring: 'Use resolveSeriesColor(context, column, index) for backend-pivoted series and resolveValueColor(context, fieldId, rawValue, index) for client-side groups; both helpers fall back to colorPalette.',
+    },
+    {
         key: 'follow-host-theme',
         label: 'Follow the host light/dark mode',
         description:
