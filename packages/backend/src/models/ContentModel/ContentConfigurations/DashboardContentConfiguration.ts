@@ -263,6 +263,8 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
             }
             return {
                 contentType: ContentType.DASHBOARD,
+                // Filled in by ContentService for the requesting user.
+                directAccessRoles: [],
                 uuid: value.uuid,
                 slug: value.slug,
                 name: value.name,

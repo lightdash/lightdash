@@ -227,6 +227,8 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
             }
             return {
                 contentType: ContentType.CHART,
+                // Filled in by ContentService for the requesting user.
+                directAccessRoles: [],
                 uuid: value.uuid,
                 slug: value.slug,
                 name: value.name,

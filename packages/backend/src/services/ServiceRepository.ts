@@ -831,6 +831,7 @@ export class ServiceRepository
                         this.models.getResourceViewItemModel(),
                     projectModel: this.models.getProjectModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    directAccessService: this.getDirectAccessService(),
                 }),
         );
     }
@@ -900,6 +901,7 @@ export class ServiceRepository
                         this.getAdminNotificationService(),
                     permissionsService: this.getPermissionsService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    directAccessService: this.getDirectAccessService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                     organizationSettingsModel:
@@ -998,6 +1000,7 @@ export class ServiceRepository
                     adminNotificationService:
                         this.getAdminNotificationService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    directAccessService: this.getDirectAccessService(),
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
                     getDataAppCustomSqlProvenance: async () => ({
@@ -1517,6 +1520,7 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     spaceModel: this.models.getSpaceModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    directAccessService: this.getDirectAccessService(),
                     savedChartModel: this.models.getSavedChartModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     appModel: this.models.getAppModel(),

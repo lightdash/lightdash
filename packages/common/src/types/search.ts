@@ -56,6 +56,8 @@ export type SavedChartSearchResult = Pick<
     'uuid' | 'name' | 'description' | 'spaceUuid' | 'projectUuid' | 'slug'
 > & {
     chartType: ChartKind;
+    /** Owning dashboard for dashboard-owned chart definitions, else null. */
+    dashboardUuid: string | null;
     validationErrors: {
         validationUuid: ValidationErrorChartResponse['validationUuid'];
         /** @deprecated Use validationUuid. Null for post-migration validations. */
@@ -84,6 +86,8 @@ export type SqlChartSearchResult = Pick<
 > & {
     uuid: SqlChart['savedSqlUuid'];
     chartType: ChartKind;
+    /** Owning dashboard for dashboard-owned chart definitions, else null. */
+    dashboardUuid: string | null;
     spaceUuid: SqlChart['space']['uuid'];
     projectUuid: SqlChart['project']['projectUuid'];
     chartSource: 'sql';
@@ -108,6 +112,8 @@ export type AllChartsSearchResult = Pick<
     'uuid' | 'name' | 'description' | 'spaceUuid' | 'projectUuid' | 'slug'
 > & {
     chartType: ChartKind;
+    /** Owning dashboard for dashboard-owned chart definitions, else null. */
+    dashboardUuid: string | null;
     chartSource: 'saved' | 'sql';
     viewsCount: number;
     firstViewedAt: string | null;

@@ -1336,6 +1336,8 @@ export class SpaceModel {
             recentlyUpdated?: boolean;
             mostPopular?: boolean;
         },
+        // Directly granted dashboards outside the given spaces to include.
+        includeUuids?: string[],
     ): Promise<SpaceDashboard[]> {
         const subQuery = this.database
             .table(DashboardsTableName)
@@ -1409,7 +1411,18 @@ export class SpaceModel {
                 `${DashboardVersionsTableName}.dashboard_id as dashboard_id`,
             ])
             .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
-            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .where((accessFilter) => {
+                void accessFilter.whereIn(
+                    `${SpaceTableName}.space_uuid`,
+                    spaceUuids,
+                );
+                if (includeUuids !== undefined && includeUuids.length > 0) {
+                    void accessFilter.orWhereIn(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        includeUuids,
+                    );
+                }
+            })
             .whereNull(`${DashboardsTableName}.deleted_at`)
             .orderBy([
                 {
@@ -1496,6 +1509,8 @@ export class SpaceModel {
             recentlyUpdated?: boolean;
             mostPopular?: boolean;
         },
+        // Directly granted charts outside the given spaces to include.
+        includeUuids?: string[],
     ) {
         const {
             name: chartTable,
@@ -1504,7 +1519,18 @@ export class SpaceModel {
         } = chartsTable;
 
         let spaceChartsQuery = this.database(chartTable)
-            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .where((accessFilter) => {
+                void accessFilter.whereIn(
+                    `${SpaceTableName}.space_uuid`,
+                    spaceUuids,
+                );
+                if (includeUuids !== undefined && includeUuids.length > 0) {
+                    void accessFilter.orWhereIn(
+                        `${chartTable}.${uuidColumnName}`,
+                        includeUuids,
+                    );
+                }
+            })
             .leftJoin(
                 SpaceTableName,
                 `${chartTable}.space_uuid`,
@@ -1648,6 +1674,7 @@ export class SpaceModel {
             recentlyUpdated?: boolean;
             mostPopular?: boolean;
         },
+        includeUuids?: string[],
     ): Promise<SpaceQuery[]> {
         return this.getSpaceCharts(
             {
@@ -1657,6 +1684,7 @@ export class SpaceModel {
             },
             spaceUuids,
             filters,
+            includeUuids,
         );
     }
 
@@ -1666,9 +1694,22 @@ export class SpaceModel {
             recentlyUpdated?: boolean;
             mostPopular?: boolean;
         },
+        // Directly granted charts outside the given spaces to include.
+        includeUuids?: string[],
     ): Promise<SpaceQuery[]> {
         let spaceQueriesQuery = this.database(SavedChartsTableName)
-            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .where((accessFilter) => {
+                void accessFilter.whereIn(
+                    `${SpaceTableName}.space_uuid`,
+                    spaceUuids,
+                );
+                if (includeUuids !== undefined && includeUuids.length > 0) {
+                    void accessFilter.orWhereIn(
+                        `${SavedChartsTableName}.saved_query_uuid`,
+                        includeUuids,
+                    );
+                }
+            })
             .whereNull(`${SavedChartsTableName}.deleted_at`)
             .leftJoin(
                 SpaceTableName,

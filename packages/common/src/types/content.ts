@@ -3,6 +3,7 @@ import { type ContentVerificationInfo } from './contentVerification';
 import { type DashboardOwner } from './dashboard';
 import type { KnexPaginatedData } from './knex-paginate';
 import { type ChartKind } from './savedCharts';
+import { type SpaceMemberRole } from './space';
 import { type SessionUser } from './user';
 
 export enum ContentType {
@@ -66,6 +67,9 @@ export enum ChartSourceType {
 
 export interface ChartContent extends Content {
     contentType: ContentType.CHART;
+    // Roles the viewer holds on this resource through direct grants; empty
+    // when they reach it through its space (or the feature is off).
+    directAccessRoles: SpaceMemberRole[];
     source: ChartSourceType;
     chartKind: ChartKind;
     dashboard: {
@@ -78,6 +82,7 @@ export interface ChartContent extends Content {
 
 export interface DashboardContent extends Content {
     contentType: ContentType.DASHBOARD;
+    directAccessRoles: SpaceMemberRole[];
     owner: DashboardOwner | null;
 }
 
@@ -85,6 +90,7 @@ export interface DashboardContent extends Content {
 
 export interface DataAppContent extends Omit<Content, 'space' | 'pinnedList'> {
     contentType: ContentType.DATA_APP;
+    directAccessRoles: SpaceMemberRole[];
     // Personal apps have no space until their creator moves them into one.
     space: {
         uuid: string;

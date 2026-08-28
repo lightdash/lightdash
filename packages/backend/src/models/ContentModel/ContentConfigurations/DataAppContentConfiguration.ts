@@ -285,6 +285,8 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
             }
             return {
                 contentType: ContentType.DATA_APP,
+                // Filled in by ContentService for the requesting user.
+                directAccessRoles: [],
                 uuid: value.uuid,
                 slug: value.slug,
                 name: value.name,

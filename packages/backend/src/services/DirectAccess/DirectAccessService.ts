@@ -83,7 +83,16 @@ export class DirectAccessService extends BaseService {
             resourceUuids: string[],
             userUuid: string,
             opts: { organizationUuid: string },
-        ) => Promise<Record<string, { projectUuid: UUID }>>;
+        ) => Promise<
+            Record<
+                string,
+                {
+                    projectUuid: UUID;
+                    userRole: SpaceMemberRole | null;
+                    groupRoles: SpaceMemberRole[];
+                }
+            >
+        >;
     } {
         switch (resourceType) {
             case DirectAccessResourceType.DASHBOARD:
@@ -100,6 +109,54 @@ export class DirectAccessService extends BaseService {
                     'Unsupported direct access resource type',
                 );
         }
+    }
+
+    /**
+     * Roles the user holds through direct grants on the given resources, keyed
+     * by resource UUID. Discovery surfaces need these to reason about what the
+     * viewer may do with a granted resource: a content grant never puts its
+     * parent space in the viewer's space list, so space-derived access alone
+     * under-reports their rights. Feature off means no roles.
+     */
+    async findGrantedRoles(
+        user: { userUuid: UUID; organizationUuid: UUID },
+        resources: { resourceType: DirectAccessResourceType; uuids: UUID[] }[],
+    ): Promise<Record<string, SpaceMemberRole[]>> {
+        const withUuids = resources.filter(({ uuids }) => uuids.length > 0);
+        if (withUuids.length === 0) {
+            return {};
+        }
+        const enabled =
+            await this.directAccessFeatureGate.isEnabledForUser(user);
+        if (!enabled) {
+            return {};
+        }
+
+        const perType = await Promise.all(
+            withUuids.map(async ({ resourceType, uuids }) =>
+                this.getGrantReadModel(resourceType).getUserAccess(
+                    uuids,
+                    user.userUuid,
+                    { organizationUuid: user.organizationUuid },
+                ),
+            ),
+        );
+
+        return perType.reduce<Record<string, SpaceMemberRole[]>>(
+            (acc, access) => {
+                Object.entries(access).forEach(([resourceUuid, grant]) => {
+                    const roles = [
+                        ...(grant.userRole ? [grant.userRole] : []),
+                        ...grant.groupRoles,
+                    ];
+                    if (roles.length > 0) {
+                        acc[resourceUuid] = roles;
+                    }
+                });
+                return acc;
+            },
+            {},
+        );
     }
 
     /**

@@ -279,15 +279,18 @@ export class ContentService extends BaseService {
 
         return {
             ...results,
-            data: results.data.map((item): SummaryContent => {
-                if (item.contentType !== ContentType.SPACE) {
-                    return item;
-                }
-                return {
-                    ...item,
-                    access: directAccessMap[item.uuid] ?? [],
-                };
-            }),
+            data: await this.withDirectAccessRoles(
+                user,
+                results.data.map((item): SummaryContent => {
+                    if (item.contentType !== ContentType.SPACE) {
+                        return item;
+                    }
+                    return {
+                        ...item,
+                        access: directAccessMap[item.uuid] ?? [],
+                    };
+                }),
+            ),
         };
     }
 
@@ -297,6 +300,73 @@ export class ContentService extends BaseService {
      * metadata, filters, sorting, pagination, and counts behave exactly like
      * the default listing. Never unions ordinary space-accessible content.
      */
+    /**
+     * Attaches the viewer's direct-grant roles to each row. Space-derived
+     * access already reaches the client through the space list; grants do not,
+     * so without this the client cannot tell a granted resource it may manage
+     * from one it may only view.
+     */
+    private async withDirectAccessRoles(
+        user: SessionUser,
+        rows: SummaryContent[],
+    ): Promise<SummaryContent[]> {
+        if (rows.length === 0 || user.organizationUuid === undefined) {
+            return rows;
+        }
+        const uuidsByType = rows.reduce<
+            Record<DirectAccessResourceType, string[]>
+        >(
+            (acc, row) => {
+                switch (row.contentType) {
+                    case ContentType.DASHBOARD:
+                        acc[DirectAccessResourceType.DASHBOARD].push(row.uuid);
+                        break;
+                    case ContentType.CHART:
+                        acc[
+                            row.source === ChartSourceType.SQL
+                                ? DirectAccessResourceType.SQL_CHART
+                                : DirectAccessResourceType.CHART
+                        ].push(row.uuid);
+                        break;
+                    case ContentType.DATA_APP:
+                        acc[DirectAccessResourceType.APP].push(row.uuid);
+                        break;
+                    default:
+                        break;
+                }
+                return acc;
+            },
+            {
+                [DirectAccessResourceType.DASHBOARD]: [],
+                [DirectAccessResourceType.CHART]: [],
+                [DirectAccessResourceType.SQL_CHART]: [],
+                [DirectAccessResourceType.APP]: [],
+            },
+        );
+
+        const rolesByUuid = await this.directAccessService.findGrantedRoles(
+            {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            },
+            Object.entries(uuidsByType).map(([resourceType, uuids]) => ({
+                resourceType: resourceType as DirectAccessResourceType,
+                uuids,
+            })),
+        );
+        if (Object.keys(rolesByUuid).length === 0) {
+            return rows;
+        }
+
+        return rows.map((row) => {
+            const roles = rolesByUuid[row.uuid];
+            if (roles === undefined || row.contentType === ContentType.SPACE) {
+                return row;
+            }
+            return { ...row, directAccessRoles: roles };
+        });
+    }
+
     private async findSharedWithMe(
         user: SessionUser,
         filters: ContentFilters & { projectUuids: string[] },
@@ -374,9 +444,12 @@ export class ContentService extends BaseService {
             ...results,
             // Spaces are excluded from grantable content types above, so no
             // row needs the SpaceContent access enrichment.
-            data: results.data.filter(
-                (item): item is Exclude<SummaryContent, SpaceContentBase> =>
-                    item.contentType !== ContentType.SPACE,
+            data: await this.withDirectAccessRoles(
+                user,
+                results.data.filter(
+                    (item): item is Exclude<SummaryContent, SpaceContentBase> =>
+                        item.contentType !== ContentType.SPACE,
+                ),
             ),
         };
     }

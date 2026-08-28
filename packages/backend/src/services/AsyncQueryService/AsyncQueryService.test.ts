@@ -389,6 +389,7 @@ const getMockedAsyncQueryService = (
                 directOnly: false,
             })),
         } as unknown as SpacePermissionService,
+        directAccessService: {} as never,
         organizationSettingsModel: {
             get: vi.fn(async () => ({
                 queryLimit: null,

@@ -218,7 +218,7 @@ describe('AppGenerateService direct app access', () => {
         ).resolves.toEqual([
             {
                 uuid: APP_UUID,
-                spaceUuid: null,
+                spaceUuid: SPACE_UUID,
                 createdBy: { userUuid: app.created_by_user_uuid },
             },
         ]);

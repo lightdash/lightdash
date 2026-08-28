@@ -1372,7 +1372,9 @@ export class AppGenerateService extends BaseService {
             if (auditedAbility.cannot('view', subject('DataApp', context))) {
                 return [];
             }
-            return [context.directOnly ? { ...app, spaceUuid: null } : app];
+            // Directly shared apps keep their real parent-space reference;
+            // parent access stays independently unauthorized.
+            return [app];
         });
     }
 
