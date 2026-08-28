@@ -1451,6 +1451,7 @@ export type LightdashConfig = {
     mobile: HealthState['mobile'];
     license: {
         licenseKey: string | null;
+        licenseCertificate: string | null;
     };
     sentry: SentryConfig;
     auth: AuthConfig;
@@ -2666,6 +2667,14 @@ export const parseConfig = (): LightdashConfig => {
     }
 
     const licenseKey = process.env.LIGHTDASH_LICENSE_KEY || null;
+    const licenseCertificate =
+        process.env.LIGHTDASH_LICENSE_CERTIFICATE || null;
+    if (licenseCertificate !== null && licenseKey === null) {
+        throw new ParseError(
+            'LIGHTDASH_LICENSE_KEY is required when LIGHTDASH_LICENSE_CERTIFICATE is set',
+            {},
+        );
+    }
     const preAggregatesEnabled =
         licenseKey !== null && process.env.PRE_AGGREGATES_ENABLED === 'true';
     const preAggregatesS3 = parsePreAggregateResultsS3Config();
@@ -2750,6 +2759,7 @@ export const parseConfig = (): LightdashConfig => {
         cookieSameSite: iframeEmbeddingEnabled ? 'none' : 'lax',
         license: {
             licenseKey,
+            licenseCertificate,
         },
         security: {
             contentSecurityPolicy: {

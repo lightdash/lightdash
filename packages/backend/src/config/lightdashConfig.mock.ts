@@ -238,6 +238,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     license: {
         licenseKey: null,
+        licenseCertificate: null,
     },
     groups: {
         enabled: false,

@@ -60,6 +60,7 @@ services:
             # with a license key; without it diverted previews would be
             # missing the enterprise seed data
             LIGHTDASH_LICENSE_KEY: ${LIGHTDASH_LICENSE_KEY}
+            LIGHTDASH_LICENSE_CERTIFICATE: ${LIGHTDASH_LICENSE_CERTIFICATE}
             # Never used by migrate/seed, but loading the knexfile parses the
             # full Lightdash config, which requires S3 settings to be present
             S3_ENDPOINT: http://unused:9000

@@ -70,6 +70,7 @@ services:
             LIGHTDASH_SECRET: not very secret
             # EE seed data in the snapshot needs a license key to be usable
             LIGHTDASH_LICENSE_KEY: ${LIGHTDASH_LICENSE_KEY}
+            LIGHTDASH_LICENSE_CERTIFICATE: ${LIGHTDASH_LICENSE_CERTIFICATE}
 
             DBT_DEMO_DIR: /usr/app/examples/full-jaffle-shop-demo
             # Must match the snapshot builder (docker-compose.db-snapshot.yml)
