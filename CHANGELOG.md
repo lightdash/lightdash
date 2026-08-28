@@ -1,3 +1,10 @@
+# [2.50.0](https://github.com/lightdash/lightdash/compare/2.49.1...2.50.0) (2026-08-28)
+
+
+### Features
+
+* add chart URL slug rename action ([#28259](https://github.com/lightdash/lightdash/issues/28259)) ([3c8b8c4](https://github.com/lightdash/lightdash/commit/3c8b8c406b863da8c0e591a75114d4ebd552643f))
+
 ## [2.49.1](https://github.com/lightdash/lightdash/compare/2.49.0...2.49.1) (2026-08-28)
 
 
