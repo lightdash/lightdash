@@ -25,10 +25,11 @@ import {
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
-import { filterOperatorDescription } from '../../../components/common/Filters/FilterInputs/constants';
+import { filterOperatorDescriptionKey } from '../../../components/common/Filters/FilterInputs/constants';
 import { getFilterOperatorOptions } from '../../../components/common/Filters/FilterInputs/utils';
 import { getPlaceholderByFilterTypeAndOperator } from '../../../components/common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useApp from '../../../providers/App/useApp';
 import RequiredFilterCard from '../FilterRequirements/RequiredFilterCard';
 
@@ -57,12 +58,13 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 }) => {
     const { user } = useApp();
     const canManageExplore = user.data?.ability?.can('manage', 'Explore');
+    const getUiString = useUiStrings();
 
     const [filterLabel, setFilterLabel] = useState<string>();
 
     const filterOperatorOptions = useMemo(
-        () => getFilterOperatorOptions(filterType, field),
-        [filterType, field],
+        () => getFilterOperatorOptions(filterType, field, getUiString),
+        [filterType, field, getUiString],
     );
 
     // Set default label when using revert (undo) button
@@ -199,10 +201,13 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     }
                     value={filterRule.operator}
                     renderOption={({ option }) => {
-                        const description =
-                            filterOperatorDescription[
+                        const descriptionKey =
+                            filterOperatorDescriptionKey[
                                 option.value as FilterOperator
                             ];
+                        const description = descriptionKey
+                            ? getUiString(descriptionKey)
+                            : undefined;
                         if (description) {
                             return (
                                 <Tooltip

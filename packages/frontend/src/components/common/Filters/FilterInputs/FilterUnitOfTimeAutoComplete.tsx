@@ -1,27 +1,42 @@
-import { getUnitsOfTimeGreaterOrEqual, UnitOfTime } from '@lightdash/common';
+import {
+    getUnitsOfTimeGreaterOrEqual,
+    UnitOfTime,
+    type UiStringResolver,
+} from '@lightdash/common';
 import { type SelectProps, Select } from '@mantine/core';
 import { useMemo, type FC } from 'react';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 
 const getUnitOfTimeLabel = (
     unitOfTime: UnitOfTime,
     isPlural: boolean,
     isCompleted: boolean,
-) => {
-    return `${isCompleted ? 'completed ' : ''}${
-        isPlural ? unitOfTime : unitOfTime.substring(0, unitOfTime.length - 1)
-    }`;
-};
+    getUiString: UiStringResolver,
+) =>
+    getUiString(
+        `filters.unitsOfTime.${unitOfTime}.${
+            isCompleted
+                ? isPlural
+                    ? 'completedPlural'
+                    : 'completedSingular'
+                : isPlural
+                  ? 'plural'
+                  : 'singular'
+        }`,
+    );
 
 const getUnitOfTimeOptions = ({
     isTimestamp,
     minUnitOfTime,
     showCompletedOptions,
     showOptionsInPlural,
+    getUiString,
 }: {
     isTimestamp: boolean;
     minUnitOfTime?: UnitOfTime;
     showCompletedOptions: boolean;
     showOptionsInPlural: boolean;
+    getUiString: UiStringResolver;
 }) => {
     const dateIndex = Object.keys(UnitOfTime).indexOf(UnitOfTime.days);
 
@@ -41,6 +56,7 @@ const getUnitOfTimeOptions = ({
                         unitOfTime,
                         showOptionsInPlural,
                         false,
+                        getUiString,
                     ),
                     value: unitOfTime.toString(),
                 },
@@ -52,6 +68,7 @@ const getUnitOfTimeOptions = ({
                         unitOfTime,
                         showOptionsInPlural,
                         true,
+                        getUiString,
                     ),
                     value: `${unitOfTime}-completed`,
                 });
@@ -80,12 +97,14 @@ const FilterUnitOfTimeAutoComplete: FC<Props> = ({
     onChange,
     ...rest
 }) => {
+    const getUiString = useUiStrings();
     const { options, selectValue } = useMemo(() => {
         const standardOptions = getUnitOfTimeOptions({
             isTimestamp,
             minUnitOfTime,
             showCompletedOptions,
             showOptionsInPlural,
+            getUiString,
         });
 
         // for a fresh filter (no unitOfTime), just return standard options
@@ -113,6 +132,7 @@ const FilterUnitOfTimeAutoComplete: FC<Props> = ({
                           unitOfTime,
                           showOptionsInPlural,
                           completed,
+                          getUiString,
                       ),
                       value: currentValue,
                   },
@@ -130,13 +150,14 @@ const FilterUnitOfTimeAutoComplete: FC<Props> = ({
         showOptionsInPlural,
         unitOfTime,
         completed,
+        getUiString,
     ]);
 
     return (
         <Select
             allowDeselect={false}
             searchable
-            placeholder="Select value"
+            placeholder={getUiString('filters.selectValuePlaceholder')}
             size="xs"
             {...rest}
             value={selectValue}

@@ -35,6 +35,7 @@ import {
     getFilterRuleTables,
 } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
@@ -172,9 +173,15 @@ const Filter: FC<Props> = ({
         );
     }, [dashboard, filterRule]);
 
+    const getUiString = useUiStrings();
+
     const filterRuleLabels = useMemo(() => {
         if (field) {
-            return getConditionalRuleLabelFromItem(filterRule, field);
+            return getConditionalRuleLabelFromItem(
+                filterRule,
+                field,
+                getUiString,
+            );
         } else {
             const column = Object.values(sqlChartTilesMetadata)
                 .flatMap((tileMetadata) => tileMetadata.columns)
@@ -186,6 +193,7 @@ const Filter: FC<Props> = ({
                     filterRule,
                     getFilterTypeFromItemType(column.type),
                     column.reference,
+                    getUiString,
                 );
             }
             return getConditionalRuleLabel(
@@ -194,9 +202,10 @@ const Filter: FC<Props> = ({
                     filterRule.target.fallbackType ?? DimensionType.STRING,
                 ),
                 filterRule.target.fieldId,
+                getUiString,
             );
         }
-    }, [filterRule, field, sqlChartTilesMetadata]);
+    }, [filterRule, field, sqlChartTilesMetadata, getUiString]);
 
     const filterRuleTables = useMemo(() => {
         if (!field || !allFilterableFields) return;

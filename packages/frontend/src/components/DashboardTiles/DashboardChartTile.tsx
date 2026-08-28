@@ -1205,6 +1205,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                 getConditionalRuleLabelFromItem(
                                                                     filterRule,
                                                                     field,
+                                                                    getUiString,
                                                                 );
                                                             return (
                                                                 <Badge
@@ -1321,6 +1322,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                 getConditionalRuleLabelFromItem(
                                                                     filterRule,
                                                                     field,
+                                                                    getUiString,
                                                                 );
                                                             const ruleStrikeStyle:
                                                                 | React.CSSProperties

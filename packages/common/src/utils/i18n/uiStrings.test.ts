@@ -1,4 +1,6 @@
+import { FilterOperator, UnitOfTime } from '../../types/filter';
 import { DateGranularity } from '../../types/timeFrames';
+import { filterOperatorLabel } from '../filterLabels';
 import { DEFAULT_UI_STRINGS, interpolateUiString } from './uiStrings';
 
 describe('interpolateUiString', () => {
@@ -32,6 +34,35 @@ describe('DEFAULT_UI_STRINGS', () => {
             expect(
                 DEFAULT_UI_STRINGS[`dateZoom.granularities.${granularity}`],
             ).toEqual(granularity);
+        });
+    });
+
+    it('has a label for every FilterOperator, matching filterOperatorLabel', () => {
+        Object.values(FilterOperator).forEach((operator) => {
+            expect(DEFAULT_UI_STRINGS[`filters.operators.${operator}`]).toEqual(
+                filterOperatorLabel[operator],
+            );
+        });
+    });
+
+    it('has all four forms for every UnitOfTime', () => {
+        Object.values(UnitOfTime).forEach((unit) => {
+            expect(
+                DEFAULT_UI_STRINGS[`filters.unitsOfTime.${unit}.singular`],
+            ).toEqual(unit.slice(0, -1));
+            expect(
+                DEFAULT_UI_STRINGS[`filters.unitsOfTime.${unit}.plural`],
+            ).toEqual(unit);
+            expect(
+                DEFAULT_UI_STRINGS[
+                    `filters.unitsOfTime.${unit}.completedSingular`
+                ],
+            ).toEqual(`completed ${unit.slice(0, -1)}`);
+            expect(
+                DEFAULT_UI_STRINGS[
+                    `filters.unitsOfTime.${unit}.completedPlural`
+                ],
+            ).toEqual(`completed ${unit}`);
         });
     });
 });
