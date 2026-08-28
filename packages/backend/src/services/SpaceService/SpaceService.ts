@@ -7,6 +7,7 @@ import {
     getHighestSpaceRole,
     NotFoundError,
     ParameterError,
+    PersonalSpaceSummary,
     SessionUser,
     Space,
     SpaceDeleteImpact,
@@ -218,6 +219,24 @@ export class SpaceService
         }
 
         return this.assembleFullSpace(spaceUuid, user);
+    }
+
+    async getPersonalSpace(
+        projectUuid: string,
+        user: SessionUser,
+    ): Promise<PersonalSpaceSummary | null> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return this.spaceModel.findPersonalSpace(projectUuid, user.userId);
     }
 
     async getSpaceAccessList(

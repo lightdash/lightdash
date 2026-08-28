@@ -13,6 +13,9 @@ vi.mock('../../../../hooks/appearance/useProjectColorPalette', () => ({
 vi.mock('../../../../hooks/organization/useOrganizationBrand', () => ({
     useOrganizationBrand: () => ({ data: undefined }),
 }));
+vi.mock('../../../../hooks/useSpaces', () => ({
+    usePersonalSpace: () => ({ data: null }),
+}));
 vi.mock('../../../../hooks/useProjectRoute', () => ({
     useProjectUrlIdentifier: () => 'p1',
 }));

@@ -43,6 +43,7 @@ const validConfig: HomepageConfig = {
                                 spaceUuid: 's1',
                                 label: 'Finance',
                             },
+                            { type: 'my-space' },
                         ],
                     },
                 },
@@ -139,6 +140,14 @@ describe('parseHomepageConfig', () => {
                                     spaceUuid: 's1',
                                     label: 'Finance',
                                 },
+                            },
+                        },
+                        {
+                            id: 'b4',
+                            type: 'cta' as const,
+                            config: {
+                                buttonLabel: 'My space',
+                                target: { type: 'my-space' as const },
                             },
                         },
                     ],

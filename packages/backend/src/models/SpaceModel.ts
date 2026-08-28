@@ -15,6 +15,7 @@ import {
     SpaceMemberRole,
     SpaceQuery,
     UpdateSpace,
+    type PersonalSpaceSummary,
     type SpaceSummaryBase,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -184,6 +185,28 @@ export class SpaceModel {
             projectMemberAccessRole:
                 (row.projectMemberAccessRole as SpaceMemberRole) ?? null,
         }));
+    }
+
+    async findPersonalSpace(
+        projectUuid: string,
+        userId: number,
+    ): Promise<PersonalSpaceSummary | null> {
+        const row = await this.database(SpaceTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .where(`${SpaceTableName}.is_default_user_space`, true)
+            .where(`${SpaceTableName}.created_by_user_id`, userId)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .first<PersonalSpaceSummary | undefined>({
+                uuid: `${SpaceTableName}.space_uuid`,
+                name: `${SpaceTableName}.name`,
+                slug: `${SpaceTableName}.slug`,
+            });
+        return row ?? null;
     }
 
     async getSpacesByProjectUuid(

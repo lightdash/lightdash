@@ -46,6 +46,7 @@ const BlockRenderer: FC<{
             projectUuid={projectUuid}
             itemSpan={itemSpan}
             standalone={standalone}
+            personalPlaceholders={personalPlaceholders}
         />
     );
 };

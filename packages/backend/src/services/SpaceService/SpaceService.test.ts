@@ -941,6 +941,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         updateWithCopiedPermissions: vi.fn(),
         addSpaceAccess: vi.fn(),
         get: vi.fn(),
+        findPersonalSpace: vi.fn(),
         getSpaceBreadcrumbs: vi.fn(),
         getSpaceQueries: vi.fn(),
         getSpaceDashboards: vi.fn(),
@@ -1034,6 +1035,76 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         mockSpacePermissionService.getUserMetadataByUuids.mockResolvedValue({});
         mockSpacePermissionService.getRawDirectAccess.mockResolvedValue({
             'space-uuid': { users: [], groups: [] },
+        });
+    });
+
+    describe('getPersonalSpace', () => {
+        const mockProjectModel = { getSummary: vi.fn() };
+        const viewer = {
+            ...mockUser,
+            userId: 42,
+            organizationUuid: 'test-org-uuid',
+        } as unknown as SessionUser;
+        const withProjectModel = () =>
+            new SpaceService({
+                analytics: analyticsMock,
+                lightdashConfig: lightdashConfigMock,
+                projectModel: mockProjectModel as unknown as ProjectModel,
+                spaceModel: mockSpaceModel as unknown as SpaceModel,
+                organizationModel: {} as OrganizationModel,
+                organizationMemberProfileModel:
+                    {} as OrganizationMemberProfileModel,
+                pinnedListModel: {} as PinnedListModel,
+                spacePermissionService:
+                    mockSpacePermissionService as unknown as SpacePermissionService,
+                savedChartService: {} as SavedChartService,
+                dashboardService: {} as DashboardService,
+                appGenerateService: undefined,
+            });
+
+        test('returns the viewer’s personal space', async () => {
+            mockProjectModel.getSummary.mockResolvedValue({
+                organizationUuid: 'test-org-uuid',
+            });
+            mockSpaceModel.findPersonalSpace.mockResolvedValue({
+                uuid: 'personal-space-uuid',
+                name: 'Test User',
+                slug: 'test-user',
+            });
+
+            await expect(
+                withProjectModel().getPersonalSpace('project-uuid', viewer),
+            ).resolves.toEqual({
+                uuid: 'personal-space-uuid',
+                name: 'Test User',
+                slug: 'test-user',
+            });
+            expect(mockSpaceModel.findPersonalSpace).toHaveBeenCalledWith(
+                'project-uuid',
+                42,
+            );
+        });
+
+        test('returns null when the viewer has no personal space', async () => {
+            mockProjectModel.getSummary.mockResolvedValue({
+                organizationUuid: 'test-org-uuid',
+            });
+            mockSpaceModel.findPersonalSpace.mockResolvedValue(null);
+
+            await expect(
+                withProjectModel().getPersonalSpace('project-uuid', viewer),
+            ).resolves.toBeNull();
+        });
+
+        test('is forbidden for a project the viewer cannot see', async () => {
+            mockProjectModel.getSummary.mockResolvedValue({
+                organizationUuid: 'another-org-uuid',
+            });
+
+            await expect(
+                withProjectModel().getPersonalSpace('project-uuid', viewer),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(mockSpaceModel.findPersonalSpace).not.toHaveBeenCalled();
         });
     });
 
