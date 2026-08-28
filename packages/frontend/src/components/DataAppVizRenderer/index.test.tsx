@@ -283,6 +283,20 @@ describe('DataAppVizRenderer', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('keeps the generic unavailable state for a legacy unpinned saved chart', () => {
+        mocks.metadata.current = {
+            state: 'unavailable',
+            latestBuildInProgress: false,
+        };
+        mocks.dataAppVizVersion.current = undefined;
+
+        renderRenderer();
+
+        expect(
+            screen.getByText('Custom chart type preview is unavailable.'),
+        ).toBeInTheDocument();
+    });
+
     it('keeps the generic unavailable state for an unsaved preview', () => {
         mocks.metadata.current = {
             state: 'unavailable',
