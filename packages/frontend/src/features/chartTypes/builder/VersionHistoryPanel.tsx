@@ -1,7 +1,12 @@
 import {
     APP_UPGRADE_PROMPT_LABEL,
+    diffDataAppVizSchema,
+    hasDataAppVizSchemaChanges,
     isAppVersionInProgress,
+    summarizeDataAppVizSchemaChanges,
     type ApiAppVersionSummary,
+    type DataAppVizSchema,
+    type DataAppVizSchemaChanges,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -26,6 +31,7 @@ import {
     hasVersionNarration,
 } from '../../apps/utils/versionNarration';
 import { getVersionAuthorName } from '../../apps/utils/versionsToChatMessages';
+import VizSchemaChangesList from '../components/VizSchemaChangesList';
 import { type DataAppVizBuildState } from '../hooks/useDataAppVizBuild';
 import RestoreVersionModal from './RestoreVersionModal';
 import classes from './VersionHistoryPanel.module.css';
@@ -115,6 +121,70 @@ const VersionBuildDetails: FC<{ version: ApiAppVersionSummary }> = ({
     );
 };
 
+const VersionChanges: FC<{
+    version: number;
+    changes: DataAppVizSchemaChanges;
+}> = ({ version, changes }) => {
+    const [open, setOpen] = useState(false);
+    const summary = summarizeDataAppVizSchemaChanges(changes).join(' · ');
+
+    return (
+        <Box className={classes.changes}>
+            <UnstyledButton
+                className={classes.buildDetailsToggle}
+                aria-label={`What changed in v${version}`}
+                aria-expanded={open}
+                onClick={() => setOpen((current) => !current)}
+            >
+                <MantineIcon
+                    icon={IconChevronRight}
+                    size={12}
+                    className={classes.buildDetailsChevron}
+                    data-open={open || undefined}
+                />
+                <Text fz={11} fw={600} flex="0 0 auto">
+                    What changed
+                </Text>
+                <Text fz={11} c="dimmed" truncate="end" ml={2} miw={0}>
+                    {summary}
+                </Text>
+            </UnstyledButton>
+            {open && (
+                <Box pt={6}>
+                    <VizSchemaChangesList changes={changes} compact />
+                </Box>
+            )}
+        </Box>
+    );
+};
+
+const schemaOf = (version: ApiAppVersionSummary): DataAppVizSchema | null =>
+    version.status === 'ready' ? (version.resources?.vizSchema ?? null) : null;
+
+/**
+ * Diff each ready version against the nearest earlier one that declared a
+ * schema. The oldest entry on the page has nothing to compare with until
+ * earlier versions are loaded.
+ */
+const getVersionSchemaChanges = (
+    newestFirst: ApiAppVersionSummary[],
+): Map<number, DataAppVizSchemaChanges> => {
+    const changes = new Map<number, DataAppVizSchemaChanges>();
+    newestFirst.forEach((version, index) => {
+        const schema = schemaOf(version);
+        if (!schema) return;
+        const previous = newestFirst
+            .slice(index + 1)
+            .map(schemaOf)
+            .find((candidate) => candidate !== null);
+        if (!previous) return;
+        const diff = diffDataAppVizSchema(previous, schema);
+        if (hasDataAppVizSchemaChanges(diff))
+            changes.set(version.version, diff);
+    });
+    return changes;
+};
+
 /**
  * The version timeline as a side panel, newest first. Clicking a ready entry
  * pins the preview to it; each earlier entry offers to restore it on top.
@@ -135,6 +205,7 @@ const VersionHistoryPanel: FC<Props> = ({
     const [restoreTarget, setRestoreTarget] = useState<number | null>(null);
 
     const ordered = [...versions].sort((a, b) => b.version - a.version);
+    const schemaChanges = getVersionSchemaChanges(ordered);
     // The build writes its own entry until the version it claimed reaches
     // history, where it shows up as an in-progress version of its own.
     const isClaimedInHistory =
@@ -153,6 +224,7 @@ const VersionHistoryPanel: FC<Props> = ({
         const isActive = version.version === activeVersion;
         const label = `v${version.version}`;
         const isUpgrade = version.prompt === APP_UPGRADE_PROMPT_LABEL;
+        const changes = schemaChanges.get(version.version);
 
         return (
             <Box
@@ -225,6 +297,13 @@ const VersionHistoryPanel: FC<Props> = ({
                             {getAppVersionFailureMessage(version)}
                         </Text>
                     </Box>
+                )}
+
+                {changes && (
+                    <VersionChanges
+                        version={version.version}
+                        changes={changes}
+                    />
                 )}
 
                 {!isBuilding && <VersionBuildDetails version={version} />}

@@ -111,7 +111,8 @@
     --ai-markdown-font-size: 11px;
 }
 
-.buildDetails {
+.buildDetails,
+.changes {
     border-top: 1px solid var(--mantine-color-ldGray-2);
 }
 

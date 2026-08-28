@@ -268,3 +268,75 @@ describe('VersionHistoryPanel', () => {
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 });
+
+describe('VersionHistoryPanel schema changes', () => {
+    const schema = (fields: string[]) => ({
+        fields: fields.map((name) => ({
+            name,
+            label: name[0].toUpperCase() + name.slice(1),
+            type: 'dimension' as const,
+            required: true,
+        })),
+        configOptions: [],
+        colorPalette: null,
+    });
+    const withSchema = (
+        version: number,
+        fields: string[],
+        prompt = `v${version} prompt`,
+    ) =>
+        appVersion({
+            version,
+            prompt,
+            resources: {
+                images: [],
+                files: [],
+                charts: [],
+                dashboardName: null,
+                clarifications: [],
+                vizSchema: schema(fields),
+            },
+        });
+
+    it('summarises what changed against the previous declared schema and expands the detail', () => {
+        renderWithProviders(
+            <VersionHistoryPanel
+                {...defaultProps}
+                latestReadyVersion={3}
+                versions={[
+                    withSchema(3, ['category', 'region']),
+                    appVersion({
+                        version: 2,
+                        status: 'error',
+                        prompt: 'broken',
+                    }),
+                    withSchema(1, ['category']),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('+1 field')).toBeInTheDocument();
+        expect(
+            screen.queryByLabelText('What changed in v1'),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Region')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByLabelText('What changed in v3'));
+
+        expect(screen.getByText('Region')).toBeInTheDocument();
+    });
+
+    it('stays quiet when the declaration did not move', () => {
+        renderWithProviders(
+            <VersionHistoryPanel
+                {...defaultProps}
+                versions={[
+                    withSchema(2, ['category']),
+                    withSchema(1, ['category']),
+                ]}
+            />,
+        );
+
+        expect(screen.queryByText('What changed')).not.toBeInTheDocument();
+    });
+});
