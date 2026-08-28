@@ -202,6 +202,15 @@ export type ApiSpaceResponse = {
     results: Space;
 };
 
+/** The viewer's own personal space in a project, when the project has
+ * personal spaces enabled and one exists for them. */
+export type PersonalSpaceSummary = Pick<Space, 'uuid' | 'name' | 'slug'>;
+
+export type ApiPersonalSpaceResponse = {
+    status: 'ok';
+    results: PersonalSpaceSummary | null;
+};
+
 export type SpaceAccessListFilters = {
     searchQuery?: string;
     userUuids?: string[];

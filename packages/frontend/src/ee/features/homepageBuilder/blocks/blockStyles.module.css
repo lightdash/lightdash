@@ -631,6 +631,12 @@ a .hoverCard:hover,
         border-color 0.15s ease;
 }
 
+.quickActionChip[data-placeholder] {
+    cursor: default;
+    border-style: dashed;
+    opacity: 0.7;
+}
+
 .quickActionChip:hover {
     text-decoration: none;
     color: inherit;

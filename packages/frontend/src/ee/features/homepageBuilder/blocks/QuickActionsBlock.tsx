@@ -25,6 +25,7 @@ import {
     IconStar,
     IconStarFilled,
     IconTable,
+    IconUserCircle,
     IconX,
     type Icon,
 } from '@tabler/icons-react';
@@ -34,6 +35,7 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { useInfiniteContent } from '../../../../hooks/useContent';
 import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
+import { usePersonalSpace } from '../../../../hooks/useSpaces';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import { useHomepageAiState } from '../hooks/useHomepageAiState';
@@ -75,6 +77,20 @@ const STATIC_ACTIONS: Record<
         description: 'Content organized by team and topic.',
         url: (projectUuid) => `/projects/${projectUuid}/spaces`,
     },
+    'my-space': {
+        icon: IconUserCircle,
+        title: 'My space',
+        description: 'Your personal space.',
+        // Resolved per viewer at render time; the chip is hidden without one.
+        url: (projectUuid) => `/projects/${projectUuid}/spaces`,
+    },
+};
+
+const STATIC_ACTION_HINTS: Partial<
+    Record<keyof typeof STATIC_ACTIONS, string>
+> = {
+    'ask-ai': 'Hidden automatically for viewers without AI access.',
+    'my-space': 'Only shown to viewers who have a personal space.',
 };
 
 const actionKey = (action: HomepageQuickAction): string => {
@@ -117,18 +133,42 @@ const actionPresentation = (
     return { ...definition, url: url(identifier) };
 };
 
+const chipClassName = (action: HomepageQuickAction): string =>
+    `${classes.quickActionChip}${
+        action.primary ? ` ${classes.quickActionChipPrimary}` : ''
+    }`;
+
 export const QuickActionCards: FC<{
     actions: HomepageQuickAction[];
     projectUuid: string;
     // Centred under the composer; left-aligned when it follows a page heading
     justify?: 'center' | 'flex-start';
-}> = ({ actions, projectUuid, justify = 'center' }) => {
+    personalPlaceholders?: boolean;
+}> = ({
+    actions,
+    projectUuid,
+    justify = 'center',
+    personalPlaceholders = false,
+}) => {
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const { track } = useTracking();
     const { canAskAi } = useHomepageAiState(projectUuid);
-    const visibleActions = actions.filter(
-        (action) => action.type !== 'ask-ai' || canAskAi,
+    const hasMySpaceAction = actions.some(
+        (action) => action.type === 'my-space',
     );
+    const personalSpace = usePersonalSpace(projectUuid, {
+        enabled: hasMySpaceAction && !personalPlaceholders,
+    });
+    const visibleActions = actions.filter((action) => {
+        switch (action.type) {
+            case 'ask-ai':
+                return canAskAi;
+            case 'my-space':
+                return personalPlaceholders || !!personalSpace.data;
+            default:
+                return true;
+        }
+    });
     if (visibleActions.length === 0) return null;
     return (
         <Group gap={8} justify={justify}>
@@ -138,6 +178,34 @@ export const QuickActionCards: FC<{
                     projectUuid,
                     projectUrlIdentifier,
                 );
+                const icon = (
+                    <MantineIcon
+                        icon={presentation.icon}
+                        size={14}
+                        color={action.primary ? 'inherit' : 'ldGray.6'}
+                    />
+                );
+                if (action.type === 'my-space' && personalPlaceholders) {
+                    return (
+                        <Tooltip
+                            key={actionKey(action)}
+                            label="Resolves to each viewer's own personal space."
+                            withinPortal
+                        >
+                            <span
+                                className={chipClassName(action)}
+                                data-placeholder
+                            >
+                                {icon}
+                                {presentation.title}
+                            </span>
+                        </Tooltip>
+                    );
+                }
+                const url =
+                    action.type === 'my-space' && personalSpace.data
+                        ? `/projects/${projectUrlIdentifier}/spaces/${personalSpace.data.uuid}`
+                        : presentation.url;
                 const trackClick = () =>
                     track({
                         name: EventName.HOMEPAGE_QUICK_ACTION_CLICKED,
@@ -148,20 +216,12 @@ export const QuickActionCards: FC<{
                     <Anchor
                         key={actionKey(action)}
                         component={Link}
-                        to={presentation.url}
+                        to={url}
                         underline="never"
-                        className={`${classes.quickActionChip}${
-                            action.primary
-                                ? ` ${classes.quickActionChipPrimary}`
-                                : ''
-                        }`}
+                        className={chipClassName(action)}
                         onClick={trackClick}
                     >
-                        <MantineIcon
-                            icon={presentation.icon}
-                            size={14}
-                            color={action.primary ? 'inherit' : 'ldGray.6'}
-                        />
+                        {icon}
                         {presentation.title}
                     </Anchor>
                 );
@@ -248,6 +308,7 @@ const ContentPickerModal: FC<{
 export const QuickActionsBlockView: FC<BlockComponentProps> = ({
     block,
     projectUuid,
+    personalPlaceholders = false,
 }) => {
     if (block.type !== 'quick-actions') return null;
     // The wrapper keeps the chips Group off the column layout's `.col > *`
@@ -257,6 +318,7 @@ export const QuickActionsBlockView: FC<BlockComponentProps> = ({
             <QuickActionCards
                 actions={block.config.actions}
                 projectUuid={projectUuid}
+                personalPlaceholders={personalPlaceholders}
             />
         </Box>
     );
@@ -437,9 +499,9 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                     />
                                 }
                                 rightSection={
-                                    type === 'ask-ai' ? (
+                                    STATIC_ACTION_HINTS[type] ? (
                                         <Tooltip
-                                            label="Hidden automatically for viewers without AI access."
+                                            label={STATIC_ACTION_HINTS[type]}
                                             withinPortal
                                         >
                                             <MantineIcon

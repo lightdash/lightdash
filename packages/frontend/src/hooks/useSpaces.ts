@@ -1,6 +1,7 @@
 import {
     type ApiError,
     type CreateSpace,
+    type PersonalSpaceSummary,
     type Space,
     type SpaceDeleteImpact,
     type SpaceSummary,
@@ -445,3 +446,22 @@ export const useDeleteSpaceGroupAccessMutation = (
         },
     );
 };
+
+const getPersonalSpace = async (projectUuid: string) =>
+    lightdashApi<PersonalSpaceSummary | null>({
+        url: `/projects/${projectUuid}/spaces/personal`,
+        method: 'GET',
+        body: undefined,
+    });
+
+/** The viewer's own personal space in the project, or null when the project
+ * has personal spaces off or none exists for them yet. */
+export const usePersonalSpace = (
+    projectUuid: string | undefined,
+    { enabled = true }: { enabled?: boolean } = {},
+) =>
+    useQuery<PersonalSpaceSummary | null, ApiError>({
+        queryKey: ['personal_space', projectUuid],
+        queryFn: () => getPersonalSpace(projectUuid!),
+        enabled: !!projectUuid && enabled,
+    });
