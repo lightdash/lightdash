@@ -1,9 +1,19 @@
 import { assertUnreachable } from '@lightdash/common';
-import { Box, Button, Paper, Stack, Text, ThemeIcon } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Menu,
+    Paper,
+    Stack,
+    Text,
+    ThemeIcon,
+} from '@mantine/core';
 import {
     IconAlertTriangle,
     IconAppWindow,
     IconArrowRight,
+    IconChevronDown,
     IconCircleMinus,
     IconEye,
 } from '@tabler/icons-react';
@@ -37,6 +47,8 @@ type Props = {
     state: DataAppBuildCardState;
     /** Earlier turns: ready and failed collapse to a single row. */
     compact: boolean;
+    /** This app is the one open in the preview panel. */
+    isActive: boolean;
     onOpenBuilder: () => void;
     onView: () => void;
 };
@@ -52,20 +64,53 @@ const readySubtitle = (
 
 const BuilderButton: FC<{
     label: 'Continue in builder' | 'Open in builder';
-    primary?: boolean;
     onClick: () => void;
-}> = ({ label, primary = false, onClick }) => (
-    <Button
-        variant={primary ? 'filled' : 'default'}
-        color={primary ? 'dark' : undefined}
-        size="compact-xs"
-        onClick={onClick}
-        rightSection={
-            primary ? <MantineIcon icon={IconArrowRight} size={14} /> : null
-        }
-    >
+}> = ({ label, onClick }) => (
+    <Button variant="default" size="compact-xs" onClick={onClick}>
         {label}
     </Button>
+);
+
+/** View opens the preview; the chevron holds the secondary actions. */
+const ViewSplitButton: FC<{
+    onView: () => void;
+    onOpenBuilder: () => void;
+}> = ({ onView, onOpenBuilder }) => (
+    <Box className={styles.split}>
+        <Button
+            variant="default"
+            size="compact-xs"
+            className={styles.splitMain}
+            leftSection={<MantineIcon icon={IconEye} size={14} />}
+            onClick={onView}
+        >
+            View
+        </Button>
+        <Menu position="bottom-end" withinPortal shadow="md">
+            <Menu.Target>
+                <ActionIcon
+                    variant="default"
+                    size={22}
+                    className={styles.splitMenuButton}
+                    aria-label="More actions"
+                >
+                    <MantineIcon icon={IconChevronDown} size={12} />
+                </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown p={4}>
+                <Menu.Item
+                    fz="xs"
+                    py={4}
+                    leftSection={
+                        <MantineIcon icon={IconArrowRight} size={14} />
+                    }
+                    onClick={onOpenBuilder}
+                >
+                    Continue in builder
+                </Menu.Item>
+            </Menu.Dropdown>
+        </Menu>
+    </Box>
 );
 
 const CardIcon: FC<{ tone: 'default' | 'error' | 'muted' }> = ({ tone }) => (
@@ -202,9 +247,9 @@ const renderCells = (
                             />
                         </Lead>
                         <Actions>
-                            <BuilderButton
-                                label="Continue in builder"
-                                onClick={onOpenBuilder}
+                            <ViewSplitButton
+                                onView={onView}
+                                onOpenBuilder={onOpenBuilder}
                             />
                         </Actions>
                     </>
@@ -217,20 +262,9 @@ const renderCells = (
                         <Muted>{readySubtitle(state)}</Muted>
                     </Lead>
                     <Actions>
-                        <Button
-                            variant="default"
-                            size="compact-xs"
-                            leftSection={
-                                <MantineIcon icon={IconEye} size={14} />
-                            }
-                            onClick={onView}
-                        >
-                            View
-                        </Button>
-                        <BuilderButton
-                            label="Continue in builder"
-                            primary
-                            onClick={onOpenBuilder}
+                        <ViewSplitButton
+                            onView={onView}
+                            onOpenBuilder={onOpenBuilder}
                         />
                     </Actions>
                     <Body>
@@ -310,6 +344,7 @@ const renderCells = (
 export const DataAppBuildCard: FC<Props> = ({
     state,
     compact,
+    isActive,
     onOpenBuilder,
     onView,
 }) => (
@@ -319,6 +354,7 @@ export const DataAppBuildCard: FC<Props> = ({
         radius="md"
         className={clsx(styles.card, {
             [styles.cardUnavailable]: state.kind === 'unavailable',
+            [styles.cardActive]: isActive,
         })}
     >
         <Box className={styles.layout}>

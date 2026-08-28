@@ -8,8 +8,14 @@ import { useNavigate } from 'react-router';
 import { useAppBuildPoller } from '../../../../../../features/apps/hooks/useAppBuildPoller';
 import { useGetApp } from '../../../../../../features/apps/hooks/useGetApp';
 import { getAiAgentThreadQueryKey } from '../../../hooks/useProjectAiAgents';
-import { setPreview } from '../../../store/aiArtifactSlice';
-import { useAiAgentStoreDispatch } from '../../../store/hooks';
+import {
+    selectDataAppPreview,
+    setPreview,
+} from '../../../store/aiArtifactSlice';
+import {
+    useAiAgentStoreDispatch,
+    useAiAgentStoreSelector,
+} from '../../../store/hooks';
 import { DataAppBuildCard } from './DataAppBuildCard';
 import {
     getDataAppBuildCardState,
@@ -57,6 +63,8 @@ export const AiDataAppBuildCard: FC<Props> = ({
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { appUuid } = metadata;
+    const preview = useAiAgentStoreSelector(selectDataAppPreview);
+    const isActive = appUuid !== null && preview?.appUuid === appUuid;
 
     const appQuery = useGetApp(projectUuid, appUuid ?? undefined);
     const source = toAppSource(appQuery);
@@ -119,6 +127,7 @@ export const AiDataAppBuildCard: FC<Props> = ({
         <DataAppBuildCard
             state={state}
             compact={compact}
+            isActive={isActive}
             onOpenBuilder={() =>
                 void navigate(getDataAppBuilderPath(projectUuid, appUuid))
             }
