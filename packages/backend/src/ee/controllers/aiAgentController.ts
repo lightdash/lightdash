@@ -1,5 +1,6 @@
 import {
     AgentAsCode,
+    aiAgentSuggestionContextSchema,
     AiAgentThreadFilters,
     AiArtifactTSOACompat,
     AiClonedThreadCreatedFrom,
@@ -103,6 +104,15 @@ import Logger from '../../logging/logger';
 import { type AiAgentCoderService } from '../services/AiAgentCoderService/AiAgentCoderService';
 import { type AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
 import { type AiAgentService } from '../services/AiAgentService/AiAgentService';
+
+const parseSuggestionContext = (context: string | undefined) => {
+    if (!context) return undefined;
+    try {
+        return aiAgentSuggestionContextSchema.parse(JSON.parse(context));
+    } catch {
+        throw new ParameterError('Invalid agent suggestion context');
+    }
+};
 
 @Route('/api/v1/projects/{projectUuid}/aiAgents')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -688,6 +698,7 @@ export class AiAgentController extends BaseController {
         @Query() threadUuid?: string,
         @Query() afterMessageUuid?: string,
         @Query() enableSqlMode?: boolean,
+        @Query() context?: string,
     ): Promise<ApiAgentSuggestionsResponse> {
         this.setStatus(200);
 
@@ -713,6 +724,7 @@ export class AiAgentController extends BaseController {
                 threadUuid,
                 afterMessageUuid,
                 enableSqlMode,
+                context: parseSuggestionContext(context),
             },
         );
         return {
