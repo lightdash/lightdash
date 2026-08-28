@@ -188,6 +188,44 @@ describe('UserWarehouseCredentialsModel', () => {
         });
     });
 
+    describe('mergeCredentialsForUpdate', () => {
+        const existingCredentials = {
+            type: WarehouseTypes.ATHENA,
+            accessKeyId: 'existing-access-key',
+            secretAccessKey: 'existing-secret-key',
+        } as const;
+
+        test('preserves the Athena secret when the access key ID is unchanged', () => {
+            expect(
+                UserWarehouseCredentialsModel.mergeCredentialsForUpdate(
+                    {
+                        name: 'Renamed',
+                        credentials: {
+                            type: WarehouseTypes.ATHENA,
+                            accessKeyId: 'existing-access-key',
+                        },
+                    },
+                    existingCredentials,
+                ).credentials,
+            ).toEqual(existingCredentials);
+        });
+
+        test('requires the Athena secret when the access key ID changes', () => {
+            expect(() =>
+                UserWarehouseCredentialsModel.mergeCredentialsForUpdate(
+                    {
+                        name: 'Renamed',
+                        credentials: {
+                            type: WarehouseTypes.ATHENA,
+                            accessKeyId: 'new-access-key',
+                        },
+                    },
+                    existingCredentials,
+                ),
+            ).toThrow(ParameterError);
+        });
+    });
+
     describe('findForProjectWithSecrets', () => {
         test('returns the preferred credential when it is valid', async () => {
             const model = createModel({

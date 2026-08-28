@@ -520,6 +520,7 @@ export const WarehouseFormInputs: FC<{
     projectUuid?: string;
     projectName?: string;
     databricksCredentialsName?: string;
+    existingAthenaAccessKeyId?: string;
 }> = ({
     form,
     disabled,
@@ -528,6 +529,7 @@ export const WarehouseFormInputs: FC<{
     projectUuid,
     projectName,
     databricksCredentialsName,
+    existingAthenaAccessKeyId,
 }) => {
     const { data: project } = useProject(projectUuid, {
         enabled:
@@ -679,6 +681,34 @@ export const WarehouseFormInputs: FC<{
                     projectName={projectName}
                     credentialsName={databricksCredentialsName}
                 />
+            );
+        case WarehouseTypes.ATHENA:
+            const accessKeyId = form.values.credentials.accessKeyId?.trim();
+            const isSecretAccessKeyRequired =
+                !existingAthenaAccessKeyId ||
+                accessKeyId !== existingAthenaAccessKeyId;
+            return (
+                <>
+                    <TextInput
+                        required
+                        size="xs"
+                        label="AWS access key ID"
+                        disabled={disabled}
+                        {...form.getInputProps('credentials.accessKeyId')}
+                    />
+                    <PasswordInput
+                        withAsterisk={isSecretAccessKeyRequired}
+                        size="xs"
+                        label="AWS secret access key"
+                        description={
+                            isSecretAccessKeyRequired
+                                ? undefined
+                                : 'Leave blank to keep the current secret access key.'
+                        }
+                        disabled={disabled}
+                        {...form.getInputProps('credentials.secretAccessKey')}
+                    />
+                </>
             );
         case WarehouseTypes.DUCKDB:
             return (

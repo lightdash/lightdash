@@ -3,6 +3,7 @@ import {
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type UpsertUserWarehouseCredentials,
+    type UserWarehouseCredentials,
 } from '@lightdash/common';
 import { type FormErrors } from '@mantine/form';
 
@@ -10,6 +11,8 @@ import { type FormErrors } from '@mantine/form';
 export const PRIVATE_KEY_FIELD_PATH = 'credentials.privateKey';
 const USER_FIELD_PATH = 'credentials.user';
 const PASSWORD_FIELD_PATH = 'credentials.password';
+const ACCESS_KEY_ID_FIELD_PATH = 'credentials.accessKeyId';
+const SECRET_ACCESS_KEY_FIELD_PATH = 'credentials.secretAccessKey';
 
 /**
  * "Sign in with Databricks" (OAuth U2M) is enterprise-only, so instances
@@ -59,8 +62,30 @@ export const getDefaultSnowflakeAuthenticationType = (
  */
 export const validateUserWarehouseCredentials = (
     values: UpsertUserWarehouseCredentials,
+    existingCredentials?: UserWarehouseCredentials['credentials'],
 ): FormErrors => {
     const { credentials } = values;
+    if (credentials.type === WarehouseTypes.ATHENA) {
+        const errors: FormErrors = {};
+        const accessKeyId = credentials.accessKeyId?.trim();
+        if (!accessKeyId) {
+            errors[ACCESS_KEY_ID_FIELD_PATH] = 'Enter your AWS access key ID.';
+        }
+
+        const existingAccessKeyId =
+            existingCredentials?.type === WarehouseTypes.ATHENA
+                ? existingCredentials.accessKeyId
+                : undefined;
+        if (
+            (!existingAccessKeyId || accessKeyId !== existingAccessKeyId) &&
+            !credentials.secretAccessKey
+        ) {
+            errors[SECRET_ACCESS_KEY_FIELD_PATH] =
+                'Enter the AWS secret access key for this access key ID.';
+        }
+        return errors;
+    }
+
     if (credentials.type !== WarehouseTypes.SNOWFLAKE) return {};
 
     const { authenticationType } = credentials;

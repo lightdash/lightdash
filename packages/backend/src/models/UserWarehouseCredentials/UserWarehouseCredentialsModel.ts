@@ -117,10 +117,15 @@ export class UserWarehouseCredentialsModel {
                     break;
                 case WarehouseTypes.BIGQUERY:
                 case WarehouseTypes.DATABRICKS:
-                case WarehouseTypes.ATHENA:
                 case WarehouseTypes.DUCKDB:
                     credentials = {
                         type: credentialsWithSecrets.type,
+                    };
+                    break;
+                case WarehouseTypes.ATHENA:
+                    credentials = {
+                        type: credentialsWithSecrets.type,
+                        accessKeyId: credentialsWithSecrets.accessKeyId,
                     };
                     break;
                 default:
@@ -583,6 +588,43 @@ export class UserWarehouseCredentialsModel {
         return data;
     }
 
+    static mergeCredentialsForUpdate(
+        data: UpsertUserWarehouseCredentials,
+        existingCredentials: UserWarehouseCredentialsWithSecrets['credentials'],
+    ): UpsertUserWarehouseCredentials {
+        if (
+            data.credentials.type !== WarehouseTypes.ATHENA ||
+            data.credentials.secretAccessKey
+        ) {
+            return data;
+        }
+
+        if (existingCredentials.type !== WarehouseTypes.ATHENA) {
+            throw new ParameterError(
+                'Athena credentials require an AWS secret access key.',
+            );
+        }
+
+        const submittedAccessKeyId = data.credentials.accessKeyId?.trim();
+        if (
+            submittedAccessKeyId &&
+            submittedAccessKeyId !== existingCredentials.accessKeyId
+        ) {
+            throw new ParameterError(
+                'Enter the AWS secret access key when changing the access key ID.',
+            );
+        }
+
+        return {
+            ...data,
+            credentials: {
+                ...data.credentials,
+                accessKeyId: existingCredentials.accessKeyId,
+                secretAccessKey: existingCredentials.secretAccessKey,
+            },
+        };
+    }
+
     async create(
         userUuid: string,
         data: UpsertUserWarehouseCredentials,
@@ -621,9 +663,37 @@ export class UserWarehouseCredentialsModel {
         userWarehouseCredentialsUuid: string,
         data: UpsertUserWarehouseCredentials,
     ): Promise<string> {
+        let dataToPersist = data;
+        if (
+            data.credentials.type === WarehouseTypes.ATHENA &&
+            !data.credentials.secretAccessKey
+        ) {
+            const existingRow = await this.database(
+                UserWarehouseCredentialsTableName,
+            )
+                .where(
+                    'user_warehouse_credentials_uuid',
+                    userWarehouseCredentialsUuid,
+                )
+                .andWhere('user_uuid', userUuid)
+                .first();
+
+            if (!existingRow) {
+                throw new UnexpectedServerError('Could not save credentials.');
+            }
+
+            dataToPersist =
+                UserWarehouseCredentialsModel.mergeCredentialsForUpdate(
+                    data,
+                    this.convertToUserWarehouseCredentialsWithSecrets(
+                        existingRow,
+                    ).credentials,
+                );
+        }
+
         const normalized =
             UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
-                data,
+                dataToPersist,
             );
         let encryptedCredentials: Buffer;
         try {
