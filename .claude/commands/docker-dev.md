@@ -552,10 +552,10 @@ LDPAT=ldpat_deadbeefdeadbeefdeadbeefdeadbeef
 # in dev — without it, POST /api/v1/user 403s once the seed org exists.
 ALLOW_MULTIPLE_ORGS=true
 
-# Restart PM2 tsc watchers above this memory cap — they hold memory after big
-# rebuilds (branch switches), and multiple instances can exhaust the machine.
-# See ecosystem.config.js. Uncomment on smaller (e.g. 16GB) machines:
-# LD_WATCHER_MEMORY_CAP=1500M
+# tsc watchers run with a soft Go memory cap (GOMEMLIMIT, default 1500MiB;
+# override with LD_WATCHER_GOMEMLIMIT). Optional hard backstop below — keep it
+# well above the soft cap or it kill-loops mid-rebuild. See ecosystem.config.js:
+# LD_WATCHER_MEMORY_CAP=4G
 EOF
 echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.local
 ```
