@@ -336,6 +336,8 @@ knowing the engine. Remaining work, with tickets:
 | Merged results drop metadata already in hand | the `originalColumns` build site: `compiledMerge.itemsMap` + `typedColumns[].origin` both in scope and discarded | PROD-10683 |
 | Pivoted value columns hardcode `type: NUMBER` — lies for MAX-of-timestamp / boolean ANY | `getPivotedColumns` via `convertItemTypeToDimensionType`; behavior change, staged alone | PROD-10690 |
 | SQL columns bare by accident, rule never made explicit | §3 SQL-path rule as deliberate code | PROD-9832 |
+| Identity guard is a string coincidence — "real semantic field vs virtual-view packaging" has no explicit representation | Mark virtual-view items (or stop exposing them at the results seam); demote `getItemId(item) === fieldId` to an invariant assertion | PROD-10772 |
+| SQL/compose history rows persist the synthetic virtual-view items map | `query_history.fields` write sites on the SQL-chart and DuckDB-node paths | PROD-10773 |
 
 ### Revised sequencing
 
@@ -346,4 +348,59 @@ enrichment ships complete; (2) SQL-path rule + merge path + page
 `resolvedTimezone` (small, independent); (3) composer interface pinning
 (PROD-10681, rescoped to no-inference — small); (4) pivot type honesty
 (staged behavior change); then the M2 export/formatter flips prove the
-decoupling.
+decoupling. Immediate next step before further population work: the two
+M1 cleanups that make the interface boundary explicit in code and data
+(PROD-10772 identity-guard discriminant, PROD-10773 synthetic fields-map
+persistence).
+
+### Decision — provenance is provable lineage; capabilities are derived; declarations are a third source (2026-08-28)
+
+Four rulings that shape how `ResultColumn` grows from here.
+
+1. **Provenance = lineage provable by construction, never inference.** It
+   appears in exactly three places today — immediate metric-query output,
+   pivoted value columns (pointing at the source metric), and merge outputs
+   (pointing at the leg via `typedColumns[].origin` +
+   `sourceQueryUuid`) — and each is a case where the transform *tracks*
+   which field produced the column. It crosses query hops only with that
+   explicit origin tracking (the merge precedent); it stops at any boundary
+   where lineage would have to be guessed from names (raw SQL, DuckDB
+   nodes). "One hop from the semantic layer" is not the rule; provable vs
+   guessed is.
+
+2. **Structure identity, not entitlement.** Extending provenance with facts
+   is right: `exploreName` (makes the pointer resolvable without ambient
+   metric-query context — for merges, the *leg's* explore) and richer
+   identity as needed. Capability flags (`supportsDrillDown`,
+   `filterable`) are never persisted on columns: they are viewer-relative
+   (ability, user attributes, embed surface) and time-relative (results
+   outlive field definitions; `showUnderlyingValues` changes with dbt
+   deploys), and the server re-authorizes the interaction anyway.
+   Capabilities are derived at interaction time from provenance + the
+   current explore + the viewer; if the UI needs them pre-click, decorate
+   at *serve* time (per-request, viewer-specific), never at write time.
+
+3. **Column role is a top-level fact, not part of provenance.** The
+   dimension/metric role drives viz shaping (axis defaults, groupability,
+   which context-menu family applies) and can legitimately exist on a
+   column *without* a semantic field behind it — an author-declared
+   "treat as dimension" on a DuckDB node column. So `role` (or
+   `fieldKind`) belongs on `ResultColumn` itself; provenance stays
+   strictly "a verified pointer into the semantic layer".
+
+4. **Author/agent declarations are the third metadata source, filling the
+   same fields.** The no-inference rescope (PROD-10681) already
+   anticipates "explicit user-declared mapping on the pipeline, never
+   inference"; an agent annotating columns while writing a composer node
+   is the same category. Declarations may supply display metadata (the
+   existing `ResultColumnMetadata` vocabulary: label, format, separator,
+   formatOptions, timeInterval) and role — never a minted provenance. A
+   declared carry-through ("this column *is* `orders_revenue` from node
+   X") is permissible with shallow validation (referenced query exists in
+   the node's references and exposes that fieldId); the semantic claim
+   rests on the author, which is safe because interactions re-execute
+   through the semantic layer with authorization. Probed type is always
+   authoritative over any declaration. Precedence: derived facts >
+   declared facts > fallbacks (friendly label) — one set of optional
+   fields, three fillers, and consumers never know which one wrote a
+   field.
