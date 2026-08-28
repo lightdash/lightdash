@@ -43,8 +43,8 @@ export type VizContextRow = Record<string, VizContextCell | undefined>;
 /**
  * A config option value. Its shape follows the option's declared type:
  * `boolean` → boolean, `number` → number, `select`/`text`/`color` → string.
- * Series colours are not an option — they arrive on `colorPalette`,
- * `seriesColors` and `valueColors`.
+ * Series colours are not an option — the host resolves them separately from
+ * config options and exposes them through the colour helpers.
  */
 export type VizContextOptionValue = boolean | number | string;
 
@@ -168,8 +168,8 @@ export type VizContext = {
     /** Config option name → current value (the user's choice, else the declared default). */
     options: Record<string, VizContextOptionValue>;
     /**
-     * Lightdash palette selected for this chart, the fallback for anything
-     * absent from `seriesColors` / `valueColors`. Empty only when the host
+     * Lightdash palette selected for this chart. The resolved-colour helpers
+     * use it after fixed and shared assignments. Empty only when the host
      * resolved no palette; keep a fallback array in your own code for that.
      */
     colorPalette: string[];
@@ -226,10 +226,11 @@ const normalizeOptions = (
     );
 };
 
+const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
 const normalizeStringRecord = (value: unknown): Record<string, string> => {
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-        return {};
-    }
+    if (!isPlainRecord(value)) return {};
 
     return Object.fromEntries(
         Object.entries(value).filter(
@@ -241,20 +242,51 @@ const normalizeStringRecord = (value: unknown): Record<string, string> => {
 const normalizeValueColors = (
     value: unknown,
 ): Record<string, Record<string, string>> => {
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-        return {};
-    }
+    if (!isPlainRecord(value)) return {};
 
     return Object.fromEntries(
         Object.entries(value).flatMap(([fieldId, colors]) =>
-            typeof colors === 'object' &&
-            colors !== null &&
-            !Array.isArray(colors)
+            isPlainRecord(colors)
                 ? [[fieldId, normalizeStringRecord(colors)] as const]
                 : [],
         ),
     );
 };
+
+type VizColorContext = Pick<
+    VizContext,
+    'colorPalette' | 'seriesColors' | 'valueColors'
+>;
+
+const getPaletteColor = (
+    colorPalette: string[],
+    index: number,
+): string | undefined =>
+    colorPalette.length > 0
+        ? colorPalette[index % colorPalette.length]
+        : undefined;
+
+/** Resolve a backend-pivoted series color, with the chart palette as fallback. */
+export const resolveSeriesColor = (
+    context: VizColorContext,
+    column: Pick<
+        VizContextPivotDetails['valuesColumns'][number],
+        'pivotColumnName'
+    >,
+    index: number,
+): string | undefined =>
+    context.seriesColors[column.pivotColumnName] ??
+    getPaletteColor(context.colorPalette, index);
+
+/** Resolve a client-side grouped raw value color, with the chart palette as fallback. */
+export const resolveValueColor = (
+    context: VizColorContext,
+    fieldId: string,
+    rawValue: unknown,
+    index: number,
+): string | undefined =>
+    context.valueColors[fieldId]?.[String(rawValue)] ??
+    getPaletteColor(context.colorPalette, index);
 
 /**
  * Normalises an inbound host message into provider state. Optional capabilities
@@ -426,8 +458,8 @@ export function VizContextProvider({ children }: { children: ReactNode }) {
  * still works standalone. Re-renders whenever the host pushes (on load, on
  * mapping change, on query change). Resolve a declared field to its bound cell
  * with `fieldMapping[name]` then `getFormatted`/`getRaw`; read a declared
- * config option with `options[name]`, and colour series from `seriesColors`
- * / `valueColors`, falling back to `colorPalette`.
+ * config option with `options[name]`, and colour series with
+ * `resolveSeriesColor` / `resolveValueColor`.
  */
 export function useVizContext(): VizContext {
     const fromProvider = useContext(VizContextContext);

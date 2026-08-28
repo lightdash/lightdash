@@ -10,6 +10,8 @@ import {
     buildVizUnderlyingData,
     getFormatted,
     getRaw,
+    resolveSeriesColor,
+    resolveValueColor,
     toVizContextState,
     type DataAppVizContextMessage,
     type VizContextOptionValue,
@@ -294,6 +296,62 @@ describe('toVizContextState', () => {
 
     it('defaults missing pivot metadata to null', () => {
         expect(toVizContextState(message({})).pivotDetails).toBeNull();
+    });
+});
+
+describe('resolved color helpers', () => {
+    const context = {
+        colorPalette: ['#111111', '#222222'],
+        seriesColors: { count_completed: '#00ff00' },
+        valueColors: { orders_status: { completed: '#00ff00' } },
+    };
+
+    it('uses the host-resolved pivot-column color before the palette', () => {
+        expect(
+            resolveSeriesColor(
+                context,
+                { pivotColumnName: 'count_completed' },
+                1,
+            ),
+        ).toBe('#00ff00');
+        expect(
+            resolveSeriesColor(
+                context,
+                { pivotColumnName: 'count_pending' },
+                1,
+            ),
+        ).toBe('#222222');
+    });
+
+    it('uses the host-resolved raw-value color before the palette', () => {
+        expect(
+            resolveValueColor(context, 'orders_status', 'completed', 1),
+        ).toBe('#00ff00');
+        expect(resolveValueColor(context, 'orders_status', 'pending', 1)).toBe(
+            '#222222',
+        );
+    });
+
+    it('stringifies non-string raw values and tolerates an empty palette', () => {
+        expect(
+            resolveValueColor(
+                {
+                    colorPalette: [],
+                    seriesColors: {},
+                    valueColors: { orders_priority: { '1': '#abcdef' } },
+                },
+                'orders_priority',
+                1,
+                0,
+            ),
+        ).toBe('#abcdef');
+        expect(
+            resolveSeriesColor(
+                { colorPalette: [], seriesColors: {}, valueColors: {} },
+                { pivotColumnName: 'missing' },
+                0,
+            ),
+        ).toBeUndefined();
     });
 });
 

@@ -99,6 +99,8 @@ export {
     useVizContext,
     getFormatted,
     getRaw,
+    resolveSeriesColor,
+    resolveValueColor,
 } from './vizContext';
 export type {
     VizContext,
