@@ -8,7 +8,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconCopy } from '@tabler/icons-react';
-import { useEffect, type FC } from 'react';
+import { type FC } from 'react';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import {
     useDuplicateChartMutation,
@@ -23,43 +23,25 @@ interface ChartDuplicateModalProps extends ModalProps {
 
 type FormState = Pick<SavedChart, 'name' | 'description'>;
 
-const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
-    uuid,
-    onConfirm,
-    ...modalProps
-}) => {
-    const projectUuid = useProjectUuid();
+const ChartDuplicateForm: FC<
+    ChartDuplicateModalProps & {
+        savedQuery: SavedChart | null;
+        isInitialLoading: boolean;
+    }
+> = ({ uuid, savedQuery, isInitialLoading, onConfirm, opened, onClose }) => {
     const { mutateAsync: duplicateChart, isLoading: isUpdating } =
         useDuplicateChartMutation({
             showRedirectButton: true,
         });
-    const { data: savedQuery, isInitialLoading } = useSavedQuery({
-        uuidOrSlug: uuid,
-        projectUuid,
+
+    const form = useForm<FormState>({
+        initialValues: {
+            name: savedQuery ? `Copy of ${savedQuery.name}` : '',
+            description: savedQuery?.description,
+        },
     });
 
-    const form = useForm<FormState>();
-
-    useEffect(() => {
-        if (!savedQuery) return;
-
-        const initialValues = {
-            name: `Copy of ${savedQuery.name}`,
-            description: savedQuery.description,
-        };
-
-        if (!form.initialized) {
-            form.initialize(initialValues);
-        } else {
-            form.setInitialValues(initialValues);
-            form.setValues(initialValues);
-        }
-
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [savedQuery]);
-
-    const isLoading =
-        isInitialLoading || !savedQuery || !form.initialized || isUpdating;
+    const isLoading = isInitialLoading || !savedQuery || isUpdating;
 
     const handleConfirm = form.onSubmit(async (data) => {
         const updatedChart = await duplicateChart({
@@ -73,13 +55,13 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
 
     return (
         <MantineModal
-            opened={modalProps.opened}
-            onClose={modalProps.onClose}
+            opened={opened}
+            onClose={onClose}
             title="Duplicate Chart"
             icon={IconCopy}
             actions={
                 <Button
-                    disabled={!form.isValid()}
+                    disabled={!form.isValid() || !savedQuery}
                     loading={isLoading}
                     type="submit"
                     form="duplicate-chart-form"
@@ -115,6 +97,23 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
                 </Stack>
             </form>
         </MantineModal>
+    );
+};
+
+const ChartDuplicateModal: FC<ChartDuplicateModalProps> = (props) => {
+    const projectUuid = useProjectUuid();
+    const { data: savedQuery, isInitialLoading } = useSavedQuery({
+        uuidOrSlug: props.uuid,
+        projectUuid,
+    });
+
+    return (
+        <ChartDuplicateForm
+            key={savedQuery?.uuid ?? 'loading'}
+            savedQuery={savedQuery ?? null}
+            isInitialLoading={isInitialLoading}
+            {...props}
+        />
     );
 };
 

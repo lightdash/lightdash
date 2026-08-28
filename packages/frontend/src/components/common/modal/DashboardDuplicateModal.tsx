@@ -8,7 +8,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconCopy } from '@tabler/icons-react';
-import { useEffect, type FC } from 'react';
+import { type FC } from 'react';
 import {
     useDashboardQuery,
     useDuplicateDashboardMutation,
@@ -23,41 +23,23 @@ interface DashboardDuplicateModalProps extends ModalProps {
 
 type FormState = Pick<Dashboard, 'name' | 'description'>;
 
-const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
-    opened,
-    onClose,
-    uuid,
-    onConfirm,
-}) => {
-    const projectUuid = useProjectUuid();
+const DashboardDuplicateForm: FC<
+    DashboardDuplicateModalProps & {
+        dashboard: Dashboard | null;
+        isInitialLoading: boolean;
+    }
+> = ({ uuid, dashboard, isInitialLoading, onConfirm, opened, onClose }) => {
     const { mutateAsync: duplicateDashboard, isLoading: isUpdating } =
         useDuplicateDashboardMutation({
             showRedirectButton: true,
         });
-    const { data: dashboard, isInitialLoading } = useDashboardQuery({
-        uuidOrSlug: uuid,
-        projectUuid,
+
+    const form = useForm<FormState>({
+        initialValues: {
+            name: dashboard ? `Copy of ${dashboard.name}` : '',
+            description: dashboard?.description ?? '',
+        },
     });
-
-    const form = useForm<FormState>();
-
-    useEffect(() => {
-        if (!dashboard) return;
-
-        const initialValues = {
-            name: `Copy of ${dashboard.name}`,
-            description: dashboard.description ?? '',
-        };
-
-        if (!form.initialized) {
-            form.initialize(initialValues);
-        } else {
-            form.setInitialValues(initialValues);
-            form.setValues(initialValues);
-        }
-
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [dashboard]);
 
     const handleConfirm = form.onSubmit(async (data) => {
         const updatedDashboard = await duplicateDashboard({
@@ -69,8 +51,7 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
         onConfirm?.(updatedDashboard);
     });
 
-    const isLoading =
-        isInitialLoading || !dashboard || !form.initialized || isUpdating;
+    const isLoading = isInitialLoading || !dashboard || isUpdating;
 
     return (
         <MantineModal
@@ -80,7 +61,7 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
             icon={IconCopy}
             actions={
                 <Button
-                    disabled={!form.isValid()}
+                    disabled={!form.isValid() || !dashboard}
                     loading={isLoading}
                     type="submit"
                     form="duplicate-dashboard-form"
@@ -116,6 +97,23 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
                 </Stack>
             </form>
         </MantineModal>
+    );
+};
+
+const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = (props) => {
+    const projectUuid = useProjectUuid();
+    const { data: dashboard, isInitialLoading } = useDashboardQuery({
+        uuidOrSlug: props.uuid,
+        projectUuid,
+    });
+
+    return (
+        <DashboardDuplicateForm
+            key={dashboard?.uuid ?? 'loading'}
+            dashboard={dashboard ?? null}
+            isInitialLoading={isInitialLoading}
+            {...props}
+        />
     );
 };
 
