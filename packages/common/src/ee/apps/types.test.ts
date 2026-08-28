@@ -4,6 +4,7 @@ import {
     dataAppVizSchema,
     getEffectiveOptionValues,
     getVisibleDataAppClaudeModels,
+    pruneDataAppVizOptionValues,
     resolveDefaultDataAppClaudeModel,
     resolveDefaultVisibleDataAppClaudeModel,
     type DataAppVizConfigOption,
@@ -526,5 +527,34 @@ describe('dataAppVizJsonSchema', () => {
         };
 
         expect(findReferences(jsonSchema)).toEqual([]);
+    });
+});
+
+describe('pruneDataAppVizOptionValues', () => {
+    const options: DataAppVizConfigOption[] = [
+        { type: 'boolean', name: 'showLegend', label: 'Legend', default: true },
+        {
+            type: 'select',
+            name: 'mode',
+            label: 'Mode',
+            choices: [{ value: 'stacked', label: 'Stacked' }],
+            default: 'stacked',
+        },
+        { type: 'number', name: 'limit', label: 'Limit', default: 10 },
+    ];
+
+    it('keeps stored values that still fit and drops the rest', () => {
+        expect(
+            pruneDataAppVizOptionValues(options, {
+                showLegend: false,
+                mode: 'grouped',
+                limit: 'ten',
+                gone: true,
+            }),
+        ).toEqual({ showLegend: false });
+    });
+
+    it('never seeds defaults', () => {
+        expect(pruneDataAppVizOptionValues(options, {})).toEqual({});
     });
 });

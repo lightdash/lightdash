@@ -61,6 +61,43 @@ describe('useDataAppVizVisualizationConfig', () => {
         });
     });
 
+    it('moves to a newer type version with the reconciled binding and options', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(
+                { ...initialConfig, dataAppVizVersion: 3 },
+                onConfigChange,
+            ),
+        );
+
+        act(() =>
+            result.current.upgradeDataAppVizVersion(
+                5,
+                { category: 'orders_status', value: 'orders_count' },
+                {},
+            ),
+        );
+
+        expect(onConfigChange).toHaveBeenLastCalledWith({
+            dataAppVizUuid: 'viz-1',
+            dataAppVizVersion: 5,
+            fieldMapping: { category: 'orders_status', value: 'orders_count' },
+            optionValues: {},
+        });
+    });
+
+    it('ignores an upgrade while no type is selected', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(undefined, onConfigChange),
+        );
+
+        act(() => result.current.upgradeDataAppVizVersion(5, {}, {}));
+
+        expect(onConfigChange).not.toHaveBeenCalled();
+        expect(result.current.validConfig).toBeNull();
+    });
+
     it('defaults to an empty option map when nothing is saved', () => {
         const { result } = renderHook(() =>
             useDataAppVizVisualizationConfig({

@@ -14,12 +14,18 @@ type Props = {
     /** What the latest version declares that the pinned one did not. */
     changes: DataAppVizSchemaChanges;
     onClose: () => void;
+    onUpgrade: () => void;
 };
 
 /**
  * What moving this chart to the latest version of its type would change.
  */
-const DataAppVizUpgradeModal: FC<Props> = ({ typeName, changes, onClose }) => {
+const DataAppVizUpgradeModal: FC<Props> = ({
+    typeName,
+    changes,
+    onClose,
+    onUpgrade,
+}) => {
     const removesSomething =
         changes.fields.removed.length > 0 ||
         changes.configOptions.removed.length > 0;
@@ -32,7 +38,8 @@ const DataAppVizUpgradeModal: FC<Props> = ({ typeName, changes, onClose }) => {
             subtitle={typeName}
             icon={IconSparkles}
             size="md"
-            cancelLabel="Close"
+            confirmLabel="Upgrade"
+            onConfirm={onUpgrade}
         >
             <Stack gap="md">
                 <Text fz="sm">

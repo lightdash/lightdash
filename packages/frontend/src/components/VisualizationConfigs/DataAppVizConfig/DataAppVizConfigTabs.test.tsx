@@ -108,12 +108,17 @@ vi.mock('./DataAppVizUpgradeNotice', () => ({
     default: ({
         typeName,
         changes,
+        onUpgrade,
     }: {
         typeName: string;
         changes: DataAppVizSchemaChanges;
+        onUpgrade: () => void;
     }) => (
         <div data-testid="upgrade-notice">
             {`${typeName}: +${changes.fields.added.length} fields`}
+            <button type="button" onClick={onUpgrade}>
+                upgrade
+            </button>
         </div>
     ),
 }));
@@ -271,6 +276,7 @@ describe('DataAppVizConfigTabs', () => {
     const clearDataAppViz = vi.fn();
     const setField = vi.fn();
     const setPivotDimensions = vi.fn();
+    const upgradeDataAppVizVersion = vi.fn();
 
     const mockContext = (
         itemsMap: ItemsMap,
@@ -299,6 +305,7 @@ describe('DataAppVizConfigTabs', () => {
                     clearDataAppViz,
                     setField,
                     setOption,
+                    upgradeDataAppVizVersion,
                 },
             },
         } as unknown as ReturnType<typeof useVisualizationContext>);
@@ -315,6 +322,7 @@ describe('DataAppVizConfigTabs', () => {
         clearDataAppViz.mockClear();
         setField.mockClear();
         setPivotDimensions.mockClear();
+        upgradeDataAppVizVersion.mockClear();
         defaultAbility.update([]);
         vi.mocked(useDataAppVizRenderMetadata).mockReturnValue({
             data: undefined,
@@ -731,6 +739,40 @@ describe('DataAppVizConfigTabs', () => {
         expect(screen.getByTestId('upgrade-notice')).toHaveTextContent(
             'Radial gauge: +1 fields',
         );
+    });
+
+    it('re-pins with the binding and options reconciled against the target contract', async () => {
+        const user = userEvent.setup();
+        mockContext(
+            queryColumns,
+            'data-app-viz-uuid',
+            { showLegend: false, gone: 'x' },
+            { source: 'orders_visible', legacy: 'orders_hidden' },
+            3,
+        );
+        mockSchema(declaredOptions);
+        mockLatestRenderable(5);
+
+        renderWithProviders(<ConfigTabs />);
+        await user.click(screen.getByRole('button', { name: 'upgrade' }));
+
+        expect(upgradeDataAppVizVersion).toHaveBeenCalledWith(
+            5,
+            { source: 'orders_visible', value: 'orders_visible_metric' },
+            {},
+        );
+        expect(setPivotDimensions).toHaveBeenCalled();
+    });
+
+    it('names the required slots the query cannot fill', () => {
+        mockContext({}, 'data-app-viz-uuid', {}, {});
+        mockSchema([]);
+
+        renderWithProviders(<ConfigTabs />);
+
+        expect(
+            screen.getByText('Map Source, Value to render this chart type.'),
+        ).toBeInTheDocument();
     });
 
     it('stays quiet when the pin is already the latest version', () => {

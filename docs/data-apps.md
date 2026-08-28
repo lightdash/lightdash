@@ -220,6 +220,12 @@ queries: the explorer hands it rows and a field mapping, and it renders. They sh
 permissions of data apps but are excluded from app listings, have their own gallery and builder, and are downloaded
 as code separately.
 
+A saved chart pins the version of the type it was saved with, so iterating on a type never changes existing charts.
+Charts saved before pins exist follow the latest version until they are next edited and saved. When a newer version
+exists, the explorer's configure panel offers an upgrade that lists the field, option and palette changes; upgrading
+re-pins the chart being edited and reconciles its field mapping and option values against the new contract, and
+nothing is persisted until the chart is saved.
+
 ---
 
 ## Infrastructure

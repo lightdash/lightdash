@@ -8,14 +8,19 @@ vi.mock('./DataAppVizUpgradeModal', () => ({
     default: ({
         typeName,
         onClose,
+        onUpgrade,
     }: {
         typeName: string;
         onClose: () => void;
+        onUpgrade: () => void;
     }) => (
         <div data-testid="upgrade-modal">
             {typeName}
             <button type="button" onClick={onClose}>
                 close
+            </button>
+            <button type="button" onClick={onUpgrade}>
+                upgrade
             </button>
         </div>
     ),
@@ -27,14 +32,18 @@ const changes: DataAppVizSchemaChanges = {
     colorPalette: 'unchanged',
 };
 
+const renderNotice = (onUpgrade: () => void = vi.fn()) =>
+    renderWithProviders(
+        <DataAppVizUpgradeNotice
+            typeName="Radial gauge"
+            changes={changes}
+            onUpgrade={onUpgrade}
+        />,
+    );
+
 describe('DataAppVizUpgradeNotice', () => {
     it('announces the newer version and opens the review on demand', () => {
-        renderWithProviders(
-            <DataAppVizUpgradeNotice
-                typeName="Radial gauge"
-                changes={changes}
-            />,
-        );
+        renderNotice();
 
         expect(screen.getByText('Newer version available')).toBeInTheDocument();
         expect(screen.queryByTestId('upgrade-modal')).not.toBeInTheDocument();
@@ -47,6 +56,17 @@ describe('DataAppVizUpgradeNotice', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'close' }));
 
+        expect(screen.queryByTestId('upgrade-modal')).not.toBeInTheDocument();
+    });
+
+    it('upgrades from the review and closes it', () => {
+        const onUpgrade = vi.fn();
+        renderNotice(onUpgrade);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Review upgrade' }));
+        fireEvent.click(screen.getByRole('button', { name: 'upgrade' }));
+
+        expect(onUpgrade).toHaveBeenCalledTimes(1);
         expect(screen.queryByTestId('upgrade-modal')).not.toBeInTheDocument();
     });
 });

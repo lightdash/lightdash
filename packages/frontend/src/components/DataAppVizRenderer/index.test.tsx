@@ -467,6 +467,38 @@ describe('DataAppVizRenderer', () => {
         expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
     });
 
+    it('renders an upgraded pin through the authoring path without re-pinning', () => {
+        mocks.metadata.current = { ...readyMetadata(), version: 5 };
+        mocks.dataAppVizVersion.current = 5;
+        mocks.vizContextOverrides.current = {
+            savedChartUuid: undefined,
+            isEditMode: true,
+            savedChartReference: {
+                uuid: 'saved-chart-uuid',
+                chartConfig: {
+                    type: 'data_app_viz',
+                    config: {
+                        dataAppVizUuid: 'viz-uuid',
+                        dataAppVizVersion: 3,
+                        fieldMapping: { category: 'orders.category' },
+                    },
+                },
+            },
+        };
+
+        renderRenderer();
+
+        expect(mocks.renderMetadataHook).toHaveBeenCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            {
+                isEmbedded: false,
+                savedChartUuid: undefined,
+            },
+        );
+        expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
+    });
+
     it('renders the last good version while a newer build is running', () => {
         mocks.metadata.current = {
             ...readyMetadata(),

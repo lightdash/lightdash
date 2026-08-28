@@ -8,13 +8,18 @@ import DataAppVizUpgradeModal from './DataAppVizUpgradeModal';
 type Props = {
     typeName: string;
     changes: DataAppVizSchemaChanges;
+    onUpgrade: () => void;
 };
 
 /**
- * Tells a chart editor that its project chart type moved on. The details
- * live behind the review modal, so the panel stays quiet.
+ * Tells a chart editor that its project chart type moved on. The details and
+ * the upgrade itself live behind the review modal, so the panel stays quiet.
  */
-const DataAppVizUpgradeNotice: FC<Props> = ({ typeName, changes }) => {
+const DataAppVizUpgradeNotice: FC<Props> = ({
+    typeName,
+    changes,
+    onUpgrade,
+}) => {
     const [isReviewing, setIsReviewing] = useState(false);
 
     return (
@@ -39,6 +44,10 @@ const DataAppVizUpgradeNotice: FC<Props> = ({ typeName, changes }) => {
                     typeName={typeName}
                     changes={changes}
                     onClose={() => setIsReviewing(false)}
+                    onUpgrade={() => {
+                        onUpgrade();
+                        setIsReviewing(false);
+                    }}
                 />
             )}
         </>
