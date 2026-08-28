@@ -22,6 +22,7 @@ import useApp from '../providers/App/useApp';
 import { convertDateFilters } from '../utils/dateFilter';
 import useToaster from './toaster/useToaster';
 import { invalidateContent } from './useContent';
+import { useOptionalProjectRoute } from './useProjectRoute';
 import { useProjectUuid } from './useProjectUuid';
 import useSearchParams from './useSearchParams';
 
@@ -532,6 +533,7 @@ export const useAddVersionMutation = (options?: {
     const queryClient = useQueryClient();
     const params = useParams();
     const dashboardUuid = useSearchParams('fromDashboard');
+    const projectRoute = useOptionalProjectRoute();
 
     const { showToastSuccess, showToastError, showToastApiError } =
         useToaster();
@@ -608,7 +610,7 @@ export const useAddVersionMutation = (options?: {
                 });
                 if (redirectOnSuccess) {
                     void navigate(
-                        `/projects/${data.projectUuid}/saved/${data.slug}/view`,
+                        `/projects/${projectRoute?.projectUrlIdentifier ?? data.projectUuid}/saved/${data.slug}/view`,
                     );
                 }
             }
