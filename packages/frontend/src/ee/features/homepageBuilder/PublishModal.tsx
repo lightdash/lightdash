@@ -37,8 +37,7 @@ import {
     useUpdateGroupPriorities,
 } from './hooks/useProjectHomepage';
 import classes from './PublishModal.module.css';
-
-const RESOLUTION_STEPS = ['Group priority', 'Role', 'Org default'];
+import { RESOLUTION_STEPS } from './resolution';
 
 const ROLE_DESCRIPTIONS: Record<ProjectMemberRole, string> = {
     [ProjectMemberRole.VIEWER]: 'Read-only consumers of dashboards',
