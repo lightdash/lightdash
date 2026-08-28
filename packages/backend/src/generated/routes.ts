@@ -38586,12 +38586,19 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_CreateAthenaCredentials.type_': {
+    'Pick_CreateAthenaCredentials.type-or-accessKeyId_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 type: { ref: 'WarehouseTypes.ATHENA', required: true },
+                accessKeyId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
             },
             validators: {},
         },
@@ -38653,7 +38660,9 @@ const models: TsoaRoute.Models = {
                         },
                         { ref: 'Pick_CreateBigqueryCredentials.type_' },
                         { ref: 'Pick_CreateDatabricksCredentials.type_' },
-                        { ref: 'Pick_CreateAthenaCredentials.type_' },
+                        {
+                            ref: 'Pick_CreateAthenaCredentials.type-or-accessKeyId_',
+                        },
                         { ref: 'Pick_CreateDuckdbCredentials.type_' },
                     ],
                     required: true,

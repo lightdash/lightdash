@@ -1,3 +1,10 @@
+## [2.42.1](https://github.com/lightdash/lightdash/compare/2.42.0...2.42.1) (2026-08-28)
+
+
+### Bug Fixes
+
+* support Athena personal credentials ([#28218](https://github.com/lightdash/lightdash/issues/28218)) ([ebd6357](https://github.com/lightdash/lightdash/commit/ebd63575f546571ced54df07ec625fb53922093e))
+
 # [2.42.0](https://github.com/lightdash/lightdash/compare/2.41.0...2.42.0) (2026-08-28)
 
 
