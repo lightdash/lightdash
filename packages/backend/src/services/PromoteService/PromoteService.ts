@@ -1216,6 +1216,12 @@ export class PromoteService extends BaseService {
                 upstreamAppUuid,
             ]),
         );
+        const appVersionMap = new Map(
+            promotedApps.map(({ sourceAppUuid, upstreamAppVersion }) => [
+                sourceAppUuid,
+                upstreamAppVersion,
+            ]),
+        );
 
         const updatedDashboards = promotionChanges.dashboards.map(
             (dashboardChange) => ({
@@ -1262,10 +1268,26 @@ export class PromoteService extends BaseService {
             const upstreamAppUuid = appUuidMap.get(
                 chartConfig.config.dataAppVizUuid,
             );
-            // No mapping → the viz was soft-deleted and skipped; keep the
-            // original reference (renders the viz-not-found state upstream).
-            if (!upstreamAppUuid) {
-                return chartChange;
+            const upstreamAppVersion = appVersionMap.get(
+                chartConfig.config.dataAppVizUuid,
+            );
+            // Keep a skipped viz's original reference, but never carry its
+            // project-local version number across.
+            if (!upstreamAppUuid || upstreamAppVersion === undefined) {
+                const {
+                    dataAppVizVersion: _dataAppVizVersion,
+                    ...configWithoutVersion
+                } = chartConfig.config;
+                return {
+                    ...chartChange,
+                    data: {
+                        ...chartChange.data,
+                        chartConfig: {
+                            ...chartConfig,
+                            config: configWithoutVersion,
+                        },
+                    },
+                };
             }
             return {
                 ...chartChange,
@@ -1276,6 +1298,7 @@ export class PromoteService extends BaseService {
                         config: {
                             ...chartConfig.config,
                             dataAppVizUuid: upstreamAppUuid,
+                            dataAppVizVersion: upstreamAppVersion,
                         },
                     },
                 },

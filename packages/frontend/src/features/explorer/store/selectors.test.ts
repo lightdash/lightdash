@@ -1,9 +1,10 @@
-import { type SavedChart } from '@lightdash/common';
+import { ChartType, type SavedChart } from '@lightdash/common';
 import { explorerActions, explorerReducer } from './explorerSlice';
 import {
     selectChartSidebarStep,
     selectHasPaletteChanges,
     selectIsChartTypeAuthoring,
+    selectIsDataAppVizVersionReadyForSave,
 } from './selectors';
 
 const PALETTE_UUID = '55555555-5555-4555-8555-555555555555';
@@ -79,5 +80,24 @@ describe('chart type authoring selectors', () => {
                 ),
             }),
         ).toBe(true);
+    });
+});
+
+describe('selectIsDataAppVizVersionReadyForSave', () => {
+    it('waits for an unsaved project chart type to capture its previewed version', () => {
+        const explorer = explorerReducer(
+            undefined,
+            explorerActions.setChartConfig({
+                chartConfig: {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizUuid: 'viz-1',
+                        fieldMapping: {},
+                    },
+                },
+            }),
+        );
+
+        expect(selectIsDataAppVizVersionReadyForSave({ explorer })).toBe(false);
     });
 });

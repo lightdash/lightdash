@@ -163,6 +163,10 @@ import {
     getScheduledDeliveryTargetsAsCode,
 } from './scheduledContent';
 
+type RuntimeChartAsCode = Omit<ChartAsCode, 'chartConfig'> & {
+    chartConfig: ChartConfig;
+};
+
 type ContentAsCodeSpaceContentMetadata = {
     savedChartUuid?: string;
     dashboardUuid?: string;
@@ -1426,7 +1430,7 @@ export class CoderService extends BaseService {
         spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
         dashboardSlugs: Record<string, string>,
         verificationMap: Map<string, ContentVerificationInfo>,
-    ): ChartAsCode {
+    ): RuntimeChartAsCode {
         const contentSpace = spaceSummary.find(
             (space) => space.uuid === chart.spaceUuid,
         );
@@ -2208,7 +2212,7 @@ export class CoderService extends BaseService {
      * within its source project.
      */
     private static withDataAppVizSlugs(
-        charts: ChartAsCode[],
+        charts: RuntimeChartAsCode[],
         dataAppVizSlugByUuid: ReadonlyMap<string, string>,
     ): ChartAsCode[] {
         return charts.map((chart) => {
@@ -2218,20 +2222,32 @@ export class CoderService extends BaseService {
             ) {
                 return chart;
             }
-            const { dataAppVizUuid, ...configWithoutUuid } =
-                chart.chartConfig.config;
+            const {
+                dataAppVizUuid,
+                dataAppVizVersion: _dataAppVizVersion,
+                ...portableConfig
+            } = chart.chartConfig.config;
             const dataAppVizSlug =
                 dataAppVizUuid !== undefined
                     ? dataAppVizSlugByUuid.get(dataAppVizUuid)
                     : undefined;
             if (dataAppVizSlug === undefined) {
-                return chart;
+                if (_dataAppVizVersion === undefined) {
+                    return chart;
+                }
+                return {
+                    ...chart,
+                    chartConfig: {
+                        ...chart.chartConfig,
+                        config: { ...portableConfig, dataAppVizUuid },
+                    },
+                };
             }
             return {
                 ...chart,
                 chartConfig: {
                     ...chart.chartConfig,
-                    config: { ...configWithoutUuid, dataAppVizSlug },
+                    config: { ...portableConfig, dataAppVizSlug },
                 },
             };
         });
@@ -2259,6 +2275,27 @@ export class CoderService extends BaseService {
         }
         const { dataAppVizSlug, dataAppVizUuid, ...configRest } =
             chartConfig.config;
+        const withTargetVersion = async (
+            targetDataAppVizUuid: string,
+        ): Promise<ChartConfig> => {
+            const targetVersion =
+                await this.appModel.getLatestRenderableDataAppVizVersion(
+                    targetDataAppVizUuid,
+                );
+            if (targetVersion === null) {
+                throw new NotFoundError(
+                    `Custom chart type ${targetDataAppVizUuid} has no renderable version`,
+                );
+            }
+            return {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    ...configRest,
+                    dataAppVizUuid: targetDataAppVizUuid,
+                    dataAppVizVersion: targetVersion.version,
+                },
+            };
+        };
         // The 'only' filter also rejects uuids pointing at regular data apps.
         const uuidResolvesInTargetProject = async (): Promise<boolean> =>
             dataAppVizUuid !== undefined &&
@@ -2276,10 +2313,7 @@ export class CoderService extends BaseService {
                 { dataAppVizsFilter: 'only' },
             );
             if (vizRow !== undefined) {
-                return {
-                    ...chartConfig,
-                    config: { ...configRest, dataAppVizUuid: vizRow.app_id },
-                };
+                return withTargetVersion(vizRow.app_id);
             }
             // Interim files carry both identities — fall back to the uuid,
             // but only when it names a chart type in this project.
@@ -2290,10 +2324,7 @@ export class CoderService extends BaseService {
                 this.logger.warn(
                     `Chart type "${dataAppVizSlug}" was not found in project ${projectUuid}; keeping the chart's existing dataAppVizUuid reference.`,
                 );
-                return {
-                    ...chartConfig,
-                    config: { ...configRest, dataAppVizUuid },
-                };
+                return withTargetVersion(dataAppVizUuid);
             }
             throw new NotFoundError(
                 `Custom chart type "${dataAppVizSlug}" was not found in this project. Upload it first (lightdash upload --chart-types ${dataAppVizSlug}), then re-upload this chart.`,
@@ -2301,10 +2332,7 @@ export class CoderService extends BaseService {
         }
         if (dataAppVizUuid !== undefined) {
             if (await uuidResolvesInTargetProject()) {
-                return {
-                    ...chartConfig,
-                    config: { ...configRest, dataAppVizUuid },
-                };
+                return withTargetVersion(dataAppVizUuid);
             }
             throw new ParameterError(
                 `Custom chart type ${dataAppVizUuid} was not found in this project. Chart type uuids are project-specific: re-download the chart with a current CLI to get a portable dataAppVizSlug, upload the chart type into this project, then re-upload this chart.`,
@@ -2874,7 +2902,9 @@ export class CoderService extends BaseService {
 
     // The instance content in its canonical as-code form — the same document
     // an upload of the current state would have applied.
-    async getCurrentChartAsCode(chartUuid: string): Promise<ChartAsCode> {
+    async getCurrentChartAsCode(
+        chartUuid: string,
+    ): Promise<RuntimeChartAsCode> {
         const chart = await this.savedChartModel.get(chartUuid);
         const spaces = await this.spaceModel.find({
             spaceUuids: chart.spaceUuid ? [chart.spaceUuid] : [],
@@ -2907,7 +2937,7 @@ export class CoderService extends BaseService {
 
     private async makeChartAsCodePortable(
         projectUuid: string,
-        chartAsCode: ChartAsCode,
+        chartAsCode: RuntimeChartAsCode,
     ): Promise<ChartAsCode> {
         const dataAppVizUuid =
             chartAsCode.chartConfig.type === ChartType.DATA_APP_VIZ

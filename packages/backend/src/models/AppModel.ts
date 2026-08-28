@@ -1207,7 +1207,11 @@ export class AppModel {
      */
     async remapPreviewChartVizBindings(
         previewProjectUuid: string,
-        mappings: { sourceAppUuid: string; previewAppUuid: string }[],
+        mappings: {
+            sourceAppUuid: string;
+            previewAppUuid: string;
+            previewAppVersion: number;
+        }[],
     ): Promise<void> {
         if (mappings.length === 0) {
             return;
@@ -1247,7 +1251,11 @@ export class AppModel {
             .select(`${SavedChartsTableName}.saved_query_id`);
 
         /* eslint-disable no-await-in-loop */
-        for (const { sourceAppUuid, previewAppUuid } of mappings) {
+        for (const {
+            sourceAppUuid,
+            previewAppUuid,
+            previewAppVersion,
+        } of mappings) {
             await this.database(SavedChartVersionsTableName)
                 .where('chart_type', ChartType.DATA_APP_VIZ)
                 .whereRaw(`chart_config->>'dataAppVizUuid' = ?`, [
@@ -1260,8 +1268,13 @@ export class AppModel {
                 })
                 .update({
                     chart_config: this.database.raw(
-                        `jsonb_set(chart_config, '{dataAppVizUuid}', to_jsonb(?::text))`,
-                        [previewAppUuid],
+                        `jsonb_set(
+                            jsonb_set(chart_config, '{dataAppVizUuid}', to_jsonb(?::text)),
+                            '{dataAppVizVersion}',
+                            to_jsonb(?::integer),
+                            true
+                        )`,
+                        [previewAppUuid, previewAppVersion],
                     ) as unknown as ChartConfig['config'],
                 });
         }

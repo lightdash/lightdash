@@ -24,6 +24,43 @@ describe('useDataAppVizVisualizationConfig', () => {
         });
     });
 
+    it('preserves the saved project chart type version through config edits', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(
+                { ...initialConfig, dataAppVizVersion: 7 },
+                onConfigChange,
+            ),
+        );
+
+        act(() => result.current.setField('value', 'orders_count'));
+
+        expect(onConfigChange).toHaveBeenLastCalledWith({
+            dataAppVizUuid: 'viz-1',
+            dataAppVizVersion: 7,
+            fieldMapping: {
+                category: 'orders_status',
+                value: 'orders_count',
+            },
+            optionValues: { showLegend: false },
+        });
+    });
+
+    it('pins the selected project chart type to the rendered version', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        );
+
+        act(() => result.current.setDataAppVizVersion(8));
+
+        expect(result.current.validConfig?.dataAppVizVersion).toBe(8);
+        expect(onConfigChange).toHaveBeenLastCalledWith({
+            ...initialConfig,
+            dataAppVizVersion: 8,
+        });
+    });
+
     it('defaults to an empty option map when nothing is saved', () => {
         const { result } = renderHook(() =>
             useDataAppVizVisualizationConfig({
@@ -249,6 +286,24 @@ describe('useDataAppVizVisualizationConfig', () => {
             showLegend: false,
             barColor: '#ff0000',
         });
+    });
+
+    it('drops the pin when the same project chart type is re-selected', () => {
+        const { result, rerender } = renderHook(
+            ({ config }) => useDataAppVizVisualizationConfig(config),
+            {
+                initialProps: {
+                    config: {
+                        ...initialConfig,
+                        dataAppVizVersion: 3,
+                    } as DataAppVizChart,
+                },
+            },
+        );
+
+        rerender({ config: initialConfig });
+
+        expect(result.current.validConfig?.dataAppVizVersion).toBeUndefined();
     });
 
     it('points at no viz when the chart has no config', () => {

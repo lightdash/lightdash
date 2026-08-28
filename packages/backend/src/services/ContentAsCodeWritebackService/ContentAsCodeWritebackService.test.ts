@@ -65,6 +65,7 @@ const buildService = (overrides: Overrides = {}) => {
             ...chartAsCode,
             name: 'Monthly revenue draft',
         }),
+        getCurrentChartAsCode: vi.fn().mockResolvedValue(chartAsCode),
         getCurrentDashboardAsCode: vi.fn().mockResolvedValue({
             name: 'Weekly KPIs',
             slug: 'weekly-kpis',
@@ -367,6 +368,45 @@ describe('ContentAsCodeWritebackService', () => {
             gitIntegrationService.createPullRequestFromBranch.mock.calls[0][5];
         expect(prSource).toBe(PullRequestSource.CONTENT_AS_CODE);
         expect(gitIntegrationService.recordPullRequest).not.toHaveBeenCalled();
+    });
+
+    it('writes dashboard-owned charts with portable chart type bindings', async () => {
+        const { service, gitIntegrationService, coderService } = buildService();
+        coderService.getCurrentChartAsCode.mockResolvedValue({
+            ...chartAsCode,
+            dashboardSlug: 'weekly-kpis',
+            chartConfig: {
+                type: 'data_app_viz',
+                config: {
+                    dataAppVizUuid: 'source-viz-uuid',
+                    dataAppVizVersion: 7,
+                    fieldMapping: {},
+                },
+            },
+        });
+        coderService.getPortableChartAsCode.mockResolvedValue({
+            ...chartAsCode,
+            dashboardSlug: 'weekly-kpis',
+            chartConfig: {
+                type: 'data_app_viz',
+                config: {
+                    dataAppVizSlug: 'revenue-chart-type',
+                    fieldMapping: {},
+                },
+            },
+        });
+
+        await service.propose(user, 'project-uuid', 'dashboard', 'weekly-kpis');
+
+        const chartFileCall = gitIntegrationService.saveFile.mock.calls.find(
+            (call) => call[3] === 'lightdash/charts/monthly-revenue.yml',
+        );
+        expect(chartFileCall?.[4]).toContain(
+            'dataAppVizSlug: revenue-chart-type',
+        );
+        expect(chartFileCall?.[4]).not.toContain('dataAppVizUuid');
+        expect(chartFileCall?.[4]).not.toContain('dataAppVizVersion');
+        expect(coderService.getCurrentChartAsCode).not.toHaveBeenCalled();
     });
 
     it('every commit names the acting user and instance', async () => {

@@ -1867,7 +1867,11 @@ describe('PromoteService permission checks', () => {
 describe('PromoteService data app promotion', () => {
     const appGenerateService = {
         promoteAppsForDashboard: vi.fn(async () => [
-            { sourceAppUuid: promotedAppUuid, upstreamAppUuid },
+            {
+                sourceAppUuid: promotedAppUuid,
+                upstreamAppUuid,
+                upstreamAppVersion: 12,
+            },
         ]),
     };
 
@@ -2010,6 +2014,7 @@ describe('PromoteService data app promotion', () => {
                         type: ChartType.DATA_APP_VIZ,
                         config: {
                             dataAppVizUuid: promotedAppUuid,
+                            dataAppVizVersion: 3,
                             fieldMapping: {},
                         },
                     },
@@ -2037,6 +2042,11 @@ describe('PromoteService data app promotion', () => {
                 ? chartConfig.config?.dataAppVizUuid
                 : undefined,
         ).toBe(upstreamAppUuid);
+        expect(
+            chartConfig.type === ChartType.DATA_APP_VIZ
+                ? chartConfig.config?.dataAppVizVersion
+                : undefined,
+        ).toBe(12);
     });
 
     test('keeps the chart binding when the referenced viz was skipped (soft-deleted)', async () => {
@@ -2054,5 +2064,10 @@ describe('PromoteService data app promotion', () => {
                 ? chartConfig.config?.dataAppVizUuid
                 : undefined,
         ).toBe(promotedAppUuid);
+        expect(
+            chartConfig.type === ChartType.DATA_APP_VIZ
+                ? chartConfig.config?.dataAppVizVersion
+                : undefined,
+        ).toBeUndefined();
     });
 });

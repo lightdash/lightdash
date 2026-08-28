@@ -785,7 +785,8 @@ export class ContentAsCodeWritebackService extends BaseService {
                                 chartSlug,
                             );
                         const chartAsCode =
-                            await this.coderService.getCurrentChartAsCode(
+                            await this.coderService.getPortableChartAsCode(
+                                projectUuid,
                                 contentUuid,
                             );
                         // Only charts saved within this dashboard travel with

@@ -411,5 +411,17 @@ describe('version metadata propagation on app copy paths', () => {
             undefined, // no declared dependencies
             VIZ_SCHEMA,
         );
+        const previewAppUuid =
+            appModel.createWithVersion.mock.calls[0][0].app_id;
+        expect(appModel.remapPreviewChartVizBindings).toHaveBeenCalledWith(
+            PREVIEW_PROJECT_UUID,
+            [
+                {
+                    sourceAppUuid: SOURCE_APP_UUID,
+                    previewAppUuid,
+                    previewAppVersion: 1,
+                },
+            ],
+        );
     });
 });

@@ -15,6 +15,7 @@ import {
     selectHasPaletteChanges,
     selectHasUnsavedChanges,
     selectHasVersionChanges,
+    selectIsDataAppVizVersionReadyForSave,
     selectIsValidQuery,
     selectSavedChart,
     selectUnsavedChartVersion,
@@ -69,6 +70,9 @@ const SaveChartButton: FC<{
 
     // Read isValidQuery from Redux
     const isValidQuery = useExplorerSelector(selectIsValidQuery);
+    const isDataAppVizVersionReadyForSave = useExplorerSelector(
+        selectIsDataAppVizVersionReadyForSave,
+    );
     const spaceUuid = useSearchParams('fromSpace');
 
     // For new charts, button is enabled when query is valid
@@ -178,6 +182,7 @@ const SaveChartButton: FC<{
         disabled ||
         !unsavedChartVersion.tableName ||
         !hasUnsavedChanges ||
+        !isDataAppVizVersionReadyForSave ||
         foundCustomMetricWithDuplicateId ||
         !isMergeValid ||
         !!missingRequiredParameters?.length;
@@ -205,6 +210,7 @@ const SaveChartButton: FC<{
         // Embeds may duplicate a chart as-is (there is no other way to copy
         // one there); the main app keeps requiring changes
         (!hasUnsavedChanges && !isEmbedded) ||
+        !isDataAppVizVersionReadyForSave ||
         foundCustomMetricWithDuplicateId ||
         !isMergeValid ||
         !!missingRequiredParameters?.length;

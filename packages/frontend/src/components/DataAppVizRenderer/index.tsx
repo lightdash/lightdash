@@ -1,4 +1,5 @@
 import {
+    ChartType,
     getEffectiveOptionValues,
     hasCustomBinDimension,
     type ApiError,
@@ -75,10 +76,12 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         colorPalette,
         itemsMap,
         savedChartUuid,
+        savedChartReference,
         minimal,
         parameters,
         dateZoom,
         resolvedTimezone,
+        isEditMode,
     } = useVisualizationContext();
     const { embedToken } = useEmbed();
     const { canViewUnderlyingData, canDrillInto } = useContextMenuPermissions();
@@ -115,9 +118,12 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         resultsData?.setFetchAll(true);
     }, [resultsData]);
 
-    const config = isDataAppVizVisualizationConfig(visualizationConfig)
-        ? visualizationConfig.chartConfig.validConfig
+    const dataAppVizChartConfig = isDataAppVizVisualizationConfig(
+        visualizationConfig,
+    )
+        ? visualizationConfig.chartConfig
         : null;
+    const config = dataAppVizChartConfig?.validConfig ?? null;
     const dataAppVizUuid = config?.dataAppVizUuid ?? null;
     const fieldMapping = config?.fieldMapping;
     const optionValues = config?.optionValues;
@@ -125,14 +131,51 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const pivotDetails = resultsData?.pivotDetails ?? null;
 
     const chartVersionUuid = useChartVersionPreview();
+    const savedDataAppVizConfig =
+        savedChartReference?.chartConfig.type === ChartType.DATA_APP_VIZ
+            ? savedChartReference.chartConfig.config
+            : undefined;
+    const matchesSavedBinding =
+        config?.dataAppVizUuid === savedDataAppVizConfig?.dataAppVizUuid &&
+        config?.dataAppVizVersion === savedDataAppVizConfig?.dataAppVizVersion;
+    const renderSavedChartUuid = chartVersionUuid
+        ? (savedChartReference?.uuid ?? savedChartUuid)
+        : (savedChartUuid ??
+          (isEditMode && matchesSavedBinding
+              ? savedChartReference?.uuid
+              : undefined));
     const renderTarget = useMemo(
-        () => ({ isEmbedded: !!embedToken, savedChartUuid, chartVersionUuid }),
-        [embedToken, savedChartUuid, chartVersionUuid],
+        () => ({
+            isEmbedded: !!embedToken,
+            savedChartUuid: renderSavedChartUuid,
+            chartVersionUuid,
+        }),
+        [embedToken, renderSavedChartUuid, chartVersionUuid],
     );
     const { data: renderMetadata, error: renderMetadataError } =
         useDataAppVizRenderMetadata(projectUuid, dataAppVizUuid, renderTarget);
     const readyMetadata =
         renderMetadata?.state === 'ready' ? renderMetadata : undefined;
+    useEffect(() => {
+        if (
+            !isEditMode ||
+            !readyMetadata ||
+            !dataAppVizChartConfig ||
+            !config ||
+            (config.dataAppVizVersion !== undefined &&
+                renderSavedChartUuid !== undefined) ||
+            config.dataAppVizVersion === readyMetadata.version
+        ) {
+            return;
+        }
+        dataAppVizChartConfig.setDataAppVizVersion(readyMetadata.version);
+    }, [
+        config,
+        isEditMode,
+        readyMetadata,
+        renderSavedChartUuid,
+        dataAppVizChartConfig,
+    ]);
     const { data: token, error: previewTokenError } = useDataAppVizPreviewToken(
         projectUuid,
         dataAppVizUuid,

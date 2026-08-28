@@ -7589,24 +7589,36 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         appUuids: string[],
-    ): Promise<{ sourceAppUuid: string; upstreamAppUuid: string }[]> {
+    ): Promise<
+        {
+            sourceAppUuid: string;
+            upstreamAppUuid: string;
+            upstreamAppVersion: number;
+        }[]
+    > {
         if (appUuids.length === 0) {
             return [];
         }
         await this.assertDataAppsEnabled(user);
 
-        const results: { sourceAppUuid: string; upstreamAppUuid: string }[] =
-            [];
+        const results: {
+            sourceAppUuid: string;
+            upstreamAppUuid: string;
+            upstreamAppVersion: number;
+        }[] = [];
         /* eslint-disable no-await-in-loop */
         for (const appUuid of appUuids) {
             const sourceApp = await this.appModel.findApp(appUuid, projectUuid);
             if (sourceApp) {
-                const { appUuid: upstreamAppUuid } = await this.promoteApp(
-                    user,
-                    projectUuid,
-                    appUuid,
-                );
-                results.push({ sourceAppUuid: appUuid, upstreamAppUuid });
+                const {
+                    appUuid: upstreamAppUuid,
+                    version: upstreamAppVersion,
+                } = await this.promoteApp(user, projectUuid, appUuid);
+                results.push({
+                    sourceAppUuid: appUuid,
+                    upstreamAppUuid,
+                    upstreamAppVersion,
+                });
             }
         }
         /* eslint-enable no-await-in-loop */
@@ -7868,12 +7880,15 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const mappings: { sourceAppUuid: string; previewAppUuid: string }[] =
-            [];
+        const mappings: {
+            sourceAppUuid: string;
+            previewAppUuid: string;
+            previewAppVersion: number;
+        }[] = [];
 
         /* eslint-disable no-await-in-loop */
         for (const sourceApp of sourceApps) {
-            const previewAppUuid = await this.copyAppForPreview(
+            const previewApp = await this.copyAppForPreview(
                 sourceApp,
                 sourceProjectUuid,
                 previewProjectUuid,
@@ -7883,10 +7898,11 @@ export class AppGenerateService extends BaseService {
                 s3Client,
                 bucket,
             );
-            if (previewAppUuid) {
+            if (previewApp) {
                 mappings.push({
                     sourceAppUuid: sourceApp.app_id,
-                    previewAppUuid,
+                    previewAppUuid: previewApp.appUuid,
+                    previewAppVersion: previewApp.version,
                 });
             }
         }
@@ -7926,7 +7942,7 @@ export class AppGenerateService extends BaseService {
         connectionUuidMap: Map<string, string>,
         s3Client: S3Client,
         bucket: string,
-    ): Promise<string | null> {
+    ): Promise<{ appUuid: string; version: number } | null> {
         const sourceVersion = await this.appModel.getLatestReadyVersion(
             sourceApp.app_id,
         );
@@ -8062,7 +8078,7 @@ export class AppGenerateService extends BaseService {
             return null;
         }
 
-        return newAppUuid;
+        return { appUuid: newAppUuid, version: newVersion };
     }
 
     async cancelVersion(
