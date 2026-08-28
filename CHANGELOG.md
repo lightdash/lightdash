@@ -1,3 +1,15 @@
+# [2.49.0](https://github.com/lightdash/lightdash/compare/2.48.1...2.49.0) (2026-08-28)
+
+
+### Bug Fixes
+
+* **permissions:** cap the personal access token scope by deployment config ([#28204](https://github.com/lightdash/lightdash/issues/28204)) ([44d7d95](https://github.com/lightdash/lightdash/commit/44d7d9585906790d0fc1f3e9fbf235957add1a72)), closes [#25543](https://github.com/lightdash/lightdash/issues/25543)
+
+
+### Features
+
+* support offline Enterprise license certificates ([#28269](https://github.com/lightdash/lightdash/issues/28269)) ([12bfe54](https://github.com/lightdash/lightdash/commit/12bfe54318dd09efff999b335c8d96babf3673ab))
+
 ## [2.48.1](https://github.com/lightdash/lightdash/compare/2.48.0...2.48.1) (2026-08-28)
 
 
