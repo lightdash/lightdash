@@ -31,6 +31,7 @@ import {
     hasProperty,
     InviteLink,
     InviteLinkPurpose,
+    InviteLinkWithAuthenticationOptions,
     isEmailOnlyUser,
     isMobileLoginSsoProvider,
     isOpenIdIdentityIssuerType,
@@ -480,6 +481,7 @@ export class UserService extends BaseService {
                 );
             }
         } else if (
+            activateUser &&
             (await this.isLoginMethodAllowed(
                 userEmail,
                 LocalIssuerTypes.EMAIL,
@@ -487,6 +489,15 @@ export class UserService extends BaseService {
         ) {
             throw new ForbiddenError(
                 `User with email ${userEmail} is not allowed to login with password`,
+            );
+        } else if (
+            !activateUser &&
+            !(await this.isInviteLinkActivationAllowed(userEmail))
+        ) {
+            throw new ForbiddenError(
+                this.lightdashConfig.auth.disablePasswordAuthentication
+                    ? 'Passwordless invite activation is not allowed'
+                    : ORGANIZATION_SSO_REQUIRED_MESSAGE,
             );
         }
 
@@ -1595,6 +1606,36 @@ export class UserService extends BaseService {
 
     async getInviteLink(inviteCode: string): Promise<InviteLink> {
         return this.inviteLinkModel.getByCode(inviteCode);
+    }
+
+    private async isInviteLinkActivationAllowed(
+        email: string,
+    ): Promise<boolean> {
+        // One-click activation creates a signed-in session without an IdP
+        // challenge, so it follows the same policy as local authentication.
+        return this.isLoginMethodAllowed(email, LocalIssuerTypes.EMAIL);
+    }
+
+    async getInviteLinkWithAuthenticationOptions(
+        inviteCode: string,
+    ): Promise<InviteLinkWithAuthenticationOptions> {
+        const inviteLink = await this.getInviteLink(inviteCode);
+        const [loginOptions, allowPasswordSignup] = await Promise.all([
+            this.getLoginOptions(inviteLink.email),
+            this.isLoginMethodAllowed(inviteLink.email, LocalIssuerTypes.EMAIL),
+        ]);
+        const allowOneClickActivation = allowPasswordSignup;
+
+        return {
+            ...inviteLink,
+            authentication: {
+                allowOneClickActivation,
+                allowPasswordSignup,
+                ssoProviders: loginOptions.showOptions.filter(
+                    isOpenIdIdentityIssuerType,
+                ),
+            },
+        };
     }
 
     async loginWithPassword(
@@ -3988,14 +4029,20 @@ export class UserService extends BaseService {
             shouldShowEmailOtp =
                 !hasPasswordLogin && !hasOpenIdIdentity && isEmailLoginAllowed;
         }
-        const applyEmailOtpOption = (options: LoginOptionTypes[]) =>
-            shouldShowEmailOtp && options.includes(LocalIssuerTypes.EMAIL)
-                ? options.map((option) =>
-                      option === LocalIssuerTypes.EMAIL
-                          ? LocalIssuerTypes.EMAIL_OTP
-                          : option,
-                  )
-                : options;
+        const applyEmailOtpOption = (
+            options: LoginOptionTypes[],
+        ): LoginOptionTypes[] => {
+            if (!shouldShowEmailOtp) return options;
+            if (options.includes(LocalIssuerTypes.EMAIL_OTP)) return options;
+            if (options.includes(LocalIssuerTypes.EMAIL)) {
+                return options.map((option) =>
+                    option === LocalIssuerTypes.EMAIL
+                        ? LocalIssuerTypes.EMAIL_OTP
+                        : option,
+                );
+            }
+            return [LocalIssuerTypes.EMAIL_OTP, ...options];
+        };
 
         let ssoOptionsForUser: OpenIdIdentityIssuerType[];
         let passwordAllowedForUser: boolean;
@@ -4053,14 +4100,15 @@ export class UserService extends BaseService {
             };
         }
 
-        const oidcOptions = showOptions.filter(isOpenIdIdentityIssuerType);
+        const loginOptions = applyEmailOtpOption(showOptions);
+        const oidcOptions = loginOptions.filter(isOpenIdIdentityIssuerType);
         // Auto-redirect when there is genuinely a single option (one OIDC
         // provider, no password input). Wrong-account loops are mitigated
         // by forwarding `login_hint` to the provider so the right account
         // is surfaced.
-        if (oidcOptions.length === 1 && showOptions.length === 1) {
+        if (oidcOptions.length === 1 && loginOptions.length === 1) {
             return {
-                showOptions,
+                showOptions: loginOptions,
                 forceRedirect: true,
                 redirectUri: new URL(
                     `/api/v1${this.getRedirectUri(
@@ -4070,7 +4118,6 @@ export class UserService extends BaseService {
                 ).href,
             };
         }
-        const loginOptions = applyEmailOtpOption(showOptions);
         return {
             showOptions: loginOptions,
             forceRedirect: false,

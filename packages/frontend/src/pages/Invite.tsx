@@ -1,7 +1,6 @@
 import {
     FeatureFlags,
     InviteLinkPurpose,
-    OpenIdIdentityIssuerType,
     type ActivateUserWithInviteCode,
     type ApiError,
     type CreateUserArgs,
@@ -235,11 +234,11 @@ const Invite: FC = () => {
         },
     });
 
-    const allowPasswordAuthentication =
-        !health.data?.auth.disablePasswordAuthentication;
     const isNewOnboarding = newOnboardingFlag.data?.enabled ?? false;
     const showOneClick =
-        isNewOnboarding && allowPasswordAuthentication && Boolean(inviteCode);
+        isNewOnboarding &&
+        inviteLinkQuery.data?.authentication.allowOneClickActivation &&
+        Boolean(inviteCode);
 
     useEffect(() => {
         const searchParams = new URLSearchParams(search);
@@ -261,39 +260,43 @@ const Invite: FC = () => {
         return <Navigate to={{ pathname: redirectUrl }} />;
     }
 
-    const ssoAvailable =
-        health.data?.auth.google.enabled ||
-        health.data?.auth.okta.enabled ||
-        health.data?.auth.oneLogin.enabled ||
-        health.data?.auth.azuread.enabled ||
-        health.data?.auth.oidc.enabled;
-    const ssoLogins = ssoAvailable && (
+    const ssoProviders =
+        inviteLinkQuery.data?.authentication.ssoProviders ?? [];
+    const ssoLogins = ssoProviders.length > 0 && (
         <Stack>
-            {Object.values(OpenIdIdentityIssuerType).map((providerName) => (
+            {ssoProviders.map((providerName) => (
                 <ThirdPartySignInButton
                     key={providerName}
                     providerName={providerName}
                     inviteCode={inviteCode}
+                    loginHint={inviteLinkQuery.data?.email}
+                    forceShow
                     intent="signup"
                     redirect={redirectUrl}
                 />
             ))}
         </Stack>
     );
-    const passwordLogin = allowPasswordAuthentication && inviteCode && (
-        <CreateUserForm
-            isLoading={isLoading || isSuccess}
-            readOnlyEmail={inviteLinkQuery.data?.email}
-            onSubmit={({ firstName, lastName, password }: CreateUserArgs) => {
-                mutate({
-                    inviteCode,
+    const passwordLogin = inviteLinkQuery.data?.authentication
+        .allowPasswordSignup &&
+        inviteCode && (
+            <CreateUserForm
+                isLoading={isLoading || isSuccess}
+                readOnlyEmail={inviteLinkQuery.data?.email}
+                onSubmit={({
                     firstName,
                     lastName,
                     password,
-                });
-            }}
-        />
-    );
+                }: CreateUserArgs) => {
+                    mutate({
+                        inviteCode,
+                        firstName,
+                        lastName,
+                        password,
+                    });
+                }}
+            />
+        );
     const logins = (
         <>
             {ssoLogins}
@@ -348,6 +351,20 @@ const Invite: FC = () => {
                         }
                         onActivate={() => activateInvite.mutate()}
                     />
+                    {ssoLogins && (
+                        <>
+                            <Divider
+                                my="md"
+                                labelPosition="center"
+                                label={
+                                    <Text c="ldGray.5" size="sm" fw={500}>
+                                        OR
+                                    </Text>
+                                }
+                            />
+                            {ssoLogins}
+                        </>
+                    )}
                     <PrivacyTermsFootnote />
                 </>
             ) : isLinkFromEmail || isSetupInvite ? (

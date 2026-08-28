@@ -1074,6 +1074,27 @@ describe('UserService', () => {
             });
         });
 
+        test('requires SSO instead of activating the invited user when local authentication is disabled', async () => {
+            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
+                validInviteLink,
+            );
+            const service = createUserService(lightdashConfigMock);
+            vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(false);
+
+            await expect(
+                service.activateUserFromInviteWithoutPassword(
+                    validInviteLink.inviteCode,
+                ),
+            ).rejects.toThrow(
+                new ForbiddenError('Your organisation requires SSO sign-in'),
+            );
+
+            expect(
+                userModel.activateUserWithoutPassword,
+            ).not.toHaveBeenCalled();
+            expect(inviteLinkModel.deleteByCode).not.toHaveBeenCalled();
+        });
+
         test('rejects an expired invite without activating the user', async () => {
             vi.mocked(inviteLinkModel.getByCode).mockRejectedValueOnce(
                 new ExpiredError('Invite link expired'),
@@ -1200,6 +1221,34 @@ describe('UserService', () => {
                 organizationAllowedEmailDomainsModel.findAllowedEmailDomains,
             ).not.toHaveBeenCalled();
             expect(userModel.addProjectMemberships).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getInviteLinkWithAuthenticationOptions', () => {
+        test('returns the SSO provider and disables local invite flows when SSO is required', async () => {
+            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
+                inviteLink,
+            );
+            const service = createUserService(lightdashConfigMock);
+            vi.spyOn(service, 'getLoginOptions').mockResolvedValue({
+                showOptions: [OpenIdIdentityIssuerType.GOOGLE],
+                forceRedirect: true,
+                redirectUri: 'https://example.com/api/v1/login/google',
+            });
+            vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(false);
+
+            await expect(
+                service.getInviteLinkWithAuthenticationOptions(
+                    inviteLink.inviteCode,
+                ),
+            ).resolves.toEqual({
+                ...inviteLink,
+                authentication: {
+                    allowOneClickActivation: false,
+                    allowPasswordSignup: false,
+                    ssoProviders: [OpenIdIdentityIssuerType.GOOGLE],
+                },
+            });
         });
     });
 
@@ -2482,6 +2531,34 @@ describe('UserService', () => {
                 redirectUri:
                     'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=user%40acme.com',
                 showOptions: ['azuread'],
+            });
+        });
+
+        test('passwordless user keeps email OTP alongside per-org SSO when local login is allowed', async () => {
+            const method = {
+                ...googleMethod,
+                organizationUuid: sessionUser.organizationUuid!,
+                allowPassword: true,
+            };
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
+            )
+                .mockResolvedValueOnce([method])
+                .mockResolvedValueOnce([method]);
+            vi.mocked(userModel.findUserByEmail)
+                .mockResolvedValueOnce(sessionUser)
+                .mockResolvedValueOnce(sessionUser);
+            vi.mocked(userModel.hasPasswordByEmail).mockResolvedValueOnce(
+                false,
+            );
+            vi.mocked(userModel.hasPassword).mockResolvedValueOnce(false);
+            vi.mocked(userModel.hasOpenIdIdentity).mockResolvedValueOnce(false);
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions(sessionUser.email)).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['emailOtp', 'google'],
             });
         });
 
