@@ -171,4 +171,11 @@ describe('buildSampleVizContext', () => {
             expect(context.pivotDetails).toBeNull();
         });
     });
+
+    it('leaves host-resolved colors empty for synthetic rows', () => {
+        const context = buildSampleVizContext(schema);
+
+        expect(context.seriesColors).toEqual({});
+        expect(context.valueColors).toEqual({});
+    });
 });

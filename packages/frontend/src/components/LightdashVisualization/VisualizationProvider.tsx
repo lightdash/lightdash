@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     ChartType,
     FeatureFlags,
-    isDimension,
     type ApiErrorDetail,
     type ChartConfig,
     type DashboardFilters,
@@ -31,7 +30,9 @@ import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useC
 import { type SeriesLike } from '../../hooks/useChartColorConfig/types';
 import { useChartColorConfig } from '../../hooks/useChartColorConfig/useChartColorConfig';
 import {
+    calculateFallbackSeriesColors,
     calculateSeriesLikeIdentifier,
+    getDimensionValueColor,
     isGroupedSeries,
 } from '../../hooks/useChartColorConfig/utils';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
@@ -219,15 +220,7 @@ const VisualizationProvider: FC<
                 ? computedSeries
                 : chartConfig.config.eChartsConfig.series;
 
-        const sortedSeriesIdentifiers = (allSeries ?? [])
-            .map((series) => calculateSeriesLikeIdentifier(series).join('|'))
-            .sort((a, b) => b.localeCompare(a));
-
-        return Object.fromEntries(
-            sortedSeriesIdentifiers.map((identifier, i) => {
-                return [identifier, colorPalette[i % colorPalette.length]];
-            }),
-        );
+        return calculateFallbackSeriesColors(allSeries ?? [], colorPalette);
     }, [chartConfig, colorPalette, computedSeries]);
 
     const handleChartConfigChange = useCallback(
@@ -252,13 +245,12 @@ const VisualizationProvider: FC<
     const getGroupColor = useCallback(
         (groupPrefix: string, identifier: string) => {
             if (itemsMap) {
-                const dimension = itemsMap[groupPrefix];
-                if (dimension && isDimension(dimension)) {
-                    const colors = dimension.colors;
-                    if (colors && colors[identifier]) {
-                        return colors[identifier];
-                    }
-                }
+                const fixedColor = getDimensionValueColor(
+                    itemsMap,
+                    groupPrefix,
+                    identifier,
+                );
+                if (fixedColor) return fixedColor;
             }
 
             return calculateKeyColorAssignment(groupPrefix, identifier);
@@ -299,17 +291,12 @@ const VisualizationProvider: FC<
             }
             if (itemsMap && pivot) {
                 const { field, value } = pivot;
-                const dimension = itemsMap[field];
-                if (
-                    dimension &&
-                    isDimension(dimension) &&
-                    typeof value === 'string'
-                ) {
-                    const colors = dimension.colors;
-                    if (colors && colors[value]) {
-                        return colors[value];
-                    }
-                }
+                const fixedColor = getDimensionValueColor(
+                    itemsMap,
+                    field,
+                    value,
+                );
+                if (fixedColor) return fixedColor;
             }
 
             /**

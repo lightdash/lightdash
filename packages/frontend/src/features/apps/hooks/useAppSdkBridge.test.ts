@@ -1179,6 +1179,8 @@ describe('data-app-viz-context push', () => {
         ],
         options: { showLegend: true, barColor: '#ff0000' },
         colorPalette: ['#7162FF', '#1A1B1E'],
+        seriesColors: {},
+        valueColors: {},
         pivotDetails: null,
         underlyingData: { enabled: false },
         drillDown: { enabled: false },

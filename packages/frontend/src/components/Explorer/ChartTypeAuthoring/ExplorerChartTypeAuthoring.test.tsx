@@ -25,6 +25,7 @@ import {
     createExplorerStore,
     explorerActions,
 } from '../../../features/explorer/store';
+import { ChartColorMappingContext } from '../../../hooks/useChartColorConfig/context';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { useExplorerResultsData } from '../VisualizationCard/useExplorerResultsData';
 import ExplorerChartTypeAuthoring from './ExplorerChartTypeAuthoring';
@@ -266,11 +267,13 @@ const renderAuthoring = ({
     };
 
     renderWithProviders(
-        <Provider store={store}>
-            <MemoryRouter>
-                <Harness />
-            </MemoryRouter>
-        </Provider>,
+        <ChartColorMappingContext.Provider value={{ colorMappings: new Map() }}>
+            <Provider store={store}>
+                <MemoryRouter>
+                    <Harness />
+                </MemoryRouter>
+            </Provider>
+        </ChartColorMappingContext.Provider>,
     );
     return store;
 };

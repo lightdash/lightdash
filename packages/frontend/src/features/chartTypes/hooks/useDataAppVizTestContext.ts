@@ -26,8 +26,11 @@ import {
     isMappingComplete,
 } from '../components/dataAppVizTestQuery';
 import { getDataAppVizFieldItems } from '../utils/getDataAppVizFieldItems';
+import { useDataAppVizResolvedColors } from './useDataAppVizResolvedColors';
 
 type Run = { args: QueryResultsProps; mapping: Record<string, string> };
+
+const EMPTY_FIELD_MAPPING = {};
 
 type Args = {
     projectUuid: string;
@@ -124,6 +127,13 @@ export const useDataAppVizTestContext = ({
     }, [selectedPalette, projectPalette, colorScheme]);
 
     const rows = queryResults.rows;
+    const resolvedColors = useDataAppVizResolvedColors({
+        itemsMap,
+        rows,
+        fieldMapping: run?.mapping ?? EMPTY_FIELD_MAPPING,
+        pivotDetails: queryResults.pivotDetails ?? null,
+        colorPalette,
+    });
     // Only push rows belonging to this run's query — on a re-run the executor
     // transiently re-exposes the previous query's cached page before the new
     // queryUuid lands.
@@ -140,6 +150,7 @@ export const useDataAppVizTestContext = ({
                 rows,
                 options: effectiveOptions,
                 colorPalette,
+                ...resolvedColors,
                 pivotDetails: queryResults.pivotDetails ?? null,
                 underlyingData: { enabled: false },
                 drillDown: { enabled: false },
@@ -153,6 +164,7 @@ export const useDataAppVizTestContext = ({
         queryResults.pivotDetails,
         effectiveOptions,
         colorPalette,
+        resolvedColors,
         onContextChange,
     ]);
     // Clear the preview when the consumer unmounts.

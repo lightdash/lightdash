@@ -1,6 +1,9 @@
+import { DimensionType, FieldType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ChartColorMappingContext } from '../../hooks/useChartColorConfig/context';
+import { getMantineThemeOverride } from '../../theme';
 
 // Mirrors the real hook's failSilently contract: TrackingContextType | undefined.
 type TrackingMockContext = { track: (...args: unknown[]) => void } | undefined;
@@ -13,7 +16,12 @@ const mocks = vi.hoisted(() => ({
                   version: number;
                   latestBuildInProgress: boolean;
                   schema: {
-                      fields: Array<never>;
+                      fields: Array<{
+                          name: string;
+                          label: string;
+                          type: 'dimension';
+                          required: boolean;
+                      }>;
                       configOptions: Array<{
                           type: 'text';
                           name: string;
@@ -101,6 +109,9 @@ vi.mock('../../hooks/useExplore', () => ({
         return { data: mocks.explore.current };
     },
 }));
+vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({ data: { enabled: true } }),
+}));
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
         user: {
@@ -128,7 +139,7 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
                               dataAppVizUuid: mocks.dataAppVizUuid.current,
                               dataAppVizVersion:
                                   mocks.dataAppVizVersion.current,
-                              fieldMapping: { category: 'orders.category' },
+                              fieldMapping: { category: 'orders_category' },
                               optionValues: { title: 12 },
                           },
                 setDataAppVizVersion: mocks.setDataAppVizVersion,
@@ -136,8 +147,27 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
         },
         savedChartUuid: 'saved-chart-uuid',
         resultsData: {
-            rows: [{ 'orders.category': { value: { raw: 'Hardware' } } }],
+            rows: [
+                {
+                    orders_category: {
+                        value: { raw: 'Hardware', formatted: 'Hardware' },
+                    },
+                },
+            ],
             setFetchAll: mocks.setFetchAll,
+        },
+        itemsMap: {
+            orders_category: {
+                fieldType: FieldType.DIMENSION,
+                type: DimensionType.STRING,
+                name: 'category',
+                label: 'Category',
+                table: 'orders',
+                tableLabel: 'Orders',
+                sql: '${TABLE}.category',
+                hidden: false,
+                colors: { Hardware: '#00ff00' },
+            },
         },
         colorPalette: ['#7162FF'],
         ...mocks.vizContextOverrides.current,
@@ -159,19 +189,30 @@ function apiError(statusCode: number) {
     };
 }
 
-const renderRenderer = (props?: Parameters<typeof DataAppVizRenderer>[0]) =>
-    render(
-        <MantineProvider env="test">
+const rendererElement = (props?: Parameters<typeof DataAppVizRenderer>[0]) => (
+    <MantineProvider env="test" theme={getMantineThemeOverride('light')}>
+        <ChartColorMappingContext.Provider value={{ colorMappings: new Map() }}>
             <DataAppVizRenderer {...props} />
-        </MantineProvider>,
-    );
+        </ChartColorMappingContext.Provider>
+    </MantineProvider>
+);
+
+const renderRenderer = (props?: Parameters<typeof DataAppVizRenderer>[0]) =>
+    render(rendererElement(props));
 
 const readyMetadata = () => ({
     state: 'ready' as const,
     version: 7,
     latestBuildInProgress: false,
     schema: {
-        fields: [],
+        fields: [
+            {
+                name: 'category',
+                label: 'Category',
+                type: 'dimension' as const,
+                required: true,
+            },
+        ],
         configOptions: [
             {
                 type: 'text' as const,
@@ -324,6 +365,10 @@ describe('DataAppVizRenderer', () => {
                 dataAppVizContext: expect.objectContaining({
                     options: { title: 'Sales' },
                     colorPalette: ['#7162FF'],
+                    seriesColors: {},
+                    valueColors: {
+                        orders_category: { Hardware: '#00ff00' },
+                    },
                 }),
             }),
             undefined,
@@ -491,11 +536,7 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         expect(onScreenshotReady).not.toHaveBeenCalled();
 
         mocks.vizContextOverrides.current = {};
-        view.rerender(
-            <MantineProvider env="test">
-                <DataAppVizRenderer onScreenshotReady={onScreenshotReady} />
-            </MantineProvider>,
-        );
+        view.rerender(rendererElement({ onScreenshotReady }));
 
         expect(onScreenshotReady).toHaveBeenCalledTimes(1);
     });
@@ -535,11 +576,7 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
                 vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS - 1000);
             });
             const second = vi.fn();
-            view.rerender(
-                <MantineProvider env="test">
-                    <DataAppVizRenderer onScreenshotReady={second} />
-                </MantineProvider>,
-            );
+            view.rerender(rendererElement({ onScreenshotReady: second }));
             act(() => {
                 vi.advanceTimersByTime(1000);
             });

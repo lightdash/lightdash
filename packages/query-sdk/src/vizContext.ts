@@ -43,7 +43,8 @@ export type VizContextRow = Record<string, VizContextCell | undefined>;
 /**
  * A config option value. Its shape follows the option's declared type:
  * `boolean` → boolean, `number` → number, `select`/`text`/`color` → string.
- * Series colours are not an option — they arrive on `colorPalette`.
+ * Series colours are not an option — they arrive on `colorPalette`,
+ * `seriesColors` and `valueColors`.
  */
 export type VizContextOptionValue = boolean | number | string;
 
@@ -91,7 +92,8 @@ export type VizContextPivotDetails = {
  * host-fetched result rows keyed by field id; `options` holds the current
  * value of each config option the renderer declared; `colorPalette` is the
  * Lightdash palette resolved for this chart, pushed whether or not the
- * renderer declared one.
+ * renderer declared one; `seriesColors` and `valueColors` are the final
+ * host-resolved colors for pivot columns and raw dimension values.
  */
 export type DataAppVizContextMessage = {
     type: 'lightdash:sdk:data-app-viz-context';
@@ -101,6 +103,10 @@ export type DataAppVizContextMessage = {
     options?: Record<string, VizContextOptionValue>;
     /** Absent when the installed host predates palette delivery. */
     colorPalette?: string[];
+    /** Absent when the installed host predates resolved-color delivery. */
+    seriesColors?: Record<string, string>;
+    /** Absent when the installed host predates resolved-color delivery. */
+    valueColors?: Record<string, Record<string, string>>;
     /** Null for unpivoted rows; absent when the installed host predates pivot metadata delivery. */
     pivotDetails?: VizContextPivotDetails | null;
     /** Absent when the installed host predates underlying-data delivery. */
@@ -162,12 +168,15 @@ export type VizContext = {
     /** Config option name → current value (the user's choice, else the declared default). */
     options: Record<string, VizContextOptionValue>;
     /**
-     * Ordered series colours resolved from the Lightdash palette the viewer
-     * picked. Colour multi-series charts with
-     * `colorPalette[i % colorPalette.length]`. Empty only when the host
+     * Lightdash palette selected for this chart, the fallback for anything
+     * absent from `seriesColors` / `valueColors`. Empty only when the host
      * resolved no palette; keep a fallback array in your own code for that.
      */
     colorPalette: string[];
+    /** Pivot column name → final color resolved by the Lightdash host. */
+    seriesColors: Record<string, string>;
+    /** Query field id → raw value → final color resolved by the Lightdash host. */
+    valueColors: Record<string, Record<string, string>>;
     /** Metadata that maps generated pivot column names back to their metric and series values. */
     pivotDetails: VizContextPivotDetails | null;
     /** False until the first context arrives — render a placeholder while false. */
@@ -183,6 +192,8 @@ type VizContextValue = {
     rows: VizContextRow[];
     options: Record<string, VizContextOptionValue>;
     colorPalette: string[];
+    seriesColors: Record<string, string>;
+    valueColors: Record<string, Record<string, string>>;
     pivotDetails: VizContextPivotDetails | null;
     underlyingDataEnabled: boolean;
     drillDownEnabled: boolean;
@@ -215,6 +226,36 @@ const normalizeOptions = (
     );
 };
 
+const normalizeStringRecord = (value: unknown): Record<string, string> => {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+        return {};
+    }
+
+    return Object.fromEntries(
+        Object.entries(value).filter(
+            (entry): entry is [string, string] => typeof entry[1] === 'string',
+        ),
+    );
+};
+
+const normalizeValueColors = (
+    value: unknown,
+): Record<string, Record<string, string>> => {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+        return {};
+    }
+
+    return Object.fromEntries(
+        Object.entries(value).flatMap(([fieldId, colors]) =>
+            typeof colors === 'object' &&
+            colors !== null &&
+            !Array.isArray(colors)
+                ? [[fieldId, normalizeStringRecord(colors)] as const]
+                : [],
+        ),
+    );
+};
+
 /**
  * Normalises an inbound host message into provider state. Optional capabilities
  * are absent from hosts predating them and receive stable fallback values.
@@ -231,6 +272,8 @@ export function toVizContextState(
                   (color): color is string => typeof color === 'string',
               )
             : [],
+        seriesColors: normalizeStringRecord(message.seriesColors),
+        valueColors: normalizeValueColors(message.valueColors),
         pivotDetails: message.pivotDetails ?? null,
         // Strict boolean check — non-boolean payloads read as disabled.
         underlyingDataEnabled: message.underlyingData?.enabled === true,
@@ -383,7 +426,8 @@ export function VizContextProvider({ children }: { children: ReactNode }) {
  * still works standalone. Re-renders whenever the host pushes (on load, on
  * mapping change, on query change). Resolve a declared field to its bound cell
  * with `fieldMapping[name]` then `getFormatted`/`getRaw`; read a declared
- * config option with `options[name]`, and colour series from `colorPalette`.
+ * config option with `options[name]`, and colour series from `seriesColors`
+ * / `valueColors`, falling back to `colorPalette`.
  */
 export function useVizContext(): VizContext {
     const fromProvider = useContext(VizContextContext);
@@ -418,6 +462,8 @@ export function useVizContext(): VizContext {
         rows: context?.rows ?? [],
         options: context?.options ?? {},
         colorPalette: context?.colorPalette ?? [],
+        seriesColors: context?.seriesColors ?? {},
+        valueColors: context?.valueColors ?? {},
         pivotDetails: context?.pivotDetails ?? null,
         ready: context !== null,
         underlyingData,

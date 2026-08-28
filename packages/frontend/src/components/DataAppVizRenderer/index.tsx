@@ -4,6 +4,8 @@ import {
     hasCustomBinDimension,
     type ApiError,
     type DataAppVizContext,
+    type ItemsMap,
+    type ResultRow,
 } from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
 import { IconPuzzle } from '@tabler/icons-react';
@@ -24,6 +26,7 @@ import {
     useDataAppVizPreviewToken,
     useDataAppVizRenderMetadata,
 } from '../../features/chartTypes/hooks/useDataAppVizRender';
+import { useDataAppVizResolvedColors } from '../../features/chartTypes/hooks/useDataAppVizResolvedColors';
 import { reconcileDataAppVizFieldMapping } from '../../features/chartTypes/utils/autoMapDataAppVizFields';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
@@ -53,6 +56,10 @@ const DataAppVizPlaceholder: FC<{ message: string }> = ({ message }) => (
         </Text>
     </Stack>
 );
+
+const EMPTY_ITEMS_MAP: ItemsMap = {};
+const EMPTY_ROWS: ResultRow[] = [];
+const EMPTY_FIELD_MAPPING = {};
 
 const getTerminalRequestErrorMessage = (
     errors: Array<ApiError | null | undefined>,
@@ -225,6 +232,13 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                 : undefined,
         [fields, itemsMap, fieldMapping],
     );
+    const resolvedColors = useDataAppVizResolvedColors({
+        itemsMap: itemsMap ?? EMPTY_ITEMS_MAP,
+        rows: rows ?? EMPTY_ROWS,
+        fieldMapping: reconciledFieldMapping ?? EMPTY_FIELD_MAPPING,
+        pivotDetails,
+        colorPalette,
+    });
 
     // Fail-silent: surfaces without MetricQueryDataProvider (no drill modal
     // mounted) simply report drill-down as unavailable.
@@ -339,6 +353,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             // Already resolved through the full palette cascade and dark-mode
             // corrected by the visualization context.
             colorPalette,
+            ...resolvedColors,
             pivotDetails,
             underlyingData: { enabled: underlyingDataEnabled },
             drillDown: { enabled: drillDownEnabled },
@@ -349,6 +364,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         configOptions,
         optionValues,
         colorPalette,
+        resolvedColors,
         pivotDetails,
         underlyingDataEnabled,
         drillDownEnabled,
