@@ -1,3 +1,19 @@
+# [2.53.0](https://github.com/lightdash/lightdash/compare/2.52.0...2.53.0) (2026-08-28)
+
+
+### Bug Fixes
+
+* **homepage:** edit quick actions as the chip row they publish to ([#28281](https://github.com/lightdash/lightdash/issues/28281)) ([dfab4a0](https://github.com/lightdash/lightdash/commit/dfab4a0e951d0595d57b0d1e40d4444f08a8ae7b))
+* **homepage:** move the Ask AI visibility hint into the add-action menu ([#28280](https://github.com/lightdash/lightdash/issues/28280)) ([e6a7e19](https://github.com/lightdash/lightdash/commit/e6a7e19594c74c34f40655945c5235d3face7e32))
+
+
+### Features
+
+* **direct-access:** add generic management UI ([#28273](https://github.com/lightdash/lightdash/issues/28273)) ([01ae344](https://github.com/lightdash/lightdash/commit/01ae3448d0d644f8595307718054f7c3eb126fec)), closes [#28266](https://github.com/lightdash/lightdash/issues/28266)
+* **direct-access:** apply resource-aware access to discovery consumers ([#28266](https://github.com/lightdash/lightdash/issues/28266)) ([0e5dd34](https://github.com/lightdash/lightdash/commit/0e5dd344fd41874e397505a7f6b506fc596aa047)), closes [#28264](https://github.com/lightdash/lightdash/issues/28264)
+* **direct-access:** wire resource menus and Shared with me ([#28274](https://github.com/lightdash/lightdash/issues/28274)) ([48d3d62](https://github.com/lightdash/lightdash/commit/48d3d620af4394c7a102948631b6f4b2c3648604)), closes [#28273](https://github.com/lightdash/lightdash/issues/28273)
+* **homepage:** quick action target for a specific space and in-app CTA links ([#28277](https://github.com/lightdash/lightdash/issues/28277)) ([c26055a](https://github.com/lightdash/lightdash/commit/c26055afc945919680fac5ed84c37ff488962a47)), closes [#28085](https://github.com/lightdash/lightdash/issues/28085)
+
 # [2.52.0](https://github.com/lightdash/lightdash/compare/2.51.0...2.52.0) (2026-08-28)
 
 

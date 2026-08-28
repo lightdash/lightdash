@@ -10487,6 +10487,18 @@ const models: TsoaRoute.Models = {
                         },
                     },
                 },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        label: { dataType: 'string', required: true },
+                        spaceUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['space'],
+                            required: true,
+                        },
+                    },
+                },
             ],
             validators: {},
         },
@@ -55714,6 +55726,11 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
+            directAccessRoles: {
+                dataType: 'array',
+                array: { dataType: 'refEnum', ref: 'SpaceMemberRole' },
+                required: true,
+            },
             source: { ref: 'ChartSourceType', required: true },
             chartKind: { ref: 'ChartKind', required: true },
             dashboard: {
@@ -55840,6 +55857,11 @@ const models: TsoaRoute.Models = {
                     { ref: 'ContentVerificationInfo' },
                     { dataType: 'enum', enums: [null] },
                 ],
+                required: true,
+            },
+            directAccessRoles: {
+                dataType: 'array',
+                array: { dataType: 'refEnum', ref: 'SpaceMemberRole' },
                 required: true,
             },
             owner: {
@@ -56187,6 +56209,11 @@ const models: TsoaRoute.Models = {
                     },
                     { dataType: 'enum', enums: [null] },
                 ],
+                required: true,
+            },
+            directAccessRoles: {
+                dataType: 'array',
+                array: { dataType: 'refEnum', ref: 'SpaceMemberRole' },
                 required: true,
             },
             space: {

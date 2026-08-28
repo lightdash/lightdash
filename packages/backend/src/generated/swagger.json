@@ -11170,6 +11170,23 @@
                         },
                         "required": ["label", "dashboardUuid", "type"],
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "label": {
+                                "type": "string"
+                            },
+                            "spaceUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["space"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["label", "spaceUuid", "type"],
+                        "type": "object"
                     }
                 ]
             },
@@ -55926,6 +55943,12 @@
                         ],
                         "nullable": true
                     },
+                    "directAccessRoles": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceMemberRole"
+                        },
+                        "type": "array"
+                    },
                     "source": {
                         "$ref": "#/components/schemas/ChartSourceType"
                     },
@@ -55963,6 +55986,7 @@
                     "views",
                     "firstViewedAt",
                     "verification",
+                    "directAccessRoles",
                     "source",
                     "chartKind",
                     "dashboard"
@@ -56092,6 +56116,12 @@
                         ],
                         "nullable": true
                     },
+                    "directAccessRoles": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceMemberRole"
+                        },
+                        "type": "array"
+                    },
                     "owner": {
                         "allOf": [
                             {
@@ -56118,6 +56148,7 @@
                     "views",
                     "firstViewedAt",
                     "verification",
+                    "directAccessRoles",
                     "owner"
                 ],
                 "type": "object",
@@ -56539,6 +56570,12 @@
                         "type": "object",
                         "nullable": true
                     },
+                    "directAccessRoles": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceMemberRole"
+                        },
+                        "type": "array"
+                    },
                     "space": {
                         "properties": {
                             "name": {
@@ -56608,6 +56645,7 @@
                     "createdBy",
                     "lastUpdatedAt",
                     "lastUpdatedBy",
+                    "directAccessRoles",
                     "space",
                     "latestVersionNumber",
                     "latestVersionStatus",
@@ -57456,7 +57494,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.52.0",
+        "version": "2.53.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
