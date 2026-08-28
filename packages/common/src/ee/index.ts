@@ -13,6 +13,7 @@ export * from './AiRouter';
 export * from './apps/customChartTypeSerializer';
 export * from './apps/deliveryCapture';
 export * from './apps/sdkFeatures';
+export * from './apps/dataAppVizSchemaChanges';
 export * from './apps/types';
 export * from './apps/code';
 export * from './apps/dataReferenceChecker';
