@@ -3,9 +3,12 @@ import {
     ANNOUNCEMENT_BODY_MAX_LENGTH,
     assertUnreachable,
     CommercialFeatureFlags,
+    convertOrganizationRoleToProjectRole,
     defaultHomepageConfig,
     ForbiddenError,
     getErrorMessage,
+    getHighestProjectRole,
+    isSystemRole,
     NotFoundError,
     ParameterError,
     parseHomepageConfig,
@@ -42,6 +45,7 @@ import { type LightdashConfig } from '../../config/parseConfig';
 import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
+import { type UserModel } from '../../models/UserModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type PersistentDownloadFileService } from '../../services/PersistentDownloadFileService/PersistentDownloadFileService';
@@ -195,7 +199,11 @@ export type ProjectHomepageServiceArguments = {
     analytics: Pick<LightdashAnalytics, 'track'>;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
     groupsModel: Pick<GroupsModel, 'findUserGroups'>;
-    projectModel: Pick<ProjectModel, 'getProjectMemberAccess' | 'getSummary'>;
+    projectModel: Pick<
+        ProjectModel,
+        'getProjectMemberAccess' | 'getProjectGroupAccesses' | 'getSummary'
+    >;
+    userModel: Pick<UserModel, 'getUserDetailsByUuid'>;
     fileStorageClient: FileStorageClient;
     persistentDownloadFileService: PersistentDownloadFileService;
     slackClient: Pick<SlackClient, 'postMessage'>;
@@ -221,6 +229,8 @@ export class ProjectHomepageService extends BaseService {
 
     private readonly projectModel: ProjectHomepageServiceArguments['projectModel'];
 
+    private readonly userModel: ProjectHomepageServiceArguments['userModel'];
+
     private readonly fileStorageClient: ProjectHomepageServiceArguments['fileStorageClient'];
 
     private readonly persistentDownloadFileService: ProjectHomepageServiceArguments['persistentDownloadFileService'];
@@ -240,6 +250,7 @@ export class ProjectHomepageService extends BaseService {
         this.featureFlagService = args.featureFlagService;
         this.groupsModel = args.groupsModel;
         this.projectModel = args.projectModel;
+        this.userModel = args.userModel;
         this.fileStorageClient = args.fileStorageClient;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.slackClient = args.slackClient;
@@ -443,7 +454,7 @@ export class ProjectHomepageService extends BaseService {
         groupUuids: string[];
         role: ProjectMemberRole | undefined;
     }> {
-        const [groups, membership] = await Promise.all([
+        const [groups, membership, groupAccesses, user] = await Promise.all([
             organizationUuid
                 ? this.groupsModel.findUserGroups({
                       userUuid,
@@ -451,11 +462,27 @@ export class ProjectHomepageService extends BaseService {
                   })
                 : Promise.resolve([]),
             this.projectModel.getProjectMemberAccess(projectUuid, userUuid),
+            this.projectModel.getProjectGroupAccesses(projectUuid),
+            this.userModel.getUserDetailsByUuid(userUuid),
         ]);
-        return {
-            groupUuids: groups.map((group) => group.uuid),
-            role: membership?.role,
-        };
+        const groupUuids = groups.map((group) => group.uuid);
+        // Custom roles resolve to their stored placeholder, not a scope-derived tier.
+        const highestRole = getHighestProjectRole([
+            {
+                type: 'organization',
+                role: user.role
+                    ? convertOrganizationRoleToProjectRole(user.role)
+                    : undefined,
+            },
+            { type: 'project', role: membership?.role },
+            ...groupAccesses
+                .filter((access) => groupUuids.includes(access.groupUuid))
+                .map((access) => ({
+                    type: 'group' as const,
+                    role: isSystemRole(access.role) ? access.role : undefined,
+                })),
+        ]);
+        return { groupUuids, role: highestRole?.role };
     }
 
     async getResolvedHomepage(

@@ -114,6 +114,7 @@ const makeService = ({
     projectHomepageModel = {},
     groupsModel = {},
     projectModel = {},
+    userModel = {},
     fileStorageClient = {},
     persistentDownloadFileService = {},
     slackClient = {},
@@ -126,6 +127,7 @@ const makeService = ({
     >;
     groupsModel?: Partial<ProjectHomepageServiceArguments['groupsModel']>;
     projectModel?: Partial<ProjectHomepageServiceArguments['projectModel']>;
+    userModel?: Partial<ProjectHomepageServiceArguments['userModel']>;
     fileStorageClient?: Partial<
         ProjectHomepageServiceArguments['fileStorageClient']
     >;
@@ -180,10 +182,18 @@ const makeService = ({
         },
         projectModel: {
             getProjectMemberAccess: vi.fn().mockResolvedValue(undefined),
+            getProjectGroupAccesses: vi.fn().mockResolvedValue([]),
             getSummary: vi.fn().mockResolvedValue({
                 organizationUuid: ORGANIZATION_UUID,
             }),
             ...projectModel,
+        },
+        userModel: {
+            getUserDetailsByUuid: vi.fn().mockResolvedValue({
+                ...baseUser(),
+                role: OrganizationMemberRole.MEMBER,
+            }),
+            ...userModel,
         },
         fileStorageClient: {
             uploadImage: vi.fn(),
@@ -673,6 +683,101 @@ describe('ProjectHomepageService', () => {
                 homepage: expect.objectContaining({ name: 'Sales homepage' }),
             }),
         );
+    });
+
+    it('resolves the role tier from the org role when there is no project membership', async () => {
+        const resolvePublished = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            projectHomepageModel: { resolvePublished },
+            userModel: {
+                getUserDetailsByUuid: vi.fn().mockResolvedValue({
+                    ...baseUser(),
+                    role: OrganizationMemberRole.EDITOR,
+                }),
+            },
+        });
+
+        await service.getResolvedHomepage(makeViewerUser(), PROJECT_UUID);
+
+        expect(resolvePublished).toHaveBeenCalledWith(PROJECT_UUID, {
+            groupUuids: [],
+            role: 'editor',
+        });
+    });
+
+    it('resolves the role tier from group project access', async () => {
+        const resolvePublished = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            projectHomepageModel: { resolvePublished },
+            groupsModel: {
+                findUserGroups: vi
+                    .fn()
+                    .mockResolvedValue([{ uuid: 'group-1', name: 'Sales' }]),
+            },
+            projectModel: {
+                getProjectGroupAccesses: vi.fn().mockResolvedValue([
+                    {
+                        projectUuid: PROJECT_UUID,
+                        groupUuid: 'group-1',
+                        role: ProjectMemberRole.DEVELOPER,
+                    },
+                    {
+                        projectUuid: PROJECT_UUID,
+                        groupUuid: 'other-group',
+                        role: ProjectMemberRole.ADMIN,
+                    },
+                ]),
+            },
+        });
+
+        await service.getResolvedHomepage(makeViewerUser(), PROJECT_UUID);
+
+        expect(resolvePublished).toHaveBeenCalledWith(PROJECT_UUID, {
+            groupUuids: ['group-1'],
+            role: 'developer',
+        });
+    });
+
+    it('resolves the role tier to the highest of org, membership and group roles', async () => {
+        const resolvePublished = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            projectHomepageModel: { resolvePublished },
+            groupsModel: {
+                findUserGroups: vi
+                    .fn()
+                    .mockResolvedValue([{ uuid: 'group-1', name: 'Sales' }]),
+            },
+            projectModel: {
+                getProjectMemberAccess: vi.fn().mockResolvedValue({
+                    userUuid: USER_UUID,
+                    projectUuid: PROJECT_UUID,
+                    role: ProjectMemberRole.VIEWER,
+                    email: 'x@y.z',
+                    firstName: 'A',
+                    lastName: 'B',
+                }),
+                getProjectGroupAccesses: vi.fn().mockResolvedValue([
+                    {
+                        projectUuid: PROJECT_UUID,
+                        groupUuid: 'group-1',
+                        role: 'custom-role-uuid',
+                    },
+                ]),
+            },
+            userModel: {
+                getUserDetailsByUuid: vi.fn().mockResolvedValue({
+                    ...baseUser(),
+                    role: OrganizationMemberRole.ADMIN,
+                }),
+            },
+        });
+
+        await service.getResolvedHomepage(makeViewerUser(), PROJECT_UUID);
+
+        expect(resolvePublished).toHaveBeenCalledWith(PROJECT_UUID, {
+            groupUuids: ['group-1'],
+            role: 'admin',
+        });
     });
 
     it('viewAsHomepage is forbidden for a viewer', async () => {
