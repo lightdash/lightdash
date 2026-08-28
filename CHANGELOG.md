@@ -1,3 +1,10 @@
+## [2.53.1](https://github.com/lightdash/lightdash/compare/2.53.0...2.53.1) (2026-08-28)
+
+
+### Bug Fixes
+
+* **apps:** keep selected picker rows readable in dark mode ([#28292](https://github.com/lightdash/lightdash/issues/28292)) ([73e0424](https://github.com/lightdash/lightdash/commit/73e04245c276527477090a7951094a1e4ff4ec0f))
+
 # [2.53.0](https://github.com/lightdash/lightdash/compare/2.52.0...2.53.0) (2026-08-28)
 
 
