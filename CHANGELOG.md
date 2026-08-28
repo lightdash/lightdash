@@ -1,3 +1,10 @@
+# [2.52.0](https://github.com/lightdash/lightdash/compare/2.51.0...2.52.0) (2026-08-28)
+
+
+### Features
+
+* **direct-access:** add sharedWithMe selector to v2 content endpoint ([#28264](https://github.com/lightdash/lightdash/issues/28264)) ([024ca44](https://github.com/lightdash/lightdash/commit/024ca44cbf2fef3a37487a7cde4e8a929f9c243b)), closes [#28263](https://github.com/lightdash/lightdash/issues/28263)
+
 # [2.51.0](https://github.com/lightdash/lightdash/compare/2.50.0...2.51.0) (2026-08-28)
 
 

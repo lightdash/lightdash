@@ -110832,6 +110832,11 @@ export function RegisterRoutes(app: Router) {
             dataType: 'array',
             array: { dataType: 'string' },
         },
+        sharedWithMe: {
+            in: 'query',
+            name: 'sharedWithMe',
+            dataType: 'boolean',
+        },
     };
     app.get(
         '/api/v2/content',
