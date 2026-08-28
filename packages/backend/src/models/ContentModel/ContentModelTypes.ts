@@ -38,6 +38,12 @@ export type ContentFilters = {
     deleted?: boolean;
     deletedByUserUuids?: string[];
     /**
+     * Shared-with-me hydration: `uuids` holds resources the caller was
+     * directly granted, so per-space and personal-app visibility scoping is
+     * relaxed — authorization was already decided from the grant tables.
+     */
+    sharedWithMe?: boolean;
+    /**
      * Only dashboards have owners, so this filter restricts results to
      * dashboards owned by one of these users (other content types are
      * excluded entirely while it is set).

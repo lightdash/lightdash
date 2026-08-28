@@ -1158,6 +1158,11 @@ export class ServiceRepository
                     directAccessModel: this.models.getDirectAccessModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                     directAccessFeatureGate: this.getDirectAccessFeatureGate(),
+                    appAccessModel: this.models.getAppAccessModel(),
+                    dashboardAccessModel: this.models.getDashboardAccessModel(),
+                    savedChartAccessModel:
+                        this.models.getSavedChartAccessModel(),
+                    savedSqlAccessModel: this.models.getSavedSqlAccessModel(),
                 }),
         );
     }
@@ -1475,6 +1480,7 @@ export class ServiceRepository
                     savedChartService: this.getSavedChartService(),
                     savedSqlService: this.getSavedSqlService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    directAccessService: this.getDirectAccessService(),
                     validationModel: this.models.getValidationModel(),
                     // Only wired when EE license is active. Core builds get
                     // undefined and fail DATA_APP moves with a clear error.
