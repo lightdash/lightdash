@@ -1,3 +1,16 @@
+# [2.47.0](https://github.com/lightdash/lightdash/compare/2.46.1...2.47.0) (2026-08-28)
+
+
+### Bug Fixes
+
+* **mcp:** hide semantic-layer discovery tools from users who cannot query ([#28130](https://github.com/lightdash/lightdash/issues/28130)) ([bf7fed5](https://github.com/lightdash/lightdash/commit/bf7fed566c19ea4ba3e5a078b9950b5924293f8c))
+* **mcp:** let viewers read saved content definitions via read_content ([#28132](https://github.com/lightdash/lightdash/issues/28132)) ([3558020](https://github.com/lightdash/lightdash/commit/355802045fa0ad50bb683e18873f014974a51172))
+
+
+### Features
+
+* **mcp:** steer sessions without query execution to saved content ([#28131](https://github.com/lightdash/lightdash/issues/28131)) ([87b089c](https://github.com/lightdash/lightdash/commit/87b089c1b8c8264d7740e3851914027353d14035))
+
 ## [2.46.1](https://github.com/lightdash/lightdash/compare/2.46.0...2.46.1) (2026-08-28)
 
 
