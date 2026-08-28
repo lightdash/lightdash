@@ -13,6 +13,7 @@ import {
     type DataAppViz,
     type DataAppVizConfigOption,
     type DataAppVizPaletteDeclaration,
+    type DataAppVizSchemaChanges,
     type DataAppVizField,
     type Item,
     type ItemsMap,
@@ -100,6 +101,22 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualization', () => ({
     useDataAppVisualization: vi.fn(),
 }));
+vi.mock('../../../features/chartTypes/hooks/useDataAppVizRender', () => ({
+    useDataAppVizRenderMetadata: vi.fn(),
+}));
+vi.mock('./DataAppVizUpgradeNotice', () => ({
+    default: ({
+        typeName,
+        changes,
+    }: {
+        typeName: string;
+        changes: DataAppVizSchemaChanges;
+    }) => (
+        <div data-testid="upgrade-notice">
+            {`${typeName}: +${changes.fields.added.length} fields`}
+        </div>
+    ),
+}));
 // The panel reads the project from the route, which this test does not mount.
 vi.mock('react-router', async (importOriginal) => ({
     ...(await importOriginal<typeof ReactRouter>()),
@@ -136,6 +153,7 @@ vi.mock('../common/ColorPaletteSection', () => ({
 }));
 
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
+import { useDataAppVizRenderMetadata } from '../../../features/chartTypes/hooks/useDataAppVizRender';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 
 const makeDimension = (name: string, hidden: boolean): CompiledDimension => ({
@@ -298,6 +316,9 @@ describe('DataAppVizConfigTabs', () => {
         setField.mockClear();
         setPivotDimensions.mockClear();
         defaultAbility.update([]);
+        vi.mocked(useDataAppVizRenderMetadata).mockReturnValue({
+            data: undefined,
+        } as unknown as ReturnType<typeof useDataAppVizRenderMetadata>);
         mockSchema([]);
         mockContext(queryColumns);
     });
@@ -672,6 +693,90 @@ describe('DataAppVizConfigTabs', () => {
 
         expect(screen.getByText('Radial gauge')).toBeInTheDocument();
         await expect(screen.findByText('Edit ↗')).rejects.toThrow();
+    });
+
+    const mockLatestRenderable = (version: number) =>
+        vi.mocked(useDataAppVizRenderMetadata).mockReturnValue({
+            data: {
+                state: 'ready',
+                version,
+                schema: {
+                    fields: [
+                        ...declaredFields,
+                        {
+                            name: 'target',
+                            label: 'Target',
+                            type: 'metric',
+                            required: false,
+                        },
+                    ],
+                    configOptions: [],
+                    colorPalette: null,
+                },
+                latestBuildInProgress: false,
+            },
+        } as unknown as ReturnType<typeof useDataAppVizRenderMetadata>);
+
+    it('offers an upgrade when the type has a newer renderable version than the pin', () => {
+        mockContext(queryColumns, 'data-app-viz-uuid', {}, {}, 3);
+        mockLatestRenderable(5);
+
+        renderWithProviders(<ConfigTabs />);
+
+        expect(useDataAppVizRenderMetadata).toHaveBeenLastCalledWith(
+            'project-1',
+            'data-app-viz-uuid',
+            { isEmbedded: false, savedChartUuid: undefined },
+        );
+        expect(screen.getByTestId('upgrade-notice')).toHaveTextContent(
+            'Radial gauge: +1 fields',
+        );
+    });
+
+    it('stays quiet when the pin is already the latest version', () => {
+        mockContext(queryColumns, 'data-app-viz-uuid', {}, {}, 5);
+        mockLatestRenderable(5);
+
+        renderWithProviders(<ConfigTabs />);
+
+        expect(screen.queryByTestId('upgrade-notice')).not.toBeInTheDocument();
+    });
+
+    it('does not look for upgrades on an unpinned chart', () => {
+        mockContext(queryColumns, 'data-app-viz-uuid', {}, {});
+        mockLatestRenderable(5);
+
+        renderWithProviders(<ConfigTabs />);
+
+        expect(useDataAppVizRenderMetadata).toHaveBeenLastCalledWith(
+            'project-1',
+            null,
+            { isEmbedded: false, savedChartUuid: undefined },
+        );
+        expect(screen.queryByTestId('upgrade-notice')).not.toBeInTheDocument();
+    });
+
+    it('does not look for upgrades while the selected type is being authored', () => {
+        mockContext(queryColumns, 'data-app-viz-uuid', {}, {}, 3);
+        mockLatestRenderable(5);
+        authoringState.current = {
+            dataAppVizUuid: 'data-app-viz-uuid',
+            viewedVersion: null,
+        };
+        try {
+            renderWithProviders(<ConfigTabs />);
+
+            expect(useDataAppVizRenderMetadata).toHaveBeenLastCalledWith(
+                'project-1',
+                null,
+                { isEmbedded: false, savedChartUuid: undefined },
+            );
+            expect(
+                screen.queryByTestId('upgrade-notice'),
+            ).not.toBeInTheDocument();
+        } finally {
+            authoringState.current = null;
+        }
     });
 
     it('fetches the schema of the version the builder previews while authoring', () => {

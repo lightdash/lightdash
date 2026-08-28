@@ -1,6 +1,7 @@
 import {
     ChartType,
     deriveDataAppVizPivotConfig,
+    diffDataAppVizSchema,
     FeatureFlags,
     getAppDisplayName,
     getEffectiveOptionValues,
@@ -12,6 +13,7 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
+import { useDataAppVizRenderMetadata } from '../../../features/chartTypes/hooks/useDataAppVizRender';
 import { reconcileDataAppVizFieldMapping } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { chartTypeBuilderPath } from '../../../features/chartTypes/utils/chartTypeBuilderPath';
 import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
@@ -34,9 +36,16 @@ import { useSelectProjectChartType } from '../CustomChartType/useSelectProjectCh
 import classes from './DataAppVizConfigTabs.module.css';
 import DataAppVizOptionTabs from './DataAppVizOptionTabs';
 import DataAppVizSettings from './DataAppVizSettings';
+import DataAppVizUpgradeNotice from './DataAppVizUpgradeNotice';
 
 // Stable identity, so the field pools stay memoized before results land.
 const NO_COLUMNS: ItemsMap = {};
+// The chart-less authoring route answers with the latest renderable version,
+// which is the only upgrade target a pinned chart can move to.
+const LATEST_RENDER_TARGET = {
+    isEmbedded: false,
+    savedChartUuid: undefined,
+};
 
 export const ConfigTabs: FC = memo(() => {
     const projectUuid = useProjectUuid();
@@ -58,19 +67,43 @@ export const ConfigTabs: FC = memo(() => {
           null)
         : null;
 
+    const isAuthoringSelectedType =
+        authoring !== null &&
+        dataAppVizUuid !== null &&
+        authoring.dataAppVizUuid === dataAppVizUuid;
     // The panel follows the same version as the chart. The builder can
     // temporarily preview a different version of this same viz; selecting a
     // type again clears its pin, so that path still asks for latest.
-    const schemaVersion =
-        authoring !== null &&
-        dataAppVizUuid !== null &&
-        authoring.dataAppVizUuid === dataAppVizUuid
-            ? authoring.viewedVersion
-            : selectedVersion;
+    const schemaVersion = isAuthoringSelectedType
+        ? authoring.viewedVersion
+        : selectedVersion;
     const { data: dataAppViz } = useDataAppVisualization(
         projectUuid,
         dataAppVizUuid,
         schemaVersion,
+    );
+    // Legacy unpinned charts follow latest already, and a type being authored
+    // in place is moving under the chart anyway.
+    const { data: latestRenderMetadata } = useDataAppVizRenderMetadata(
+        projectUuid,
+        selectedVersion !== null && !isAuthoringSelectedType
+            ? dataAppVizUuid
+            : null,
+        LATEST_RENDER_TARGET,
+    );
+    const upgradeTarget =
+        selectedVersion !== null &&
+        !isAuthoringSelectedType &&
+        latestRenderMetadata?.state === 'ready' &&
+        latestRenderMetadata.version > selectedVersion
+            ? latestRenderMetadata
+            : null;
+    const upgradeChanges = useMemo(
+        () =>
+            upgradeTarget && dataAppViz?.schema
+                ? diffDataAppVizSchema(dataAppViz.schema, upgradeTarget.schema)
+                : null,
+        [upgradeTarget, dataAppViz],
     );
 
     const configOptions = useMemo(
@@ -190,19 +223,30 @@ export const ConfigTabs: FC = memo(() => {
         );
 
         return (
-            <DataAppVizOptionTabs
-                // Remount on a viz switch so no control keeps the previous
-                // viz's draft edit.
-                key={`${selectedViz.dataAppVizUuid}:${optionContractKey}`}
-                generalContent={settings}
-                configOptions={configOptions}
-                values={effectiveValues}
-                onChange={(name, value) =>
-                    setOption(selectedViz.dataAppVizUuid, name, value)
-                }
-                colorPalette={colorPalette}
-                paletteControl={<ColorPaletteSection size="xs" />}
-            />
+            <>
+                {upgradeChanges && dataAppViz && (
+                    <DataAppVizUpgradeNotice
+                        typeName={getAppDisplayName(
+                            dataAppViz.name,
+                            dataAppViz.dataAppVizUuid,
+                        )}
+                        changes={upgradeChanges}
+                    />
+                )}
+                <DataAppVizOptionTabs
+                    // Remount on a viz switch so no control keeps the previous
+                    // viz's draft edit.
+                    key={`${selectedViz.dataAppVizUuid}:${optionContractKey}`}
+                    generalContent={settings}
+                    configOptions={configOptions}
+                    values={effectiveValues}
+                    onChange={(name, value) =>
+                        setOption(selectedViz.dataAppVizUuid, name, value)
+                    }
+                    colorPalette={colorPalette}
+                    paletteControl={<ColorPaletteSection size="xs" />}
+                />
+            </>
         );
     };
 
