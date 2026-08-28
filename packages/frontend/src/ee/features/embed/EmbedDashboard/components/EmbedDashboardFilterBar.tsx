@@ -11,8 +11,10 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
 import { DateZoom } from '../../../../../features/dateZoom';
+import { getDateZoomSummaryLabel } from '../../../../../features/dateZoom/utils';
 import { useActiveTabParameters } from '../../../../../hooks/dashboard/useActiveTabParameters';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { embedContractClass } from '../../styles/embedClassContract';
 import styles from './EmbedDashboardFilterBar.module.css';
 import EmbedDashboardFilters from './EmbedDashboardFilters';
@@ -32,6 +34,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
 }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
+    const getUiString = useUiStrings();
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const dashboardTemporaryFilters = useDashboardContext(
         (c) => c.dashboardTemporaryFilters,
@@ -73,7 +76,10 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                 parametersCount={totalParametersCount}
                 dateZoomLabel={
                     dashboard.canDateZoom
-                        ? dateZoomGranularity || 'Default'
+                        ? getDateZoomSummaryLabel(
+                              dateZoomGranularity,
+                              getUiString,
+                          )
                         : null
                 }
                 onExpand={() => setIsCollapsed(false)}

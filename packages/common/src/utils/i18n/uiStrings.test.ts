@@ -1,3 +1,4 @@
+import { DateGranularity } from '../../types/timeFrames';
 import { DEFAULT_UI_STRINGS, interpolateUiString } from './uiStrings';
 
 describe('interpolateUiString', () => {
@@ -24,5 +25,13 @@ describe('DEFAULT_UI_STRINGS', () => {
             .filter(([, value]) => value.length === 0)
             .map(([key]) => key);
         expect(emptyKeys).toEqual([]);
+    });
+
+    it('has a granularity label for every DateGranularity', () => {
+        Object.values(DateGranularity).forEach((granularity) => {
+            expect(
+                DEFAULT_UI_STRINGS[`dateZoom.granularities.${granularity}`],
+            ).toEqual(granularity);
+        });
     });
 });
