@@ -36,6 +36,7 @@ import {
     IconFolderSymlink,
     IconHistory,
     IconLayoutGridAdd,
+    IconLink,
     IconMaximize,
     IconMinimize,
     IconPencil,
@@ -130,6 +131,7 @@ import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardM
 import SaveChartButton, {
     type VerificationSavePrompt,
 } from '../SaveChartButton';
+import ChartSlugRenameModal from './ChartSlugRenameModal';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
 
 const isChartPath = (
@@ -228,6 +230,8 @@ const SavedChartsHeader: FC = () => {
     const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
         useDisclosure();
     const [isChartAsCodeModalOpen, chartAsCodeModalHandlers] = useDisclosure();
+    const [isChartSlugRenameModalOpen, chartSlugRenameModalHandlers] =
+        useDisclosure();
 
     const { user, health } = useApp();
     const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
@@ -1020,22 +1024,44 @@ const SavedChartsHeader: FC = () => {
                                         </Menu.Item>
                                     )}
 
-                                {userCanViewContentAsCode && savedChart && (
-                                    <>
-                                        <Menu.Divider />
-                                        <Menu.Label>Content as code</Menu.Label>
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon icon={IconCode} />
-                                            }
-                                            onClick={
-                                                chartAsCodeModalHandlers.open
-                                            }
-                                        >
-                                            View as code
-                                        </Menu.Item>
-                                    </>
-                                )}
+                                {savedChart &&
+                                    (userCanViewContentAsCode ||
+                                        userCanManageChart) && (
+                                        <>
+                                            <Menu.Divider />
+                                            <Menu.Label>
+                                                Content as code
+                                            </Menu.Label>
+                                            {userCanViewContentAsCode && (
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconCode}
+                                                        />
+                                                    }
+                                                    onClick={
+                                                        chartAsCodeModalHandlers.open
+                                                    }
+                                                >
+                                                    View as code
+                                                </Menu.Item>
+                                            )}
+                                            {userCanManageChart && (
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconLink}
+                                                        />
+                                                    }
+                                                    onClick={
+                                                        chartSlugRenameModalHandlers.open
+                                                    }
+                                                >
+                                                    Change URL slug
+                                                </Menu.Item>
+                                            )}
+                                        </>
+                                    )}
 
                                 <Menu.Divider />
                                 <Menu.Label>Integrations</Menu.Label>
@@ -1302,6 +1328,26 @@ const SavedChartsHeader: FC = () => {
                     projectUuid={projectUuid}
                     chartUuid={savedChart.uuid}
                     hasUnsavedChanges={hasUnsavedChanges && isEditMode}
+                />
+            )}
+            {isChartSlugRenameModalOpen && savedChart && projectUuid && (
+                <ChartSlugRenameModal
+                    opened={isChartSlugRenameModalOpen}
+                    onClose={chartSlugRenameModalHandlers.close}
+                    onRenamed={(slug) => {
+                        chartSlugRenameModalHandlers.close();
+                        const routeMode = isEditMode ? 'edit' : 'view';
+                        void navigate(
+                            {
+                                pathname: `/projects/${projectUrlIdentifier}/saved/${slug}/${routeMode}`,
+                                search,
+                            },
+                            { replace: true },
+                        );
+                    }}
+                    projectUuid={projectUuid}
+                    projectUrlIdentifier={projectUrlIdentifier}
+                    currentSlug={savedChart.slug}
                 />
             )}
         </TrackSection>
