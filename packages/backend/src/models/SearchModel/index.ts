@@ -862,6 +862,7 @@ export class SearchModel {
                 {
                     chartType: `${tableName}.last_version_chart_kind`,
                 },
+                { dashboardUuid: `${tableName}.dashboard_uuid` },
                 { spaceUuid: `${tableName}.space_uuid` },
                 { projectUuid: `${ProjectTableName}.project_uuid` },
                 { viewsCount: `${tableName}.views_count` },
@@ -1039,6 +1040,7 @@ export class SearchModel {
                 {
                     chartType: `${SavedChartsTableName}.last_version_chart_kind`,
                 },
+                { dashboardUuid: `${SavedChartsTableName}.dashboard_uuid` },
                 { spaceUuid: 'space_uuid' },
                 { projectUuid: `${ProjectTableName}.project_uuid` },
                 { search_rank: searchRankRawSql },
@@ -1316,6 +1318,7 @@ export class SearchModel {
                 {
                     chartType: `${SavedChartsTableName}.last_version_chart_kind`,
                 },
+                { dashboardUuid: `${SavedChartsTableName}.dashboard_uuid` },
                 { spaceUuid: `${SpaceTableName}.space_uuid` },
                 { search_rank: savedChartsSearchRankRawSql },
                 { projectUuid: `${ProjectTableName}.project_uuid` },
@@ -1409,6 +1412,7 @@ export class SearchModel {
                 {
                     chartType: `${SavedSqlTableName}.last_version_chart_kind`,
                 },
+                { dashboardUuid: `${SavedSqlTableName}.dashboard_uuid` },
                 { spaceUuid: `${SavedSqlTableName}.space_uuid` },
                 { search_rank: savedSqlSearchRankRawSql },
                 { projectUuid: `${ProjectTableName}.project_uuid` },
@@ -1495,6 +1499,7 @@ export class SearchModel {
                     name: string;
                     description: string;
                     chartType: string;
+                    dashboardUuid: string | null;
                     spaceUuid: string;
                     search_rank: number;
                     projectUuid: string;
@@ -1527,6 +1532,7 @@ export class SearchModel {
             name: result.name,
             description: result.description,
             chartType: result.chartType as ChartKind, // ChartKind type from database
+            dashboardUuid: result.dashboardUuid,
             spaceUuid: result.spaceUuid,
             search_rank: result.search_rank,
             projectUuid: result.projectUuid,

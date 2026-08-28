@@ -71,6 +71,7 @@ import {
     DEFAULT_SPOTLIGHT_CONFIG,
     DefaultSupportedDbtVersion,
     DimensionType,
+    DirectAccessResourceType,
     DownloadFileType,
     DuckdbConnectionType,
     EnsurePlaygroundProjectResults,
@@ -345,6 +346,7 @@ import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
+import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -429,6 +431,7 @@ export type ProjectServiceArguments = {
     adminNotificationService: AdminNotificationService;
     permissionsService: PermissionsService;
     spacePermissionService: SpacePermissionService;
+    directAccessService: DirectAccessService;
     natsClient?: INatsClient;
     contentVerificationModel?: ContentVerificationModel;
     organizationSettingsModel: OrganizationSettingsModel;
@@ -572,6 +575,8 @@ export class ProjectService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    directAccessService: DirectAccessService;
+
     contentVerificationModel: ContentVerificationModel | undefined;
 
     organizationSettingsModel: OrganizationSettingsModel;
@@ -638,6 +643,7 @@ export class ProjectService extends BaseService {
         adminNotificationService,
         permissionsService,
         spacePermissionService,
+        directAccessService,
         contentVerificationModel,
         organizationSettingsModel,
         githubAppInstallationsModel,
@@ -688,6 +694,7 @@ export class ProjectService extends BaseService {
         this.adminNotificationService = adminNotificationService;
         this.permissionsService = permissionsService;
         this.spacePermissionService = spacePermissionService;
+        this.directAccessService = directAccessService;
         this.contentVerificationModel = contentVerificationModel;
         this.organizationSettingsModel = organizationSettingsModel;
         this.githubAppInstallationsModel = githubAppInstallationsModel;
@@ -10514,12 +10521,24 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const allowedSpaceUuids =
-            await this.spacePermissionService.getAccessibleSpaceUuids(
+        const [allowedSpaceUuids, granted] = await Promise.all([
+            this.spacePermissionService.getAccessibleSpaceUuids(
                 'view',
                 user,
                 spaces.map((s) => s.uuid),
-            );
+            ),
+            // Directly granted content joins the homepage rails even without
+            // any space access path.
+            user.organizationUuid
+                ? this.directAccessService.findSharedWithMeUuids(
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      [projectUuid],
+                  )
+                : undefined,
+        ]);
 
         const allowedSpaceUuidsSet = new Set(allowedSpaceUuids);
         const allowedSpaces = spaces.filter((space) =>
@@ -10527,6 +10546,11 @@ export class ProjectService extends BaseService {
         );
 
         const spaceUuids = allowedSpaces.map(({ uuid }) => uuid);
+        const grantedChartUuids = granted?.[DirectAccessResourceType.CHART];
+        const grantedSqlChartUuids =
+            granted?.[DirectAccessResourceType.SQL_CHART];
+        const grantedDashboardUuids =
+            granted?.[DirectAccessResourceType.DASHBOARD];
         const [
             popularCharts,
             popularSqlCharts,
@@ -10535,24 +10559,36 @@ export class ProjectService extends BaseService {
             recentSqlCharts,
             recentDashboards,
         ] = await Promise.all([
-            this.spaceModel.getSpaceQueries(spaceUuids, {
-                mostPopular: true,
-            }),
-            this.spaceModel.getSpaceSqlCharts(spaceUuids, {
-                mostPopular: true,
-            }),
-            this.spaceModel.getSpaceDashboards(spaceUuids, {
-                mostPopular: true,
-            }),
-            this.spaceModel.getSpaceQueries(spaceUuids, {
-                recentlyUpdated: true,
-            }),
-            this.spaceModel.getSpaceSqlCharts(spaceUuids, {
-                recentlyUpdated: true,
-            }),
-            this.spaceModel.getSpaceDashboards(spaceUuids, {
-                recentlyUpdated: true,
-            }),
+            this.spaceModel.getSpaceQueries(
+                spaceUuids,
+                { mostPopular: true },
+                grantedChartUuids,
+            ),
+            this.spaceModel.getSpaceSqlCharts(
+                spaceUuids,
+                { mostPopular: true },
+                grantedSqlChartUuids,
+            ),
+            this.spaceModel.getSpaceDashboards(
+                spaceUuids,
+                { mostPopular: true },
+                grantedDashboardUuids,
+            ),
+            this.spaceModel.getSpaceQueries(
+                spaceUuids,
+                { recentlyUpdated: true },
+                grantedChartUuids,
+            ),
+            this.spaceModel.getSpaceSqlCharts(
+                spaceUuids,
+                { recentlyUpdated: true },
+                grantedSqlChartUuids,
+            ),
+            this.spaceModel.getSpaceDashboards(
+                spaceUuids,
+                { recentlyUpdated: true },
+                grantedDashboardUuids,
+            ),
         ]);
 
         return {

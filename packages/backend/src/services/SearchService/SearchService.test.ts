@@ -115,3 +115,172 @@ describe('SearchService.findContent', () => {
         expect(appGenerateService.filterAppsUserCanView).not.toHaveBeenCalled();
     });
 });
+
+describe('SearchService resource-aware access', () => {
+    const directViewer = {
+        userUuid: 'direct-user-uuid',
+        ability: defineUserAbility(
+            {
+                role: OrganizationMemberRole.INTERACTIVE_VIEWER,
+                organizationUuid,
+                userUuid: 'direct-user-uuid',
+                roleUuid: undefined,
+            },
+            [],
+        ),
+    } as unknown as SessionUser;
+
+    const grantOnlyContext = {
+        organizationUuid,
+        projectUuid,
+        inheritsFromOrgOrProject: false,
+        access: [
+            {
+                userUuid: 'direct-user-uuid',
+                role: 'viewer',
+                hasDirectAccess: true,
+                grantedVia: 'dashboard',
+            },
+        ],
+        admins: [],
+        directOnly: true,
+    };
+
+    it('findContent surfaces directly granted dashboards through resource targets', async () => {
+        const dashboard = {
+            uuid: 'dashboard-uuid',
+            name: 'Granted dashboard',
+            spaceUuid: 'private-space-uuid',
+            projectUuid,
+            charts: [],
+        };
+        const resolveAccessBatch = vi.fn().mockResolvedValue([
+            {
+                target: {
+                    type: 'dashboard',
+                    dashboardUuid: 'dashboard-uuid',
+                    spaceUuid: 'private-space-uuid',
+                },
+                context: grantOnlyContext,
+            },
+        ]);
+        const grantedService = new SearchService({
+            analytics: {} as never,
+            searchModel: {
+                searchDashboards: vi.fn().mockResolvedValue([dashboard]),
+                searchAllCharts: vi.fn().mockResolvedValue([]),
+                searchDataApps: vi.fn(),
+            } as never,
+            projectModel: {
+                getSummary: vi.fn().mockResolvedValue({
+                    organizationUuid,
+                    name: 'Project',
+                }),
+            } as never,
+            spaceModel: {} as never,
+            userAttributesModel: {} as never,
+            spacePermissionService: { resolveAccessBatch } as never,
+            appGenerateService: undefined,
+        });
+
+        await expect(
+            grantedService.findContent(
+                directViewer,
+                projectUuid,
+                'granted',
+                false,
+            ),
+        ).resolves.toEqual({
+            content: [{ ...dashboard, contentType: 'dashboard' }],
+        });
+        expect(resolveAccessBatch).toHaveBeenCalledWith('direct-user-uuid', [
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-uuid',
+                spaceUuid: 'private-space-uuid',
+            },
+        ]);
+    });
+
+    it('getSearchResults builds per-resource targets and drops spaceless sql rows', async () => {
+        const searchResults = {
+            spaces: [],
+            dashboards: [
+                {
+                    uuid: 'dashboard-uuid',
+                    name: 'Granted dashboard',
+                    spaceUuid: 'private-space-uuid',
+                },
+            ],
+            dashboardTabs: [],
+            savedCharts: [
+                {
+                    uuid: 'chart-uuid',
+                    name: 'Owned chart',
+                    dashboardUuid: 'dashboard-uuid',
+                    spaceUuid: 'private-space-uuid',
+                },
+            ],
+            sqlCharts: [
+                {
+                    uuid: 'sql-owned-uuid',
+                    name: 'Dashboard-owned sql',
+                    dashboardUuid: 'dashboard-uuid',
+                    spaceUuid: null,
+                },
+            ],
+            fields: [],
+            tables: [],
+            pages: [],
+            dataApps: [],
+        };
+        const resolveAccessBatch = vi.fn(async (_userUuid, targets) =>
+            targets.map((target: unknown) => ({
+                target,
+                context: grantOnlyContext,
+            })),
+        );
+        const getAccessibleSpaceUuids = vi.fn().mockResolvedValue([]);
+        const grantedService = new SearchService({
+            analytics: { track: vi.fn() } as never,
+            searchModel: {
+                search: vi.fn().mockResolvedValue(searchResults),
+            } as never,
+            projectModel: {
+                getSummary: vi.fn().mockResolvedValue({
+                    organizationUuid,
+                    name: 'Project',
+                }),
+            } as never,
+            spaceModel: {} as never,
+            userAttributesModel: {} as never,
+            spacePermissionService: {
+                resolveAccessBatch,
+                getAccessibleSpaceUuids,
+            } as never,
+            appGenerateService: undefined,
+        });
+
+        const filtered = await grantedService.getSearchResults(
+            directViewer,
+            projectUuid,
+            'granted',
+        );
+        expect(resolveAccessBatch).toHaveBeenCalledWith('direct-user-uuid', [
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-uuid',
+                spaceUuid: 'private-space-uuid',
+            },
+            {
+                type: 'chart',
+                chartUuid: 'chart-uuid',
+                dashboardUuid: 'dashboard-uuid',
+                spaceUuid: 'private-space-uuid',
+            },
+        ]);
+        expect(filtered.dashboards).toHaveLength(1);
+        expect(filtered.savedCharts).toHaveLength(1);
+        expect(filtered.sqlCharts).toHaveLength(0);
+    });
+});

@@ -913,6 +913,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     permissionsService: repository.getPermissionsService(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
+                    directAccessService: repository.getDirectAccessService(),
                     contentVerificationModel:
                         models.getContentVerificationModel(),
                     organizationSettingsModel:
@@ -1117,6 +1118,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAdminNotificationService(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
+                    directAccessService: repository.getDirectAccessService(),
                     organizationSettingsModel:
                         models.getOrganizationSettingsModel(),
                     getDataAppCustomSqlProvenance: (args) =>

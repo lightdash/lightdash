@@ -478,6 +478,14 @@ const getMockedProjectService = (
         }),
         spacePermissionService:
             overrides.spacePermissionService ?? ({} as SpacePermissionService),
+        directAccessService: {
+            findSharedWithMeUuids: vi.fn().mockResolvedValue({
+                dashboard: [],
+                chart: [],
+                sqlChart: [],
+                app: [],
+            }),
+        } as never,
         provisionPlaygroundProject: overrides.provisionPlaygroundProject,
         getAiAgentService: overrides.getAiAgentService,
         getDataAppCustomSqlProvenance:

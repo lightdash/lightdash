@@ -101,6 +101,7 @@ describe('Csv service', () => {
                 dashboardModel: {} as DashboardModel,
             }),
             spacePermissionService: {} as SpacePermissionService,
+            directAccessService: {} as never,
             organizationSettingsModel: {} as OrganizationSettingsModel,
             getDataAppCustomSqlProvenance: async () => ({
                 tableCalculations: new Set(),
