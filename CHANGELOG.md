@@ -1,3 +1,10 @@
+## [2.45.1](https://github.com/lightdash/lightdash/compare/2.45.0...2.45.1) (2026-08-28)
+
+
+### Bug Fixes
+
+* **homepage:** resolve group-priority ties and relabel project default ([#28142](https://github.com/lightdash/lightdash/issues/28142)) ([20d5ed4](https://github.com/lightdash/lightdash/commit/20d5ed437cd77f342194cdaa6df6244aa4ac44c7))
+
 # [2.45.0](https://github.com/lightdash/lightdash/compare/2.44.0...2.45.0) (2026-08-28)
 
 
