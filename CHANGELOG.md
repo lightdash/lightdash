@@ -1,3 +1,10 @@
+# [2.56.0](https://github.com/lightdash/lightdash/compare/2.55.1...2.56.0) (2026-08-28)
+
+
+### Features
+
+* **homepage:** "My space" quick action linking to the viewer's personal space ([#28299](https://github.com/lightdash/lightdash/issues/28299)) ([3a98025](https://github.com/lightdash/lightdash/commit/3a98025c6498a34899217e07faec2eeb1fe6c1dc))
+
 ## [2.55.1](https://github.com/lightdash/lightdash/compare/2.55.0...2.55.1) (2026-08-28)
 
 

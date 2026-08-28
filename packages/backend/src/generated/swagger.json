@@ -11187,6 +11187,17 @@
                         },
                         "required": ["label", "spaceUuid", "type"],
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["my-space"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
                     }
                 ]
             },
@@ -40985,6 +40996,45 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "Pick_Space.uuid-or-name-or-slug_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "slug", "uuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "PersonalSpaceSummary": {
+                "$ref": "#/components/schemas/Pick_Space.uuid-or-name-or-slug_",
+                "description": "The viewer's own personal space in a project, when the project has\npersonal spaces enabled and one exists for them."
+            },
+            "ApiPersonalSpaceResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PersonalSpaceSummary"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName-or-dashboardSlug-or-slug_": {
                 "properties": {
                     "name": {
@@ -57494,7 +57544,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.55.1",
+        "version": "2.56.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -75582,6 +75632,48 @@
                 "security": [],
                 "parameters": [
                     {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/spaces/personal": {
+            "get": {
+                "operationId": "GetPersonalSpace",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPersonalSpaceResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the current user's personal space in a project, if they have one",
+                "summary": "Get personal space",
+                "tags": ["Spaces"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the project",
                         "in": "path",
                         "name": "projectUuid",
                         "required": true,
