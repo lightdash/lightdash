@@ -337,6 +337,40 @@ knowing the engine. Remaining work, with tickets:
 | Pivoted value columns hardcode `type: NUMBER` — lies for MAX-of-timestamp / boolean ANY | `getPivotedColumns` via `convertItemTypeToDimensionType`; behavior change, staged alone | PROD-10690 |
 | SQL columns bare by accident, rule never made explicit | §3 SQL-path rule as deliberate code | PROD-9832 |
 
+### 2026-08-28 — provenance is provable lineage, not name matching
+
+Implemented as PROD-10772 and PROD-10773 (follow-ups to PR #28241). The rule
+"an item contributes result-column metadata only when it is a genuine
+semantic field behind the column" was enforced by an accidental string
+mismatch: `SqlQueryComposer` keys its virtual-view items
+`${virtualViewName}_${column}` while raw-SQL result columns are bare names,
+so lookups missed — plus a defensive `getItemId(item) !== fieldId` guard
+duplicated across `resultColumns.ts` and `getPivotedColumns.ts`. Now
+explicit:
+
+- **`SqlQueryComposer.getFields()` returns `{}`.** The virtual view is SQL
+  generation machinery (typed dashboard-filter compilation, the pivot seam
+  via `compile().fields`) and its dimensions never reach the results seam.
+- **The id comparison is an invariant assertion.** Items maps are keyed by
+  `getItemId` (`getItemMap`, `compileMetricQuery`, `buildMergeItems`), so a
+  resolved item whose own field id differs from its key is a producer bug
+  and throws instead of silently dropping a real field's metadata.
+- **One shared rule.** `getResultColumnSourceItem` (resultColumns.ts)
+  resolves the source item for `getUnpivotedColumns`, `getPivotedColumns`,
+  and the compose-merge column builder, so metadata and pivoted-column type
+  derivation cannot diverge.
+- **`query_history.fields` stays empty on SQL and compose paths.** The
+  shared prepare/execute seam persists the composer's (now empty) fields
+  map, and the shared DuckDB execution tail (`runDuckdbQuery`) no longer
+  overwrites the row with the synthetic map. Reader audit: the page formatter, pivot value formatting,
+  export items maps, and AI/GSheets consumers all key lookups by bare
+  column references, which never matched the prefixed synthetic keys — no
+  behavior change. Two deliberate exceptions: pivot-export row caps divide
+  by the fields count, so they fall back to the column order when the map
+  is empty; and a merge result source backed by a SQL/compose row is now
+  refused at compile ("carries no field metadata to merge on") instead of
+  compiling against fake fields and failing inside DuckDB at run time.
+
 ### Revised sequencing
 
 Population must not re-land ahead of the parameters prerequisite — columns

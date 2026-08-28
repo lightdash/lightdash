@@ -153,7 +153,11 @@ export class PivotTableService extends BaseService {
         const readStream =
             await storageClient.getDownloadStream(resultsFileName);
 
-        const fieldCount = Object.keys(fields).length;
+        // SQL and compose rows persist no fields map, so fall back to the
+        // column order (derived from the results file when the request
+        // carries none) to keep the cell-based row cap finite.
+        const fieldCount =
+            Object.keys(fields).length || options.columnOrder.length || 1;
         const { csvCellsLimit: cellsLimit } =
             await resolveOrganizationExportLimits(
                 this.organizationSettingsModel,
