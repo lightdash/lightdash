@@ -236,6 +236,7 @@ import {
 } from './oauth';
 import {
     type DeleteOpenIdentity,
+    type OpenIdIdentityIssuerType,
     type OpenIdIdentitySummary,
 } from './openIdIdentity';
 import {
@@ -1177,6 +1178,14 @@ export type InviteLink = {
     email: string;
     purpose: InviteLinkPurpose;
 };
+export type InviteLinkAuthenticationOptions = {
+    allowOneClickActivation: boolean;
+    allowPasswordSignup: boolean;
+    ssoProviders: OpenIdIdentityIssuerType[];
+};
+export type InviteLinkWithAuthenticationOptions = InviteLink & {
+    authentication: InviteLinkAuthenticationOptions;
+};
 export type CreateInviteLink = {
     email: string;
     expiresAt?: Date;
@@ -1187,6 +1196,11 @@ export type CreateInviteLink = {
 export type ApiInviteLinkResponse = {
     status: 'ok';
     results: InviteLink;
+};
+
+export type ApiGetInviteLinkResponse = {
+    status: 'ok';
+    results: InviteLinkWithAuthenticationOptions;
 };
 
 export type ApiCreateProjectResults = {
