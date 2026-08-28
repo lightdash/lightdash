@@ -74,20 +74,10 @@
 }
 
 .chartItemSelected {
-    @mixin light {
-        background-color: var(--mantine-color-blue-0);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-blue-9);
-    }
+    background-color: var(--mantine-color-blue-light);
 
     &:hover {
-        @mixin light {
-            background-color: var(--mantine-color-blue-1);
-        }
-        @mixin dark {
-            background-color: var(--mantine-color-blue-8);
-        }
+        background-color: var(--mantine-color-blue-light-hover);
     }
 }
 
