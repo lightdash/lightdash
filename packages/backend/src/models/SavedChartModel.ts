@@ -1116,11 +1116,12 @@ export class SavedChartModel {
         return this.get(savedChartUuid);
     }
 
-    async update(
+    private async updateChart(
+        database: Knex,
         savedChartUuid: string,
         data: UpdateSavedChart,
-    ): Promise<SavedChartDAO> {
-        const savedChart = await this.database(SavedChartsTableName)
+    ): Promise<void> {
+        const savedChart = await database(SavedChartsTableName)
             .select(`${SavedChartsTableName}.project_uuid`)
             .where(`${SavedChartsTableName}.saved_query_uuid`, savedChartUuid)
             .whereNull(`${SavedChartsTableName}.deleted_at`)
@@ -1131,7 +1132,7 @@ export class SavedChartModel {
 
         let targetSpaceId: number | undefined;
         if (data.spaceUuid !== undefined) {
-            const space = await this.database(SpaceTableName)
+            const space = await database(SpaceTableName)
                 .innerJoin(
                     ProjectTableName,
                     `${ProjectTableName}.project_id`,
@@ -1150,7 +1151,7 @@ export class SavedChartModel {
             targetSpaceId = space.space_id;
         }
 
-        await this.database(SavedChartsTableName)
+        await database(SavedChartsTableName)
             .update({
                 name: data.name,
                 description: data.description,
@@ -1161,21 +1162,39 @@ export class SavedChartModel {
             })
             .where('saved_query_uuid', savedChartUuid)
             .whereNull('deleted_at');
+    }
+
+    async update(
+        savedChartUuid: string,
+        data: UpdateSavedChart,
+    ): Promise<SavedChartDAO> {
+        await this.updateChart(this.database, savedChartUuid, data);
         return this.get(savedChartUuid);
     }
 
-    async renameSlug({
-        projectUuid,
-        savedChartUuid,
-        from,
-        to,
-    }: {
-        projectUuid: string;
-        savedChartUuid: string;
-        from: string;
-        to: string;
-    }): Promise<void> {
-        return this.database.transaction(async (trx) => {
+    async updateInTransaction(
+        savedChartUuid: string,
+        data: UpdateSavedChart,
+        transaction: Knex.Transaction,
+    ): Promise<void> {
+        await this.updateChart(transaction, savedChartUuid, data);
+    }
+
+    async renameSlug(
+        {
+            projectUuid,
+            savedChartUuid,
+            from,
+            to,
+        }: {
+            projectUuid: string;
+            savedChartUuid: string;
+            from: string;
+            to: string;
+        },
+        transaction?: Knex.Transaction,
+    ): Promise<void> {
+        const rename = async (trx: Knex) => {
             const slugsToLock = [...new Set([from, to])].sort();
             for (const slug of slugsToLock) {
                 // eslint-disable-next-line no-await-in-loop
@@ -1258,7 +1277,12 @@ export class SavedChartModel {
                     `Chart slug "${chart.slug}" changed while it was being renamed`,
                 );
             }
-        });
+        };
+
+        if (transaction) {
+            return rename(transaction);
+        }
+        return this.database.transaction(rename);
     }
 
     async updateMultiple(

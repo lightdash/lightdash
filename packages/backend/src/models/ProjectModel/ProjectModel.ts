@@ -4432,6 +4432,43 @@ export class ProjectModel {
         return typeof match?.newId === 'string' ? match.newId : null;
     }
 
+    async getUpstreamChartUuidFromPreview(
+        previewProjectUuid: string,
+        previewChartUuid: string,
+    ): Promise<string | null> {
+        const previewChart = await this.database(SavedChartsTableName)
+            .select('saved_query_id')
+            .where('project_uuid', previewProjectUuid)
+            .where('saved_query_uuid', previewChartUuid)
+            .whereNull('deleted_at')
+            .first();
+        if (!previewChart) return null;
+
+        const previewContent = await this.database('preview_content')
+            .select<
+                {
+                    project_uuid: string;
+                    content_mapping: PreviewContentMapping;
+                }[]
+            >('project_uuid', 'content_mapping')
+            .where('preview_project_uuid', previewProjectUuid)
+            .orderBy('created_at', 'desc')
+            .first();
+        const sourceMapping = previewContent?.content_mapping.charts.find(
+            ({ newId }) => Number(newId) === previewChart.saved_query_id,
+        );
+        if (!previewContent || !sourceMapping) return null;
+
+        const upstreamChart = await this.database(SavedChartsTableName)
+            .select('saved_query_uuid')
+            .where('project_uuid', previewContent.project_uuid)
+            .where('saved_query_id', sourceMapping.id)
+            .whereNull('deleted_at')
+            .first();
+
+        return upstreamChart?.saved_query_uuid ?? null;
+    }
+
     // Easier to mock in ProjectService
     // eslint-disable-next-line class-methods-use-this
     getWarehouseClientFromCredentials(
