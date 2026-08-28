@@ -1879,321 +1879,110 @@ const BOTTOM_VALUE_LABEL_NAME_GAP_EXTRA = 16;
 const DEFAULT_AXIS_LABEL_MARGIN = 8;
 const LEFT_VALUE_LABEL_GUTTER_PADDING = 12;
 
-const getEchartAxes = ({
-    itemsMap,
-    validCartesianConfig,
-    series,
-    resultsData,
-    displayedRows,
-    minsAndMaxes,
-    parameters,
-    resolvedTimezone,
-    displayTimezone,
-    isTimeAxisShifted,
-}: {
-    validCartesianConfig: CartesianChart;
+type CartesianAxisField = ItemsMap[string] | undefined;
+type CartesianFlipAxisConfig =
+    | CartesianChart['eChartsConfig']['xAxis']
+    | CartesianChart['eChartsConfig']['yAxis'];
+
+type BuildCartesianAxesOptionArgs = {
     itemsMap: ItemsMap;
-    series: EChartsSeries[];
-    resultsData: InfiniteQueryResults | undefined;
-    displayedRows?: ResultRow[];
+    validCartesianConfig: CartesianChart;
     minsAndMaxes: ReturnType<typeof getResultValueArray>['minsAndMaxes'];
     parameters?: ParametersValuesMap;
     resolvedTimezone?: string;
     displayTimezone?: string;
-    isTimeAxisShifted?: boolean;
-}) => {
-    const xAxisItemId = validCartesianConfig.layout.flipAxes
-        ? validCartesianConfig.layout?.yField?.[0]
-        : validCartesianConfig.layout?.xField;
-    const xAxisItem = xAxisItemId ? itemsMap[xAxisItemId] : undefined;
+    xAxisItemId: string | undefined;
+    xAxisItem: CartesianAxisField;
+    yAxisItem: CartesianAxisField;
+    isAxisTheSameForAllSeries: boolean;
+    selectedAxisIndex: number;
+    xAxisConfiguration: CartesianFlipAxisConfig;
+    yAxisConfiguration: CartesianFlipAxisConfig;
+    allowFirstAxisDefaultRange: boolean;
+    allowSecondAxisDefaultRange: boolean;
+    showGridX: boolean;
+    showGridY: boolean;
+    showXAxis: boolean;
+    showLeftYAxis: boolean;
+    showRightYAxis: boolean;
+    gridStyle:
+        | ReturnType<typeof getBarChartGridStyle>
+        | ReturnType<typeof getLineChartGridStyle>;
+    topAxisXFieldIds: string[] | undefined;
+    longestValueXAxisTop: string | undefined;
+    longestValueXAxisBottom: string | undefined;
+    rightAxisYFieldIds: string[] | undefined;
+    rightAxisYField: CartesianAxisField;
+    leftAxisYField: CartesianAxisField;
+    topAxisXField: CartesianAxisField;
+    bottomAxisXField: CartesianAxisField;
+    bottomAxisType: string;
+    topAxisType: string;
+    rightAxisType: string;
+    leftAxisType: string;
+    leftYaxisGap: number;
+    rightYaxisGap: number;
+    referenceLineMinX: number | string | undefined;
+    referenceLineMaxX: number | string | undefined;
+    referenceLineMinLeftY: number | string | undefined;
+    referenceLineMaxLeftY: number | string | undefined;
+    referenceLineMinRightY: number | string | undefined;
+    referenceLineMaxRightY: number | string | undefined;
+    bottomAxisExtraConfig: CategoryDateAxisConfig;
+    topAxisExtraConfig: CategoryDateAxisConfig;
+    rightAxisExtraConfig: CategoryDateAxisConfig;
+    leftAxisExtraConfig: CategoryDateAxisConfig;
+    bottomAxisPinnedTickValues: number[] | undefined;
+};
 
-    const yAxisItemId = validCartesianConfig.layout.flipAxes
-        ? validCartesianConfig.layout?.xField
-        : validCartesianConfig.layout?.yField?.[0];
-
-    const yAxisItem = yAxisItemId ? itemsMap[yAxisItemId] : undefined;
-
-    const selectedAxisInSeries = Array.from(
-        new Set(
-            series?.map(({ yAxisIndex, xAxisIndex }) =>
-                validCartesianConfig.layout.flipAxes ? xAxisIndex : yAxisIndex,
-            ),
-        ),
-    );
-    const isAxisTheSameForAllSeries: boolean =
-        selectedAxisInSeries.length === 1;
-    const selectedAxisIndex = selectedAxisInSeries[0] || 0;
-
-    const xAxisConfiguration = validCartesianConfig.layout.flipAxes
-        ? validCartesianConfig.eChartsConfig?.yAxis
-        : validCartesianConfig.eChartsConfig?.xAxis;
-    const yAxisConfiguration = validCartesianConfig.layout.flipAxes
-        ? validCartesianConfig.eChartsConfig?.xAxis
-        : validCartesianConfig.eChartsConfig?.yAxis;
-
-    const [allowFirstAxisDefaultRange, allowSecondAxisDefaultRange] = (
-        series || []
-    ).reduce<[boolean, boolean]>(
-        (acc, singleSeries) => {
-            if (singleSeries.type === CartesianSeriesType.BAR) {
-                acc[singleSeries.yAxisIndex || 0] = false;
-            }
-            return acc;
-        },
-        [true, true],
-    );
-
-    const showGridX = !!validCartesianConfig.layout.showGridX;
-    const showGridY =
-        validCartesianConfig.layout.showGridY !== undefined
-            ? validCartesianConfig.layout.showGridY
-            : true;
-
-    const showXAxis =
-        validCartesianConfig.layout.showXAxis !== undefined
-            ? validCartesianConfig.layout.showXAxis
-            : true;
-    // Legacy showYAxis is used as fallback for independent axis controls
-    const legacyShowYAxis =
-        validCartesianConfig.layout.showYAxis !== undefined
-            ? validCartesianConfig.layout.showYAxis
-            : true;
-    // Use independent axis controls if defined, otherwise fallback to legacy showYAxis
-    const showLeftYAxis =
-        validCartesianConfig.layout.showLeftYAxis !== undefined
-            ? validCartesianConfig.layout.showLeftYAxis
-            : legacyShowYAxis;
-    const showRightYAxis =
-        validCartesianConfig.layout.showRightYAxis !== undefined
-            ? validCartesianConfig.layout.showRightYAxis
-            : legacyShowYAxis;
-
-    const hasBarChart = series.some((s) => s.type === CartesianSeriesType.BAR);
-    const gridStyle = hasBarChart
-        ? getBarChartGridStyle()
-        : getLineChartGridStyle();
-
-    // There is no Top x axis when no flipped
-    // Use base field ID for itemsMap lookups (axis formatting).
-    // For min/max value lookups, pivotDetails maps these to actual column names.
-    const topAxisXFieldIds = validCartesianConfig.layout.flipAxes
-        ? validCartesianConfig.eChartsConfig.series
-              ?.filter((serie) => serie.yAxisIndex === 1)
-              .map((s) => s.encode.yRef.field)
-        : undefined;
-
-    const topAxisXId = topAxisXFieldIds?.[0] || undefined;
-
-    const bottomAxisXFieldIds = validCartesianConfig.layout.flipAxes
-        ? validCartesianConfig.eChartsConfig.series
-              ?.filter((serie) => serie.yAxisIndex === 0)
-              .map((s) => s.encode.yRef.field)
-        : [];
-
-    const bottomAxisXId = bottomAxisXFieldIds?.[0] || xAxisItemId;
-
-    const longestValueXAxisTop: string | undefined = getLongestLabel({
-        rows: resultsData?.rows,
-        axisId: topAxisXId,
-    });
-
-    const longestValueXAxisBottom: string | undefined = getLongestLabel({
-        rows: resultsData?.rows,
-        axisId: bottomAxisXId,
-    });
-
-    const leftAxisYFieldIds = validCartesianConfig.layout.flipAxes
-        ? validCartesianConfig.layout?.xField
-            ? [validCartesianConfig.layout?.xField]
-            : []
-        : validCartesianConfig.eChartsConfig.series
-              ?.filter((serie) => serie.yAxisIndex === 0)
-              .map((s) => s.encode.yRef.field);
-
-    const leftAxisYId = leftAxisYFieldIds?.[0] || yAxisItemId;
-
-    // There is no right Y axis when flipped
-    const rightAxisYFieldIds = validCartesianConfig.eChartsConfig.series
-        ?.filter((serie) => serie.yAxisIndex === 1)
-        .map((s) => s.encode.yRef.field);
-
-    const rightAxisYId =
-        rightAxisYFieldIds?.[0] || validCartesianConfig.layout?.yField?.[1];
-
-    const rightAxisYField = rightAxisYId ? itemsMap[rightAxisYId] : undefined;
-    const leftAxisYField = leftAxisYId ? itemsMap[leftAxisYId] : undefined;
-    const topAxisXField = topAxisXId ? itemsMap[topAxisXId] : undefined;
-    const bottomAxisXField = bottomAxisXId
-        ? itemsMap[bottomAxisXId]
-        : undefined;
-
-    const { bottomAxisType, topAxisType, rightAxisType, leftAxisType } =
-        getAxisType({
-            validCartesianConfig,
-            itemsMap,
-            topAxisXId,
-            bottomAxisXId,
-            leftAxisYId,
-            rightAxisYId,
-        });
-
-    // Width of the widest tick label a value axis will render: the axis bounds
-    // formatted like the ticks, not raw row values of the first series
-    const getValueAxisTickLabelWidth = (
-        axisFieldIds: string[],
-        axisItem: ItemsMap[string] | undefined,
-        axisBounds: { min?: string; max?: string } | undefined,
-    ): number | undefined => {
-        const [dataMin, dataMax] = getMinAndMaxValues(
-            axisFieldIds,
-            resultsData?.rows ?? [],
-            resultsData?.pivotDetails,
-        );
-        if (typeof dataMin !== 'number' || typeof dataMax !== 'number')
-            return undefined;
-
-        // Explicit bounds render as-is; otherwise ECharts rounds to a nice tick
-        const parseBound = (bound: string | undefined, fallback: number) => {
-            const parsed = bound ? toNumber(bound) : NaN;
-            return Number.isFinite(parsed) ? parsed : fallback;
-        };
-        const tickMax = parseBound(axisBounds?.max, getNiceTickBound(dataMax));
-        const tickMin = parseBound(
-            axisBounds?.min,
-            Math.min(0, getNiceTickBound(dataMin)),
-        );
-
-        const isDateItem =
-            isField(axisItem) &&
-            (axisItem.type === DimensionType.DATE ||
-                axisItem.type === DimensionType.TIMESTAMP);
-        // Mirror when getCartesianAxisFormatterConfig installs a tick formatter
-        const ticksAreFormatted =
-            axisItem !== undefined &&
-            !isDateItem &&
-            (hasFormatting(axisItem) ||
-                (isTableCalculation(axisItem) && axisItem.type === undefined));
-        const formatTick = (value: number): string =>
-            axisItem && ticksAreFormatted
-                ? formatItemValue(
-                      axisItem,
-                      value,
-                      true,
-                      parameters,
-                      resolvedTimezone,
-                      displayTimezone,
-                  )
-                : value.toLocaleString('en-US');
-
-        return Math.max(
-            calculateWidthText(formatTick(tickMax)),
-            calculateWidthText(formatTick(tickMin)),
-        );
-    };
-
-    // Category/time axes render row values as tick labels, so measure those
-    const getCategoryAxisTickLabelWidth = (axisIds: (string | undefined)[]) =>
-        Math.max(
-            0,
-            ...getLongestLabelsForAxis({
-                rows: resultsData?.rows,
-                axisIds,
-            }).map(calculateWidthText),
-        );
-
-    // 100% stacking forces the left axis to 0-100
-    const leftAxisIsStack100 =
-        validCartesianConfig.layout?.stack === StackType.PERCENT &&
-        !validCartesianConfig.layout.flipAxes;
-
-    const leftAxisYIds = leftAxisYFieldIds?.length
-        ? leftAxisYFieldIds
-        : [leftAxisYId];
-    const leftYaxisGap =
-        (leftAxisType === 'value'
-            ? getValueAxisTickLabelWidth(
-                  leftAxisYIds.filter((id): id is string => id !== undefined),
-                  leftAxisYField,
-                  leftAxisIsStack100
-                      ? { min: '0', max: '100' }
-                      : yAxisConfiguration?.[0],
-              )
-            : undefined) ?? getCategoryAxisTickLabelWidth(leftAxisYIds);
-
-    const rightAxisYIds = rightAxisYFieldIds?.length
-        ? rightAxisYFieldIds
-        : [rightAxisYId];
-    const rightYaxisGap =
-        (rightAxisType === 'value'
-            ? getValueAxisTickLabelWidth(
-                  rightAxisYIds.filter((id): id is string => id !== undefined),
-                  rightAxisYField,
-                  yAxisConfiguration?.[1],
-              )
-            : undefined) ?? getCategoryAxisTickLabelWidth(rightAxisYIds);
-
-    const {
-        referenceLineMinX,
-        referenceLineMaxX,
-        referenceLineMinLeftY,
-        referenceLineMaxLeftY,
-        referenceLineMinRightY,
-        referenceLineMaxRightY,
-    } = getMinAndMaxReferenceLines(
-        leftAxisYFieldIds,
-        rightAxisYFieldIds,
-        bottomAxisXFieldIds,
-        resultsData?.rows,
-        validCartesianConfig.eChartsConfig.series,
-        itemsMap,
-        resultsData?.pivotDetails,
-    );
-    const eChartsSeries = validCartesianConfig.eChartsConfig.series;
-    // When row limiting is active, derive the continuous date range from
-    // displayedRows instead of the full result set. The dataset is padded
-    // with empty rows for gap dates (see padDatasetForContinuousAxis) so
-    // ECharts positional mapping stays correct.
-    const axisRows = displayedRows ?? resultsData?.rows;
-    const bottomAxisExtraConfig = getCategoryDateAxisConfig(
-        bottomAxisXId,
-        bottomAxisXField,
-        axisRows,
-        bottomAxisType,
-        eChartsSeries,
-        resolvedTimezone,
-    );
-    const topAxisExtraConfig = getCategoryDateAxisConfig(
-        topAxisXId,
-        topAxisXField,
-        axisRows,
-        topAxisType,
-        eChartsSeries,
-        resolvedTimezone,
-    );
-    const rightAxisExtraConfig = getCategoryDateAxisConfig(
-        rightAxisYId,
-        rightAxisYField,
-        axisRows,
-        rightAxisType,
-        eChartsSeries,
-        resolvedTimezone,
-    );
-    const leftAxisExtraConfig = getCategoryDateAxisConfig(
-        leftAxisYId,
-        leftAxisYField,
-        axisRows,
-        leftAxisType,
-        eChartsSeries,
-        resolvedTimezone,
-    );
-    const bottomAxisPinnedTickValues = getTimeAxisPinnedTickValues(
-        bottomAxisXId,
-        bottomAxisXField,
-        axisRows,
-        bottomAxisType,
-        eChartsSeries,
-        isTimeAxisShifted,
-    );
+const buildCartesianAxesOption = ({
+    itemsMap,
+    validCartesianConfig,
+    minsAndMaxes,
+    parameters,
+    resolvedTimezone,
+    displayTimezone,
+    xAxisItemId,
+    xAxisItem,
+    yAxisItem,
+    isAxisTheSameForAllSeries,
+    selectedAxisIndex,
+    xAxisConfiguration,
+    yAxisConfiguration,
+    allowFirstAxisDefaultRange,
+    allowSecondAxisDefaultRange,
+    showGridX,
+    showGridY,
+    showXAxis,
+    showLeftYAxis,
+    showRightYAxis,
+    gridStyle,
+    topAxisXFieldIds,
+    longestValueXAxisTop,
+    longestValueXAxisBottom,
+    rightAxisYFieldIds,
+    rightAxisYField,
+    leftAxisYField,
+    topAxisXField,
+    bottomAxisXField,
+    bottomAxisType,
+    topAxisType,
+    rightAxisType,
+    leftAxisType,
+    leftYaxisGap,
+    rightYaxisGap,
+    referenceLineMinX,
+    referenceLineMaxX,
+    referenceLineMinLeftY,
+    referenceLineMaxLeftY,
+    referenceLineMinRightY,
+    referenceLineMaxRightY,
+    bottomAxisExtraConfig,
+    topAxisExtraConfig,
+    rightAxisExtraConfig,
+    leftAxisExtraConfig,
+    bottomAxisPinnedTickValues,
+}: BuildCartesianAxesOptionArgs) => {
     const axisLabelFontSize =
         validCartesianConfig?.eChartsConfig?.axisLabelFontSize;
     const axisTitleFontSize =
@@ -2820,6 +2609,371 @@ const getEchartAxes = ({
             leftAxisExtraConfig,
         ),
     };
+};
+
+const getEchartAxes = ({
+    itemsMap,
+    validCartesianConfig,
+    series,
+    resultsData,
+    displayedRows,
+    minsAndMaxes,
+    parameters,
+    resolvedTimezone,
+    displayTimezone,
+    isTimeAxisShifted,
+}: {
+    validCartesianConfig: CartesianChart;
+    itemsMap: ItemsMap;
+    series: EChartsSeries[];
+    resultsData: InfiniteQueryResults | undefined;
+    displayedRows?: ResultRow[];
+    minsAndMaxes: ReturnType<typeof getResultValueArray>['minsAndMaxes'];
+    parameters?: ParametersValuesMap;
+    resolvedTimezone?: string;
+    displayTimezone?: string;
+    isTimeAxisShifted?: boolean;
+}) => {
+    const xAxisItemId = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.layout?.yField?.[0]
+        : validCartesianConfig.layout?.xField;
+    const xAxisItem = xAxisItemId ? itemsMap[xAxisItemId] : undefined;
+
+    const yAxisItemId = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.layout?.xField
+        : validCartesianConfig.layout?.yField?.[0];
+
+    const yAxisItem = yAxisItemId ? itemsMap[yAxisItemId] : undefined;
+
+    const selectedAxisInSeries = Array.from(
+        new Set(
+            series?.map(({ yAxisIndex, xAxisIndex }) =>
+                validCartesianConfig.layout.flipAxes ? xAxisIndex : yAxisIndex,
+            ),
+        ),
+    );
+    const isAxisTheSameForAllSeries: boolean =
+        selectedAxisInSeries.length === 1;
+    const selectedAxisIndex = selectedAxisInSeries[0] || 0;
+
+    const xAxisConfiguration = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.eChartsConfig?.yAxis
+        : validCartesianConfig.eChartsConfig?.xAxis;
+    const yAxisConfiguration = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.eChartsConfig?.xAxis
+        : validCartesianConfig.eChartsConfig?.yAxis;
+
+    const [allowFirstAxisDefaultRange, allowSecondAxisDefaultRange] = (
+        series || []
+    ).reduce<[boolean, boolean]>(
+        (acc, singleSeries) => {
+            if (singleSeries.type === CartesianSeriesType.BAR) {
+                acc[singleSeries.yAxisIndex || 0] = false;
+            }
+            return acc;
+        },
+        [true, true],
+    );
+
+    const showGridX = !!validCartesianConfig.layout.showGridX;
+    const showGridY =
+        validCartesianConfig.layout.showGridY !== undefined
+            ? validCartesianConfig.layout.showGridY
+            : true;
+
+    const showXAxis =
+        validCartesianConfig.layout.showXAxis !== undefined
+            ? validCartesianConfig.layout.showXAxis
+            : true;
+    // Legacy showYAxis is used as fallback for independent axis controls
+    const legacyShowYAxis =
+        validCartesianConfig.layout.showYAxis !== undefined
+            ? validCartesianConfig.layout.showYAxis
+            : true;
+    // Use independent axis controls if defined, otherwise fallback to legacy showYAxis
+    const showLeftYAxis =
+        validCartesianConfig.layout.showLeftYAxis !== undefined
+            ? validCartesianConfig.layout.showLeftYAxis
+            : legacyShowYAxis;
+    const showRightYAxis =
+        validCartesianConfig.layout.showRightYAxis !== undefined
+            ? validCartesianConfig.layout.showRightYAxis
+            : legacyShowYAxis;
+
+    const hasBarChart = series.some((s) => s.type === CartesianSeriesType.BAR);
+    const gridStyle = hasBarChart
+        ? getBarChartGridStyle()
+        : getLineChartGridStyle();
+
+    // There is no Top x axis when no flipped
+    // Use base field ID for itemsMap lookups (axis formatting).
+    // For min/max value lookups, pivotDetails maps these to actual column names.
+    const topAxisXFieldIds = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.eChartsConfig.series
+              ?.filter((serie) => serie.yAxisIndex === 1)
+              .map((s) => s.encode.yRef.field)
+        : undefined;
+
+    const topAxisXId = topAxisXFieldIds?.[0] || undefined;
+
+    const bottomAxisXFieldIds = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.eChartsConfig.series
+              ?.filter((serie) => serie.yAxisIndex === 0)
+              .map((s) => s.encode.yRef.field)
+        : [];
+
+    const bottomAxisXId = bottomAxisXFieldIds?.[0] || xAxisItemId;
+
+    const longestValueXAxisTop: string | undefined = getLongestLabel({
+        rows: resultsData?.rows,
+        axisId: topAxisXId,
+    });
+
+    const longestValueXAxisBottom: string | undefined = getLongestLabel({
+        rows: resultsData?.rows,
+        axisId: bottomAxisXId,
+    });
+
+    const leftAxisYFieldIds = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.layout?.xField
+            ? [validCartesianConfig.layout?.xField]
+            : []
+        : validCartesianConfig.eChartsConfig.series
+              ?.filter((serie) => serie.yAxisIndex === 0)
+              .map((s) => s.encode.yRef.field);
+
+    const leftAxisYId = leftAxisYFieldIds?.[0] || yAxisItemId;
+
+    // There is no right Y axis when flipped
+    const rightAxisYFieldIds = validCartesianConfig.eChartsConfig.series
+        ?.filter((serie) => serie.yAxisIndex === 1)
+        .map((s) => s.encode.yRef.field);
+
+    const rightAxisYId =
+        rightAxisYFieldIds?.[0] || validCartesianConfig.layout?.yField?.[1];
+
+    const rightAxisYField = rightAxisYId ? itemsMap[rightAxisYId] : undefined;
+    const leftAxisYField = leftAxisYId ? itemsMap[leftAxisYId] : undefined;
+    const topAxisXField = topAxisXId ? itemsMap[topAxisXId] : undefined;
+    const bottomAxisXField = bottomAxisXId
+        ? itemsMap[bottomAxisXId]
+        : undefined;
+
+    const { bottomAxisType, topAxisType, rightAxisType, leftAxisType } =
+        getAxisType({
+            validCartesianConfig,
+            itemsMap,
+            topAxisXId,
+            bottomAxisXId,
+            leftAxisYId,
+            rightAxisYId,
+        });
+
+    // Width of the widest tick label a value axis will render: the axis bounds
+    // formatted like the ticks, not raw row values of the first series
+    const getValueAxisTickLabelWidth = (
+        axisFieldIds: string[],
+        axisItem: ItemsMap[string] | undefined,
+        axisBounds: { min?: string; max?: string } | undefined,
+    ): number | undefined => {
+        const [dataMin, dataMax] = getMinAndMaxValues(
+            axisFieldIds,
+            resultsData?.rows ?? [],
+            resultsData?.pivotDetails,
+        );
+        if (typeof dataMin !== 'number' || typeof dataMax !== 'number')
+            return undefined;
+
+        // Explicit bounds render as-is; otherwise ECharts rounds to a nice tick
+        const parseBound = (bound: string | undefined, fallback: number) => {
+            const parsed = bound ? toNumber(bound) : NaN;
+            return Number.isFinite(parsed) ? parsed : fallback;
+        };
+        const tickMax = parseBound(axisBounds?.max, getNiceTickBound(dataMax));
+        const tickMin = parseBound(
+            axisBounds?.min,
+            Math.min(0, getNiceTickBound(dataMin)),
+        );
+
+        const isDateItem =
+            isField(axisItem) &&
+            (axisItem.type === DimensionType.DATE ||
+                axisItem.type === DimensionType.TIMESTAMP);
+        // Mirror when getCartesianAxisFormatterConfig installs a tick formatter
+        const ticksAreFormatted =
+            axisItem !== undefined &&
+            !isDateItem &&
+            (hasFormatting(axisItem) ||
+                (isTableCalculation(axisItem) && axisItem.type === undefined));
+        const formatTick = (value: number): string =>
+            axisItem && ticksAreFormatted
+                ? formatItemValue(
+                      axisItem,
+                      value,
+                      true,
+                      parameters,
+                      resolvedTimezone,
+                      displayTimezone,
+                  )
+                : value.toLocaleString('en-US');
+
+        return Math.max(
+            calculateWidthText(formatTick(tickMax)),
+            calculateWidthText(formatTick(tickMin)),
+        );
+    };
+
+    // Category/time axes render row values as tick labels, so measure those
+    const getCategoryAxisTickLabelWidth = (axisIds: (string | undefined)[]) =>
+        Math.max(
+            0,
+            ...getLongestLabelsForAxis({
+                rows: resultsData?.rows,
+                axisIds,
+            }).map(calculateWidthText),
+        );
+
+    // 100% stacking forces the left axis to 0-100
+    const leftAxisIsStack100 =
+        validCartesianConfig.layout?.stack === StackType.PERCENT &&
+        !validCartesianConfig.layout.flipAxes;
+
+    const leftAxisYIds = leftAxisYFieldIds?.length
+        ? leftAxisYFieldIds
+        : [leftAxisYId];
+    const leftYaxisGap =
+        (leftAxisType === 'value'
+            ? getValueAxisTickLabelWidth(
+                  leftAxisYIds.filter((id): id is string => id !== undefined),
+                  leftAxisYField,
+                  leftAxisIsStack100
+                      ? { min: '0', max: '100' }
+                      : yAxisConfiguration?.[0],
+              )
+            : undefined) ?? getCategoryAxisTickLabelWidth(leftAxisYIds);
+
+    const rightAxisYIds = rightAxisYFieldIds?.length
+        ? rightAxisYFieldIds
+        : [rightAxisYId];
+    const rightYaxisGap =
+        (rightAxisType === 'value'
+            ? getValueAxisTickLabelWidth(
+                  rightAxisYIds.filter((id): id is string => id !== undefined),
+                  rightAxisYField,
+                  yAxisConfiguration?.[1],
+              )
+            : undefined) ?? getCategoryAxisTickLabelWidth(rightAxisYIds);
+
+    const {
+        referenceLineMinX,
+        referenceLineMaxX,
+        referenceLineMinLeftY,
+        referenceLineMaxLeftY,
+        referenceLineMinRightY,
+        referenceLineMaxRightY,
+    } = getMinAndMaxReferenceLines(
+        leftAxisYFieldIds,
+        rightAxisYFieldIds,
+        bottomAxisXFieldIds,
+        resultsData?.rows,
+        validCartesianConfig.eChartsConfig.series,
+        itemsMap,
+        resultsData?.pivotDetails,
+    );
+    const eChartsSeries = validCartesianConfig.eChartsConfig.series;
+    // When row limiting is active, derive the continuous date range from
+    // displayedRows instead of the full result set. The dataset is padded
+    // with empty rows for gap dates (see padDatasetForContinuousAxis) so
+    // ECharts positional mapping stays correct.
+    const axisRows = displayedRows ?? resultsData?.rows;
+    const bottomAxisExtraConfig = getCategoryDateAxisConfig(
+        bottomAxisXId,
+        bottomAxisXField,
+        axisRows,
+        bottomAxisType,
+        eChartsSeries,
+        resolvedTimezone,
+    );
+    const topAxisExtraConfig = getCategoryDateAxisConfig(
+        topAxisXId,
+        topAxisXField,
+        axisRows,
+        topAxisType,
+        eChartsSeries,
+        resolvedTimezone,
+    );
+    const rightAxisExtraConfig = getCategoryDateAxisConfig(
+        rightAxisYId,
+        rightAxisYField,
+        axisRows,
+        rightAxisType,
+        eChartsSeries,
+        resolvedTimezone,
+    );
+    const leftAxisExtraConfig = getCategoryDateAxisConfig(
+        leftAxisYId,
+        leftAxisYField,
+        axisRows,
+        leftAxisType,
+        eChartsSeries,
+        resolvedTimezone,
+    );
+    const bottomAxisPinnedTickValues = getTimeAxisPinnedTickValues(
+        bottomAxisXId,
+        bottomAxisXField,
+        axisRows,
+        bottomAxisType,
+        eChartsSeries,
+        isTimeAxisShifted,
+    );
+    return buildCartesianAxesOption({
+        itemsMap,
+        validCartesianConfig,
+        minsAndMaxes,
+        parameters,
+        resolvedTimezone,
+        displayTimezone,
+        xAxisItemId,
+        xAxisItem,
+        yAxisItem,
+        isAxisTheSameForAllSeries,
+        selectedAxisIndex,
+        xAxisConfiguration,
+        yAxisConfiguration,
+        allowFirstAxisDefaultRange,
+        allowSecondAxisDefaultRange,
+        showGridX,
+        showGridY,
+        showXAxis,
+        showLeftYAxis,
+        showRightYAxis,
+        gridStyle,
+        topAxisXFieldIds,
+        longestValueXAxisTop,
+        longestValueXAxisBottom,
+        rightAxisYFieldIds,
+        rightAxisYField,
+        leftAxisYField,
+        topAxisXField,
+        bottomAxisXField,
+        bottomAxisType,
+        topAxisType,
+        rightAxisType,
+        leftAxisType,
+        leftYaxisGap,
+        rightYaxisGap,
+        referenceLineMinX,
+        referenceLineMaxX,
+        referenceLineMinLeftY,
+        referenceLineMaxLeftY,
+        referenceLineMinRightY,
+        referenceLineMaxRightY,
+        bottomAxisExtraConfig,
+        topAxisExtraConfig,
+        rightAxisExtraConfig,
+        leftAxisExtraConfig,
+        bottomAxisPinnedTickValues,
+    });
 };
 
 const getValidStack = (series: EChartsSeries | undefined) => {
