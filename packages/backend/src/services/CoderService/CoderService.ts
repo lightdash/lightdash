@@ -2029,7 +2029,59 @@ export class CoderService extends BaseService {
     @param dashboardIds: Dashboard ids can be uuids or slugs, if undefined return all dashboards, if [] we return no dashboards
     @returns: DashboardAsCode[]
     */
-    async getDashboards(
+    async getDashboardsForExport(
+        user: SessionUser,
+        projectUuid: string,
+        dashboardIds: string[] | undefined,
+        offset?: number,
+        languageMap?: boolean,
+    ): Promise<ApiDashboardAsCodeListResponse['results']> {
+        await this.assertCanDownloadContentAsCode(
+            user,
+            projectUuid,
+            'You are not allowed to download dashboards',
+        );
+        return this.findDashboardsAsCode(
+            user,
+            projectUuid,
+            dashboardIds,
+            offset,
+            languageMap,
+        );
+    }
+
+    // Single-item read for AI/MCP read_content: no export gate; callers
+    // enforce per-item view access and private-space filtering still applies.
+    async getDashboardsForRead(
+        user: SessionUser,
+        projectUuid: string,
+        slugs: string[],
+    ): Promise<ApiDashboardAsCodeListResponse['results']> {
+        return this.findDashboardsAsCode(user, projectUuid, slugs);
+    }
+
+    private async assertCanDownloadContentAsCode(
+        user: SessionUser,
+        projectUuid: string,
+        forbiddenMessage: string,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('ContentAsCode', {
+                    projectUuid,
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(forbiddenMessage);
+        }
+    }
+
+    private async findDashboardsAsCode(
         user: SessionUser,
         projectUuid: string,
         dashboardIds: string[] | undefined,
@@ -2039,21 +2091,6 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
             throw new NotFoundError(`Project ${projectUuid} not found`);
-        }
-
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('ContentAsCode', {
-                    projectUuid: project.projectUuid,
-                    organizationUuid: project.organizationUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'You are not allowed to download dashboards',
-            );
         }
 
         const slugs = await this.convertIdsToSlugs('dashboard', dashboardIds);
@@ -2278,7 +2315,38 @@ export class CoderService extends BaseService {
         );
     }
 
-    async getCharts(
+    async getChartsForExport(
+        user: SessionUser,
+        projectUuid: string,
+        chartIds?: string[],
+        offset?: number,
+        languageMap?: boolean,
+    ): Promise<ApiChartAsCodeListResponse['results']> {
+        await this.assertCanDownloadContentAsCode(
+            user,
+            projectUuid,
+            'You are not allowed to download charts',
+        );
+        return this.findChartsAsCode(
+            user,
+            projectUuid,
+            chartIds,
+            offset,
+            languageMap,
+        );
+    }
+
+    // Single-item read for AI/MCP read_content: no export gate; callers
+    // enforce per-item view access and private-space filtering still applies.
+    async getChartsForRead(
+        user: SessionUser,
+        projectUuid: string,
+        slugs: string[],
+    ): Promise<ApiChartAsCodeListResponse['results']> {
+        return this.findChartsAsCode(user, projectUuid, slugs);
+    }
+
+    private async findChartsAsCode(
         user: SessionUser,
         projectUuid: string,
         chartIds?: string[],
@@ -2288,20 +2356,6 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
             throw new NotFoundError(`Project ${projectUuid} not found`);
-        }
-
-        // Filter charts based on user permissions (from private spaces)
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('ContentAsCode', {
-                    projectUuid: project.projectUuid,
-                    organizationUuid: project.organizationUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError('You are not allowed to download charts');
         }
 
         const slugs = await this.convertIdsToSlugs('chart', chartIds);
