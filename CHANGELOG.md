@@ -1,3 +1,15 @@
+# [2.43.0](https://github.com/lightdash/lightdash/compare/2.42.1...2.43.0) (2026-08-28)
+
+
+### Bug Fixes
+
+* promote renamed preview chart slugs ([#28254](https://github.com/lightdash/lightdash/issues/28254)) ([0b330b6](https://github.com/lightdash/lightdash/commit/0b330b6cc3c53f3db4ed47f44ca5660dcbf8dbf4))
+
+
+### Features
+
+* **sdk:** add uiOverrides prop for embedded UI-chrome strings ([#28010](https://github.com/lightdash/lightdash/issues/28010)) ([b545cc5](https://github.com/lightdash/lightdash/commit/b545cc5e0aabe7c30b9ff207a89681731c443845))
+
 ## [2.42.1](https://github.com/lightdash/lightdash/compare/2.42.0...2.42.1) (2026-08-28)
 
 
