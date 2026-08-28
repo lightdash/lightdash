@@ -27,6 +27,7 @@ import {
 } from '../SpaceService/SpacePermissionService';
 import {
     auditDirectAccessMutation,
+    auditDirectAccessReplace,
     auditDirectAccessReset,
 } from './directAccessAudit';
 import { type DirectAccessFeatureGate } from './DirectAccessFeatureGate';
@@ -429,6 +430,54 @@ export class DirectAccessService extends BaseService {
             resourceType,
             resourceUuid,
             principal: DirectAccessService.toAuditPrincipal(principal),
+            result,
+        });
+    }
+
+    /**
+     * Fail-closed feature check for callers that must validate before their
+     * own writes (content-as-code preflight): a file with an access block is
+     * rejected up front when sharing is disabled, instead of importing the
+     * content and then failing the policy step halfway.
+     */
+    async assertEnabled(account: RegisteredAccount): Promise<void> {
+        await this.directAccessFeatureGate.assertEnabled(account);
+    }
+
+    /**
+     * Atomically replace a resource's whole direct policy. Backs the
+     * content-as-code import: authorization and locking are identical to the
+     * single-assignment mutations, and any invalid principal aborts the
+     * transaction with the previous policy intact.
+     */
+    async replacePolicy(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        resourceType: DirectAccessResourceType,
+        resourceUuid: UUID,
+        assignments: {
+            principal: DirectAccessPrincipalRef;
+            role: SpaceMemberRole;
+        }[],
+    ): Promise<void> {
+        const { organizationUuid } = await this.authorizeManage(
+            account,
+            projectUuid,
+            resourceType,
+            resourceUuid,
+        );
+        const result = await this.directAccessModel.replacePolicy({
+            resourceType,
+            resourceUuid,
+            organizationUuid,
+            grantedByUserUuid: account.user.userUuid,
+            assignments,
+        });
+        auditDirectAccessReplace({
+            actor: createActorFromAccount(account),
+            context: {},
+            resourceType,
+            resourceUuid,
             result,
         });
     }

@@ -4290,6 +4290,55 @@
                 "required": ["verifiedAt", "verifiedBy"],
                 "type": "object"
             },
+            "SpaceMemberRole": {
+                "enum": ["viewer", "editor", "admin"],
+                "type": "string"
+            },
+            "ContentAsCodeDirectAccessUser": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "Primary email of a human organization member."
+                    }
+                },
+                "required": ["role", "email"],
+                "type": "object"
+            },
+            "ContentAsCodeDirectAccessGroup": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Exact, case-sensitive organization group name."
+                    }
+                },
+                "required": ["role", "name"],
+                "type": "object"
+            },
+            "ContentAsCodeDirectAccess": {
+                "properties": {
+                    "groups": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentAsCodeDirectAccessGroup"
+                        },
+                        "type": "array"
+                    },
+                    "users": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentAsCodeDirectAccessUser"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["groups", "users"],
+                "type": "object",
+                "description": "Portable direct user/group grants on a single resource. Mirrors the space\naccess block: principals are identified by organization email or group name,\nnever by internal identifiers. Inherited and effective roles are never part\nof this shape — it reflects stored direct policy only.\n\nOn upload: omission leaves the resource's existing direct policy unchanged;\na present block (including empty `users` and `groups`) atomically replaces\nthe whole policy."
+            },
             "ChartAsCode": {
                 "allOf": [
                     {
@@ -4297,6 +4346,10 @@
                     },
                     {
                         "properties": {
+                            "access": {
+                                "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                                "description": "Direct user/group grants on this chart. Only independently saved charts\ncarry one — dashboard-owned chart definitions are not grantable.\nOmission leaves the existing policy unchanged on upload."
+                            },
                             "verification": {
                                 "allOf": [
                                     {
@@ -4400,10 +4453,6 @@
             },
             "ContentAsCodeType.SPACE": {
                 "enum": ["space"],
-                "type": "string"
-            },
-            "SpaceMemberRole": {
-                "enum": ["viewer", "editor", "admin"],
                 "type": "string"
             },
             "SpaceAsCodeUserAccess": {
@@ -5285,6 +5334,10 @@
                     },
                     {
                         "properties": {
+                            "access": {
+                                "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                                "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
+                            },
                             "verification": {
                                 "allOf": [
                                     {
@@ -6071,6 +6124,10 @@
                     },
                     {
                         "properties": {
+                            "access": {
+                                "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                                "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
+                            },
                             "downloadedAt": {
                                 "type": "string",
                                 "format": "date-time"
@@ -9015,6 +9072,10 @@
                         "$ref": "#/components/schemas/ParametersValuesMap",
                         "description": "Parameter values for the chart query"
                     },
+                    "access": {
+                        "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                        "description": "Direct user/group grants on this chart. Only independently saved charts\ncarry one — dashboard-owned chart definitions are not grantable.\nOmission leaves the existing policy unchanged on upload."
+                    },
                     "verification": {
                         "allOf": [
                             {
@@ -9115,6 +9176,10 @@
                     },
                     "chartKind": {
                         "$ref": "#/components/schemas/ChartKind"
+                    },
+                    "access": {
+                        "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                        "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
                     },
                     "updatedAt": {
                         "type": "string",
@@ -9228,6 +9293,10 @@
                     },
                     "config": {
                         "$ref": "#/components/schemas/DashboardConfig"
+                    },
+                    "access": {
+                        "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                        "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
                     },
                     "verification": {
                         "allOf": [
@@ -19343,6 +19412,9 @@
                     },
                     "downloadedAt": {
                         "type": "string"
+                    },
+                    "access": {
+                        "$ref": "#/components/schemas/ContentAsCodeDirectAccess"
                     },
                     "spaceSlug": {
                         "type": "string"
