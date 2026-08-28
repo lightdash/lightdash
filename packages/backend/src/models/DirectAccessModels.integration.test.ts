@@ -1,4 +1,6 @@
 import {
+    DirectAccessPrincipalType,
+    DirectAccessResourceType,
     OrganizationMemberRole,
     ProjectMemberRole,
     SEED_ORG_1_ADMIN,
@@ -25,11 +27,13 @@ import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import { getTestContext } from '../vitest.setup.integration';
 import { DashboardAccessModel } from './DashboardAccessModel';
+import { DirectAccessModel } from './DirectAccessModel';
 
 describe('dashboard direct access model PostgreSQL integration', () => {
     let database: Knex;
     let transaction: Knex.Transaction;
     let model: DashboardAccessModel;
+    let store: DirectAccessModel;
     let dashboardUuid: string;
     let groupUuid: string;
     let userId: number;
@@ -37,6 +41,7 @@ describe('dashboard direct access model PostgreSQL integration', () => {
     let organizationUuid: string;
     let projectId: number;
     let projectUuid: string;
+    let spaceUuid: string;
 
     beforeAll(() => {
         database = getTestContext().db;
@@ -45,6 +50,7 @@ describe('dashboard direct access model PostgreSQL integration', () => {
     beforeEach(async () => {
         transaction = await database.transaction();
         model = new DashboardAccessModel(transaction);
+        store = new DirectAccessModel(transaction);
 
         const projectSpace = await transaction(SpaceTableName)
             .innerJoin(
@@ -63,6 +69,7 @@ describe('dashboard direct access model PostgreSQL integration', () => {
             )
             .select(
                 `${SpaceTableName}.space_id`,
+                `${SpaceTableName}.space_uuid`,
                 `${ProjectTableName}.project_id`,
                 `${ProjectTableName}.project_uuid`,
                 `${ProjectTableName}.organization_id`,
@@ -75,6 +82,7 @@ describe('dashboard direct access model PostgreSQL integration', () => {
         organizationId = projectSpace.organization_id;
         organizationUuid = projectSpace.organization_uuid;
         projectId = projectSpace.project_id;
+        spaceUuid = projectSpace.space_uuid;
         projectUuid = projectSpace.project_uuid;
 
         const user = await transaction(UserTableName)
@@ -174,6 +182,7 @@ describe('dashboard direct access model PostgreSQL integration', () => {
             [dashboardUuid]: {
                 organizationUuid,
                 projectUuid,
+                spaceUuid,
                 userRole: SpaceMemberRole.VIEWER,
                 groupRoles: [SpaceMemberRole.ADMIN],
             },
@@ -316,9 +325,13 @@ describe('dashboard direct access model PostgreSQL integration', () => {
         ).resolves.toEqual({});
 
         await expect(
-            model.upsertUserAccess({
+            store.upsertAccess({
+                resourceType: DirectAccessResourceType.DASHBOARD,
                 resourceUuid: dashboardUuid,
-                userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: SEED_ORG_1_ADMIN.user_uuid,
+                },
                 role: SpaceMemberRole.EDITOR,
                 organizationUuid: wrongOrganizationUuid,
                 grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
@@ -328,15 +341,20 @@ describe('dashboard direct access model PostgreSQL integration', () => {
             message: 'Direct access target not found',
         });
         await expect(
-            model.resetAccess({
+            store.resetAccess({
+                resourceType: DirectAccessResourceType.DASHBOARD,
                 resourceUuid: dashboardUuid,
                 organizationUuid: wrongOrganizationUuid,
             }),
         ).rejects.toMatchObject({ name: 'NotFoundError' });
         await expect(
-            model.revokeUserAccess({
+            store.revokeAccess({
+                resourceType: DirectAccessResourceType.DASHBOARD,
                 resourceUuid: randomUUID(),
-                userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: SEED_ORG_1_ADMIN.user_uuid,
+                },
                 organizationUuid,
             }),
         ).rejects.toMatchObject({ name: 'NotFoundError' });
@@ -351,9 +369,13 @@ describe('dashboard direct access model PostgreSQL integration', () => {
         });
 
         await expect(
-            model.upsertUserAccess({
+            store.upsertAccess({
+                resourceType: DirectAccessResourceType.DASHBOARD,
                 resourceUuid: dashboardUuid,
-                userUuid: principal.userUuid,
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: principal.userUuid,
+                },
                 role: SpaceMemberRole.ADMIN,
                 organizationUuid,
                 grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
@@ -372,9 +394,13 @@ describe('dashboard direct access model PostgreSQL integration', () => {
         expect(rows[0].space_role).toBe(SpaceMemberRole.ADMIN);
 
         await expect(
-            model.upsertGroupAccess({
+            store.upsertAccess({
+                resourceType: DirectAccessResourceType.DASHBOARD,
                 resourceUuid: dashboardUuid,
-                groupUuid,
+                principal: {
+                    type: DirectAccessPrincipalType.GROUP,
+                    uuid: groupUuid,
+                },
                 role: SpaceMemberRole.EDITOR,
                 organizationUuid,
                 grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
@@ -385,7 +411,8 @@ describe('dashboard direct access model PostgreSQL integration', () => {
         });
 
         await expect(
-            model.resetAccess({
+            store.resetAccess({
+                resourceType: DirectAccessResourceType.DASHBOARD,
                 resourceUuid: dashboardUuid,
                 organizationUuid,
             }),
@@ -399,9 +426,13 @@ describe('dashboard direct access model PostgreSQL integration', () => {
 
     it('rejects grants to principals without current project access', async () => {
         await expect(
-            model.upsertUserAccess({
+            store.upsertAccess({
+                resourceType: DirectAccessResourceType.DASHBOARD,
                 resourceUuid: dashboardUuid,
-                userUuid: randomUUID(),
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: randomUUID(),
+                },
                 role: SpaceMemberRole.VIEWER,
                 organizationUuid,
                 grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
@@ -420,9 +451,13 @@ describe('dashboard direct access model PostgreSQL integration', () => {
             })
             .returning('group_uuid');
         await expect(
-            model.upsertGroupAccess({
+            store.upsertAccess({
+                resourceType: DirectAccessResourceType.DASHBOARD,
                 resourceUuid: dashboardUuid,
-                groupUuid: foreignGroup.group_uuid,
+                principal: {
+                    type: DirectAccessPrincipalType.GROUP,
+                    uuid: foreignGroup.group_uuid,
+                },
                 role: SpaceMemberRole.VIEWER,
                 organizationUuid,
                 grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
@@ -435,24 +470,36 @@ describe('dashboard direct access model PostgreSQL integration', () => {
 
     it('makes revokes of missing grants idempotent', async () => {
         await expect(
-            model.revokeUserAccess({
+            store.revokeAccess({
+                resourceType: DirectAccessResourceType.DASHBOARD,
                 resourceUuid: dashboardUuid,
-                userUuid: randomUUID(),
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: randomUUID(),
+                },
                 organizationUuid,
             }),
         ).resolves.toMatchObject({ beforeRole: null, afterRole: null });
         await expect(
-            model.revokeGroupAccess({
+            store.revokeAccess({
+                resourceType: DirectAccessResourceType.DASHBOARD,
                 resourceUuid: dashboardUuid,
-                groupUuid: randomUUID(),
+                principal: {
+                    type: DirectAccessPrincipalType.GROUP,
+                    uuid: randomUUID(),
+                },
                 organizationUuid,
             }),
         ).resolves.toMatchObject({ beforeRole: null, afterRole: null });
 
         await expect(
-            model.revokeUserAccess({
+            store.revokeAccess({
+                resourceType: DirectAccessResourceType.DASHBOARD,
                 resourceUuid: dashboardUuid,
-                userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: SEED_ORG_1_ADMIN.user_uuid,
+                },
                 organizationUuid,
             }),
         ).resolves.toMatchObject({
@@ -460,9 +507,13 @@ describe('dashboard direct access model PostgreSQL integration', () => {
             afterRole: null,
         });
         await expect(
-            model.revokeGroupAccess({
+            store.revokeAccess({
+                resourceType: DirectAccessResourceType.DASHBOARD,
                 resourceUuid: dashboardUuid,
-                groupUuid,
+                principal: {
+                    type: DirectAccessPrincipalType.GROUP,
+                    uuid: groupUuid,
+                },
                 organizationUuid,
             }),
         ).resolves.toMatchObject({
@@ -483,9 +534,13 @@ describe('dashboard direct access model PostgreSQL integration', () => {
             user_id: grantor.userId,
             role: ProjectMemberRole.ADMIN,
         });
-        await model.upsertUserAccess({
+        await store.upsertAccess({
+            resourceType: DirectAccessResourceType.DASHBOARD,
             resourceUuid: dashboardUuid,
-            userUuid: SEED_ORG_1_ADMIN.user_uuid,
+            principal: {
+                type: DirectAccessPrincipalType.USER,
+                uuid: SEED_ORG_1_ADMIN.user_uuid,
+            },
             role: SpaceMemberRole.EDITOR,
             organizationUuid,
             grantedByUserUuid: grantor.userUuid,

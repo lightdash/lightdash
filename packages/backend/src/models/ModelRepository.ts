@@ -18,6 +18,7 @@ import { DashboardAccessModel } from './DashboardAccessModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import { DeploySessionModel } from './DeploySessionModel';
+import { DirectAccessModel } from './DirectAccessModel';
 import { DownloadAuditModel } from './DownloadAuditModel';
 import { DownloadFileModel } from './DownloadFileModel';
 import { EmailModel } from './EmailModel';
@@ -97,6 +98,7 @@ export type ModelManifest = {
     savedChartAccessModel: SavedChartAccessModel;
     savedSqlAccessModel: SavedSqlAccessModel;
     deploySessionModel: DeploySessionModel;
+    directAccessModel: DirectAccessModel;
     downloadFileModel: DownloadFileModel;
     downloadAuditModel: DownloadAuditModel;
     persistentDownloadFileModel: PersistentDownloadFileModel;
@@ -347,6 +349,13 @@ export class ModelRepository
         return this.getModel(
             'savedSqlAccessModel',
             () => new SavedSqlAccessModel(this.database),
+        );
+    }
+
+    public getDirectAccessModel(): DirectAccessModel {
+        return this.getModel(
+            'directAccessModel',
+            () => new DirectAccessModel(this.database),
         );
     }
 
