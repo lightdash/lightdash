@@ -45,6 +45,19 @@ const addAccessCondition = (context: ScopeContext, role?: SpaceMemberRole) => ({
 const addDefaultUuidCondition = flow(addUuidCondition, Array.of);
 
 /**
+ * Deployment config caps token access: a listed scope can be switched off by
+ * config, but never switched on for a deployment that disabled tokens or
+ * excluded the role's tier. An absent organization role cannot be checked
+ * against the allowlist, so it denies rather than assuming allowed.
+ */
+const personalAccessTokenConditions = (context: ScopeContext) => {
+    const { pat } = context.permissionsConfig ?? {};
+    if (!pat?.enabled || !context.organizationRole) return null;
+    if (!pat.allowedOrgRoles.includes(context.organizationRole)) return null;
+    return addDefaultUuidCondition(context);
+};
+
+/**
  * True only inside a preview the current user created. Shared by the @self
  * preview scopes; returns false for org-level assignments (no project context).
  */
@@ -1034,7 +1047,7 @@ const scopes: Scope[] = [
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
         dependencies: [],
         level: 'organization',
-        getConditions: addDefaultUuidCondition,
+        getConditions: personalAccessTokenConditions,
     },
     {
         name: 'impersonate:User',
