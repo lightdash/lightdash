@@ -10,6 +10,7 @@ import {
     type DataAppVizOptionValues,
     type DataAppVizSchema,
     type PivotValuesColumn,
+    type ResultColumn,
     type ResultColumns,
     type ResultRow,
 } from '@lightdash/common';
@@ -59,23 +60,37 @@ type SampleFields = {
     metrics: DataAppVizField[];
 };
 
+const sampleResultColumn = (
+    field: DataAppVizField,
+    type: DimensionType,
+): ResultColumn => ({
+    reference: sampleColumnId(field),
+    type,
+    label: field.label,
+});
+
 /** Column metadata for the unpivoted sample shape, which pivoted previews carry
  *  as `pivotDetails.originalColumns`. */
 const buildOriginalColumns = ({
     dimensions,
     series,
     metrics,
-}: SampleFields): ResultColumns =>
-    Object.fromEntries(
-        [
-            ...dimensions.map((field) => [field, DimensionType.DATE] as const),
-            ...series.map((field) => [field, DimensionType.STRING] as const),
-            ...metrics.map((field) => [field, DimensionType.NUMBER] as const),
-        ].map(([field, type]) => [
-            sampleColumnId(field),
-            { reference: sampleColumnId(field), type, label: field.label },
-        ]),
+}: SampleFields): ResultColumns => {
+    const columns: ResultColumn[] = [
+        ...dimensions.map((field) =>
+            sampleResultColumn(field, DimensionType.DATE),
+        ),
+        ...series.map((field) =>
+            sampleResultColumn(field, DimensionType.STRING),
+        ),
+        ...metrics.map((field) =>
+            sampleResultColumn(field, DimensionType.NUMBER),
+        ),
+    ];
+    return Object.fromEntries(
+        columns.map((column) => [column.reference, column]),
     );
+};
 
 /** One row per category, crossed with the series split. */
 const buildFlatSample = ({

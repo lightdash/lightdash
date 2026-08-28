@@ -109,14 +109,17 @@ describe('buildSampleVizContext', () => {
         });
 
         it('indexes rows on the dimension and keys metrics by pivot column', () => {
-            const context = buildSampleVizContext(schema);
-            const pivotColumnNames = context.pivotDetails!.valuesColumns.map(
+            const { rows, pivotDetails } = buildSampleVizContext(schema);
+
+            expect(pivotDetails).not.toBeNull();
+            if (!pivotDetails) return;
+            const pivotColumnNames = pivotDetails.valuesColumns.map(
                 ({ pivotColumnName }) => pivotColumnName,
             );
 
             // One row per category, not one per category × series value.
-            expect(context.rows.length).toBe(6);
-            for (const row of context.rows) {
+            expect(rows.length).toBe(6);
+            for (const row of rows) {
                 expect(Object.keys(row).sort()).toEqual(
                     ['sample_category', ...pivotColumnNames].sort(),
                 );
