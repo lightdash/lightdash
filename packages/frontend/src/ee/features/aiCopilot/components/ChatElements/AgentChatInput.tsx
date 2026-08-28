@@ -209,11 +209,7 @@ export const AgentChatInput = ({
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const app = useApp();
-    // Resolved on first render so the toolbar never renders the desktop layout
-    // on a phone before settling.
-    const isMobile = useMediaQuery('(max-width: 768px)', undefined, {
-        getInitialValueInEffect: false,
-    });
+    const isMobile = useMediaQuery('(max-width: 768px)');
     const [value, setValueState] = useState(defaultValue ?? '');
     const [externalSourceAttachments, setExternalSourceAttachments] = useState<
         ExternalSourceAttachment[]
