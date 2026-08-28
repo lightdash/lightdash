@@ -11,7 +11,10 @@ import {
     type TableCalculation,
 } from '../types/field';
 import { TimeFrames } from '../types/timeFrames';
-import { getResultColumnMetadataFromItem } from './resultColumns';
+import {
+    getResultColumnMetadataFromItem,
+    getResultColumnSourceItem,
+} from './resultColumns';
 
 const dimension: Dimension = {
     fieldType: FieldType.DIMENSION,
@@ -43,6 +46,32 @@ const tableCalculation: TableCalculation = {
     sql: '${orders.revenue} * 2',
 };
 
+describe('getResultColumnSourceItem', () => {
+    test('resolves the item stored under the field id', () => {
+        const itemsMap = { orders_status: dimension };
+        expect(getResultColumnSourceItem(itemsMap, 'orders_status')).toBe(
+            dimension,
+        );
+    });
+
+    test('returns undefined without an items map or a matching entry', () => {
+        expect(
+            getResultColumnSourceItem(undefined, 'orders_status'),
+        ).toBeUndefined();
+        expect(getResultColumnSourceItem({}, 'orders_status')).toBeUndefined();
+    });
+
+    test('throws when an entry is keyed by anything but its field id', () => {
+        // A producer keying by raw column name instead of getItemId (for
+        // example a field whose name contains dots) must fail loudly instead
+        // of silently losing the field's metadata.
+        const itemsMap = { status: dimension };
+        expect(() => getResultColumnSourceItem(itemsMap, 'status')).toThrow(
+            'must be keyed by getItemId',
+        );
+    });
+});
+
 describe('getResultColumnMetadataFromItem', () => {
     test('returns only a label derived from the reference when there is no item', () => {
         expect(
@@ -50,20 +79,19 @@ describe('getResultColumnMetadataFromItem', () => {
         ).toEqual({ label: 'Payment method' });
     });
 
-    test('returns no metadata from an item whose field id differs from the column reference', () => {
-        // SqlQueryComposer keys virtual-view items `${table}_${column}` while
-        // raw SQL warehouse columns use unprefixed names. Even if a lookup
-        // matches, an item with a different field id must not contribute
-        // provenance, because its synthesized dimension is not a semantic
-        // field.
+    test('throws when the item field id differs from the column reference', () => {
+        // Items maps are keyed by getItemId, so a resolved item whose own
+        // field id differs from the column reference means the producer keyed
+        // its map some other way. Silently skipping the item would drop a
+        // real field's metadata with no error.
         const virtualViewDimension: Dimension = {
             ...dimension,
             name: 'status',
             table: 'sql_query_explorer',
         };
-        expect(
+        expect(() =>
             getResultColumnMetadataFromItem(virtualViewDimension, 'status'),
-        ).toEqual({ label: 'Status' });
+        ).toThrow('must be keyed by getItemId');
     });
 
     test('null format keys on an item do not produce a format expression', () => {
