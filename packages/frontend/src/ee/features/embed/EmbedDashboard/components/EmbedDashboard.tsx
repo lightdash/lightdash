@@ -14,7 +14,7 @@ import { Box, Button, Group, Tabs, TextInput } from '@mantine/core';
 import { IconCheck, IconPencil, IconUnlink, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
@@ -39,8 +39,10 @@ import {
     useUpdateDashboard,
 } from '../../../../../hooks/dashboard/useDashboard';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../../../../providers/Dashboard/useDashboardTileStatusContext';
 import { type EmbedExploreOptions } from '../../../../providers/Embed/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
+import { useEmbedDashboardTabChange } from '../../hooks/useEmbedDashboardTabChange';
 import { embedContractClass } from '../../styles/embedClassContract';
 import { useEmbedDashboard } from '../hooks';
 import { canUseEmbeddedChartBuilder } from '../utils';
@@ -59,6 +61,30 @@ const EMBED_EDIT_TILE_TYPES = [
     DashboardTileTypes.MARKDOWN,
     DashboardTileTypes.HEADING,
 ];
+
+const EmbedTileLoadTracker: FC<{
+    tile: DashboardTile;
+    hasUnmetFilterRequirements: boolean;
+}> = ({ tile, hasUnmetFilterRequirements }) => {
+    const markEmbedTileComplete = useDashboardTileStatusContext(
+        (c) => c.markEmbedTileComplete,
+    );
+    const hasQueryBlocked =
+        (tile.type === DashboardTileTypes.SAVED_CHART ||
+            tile.type === DashboardTileTypes.SQL_CHART) &&
+        hasUnmetFilterRequirements;
+    const tracksItsOwnLoad =
+        !hasQueryBlocked &&
+        (tile.type === DashboardTileTypes.SAVED_CHART ||
+            tile.type === DashboardTileTypes.SQL_CHART ||
+            tile.type === DashboardTileTypes.DATA_APP);
+
+    useEffect(() => {
+        if (!tracksItsOwnLoad) markEmbedTileComplete(tile.uuid);
+    }, [markEmbedTileComplete, tile.uuid, tracksItsOwnLoad]);
+
+    return null;
+};
 
 const EmbedDashboardGrid: FC<{
     filteredTiles: DashboardTile[];
@@ -112,6 +138,13 @@ const EmbedDashboardGrid: FC<{
             </div>
         ) : (
             <div className={tabStyles.tabGridContainer}>
+                {filteredTiles.map((tile) => (
+                    <EmbedTileLoadTracker
+                        key={tile.uuid}
+                        tile={tile}
+                        hasUnmetFilterRequirements={hasUnmetFilterRequirements}
+                    />
+                ))}
                 <ResponsiveGridLayout
                     {...gridProps}
                     layouts={layouts}
@@ -302,7 +335,6 @@ const EmbedDashboard: FC<{
         paletteUuid,
         writeActions,
     } = useEmbed();
-    const navigate = useNavigate();
     const { pathname, search } = useLocation();
     const [localDashboard, setLocalDashboard] = useState<
         EmbedDashboardType | undefined
@@ -335,7 +367,6 @@ const EmbedDashboard: FC<{
         paletteUuid,
         !initialDashboard,
     );
-
     useEffect(() => {
         if (initialDashboard) {
             setLocalDashboard(initialDashboard);
@@ -467,6 +498,17 @@ const EmbedDashboard: FC<{
 
     // Check if tabs should be enabled (more than one visible tab)
     const tabsEnabled = visibleTabs.length > 1;
+
+    // Sync tabs with the URL for direct iframes and emit user-triggered changes
+    // for both direct iframe and SDK embeds.
+    const handleTabChange = useEmbedDashboardTabChange({
+        activeTab,
+        mode,
+        pathname,
+        search,
+        setActiveTab,
+        visibleTabs,
+    });
 
     const gridProps = getResponsiveGridLayoutProps({ enableAnimation: false });
     const layouts = useMemo(
@@ -712,35 +754,6 @@ const EmbedDashboard: FC<{
 
     // Check if current tab is empty
     const isTabEmpty = tabsEnabled && filteredTiles.length === 0;
-
-    // Sync tabs with URL when user changes tab for iframes.
-    // SDK mode does not sync URL when user changes tab because
-    // the SDK app uses the same URL as the embedding app.
-    const handleTabChange = (tabUuid: string | null) => {
-        if (!tabUuid) return;
-        const tab = visibleTabs.find((t) => t.uuid === tabUuid);
-        if (tab) {
-            setActiveTab(tab);
-
-            if (mode === 'direct') {
-                const newParams = new URLSearchParams(search);
-                const currentPath = pathname;
-
-                // Update URL to include tab UUID
-                const newPath = currentPath.includes('/tabs/')
-                    ? currentPath.replace(/\/tabs\/[^/]+$/, `/tabs/${tab.uuid}`)
-                    : `${currentPath}/tabs/${tab.uuid}`;
-
-                void navigate(
-                    {
-                        pathname: newPath,
-                        search: newParams.toString(),
-                    },
-                    { replace: true },
-                );
-            }
-        }
-    };
 
     const renderEditControls = () => {
         if (!canWriteDashboard) return null;
