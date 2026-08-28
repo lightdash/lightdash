@@ -1,3 +1,10 @@
+## [2.55.1](https://github.com/lightdash/lightdash/compare/2.55.0...2.55.1) (2026-08-28)
+
+
+### Bug Fixes
+
+* **dashboards:** reconcile shared filter override ids ([#28295](https://github.com/lightdash/lightdash/issues/28295)) ([5eb7f25](https://github.com/lightdash/lightdash/commit/5eb7f25537a524ec71b54d97f2890ee667f99659))
+
 # [2.55.0](https://github.com/lightdash/lightdash/compare/2.54.0...2.55.0) (2026-08-28)
 
 
