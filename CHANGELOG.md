@@ -1,3 +1,12 @@
+# [2.45.0](https://github.com/lightdash/lightdash/compare/2.44.0...2.45.0) (2026-08-28)
+
+
+### Features
+
+* **frontend:** resolve embedded filter chrome strings through uiOverrides ([#28017](https://github.com/lightdash/lightdash/issues/28017)) ([5560d16](https://github.com/lightdash/lightdash/commit/5560d16865be168dfdcfa36f9cb4bc4d724c11fe)), closes [#28010](https://github.com/lightdash/lightdash/issues/28010) [#28012](https://github.com/lightdash/lightdash/issues/28012) [#28016](https://github.com/lightdash/lightdash/issues/28016) [#27613](https://github.com/lightdash/lightdash/issues/27613)
+* **frontend:** resolve filter operator and unit-of-time strings through uiOverrides ([#28016](https://github.com/lightdash/lightdash/issues/28016)) ([430a68d](https://github.com/lightdash/lightdash/commit/430a68d072e50481a92d8e03060ef3ac39a9b194)), closes [#28010](https://github.com/lightdash/lightdash/issues/28010) [#28012](https://github.com/lightdash/lightdash/issues/28012) [#20464](https://github.com/lightdash/lightdash/issues/20464)
+* **maps:** add tile usage and fallback analytics events ([#28175](https://github.com/lightdash/lightdash/issues/28175)) ([9b49fca](https://github.com/lightdash/lightdash/commit/9b49fca3bae9b04b8b9e567e405c1bedcaa8cf7b))
+
 # [2.44.0](https://github.com/lightdash/lightdash/compare/2.43.0...2.44.0) (2026-08-28)
 
 
