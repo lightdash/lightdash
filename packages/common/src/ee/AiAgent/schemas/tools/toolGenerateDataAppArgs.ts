@@ -3,23 +3,29 @@ import {
     APP_VERSION_CANCELLED_BY_USER,
     isAppVersionInProgress,
     type AppVersionStatus,
+    type DataAppTemplate,
 } from '../../../apps/types';
 
 /** Builds run minutes, not seconds: a pending result older than this is stale. */
 export const AI_DATA_APP_BUILD_PENDING_GRACE_MS = 30 * 60 * 1000;
 
+/** Builder starter templates the AI agent may pick; the viz renderer template is internal. */
 export const DATA_APP_BUILD_TEMPLATES = [
     'dashboard',
     'slideshow',
     'pdf',
     'custom',
-] as const;
+] as const satisfies readonly DataAppTemplate[];
 export type DataAppBuildTemplate = (typeof DATA_APP_BUILD_TEMPLATES)[number];
 
+/** How a prior visualization's query travels in the brief; shared with the system prompt. */
+export const DATA_APP_VIZ_LINE_FORMAT =
+    '[viz title][explore; metrics; dimensions; filters; sort]';
+
 export const TOOL_GENERATE_DATA_APP_DESCRIPTION = [
-    "Start building a data app — an interactive application generated from a prompt on top of this project's semantic layer.",
-    'Use it ONLY when the user asks to build, make, or generate a data app (or an app, slide show, or PDF report). Do NOT use it for questions, charts, dashboards, or other saved content.',
-    'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending"). Tell the user the build has started and that you will be able to link them to the app afterwards, then end your turn. Never wait, poll, or call this tool again for the same request: one request, one call.',
+    "Start building a data app — an interactive application generated from a brief on top of this project's semantic layer.",
+    'Use it when the user asks to build, make, or generate a data app (or an app, slide show, or PDF report); questions, charts, dashboards, and other saved content have their own tools.',
+    'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending"). One request, one call: tell the user the build has started and that you will link them to the app afterwards, then end your turn — never wait, poll, or call this tool again for the same request.',
     'A later turn sees the outcome on this call\'s result: "success" carries the app name and the builder link (href) to share; "error" carries the failure message.',
 ].join(' ');
 
@@ -27,25 +33,28 @@ export const toolGenerateDataAppArgsSchema = z.object({
     prompt: z
         .string()
         .describe(
-            'A self-contained brief for the coding agent that builds the app: what the app shows, for whom, and how it should behave. Fold in what this thread found — for each visualization the app should include, add a line like `[viz name][metric query]` with the explore, metrics, dimensions, filters and sort. The coding agent sees the semantic layer but not this conversation, so include every detail it needs.',
+            `A self-contained brief for the coding agent that builds the app: what the app shows, for whom, and how it behaves. Carry this thread's analysis in as a collection of visualizations — for each one, its title, a one-line description, and a metric query line \`${DATA_APP_VIZ_LINE_FORMAT}\`. The coding agent sees the semantic layer but not this conversation, so include every detail it needs.`,
         ),
     template: z
         .enum(DATA_APP_BUILD_TEMPLATES)
-        .nullable()
+        .nullish()
+        .default(null)
         .describe(
-            'Starting template: "dashboard" for a dashboard-style app, "slideshow" for a slide show, "pdf" for a PDF report, "custom" (or null) for anything else.',
+            'Starter template the builder would use: "dashboard" for a dashboard-style app, "slideshow" for a slide show, "pdf" for a PDF report, "custom" for anything else. Omit when the user did not ask for one.',
         ),
     dashboardSlug: z
         .string()
-        .nullable()
+        .nullish()
+        .default(null)
         .describe(
-            "Generate from an existing dashboard: its slug (from findContent). The app starts from the dashboard's layout and charts. Null when not generating from a dashboard.",
+            "Generate from an existing dashboard: its slug (from findContent). The app starts from the dashboard's layout and charts; the dashboard itself stays unchanged. Omit when not generating from a dashboard.",
         ),
     chartSlugs: z
         .array(z.string())
-        .nullable()
+        .nullish()
+        .default(null)
         .describe(
-            'Saved charts (slugs from findContent) whose queries the app should be built on. Null when not building on saved charts.',
+            'Saved charts (slugs from findContent) whose queries the app is built on; the charts themselves stay unchanged. Omit when not building on saved charts.',
         ),
 });
 

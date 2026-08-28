@@ -1,4 +1,17 @@
+import { NotFoundError } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { getGenerateDataApp } from './generateDataApp';
+
+vi.mock('@sentry/node', () => ({
+    captureException: vi.fn(),
+}));
+
+vi.mock('../../../../logging/logger', () => ({
+    __esModule: true,
+    default: { error: vi.fn(), info: vi.fn(), debug: vi.fn() },
+}));
+
+const captureException = Sentry.captureException as import('vitest').Mock;
 
 type GenerateDataAppTool = ReturnType<typeof getGenerateDataApp>;
 type GenerateDataAppOutput = {
@@ -23,6 +36,10 @@ const executeGenerateDataApp = (tool: GenerateDataAppTool) =>
     ) as Promise<GenerateDataAppOutput>;
 
 describe('getGenerateDataApp', () => {
+    beforeEach(() => {
+        captureException.mockClear();
+    });
+
     it('forwards the args and the tool call id, returning a pending result', async () => {
         const generateDataApp = vi
             .fn()
@@ -61,5 +78,26 @@ describe('getGenerateDataApp', () => {
             reason: 'failed',
             message: 'Data apps are not enabled',
         });
+    });
+
+    it('reports an unknown slug as an error naming it, without paging Sentry', async () => {
+        const generateDataApp = vi
+            .fn()
+            .mockRejectedValue(
+                new NotFoundError('Chart "no-such-chart" was not found'),
+            );
+
+        const output = await executeGenerateDataApp(
+            getGenerateDataApp({ generateDataApp }),
+        );
+
+        expect(output.metadata).toEqual({
+            status: 'error',
+            appUuid: null,
+            reason: 'failed',
+            message: 'Chart "no-such-chart" was not found',
+        });
+        expect(output.result).toContain('No app was created');
+        expect(captureException).not.toHaveBeenCalled();
     });
 });
