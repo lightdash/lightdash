@@ -46,7 +46,7 @@ type StaticActionDefinition = {
 };
 
 const STATIC_ACTIONS: Record<
-    Exclude<HomepageQuickAction['type'], 'dashboard'>,
+    Exclude<HomepageQuickAction['type'], 'dashboard' | 'space'>,
     StaticActionDefinition
 > = {
     'ask-ai': {
@@ -75,10 +75,16 @@ const STATIC_ACTIONS: Record<
     },
 };
 
-const actionKey = (action: HomepageQuickAction): string =>
-    action.type === 'dashboard'
-        ? `dashboard-${action.dashboardUuid}`
-        : action.type;
+const actionKey = (action: HomepageQuickAction): string => {
+    switch (action.type) {
+        case 'dashboard':
+            return `dashboard-${action.dashboardUuid}`;
+        case 'space':
+            return `space-${action.spaceUuid}`;
+        default:
+            return action.type;
+    }
+};
 
 const actionPresentation = (
     action: HomepageQuickAction,
@@ -91,6 +97,14 @@ const actionPresentation = (
             title: action.label,
             description: 'Open this dashboard.',
             url: `/projects/${projectUrlIdentifier}/dashboards/${action.dashboardUuid}/view`,
+        };
+    }
+    if (action.type === 'space') {
+        return {
+            icon: IconFolder,
+            title: action.label,
+            description: 'Open this space.',
+            url: `/projects/${projectUrlIdentifier}/spaces/${action.spaceUuid}`,
         };
     }
     const { url, ...definition } = STATIC_ACTIONS[action.type];
@@ -154,18 +168,38 @@ export const QuickActionCards: FC<{
     );
 };
 
-const DashboardPickerModal: FC<{
-    opened: boolean;
+type PickableContentType = ContentType.DASHBOARD | ContentType.SPACE;
+
+const PICKER_COPY: Record<
+    PickableContentType,
+    { title: string; placeholder: string; icon: Icon }
+> = {
+    [ContentType.DASHBOARD]: {
+        title: 'Pick a dashboard',
+        placeholder: 'Search dashboards…',
+        icon: IconLayoutDashboard,
+    },
+    [ContentType.SPACE]: {
+        title: 'Pick a space',
+        placeholder: 'Search spaces…',
+        icon: IconFolder,
+    },
+};
+
+const ContentPickerModal: FC<{
+    contentType: PickableContentType | null;
     onClose: () => void;
     projectUuid: string;
-    onPick: (dashboardUuid: string, label: string) => void;
-}> = ({ opened, onClose, projectUuid, onPick }) => {
+    onPick: (uuid: string, label: string) => void;
+}> = ({ contentType, onClose, projectUuid, onPick }) => {
+    const opened = contentType !== null;
+    const copy = PICKER_COPY[contentType ?? ContentType.DASHBOARD];
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const { data, isFetching } = useInfiniteContent(
         {
             projectUuids: [projectUuid],
-            contentTypes: [ContentType.DASHBOARD],
+            contentTypes: [contentType ?? ContentType.DASHBOARD],
             search: debouncedSearch.length > 0 ? debouncedSearch : undefined,
             pageSize: 25,
         },
@@ -176,12 +210,12 @@ const DashboardPickerModal: FC<{
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Pick a dashboard"
+            title={copy.title}
             size="lg"
         >
             <Stack gap="sm">
                 <TextInput
-                    placeholder="Search dashboards…"
+                    placeholder={copy.placeholder}
                     value={search}
                     onChange={(e) => setSearch(e.currentTarget.value)}
                     rightSection={isFetching ? <Loader size="xs" /> : null}
@@ -196,10 +230,7 @@ const DashboardPickerModal: FC<{
                             className={classes.pickerRow}
                             onClick={() => onPick(content.uuid, content.name)}
                         >
-                            <MantineIcon
-                                icon={IconLayoutDashboard}
-                                color="ldGray.6"
-                            />
+                            <MantineIcon icon={copy.icon} color="ldGray.6" />
                             <Text size="sm" fw={500} flex={1} truncate>
                                 {content.name}
                             </Text>
@@ -235,7 +266,8 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
     onChange,
 }) => {
     const { canAskAi } = useHomepageAiState(projectUuid);
-    const [isDashboardPickerOpen, setIsDashboardPickerOpen] = useState(false);
+    const [pickerContentType, setPickerContentType] =
+        useState<PickableContentType | null>(null);
     if (block.type !== 'quick-actions') return null;
 
     const setActions = (actions: HomepageQuickAction[]) =>
@@ -397,9 +429,19 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                             leftSection={
                                 <MantineIcon icon={IconLayoutDashboard} />
                             }
-                            onClick={() => setIsDashboardPickerOpen(true)}
+                            onClick={() =>
+                                setPickerContentType(ContentType.DASHBOARD)
+                            }
                         >
                             A specific dashboard…
+                        </Menu.Item>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconFolder} />}
+                            onClick={() =>
+                                setPickerContentType(ContentType.SPACE)
+                            }
+                        >
+                            A specific space…
                         </Menu.Item>
                     </Menu.Dropdown>
                 </Menu>
@@ -410,23 +452,22 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                     </Text>
                 </Box>
             </Group>
-            <DashboardPickerModal
-                opened={isDashboardPickerOpen}
-                onClose={() => setIsDashboardPickerOpen(false)}
+            <ContentPickerModal
+                contentType={pickerContentType}
+                onClose={() => setPickerContentType(null)}
                 projectUuid={projectUuid}
-                onPick={(dashboardUuid, label) => {
+                onPick={(uuid, label) => {
+                    const picked: HomepageQuickAction =
+                        pickerContentType === ContentType.SPACE
+                            ? { type: 'space', spaceUuid: uuid, label }
+                            : { type: 'dashboard', dashboardUuid: uuid, label };
                     const alreadyAdded = block.config.actions.some(
-                        (action) =>
-                            action.type === 'dashboard' &&
-                            action.dashboardUuid === dashboardUuid,
+                        (action) => actionKey(action) === actionKey(picked),
                     );
                     if (!alreadyAdded) {
-                        setActions([
-                            ...block.config.actions,
-                            { type: 'dashboard', dashboardUuid, label },
-                        ]);
+                        setActions([...block.config.actions, picked]);
                     }
-                    setIsDashboardPickerOpen(false);
+                    setPickerContentType(null);
                 }}
             />
         </Stack>

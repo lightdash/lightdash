@@ -38,6 +38,11 @@ const validConfig: HomepageConfig = {
                                 dashboardUuid: 'd2',
                                 label: 'KPIs',
                             },
+                            {
+                                type: 'space',
+                                spaceUuid: 's1',
+                                label: 'Finance',
+                            },
                         ],
                     },
                 },
@@ -116,6 +121,23 @@ describe('parseHomepageConfig', () => {
                                 target: {
                                     type: 'link' as const,
                                     url: 'https://example.com/survey',
+                                },
+                            },
+                        },
+                    ],
+                },
+                {
+                    id: 'row-2',
+                    blocks: [
+                        {
+                            id: 'b3',
+                            type: 'cta' as const,
+                            config: {
+                                buttonLabel: 'Finance space',
+                                target: {
+                                    type: 'space' as const,
+                                    spaceUuid: 's1',
+                                    label: 'Finance',
                                 },
                             },
                         },

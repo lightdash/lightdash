@@ -25,6 +25,7 @@ import { useOrganizationBrand } from '../../../../hooks/organization/useOrganiza
 import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
+import { resolveInternalPath } from '../../../../utils/url';
 import { useHomepageAiState } from '../hooks/useHomepageAiState';
 import { useReportRuntimeEmpty } from '../hooks/useRuntimeEmptyBlocks';
 import classes from './blockStyles.module.css';
@@ -48,6 +49,8 @@ const targetUrl = (
             return `/projects/${projectUrlIdentifier}/spaces`;
         case 'dashboard':
             return `/projects/${projectUrlIdentifier}/dashboards/${target.dashboardUuid}/view`;
+        case 'space':
+            return `/projects/${projectUrlIdentifier}/spaces/${target.spaceUuid}`;
         case 'link':
             return target.url;
         default:
@@ -175,7 +178,9 @@ const CtaBanner: FC<{
         return <div {...shared}>{body}</div>;
     }
     const url = targetUrl(config.target, projectUuid, projectUrlIdentifier);
-    return config.target.type === 'link' ? (
+    const internalPath =
+        config.target.type === 'link' ? resolveInternalPath(url) : url;
+    return internalPath === null ? (
         <a
             href={url}
             target="_blank"
@@ -186,7 +191,7 @@ const CtaBanner: FC<{
             {body}
         </a>
     ) : (
-        <Link to={url} onClick={onNavigate} {...shared}>
+        <Link to={internalPath} onClick={onNavigate} {...shared}>
             {body}
         </Link>
     );
@@ -303,10 +308,12 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
     const config = block.config;
     const patch = (partial: Partial<CtaConfig>) =>
         onChange({ ...block, config: { ...config, ...partial } });
-    // A stored dashboard target (config-as-code) keeps rendering; the picker
-    // covers the built-in destinations plus a free URL.
+    // A stored dashboard or space target (config-as-code) keeps rendering; the
+    // picker covers the built-in destinations plus a free URL.
     const targetChoice: TargetChoice =
-        config.target.type === 'dashboard' ? 'link' : config.target.type;
+        config.target.type === 'dashboard' || config.target.type === 'space'
+            ? 'link'
+            : config.target.type;
     return (
         <Stack gap="sm">
             <CtaBanner

@@ -105,6 +105,11 @@ const quickActionSchema = z
             dashboardUuid: z.string(),
             label: z.string(),
         }),
+        z.object({
+            type: z.literal('space'),
+            spaceUuid: z.string(),
+            label: z.string(),
+        }),
     ])
     .and(z.object({ primary: z.boolean().optional() }));
 
@@ -122,6 +127,11 @@ const ctaTargetSchema = z.discriminatedUnion('type', [
     z.object({
         type: z.literal('dashboard'),
         dashboardUuid: z.string(),
+        label: z.string(),
+    }),
+    z.object({
+        type: z.literal('space'),
+        spaceUuid: z.string(),
         label: z.string(),
     }),
     z.object({ type: z.literal('link'), url: z.string() }),
