@@ -9,6 +9,8 @@ import {
     type EmbedDashboard as EmbedDashboardType,
     type LanguageMap,
     type SavedChart,
+    type SdkUiOverrides,
+    type UiStringKey,
 } from '@lightdash/common';
 import { ModalsProvider } from '@mantine/modals';
 import {
@@ -68,6 +70,7 @@ type BaseProps = {
     };
     filters?: SdkFilter[];
     contentOverrides?: LanguageMap;
+    uiOverrides?: SdkUiOverrides;
     onExplore?: (options: { chart: SavedChart }) => void;
 };
 
@@ -88,7 +91,7 @@ type ChartProps = Omit<BaseProps, 'filters' | 'onExplore'> & {
 
 type AiAgentProps = Omit<
     BaseProps,
-    'contentOverrides' | 'filters' | 'onExplore'
+    'contentOverrides' | 'uiOverrides' | 'filters' | 'onExplore'
 > & {
     agentUuid: string;
     onThreadChange?: (options: { threadUuid: string }) => void;
@@ -97,7 +100,7 @@ type AiAgentProps = Omit<
 
 type MetricsCatalogProps = Omit<
     BaseProps,
-    'contentOverrides' | 'filters' | 'onExplore'
+    'contentOverrides' | 'uiOverrides' | 'filters' | 'onExplore'
 >;
 
 const decodeJWT = (token: string) => {
@@ -362,6 +365,7 @@ const Dashboard: FC<DashboardProps> = ({
     theme,
     filters,
     contentOverrides,
+    uiOverrides,
     onExplore,
     paletteUuid,
     isEditMode,
@@ -387,6 +391,7 @@ const Dashboard: FC<DashboardProps> = ({
                 filters={filters}
                 paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
+                uiOverrides={uiOverrides}
                 onExplore={handleExplore}
                 onBackToDashboard={handleBackToDashboard}
             >
@@ -524,6 +529,7 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
     theme,
     filters,
     contentOverrides,
+    uiOverrides,
     onExplore,
     paletteUuid,
     isEditMode,
@@ -550,6 +556,7 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
                 filters={filters}
                 paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
+                uiOverrides={uiOverrides}
                 onExplore={handleExplore}
                 onBackToDashboard={handleBackToDashboard}
             >
@@ -587,6 +594,7 @@ const Explore: FC<
     theme,
     filters,
     contentOverrides,
+    uiOverrides,
     onExplore,
     exploreId,
     savedChart,
@@ -637,6 +645,7 @@ const Explore: FC<
                 projectUuid={projectUuid}
                 filters={filters}
                 contentOverrides={contentOverrides}
+                uiOverrides={uiOverrides}
                 onExplore={getSavedChartExploreHandler(onExplore)}
             >
                 <EmbedExplore
@@ -715,6 +724,7 @@ const Chart: FC<ChartProps> = ({
     styles,
     theme,
     contentOverrides,
+    uiOverrides,
     id,
     isEditMode,
 }) => {
@@ -773,6 +783,7 @@ const Chart: FC<ChartProps> = ({
                 embedToken={token}
                 projectUuid={projectUuid}
                 contentOverrides={contentOverrides}
+                uiOverrides={uiOverrides}
                 savedQueryUuid={id}
             >
                 <ChartContent
@@ -930,6 +941,8 @@ export {
     useLightdashContent,
 };
 export type {
+    SdkUiOverrides,
+    UiStringKey,
     LightdashAiAgentThread,
     LightdashAiAgentThreadResults,
     LightdashApiClientConfig,

@@ -74,5 +74,11 @@
                 }
             ]
         }
+    },
+    "uiOverrides": {
+        "tileMenu.exploreFromHere": "გამოიკვლიეთ აქედან",
+        "tileMenu.downloadData": "მონაცემების ჩამოტვირთვა",
+        "tileMenu.exportImage": "სურათის ექსპორტი",
+        "tileMenu.viewUnderlyingData": "ძირითადი მონაცემების ნახვა"
     }
 }
