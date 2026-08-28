@@ -17,6 +17,7 @@ import {
     IconArrowLeft,
     IconArrowRight,
     IconFolder,
+    IconInfoCircle,
     IconLayoutDashboard,
     IconPlus,
     IconSparkles,
@@ -415,6 +416,19 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                         icon={STATIC_ACTIONS[type].icon}
                                     />
                                 }
+                                rightSection={
+                                    type === 'ask-ai' ? (
+                                        <Tooltip
+                                            label="Hidden automatically for viewers without AI access."
+                                            withinPortal
+                                        >
+                                            <MantineIcon
+                                                icon={IconInfoCircle}
+                                                color="ldGray.6"
+                                            />
+                                        </Tooltip>
+                                    ) : undefined
+                                }
                                 onClick={() =>
                                     setActions([
                                         ...block.config.actions,
@@ -445,12 +459,6 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                         </Menu.Item>
                     </Menu.Dropdown>
                 </Menu>
-                <Box>
-                    <Text size="xs" c="dimmed">
-                        Ask AI is hidden automatically for viewers without AI
-                        access.
-                    </Text>
-                </Box>
             </Group>
             <ContentPickerModal
                 contentType={pickerContentType}
