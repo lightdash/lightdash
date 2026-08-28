@@ -67,6 +67,7 @@ const dashboardAsCode = {
 
 const buildService = () =>
     new CoderService({
+        directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {

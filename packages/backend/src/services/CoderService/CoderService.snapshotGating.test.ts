@@ -51,6 +51,7 @@ const buildService = () => {
     const dashboardGet = vi.fn(async () => dashboardDao);
     const savedSqlFind = vi.fn(async () => []);
     const service = new CoderService({
+        directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {} as AnyType,
