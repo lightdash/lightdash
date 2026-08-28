@@ -86,6 +86,7 @@ export * from './ee';
 export * from './preAggregates';
 export * from './pivot/derivePivotConfigFromChart';
 export * from './pivot/deriveDataAppVizPivotConfig';
+export * from './pivot/pivotColumnName';
 export * from './pivot/pivotConfig';
 export * from './pivot/pivotQueryResults';
 export * from './pivot/utils';

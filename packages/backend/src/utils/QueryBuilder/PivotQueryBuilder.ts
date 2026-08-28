@@ -5,6 +5,7 @@ import {
     getAggregatedField,
     getItemId,
     getParsedReference,
+    getPivotValueColumnBaseName,
     hasPivotFunctions,
     isCustomBinDimension,
     isDimension,
@@ -546,7 +547,7 @@ export class PivotQueryBuilder {
         reference: string,
         aggregation: string,
     ): string {
-        return `${reference}_${aggregation}`;
+        return getPivotValueColumnBaseName(reference, aggregation);
     }
 
     /**
