@@ -110,6 +110,65 @@ describe('getPivotedColumns', () => {
         });
     });
 
+    test('value column types are derived from the aggregation and source item', () => {
+        const lastOrderAtMetric: Metric = {
+            ...revenueMetric,
+            type: MetricType.MAX,
+            name: 'last_order_at',
+            label: 'Last order at',
+            baseDimensionType: DimensionType.TIMESTAMP,
+        };
+        const isRepeatMetric: Metric = {
+            ...revenueMetric,
+            type: MetricType.BOOLEAN,
+            name: 'is_repeat',
+            label: 'Is repeat',
+        };
+        const typedItemsMap: ItemsMap = {
+            ...itemsMap,
+            orders_last_order_at: lastOrderAtMetric,
+            orders_is_repeat: isRepeatMetric,
+        };
+        const typedValueColumns: PivotValuesColumn[] = [
+            {
+                referenceField: 'orders_last_order_at',
+                pivotColumnName: 'orders_last_order_at_any_completed',
+                aggregation: VizAggregationOptions.ANY,
+                pivotValues: [],
+            },
+            {
+                referenceField: 'orders_is_repeat',
+                pivotColumnName: 'orders_is_repeat_any_completed',
+                aggregation: VizAggregationOptions.ANY,
+                pivotValues: [],
+            },
+            {
+                // Numeric aggregations always produce NUMBER.
+                referenceField: 'orders_last_order_at',
+                pivotColumnName: 'orders_last_order_at_count_completed',
+                aggregation: VizAggregationOptions.COUNT,
+                pivotValues: [],
+            },
+        ];
+        const columns = getPivotedColumns(
+            unpivotedColumns,
+            pivotConfiguration,
+            typedValueColumns,
+            typedItemsMap,
+        );
+        // A MAX metric's own type maps to NUMBER. Value-picking aggregations
+        // report the base dimension type instead.
+        expect(columns.orders_last_order_at_any_completed.type).toEqual(
+            DimensionType.TIMESTAMP,
+        );
+        expect(columns.orders_is_repeat_any_completed.type).toEqual(
+            DimensionType.BOOLEAN,
+        );
+        expect(columns.orders_last_order_at_count_completed.type).toEqual(
+            DimensionType.NUMBER,
+        );
+    });
+
     test('value columns without an items map get a reference-derived label and no provenance', () => {
         const columns = getPivotedColumns(
             unpivotedColumns,
