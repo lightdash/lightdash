@@ -112,9 +112,10 @@ import { EmbedModel } from '../../models/EmbedModel';
 import { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { getBundleServableChecker } from '../AppGenerateService/appBundleStorage';
 import {
+    assertDataAppVizPreviewVersionAllowed,
+    getDataAppVizVersionPin,
     resolveDataAppVisualizationForRender,
     resolveDataAppVizRenderMetadata,
-    resolveRenderableDataAppVizVersion,
 } from '../AppGenerateService/dataAppVizRender';
 
 const escapeEmbedJwtUserAttributeValue = (value: string): string =>
@@ -1841,10 +1842,7 @@ export class EmbedService extends BaseService {
                 savedChartUuid,
                 dataAppVizUuid,
             );
-        const pinnedVersion =
-            chart.chartConfig.type === ChartType.DATA_APP_VIZ
-                ? chart.chartConfig.config?.dataAppVizVersion
-                : undefined;
+        const pinnedVersion = getDataAppVizVersionPin(chart.chartConfig);
         return resolveDataAppVizRenderMetadata(
             this.appModel,
             dataAppViz.app_id,
@@ -1867,19 +1865,11 @@ export class EmbedService extends BaseService {
                 savedChartUuid,
                 dataAppVizUuid,
             );
-        const pinnedVersion =
-            chart.chartConfig.type === ChartType.DATA_APP_VIZ
-                ? chart.chartConfig.config?.dataAppVizVersion
-                : undefined;
-        if (pinnedVersion !== undefined && version !== pinnedVersion) {
-            throw new ForbiddenError(
-                'Not authorized to access this visualization version',
-            );
-        }
-        await resolveRenderableDataAppVizVersion(
+        await assertDataAppVizPreviewVersionAllowed(
             this.appModel,
             dataAppViz.app_id,
             version,
+            getDataAppVizVersionPin(chart.chartConfig),
         );
         return mintPreviewToken(
             this.lightdashConfig.lightdashSecrets,

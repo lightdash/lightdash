@@ -277,6 +277,8 @@ import {
     describeDashboardBlueprint,
 } from './dashboardBlueprint';
 import {
+    assertDataAppVizPreviewVersionAllowed,
+    getDataAppVizVersionPin,
     resolveDataAppVisualizationForRender,
     resolveDataAppVizRenderMetadata,
     resolveRenderableDataAppVizVersion,
@@ -8655,10 +8657,7 @@ export class AppGenerateService extends BaseService {
                 dataAppVizUuid,
                 chartVersionUuid,
             );
-        const pinnedVersion =
-            chart.chartConfig.type === ChartType.DATA_APP_VIZ
-                ? chart.chartConfig.config?.dataAppVizVersion
-                : undefined;
+        const pinnedVersion = getDataAppVizVersionPin(chart.chartConfig);
         return this.resolveVizRenderMetadata(dataAppViz.app_id, pinnedVersion);
     }
 
@@ -8679,20 +8678,11 @@ export class AppGenerateService extends BaseService {
                 chartVersionUuid,
             );
 
-        const pinnedVersion =
-            chart.chartConfig.type === ChartType.DATA_APP_VIZ
-                ? chart.chartConfig.config?.dataAppVizVersion
-                : undefined;
-        if (pinnedVersion !== undefined && version !== pinnedVersion) {
-            throw new ForbiddenError(
-                'Not authorized to access this visualization version',
-            );
-        }
-
-        await resolveRenderableDataAppVizVersion(
+        await assertDataAppVizPreviewVersionAllowed(
             this.appModel,
             dataAppViz.app_id,
             version,
+            getDataAppVizVersionPin(chart.chartConfig),
         );
 
         return mintPreviewToken(

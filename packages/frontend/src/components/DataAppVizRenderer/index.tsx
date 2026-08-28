@@ -105,6 +105,12 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     // The iframe SDK posts `lightdash:sdk:screenshot-available` at bundle
     // boot — proof the sandbox is alive, not that the viz painted.
     const [screenshotAnnounced, setScreenshotAnnounced] = useState(false);
+    const handleScreenshotAvailabilityChange = useCallback(
+        (available: boolean) => {
+            if (available) setScreenshotAnnounced(true);
+        },
+        [],
+    );
 
     // Fetch every page so the renderer gets all rows — surfaces that don't
     // auto-fetch (dashboard tiles) would otherwise push a partial result.
@@ -150,31 +156,26 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         useDataAppVizRenderMetadata(projectUuid, dataAppVizUuid, renderTarget);
     const readyMetadata =
         renderMetadata?.state === 'ready' ? renderMetadata : undefined;
-    const handleScreenshotAvailabilityChange = useCallback(
-        (available: boolean) => {
-            if (!available) return;
-            setScreenshotAnnounced(true);
-            if (
-                !isEditMode ||
-                !readyMetadata ||
-                !dataAppVizChartConfig ||
-                !config ||
-                (config.dataAppVizVersion !== undefined &&
-                    renderSavedChartUuid !== undefined) ||
-                config.dataAppVizVersion === readyMetadata.version
-            ) {
-                return;
-            }
-            dataAppVizChartConfig.setDataAppVizVersion(readyMetadata.version);
-        },
-        [
-            config,
-            isEditMode,
-            readyMetadata,
-            renderSavedChartUuid,
-            dataAppVizChartConfig,
-        ],
-    );
+    useEffect(() => {
+        if (
+            !isEditMode ||
+            !readyMetadata ||
+            !dataAppVizChartConfig ||
+            !config ||
+            (config.dataAppVizVersion !== undefined &&
+                renderSavedChartUuid !== undefined) ||
+            config.dataAppVizVersion === readyMetadata.version
+        ) {
+            return;
+        }
+        dataAppVizChartConfig.setDataAppVizVersion(readyMetadata.version);
+    }, [
+        config,
+        isEditMode,
+        readyMetadata,
+        renderSavedChartUuid,
+        dataAppVizChartConfig,
+    ]);
     const { data: token, error: previewTokenError } = useDataAppVizPreviewToken(
         projectUuid,
         dataAppVizUuid,

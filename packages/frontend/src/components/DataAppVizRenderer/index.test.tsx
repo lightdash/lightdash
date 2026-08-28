@@ -376,7 +376,7 @@ describe('DataAppVizRenderer', () => {
         );
     });
 
-    it('pins an unsaved project chart type only after its iframe is available', () => {
+    it('pins an unsaved project chart type without requiring an SDK capability announcement', () => {
         mocks.dataAppVizVersion.current = undefined;
         mocks.vizContextOverrides.current = {
             savedChartUuid: undefined,
@@ -384,10 +384,6 @@ describe('DataAppVizRenderer', () => {
         };
 
         renderRenderer();
-
-        expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
-
-        announceIframeAvailable();
 
         expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
     });
@@ -419,10 +415,6 @@ describe('DataAppVizRenderer', () => {
                 savedChartUuid: 'saved-chart-uuid',
             },
         );
-        expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
-
-        announceIframeAvailable();
-
         expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
     });
 

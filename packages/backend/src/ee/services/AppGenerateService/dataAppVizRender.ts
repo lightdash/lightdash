@@ -1,7 +1,10 @@
 import {
+    ChartType,
+    ForbiddenError,
     isAppVersionInProgress,
     NotFoundError,
     ParameterError,
+    type ChartConfig,
     type DataAppVizRenderMetadata,
 } from '@lightdash/common';
 import { type DbAppVersion } from '../../../database/entities/apps';
@@ -11,6 +14,18 @@ import { type BundleServableChecker } from './appBundleStorage';
 export type DataAppVisualizationForRender = NonNullable<
     Awaited<ReturnType<AppModel['findVisualizationApp']>>
 >;
+
+export type DataAppVizRenderModel = Pick<
+    AppModel,
+    'getVersion' | 'getLatestVersion' | 'getLatestRenderableDataAppVizVersion'
+>;
+
+export const getDataAppVizVersionPin = (
+    chartConfig: ChartConfig,
+): number | undefined =>
+    chartConfig.type === ChartType.DATA_APP_VIZ
+        ? chartConfig.config?.dataAppVizVersion
+        : undefined;
 
 export const resolveDataAppVisualizationForRender = async (
     appModel: AppModel,
@@ -28,7 +43,7 @@ export const resolveDataAppVisualizationForRender = async (
 };
 
 export async function resolveRenderableDataAppVizVersion(
-    appModel: AppModel,
+    appModel: Pick<AppModel, 'getVersion'>,
     appUuid: string,
     version: number,
 ): Promise<
@@ -51,8 +66,37 @@ export async function resolveRenderableDataAppVizVersion(
     return { ...appVersion, viz_schema: appVersion.viz_schema };
 }
 
+export async function assertDataAppVizPreviewVersionAllowed(
+    appModel: Pick<
+        AppModel,
+        'getVersion' | 'getLatestRenderableDataAppVizVersion'
+    >,
+    appUuid: string,
+    requestedVersion: number,
+    pinnedVersion?: number,
+): Promise<void> {
+    const allowedVersion =
+        pinnedVersion ??
+        (await appModel.getLatestRenderableDataAppVizVersion(appUuid))?.version;
+    if (allowedVersion === undefined) {
+        throw new NotFoundError(
+            'Renderable data app visualization version not found',
+        );
+    }
+    if (requestedVersion !== allowedVersion) {
+        throw new ForbiddenError(
+            'Not authorized to access this visualization version',
+        );
+    }
+    await resolveRenderableDataAppVizVersion(
+        appModel,
+        appUuid,
+        requestedVersion,
+    );
+}
+
 export const resolveDataAppVizRenderMetadata = async (
-    appModel: AppModel,
+    appModel: DataAppVizRenderModel,
     appUuid: string,
     isBundleServable: BundleServableChecker,
     pinnedVersion?: number,

@@ -678,6 +678,31 @@ describe('AppGenerateService data app vizs', () => {
             expect(appModel.getVersion).not.toHaveBeenCalled();
         });
 
+        it('rejects a historical preview token for an unpinned legacy chart', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+            };
+            const service = buildService(appModel, chartDeps('data-app-viz-1'));
+
+            await expect(
+                service.getChartDataAppVizPreviewToken(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                    2,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
         it('propagates the chart denial and mints no token', async () => {
             const appModel = {
                 findVisualizationApp: vi

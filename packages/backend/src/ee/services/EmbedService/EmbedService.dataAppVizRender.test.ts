@@ -274,6 +274,34 @@ describe('EmbedService data app viz rendering', () => {
         expect(appModel.getVersion).not.toHaveBeenCalled();
     });
 
+    it('rejects a historical preview token for an unpinned legacy chart', async () => {
+        const appModel = {
+            findVisualizationApp: vi
+                .fn()
+                .mockResolvedValue(makeDataAppVizRow()),
+            getLatestRenderableDataAppVizVersion: vi
+                .fn()
+                .mockResolvedValue(makeVersion({ version: 4 })),
+            getVersion: vi.fn().mockResolvedValue(makeVersion({ version: 2 })),
+        };
+        const service = buildService({
+            appModel,
+            savedChartModel: {
+                get: vi.fn().mockResolvedValue(makeSavedChart()),
+            },
+        });
+
+        await expect(
+            service.getEmbedDataAppVizPreviewToken(
+                chartAccount(),
+                PROJECT_UUID,
+                SAVED_CHART_UUID,
+                DATA_APP_VIZ_UUID,
+                2,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
     it('rejects a different chart than the standalone chart named by the JWT', async () => {
         const savedChartModel = { get: vi.fn() };
         const service = buildService({
@@ -484,6 +512,9 @@ describe('EmbedService data app viz rendering', () => {
                 .fn()
                 .mockResolvedValue(makeDataAppVizRow()),
             getVersion: vi.fn().mockResolvedValue(makeVersion({ version: 2 })),
+            getLatestRenderableDataAppVizVersion: vi
+                .fn()
+                .mockResolvedValue(makeVersion({ version: 2 })),
         };
         const service = buildService({
             appModel,
