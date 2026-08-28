@@ -44,6 +44,7 @@ import {
     CachedExploreTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
+import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedChartSlugMappingsTableName } from '../../database/entities/savedChartSlugMappings';
 import {
     SpaceTableName,
@@ -545,6 +546,41 @@ describe('ProjectModel', () => {
         );
         expect(insertQuery.bindings).not.toContain('source-chart-1');
         expect(insertQuery.bindings).not.toContain('source-chart-2');
+    });
+
+    test('resolves the original chart UUID from preview content mapping', async () => {
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ saved_query_id: 22 }]);
+        tracker.on.select('preview_content').responseOnce([
+            {
+                project_uuid: 'source-project',
+                content_mapping: {
+                    charts: [{ id: 11, newId: 22 }],
+                    chartVersions: [],
+                    spaces: [],
+                    dashboards: [],
+                    dashboardVersions: [],
+                    savedSql: [],
+                    savedSqlVersions: [],
+                    aiAgents: [],
+                },
+            },
+        ]);
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ saved_query_uuid: 'source-chart-uuid' }]);
+
+        await expect(
+            model.getUpstreamChartUuidFromPreview(
+                'preview-project',
+                'preview-chart-uuid',
+            ),
+        ).resolves.toBe('source-chart-uuid');
+
+        expect(tracker.history.select[2].bindings).toEqual(
+            expect.arrayContaining(['source-project', 11]),
+        );
     });
 
     describe('should convert outdated metric filters in explores', () => {

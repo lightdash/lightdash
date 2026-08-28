@@ -1,5 +1,6 @@
 import { AnyType } from '@lightdash/common';
 import knex from 'knex';
+import type { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { DatabaseError } from 'pg';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
@@ -464,6 +465,35 @@ describe('renameSlug', () => {
         );
     });
 
+    test('uses a supplied transaction without starting a nested transaction', async () => {
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ saved_query_uuid: chartUuid, deleted_at: null }]);
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ slug: 'old-orders' }]);
+        tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
+        tracker.on
+            .insert(SavedChartSlugMappingsTableName)
+            .responseOnce([{ saved_query_uuid: chartUuid }]);
+        tracker.on.update(SavedChartsTableName).responseOnce(1);
+
+        await model.renameSlug(
+            {
+                projectUuid,
+                savedChartUuid: chartUuid,
+                from: 'old-orders',
+                to: 'new-orders',
+            },
+            database as unknown as Knex.Transaction,
+        );
+
+        expect(database.transaction).not.toHaveBeenCalled();
+        expect(tracker.history.insert).toHaveLength(1);
+        expect(tracker.history.update).toHaveLength(1);
+    });
+
     test('treats an alias-to-current replay as idempotent', async () => {
         tracker.on.select(SavedChartsTableName).responseOnce([]);
         tracker.on
@@ -769,6 +799,25 @@ describe('update', () => {
         expect(updateQuery.sql).not.toContain('"dashboard_uuid"');
         expect(updateQuery.bindings).toContain(projectUuid);
         expect(updateQuery.bindings).toContain(chartUuid);
+    });
+
+    test('updates through a supplied transaction without hydrating the chart', async () => {
+        const chartUuid = '11111111-1111-4111-8111-111111111111';
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ project_uuid: projectUuid }]);
+        tracker.on.update(SavedChartsTableName).responseOnce(1);
+        const getSpy = vi.spyOn(model, 'get');
+
+        await model.updateInTransaction(
+            chartUuid,
+            { name: 'Renamed chart' },
+            database as unknown as Knex.Transaction,
+        );
+
+        expect(getSpy).not.toHaveBeenCalled();
+        expect(tracker.history.update).toHaveLength(1);
     });
 
     test('rejects moving a chart to a space in another project', async () => {

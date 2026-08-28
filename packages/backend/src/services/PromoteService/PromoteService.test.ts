@@ -8,6 +8,7 @@ import {
     SessionUser,
     type PromotionChanges,
 } from '@lightdash/common';
+import type { Knex } from 'knex';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
@@ -44,7 +45,10 @@ const projectModel = {
     getSummary: vi.fn(async () => ({
         upstreamProjectUuid: existingUpstreamDashboard.projectUuid,
     })),
+    getUpstreamChartUuidFromPreview: vi.fn(async () => null),
 };
+
+const chartTransaction = {} as Knex.Transaction;
 
 const savedChartModel = {
     getSummary: vi.fn(async () => ({
@@ -53,7 +57,41 @@ const savedChartModel = {
     get: vi.fn(async () => promotedChart.chart),
     find: vi.fn(async () => [existingUpstreamChart.chart]),
     create: vi.fn(async () => existingUpstreamChart.chart),
+    createVersion: vi.fn(async () => existingUpstreamChart.chart),
+    updateInTransaction: vi.fn(async () => undefined),
+    renameSlug: vi.fn(async () => undefined),
+    transaction: vi.fn(
+        async (callback: (transaction: Knex.Transaction) => Promise<unknown>) =>
+            callback(chartTransaction),
+    ),
 };
+
+beforeEach(() => {
+    projectModel.getUpstreamChartUuidFromPreview
+        .mockReset()
+        .mockResolvedValue(null);
+    savedChartModel.get.mockReset().mockResolvedValue(promotedChart.chart);
+    savedChartModel.find
+        .mockReset()
+        .mockResolvedValue([existingUpstreamChart.chart]);
+    savedChartModel.create
+        .mockReset()
+        .mockResolvedValue(existingUpstreamChart.chart);
+    savedChartModel.createVersion
+        .mockReset()
+        .mockResolvedValue(existingUpstreamChart.chart);
+    savedChartModel.updateInTransaction
+        .mockReset()
+        .mockResolvedValue(undefined);
+    savedChartModel.renameSlug.mockReset().mockResolvedValue(undefined);
+    savedChartModel.transaction
+        .mockReset()
+        .mockImplementation(
+            async (
+                callback: (transaction: Knex.Transaction) => Promise<unknown>,
+            ) => callback(chartTransaction),
+        );
+});
 
 const savedSqlModel = {
     getByUuid: vi.fn(async () => promotedSqlChart),
@@ -246,6 +284,91 @@ describe('PromoteService chart changes', () => {
         expect(changes.spaces[0].data).toEqual({
             ...existingUpstreamChart.space,
         });
+    });
+
+    test('getChartChanges treats a canonical slug rename as an update', async () => {
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [upstreamSpace],
+        );
+
+        const changes = await service.getChartChanges(
+            {
+                ...promotedChart,
+                chart: {
+                    ...promotedChart.chart,
+                    slug: 'renamed-chart',
+                },
+            },
+            existingUpstreamChart,
+        );
+
+        expect(changes.charts[0]).toMatchObject({
+            action: PromotionAction.UPDATE,
+            data: { slug: 'renamed-chart' },
+        });
+    });
+
+    test('getChartChanges treats a repeated promoted rename as idempotent', async () => {
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [upstreamSpace],
+        );
+        const renamedChart = {
+            ...promotedChart.chart,
+            slug: 'renamed-chart',
+        };
+
+        const changes = await service.getChartChanges(
+            {
+                ...promotedChart,
+                chart: renamedChart,
+            },
+            {
+                ...existingUpstreamChart,
+                chart: renamedChart,
+            },
+        );
+
+        expect(changes.charts[0].action).toBe(PromotionAction.NO_CHANGES);
+    });
+
+    test('resolves a renamed preview chart through its original content mapping', async () => {
+        const renamedPreviewChart = {
+            ...promotedChart.chart,
+            slug: 'renamed-chart',
+        };
+        (
+            projectModel.getUpstreamChartUuidFromPreview as import('vitest').Mock
+        ).mockResolvedValueOnce(existingUpstreamChart.chart!.uuid);
+        (savedChartModel.get as import('vitest').Mock).mockImplementation(
+            async (chartUuid: string) =>
+                chartUuid === renamedPreviewChart.uuid
+                    ? renamedPreviewChart
+                    : existingUpstreamChart.chart,
+        );
+        (spaceModel.find as import('vitest').Mock).mockResolvedValueOnce([
+            upstreamSpace,
+        ]);
+
+        const result = await service.getPromoteCharts(
+            user,
+            existingUpstreamChart.projectUuid,
+            renamedPreviewChart.uuid,
+        );
+
+        expect(result.upstreamChart.chart?.uuid).toBe(
+            existingUpstreamChart.chart!.uuid,
+        );
+        expect(savedChartModel.find).not.toHaveBeenCalled();
+        expect(savedChartModel.get).toHaveBeenNthCalledWith(
+            2,
+            existingUpstreamChart.chart!.uuid,
+            undefined,
+            { projectUuid: existingUpstreamChart.projectUuid },
+        );
+
+        (savedChartModel.get as import('vitest').Mock).mockImplementation(
+            async () => promotedChart.chart,
+        );
     });
 
     test('getChartChanges update chart and create space', async () => {
@@ -1036,6 +1159,147 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(newChanges.charts[0].data.uuid).toEqual(
             existingUpstreamChart.chart?.uuid,
         );
+    });
+
+    test('renames and updates an upstream chart in one transaction', async () => {
+        const upstreamChart = {
+            ...existingUpstreamChart.chart!,
+            slug: 'original-chart',
+        };
+        const renamedChart = {
+            ...promotedChart.chart,
+            uuid: upstreamChart.uuid,
+            oldUuid: promotedChart.chart.uuid,
+            projectUuid: existingUpstreamChart.projectUuid,
+            spaceUuid: existingUpstreamChart.space!.uuid,
+            spaceSlug: promotedChart.space.slug,
+            spacePath: promotedChart.space.path,
+            slug: 'renamed-chart',
+        };
+        const changes: PromotionChanges = {
+            spaces: [],
+            dashboards: [],
+            charts: [
+                {
+                    action: PromotionAction.UPDATE,
+                    data: renamedChart,
+                },
+            ],
+        };
+        (savedChartModel.get as import('vitest').Mock)
+            .mockResolvedValueOnce(upstreamChart)
+            .mockResolvedValueOnce({
+                ...upstreamChart,
+                slug: renamedChart.slug,
+            });
+
+        await service.upsertCharts(user, changes);
+
+        expect(savedChartModel.transaction).toHaveBeenCalledTimes(1);
+        expect(savedChartModel.renameSlug).toHaveBeenCalledWith(
+            {
+                projectUuid: existingUpstreamChart.projectUuid,
+                savedChartUuid: upstreamChart.uuid,
+                from: 'original-chart',
+                to: 'renamed-chart',
+            },
+            chartTransaction,
+        );
+        expect(savedChartModel.updateInTransaction).toHaveBeenCalledWith(
+            upstreamChart.uuid,
+            expect.objectContaining({ name: renamedChart.name }),
+            chartTransaction,
+        );
+        expect(savedChartModel.createVersion).toHaveBeenCalledWith(
+            upstreamChart.uuid,
+            expect.objectContaining({ slug: 'renamed-chart' }),
+            user,
+            chartTransaction,
+        );
+    });
+
+    test('stops before metadata and version writes when a slug collision is rejected', async () => {
+        const upstreamChart = {
+            ...existingUpstreamChart.chart!,
+            slug: 'original-chart',
+        };
+        const renamedChart = {
+            ...promotedChart.chart,
+            uuid: upstreamChart.uuid,
+            oldUuid: promotedChart.chart.uuid,
+            projectUuid: existingUpstreamChart.projectUuid,
+            spaceUuid: existingUpstreamChart.space!.uuid,
+            spaceSlug: promotedChart.space.slug,
+            spacePath: promotedChart.space.path,
+            slug: 'occupied-chart',
+        };
+        const changes: PromotionChanges = {
+            spaces: [],
+            dashboards: [],
+            charts: [
+                {
+                    action: PromotionAction.UPDATE,
+                    data: renamedChart,
+                },
+            ],
+        };
+        (savedChartModel.get as import('vitest').Mock).mockResolvedValueOnce(
+            upstreamChart,
+        );
+        (
+            savedChartModel.renameSlug as import('vitest').Mock
+        ).mockRejectedValueOnce(new Error('slug collision'));
+
+        await expect(service.upsertCharts(user, changes)).rejects.toThrow(
+            'slug collision',
+        );
+
+        expect(savedChartModel.updateInTransaction).not.toHaveBeenCalled();
+        expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+    });
+
+    test('can safely retry when version creation fails after a slug rename', async () => {
+        const upstreamChart = {
+            ...existingUpstreamChart.chart!,
+            slug: 'original-chart',
+        };
+        const renamedChart = {
+            ...promotedChart.chart,
+            uuid: upstreamChart.uuid,
+            oldUuid: promotedChart.chart.uuid,
+            projectUuid: existingUpstreamChart.projectUuid,
+            spaceUuid: existingUpstreamChart.space!.uuid,
+            spaceSlug: promotedChart.space.slug,
+            spacePath: promotedChart.space.path,
+            slug: 'renamed-chart',
+        };
+        const changes: PromotionChanges = {
+            spaces: [],
+            dashboards: [],
+            charts: [
+                {
+                    action: PromotionAction.UPDATE,
+                    data: renamedChart,
+                },
+            ],
+        };
+        (savedChartModel.get as import('vitest').Mock).mockResolvedValue(
+            upstreamChart,
+        );
+        (
+            savedChartModel.createVersion as import('vitest').Mock
+        ).mockRejectedValueOnce(new Error('version write failed'));
+
+        await expect(service.upsertCharts(user, changes)).rejects.toThrow(
+            'version write failed',
+        );
+        await expect(
+            service.upsertCharts(user, changes),
+        ).resolves.toBeDefined();
+
+        expect(savedChartModel.transaction).toHaveBeenCalledTimes(2);
+        expect(savedChartModel.renameSlug).toHaveBeenCalledTimes(2);
+        expect(savedChartModel.createVersion).toHaveBeenCalledTimes(2);
     });
 
     test('create charts and update dashboard tile uuids if a new chart created', async () => {
