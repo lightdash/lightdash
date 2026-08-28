@@ -1,3 +1,16 @@
+# [2.48.0](https://github.com/lightdash/lightdash/compare/2.47.0...2.48.0) (2026-08-28)
+
+
+### Bug Fixes
+
+* **chart-types:** pivot sample data for previews with a series field ([#28265](https://github.com/lightdash/lightdash/issues/28265)) ([5d8274b](https://github.com/lightdash/lightdash/commit/5d8274b9ff830f66665c4d3455121a93f2c0b796))
+* **homepage:** resolve role-targeted homepages from effective project role ([#28270](https://github.com/lightdash/lightdash/issues/28270)) ([7055dbd](https://github.com/lightdash/lightdash/commit/7055dbdbe90d46356847e7ae665e24da891862a9))
+
+
+### Features
+
+* persist project chart type version pins ([#28219](https://github.com/lightdash/lightdash/issues/28219)) ([87f196d](https://github.com/lightdash/lightdash/commit/87f196d890f534aaeb19d910d08189f66540eadc))
+
 # [2.47.0](https://github.com/lightdash/lightdash/compare/2.46.1...2.47.0) (2026-08-28)
 
 

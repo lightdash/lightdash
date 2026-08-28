@@ -3748,28 +3748,32 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Record_string.DataAppVizOptionValue_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_DataAppVizChart.Exclude_keyofDataAppVizChart.dataAppVizUuid__': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                fieldMapping: { ref: 'DataAppVizFieldMapping', required: true },
-                optionValues: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'DataAppVizOptionValues' },
-                        { dataType: 'undefined' },
-                    ],
+    'Pick_DataAppVizChart.Exclude_keyofDataAppVizChart.dataAppVizUuid-or-dataAppVizVersion__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    fieldMapping: {
+                        ref: 'DataAppVizFieldMapping',
+                        required: true,
+                    },
+                    optionValues: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'DataAppVizOptionValues' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                 },
+                validators: {},
             },
-            validators: {},
         },
-    },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_DataAppVizChart.dataAppVizUuid_': {
+    'Omit_DataAppVizChart.dataAppVizUuid-or-dataAppVizVersion_': {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_DataAppVizChart.Exclude_keyofDataAppVizChart.dataAppVizUuid__',
+            ref: 'Pick_DataAppVizChart.Exclude_keyofDataAppVizChart.dataAppVizUuid-or-dataAppVizVersion__',
             validators: {},
         },
     },
@@ -3779,7 +3783,9 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'intersection',
             subSchemas: [
-                { ref: 'Omit_DataAppVizChart.dataAppVizUuid_' },
+                {
+                    ref: 'Omit_DataAppVizChart.dataAppVizUuid-or-dataAppVizVersion_',
+                },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -7871,6 +7877,10 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 optionValues: { ref: 'DataAppVizOptionValues' },
                 fieldMapping: { ref: 'DataAppVizFieldMapping', required: true },
+                dataAppVizVersion: {
+                    dataType: 'integer',
+                    validators: { minimum: { value: 1 } },
+                },
                 dataAppVizUuid: { dataType: 'string', required: true },
             },
             validators: {},
