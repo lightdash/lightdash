@@ -27,6 +27,7 @@ describeContentAsCodeSchemaContract({
         'uuid',
     ],
     documentOnlyFields: [
+        'access',
         'contentType',
         'downloadedAt',
         'spaceSlug',

@@ -76,6 +76,7 @@ vi.spyOn(analyticsMock, 'track');
 
 const buildService = () =>
     new CoderService({
+        directAccessService: {} as never,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {} as unknown as ProjectModel,

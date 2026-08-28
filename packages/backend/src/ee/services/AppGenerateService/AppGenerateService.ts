@@ -27,6 +27,7 @@ import {
     dataAppVizSchema,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     DEFAULT_DATA_APP_CODEX_MODEL,
+    DirectAccessResourceType,
     extractDataAppDataReferences,
     extractLockfilePackages,
     FeatureFlags,
@@ -10523,6 +10524,28 @@ export class AppGenerateService extends BaseService {
                 ? await this.spaceModel.getSpaceSummary(app.space_uuid)
                 : null;
 
+        // Direct grants ride along only for callers who could manage the
+        // app's sharing anyway — code download itself is view-gated, and a
+        // viewer must not learn who the app is shared with.
+        const canManageAppPolicy = await this.assertCanManageApp(
+            user,
+            app,
+            'not used',
+        ).then(
+            () => true,
+            () => false,
+        );
+        const appAccess = canManageAppPolicy
+            ? (
+                  await this.coderService.getPortableDirectAccessByUuid(
+                      user,
+                      app.organization_uuid,
+                      DirectAccessResourceType.APP,
+                      [app.app_id],
+                  )
+              ).get(app.app_id)
+            : undefined;
+
         const manifest = buildManifest({
             slug: app.slug,
             version: resolvedVersion,
@@ -10549,6 +10572,7 @@ export class AppGenerateService extends BaseService {
                       ),
                   }
                 : {}),
+            ...(appAccess ? { access: appAccess } : {}),
             downloadedAt: new Date().toISOString(),
         });
 

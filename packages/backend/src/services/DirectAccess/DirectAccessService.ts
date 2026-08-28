@@ -326,6 +326,33 @@ export class DirectAccessService extends BaseService {
         };
     }
 
+    /**
+     * Batch policy read for content-as-code export. The caller owns
+     * authorization (the export endpoints gate on ContentAsCode view, the
+     * same permission that already exports space access blocks) and must pass
+     * uuids located within the given project. Feature off returns no
+     * policies, so exports written while sharing is disabled simply omit
+     * access blocks instead of failing.
+     */
+    async listPoliciesForExport(
+        user: { userUuid: UUID; organizationUuid: UUID },
+        resourceType: DirectAccessResourceType,
+        resourceUuids: UUID[],
+    ): Promise<Record<string, DirectAccessAssignment[]>> {
+        if (resourceUuids.length === 0) {
+            return {};
+        }
+        const enabled =
+            await this.directAccessFeatureGate.isEnabledForUser(user);
+        if (!enabled) {
+            return {};
+        }
+        return this.directAccessModel.listAssignmentsForResources({
+            resourceType,
+            resourceUuids,
+        });
+    }
+
     async listAssignments(
         account: RegisteredAccount,
         projectUuid: UUID,
