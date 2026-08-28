@@ -678,10 +678,23 @@ export function getCustomFormat(
     } else if (isTableCalculation(item)) {
         base = item.format;
     } else {
+        // Key presence alone is not a value: items built with `format:
+        // field?.format` or read back from jsonb carry null/undefined keys,
+        // and treating those as a legacy format gives non-numeric items a
+        // default numeric format.
         const legacyFormat = {
-            ...('format' in item && { format: item.format }),
-            ...('compact' in item && { compact: item.compact }),
-            ...('round' in item && { round: item.round }),
+            ...('format' in item &&
+                item.format != null && {
+                    format: item.format,
+                }),
+            ...('compact' in item &&
+                item.compact != null && {
+                    compact: item.compact,
+                }),
+            ...('round' in item &&
+                item.round != null && {
+                    round: item.round,
+                }),
         };
 
         // Only get custom format from legacy if there are any legacy format options or if the item is numeric

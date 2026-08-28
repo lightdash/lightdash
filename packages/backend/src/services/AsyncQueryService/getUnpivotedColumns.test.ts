@@ -61,11 +61,41 @@ describe('getUnpivotedColumns', () => {
         });
     });
 
-    test('columns without a matching item stay bare', () => {
+    test('columns without a matching item get only a label derived from the reference', () => {
         const columns = getUnpivotedColumns({}, warehouseFields, itemsMap);
         expect(columns.computed_col).toEqual({
             reference: 'computed_col',
             type: DimensionType.NUMBER,
+            label: 'Computed col',
+        });
+    });
+
+    test('raw SQL columns get no metadata from virtual-view items', () => {
+        // SqlQueryComposer keys its items map `${table}_${column}` while raw
+        // SQL warehouse columns use unprefixed names. Even a map keyed by
+        // unprefixed names must not contribute provenance, because the item's
+        // field id is not the column reference.
+        const virtualViewItemsMap: ItemsMap = {
+            sql_query_explorer_payment_method: {
+                ...statusDimension,
+                name: 'payment_method',
+                table: 'sql_query_explorer',
+            },
+            payment_method: {
+                ...statusDimension,
+                name: 'payment_method',
+                table: 'sql_query_explorer',
+            },
+        };
+        const columns = getUnpivotedColumns(
+            {},
+            { payment_method: { type: DimensionType.STRING } },
+            virtualViewItemsMap,
+        );
+        expect(columns.payment_method).toEqual({
+            reference: 'payment_method',
+            type: DimensionType.STRING,
+            label: 'Payment method',
         });
     });
 
@@ -94,11 +124,12 @@ describe('getUnpivotedColumns', () => {
         expect(withoutValues.orders_revenue.format).toBeUndefined();
     });
 
-    test('columns are bare when no items map is provided', () => {
+    test('columns get labels derived from their references when no items map is provided', () => {
         const columns = getUnpivotedColumns({}, warehouseFields);
         expect(columns.orders_status).toEqual({
             reference: 'orders_status',
             type: DimensionType.STRING,
+            label: 'Orders status',
         });
     });
 

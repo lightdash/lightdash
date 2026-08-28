@@ -44,10 +44,47 @@ const tableCalculation: TableCalculation = {
 };
 
 describe('getResultColumnMetadataFromItem', () => {
-    test('returns empty metadata when there is no item behind the column', () => {
-        expect(getResultColumnMetadataFromItem(undefined, 'orders_x')).toEqual(
-            {},
-        );
+    test('returns only a label derived from the reference when there is no item', () => {
+        expect(
+            getResultColumnMetadataFromItem(undefined, 'payment_method'),
+        ).toEqual({ label: 'Payment method' });
+    });
+
+    test('returns no metadata from an item whose field id differs from the column reference', () => {
+        // SqlQueryComposer keys virtual-view items `${table}_${column}` while
+        // raw SQL warehouse columns use unprefixed names. Even if a lookup
+        // matches, an item with a different field id must not contribute
+        // provenance, because its synthesized dimension is not a semantic
+        // field.
+        const virtualViewDimension: Dimension = {
+            ...dimension,
+            name: 'status',
+            table: 'sql_query_explorer',
+        };
+        expect(
+            getResultColumnMetadataFromItem(virtualViewDimension, 'status'),
+        ).toEqual({ label: 'Status' });
+    });
+
+    test('null format keys on an item do not produce a format expression', () => {
+        // Merged items are built with `format: field?.format` and jsonb
+        // round-trips store null — a string dimension whose format keys are
+        // null must not get a default numeric format.
+        const nullFormatDimension = {
+            ...dimension,
+            format: null,
+            compact: null,
+            round: null,
+        } as unknown as Dimension;
+        expect(
+            getResultColumnMetadataFromItem(
+                nullFormatDimension,
+                'orders_status',
+            ),
+        ).toEqual({
+            label: 'Orders Status',
+            provenance: { fieldId: 'orders_status' },
+        });
     });
 
     test('enriches a plain dimension with label and provenance', () => {
@@ -158,6 +195,7 @@ describe('getResultColumnMetadataFromItem', () => {
     test('timestamp dimensions carry timeInterval and shiftsTimezone', () => {
         const timestampDimension: Dimension = {
             ...dimension,
+            name: 'created_at',
             type: DimensionType.TIMESTAMP,
             timeInterval: TimeFrames.SECOND,
         };
@@ -177,6 +215,7 @@ describe('getResultColumnMetadataFromItem', () => {
     test('date dimensions carry timeInterval without shifting', () => {
         const dateDimension: Dimension = {
             ...dimension,
+            name: 'created_month',
             type: DimensionType.DATE,
             timeInterval: TimeFrames.MONTH,
         };
@@ -191,6 +230,7 @@ describe('getResultColumnMetadataFromItem', () => {
     test('year-number dimensions carry no format at all', () => {
         const yearNumDimension: Dimension = {
             ...dimension,
+            name: 'created_year_num',
             type: DimensionType.NUMBER,
             timeInterval: TimeFrames.YEAR_NUM,
         };

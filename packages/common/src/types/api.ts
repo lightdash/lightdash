@@ -1025,6 +1025,13 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
     queryUuid: string;
     columns: ResultColumns;
     rows: ResultRow[];
+    /**
+     * Resolved display timezone the query was built with (what execute
+     * responses return as `resolvedTimezone`); null for SQL queries and when
+     * timezone support is off. Temporal column formats cannot be rendered
+     * from the page without it.
+     */
+    resolvedTimezone?: string | null;
     metadata: QueryResultsMetadata;
     status: QueryHistoryStatus.READY;
     pivotDetails: {

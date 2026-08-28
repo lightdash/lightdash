@@ -41,6 +41,7 @@ import {
     formatRawValue,
     formatRow,
     formatRows,
+    friendlyName,
     getAccountUserTimezone,
     getAvailableFilterFieldIds,
     getColumnTimezone,
@@ -244,7 +245,10 @@ import {
 import { getValidatedDashboardSorts } from './dashboardSorts';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
-import { applyMergeExportLimit } from './mergeQueryExecution';
+import {
+    applyMergeExportLimit,
+    buildComposeMergeOriginalColumns,
+} from './mergeQueryExecution';
 import {
     NoOpPreAggregateStrategy,
     type PreAggregateExecutionResolution,
@@ -1477,6 +1481,9 @@ export class AsyncQueryService extends ProjectService {
         return {
             rows,
             columns,
+            // Display timezone the SQL was built with; mirrors the
+            // execute response's resolvedTimezone.
+            resolvedTimezone: displayTimezone,
             totalPageCount: pageCount,
             totalResults: totalRowCount ?? 0,
             queryUuid: queryHistory.queryUuid,
@@ -7624,9 +7631,16 @@ export class AsyncQueryService extends ProjectService {
             });
             const fieldsMap = composer.getFields();
 
+            // Compose columns carry only the reference, the probed type, and
+            // a label derived from the reference. Metadata is never inferred
+            // from the referenced queries' columns.
             const originalColumns: ResultColumns = columns.reduce(
                 (acc, col) => {
-                    acc[col.name] = { reference: col.name, type: col.type };
+                    acc[col.name] = {
+                        reference: col.name,
+                        type: col.type,
+                        label: friendlyName(col.name),
+                    };
                     return acc;
                 },
                 {} as ResultColumns,
@@ -8165,11 +8179,13 @@ export class AsyncQueryService extends ProjectService {
             references,
         });
 
-        const originalColumns: ResultColumns = Object.fromEntries(
-            compiledMerge.typedColumns.map((column) => [
-                column.reference,
-                { reference: column.reference, type: column.type },
-            ]),
+        const originalColumns: ResultColumns = buildComposeMergeOriginalColumns(
+            {
+                typedColumns: compiledMerge.typedColumns,
+                itemsMap: compiledMerge.itemsMap,
+                usedParametersValues: compiledMerge.usedParametersValues,
+                legQueryUuidBySourceId,
+            },
         );
 
         const queryTags: RunQueryTags = {

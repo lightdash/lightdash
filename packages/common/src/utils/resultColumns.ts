@@ -1,5 +1,10 @@
 import { isValidFormat } from 'numfmt';
-import { isDimension, isTableCalculation, type Item } from '../types/field';
+import {
+    friendlyName,
+    isDimension,
+    isTableCalculation,
+    type Item,
+} from '../types/field';
 import { type ParametersValuesMap } from '../types/parameters';
 import { type ResultColumn } from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
@@ -12,22 +17,26 @@ import {
     hasValidFormatExpression,
     shouldShiftItemTimezone,
 } from './formatting';
-import { getItemLabel } from './item';
+import { getItemId, getItemLabel } from './item';
 
 type ResultColumnMetadata = Omit<ResultColumn, 'reference' | 'type'>;
 
 /**
  * The display/format metadata a semantic item contributes to its result
  * column, resolved once at query-write time (docs/composer-viz-plan/01-design.md §3).
- * Returns an empty object for columns with no item behind them, so callers can
- * spread it unconditionally.
+ *
+ * An item contributes metadata only when its field id matches the column
+ * reference. Unmatched columns get only a display label derived from the
+ * reference with `friendlyName`; they never get provenance or a format.
  */
 export function getResultColumnMetadataFromItem(
     item: Item | undefined,
     fieldId: string,
     parameters?: ParametersValuesMap | null,
 ): ResultColumnMetadata {
-    if (!item) return {};
+    if (!item || getItemId(item) !== fieldId) {
+        return { label: friendlyName(fieldId) };
+    }
 
     const metadata: ResultColumnMetadata = {
         label: getItemLabel(item),
