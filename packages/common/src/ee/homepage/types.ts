@@ -168,7 +168,8 @@ export type HomepageQuickActionTarget =
     | { type: 'run-query' }
     | { type: 'browse-dashboards' }
     | { type: 'browse-spaces' }
-    | { type: 'dashboard'; dashboardUuid: string; label: string };
+    | { type: 'dashboard'; dashboardUuid: string; label: string }
+    | { type: 'space'; spaceUuid: string; label: string };
 
 /** Any quick action can be promoted to the row's primary one, which renders
  * as the same chip inverted. Optional so older configs still load. */
