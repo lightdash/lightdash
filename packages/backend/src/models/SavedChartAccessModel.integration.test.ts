@@ -1,5 +1,7 @@
 import {
     ChartKind,
+    DirectAccessPrincipalType,
+    DirectAccessResourceType,
     OrganizationMemberRole,
     ProjectMemberRole,
     SEED_ORG_1_ADMIN,
@@ -31,6 +33,7 @@ import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import { getTestContext } from '../vitest.setup.integration';
+import { DirectAccessModel } from './DirectAccessModel';
 import { SavedChartAccessModel } from './SavedChartAccessModel';
 
 type Fixture = {
@@ -105,6 +108,7 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
     let database: Knex;
     let transaction: Knex.Transaction;
     let model: SavedChartAccessModel;
+    let store: DirectAccessModel;
     let fixture: Fixture;
 
     beforeAll(() => {
@@ -114,6 +118,7 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
     beforeEach(async () => {
         transaction = await database.transaction();
         model = new SavedChartAccessModel(transaction);
+        store = new DirectAccessModel(transaction);
 
         const projectSpace = await transaction(SpaceTableName)
             .innerJoin(
@@ -398,18 +403,26 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
     });
 
     const upsertUser = (role: SpaceMemberRole) =>
-        model.upsertUserAccess({
+        store.upsertAccess({
+            resourceType: DirectAccessResourceType.CHART,
             resourceUuid: fixture.directChartUuid,
-            userUuid: fixture.userUuid,
+            principal: {
+                type: DirectAccessPrincipalType.USER,
+                uuid: fixture.userUuid,
+            },
             role,
             organizationUuid: fixture.organizationUuid,
             grantedByUserUuid: fixture.userUuid,
         });
 
     const upsertGroup = (role: SpaceMemberRole) =>
-        model.upsertGroupAccess({
+        store.upsertAccess({
+            resourceType: DirectAccessResourceType.CHART,
             resourceUuid: fixture.directChartUuid,
-            groupUuid: fixture.groupUuid,
+            principal: {
+                type: DirectAccessPrincipalType.GROUP,
+                uuid: fixture.groupUuid,
+            },
             role,
             organizationUuid: fixture.organizationUuid,
             grantedByUserUuid: fixture.userUuid,
@@ -417,49 +430,69 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
 
     const getMutationCases = (): MutationCase[] => [
         {
-            method: 'upsertUserAccess',
+            method: 'upsertAccess (user)',
             invoke: (resourceUuid, organizationUuid) =>
-                model.upsertUserAccess({
+                store.upsertAccess({
+                    resourceType: DirectAccessResourceType.CHART,
                     resourceUuid,
-                    userUuid: fixture.userUuid,
+                    principal: {
+                        type: DirectAccessPrincipalType.USER,
+                        uuid: fixture.userUuid,
+                    },
                     role: SpaceMemberRole.ADMIN,
                     organizationUuid,
                     grantedByUserUuid: fixture.userUuid,
                 }),
         },
         {
-            method: 'upsertGroupAccess',
+            method: 'upsertAccess (group)',
             invoke: (resourceUuid, organizationUuid) =>
-                model.upsertGroupAccess({
+                store.upsertAccess({
+                    resourceType: DirectAccessResourceType.CHART,
                     resourceUuid,
-                    groupUuid: fixture.groupUuid,
+                    principal: {
+                        type: DirectAccessPrincipalType.GROUP,
+                        uuid: fixture.groupUuid,
+                    },
                     role: SpaceMemberRole.ADMIN,
                     organizationUuid,
                     grantedByUserUuid: fixture.userUuid,
                 }),
         },
         {
-            method: 'revokeUserAccess',
+            method: 'revokeAccess (user)',
             invoke: (resourceUuid, organizationUuid) =>
-                model.revokeUserAccess({
+                store.revokeAccess({
+                    resourceType: DirectAccessResourceType.CHART,
                     resourceUuid,
-                    userUuid: fixture.userUuid,
+                    principal: {
+                        type: DirectAccessPrincipalType.USER,
+                        uuid: fixture.userUuid,
+                    },
                     organizationUuid,
                 }),
         },
         {
-            method: 'revokeGroupAccess',
+            method: 'revokeAccess (group)',
             invoke: (resourceUuid, organizationUuid) =>
-                model.revokeGroupAccess({
+                store.revokeAccess({
+                    resourceType: DirectAccessResourceType.CHART,
                     resourceUuid,
-                    groupUuid: fixture.groupUuid,
+                    principal: {
+                        type: DirectAccessPrincipalType.GROUP,
+                        uuid: fixture.groupUuid,
+                    },
                     organizationUuid,
                 }),
         },
         {
             method: 'resetAccess',
             invoke: (resourceUuid, organizationUuid) =>
-                model.resetAccess({ resourceUuid, organizationUuid }),
+                store.resetAccess({
+                    resourceType: DirectAccessResourceType.CHART,
+                    resourceUuid,
+                    organizationUuid,
+                }),
         },
     ];
 
@@ -501,9 +534,13 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
     };
 
     const grantUser = (userUuid: string) =>
-        model.upsertUserAccess({
+        store.upsertAccess({
+            resourceType: DirectAccessResourceType.CHART,
             resourceUuid: fixture.directChartUuid,
-            userUuid,
+            principal: {
+                type: DirectAccessPrincipalType.USER,
+                uuid: userUuid,
+            },
             role: SpaceMemberRole.VIEWER,
             organizationUuid: fixture.organizationUuid,
             grantedByUserUuid: fixture.userUuid,
@@ -636,9 +673,13 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
             name: 'NotFoundError',
         });
         await expect(
-            model.upsertGroupAccess({
+            store.upsertAccess({
+                resourceType: DirectAccessResourceType.CHART,
                 resourceUuid: fixture.directChartUuid,
-                groupUuid: noProjectGroup.group_uuid,
+                principal: {
+                    type: DirectAccessPrincipalType.GROUP,
+                    uuid: noProjectGroup.group_uuid,
+                },
                 role: SpaceMemberRole.VIEWER,
                 organizationUuid: fixture.organizationUuid,
                 grantedByUserUuid: fixture.userUuid,
@@ -760,9 +801,13 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
         await upsertUser(SpaceMemberRole.VIEWER);
 
         await expect(
-            model.upsertUserAccess({
+            store.upsertAccess({
+                resourceType: DirectAccessResourceType.CHART,
                 resourceUuid: fixture.directChartUuid,
-                userUuid: fixture.userUuid,
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: fixture.userUuid,
+                },
                 role: SpaceMemberRole.ADMIN,
                 organizationUuid: fixture.organizationUuid,
                 grantedByUserUuid: fixture.foreignUserUuid,
@@ -788,9 +833,13 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
         await upsertGroup(SpaceMemberRole.VIEWER);
 
         await expect(
-            model.upsertGroupAccess({
+            store.upsertAccess({
+                resourceType: DirectAccessResourceType.CHART,
                 resourceUuid: fixture.directChartUuid,
-                groupUuid: fixture.groupUuid,
+                principal: {
+                    type: DirectAccessPrincipalType.GROUP,
+                    uuid: fixture.groupUuid,
+                },
                 role: SpaceMemberRole.EDITOR,
                 organizationUuid: fixture.organizationUuid,
                 grantedByUserUuid: fixture.foreignUserUuid,
@@ -816,9 +865,13 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
         await upsertUser(SpaceMemberRole.EDITOR);
 
         await expect(
-            model.revokeUserAccess({
+            store.revokeAccess({
+                resourceType: DirectAccessResourceType.CHART,
                 resourceUuid: fixture.directChartUuid,
-                userUuid: fixture.userUuid,
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: fixture.userUuid,
+                },
                 organizationUuid: fixture.organizationUuid,
             }),
         ).resolves.toMatchObject({
@@ -826,9 +879,13 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
             afterRole: null,
         });
         await expect(
-            model.revokeUserAccess({
+            store.revokeAccess({
+                resourceType: DirectAccessResourceType.CHART,
                 resourceUuid: fixture.directChartUuid,
-                userUuid: fixture.userUuid,
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: fixture.userUuid,
+                },
                 organizationUuid: fixture.organizationUuid,
             }),
         ).resolves.toMatchObject({ beforeRole: null, afterRole: null });
@@ -838,9 +895,13 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
         await upsertGroup(SpaceMemberRole.ADMIN);
 
         await expect(
-            model.revokeGroupAccess({
+            store.revokeAccess({
+                resourceType: DirectAccessResourceType.CHART,
                 resourceUuid: fixture.directChartUuid,
-                groupUuid: fixture.groupUuid,
+                principal: {
+                    type: DirectAccessPrincipalType.GROUP,
+                    uuid: fixture.groupUuid,
+                },
                 organizationUuid: fixture.organizationUuid,
             }),
         ).resolves.toMatchObject({
@@ -848,9 +909,13 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
             afterRole: null,
         });
         await expect(
-            model.revokeGroupAccess({
+            store.revokeAccess({
+                resourceType: DirectAccessResourceType.CHART,
                 resourceUuid: fixture.directChartUuid,
-                groupUuid: fixture.groupUuid,
+                principal: {
+                    type: DirectAccessPrincipalType.GROUP,
+                    uuid: fixture.groupUuid,
+                },
                 organizationUuid: fixture.organizationUuid,
             }),
         ).resolves.toMatchObject({ beforeRole: null, afterRole: null });
@@ -861,13 +926,15 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
         await upsertGroup(SpaceMemberRole.ADMIN);
 
         await expect(
-            model.resetAccess({
+            store.resetAccess({
+                resourceType: DirectAccessResourceType.CHART,
                 resourceUuid: fixture.directChartUuid,
                 organizationUuid: fixture.organizationUuid,
             }),
         ).resolves.toMatchObject({ revokedUsers: 1, revokedGroups: 1 });
         await expect(
-            model.resetAccess({
+            store.resetAccess({
+                resourceType: DirectAccessResourceType.CHART,
                 resourceUuid: fixture.directChartUuid,
                 organizationUuid: fixture.organizationUuid,
             }),
@@ -952,22 +1019,30 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
 
     it.each([
         {
-            method: 'upsertUserAccess',
+            method: 'upsertAccess (user)',
             invoke: () =>
-                model.upsertUserAccess({
+                store.upsertAccess({
+                    resourceType: DirectAccessResourceType.CHART,
                     resourceUuid: fixture.dashboardChartUuid,
-                    userUuid: fixture.userUuid,
+                    principal: {
+                        type: DirectAccessPrincipalType.USER,
+                        uuid: fixture.userUuid,
+                    },
                     role: SpaceMemberRole.ADMIN,
                     organizationUuid: fixture.organizationUuid,
                     grantedByUserUuid: fixture.userUuid,
                 }),
         },
         {
-            method: 'upsertGroupAccess',
+            method: 'upsertAccess (group)',
             invoke: () =>
-                model.upsertGroupAccess({
+                store.upsertAccess({
+                    resourceType: DirectAccessResourceType.CHART,
                     resourceUuid: fixture.dashboardChartUuid,
-                    groupUuid: fixture.groupUuid,
+                    principal: {
+                        type: DirectAccessPrincipalType.GROUP,
+                        uuid: fixture.groupUuid,
+                    },
                     role: SpaceMemberRole.ADMIN,
                     organizationUuid: fixture.organizationUuid,
                     grantedByUserUuid: fixture.userUuid,
@@ -986,22 +1061,30 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
 
     it.each([
         {
-            method: 'upsertUserAccess',
+            method: 'upsertAccess (user)',
             invoke: () =>
-                model.upsertUserAccess({
+                store.upsertAccess({
+                    resourceType: DirectAccessResourceType.CHART,
                     resourceUuid: fixture.dualOwnedChartUuid,
-                    userUuid: fixture.userUuid,
+                    principal: {
+                        type: DirectAccessPrincipalType.USER,
+                        uuid: fixture.userUuid,
+                    },
                     role: SpaceMemberRole.ADMIN,
                     organizationUuid: fixture.organizationUuid,
                     grantedByUserUuid: fixture.userUuid,
                 }),
         },
         {
-            method: 'upsertGroupAccess',
+            method: 'upsertAccess (group)',
             invoke: () =>
-                model.upsertGroupAccess({
+                store.upsertAccess({
+                    resourceType: DirectAccessResourceType.CHART,
                     resourceUuid: fixture.dualOwnedChartUuid,
-                    groupUuid: fixture.groupUuid,
+                    principal: {
+                        type: DirectAccessPrincipalType.GROUP,
+                        uuid: fixture.groupUuid,
+                    },
                     role: SpaceMemberRole.ADMIN,
                     organizationUuid: fixture.organizationUuid,
                     grantedByUserUuid: fixture.userUuid,
@@ -1020,9 +1103,13 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
 
     it('revokes stale user access from a dashboard-owned chart', async () => {
         await expect(
-            model.revokeUserAccess({
+            store.revokeAccess({
+                resourceType: DirectAccessResourceType.CHART,
                 resourceUuid: fixture.dashboardChartUuid,
-                userUuid: fixture.userUuid,
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: fixture.userUuid,
+                },
                 organizationUuid: fixture.organizationUuid,
             }),
         ).resolves.toMatchObject({
@@ -1039,9 +1126,13 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
 
     it('revokes stale group access from a dashboard-owned chart', async () => {
         await expect(
-            model.revokeGroupAccess({
+            store.revokeAccess({
+                resourceType: DirectAccessResourceType.CHART,
                 resourceUuid: fixture.dashboardChartUuid,
-                groupUuid: fixture.groupUuid,
+                principal: {
+                    type: DirectAccessPrincipalType.GROUP,
+                    uuid: fixture.groupUuid,
+                },
                 organizationUuid: fixture.organizationUuid,
             }),
         ).resolves.toMatchObject({
@@ -1058,7 +1149,8 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
 
     it('resets stale access on a dashboard-owned chart', async () => {
         await expect(
-            model.resetAccess({
+            store.resetAccess({
+                resourceType: DirectAccessResourceType.CHART,
                 resourceUuid: fixture.dashboardChartUuid,
                 organizationUuid: fixture.organizationUuid,
             }),
@@ -1078,8 +1170,8 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
             chartUuid = await createCommittedDirectChart();
             firstTransaction = await database.transaction();
             secondTransaction = await database.transaction();
-            const firstModel = new SavedChartAccessModel(firstTransaction);
-            const secondModel = new SavedChartAccessModel(secondTransaction);
+            const firstModel = new DirectAccessModel(firstTransaction);
+            const secondModel = new DirectAccessModel(secondTransaction);
             const [firstPidResult, secondPidResult] = await Promise.all([
                 firstTransaction.raw<{ rows: { pid: number }[] }>(
                     'SELECT pg_backend_pid() AS pid',
@@ -1090,17 +1182,25 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
             ]);
             const [{ pid: firstPid }] = firstPidResult.rows;
             const [{ pid: secondPid }] = secondPidResult.rows;
-            await firstModel.upsertUserAccess({
+            await firstModel.upsertAccess({
+                resourceType: DirectAccessResourceType.CHART,
                 resourceUuid: chartUuid,
-                userUuid: fixture.userUuid,
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: fixture.userUuid,
+                },
                 role: SpaceMemberRole.VIEWER,
                 organizationUuid: fixture.organizationUuid,
                 grantedByUserUuid: fixture.userUuid,
             });
 
-            secondMutation = secondModel.upsertUserAccess({
+            secondMutation = secondModel.upsertAccess({
+                resourceType: DirectAccessResourceType.CHART,
                 resourceUuid: chartUuid,
-                userUuid: fixture.userUuid,
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: fixture.userUuid,
+                },
                 role: SpaceMemberRole.ADMIN,
                 organizationUuid: fixture.organizationUuid,
                 grantedByUserUuid: fixture.userUuid,
@@ -1166,7 +1266,7 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
             chartUuid = await createCommittedDirectChart();
             grantTransaction = await database.transaction();
             ownerTransaction = await database.transaction();
-            const grantModel = new SavedChartAccessModel(grantTransaction);
+            const grantModel = new DirectAccessModel(grantTransaction);
             const [grantPidResult, ownerPidResult] = await Promise.all([
                 grantTransaction.raw<{ rows: { pid: number }[] }>(
                     'SELECT pg_backend_pid() AS pid',
@@ -1178,9 +1278,13 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
             const [{ pid: grantPid }] = grantPidResult.rows;
             const [{ pid: ownerPid }] = ownerPidResult.rows;
 
-            await new SavedChartAccessModel(grantTransaction).upsertUserAccess({
+            await grantModel.upsertAccess({
+                resourceType: DirectAccessResourceType.CHART,
                 resourceUuid: chartUuid,
-                userUuid: fixture.userUuid,
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: fixture.userUuid,
+                },
                 role: SpaceMemberRole.VIEWER,
                 organizationUuid: fixture.organizationUuid,
                 grantedByUserUuid: fixture.userUuid,

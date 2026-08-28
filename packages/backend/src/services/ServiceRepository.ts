@@ -32,6 +32,7 @@ import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DeployService } from './DeployService';
 import { DirectAccessFeatureGate } from './DirectAccess/DirectAccessFeatureGate';
+import { DirectAccessService } from './DirectAccess/DirectAccessService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
 import { EmailWhitelabelService } from './EmailWhitelabelService/EmailWhitelabelService';
 import { FavoritesService } from './FavoritesService/FavoritesService';
@@ -100,6 +101,8 @@ interface ServiceManifest {
     commentService: CommentService;
     csvService: CsvService;
     dashboardService: DashboardService;
+    directAccessFeatureGate: DirectAccessFeatureGate;
+    directAccessService: DirectAccessService;
     deployService: DeployService;
     downloadFileService: DownloadFileService;
     favoritesService: FavoritesService;
@@ -1136,6 +1139,29 @@ export class ServiceRepository
         );
     }
 
+    public getDirectAccessFeatureGate(): DirectAccessFeatureGate {
+        return this.getService(
+            'directAccessFeatureGate',
+            () =>
+                new DirectAccessFeatureGate(
+                    this.models.getFeatureFlagModel(),
+                    this.getLicenseService(),
+                ),
+        );
+    }
+
+    public getDirectAccessService(): DirectAccessService {
+        return this.getService(
+            'directAccessService',
+            () =>
+                new DirectAccessService({
+                    directAccessModel: this.models.getDirectAccessModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
+                    directAccessFeatureGate: this.getDirectAccessFeatureGate(),
+                }),
+        );
+    }
+
     public getSpacePermissionService(): SpacePermissionService {
         return this.getService(
             'spacePermissionService',
@@ -1148,10 +1174,7 @@ export class ServiceRepository
                     savedChartAccessModel:
                         this.models.getSavedChartAccessModel(),
                     savedSqlAccessModel: this.models.getSavedSqlAccessModel(),
-                    directAccessFeatureGate: new DirectAccessFeatureGate(
-                        this.models.getFeatureFlagModel(),
-                        this.getLicenseService(),
-                    ),
+                    directAccessFeatureGate: this.getDirectAccessFeatureGate(),
                 }),
         );
     }
