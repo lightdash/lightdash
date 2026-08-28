@@ -1032,6 +1032,24 @@ export const getEffectiveOptionValue = <T extends DataAppVizConfigOption>(
         ? (storedValue as T['default'])
         : option.default;
 
+/**
+ * The explicitly stored values that still fit the declared options. Used when
+ * a chart moves to a newer contract: stale names and mistyped values go,
+ * defaults are still never seeded.
+ */
+export const pruneDataAppVizOptionValues = (
+    configOptions: DataAppVizConfigOption[],
+    optionValues: Record<string, DataAppVizOptionValue>,
+): Record<string, DataAppVizOptionValue> =>
+    Object.fromEntries(
+        configOptions.flatMap((option) => {
+            const stored = optionValues[option.name];
+            return stored !== undefined && matchesDeclaredType(option, stored)
+                ? [[option.name, stored]]
+                : [];
+        }),
+    );
+
 /** Effective values for every declared option. */
 export const getEffectiveOptionValues = (
     configOptions: DataAppVizConfigOption[],

@@ -1,5 +1,5 @@
 import { type DataAppVizSchemaChanges } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import DataAppVizUpgradeModal from './DataAppVizUpgradeModal';
@@ -26,12 +26,16 @@ const changes: DataAppVizSchemaChanges = {
     },
 };
 
-const renderModal = (schemaChanges: DataAppVizSchemaChanges) =>
+const renderModal = (
+    schemaChanges: DataAppVizSchemaChanges,
+    onUpgrade: () => void = vi.fn(),
+) =>
     renderWithProviders(
         <DataAppVizUpgradeModal
             typeName="Radial gauge"
             changes={schemaChanges}
             onClose={vi.fn()}
+            onUpgrade={onUpgrade}
         />,
     );
 
@@ -80,5 +84,14 @@ describe('DataAppVizUpgradeModal', () => {
         expect(
             screen.getByText(/only the rendering changed/),
         ).toBeInTheDocument();
+    });
+
+    it('upgrades from the footer', () => {
+        const onUpgrade = vi.fn();
+        renderModal(changes, onUpgrade);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Upgrade' }));
+
+        expect(onUpgrade).toHaveBeenCalledTimes(1);
     });
 });

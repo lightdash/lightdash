@@ -2,6 +2,7 @@ import {
     type DataAppVizChart,
     type DataAppVizFieldMapping,
     type DataAppVizOptionValue,
+    type DataAppVizOptionValues,
 } from '@lightdash/common';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
@@ -29,6 +30,16 @@ export interface DataAppVizVisualizationConfigAndData {
         fieldMapping: DataAppVizFieldMapping,
     ) => void;
     setDataAppVizVersion: (dataAppVizVersion: number) => void;
+    /**
+     * Move the chart to a newer version of its type. The caller reconciles
+     * the binding and options against that version's contract, for the same
+     * reason `setDataAppVizUuid` takes its mapping ready-made.
+     */
+    upgradeDataAppVizVersion: (
+        dataAppVizVersion: number,
+        fieldMapping: DataAppVizFieldMapping,
+        optionValues: DataAppVizOptionValues,
+    ) => void;
     /** Back to pointing at no viz; bindings and options go with it. */
     clearDataAppViz: () => void;
     setField: (fieldName: string, fieldId: string | null) => void;
@@ -146,6 +157,24 @@ const useDataAppVizVisualizationConfig = (
         [commit],
     );
 
+    const upgradeDataAppVizVersion = useCallback(
+        (
+            dataAppVizVersion: number,
+            fieldMapping: DataAppVizFieldMapping,
+            optionValues: DataAppVizOptionValues,
+        ) => {
+            const selected = configRef.current;
+            if (selected === null) return;
+            commit({
+                ...selected,
+                dataAppVizVersion,
+                fieldMapping,
+                optionValues,
+            });
+        },
+        [commit],
+    );
+
     const setField = useCallback(
         (fieldName: string, fieldId: string | null) => {
             const selected = configRef.current;
@@ -187,6 +216,7 @@ const useDataAppVizVisualizationConfig = (
         dataAppVizUuid: config?.dataAppVizUuid ?? null,
         setDataAppVizUuid,
         setDataAppVizVersion,
+        upgradeDataAppVizVersion,
         clearDataAppViz,
         setField,
         setOption,

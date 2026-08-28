@@ -5,6 +5,7 @@ import {
     FeatureFlags,
     getAppDisplayName,
     getEffectiveOptionValues,
+    pruneDataAppVizOptionValues,
     type ItemsMap,
 } from '@lightdash/common';
 import { Anchor, Box, Stack, Text } from '@mantine/core';
@@ -14,7 +15,10 @@ import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDa
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVizRenderMetadata } from '../../../features/chartTypes/hooks/useDataAppVizRender';
-import { reconcileDataAppVizFieldMapping } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
+import {
+    getUnboundRequiredDataAppVizFields,
+    reconcileDataAppVizFieldMapping,
+} from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { chartTypeBuilderPath } from '../../../features/chartTypes/utils/chartTypeBuilderPath';
 import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
 import {
@@ -26,6 +30,7 @@ import {
 import { type SelectedDataAppViz } from '../../../hooks/useDataAppVizVisualizationConfig';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import Callout from '../../common/Callout';
 import { useIsInsideChartGallery } from '../../common/ChartGallery/ChartGalleryContext';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -145,6 +150,7 @@ export const ConfigTabs: FC = memo(() => {
         clearDataAppViz,
         setField,
         setOption,
+        upgradeDataAppVizVersion,
     } = visualizationConfig.chartConfig;
     const fields = dataAppViz?.schema?.fields ?? [];
 
@@ -180,8 +186,47 @@ export const ConfigTabs: FC = memo(() => {
             );
         };
 
+        const unboundRequired = getUnboundRequiredDataAppVizFields(
+            fields,
+            effectiveMapping,
+        );
+
+        const handleUpgrade = () => {
+            if (!upgradeTarget) return;
+            const nextMapping = reconcileDataAppVizFieldMapping(
+                upgradeTarget.schema.fields,
+                itemsMap ?? NO_COLUMNS,
+                selectedViz.fieldMapping,
+            );
+            upgradeDataAppVizVersion(
+                upgradeTarget.version,
+                nextMapping,
+                pruneDataAppVizOptionValues(
+                    upgradeTarget.schema.configOptions,
+                    selectedViz.optionValues,
+                ),
+            );
+            setPivotDimensions(
+                deriveDataAppVizPivotConfig(
+                    upgradeTarget.schema.fields,
+                    nextMapping,
+                )?.columns,
+            );
+        };
+
         const settings = (
             <Stack>
+                {unboundRequired.length > 0 && (
+                    <Callout variant="warning" hideIcon p="xs">
+                        <Text fz="xs">
+                            Map{' '}
+                            {unboundRequired
+                                .map((field) => field.label)
+                                .join(', ')}{' '}
+                            to render this chart type.
+                        </Text>
+                    </Callout>
+                )}
                 <DataAppVizSettings
                     itemsMap={itemsMap ?? NO_COLUMNS}
                     fields={fields}
@@ -231,6 +276,7 @@ export const ConfigTabs: FC = memo(() => {
                             dataAppViz.dataAppVizUuid,
                         )}
                         changes={upgradeChanges}
+                        onUpgrade={handleUpgrade}
                     />
                 )}
                 <DataAppVizOptionTabs
