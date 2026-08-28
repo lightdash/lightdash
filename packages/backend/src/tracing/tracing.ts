@@ -3,9 +3,9 @@
  * LIGHTDASH_OTEL_TRACES_ENABLED:
  *
  * - OTel mode (Lightdash Cloud, and local dev): spans are created via the OTel
- *   SDK and exported over OTLP — GCP Cloud Trace in Cloud, Maple local mode in
- *   dev. Sentry does NOT receive or create spans — it is errors-only (see
- *   sentry.ts, which strips Sentry's span-emitting integrations in this mode).
+ *   SDK and exported according to OTEL_TRACES_EXPORTER. Sentry does NOT receive
+ *   or create spans — it is errors-only (see sentry.ts, which strips Sentry's
+ *   span-emitting integrations in this mode).
  * - Sentry mode (self-hosted): spans are created via Sentry's SDK exactly as
  *   before OTLP export existed.
  *
@@ -28,10 +28,11 @@ import {
 } from '@opentelemetry/api';
 import {
     CompositePropagator,
+    getStringFromEnv,
+    getStringListFromEnv,
     W3CBaggagePropagator,
     W3CTraceContextPropagator,
 } from '@opentelemetry/core';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import {
     ExpressInstrumentation,
     ExpressLayerType,
@@ -43,7 +44,6 @@ import {
 } from '@opentelemetry/resources';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import {
-    BatchSpanProcessor,
     ParentBasedSampler,
     SamplingDecision,
     TraceIdRatioBasedSampler,
@@ -88,8 +88,75 @@ const parseBoolean = (value: string | undefined) => value === 'true';
 
 export const otelTracingEnabled = () =>
     parseBoolean(process.env.LIGHTDASH_OTEL_TRACES_ENABLED) &&
-    process.env.OTEL_SDK_DISABLED !== 'true' &&
-    process.env.OTEL_TRACES_EXPORTER !== 'none';
+    process.env.OTEL_SDK_DISABLED !== 'true';
+
+const SUPPORTED_TRACE_EXPORTERS = new Set(['console', 'otlp', 'zipkin']);
+const SUPPORTED_OTLP_PROTOCOLS = new Set([
+    'grpc',
+    'http/json',
+    'http/protobuf',
+]);
+
+type OtelTraceExportConfig = {
+    exporters: string[];
+    protocol: string | null;
+    warnings: string[];
+};
+
+export const getOtelTraceExportConfig = (): OtelTraceExportConfig => {
+    let requestedExporters = Array.from(
+        new Set(getStringListFromEnv('OTEL_TRACES_EXPORTER') ?? []),
+    ).filter((exporter) => exporter !== 'null');
+    const warnings: string[] = [];
+
+    if (requestedExporters[0] === 'none') {
+        return { exporters: ['none'], protocol: null, warnings };
+    }
+
+    if (requestedExporters.length === 0) {
+        requestedExporters = ['otlp'];
+    } else if (
+        requestedExporters.length > 1 &&
+        requestedExporters.includes('none')
+    ) {
+        warnings.push(
+            'OTEL_TRACES_EXPORTER contains "none" with other exporters; OpenTelemetry will use the default "otlp" exporter',
+        );
+        requestedExporters = ['otlp'];
+    }
+
+    const exporters = requestedExporters.filter((exporter) => {
+        if (SUPPORTED_TRACE_EXPORTERS.has(exporter)) return true;
+
+        warnings.push(
+            `Unsupported OTEL_TRACES_EXPORTER value "${exporter}"; supported values are otlp, console, zipkin, and none`,
+        );
+        return false;
+    });
+
+    if (exporters.length === 0) {
+        warnings.push(
+            'OpenTelemetry could not configure trace export because no supported exporter was selected',
+        );
+    }
+
+    if (!exporters.includes('otlp')) {
+        return { exporters, protocol: null, warnings };
+    }
+
+    const requestedProtocol =
+        getStringFromEnv('OTEL_EXPORTER_OTLP_TRACES_PROTOCOL') ??
+        getStringFromEnv('OTEL_EXPORTER_OTLP_PROTOCOL') ??
+        'http/protobuf';
+    if (SUPPORTED_OTLP_PROTOCOLS.has(requestedProtocol)) {
+        return { exporters, protocol: requestedProtocol, warnings };
+    }
+
+    warnings.push(
+        `Unsupported OTLP traces protocol "${requestedProtocol}"; OpenTelemetry will use "http/protobuf"`,
+    );
+    return { exporters, protocol: 'http/protobuf', warnings };
+};
 
 const getSampleRate = () => {
     const sampleRate = Number(
@@ -348,6 +415,9 @@ class OtelTracingStrategy implements TracingStrategy {
     initialize() {
         if (!this.isEnabled() || this.sdk) return;
 
+        const exportConfig = getOtelTraceExportConfig();
+        exportConfig.warnings.forEach((warning) => Logger.warn(warning));
+
         this.sdk = new NodeSDK({
             // Sentry's context manager (an AsyncLocalStorage manager that also
             // forks Sentry scopes per context) is required for per-request
@@ -368,7 +438,6 @@ class OtelTracingStrategy implements TracingStrategy {
                     new W3CBaggagePropagator(),
                 ],
             }),
-            spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter())],
             instrumentations: [
                 new HttpInstrumentation({
                     ignoreIncomingRequestHook: (req) =>
@@ -391,7 +460,13 @@ class OtelTracingStrategy implements TracingStrategy {
         this.sdk.start();
         this.tracer = trace.getTracer('lightdash-backend', serviceVersion);
 
-        Logger.info('OTEL trace export enabled');
+        const exporters = exportConfig.exporters.join(', ') || 'none';
+        const protocol = exportConfig.protocol
+            ? `; OTLP protocol: ${exportConfig.protocol}`
+            : '';
+        Logger.info(
+            `OpenTelemetry tracing configured; trace exporters: ${exporters}${protocol}; exporter connectivity has not been validated`,
+        );
     }
 
     async shutdown() {

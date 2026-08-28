@@ -1,14 +1,100 @@
 import { context, ROOT_CONTEXT, SpanKind, trace } from '@opentelemetry/api';
 import { SamplingDecision, type Sampler } from '@opentelemetry/sdk-trace-base';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     AlwaysSampleAiRootsSampler,
+    getOtelTraceExportConfig,
     LightdashTraceContextPropagator,
+    otelTracingEnabled,
     sentryTraceToTraceparent,
 } from './tracing';
 
 const TRACE_ID = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const SPAN_ID = 'bbbbbbbbbbbbbbbb';
+
+afterEach(() => {
+    vi.unstubAllEnvs();
+});
+
+describe('otelTracingEnabled', () => {
+    it('keeps OTel mode enabled when trace export is disabled', () => {
+        vi.stubEnv('LIGHTDASH_OTEL_TRACES_ENABLED', 'true');
+        vi.stubEnv('OTEL_SDK_DISABLED', undefined);
+        vi.stubEnv('OTEL_TRACES_EXPORTER', 'none');
+
+        expect(otelTracingEnabled()).toBe(true);
+    });
+});
+
+describe('getOtelTraceExportConfig', () => {
+    it('reports the default and explicitly disabled exporter selections', () => {
+        vi.stubEnv('OTEL_TRACES_EXPORTER', undefined);
+        vi.stubEnv('OTEL_EXPORTER_OTLP_TRACES_PROTOCOL', undefined);
+        vi.stubEnv('OTEL_EXPORTER_OTLP_PROTOCOL', undefined);
+
+        expect(getOtelTraceExportConfig()).toEqual({
+            exporters: ['otlp'],
+            protocol: 'http/protobuf',
+            warnings: [],
+        });
+
+        vi.stubEnv('OTEL_TRACES_EXPORTER', 'none');
+        expect(getOtelTraceExportConfig()).toEqual({
+            exporters: ['none'],
+            protocol: null,
+            warnings: [],
+        });
+    });
+
+    it('reports console export without an OTLP protocol', () => {
+        vi.stubEnv('OTEL_TRACES_EXPORTER', 'console');
+        vi.stubEnv('OTEL_EXPORTER_OTLP_PROTOCOL', 'grpc');
+
+        expect(getOtelTraceExportConfig()).toEqual({
+            exporters: ['console'],
+            protocol: null,
+            warnings: [],
+        });
+    });
+
+    it('reports the trace-specific OTLP protocol with precedence', () => {
+        vi.stubEnv('OTEL_TRACES_EXPORTER', 'otlp');
+        vi.stubEnv('OTEL_EXPORTER_OTLP_PROTOCOL', 'http/protobuf');
+        vi.stubEnv('OTEL_EXPORTER_OTLP_TRACES_PROTOCOL', 'grpc');
+
+        expect(getOtelTraceExportConfig()).toEqual({
+            exporters: ['otlp'],
+            protocol: 'grpc',
+            warnings: [],
+        });
+    });
+
+    it('warns when no supported exporter is selected', () => {
+        vi.stubEnv('OTEL_TRACES_EXPORTER', 'unsupported');
+
+        expect(getOtelTraceExportConfig()).toEqual({
+            exporters: [],
+            protocol: null,
+            warnings: [
+                'Unsupported OTEL_TRACES_EXPORTER value "unsupported"; supported values are otlp, console, zipkin, and none',
+                'OpenTelemetry could not configure trace export because no supported exporter was selected',
+            ],
+        });
+    });
+
+    it('warns and reports the OTLP protocol fallback', () => {
+        vi.stubEnv('OTEL_TRACES_EXPORTER', 'otlp');
+        vi.stubEnv('OTEL_EXPORTER_OTLP_TRACES_PROTOCOL', 'unsupported');
+
+        expect(getOtelTraceExportConfig()).toEqual({
+            exporters: ['otlp'],
+            protocol: 'http/protobuf',
+            warnings: [
+                'Unsupported OTLP traces protocol "unsupported"; OpenTelemetry will use "http/protobuf"',
+            ],
+        });
+    });
+});
 
 const makeDelegate = (decision: SamplingDecision): Sampler => ({
     shouldSample: vi.fn().mockReturnValue({ decision }),
