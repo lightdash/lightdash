@@ -9,6 +9,7 @@ import min from 'lodash/min';
 import React, {
     useCallback,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -177,12 +178,14 @@ const DashboardTileStatusProvider: React.FC<
         cycleKey: embedLoadCycleKey,
         startedAt: performance.now(),
     });
-    if (loadCycleTiming.current.cycleKey !== embedLoadCycleKey) {
-        loadCycleTiming.current = {
-            cycleKey: embedLoadCycleKey,
-            startedAt: performance.now(),
-        };
-    }
+    useLayoutEffect(() => {
+        if (loadCycleTiming.current.cycleKey !== embedLoadCycleKey) {
+            loadCycleTiming.current = {
+                cycleKey: embedLoadCycleKey,
+                startedAt: performance.now(),
+            };
+        }
+    }, [embedLoadCycleKey]);
     const emittedLoadCycle = useRef<string | undefined>(undefined);
 
     useEffect(() => {
