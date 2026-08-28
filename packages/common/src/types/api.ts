@@ -1183,9 +1183,9 @@ export type InviteLinkAuthenticationOptions = {
     allowPasswordSignup: boolean;
     ssoProviders: OpenIdIdentityIssuerType[];
 };
-export type InviteLinkWithAuthenticationOptions = InviteLink & {
+export interface InviteLinkWithAuthenticationOptions extends InviteLink {
     authentication: InviteLinkAuthenticationOptions;
-};
+}
 export type CreateInviteLink = {
     email: string;
     expiresAt?: Date;
