@@ -117,6 +117,8 @@ import { DashboardControllerV2 } from './../controllers/v2/DashboardController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { DeployController } from './../controllers/v2/DeployController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { DirectAccessController } from './../controllers/v2/DirectAccessController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { FeatureFlagController } from './../controllers/v2/FeatureFlagController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ParametersController } from './../controllers/v2/ParametersController';
@@ -55347,6 +55349,128 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DirectAccessPrincipalType.USER': {
+        dataType: 'refEnum',
+        enums: ['user'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DirectAccessUserPrincipal: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                email: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                lastName: { dataType: 'string', required: true },
+                firstName: { dataType: 'string', required: true },
+                userUuid: { ref: 'UUID', required: true },
+                type: { ref: 'DirectAccessPrincipalType.USER', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DirectAccessPrincipalType.GROUP': {
+        dataType: 'refEnum',
+        enums: ['group'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DirectAccessGroupPrincipal: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                name: { dataType: 'string', required: true },
+                groupUuid: { ref: 'UUID', required: true },
+                type: {
+                    ref: 'DirectAccessPrincipalType.GROUP',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DirectAccessPrincipal: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'DirectAccessUserPrincipal' },
+                { ref: 'DirectAccessGroupPrincipal' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DirectAccessAssignment: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                updatedAt: { dataType: 'datetime', required: true },
+                createdAt: { dataType: 'datetime', required: true },
+                grantedByUserUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'UUID' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                role: { ref: 'SpaceMemberRole', required: true },
+                principal: { ref: 'DirectAccessPrincipal', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiDirectAccessAssignmentsResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'DirectAccessAssignment',
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DirectAccessResourceType: {
+        dataType: 'refEnum',
+        enums: ['dashboard', 'chart', 'sqlChart', 'app'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DirectAccessPrincipalType: {
+        dataType: 'refEnum',
+        enums: ['user', 'group'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpsertDirectAccessAssignmentRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                role: { ref: 'SpaceMemberRole', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiStartDeploySessionResponse: {
         dataType: 'refAlias',
         type: {
@@ -109891,6 +110015,328 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'deleteFeatureFlagOverride',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDirectAccessController_listDirectAccessAssignments: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        resourceType: {
+            in: 'path',
+            name: 'resourceType',
+            required: true,
+            ref: 'DirectAccessResourceType',
+        },
+        resourceUuid: {
+            in: 'path',
+            name: 'resourceUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.get(
+        '/api/v2/projects/:projectUuid/direct-access/:resourceType/:resourceUuid/assignments',
+        ...fetchMiddlewares<RequestHandler>(DirectAccessController),
+        ...fetchMiddlewares<RequestHandler>(
+            DirectAccessController.prototype.listDirectAccessAssignments,
+        ),
+
+        async function DirectAccessController_listDirectAccessAssignments(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsDirectAccessController_listDirectAccessAssignments,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DirectAccessController>(
+                        DirectAccessController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'listDirectAccessAssignments',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDirectAccessController_upsertDirectAccessAssignment: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        resourceType: {
+            in: 'path',
+            name: 'resourceType',
+            required: true,
+            ref: 'DirectAccessResourceType',
+        },
+        resourceUuid: {
+            in: 'path',
+            name: 'resourceUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        principalType: {
+            in: 'path',
+            name: 'principalType',
+            required: true,
+            ref: 'DirectAccessPrincipalType',
+        },
+        principalUuid: {
+            in: 'path',
+            name: 'principalUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpsertDirectAccessAssignmentRequest',
+        },
+    };
+    app.put(
+        '/api/v2/projects/:projectUuid/direct-access/:resourceType/:resourceUuid/assignments/:principalType/:principalUuid',
+        ...fetchMiddlewares<RequestHandler>(DirectAccessController),
+        ...fetchMiddlewares<RequestHandler>(
+            DirectAccessController.prototype.upsertDirectAccessAssignment,
+        ),
+
+        async function DirectAccessController_upsertDirectAccessAssignment(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsDirectAccessController_upsertDirectAccessAssignment,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DirectAccessController>(
+                        DirectAccessController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'upsertDirectAccessAssignment',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDirectAccessController_revokeDirectAccessAssignment: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        resourceType: {
+            in: 'path',
+            name: 'resourceType',
+            required: true,
+            ref: 'DirectAccessResourceType',
+        },
+        resourceUuid: {
+            in: 'path',
+            name: 'resourceUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        principalType: {
+            in: 'path',
+            name: 'principalType',
+            required: true,
+            ref: 'DirectAccessPrincipalType',
+        },
+        principalUuid: {
+            in: 'path',
+            name: 'principalUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.delete(
+        '/api/v2/projects/:projectUuid/direct-access/:resourceType/:resourceUuid/assignments/:principalType/:principalUuid',
+        ...fetchMiddlewares<RequestHandler>(DirectAccessController),
+        ...fetchMiddlewares<RequestHandler>(
+            DirectAccessController.prototype.revokeDirectAccessAssignment,
+        ),
+
+        async function DirectAccessController_revokeDirectAccessAssignment(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsDirectAccessController_revokeDirectAccessAssignment,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DirectAccessController>(
+                        DirectAccessController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'revokeDirectAccessAssignment',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDirectAccessController_resetDirectAccessAssignments: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        resourceType: {
+            in: 'path',
+            name: 'resourceType',
+            required: true,
+            ref: 'DirectAccessResourceType',
+        },
+        resourceUuid: {
+            in: 'path',
+            name: 'resourceUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.delete(
+        '/api/v2/projects/:projectUuid/direct-access/:resourceType/:resourceUuid/assignments',
+        ...fetchMiddlewares<RequestHandler>(DirectAccessController),
+        ...fetchMiddlewares<RequestHandler>(
+            DirectAccessController.prototype.resetDirectAccessAssignments,
+        ),
+
+        async function DirectAccessController_resetDirectAccessAssignments(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsDirectAccessController_resetDirectAccessAssignments,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DirectAccessController>(
+                        DirectAccessController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'resetDirectAccessAssignments',
                     controller,
                     response,
                     next,

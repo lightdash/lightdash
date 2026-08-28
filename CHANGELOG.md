@@ -1,3 +1,10 @@
+# [2.51.0](https://github.com/lightdash/lightdash/compare/2.50.0...2.51.0) (2026-08-28)
+
+
+### Features
+
+* **direct-access:** add generic administration API ([#28263](https://github.com/lightdash/lightdash/issues/28263)) ([510eca8](https://github.com/lightdash/lightdash/commit/510eca8928edcf679635d3c652671a0c02855727))
+
 # [2.50.0](https://github.com/lightdash/lightdash/compare/2.49.1...2.50.0) (2026-08-28)
 
 

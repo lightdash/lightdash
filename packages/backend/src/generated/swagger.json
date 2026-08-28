@@ -55524,6 +55524,137 @@
                 "required": ["enabled", "id"],
                 "type": "object"
             },
+            "DirectAccessPrincipalType.USER": {
+                "enum": ["user"],
+                "type": "string"
+            },
+            "DirectAccessUserPrincipal": {
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DirectAccessPrincipalType.USER"
+                    }
+                },
+                "required": [
+                    "email",
+                    "lastName",
+                    "firstName",
+                    "userUuid",
+                    "type"
+                ],
+                "type": "object"
+            },
+            "DirectAccessPrincipalType.GROUP": {
+                "enum": ["group"],
+                "type": "string"
+            },
+            "DirectAccessGroupPrincipal": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "groupUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DirectAccessPrincipalType.GROUP"
+                    }
+                },
+                "required": ["name", "groupUuid", "type"],
+                "type": "object"
+            },
+            "DirectAccessPrincipal": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DirectAccessUserPrincipal"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DirectAccessGroupPrincipal"
+                    }
+                ]
+            },
+            "DirectAccessAssignment": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "grantedByUserUuid": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/UUID"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "principal": {
+                        "$ref": "#/components/schemas/DirectAccessPrincipal"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "grantedByUserUuid",
+                    "role",
+                    "principal"
+                ],
+                "type": "object",
+                "description": "One persisted direct assignment. Reflects stored policy only — inherited\nspace/project/organization roles are never reconstructed into this shape."
+            },
+            "ApiDirectAccessAssignmentsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/DirectAccessAssignment"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "DirectAccessResourceType": {
+                "description": "Closed registry of resource types that support direct access grants.\nGrowing this union means adding a resource registry entry, an\n`AccessTarget` mapping, and grant tables — never a new handler hierarchy.",
+                "enum": ["dashboard", "chart", "sqlChart", "app"],
+                "type": "string"
+            },
+            "DirectAccessPrincipalType": {
+                "enum": ["user", "group"],
+                "type": "string"
+            },
+            "UpsertDirectAccessAssignmentRequest": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    }
+                },
+                "required": ["role"],
+                "type": "object"
+            },
             "ApiStartDeploySessionResponse": {
                 "properties": {
                     "results": {
@@ -57325,7 +57456,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.50.0",
+        "version": "2.51.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -92989,6 +93120,272 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/direct-access/{resourceType}/{resourceUuid}/assignments": {
+            "get": {
+                "operationId": "List direct access assignments",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDirectAccessAssignmentsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the direct access assignments stored for one resource. Returns\ndirect assignments and direct roles only; inherited or effective roles\nare never reconstructed here.",
+                "summary": "List direct access",
+                "tags": ["v2", "Direct Access"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "resourceType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/DirectAccessResourceType"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "resourceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "Reset direct access",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove every direct access assignment from one resource.",
+                "summary": "Reset direct access",
+                "tags": ["v2", "Direct Access"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "resourceType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/DirectAccessResourceType"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "resourceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/direct-access/{resourceType}/{resourceUuid}/assignments/{principalType}/{principalUuid}": {
+            "put": {
+                "operationId": "Replace direct access role",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create or replace one principal's direct role on a resource.",
+                "summary": "Replace direct access role",
+                "tags": ["v2", "Direct Access"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "resourceType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/DirectAccessResourceType"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "resourceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "principalType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/DirectAccessPrincipalType"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "principalUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpsertDirectAccessAssignmentRequest"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "Revoke direct access",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Revoke one principal's direct access. Revoking an assignment that does\nnot exist succeeds as a no-op.",
+                "summary": "Revoke direct access",
+                "tags": ["v2", "Direct Access"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "resourceType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/DirectAccessResourceType"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "resourceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "principalType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/DirectAccessPrincipalType"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "principalUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
