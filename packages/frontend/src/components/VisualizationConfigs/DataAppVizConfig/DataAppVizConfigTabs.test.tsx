@@ -259,6 +259,7 @@ describe('DataAppVizConfigTabs', () => {
         dataAppVizUuid: string | null = 'data-app-viz-uuid',
         optionValues: Record<string, boolean | number | string> = {},
         fieldMapping: Record<string, string> = {},
+        dataAppVizVersion?: number,
     ) =>
         vi.mocked(useVisualizationContext).mockReturnValue({
             itemsMap,
@@ -269,7 +270,12 @@ describe('DataAppVizConfigTabs', () => {
                     validConfig:
                         dataAppVizUuid === null
                             ? null
-                            : { dataAppVizUuid, fieldMapping, optionValues },
+                            : {
+                                  dataAppVizUuid,
+                                  dataAppVizVersion,
+                                  fieldMapping,
+                                  optionValues,
+                              },
                     dataAppVizUuid,
                     setDataAppVizUuid,
                     clearDataAppViz,
@@ -684,6 +690,18 @@ describe('DataAppVizConfigTabs', () => {
         } finally {
             authoringState.current = null;
         }
+    });
+
+    it('fetches the schema of the selected chart type version', () => {
+        mockContext(queryColumns, 'data-app-viz-uuid', {}, {}, 3);
+
+        renderWithProviders(<ConfigTabs />);
+
+        expect(useDataAppVisualization).toHaveBeenLastCalledWith(
+            'project-1',
+            'data-app-viz-uuid',
+            3,
+        );
     });
 
     it('stays on the latest schema when authoring a different type', () => {

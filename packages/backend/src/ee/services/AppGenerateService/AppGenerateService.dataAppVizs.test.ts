@@ -595,6 +595,114 @@ describe('AppGenerateService data app vizs', () => {
             );
         });
 
+        it('renders the project chart type version pinned by the saved chart', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+                getLatestVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+            };
+            const service = buildService(appModel, {
+                savedChartService: { hasAccess: vi.fn().mockResolvedValue([]) },
+                savedChartModel: {
+                    get: vi.fn().mockResolvedValue({
+                        uuid: 'chart-1',
+                        chartConfig: {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: {
+                                dataAppVizUuid: 'data-app-viz-1',
+                                dataAppVizVersion: 2,
+                            },
+                        },
+                    }),
+                },
+            });
+
+            await expect(
+                service.getChartDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                ),
+            ).resolves.toMatchObject({ state: 'ready', version: 2 });
+            expect(appModel.getVersion).toHaveBeenCalledWith(
+                'data-app-viz-1',
+                2,
+            );
+            expect(appModel.getLatestVersion).not.toHaveBeenCalled();
+        });
+
+        it('rejects a preview token for a version other than the saved chart pin', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+            };
+            const service = buildService(appModel, {
+                savedChartService: { hasAccess: vi.fn().mockResolvedValue([]) },
+                savedChartModel: {
+                    get: vi.fn().mockResolvedValue({
+                        uuid: 'chart-1',
+                        chartConfig: {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: {
+                                dataAppVizUuid: 'data-app-viz-1',
+                                dataAppVizVersion: 2,
+                            },
+                        },
+                    }),
+                },
+            });
+
+            await expect(
+                service.getChartDataAppVizPreviewToken(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                    4,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(appModel.getVersion).not.toHaveBeenCalled();
+        });
+
+        it('rejects a historical preview token for an unpinned legacy chart', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+            };
+            const service = buildService(appModel, chartDeps('data-app-viz-1'));
+
+            await expect(
+                service.getChartDataAppVizPreviewToken(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                    2,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
         it('propagates the chart denial and mints no token', async () => {
             const appModel = {
                 findVisualizationApp: vi
@@ -627,16 +735,18 @@ describe('AppGenerateService data app vizs', () => {
                 findVisualizationApp: vi
                     .fn()
                     .mockResolvedValue(makeDataAppVizRow()),
-                getLatestVersion: vi.fn().mockResolvedValue(makeVersion()),
-                getLatestRenderableDataAppVizVersion: vi
+                getVersion: vi
                     .fn()
-                    .mockResolvedValue(makeVersion()),
+                    .mockResolvedValue(makeVersion({ version: 2 })),
             };
             const get = vi.fn().mockResolvedValue({
                 uuid: 'chart-1',
                 chartConfig: {
                     type: ChartType.DATA_APP_VIZ,
-                    config: { dataAppVizUuid: 'data-app-viz-1' },
+                    config: {
+                        dataAppVizUuid: 'data-app-viz-1',
+                        dataAppVizVersion: 2,
+                    },
                 },
             });
             const service = buildService(appModel, {
@@ -652,10 +762,14 @@ describe('AppGenerateService data app vizs', () => {
                     'data-app-viz-1',
                     'chart-version-7',
                 ),
-            ).resolves.toMatchObject({ state: 'ready' });
+            ).resolves.toMatchObject({ state: 'ready', version: 2 });
             expect(get).toHaveBeenCalledWith('chart-1', 'chart-version-7', {
                 projectUuid: 'project-1',
             });
+            expect(appModel.getVersion).toHaveBeenCalledWith(
+                'data-app-viz-1',
+                2,
+            );
         });
 
         it('rejects a chart that does not reference the requested viz', async () => {

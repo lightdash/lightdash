@@ -53,20 +53,24 @@ export const ConfigTabs: FC = memo(() => {
     const dataAppVizUuid = isDataAppViz
         ? visualizationConfig.chartConfig.dataAppVizUuid
         : null;
+    const selectedVersion = isDataAppViz
+        ? (visualizationConfig.chartConfig.validConfig?.dataAppVizVersion ??
+          null)
+        : null;
 
-    // A chart renders the viz's latest ready version, so its options come from
-    // that version's declaration — unless the builder is previewing an older
-    // version of this same viz, whose own declaration the panel then follows.
-    const authoringVersion =
+    // The panel follows the same version as the chart. The builder can
+    // temporarily preview a different version of this same viz; selecting a
+    // type again clears its pin, so that path still asks for latest.
+    const schemaVersion =
         authoring !== null &&
         dataAppVizUuid !== null &&
         authoring.dataAppVizUuid === dataAppVizUuid
             ? authoring.viewedVersion
-            : null;
+            : selectedVersion;
     const { data: dataAppViz } = useDataAppVisualization(
         projectUuid,
         dataAppVizUuid,
-        authoringVersion,
+        schemaVersion,
     );
 
     const configOptions = useMemo(

@@ -58,6 +58,12 @@ type AppModelArguments = {
     database: Knex;
 };
 
+export type PreviewChartVizBindingMapping = {
+    sourceAppUuid: string;
+    previewAppUuid: string;
+    previewAppVersion: number;
+};
+
 const AppSlugSequence = 'apps_slug_sequence';
 
 type AppWithOrgAndPin = DbApp & {
@@ -1207,11 +1213,7 @@ export class AppModel {
      */
     async remapPreviewChartVizBindings(
         previewProjectUuid: string,
-        mappings: {
-            sourceAppUuid: string;
-            previewAppUuid: string;
-            previewAppVersion: number;
-        }[],
+        mappings: PreviewChartVizBindingMapping[],
     ): Promise<void> {
         if (mappings.length === 0) {
             return;

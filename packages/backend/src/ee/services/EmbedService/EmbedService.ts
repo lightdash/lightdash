@@ -112,9 +112,10 @@ import { EmbedModel } from '../../models/EmbedModel';
 import { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { getBundleServableChecker } from '../AppGenerateService/appBundleStorage';
 import {
+    assertDataAppVizPreviewVersionAllowed,
+    getDataAppVizVersionPin,
     resolveDataAppVisualizationForRender,
     resolveDataAppVizRenderMetadata,
-    resolveRenderableDataAppVizVersion,
 } from '../AppGenerateService/dataAppVizRender';
 
 const escapeEmbedJwtUserAttributeValue = (value: string): string =>
@@ -1825,7 +1826,7 @@ export class EmbedService extends BaseService {
             );
         }
 
-        return dataAppViz;
+        return { dataAppViz, chart };
     }
 
     async getEmbedDataAppVizRenderMetadata(
@@ -1834,16 +1835,19 @@ export class EmbedService extends BaseService {
         savedChartUuid: string,
         dataAppVizUuid: string,
     ): Promise<DataAppVizRenderMetadata> {
-        const dataAppViz = await this.getAuthorizedDataAppVizForEmbed(
-            account,
-            projectUuid,
-            savedChartUuid,
-            dataAppVizUuid,
-        );
+        const { dataAppViz, chart } =
+            await this.getAuthorizedDataAppVizForEmbed(
+                account,
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+            );
+        const pinnedVersion = getDataAppVizVersionPin(chart.chartConfig);
         return resolveDataAppVizRenderMetadata(
             this.appModel,
             dataAppViz.app_id,
             getBundleServableChecker(this.lightdashConfig.appRuntime.s3),
+            pinnedVersion,
         );
     }
 
@@ -1854,16 +1858,18 @@ export class EmbedService extends BaseService {
         dataAppVizUuid: string,
         version: number,
     ): Promise<string> {
-        const dataAppViz = await this.getAuthorizedDataAppVizForEmbed(
-            account,
-            projectUuid,
-            savedChartUuid,
-            dataAppVizUuid,
-        );
-        await resolveRenderableDataAppVizVersion(
+        const { dataAppViz, chart } =
+            await this.getAuthorizedDataAppVizForEmbed(
+                account,
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+            );
+        await assertDataAppVizPreviewVersionAllowed(
             this.appModel,
             dataAppViz.app_id,
             version,
+            getDataAppVizVersionPin(chart.chartConfig),
         );
         return mintPreviewToken(
             this.lightdashConfig.lightdashSecrets,

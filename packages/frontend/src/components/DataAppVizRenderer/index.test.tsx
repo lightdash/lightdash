@@ -48,7 +48,11 @@ const mocks = vi.hoisted(() => ({
     dataAppVizUuid: { current: 'viz-uuid' as string | null },
     dataAppVizVersion: { current: 7 as number | undefined },
     setDataAppVizVersion: vi.fn(),
-    iframePreview: vi.fn(() => null),
+    iframePreview: vi.fn(
+        (_props: {
+            onScreenshotAvailabilityChange: (available: boolean) => void;
+        }) => null,
+    ),
     renderMetadataHook: vi.fn(),
     previewTokenHook: vi.fn(),
     setFetchAll: vi.fn(),
@@ -166,6 +170,12 @@ const renderRenderer = (props?: Parameters<typeof DataAppVizRenderer>[0]) =>
         </MantineProvider>,
     );
 
+const announceIframeAvailable = () => {
+    const iframeProps = mocks.iframePreview.mock.lastCall?.[0];
+    if (!iframeProps) throw new Error('Expected the iframe preview to render');
+    act(() => iframeProps.onScreenshotAvailabilityChange(true));
+};
+
 const readyMetadata = () => ({
     state: 'ready' as const,
     version: 7,
@@ -264,11 +274,41 @@ describe('DataAppVizRenderer', () => {
         renderRenderer();
 
         expect(
-            screen.getByText('Custom chart type preview is unavailable.'),
+            screen.getByText(
+                'The saved custom chart type version is unavailable.',
+            ),
         ).toBeInTheDocument();
         expect(
             screen.queryByText('Custom chart type failed to generate.'),
         ).not.toBeInTheDocument();
+    });
+
+    it('keeps the generic unavailable state for a legacy unpinned saved chart', () => {
+        mocks.metadata.current = {
+            state: 'unavailable',
+            latestBuildInProgress: false,
+        };
+        mocks.dataAppVizVersion.current = undefined;
+
+        renderRenderer();
+
+        expect(
+            screen.getByText('Custom chart type preview is unavailable.'),
+        ).toBeInTheDocument();
+    });
+
+    it('keeps the generic unavailable state for an unsaved preview', () => {
+        mocks.metadata.current = {
+            state: 'unavailable',
+            latestBuildInProgress: false,
+        };
+        mocks.vizContextOverrides.current = { savedChartUuid: undefined };
+
+        renderRenderer();
+
+        expect(
+            screen.getByText('Custom chart type preview is unavailable.'),
+        ).toBeInTheDocument();
     });
 
     it.each([
@@ -350,7 +390,7 @@ describe('DataAppVizRenderer', () => {
         );
     });
 
-    it('pins an unsaved project chart type to the version it previews', () => {
+    it('pins an unsaved project chart type without requiring an SDK capability announcement', () => {
         mocks.dataAppVizVersion.current = undefined;
         mocks.vizContextOverrides.current = {
             savedChartUuid: undefined,
@@ -359,6 +399,36 @@ describe('DataAppVizRenderer', () => {
 
         renderRenderer();
 
+        expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
+    });
+
+    it('lazily pins a legacy saved chart when it is next edited', () => {
+        mocks.dataAppVizVersion.current = undefined;
+        mocks.vizContextOverrides.current = {
+            savedChartUuid: undefined,
+            isEditMode: true,
+            savedChartReference: {
+                uuid: 'saved-chart-uuid',
+                chartConfig: {
+                    type: 'data_app_viz',
+                    config: {
+                        dataAppVizUuid: 'viz-uuid',
+                        fieldMapping: { category: 'orders.category' },
+                    },
+                },
+            },
+        };
+
+        renderRenderer();
+
+        expect(mocks.renderMetadataHook).toHaveBeenCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            {
+                isEmbedded: false,
+                savedChartUuid: 'saved-chart-uuid',
+            },
+        );
         expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
     });
 
@@ -391,6 +461,9 @@ describe('DataAppVizRenderer', () => {
                 savedChartUuid: 'saved-chart-uuid',
             },
         );
+
+        announceIframeAvailable();
+
         expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
     });
 
