@@ -1,29 +1,15 @@
 import {
-    DimensionType,
     DownloadFileType,
     getErrorMessage,
     getItemLabel,
     getItemLabelWithoutTableName,
-    isMomentInput,
     ItemsMap,
 } from '@lightdash/common';
-import moment, { MomentInput } from 'moment/moment';
+import moment from 'moment/moment';
 import { validateHeaderValue } from 'node:http';
 import { Readable } from 'stream';
 import Logger from '../../logging/logger';
 import { splitJsonlStream } from '../streamUtils';
-
-export const isRowValueTimestamp = (
-    value: unknown,
-    field: { type: DimensionType },
-): value is MomentInput =>
-    isMomentInput(value) && field.type === DimensionType.TIMESTAMP;
-
-export const isRowValueDate = (
-    value: unknown,
-    field: { type: DimensionType },
-): value is MomentInput =>
-    isMomentInput(value) && field.type === DimensionType.DATE;
 
 export function sanitizeGenericFileName(name: string): string {
     return (
