@@ -1,34 +1,19 @@
 /**
- * MCP tool-surface breaking-change detection (PROD-8359, Phase 3).
+ * MCP stable/default tool-surface breaking-change detection.
  *
- * Populates the release-safety marker's `api.mcp` block by diffing a committed
- * snapshot of the MCP tool surface (`packages/common/src/schemas/json/mcp-tools-1.0.json`,
- * produced by `packages/common/src/schemas/generateMcpToolsSnapshot.ts` via the
- * root `generate:mcp-tools-snapshot` script in `postgenerate-api`) between the
- * PREVIOUS release tag and HEAD.
+ * Populates the release-safety marker's `api.mcp` block by diffing the committed
+ * stable/default MCP surface between the previous release tag and HEAD.
+ * Ordinary per-request availability gating does not remove stable tools from
+ * this surface. Temporary, off-by-default rollout variants with the same public
+ * tool names are intentionally excluded until they replace the defaults.
  *
- * The snapshot is the DECLARED MCP tool set (`mcpToolDefinitions` from
- * `@lightdash/common`, the superset of every MCP-available tool) — not the
- * flag-gated runtime subset. Flag-gating (aiWriteback / content-writes /
- * project-pinned) is an operator's per-request runtime choice, not a release
- * change, so the declared surface is the correct unit for a release signal.
+ * The diff is a deliberately conservative floor: it flags four input-contract
+ * regressions, but not additive changes or output, description, or annotation
+ * changes. Both snapshot sides are read from git, never the working tree.
+ * Missing, unreadable, or unparseable snapshots return `checked: false` rather
+ * than asserting an unproven safe result or failing the release.
  *
- * The diff is a deliberately CONSERVATIVE floor (à la a SQL-shape linter): it
- * flags the four input-contract regressions a caller would actually hit, may
- * over-flag, but never under-flags them. It does NOT treat additive changes
- * (new tool, new optional input) or output-schema/description/annotation changes
- * as breaking — those don't break a caller's existing request.
- *
- * Both snapshot sides are read from git (`git show <ref>:<path>`), like the P1
- * migration detector and the P2 REST diff — never the working tree.
- *
- * FAIL-SAFE (soft): a snapshot absent at either ref (e.g. the first release
- * after this lands), unreadable, or unparseable degrades to `checked: false`
- * (the honest "not checked" stub); the generator then does NOT add `mcp` to
- * `capabilities`. It never asserts an unproven "no break" and never fails the
- * release.
- *
- * CLI:  npx tsx scripts/mcp-tools-diff.ts --last-tag 0.3260.2 [--new-ref HEAD]
+ * CLI: npx tsx scripts/mcp-tools-diff.ts --last-tag 0.3260.2 [--new-ref HEAD]
  */
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';

@@ -26,7 +26,7 @@ describe('defineTool', () => {
         expect(mcpView.outputSchema).toBeDefined();
     });
 
-    it('keeps runtime-selected filter expression definitions out of default arrays', () => {
+    it('keeps rollout-only filter expression definitions out of stable default arrays', () => {
         expect(
             mcpToolDefinitions.includes(runQueryFilterExpressionToolDefinition),
         ).toBe(false);
