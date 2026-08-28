@@ -64,10 +64,12 @@ const createService = ({
     contentModel = {} as ContentModel,
     spaceModel = {} as SpaceModel,
     spacePermissionService = {} as SpacePermissionService,
+    sharedWithMeUuids = { dashboard: [], chart: [], sqlChart: [], app: [] },
 }: {
     contentModel?: ContentModel;
     spaceModel?: SpaceModel;
     spacePermissionService?: SpacePermissionService;
+    sharedWithMeUuids?: Record<string, string[]>;
 } = {}) => {
     const projectModel = {
         getAllByOrganizationUuid: vi.fn().mockResolvedValue([
@@ -106,6 +108,9 @@ const createService = ({
         deleteChartValidations: vi.fn().mockResolvedValue(undefined),
         deleteDashboardValidations: vi.fn().mockResolvedValue(undefined),
     };
+    const directAccessService = {
+        findSharedWithMeUuids: vi.fn().mockResolvedValue(sharedWithMeUuids),
+    };
 
     return {
         service: new ContentService({
@@ -119,6 +124,7 @@ const createService = ({
                 savedChartService as unknown as SavedChartService,
             savedSqlService: savedSqlService as unknown as SavedSqlService,
             spacePermissionService,
+            directAccessService: directAccessService as never,
             validationModel: validationModel as unknown as ValidationModel,
             appMoveService: undefined,
             appGenerateService: undefined,
@@ -129,6 +135,7 @@ const createService = ({
         dashboardService,
         spaceService,
         validationModel,
+        directAccessService,
     };
 };
 
@@ -578,5 +585,146 @@ describe('ContentService.findDeleted', () => {
             }),
         ).rejects.toThrow(ForbiddenError);
         expect(findDeletedContents).not.toHaveBeenCalled();
+    });
+});
+
+describe('ContentService.find sharedWithMe', () => {
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    const emptyModelPage = async (): Promise<
+        KnexPaginatedData<SummaryContent[]>
+    > => ({
+        pagination: {
+            page: 1,
+            pageSize: 10,
+            totalPageCount: 1,
+            totalResults: 2,
+        },
+        data: [],
+    });
+
+    it('hydrates only granted uuids without space scoping', async () => {
+        const findSummaryContents = vi.fn(emptyModelPage);
+        const getAccessibleSpaceUuids = vi.fn();
+        const deps = createService({
+            contentModel: {
+                findSummaryContents,
+            } as unknown as ContentModel,
+            spacePermissionService: {
+                getAccessibleSpaceUuids,
+            } as unknown as SpacePermissionService,
+            sharedWithMeUuids: {
+                dashboard: ['dashboard-1'],
+                chart: ['chart-1'],
+                sqlChart: ['sql-chart-1'],
+                app: ['app-1'],
+            },
+        });
+
+        await deps.service.find(
+            createUser(),
+            { sharedWithMe: true },
+            {},
+            { page: 1, pageSize: 10 },
+        );
+
+        expect(
+            deps.directAccessService.findSharedWithMeUuids,
+        ).toHaveBeenCalledWith({ userUuid, organizationUuid }, [projectUuid]);
+        expect(getAccessibleSpaceUuids).not.toHaveBeenCalled();
+        expect(findSummaryContents).toHaveBeenCalledWith(
+            {
+                projectUuids: [projectUuid],
+                uuids: ['dashboard-1', 'chart-1', 'sql-chart-1', 'app-1'],
+                contentTypes: [
+                    ContentType.DASHBOARD,
+                    ContentType.CHART,
+                    ContentType.DATA_APP,
+                ],
+                search: undefined,
+                dataAppVizsFilter: undefined,
+                sharedWithMe: true,
+            },
+            expect.any(Object),
+            expect.objectContaining({ page: 1, pageSize: 10 }),
+        );
+    });
+
+    it('restricts to requested grantable content types', async () => {
+        const findSummaryContents = vi.fn(emptyModelPage);
+        const deps = createService({
+            contentModel: {
+                findSummaryContents,
+            } as unknown as ContentModel,
+            sharedWithMeUuids: {
+                dashboard: ['dashboard-1'],
+                chart: ['chart-1'],
+                sqlChart: [],
+                app: ['app-1'],
+            },
+        });
+
+        await deps.service.find(
+            createUser(),
+            { sharedWithMe: true, contentTypes: [ContentType.DASHBOARD] },
+            {},
+            { page: 1, pageSize: 10 },
+        );
+
+        expect(findSummaryContents).toHaveBeenCalledWith(
+            expect.objectContaining({
+                uuids: ['dashboard-1'],
+                contentTypes: [ContentType.DASHBOARD],
+            }),
+            expect.any(Object),
+            expect.any(Object),
+        );
+    });
+
+    it('returns an empty page without querying content when nothing is granted', async () => {
+        const findSummaryContents = vi.fn(emptyModelPage);
+        const deps = createService({
+            contentModel: {
+                findSummaryContents,
+            } as unknown as ContentModel,
+        });
+
+        await expect(
+            deps.service.find(
+                createUser(),
+                { sharedWithMe: true },
+                {},
+                { page: 2, pageSize: 25 },
+            ),
+        ).resolves.toEqual({
+            data: [],
+            pagination: {
+                page: 2,
+                pageSize: 25,
+                totalPageCount: 0,
+                totalResults: 0,
+            },
+        });
+        expect(findSummaryContents).not.toHaveBeenCalled();
+    });
+
+    it('returns an empty page for space-only requests without resolving grants', async () => {
+        const deps = createService({
+            sharedWithMeUuids: { dashboard: ['dashboard-1'] },
+        });
+
+        await expect(
+            deps.service.find(
+                createUser(),
+                { sharedWithMe: true, contentTypes: [ContentType.SPACE] },
+                {},
+                { page: 1, pageSize: 10 },
+            ),
+        ).resolves.toMatchObject({ data: [] });
+        expect(
+            deps.directAccessService.findSharedWithMeUuids,
+        ).not.toHaveBeenCalled();
     });
 });

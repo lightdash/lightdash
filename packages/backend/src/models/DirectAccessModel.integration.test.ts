@@ -623,6 +623,77 @@ describe('DirectAccessModel generic store PostgreSQL integration', () => {
         });
     });
 
+    describe('findCandidateResourceUuidsForUser', () => {
+        it('collects user grants, group grants, and deduplicates overlap', async () => {
+            const userGrantedUuid = await createDashboard();
+            const groupGrantedUuid = await createDashboard();
+            const overlapUuid = await createDashboard();
+            const ungrantedUuid = await createDashboard();
+            await transaction(DashboardUserAccessTableName).insert([
+                {
+                    dashboard_uuid: userGrantedUuid,
+                    user_uuid: userUuid,
+                    space_role: SpaceMemberRole.VIEWER,
+                    granted_by_user_uuid: userUuid,
+                },
+                {
+                    dashboard_uuid: overlapUuid,
+                    user_uuid: userUuid,
+                    space_role: SpaceMemberRole.VIEWER,
+                    granted_by_user_uuid: userUuid,
+                },
+            ]);
+            await transaction(DashboardGroupAccessTableName).insert([
+                {
+                    dashboard_uuid: groupGrantedUuid,
+                    group_uuid: groupUuid,
+                    space_role: SpaceMemberRole.EDITOR,
+                    granted_by_user_uuid: userUuid,
+                },
+                {
+                    dashboard_uuid: overlapUuid,
+                    group_uuid: groupUuid,
+                    space_role: SpaceMemberRole.EDITOR,
+                    granted_by_user_uuid: userUuid,
+                },
+            ]);
+
+            const candidates = await store.findCandidateResourceUuidsForUser(
+                DirectAccessResourceType.DASHBOARD,
+                userUuid,
+            );
+            expect(candidates.sort()).toEqual(
+                [userGrantedUuid, groupGrantedUuid, overlapUuid].sort(),
+            );
+            expect(candidates).not.toContain(ungrantedUuid);
+        });
+
+        it('ignores grants made to groups the user is not a member of', async () => {
+            const dashboardUuid = await createDashboard();
+            const [otherGroup] = await transaction(GroupTableName)
+                .insert({
+                    organization_id: organizationId,
+                    name: `Direct access store other group ${randomUUID()}`,
+                    created_by_user_uuid: userUuid,
+                    updated_by_user_uuid: userUuid,
+                })
+                .returning('group_uuid');
+            await transaction(DashboardGroupAccessTableName).insert({
+                dashboard_uuid: dashboardUuid,
+                group_uuid: otherGroup.group_uuid,
+                space_role: SpaceMemberRole.VIEWER,
+                granted_by_user_uuid: userUuid,
+            });
+
+            await expect(
+                store.findCandidateResourceUuidsForUser(
+                    DirectAccessResourceType.DASHBOARD,
+                    userUuid,
+                ),
+            ).resolves.toEqual([]);
+        });
+    });
+
     describe('replacePolicy', () => {
         it('atomically replaces the whole policy', async () => {
             const dashboardUuid = await createDashboard();

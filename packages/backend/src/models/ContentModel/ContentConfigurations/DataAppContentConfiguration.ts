@@ -62,6 +62,7 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     if (
                         !filters.deleted &&
                         !filters.dataApps &&
+                        !filters.sharedWithMe &&
                         filters.dataAppVizsFilter !== 'only'
                     ) {
                         void personalFilter.whereNotNull(

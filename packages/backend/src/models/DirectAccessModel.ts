@@ -21,6 +21,7 @@ import {
 } from '../database/entities/dashboardAccess';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { EmailTableName } from '../database/entities/emails';
+import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectTableName } from '../database/entities/projects';
@@ -892,6 +893,45 @@ export class DirectAccessModel {
                     'Unsupported direct access resource type',
                 );
         }
+    }
+
+    /**
+     * Uuids of resources of one type that carry a persisted grant for the
+     * user or any of their groups. A cheap candidate scan only — callers must
+     * validate candidates through the type's read model (`getUserAccess`) so
+     * inert grants (lost membership, deleted resources, ineligible ownership)
+     * never surface.
+     */
+    async findCandidateResourceUuidsForUser(
+        resourceType: DirectAccessResourceType,
+        userUuid: UUID,
+    ): Promise<UUID[]> {
+        const config = TABLE_CONFIG[resourceType];
+        const rows: { resourceUuid: string }[] = await this.database(
+            config.userTable,
+        )
+            .select({
+                resourceUuid: `${config.userTable}.${config.resourceColumn}`,
+            })
+            .where(`${config.userTable}.user_uuid`, userUuid)
+            .unionAll(
+                this.database(config.groupTable)
+                    .select({
+                        resourceUuid: `${config.groupTable}.${config.resourceColumn}`,
+                    })
+                    .innerJoin(
+                        GroupMembershipTableName,
+                        `${GroupMembershipTableName}.group_uuid`,
+                        `${config.groupTable}.group_uuid`,
+                    )
+                    .innerJoin(
+                        UserTableName,
+                        `${UserTableName}.user_id`,
+                        `${GroupMembershipTableName}.user_id`,
+                    )
+                    .where(`${UserTableName}.user_uuid`, userUuid),
+            );
+        return [...new Set(rows.map((row) => row.resourceUuid))];
     }
 
     // ------------------------------------------------------------------

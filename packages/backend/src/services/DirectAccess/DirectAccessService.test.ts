@@ -100,6 +100,7 @@ const buildService = ({
 } = {}) => {
     const directAccessModel = {
         findResourceLocation: vi.fn().mockResolvedValue(location ?? undefined),
+        findCandidateResourceUuidsForUser: vi.fn().mockResolvedValue([]),
         listAssignments: vi.fn().mockResolvedValue([]),
         upsertAccess: vi.fn().mockResolvedValue({
             organizationId: 1,
@@ -134,22 +135,30 @@ const buildService = ({
                   .mockRejectedValue(
                       new ForbiddenError('Direct access is not available'),
                   ),
+        isEnabledForUser: vi.fn().mockResolvedValue(enabled),
     };
     const spacePermissionService = {
         resolveAccess: vi.fn().mockResolvedValue(context),
     };
+    const grantReadModel = { getUserAccess: vi.fn().mockResolvedValue({}) };
+
     const service = new DirectAccessService({
         directAccessModel: directAccessModel as unknown as DirectAccessModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
         directAccessFeatureGate:
             directAccessFeatureGate as unknown as DirectAccessFeatureGate,
+        appAccessModel: grantReadModel as never,
+        dashboardAccessModel: grantReadModel as never,
+        savedChartAccessModel: grantReadModel as never,
+        savedSqlAccessModel: grantReadModel as never,
     });
     return {
         service,
         directAccessModel,
         directAccessFeatureGate,
         spacePermissionService,
+        grantReadModel,
     };
 };
 
@@ -382,5 +391,76 @@ describe('DirectAccessService', () => {
                 }),
             }),
         );
+    });
+});
+
+describe('DirectAccessService.findSharedWithMeUuids', () => {
+    const requester = {
+        userUuid: USER_UUID,
+        organizationUuid: ORGANIZATION_UUID,
+    };
+
+    it('returns nothing when the feature is off, without scanning grants', async () => {
+        const { service, directAccessModel } = buildService({
+            enabled: false,
+        });
+        await expect(
+            service.findSharedWithMeUuids(requester, [PROJECT_UUID]),
+        ).resolves.toEqual({
+            dashboard: [],
+            chart: [],
+            sqlChart: [],
+            app: [],
+        });
+        expect(
+            directAccessModel.findCandidateResourceUuidsForUser,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('returns nothing when no projects are allowed', async () => {
+        const { service, directAccessModel } = buildService();
+        await expect(
+            service.findSharedWithMeUuids(requester, []),
+        ).resolves.toEqual({
+            dashboard: [],
+            chart: [],
+            sqlChart: [],
+            app: [],
+        });
+        expect(
+            directAccessModel.findCandidateResourceUuidsForUser,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('validates candidates through the read models and filters by project', async () => {
+        const { service, directAccessModel, grantReadModel } = buildService();
+        directAccessModel.findCandidateResourceUuidsForUser.mockImplementation(
+            async (resourceType: DirectAccessResourceType) =>
+                resourceType === DirectAccessResourceType.DASHBOARD
+                    ? ['dashboard-live', 'dashboard-inert', 'dashboard-other']
+                    : [],
+        );
+        grantReadModel.getUserAccess.mockResolvedValue({
+            // 'dashboard-inert' dropped by the read model (lost membership);
+            // 'dashboard-other' filtered out by project scope below.
+            'dashboard-live': { projectUuid: PROJECT_UUID },
+            'dashboard-other': { projectUuid: 'other-project-uuid' },
+        });
+
+        await expect(
+            service.findSharedWithMeUuids(requester, [PROJECT_UUID]),
+        ).resolves.toEqual({
+            dashboard: ['dashboard-live'],
+            chart: [],
+            sqlChart: [],
+            app: [],
+        });
+        expect(grantReadModel.getUserAccess).toHaveBeenCalledWith(
+            ['dashboard-live', 'dashboard-inert', 'dashboard-other'],
+            USER_UUID,
+            { organizationUuid: ORGANIZATION_UUID },
+        );
+        // Types with no candidates skip validation entirely.
+        expect(grantReadModel.getUserAccess).toHaveBeenCalledTimes(1);
     });
 });
