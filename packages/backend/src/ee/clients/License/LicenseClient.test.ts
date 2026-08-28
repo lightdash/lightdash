@@ -113,6 +113,11 @@ describe('LicenseClient offline validation', () => {
             error: 'LIGHTDASH_LICENSE_CERTIFICATE is not valid base64',
         },
         {
+            name: 'invalid base64 padding',
+            file: 'YWJj===',
+            error: 'LIGHTDASH_LICENSE_CERTIFICATE is not valid base64',
+        },
+        {
             name: 'a malformed certificate',
             file: Buffer.from('not a certificate').toString('base64'),
             error: 'Offline license file certificate is malformed',

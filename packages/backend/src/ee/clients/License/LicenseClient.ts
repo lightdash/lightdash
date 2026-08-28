@@ -87,13 +87,14 @@ type LicenseClientArgs = {
 
 const decodeBase64 = (value: string, label: string): Buffer => {
     const normalized = value.replace(/\s/g, '');
+
+    if (normalized.length === 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(normalized)) {
+        throw new UnexpectedServerError(`${label} is not valid base64`);
+    }
+
     const decoded = Buffer.from(normalized, 'base64');
     const roundTrip = decoded.toString('base64').replace(/=+$/, '');
-
-    if (
-        normalized.length === 0 ||
-        roundTrip !== normalized.replace(/=+$/, '')
-    ) {
+    if (roundTrip !== normalized.replace(/=+$/, '')) {
         throw new UnexpectedServerError(`${label} is not valid base64`);
     }
 
