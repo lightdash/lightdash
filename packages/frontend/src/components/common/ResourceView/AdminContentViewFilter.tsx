@@ -11,14 +11,20 @@ import React from 'react';
 import MantineIcon from '../MantineIcon';
 import styles from './AdminContentViewFilter.module.css';
 
+export type ContentViewValue = 'shared' | 'shared-with-me' | 'all';
+
 type AdminContentViewFilterProps = {
     withDivider?: boolean;
     segmentedControlProps?: Omit<
         SegmentedControlProps,
         'data' | 'value' | 'onChange'
     >;
-    value: 'all' | 'shared';
-    onChange: (value: 'all' | 'shared') => void;
+    value: ContentViewValue;
+    onChange: (value: ContentViewValue) => void;
+    /** Adds the all-user "Shared with me" segment (root browsing only). */
+    withSharedWithMe?: boolean;
+    /** Hides the admin-only segment for non-admin viewers. */
+    withAdminView?: boolean;
 };
 
 const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
@@ -26,6 +32,8 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
     segmentedControlProps,
     value,
     onChange,
+    withSharedWithMe = false,
+    withAdminView = true,
 }) => {
     return (
         <>
@@ -48,38 +56,56 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
                         label: (
                             <Center px={'xxs'}>
                                 <Text fz="sm" c="ldDark.9">
-                                    Shared with me
+                                    Spaces
                                 </Text>
                             </Center>
                         ),
                     },
-                    {
-                        value: 'all',
-                        label: (
-                            <Center px={'xxs'}>
-                                <Tooltip
-                                    withArrow
-                                    withinPortal
-                                    position="top"
-                                    label={
-                                        'View all public and private spaces in your organization'
-                                    }
-                                >
-                                    <MantineIcon
-                                        icon={IconInfoCircle}
-                                        color="ldGray.6"
-                                    />
-                                </Tooltip>
-                                <Text fz="sm" c="ldDark.9" ml={'xxs'}>
-                                    Admin Content View
-                                </Text>
-                            </Center>
-                        ),
-                    },
+                    ...(withSharedWithMe
+                        ? [
+                              {
+                                  value: 'shared-with-me',
+                                  label: (
+                                      <Center px={'xxs'}>
+                                          <Text fz="sm" c="ldDark.9">
+                                              Shared with me
+                                          </Text>
+                                      </Center>
+                                  ),
+                              },
+                          ]
+                        : []),
+                    ...(withAdminView
+                        ? [
+                              {
+                                  value: 'all',
+                                  label: (
+                                      <Center px={'xxs'}>
+                                          <Tooltip
+                                              withArrow
+                                              withinPortal
+                                              position="top"
+                                              label={
+                                                  'View all public and private spaces in your organization'
+                                              }
+                                          >
+                                              <MantineIcon
+                                                  icon={IconInfoCircle}
+                                                  color="ldGray.6"
+                                              />
+                                          </Tooltip>
+                                          <Text fz="sm" c="ldDark.9" ml={'xxs'}>
+                                              Admin Content View
+                                          </Text>
+                                      </Center>
+                                  ),
+                              },
+                          ]
+                        : []),
                 ]}
                 value={value}
                 onChange={(newValue) => {
-                    onChange(newValue as 'all' | 'shared');
+                    onChange(newValue as ContentViewValue);
                 }}
             />
         </>

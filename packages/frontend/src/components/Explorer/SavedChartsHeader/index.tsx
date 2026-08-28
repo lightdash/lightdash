@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    DirectAccessResourceType,
     ChartSourceType,
     canMutateVerifiedContent,
     ContentType,
@@ -46,6 +47,7 @@ import {
     IconStar,
     IconStarFilled,
     IconTrash,
+    IconUsers,
 } from '@tabler/icons-react';
 import {
     lazy,
@@ -62,6 +64,11 @@ import ChartAsCodeModal from '../../../features/contentAsCode/components/ChartAs
 import DismissedDraftAlert from '../../../features/contentAsCode/components/DismissedDraftAlert';
 import DraftOverlayFailureAlert from '../../../features/contentAsCode/components/DraftOverlayFailureAlert';
 import { useReopenDraftMutation } from '../../../features/contentAsCode/hooks/useContentDrafts';
+import {
+    DirectAccessModal,
+    useCanManageDirectAccess,
+    useDirectAccessAvailability,
+} from '../../../features/directAccess';
 import {
     explorerActions,
     selectHasUnsavedChanges,
@@ -227,6 +234,16 @@ const SavedChartsHeader: FC = () => {
         useDisclosure();
     const [isChangeExploreModalOpen, changeExploreModalHandlers] =
         useDisclosure();
+    const [isDirectAccessModalOpen, directAccessModalHandlers] =
+        useDisclosure(false);
+    const directAccessAvailability = useDirectAccessAvailability();
+    const canManageChartAccess = useCanManageDirectAccess({
+        projectUuid,
+        spaceUuid: savedChart?.spaceUuid ?? null,
+        createdByUserUuid: null,
+        access: savedChart?.access ?? [],
+        grantRoles: [],
+    });
     const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
         useDisclosure();
     const [isChartAsCodeModalOpen, chartAsCodeModalHandlers] = useDisclosure();
@@ -917,6 +934,22 @@ const SavedChartsHeader: FC = () => {
                                         </Menu.Item>
                                     )}
 
+                                {directAccessAvailability.isAvailable &&
+                                    canManageChartAccess &&
+                                    !chartBelongsToDashboard &&
+                                    savedChart && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconUsers} />
+                                            }
+                                            onClick={
+                                                directAccessModalHandlers.open
+                                            }
+                                        >
+                                            Share
+                                        </Menu.Item>
+                                    )}
+
                                 {userCanManageChart &&
                                     !chartBelongsToDashboard && (
                                         <Menu.Item
@@ -1263,6 +1296,18 @@ const SavedChartsHeader: FC = () => {
                 />
             )}
 
+            {isDirectAccessModalOpen && projectUuid && savedChart && (
+                <DirectAccessModal
+                    opened={isDirectAccessModalOpen}
+                    onClose={directAccessModalHandlers.close}
+                    projectUuid={projectUuid}
+                    resource={{
+                        resourceType: DirectAccessResourceType.CHART,
+                        resourceUuid: savedChart.uuid,
+                        name: savedChart.name,
+                    }}
+                />
+            )}
             {isTransferToSpaceModalOpen && projectUuid && (
                 <TransferItemsModal
                     projectUuid={projectUuid}

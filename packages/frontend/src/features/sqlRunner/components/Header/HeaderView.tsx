@@ -1,5 +1,8 @@
 import { subject } from '@casl/ability';
-import { DashboardTileTypes } from '@lightdash/common';
+import {
+    DashboardTileTypes,
+    DirectAccessResourceType,
+} from '@lightdash/common';
 import {
     Group,
     Paper,
@@ -17,6 +20,7 @@ import {
     IconDots,
     IconLayoutGridAdd,
     IconTrash,
+    IconUsers,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
@@ -27,6 +31,11 @@ import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHea
 import AddTilesToDashboardModal from '../../../../components/SavedDashboards/AddTilesToDashboardModal';
 import { useProject } from '../../../../hooks/useProject';
 import useApp from '../../../../providers/App/useApp';
+import {
+    DirectAccessModal,
+    useCanManageDirectAccess,
+    useDirectAccessAvailability,
+} from '../../../directAccess';
 import { PromotionConfirmDialog } from '../../../promotion/components/PromotionConfirmDialog';
 import {
     getSchedulerUuidFromUrlParams,
@@ -55,6 +64,18 @@ export const HeaderView: FC = () => {
     const savedSqlChart = useAppSelector(
         (state) => state.sqlRunner.savedSqlChart,
     );
+    const [isDirectAccessModalOpen, directAccessModalHandlers] =
+        useDisclosure(false);
+    const directAccessAvailability = useDirectAccessAvailability();
+    const canManageSqlChartAccess = useCanManageDirectAccess({
+        projectUuid,
+        spaceUuid: savedSqlChart?.space.uuid ?? null,
+        createdByUserUuid: null,
+        access: savedSqlChart?.space.userAccess
+            ? [savedSqlChart.space.userAccess]
+            : [],
+        grantRoles: [],
+    });
     const isAddToDashboardModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.addToDashboard.isOpen,
     );
@@ -299,6 +320,21 @@ export const HeaderView: FC = () => {
                                             </div>
                                         </Tooltip>
                                     )}
+                                    {directAccessAvailability.isAvailable &&
+                                        canManageSqlChartAccess && (
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconUsers}
+                                                    />
+                                                }
+                                                onClick={
+                                                    directAccessModalHandlers.open
+                                                }
+                                            >
+                                                Share
+                                            </Menu.Item>
+                                        )}
                                     {canManageChart && (
                                         <Menu.Item
                                             leftSection={
@@ -326,6 +362,19 @@ export const HeaderView: FC = () => {
                     </Group>
                 </Group>
             </Paper>
+
+            {isDirectAccessModalOpen && savedSqlChart && (
+                <DirectAccessModal
+                    opened={isDirectAccessModalOpen}
+                    onClose={directAccessModalHandlers.close}
+                    projectUuid={projectUuid}
+                    resource={{
+                        resourceType: DirectAccessResourceType.SQL_CHART,
+                        resourceUuid: savedSqlChart.savedSqlUuid,
+                        name: savedSqlChart.name,
+                    }}
+                />
+            )}
 
             <DeleteSqlChartModal
                 projectUuid={projectUuid}

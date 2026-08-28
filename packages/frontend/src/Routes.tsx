@@ -498,6 +498,22 @@ const SPACES_ROUTES: RouteObject[] = [
         },
     },
     {
+        path: 'shared-with-me',
+        lazy: async () => {
+            const SharedWithMe = await loadLazyRouteDefault(
+                './pages/SharedWithMe',
+                () => import('./pages/SharedWithMe'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.SHARED_WITH_ME}>
+                        <SharedWithMe />
+                    </TrackPage>
+                ),
+            };
+        },
+    },
+    {
         path: 'spaces/:spaceUuid',
         lazy: async () => {
             const Space = await loadLazyRouteDefault(

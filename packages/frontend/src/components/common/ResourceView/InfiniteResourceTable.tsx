@@ -12,6 +12,7 @@ import {
     isResourceViewSpaceItem,
     type ApiContentBulkActionBody,
     type ResourceViewItem,
+    type SpaceMemberRole,
     type SpaceSummary,
 } from '@lightdash/common';
 import {
@@ -60,7 +61,9 @@ import {
 import MantineIcon from '../MantineIcon';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import { UserSelect } from '../UserSelect';
-import AdminContentViewFilter from './AdminContentViewFilter';
+import AdminContentViewFilter, {
+    type ContentViewValue,
+} from './AdminContentViewFilter';
 import ContentTypeFilter from './ContentTypeFilter';
 import classes from './InfiniteResourceTable.module.css';
 import InfiniteResourceTableColumnName from './InfiniteResourceTableColumnName';
@@ -84,6 +87,7 @@ type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
         | 'contentTypes'
         | 'includePersonalDataApps'
         | 'dataAppVizsFilter'
+        | 'sharedWithMe'
     > & {
         projectUuid: string;
     };
@@ -96,6 +100,17 @@ type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
     columnVisibility?: ColumnVisibilityConfig;
     adminContentView?: boolean;
     initialAdminContentViewValue?: 'all' | 'shared';
+    /**
+     * Controlled content-view toggle for the root browsing surface:
+     * Spaces | Shared with me | Admin Content View. When provided it
+     * replaces the uncontrolled admin-only control.
+     */
+    contentView?: {
+        value: ContentViewValue;
+        onChange: (value: ContentViewValue) => void;
+        withSharedWithMe: boolean;
+        withAdminView: boolean;
+    };
     showDataAppVersionStatus?: boolean;
 };
 
@@ -182,6 +197,7 @@ const InfiniteResourceTable = ({
     columnVisibility,
     adminContentView = false,
     initialAdminContentViewValue = 'shared',
+    contentView,
     showDataAppVersionStatus = false,
     ...contentTableProps
 }: ResourceView2Props) => {
@@ -283,6 +299,18 @@ const InfiniteResourceTable = ({
                     return (
                         <Text fz={12} fw={500} c="dimmed">
                             -
+                        </Text>
+                    );
+                }
+
+                // Inaccessible parent space: real name, non-navigable.
+                const inaccessibleSpaceName = item.data.spaceUuid
+                    ? contentSpaceNames[item.data.spaceUuid]
+                    : undefined;
+                if (inaccessibleSpaceName) {
+                    return (
+                        <Text fz={12} fw={500} c="ldGray.7">
+                            {inaccessibleSpaceName}
                         </Text>
                     );
                 }
@@ -480,12 +508,47 @@ const InfiniteResourceTable = ({
                 sortDirection: sortBy?.sortDirection,
                 includePersonalDataApps: filters.includePersonalDataApps,
                 dataAppVizsFilter: filters.dataAppVizsFilter,
+                sharedWithMe: filters.sharedWithMe,
                 ownerUserUuids: selectedOwnerUserUuid
                     ? [selectedOwnerUserUuid]
                     : undefined,
             },
             { keepPreviousData: true },
         );
+
+    // Real parent names for rows whose space the viewer cannot access
+    // (directly shared content): shown as non-navigable context.
+    // Grant roles per resource: a direct grant never puts its space in the
+    // viewer's space list, so the row menu cannot infer these from spaces.
+    const contentGrantRoles = useMemo(() => {
+        const roles: Record<string, SpaceMemberRole[]> = {};
+        data?.pages.forEach((page) => {
+            page.data.forEach((content) => {
+                if (
+                    content.contentType !== ContentType.SPACE &&
+                    content.directAccessRoles.length > 0
+                ) {
+                    roles[content.uuid] = content.directAccessRoles;
+                }
+            });
+        });
+        return roles;
+    }, [data]);
+
+    const contentSpaceNames = useMemo(() => {
+        const names: Record<string, string> = {};
+        data?.pages.forEach((page) => {
+            page.data.forEach((content) => {
+                if (
+                    content.contentType !== ContentType.SPACE &&
+                    content.space
+                ) {
+                    names[content.space.uuid] = content.space.name;
+                }
+            });
+        });
+        return names;
+    }, [data]);
 
     const flatData = useMemo(() => {
         if (!data || !spaces) return [];
@@ -494,13 +557,23 @@ const InfiniteResourceTable = ({
             .filter((item) => {
                 if (!isResourceViewSpaceItem(item)) return true;
                 if (!userCanManageProject) return true;
-                if (selectedAdminContentType === 'all') return true;
+                if (
+                    (contentView?.value ?? selectedAdminContentType) === 'all'
+                ) {
+                    return true;
+                }
 
                 const space = spaces.find((s) => s.uuid === item.data.uuid);
                 if (!space) return false;
                 return space.inheritsFromOrgOrProject || !!space.userAccess;
             });
-    }, [data, userCanManageProject, spaces, selectedAdminContentType]);
+    }, [
+        data,
+        userCanManageProject,
+        spaces,
+        selectedAdminContentType,
+        contentView?.value,
+    ]);
 
     // Temporary workaround to resolve a memoization issue with react-mantine-table.
     // In certain scenarios, the content fails to render properly even when the data is updated.
@@ -707,10 +780,25 @@ const InfiniteResourceTable = ({
                                 </>
                             ) : null}
 
-                            {adminContentView ? (
+                            {contentView &&
+                            (contentView.withSharedWithMe ||
+                                contentView.withAdminView) ? (
+                                <AdminContentViewFilter
+                                    value={contentView.value}
+                                    onChange={contentView.onChange}
+                                    withSharedWithMe={
+                                        contentView.withSharedWithMe
+                                    }
+                                    withAdminView={contentView.withAdminView}
+                                />
+                            ) : adminContentView ? (
                                 <AdminContentViewFilter
                                     value={selectedAdminContentType}
-                                    onChange={setSelectedAdminContentType}
+                                    onChange={(value) => {
+                                        if (value !== 'shared-with-me') {
+                                            setSelectedAdminContentType(value);
+                                        }
+                                    }}
                                 />
                             ) : null}
 
@@ -809,6 +897,9 @@ const InfiniteResourceTable = ({
                     <ResourceActionMenu
                         disabled={isSelected}
                         item={row.original}
+                        grantRoles={
+                            contentGrantRoles[row.original.data.uuid] ?? []
+                        }
                         onAction={handleAction}
                     />
                 </Box>
