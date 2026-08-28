@@ -1,3 +1,12 @@
+# [2.55.0](https://github.com/lightdash/lightdash/compare/2.54.0...2.55.0) (2026-08-28)
+
+
+### Features
+
+* show newer project chart type versions in the explorer ([#28287](https://github.com/lightdash/lightdash/issues/28287)) ([5741177](https://github.com/lightdash/lightdash/commit/574117751622a7666700b0e7973341079d2f2161))
+* summarise project chart type version changes ([#28286](https://github.com/lightdash/lightdash/issues/28286)) ([70d00e3](https://github.com/lightdash/lightdash/commit/70d00e39cac85646f2c96e51793d2ab71f916fcd))
+* upgrade explorer charts to newer project chart type versions ([#28288](https://github.com/lightdash/lightdash/issues/28288)) ([570c8fb](https://github.com/lightdash/lightdash/commit/570c8fb89eb0115c2536b0f43390760c115d5a49))
+
 # [2.54.0](https://github.com/lightdash/lightdash/compare/2.53.1...2.54.0) (2026-08-28)
 
 
