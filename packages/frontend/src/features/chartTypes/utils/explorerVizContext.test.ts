@@ -75,6 +75,12 @@ const build = (
         pivotDetails: null,
         colorPalette: ['#111', '#222'],
         optionValues: {},
+        resolvedColors: {
+            seriesColors: { count_new: '#00ff00' },
+            valueColors: {
+                orders_status: { new: '#00ff00' },
+            },
+        },
         ...overrides,
     });
 
@@ -109,6 +115,10 @@ describe('buildExplorerVizContext', () => {
         expect(context.rows).toBe(rows);
         expect(context.pivotDetails).toBe(pivotDetails);
         expect(context.colorPalette).toEqual(['#111', '#222']);
+        expect(context.seriesColors).toEqual({ count_new: '#00ff00' });
+        expect(context.valueColors).toEqual({
+            orders_status: { new: '#00ff00' },
+        });
         expect(context.underlyingData).toEqual({ enabled: false });
         expect(context.drillDown).toEqual({ enabled: false });
     });

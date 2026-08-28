@@ -1148,14 +1148,18 @@ export type DataAppVizDrillDownIntent = {
 // field id, the host-fetched result rows the renderer reads, the effective
 // config option values (stored value ?? declared default), and the palette
 // resolved for this chart (org → project → space → dashboard → chart, dark-mode
-// corrected). `colorPalette` is pushed whether or not the viz declared one, so a
-// viz that colours series never has to check first. `underlyingData.enabled` and
-// `drillDown.enabled` are required so every push site decides availability explicitly.
+// corrected), plus the host-resolved colors for pivot columns and raw dimension
+// values. `colorPalette` is pushed whether or not the viz declared one, so a viz
+// that colours series never has to check first. `underlyingData.enabled` and
+// `drillDown.enabled` are required so every push site decides availability
+// explicitly.
 export type DataAppVizContext = {
     fieldMapping: Record<string, string>;
     rows: ResultRow[];
     options: Record<string, DataAppVizOptionValue>;
     colorPalette: string[];
+    seriesColors: Record<string, string>;
+    valueColors: Record<string, Record<string, string>>;
     pivotDetails: ReadyQueryResultsPage['pivotDetails'];
     underlyingData: { enabled: boolean };
     drillDown: { enabled: boolean };

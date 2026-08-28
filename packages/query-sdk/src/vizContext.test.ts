@@ -53,6 +53,12 @@ const inboundOptionsRemainOptional: Assert<
 const inboundPaletteRemainsOptional: Assert<
     IsOptional<DataAppVizContextMessage, 'colorPalette'>
 > = true;
+const inboundSeriesColorsRemainOptional: Assert<
+    IsOptional<DataAppVizContextMessage, 'seriesColors'>
+> = true;
+const inboundValueColorsRemainOptional: Assert<
+    IsOptional<DataAppVizContextMessage, 'valueColors'>
+> = true;
 void [
     messageKeysMatchHost,
     messageTypeMatchesHost,
@@ -60,6 +66,8 @@ void [
     hostPayloadIsAcceptedBySdk,
     inboundOptionsRemainOptional,
     inboundPaletteRemainsOptional,
+    inboundSeriesColorsRemainOptional,
+    inboundValueColorsRemainOptional,
 ];
 
 const row: VizContextRow = {
@@ -189,6 +197,38 @@ describe('toVizContextState', () => {
         ).toEqual(['#111', '#222']);
     });
 
+    it('normalizes host-resolved series and value colors', () => {
+        const state = toVizContextState(
+            message({
+                seriesColors: {
+                    count_completed: '#00ff00',
+                    invalid: 42 as never,
+                },
+                valueColors: {
+                    orders_status: {
+                        completed: '#00ff00',
+                        invalid: null as never,
+                    },
+                    invalid: [] as never,
+                },
+            }),
+        );
+
+        expect(state.seriesColors).toEqual({
+            count_completed: '#00ff00',
+        });
+        expect(state.valueColors).toEqual({
+            orders_status: { completed: '#00ff00' },
+        });
+    });
+
+    it('defaults resolved colors to empty maps for older hosts', () => {
+        const state = toVizContextState(message({}));
+
+        expect(state.seriesColors).toEqual({});
+        expect(state.valueColors).toEqual({});
+    });
+
     it('still normalises fieldMapping and rows', () => {
         expect(
             toVizContextState(
@@ -202,6 +242,8 @@ describe('toVizContextState', () => {
             rows: [],
             options: {},
             colorPalette: [],
+            seriesColors: {},
+            valueColors: {},
             pivotDetails: null,
             underlyingDataEnabled: false,
             drillDownEnabled: false,
@@ -422,9 +464,7 @@ describe('buildVizDrillDown', () => {
                 row: {},
                 metric: 'value',
             }),
-        ).rejects.toThrow(
-            'Drill-down is not enabled for this visualization.',
-        );
+        ).rejects.toThrow('Drill-down is not enabled for this visualization.');
         await expect(
             buildVizDrillDown(true, transportWith(undefined)).open({
                 row: {},

@@ -12,7 +12,11 @@ import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDa
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDeleteApp } from '../../../features/apps/hooks/useDeleteApp';
 import { useChartTypeBuilderWorkspace } from '../../../features/chartTypes/builder/useChartTypeBuilderWorkspace';
-import { buildExplorerVizContext } from '../../../features/chartTypes/utils/explorerVizContext';
+import { useDataAppVizResolvedColors } from '../../../features/chartTypes/hooks/useDataAppVizResolvedColors';
+import {
+    buildExplorerVizContext,
+    resolveExplorerVizFieldMapping,
+} from '../../../features/chartTypes/utils/explorerVizContext';
 import {
     explorerActions,
     selectChartConfig,
@@ -145,6 +149,24 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
     const schema = dataAppViz?.schema ?? null;
     const persistedFieldMapping = chartTypeConfig?.fieldMapping ?? null;
     const optionValues = chartTypeConfig?.optionValues ?? NO_OPTIONS;
+    const previewFieldMapping = useMemo(
+        () =>
+            schema
+                ? resolveExplorerVizFieldMapping({
+                      schema,
+                      itemsMap,
+                      persistedFieldMapping,
+                  })
+                : {},
+        [schema, itemsMap, persistedFieldMapping],
+    );
+    const resolvedColors = useDataAppVizResolvedColors({
+        itemsMap,
+        rows: resultsData.rows,
+        fieldMapping: previewFieldMapping,
+        pivotDetails: resultsData.pivotDetails ?? null,
+        colorPalette,
+    });
     const previewContext = useMemo(
         () =>
             schema
@@ -156,6 +178,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
                       pivotDetails: resultsData.pivotDetails ?? null,
                       colorPalette,
                       optionValues,
+                      resolvedColors,
                   })
                 : null,
         [
@@ -166,6 +189,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
             resultsData.pivotDetails,
             colorPalette,
             optionValues,
+            resolvedColors,
         ],
     );
 
