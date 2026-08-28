@@ -1,4 +1,5 @@
 import {
+    getDashboardDimensionOverrideMatches,
     type DashboardFilterRule,
     type DashboardFilterRuleOverride,
     type DashboardFilters,
@@ -48,6 +49,8 @@ export const hasSavedFiltersOverrides = (
 const ADD_SAVED_FILTER_OVERRIDE = 'ADD_SAVED_FILTER_OVERRIDE';
 const REMOVE_SAVED_FILTER_OVERRIDE = 'REMOVE_SAVED_FILTER_OVERRIDE';
 const RESET_SAVED_FILTER_OVERRIDES = 'RESET_SAVED_FILTER_OVERRIDES';
+const RECONCILE_SAVED_FILTER_OVERRIDE_IDS =
+    'RECONCILE_SAVED_FILTER_OVERRIDE_IDS';
 
 type FilterCategory = 'dimensions' | 'metrics';
 
@@ -68,10 +71,42 @@ interface ResetSavedFilterOverridesAction {
     payload: null;
 }
 
+interface ReconcileSavedFilterOverrideIdsAction {
+    type: typeof RECONCILE_SAVED_FILTER_OVERRIDE_IDS;
+    payload: DashboardFilters;
+}
+
 type Action =
     | AddSavedFilterOverrideAction
     | RemoveSavedFilterOverrideAction
-    | ResetSavedFilterOverridesAction;
+    | ResetSavedFilterOverridesAction
+    | ReconcileSavedFilterOverrideIdsAction;
+
+const reconcileDimensionOverrideIds = (
+    overrides: DashboardFilterRuleOverride[],
+    savedFilters: DashboardFilters,
+) => {
+    const matches = getDashboardDimensionOverrideMatches(
+        savedFilters.dimensions,
+        overrides,
+    );
+    let reconciledOverrides = overrides;
+
+    matches.forEach(({ savedFilterIndex, overrideIndex }) => {
+        const savedFilterId = savedFilters.dimensions[savedFilterIndex].id;
+        if (overrides[overrideIndex].id !== savedFilterId) {
+            if (reconciledOverrides === overrides) {
+                reconciledOverrides = [...overrides];
+            }
+            reconciledOverrides[overrideIndex] = {
+                ...overrides[overrideIndex],
+                id: savedFilterId,
+            };
+        }
+    });
+
+    return reconciledOverrides;
+};
 
 const reducer = (
     state: Record<keyof DashboardFilters, DashboardFilterRuleOverride[]>,
@@ -102,12 +137,24 @@ const reducer = (
         case RESET_SAVED_FILTER_OVERRIDES:
             return { ...state, dimensions: [], metrics: [] };
 
+        case RECONCILE_SAVED_FILTER_OVERRIDE_IDS: {
+            const dimensions = reconcileDimensionOverrideIds(
+                state.dimensions,
+                payload,
+            );
+            return dimensions === state.dimensions
+                ? state
+                : { ...state, dimensions };
+        }
+
         default:
             return state;
     }
 };
 
-export const useSavedDashboardFiltersOverrides = () => {
+export const useSavedDashboardFiltersOverrides = (
+    savedDashboardFilters?: DashboardFilters,
+) => {
     const { search } = useLocation();
     const { showToastWarning } = useToaster();
     const searchParams = new URLSearchParams(search);
@@ -142,6 +189,15 @@ export const useSavedDashboardFiltersOverrides = () => {
             });
         }
     }, [showToastWarning]);
+
+    useEffect(() => {
+        if (savedDashboardFilters) {
+            dispatch({
+                type: RECONCILE_SAVED_FILTER_OVERRIDE_IDS,
+                payload: savedDashboardFilters,
+            });
+        }
+    }, [savedDashboardFilters]);
 
     const addSavedFilterOverride = (
         {
