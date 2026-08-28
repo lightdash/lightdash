@@ -844,7 +844,9 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         addSavedFilterOverride,
         removeSavedFilterOverride,
         resetSavedFilterOverrides,
-    } = useSavedDashboardFiltersOverrides();
+    } = useSavedDashboardFiltersOverrides(
+        (dashboard ?? embedDashboard)?.filters,
+    );
 
     // Stable key that only changes when the chart-tile mapping changes,
     // not when tiles are repositioned/resized (x/y/w/h changes).
