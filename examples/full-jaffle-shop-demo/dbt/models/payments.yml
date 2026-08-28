@@ -43,6 +43,8 @@ models:
         description: Foreign key to the orders table
       - name: payment_method
         description: Method of payment used, for example credit card
+      - name: payment_method_icon_url
+        description: Icon for the payment method (Tabler Icons, hosted on Wikimedia Commons). Use it in custom chart types that render images.
       - name: amount
         description: Total amount (AUD) of the individual payment
         config:
