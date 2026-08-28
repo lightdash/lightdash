@@ -1,3 +1,11 @@
+# [2.54.0](https://github.com/lightdash/lightdash/compare/2.53.1...2.54.0) (2026-08-28)
+
+
+### Features
+
+* **chart-types:** push host-resolved colors to custom chart types ([#28283](https://github.com/lightdash/lightdash/issues/28283)) ([9671426](https://github.com/lightdash/lightdash/commit/967142678fb491eb17efdbcde967fbc9565ba4cf))
+* **query-sdk:** expose host-resolved colors and helpers to vizzes ([#28284](https://github.com/lightdash/lightdash/issues/28284)) ([6e27066](https://github.com/lightdash/lightdash/commit/6e270666fe4c1c827694bed49c488843a5d02042))
+
 ## [2.53.1](https://github.com/lightdash/lightdash/compare/2.53.0...2.53.1) (2026-08-28)
 
 
