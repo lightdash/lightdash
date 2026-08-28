@@ -1218,6 +1218,15 @@ function tableToCsv(columns: Column[], data: Row[], format: FormatFn): string {
 </ScrollArea>
 ```
 
+### Table and query performance
+
+Treat Safari/WebKit as the constrained target for layout-heavy apps. Test dense tables and filter interactions in Safari: an app that is smooth there will generally be smooth in Chrome, but the reverse is not guaranteed.
+
+- **Bound data-derived columns.** Pivot-style tables that derive columns from dates, categories, or other result values must cap the rendered window. Paginate the column range or virtualize it horizontally; never render an unbounded `dates.map(...)` or equivalent column set.
+- **Keep sticky positioning to headers.** Never apply `position: sticky` to body cells. If a pinned first column is essential, render it as a separate fixed pane synchronized with the scrollable data pane.
+- **Virtualize individual rows, not multi-row groups.** For large tables, avoid mounting virtualized rows inside one shared `<table>` layout where scroll-driven row changes can relayout the whole table. Prefer block or grid rows with fixed column widths, and make each virtual item one row rather than a group containing many rows and cells.
+- **Batch filter-driven queries.** When a control change would refetch multiple queries, debounce the committed filter value or require an Apply action. Do not fire the full query fan-out on every date, granularity, or filter input change.
+
 ### Resizable panels
 
 Only when the user asks for adjustable panel sizing (or two sibling areas genuinely benefit from rebalancing), read `/app/references/resizable-panels.md` and use the pre-installed shadcn `Resizable`. Otherwise use fixed flex/grid proportions — don't reach for it by default.
