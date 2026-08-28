@@ -77,7 +77,7 @@ is spread yet):
 
 **Phase 2 — spread (Stage 3).** `runQueryAndTransformRows` groups the rows sharing
 a `row_index` and emits one wide row when `row_index` changes. The value column
-`revenue_sum` is suffixed with the group-by raw value (`getValueColumnFieldName`
+`revenue_sum` is suffixed with the group-by raw value (`getPivotValueColumnName`
 gives `revenue_sum`, then `_<status>`), producing one JSONL row per `row_index`:
 
 ```json
@@ -153,6 +153,10 @@ Cross-cutting terms only — fuller definitions live in the linked package docs.
   `indexValues`, `dataValues`, totals) and the flattened TanStack column metadata.
 - **`NULL_PIVOT_KEY`** — collision-safe placeholder used in a value column's
   suffix when a group-by value is `null`, so it doesn't collide with the base column.
+- **`getPivotValueColumnName`** (`packages/common/src/pivot/pivotColumnName.ts`) —
+  the single rule for naming a spread value column. The pivot SQL alias, the
+  result transform, and the chart-type previews all compose names through it, so
+  a lookup built on one side always resolves on the other.
 
 ## Related docs
 

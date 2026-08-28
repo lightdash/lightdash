@@ -57,6 +57,7 @@ import {
     getMetricOverridesWithPopInheritance,
     getMetrics,
     getMetricsWithValidParameters,
+    getPivotValueColumnName,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
     isCartesianChartConfig,
@@ -333,10 +334,6 @@ type ExecuteMergeQueryInternalArgs = Omit<
         | { type: 'resolved'; configuration: PivotConfiguration };
 };
 
-// NULL pivot keys collide with the unsuffixed base column when joined
-// (`[null].join('_') === ''`). Wrapped in `<>` so it strips cleanly via
-// friendlyName if it ever surfaces in a label fallback.
-const NULL_PIVOT_KEY = '<null>';
 export const QUEUED_QUERY_EXPIRED_MESSAGE =
     'Your query expired while waiting in the queue. Please try again.';
 
@@ -2597,21 +2594,6 @@ export class AsyncQueryService extends ProjectService {
                               };
                           }) ?? [];
 
-                      // Suffix the value column with the group by columns to avoid collisions.
-                      // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
-                      // then the value column will be 'value_1_a_b'.
-                      const valueSuffix =
-                          pivotValues.length > 0
-                              ? pivotValues
-                                    .map((p) =>
-                                        p.value === null ||
-                                        p.value === undefined
-                                            ? NULL_PIVOT_KEY
-                                            : p.value,
-                                    )
-                                    .join('_')
-                              : '';
-
                       // eslint-disable-next-line @typescript-eslint/no-loop-func -- forEach is synchronous, executes within current loop iteration
                       valuesColumns.forEach((col) => {
                           const valueColumnField =
@@ -2619,11 +2601,13 @@ export class AsyncQueryService extends ProjectService {
                                   col.reference,
                                   col.aggregation,
                               );
-                          // Truthy check on valueSuffix preserves backwards-compat for
-                          // empty-string pivot values (unsuffixed column).
-                          const valueColumnReference = valueSuffix
-                              ? `${valueColumnField}_${valueSuffix}`
-                              : valueColumnField;
+                          // Suffix the value column with the group by values to
+                          // avoid collisions, e.g. 'value_any_a_b'.
+                          const valueColumnReference = getPivotValueColumnName(
+                              col.reference,
+                              col.aggregation,
+                              pivotValues.map((p) => p.value),
+                          );
 
                           valuesColumnData.set(valueColumnReference, {
                               referenceField: col.reference, // The original y field name

@@ -1,8 +1,10 @@
 import {
     formatItemValue,
     getItemId,
+    getPivotValueColumnName,
     hashFieldReference,
     isDimension,
+    VizAggregationOptions,
     type EChartsSeries,
     type ItemsMap,
     type ResultValue,
@@ -56,10 +58,6 @@ const extractFieldValuesFromClickEvent = (
     );
 };
 
-// Backend uses '<null>' as the suffix for null pivot values in the SQL pivot
-// column name (see NULL_PIVOT_KEY in AsyncQueryService.ts). Keep in sync.
-const NULL_PIVOT_KEY = '<null>';
-
 /**
  * Generates possible column names for a pivot reference to handle both
  * old format (field.pivotField.value) and new SQL pivot format (field_any_value)
@@ -73,17 +71,18 @@ const getPivotColumnNames = (pivotReference: {
     // Old format: field.pivotField.value (using hashFieldReference)
     names.push(hashFieldReference(pivotReference));
 
-    // New SQL pivot format: field_any_value. For null/undefined pivot values,
-    // backend writes '<null>' instead of letting JS coerce to 'null' /
-    // 'undefined' (PROD-7896 — without this the column lookup fails for null
-    // pivot segments and the click falls back to the wrong selectedField).
+    // New SQL pivot format, named by the same rule the backend pivot uses —
+    // including its '<null>' placeholder (PROD-7896 — without it the column
+    // lookup fails for null pivot segments and the click falls back to the
+    // wrong selectedField).
     if (pivotReference.pivotValues && pivotReference.pivotValues.length > 0) {
-        const pivotValue = pivotReference.pivotValues[0].value;
-        const suffix =
-            pivotValue === null || pivotValue === undefined
-                ? NULL_PIVOT_KEY
-                : pivotValue;
-        names.push(`${pivotReference.field}_any_${suffix}`);
+        names.push(
+            getPivotValueColumnName(
+                pivotReference.field,
+                VizAggregationOptions.ANY,
+                [pivotReference.pivotValues[0].value],
+            ),
+        );
     }
 
     return names;

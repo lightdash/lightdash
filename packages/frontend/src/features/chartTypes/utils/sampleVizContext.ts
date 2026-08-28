@@ -2,6 +2,7 @@ import {
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
     getEffectiveOptionValues,
+    getPivotValueColumnName,
     VizAggregationOptions,
     VizIndexType,
     type DataAppVizContext,
@@ -40,14 +41,16 @@ const cell = (
     value: { raw, formatted },
 });
 
-/** Mirrors how the backend names a spread metric column, so previews resolve
+/** Names a spread metric column with the shared pivot rule, so previews resolve
  *  row keys exactly as they do against a real pivoted query. */
 const samplePivotColumnName = (
     metric: DataAppVizField,
     seriesValues: string[],
 ): string =>
-    [sampleColumnId(metric), VizAggregationOptions.ANY, ...seriesValues].join(
-        '_',
+    getPivotValueColumnName(
+        sampleColumnId(metric),
+        VizAggregationOptions.ANY,
+        seriesValues,
     );
 
 type SampleFields = {
