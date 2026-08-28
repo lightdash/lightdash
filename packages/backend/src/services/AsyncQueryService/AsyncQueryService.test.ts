@@ -25,6 +25,7 @@ import {
     VizAggregationOptions,
     VizIndexType,
     WarehouseClient,
+    WarehouseQueryError,
     WarehouseTypes,
     type Explore,
     type ItemsMap,
@@ -2831,6 +2832,7 @@ describe('AsyncQueryService', () => {
                 expect.objectContaining({
                     user: { id: sessionAccount.user.id },
                 }),
+                'Error',
             );
             expect(
                 service.queryHistoryModel.updateStatusToError,
@@ -2839,6 +2841,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 expect.stringContaining('HTTP 404: missing parquet'),
                 expect.anything(),
+                'Error',
             );
             expect(mockStrategy.recordExecutionFallback).not.toHaveBeenCalled();
             expect(service.queryHistoryModel.update).not.toHaveBeenCalledWith(
@@ -3704,6 +3707,53 @@ describe('AsyncQueryService', () => {
     });
 
     describe('runAsyncWarehouseQuery', () => {
+        test('records warehouse failures with their error name', async () => {
+            const incrementWarehouseQueryFailure = vi.fn();
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                prometheusMetrics: {
+                    incrementWarehouseQueryFailure,
+                    incrementQueryStatus: vi.fn(),
+                    observeQueryTotalDuration: vi.fn(),
+                    trackQueryStateTransition: vi.fn(),
+                } as never,
+            });
+            const runQueryAndTransformRows = vi
+                .spyOn(AsyncQueryService, 'runQueryAndTransformRows')
+                .mockRejectedValue(new WarehouseQueryError('Query failed'));
+
+            await service.runAsyncWarehouseQuery({
+                userUuid: sessionAccount.user.id,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                isPreviewProject: false,
+                isRegisteredUser: true,
+                onboardingFlow: 'legacy',
+                projectUuid,
+                query: 'SELECT * FROM test',
+                fieldsMap: {},
+                usedParameters: null,
+                queryTags: { query_context: QueryExecutionContext.EXPLORE },
+                warehouseCredentialsOverrides: undefined,
+                queryUuid: 'test-query-uuid',
+                cacheKey: 'test-cache-key',
+                pivotConfiguration: undefined,
+                originalColumns: undefined,
+                queryCreatedAt: new Date(),
+                displayTimezone: null,
+            });
+            runQueryAndTransformRows.mockRestore();
+
+            expect(incrementWarehouseQueryFailure).toHaveBeenCalledOnce();
+            expect(
+                service.queryHistoryModel.updateStatusToError,
+            ).toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                'Query failed',
+                expect.any(Object),
+                'WarehouseQueryError',
+            );
+        });
+
         describe('when credentials have sshTunnel config', () => {
             const originalCredentials: CreateWarehouseCredentials = {
                 type: WarehouseTypes.POSTGRES,
