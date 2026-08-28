@@ -1,5 +1,16 @@
 // Single source of truth for embed UI-chrome strings. Keys are flat dot-paths;
 // SdkUiOverrides/UiStringKey are derived from this object so they cannot drift.
+//
+// Contract:
+// - Shipped keys are a public API for SDK consumers (`uiOverrides`): additive
+//   only — never rename, remove, or repurpose a key.
+// - English defaults live only here. Call sites resolve via useUiStrings()
+//   (frontend) or an optional UiStringResolver param (pure common code) —
+//   never an inline fallback.
+// - Dynamic parts use {token} placeholders with interpolateUiString; one key
+//   per English plural form, no ICU.
+// See packages/frontend/src/components/common/Filters/CLAUDE.md for the full
+// mandate on adding strings to embed-reachable surfaces.
 export const DEFAULT_UI_STRINGS = {
     'tileMenu.exploreFromHere': 'Explore from here',
     'tileMenu.downloadData': 'Download data',
@@ -110,6 +121,127 @@ export const DEFAULT_UI_STRINGS = {
     'filters.unitsOfTime.years.plural': 'years',
     'filters.unitsOfTime.years.completedSingular': 'completed year',
     'filters.unitsOfTime.years.completedPlural': 'completed years',
+    'filters.addFilter': 'Add filter',
+    'filters.apply': 'Apply',
+    'filters.isAnyValue': 'is any value',
+    'filters.requiredFilterTooltip':
+        'This is a required filter defined in the model configuration and cannot be removed.',
+    'filters.placeholders.anyValue': 'any value',
+    'filters.placeholders.enterValue': 'Enter value',
+    'filters.placeholders.enterValues': 'Enter value(s)',
+    'filters.placeholders.startTyping': 'Start typing to filter results',
+    'filters.placeholders.selectDate': 'Select a date',
+    'filters.placeholders.selectDates': 'Select date(s)',
+    'filters.placeholders.selectValue': 'Select a value',
+    'filters.autocomplete.loading': 'Loading...',
+    'filters.autocomplete.noResults': 'No results found',
+    'filters.autocomplete.addValue': 'Add "{value}"',
+    'filters.autocomplete.maxResultsContinue':
+        'Showing first {n} results. Continue typing...',
+    'filters.autocomplete.maxResultsStart':
+        'Showing first {n} results. Start typing...',
+    'filters.autocomplete.editValuesTooltip': 'Edit filter values',
+    'filters.autocomplete.filterNotAvailable': 'Filter not available',
+    'filters.values.true': 'True',
+    'filters.values.false': 'False',
+    'filters.config.filterSettingsTab': 'Filter Settings',
+    'filters.config.filterSettingsTabTooltip':
+        'Select the value you want to filter your dimension by',
+    'filters.config.tilesTab': 'Tiles',
+    'filters.config.tilesTabTooltip':
+        'Select tiles to apply filter to and which field to filter by',
+    'filters.config.tabsAndTilesTab': 'Tabs & tiles',
+    'filters.config.tabsAndTilesTabTooltip':
+        'Select which tabs and tiles this filter applies to',
+    'filters.config.selectField': 'Select a field to filter',
+    'filters.config.selectFilterPlaceholder': 'Select a filter',
+    'filters.config.searchFieldPlaceholder': 'Search field...',
+    'filters.actions.cancel': 'Cancel',
+    'filters.actions.clearAll': 'Clear all',
+    'filters.config.applyRequiredTooltip': 'Filter field and value required',
+    'filters.config.applyLockedRequiredTooltip':
+        'A locked, required filter must have a value',
+    'filters.config.resetToOriginal': 'Reset to original value',
+    'filters.config.resetToOriginalAria': 'Reset filter to original value',
+    'filters.config.selectColumn': 'Select a column to filter',
+    'filters.config.searchColumnPlaceholder': 'Search column...',
+    'filters.config.noMatchingFields': 'No matching fields',
+    'filters.config.fieldsInThisTab': 'Fields in this tab',
+    'filters.config.otherAvailableFields': 'Other available fields',
+    'filters.config.valueLabel': 'Value',
+    'filters.config.clearToAnyValue': 'Clear to any value',
+    'filters.config.alreadyAnyValue': 'Already showing any value',
+    'filters.config.noValueToClear': 'No value to clear',
+    'filters.config.expandTab': 'Expand tab',
+    'filters.config.collapseTab': 'Collapse tab',
+    'filters.config.noTilesInTab': 'No tiles in this tab',
+    'filters.config.noFieldsMatchingType': 'No fields matching filter type',
+    'filters.config.fieldNotAvailableInChart':
+        "The selected field '{field}' is not available in this chart",
+    'filters.coverage.noMatchingCharts':
+        'No charts have a matching field for this filter.',
+    'filters.coverage.reviewTileTargets': 'Review tile targets',
+    'filters.coverage.wontAffectCurrentTab':
+        "This filter won't affect charts on the current tab.",
+    'filters.coverage.appliesAutomaticallyTo': 'It applies automatically to:',
+    'filters.coverage.reviewAndChangeTarget':
+        'Review tile targets and change the filter target',
+    'filters.notAppliedToAnyTiles': 'This filter is not applied to any tiles',
+    'filters.notAppliedToAnyTabs': 'This filter is not applied to any tabs',
+    'filters.filterIsLocked': 'Filter is locked',
+    'filters.filterIsLockedOnTab': 'Filter is locked on this tab',
+    'filters.tableLabel': 'Table: ',
+    'filters.tablesLabel': 'Tables: ',
+    'filters.invalidFilter': 'Invalid filter',
+    'filters.required.setValueTooltip':
+        'Required: set a value to run this dashboard',
+    'filters.required.setValueGroupTooltip':
+        'Required: set a value on this or an alternative filter to run this dashboard',
+    'filters.required.modalTitle': 'Set filters to load this dashboard',
+    'filters.required.modalDescription':
+        'Data loads automatically once the filters below are set.',
+    'filters.required.change': 'Change',
+    'filters.required.setInToolbar': 'Set filters in the toolbar instead',
+    'filters.crossFilter.menuLabel': 'Filter dashboard on {field} to',
+    'filters.crossFilter.showOnly': 'Show only',
+    'filters.crossFilter.exclude': 'Exclude',
+    'filters.inputs.startDate': 'Start date',
+    'filters.inputs.endDate': 'End date',
+    'filters.inputs.minValue': 'Min value',
+    'filters.inputs.maxValue': 'Max value',
+    'filters.inputs.bothValuesRequired': 'Both values are required',
+    'filters.inputs.minLessThanMax': 'Minimum should be less than the maximum',
+    'filters.inputs.typeToAddValue': 'Please type to add the filter value',
+    'filters.inputs.selectQuarter': 'Select Quarter',
+    'filters.inputs.pasteDetected': 'Multiple comma-separated values detected:',
+    'filters.inputs.pasteQuestion':
+        'Would you like to add them as single or multiple values?',
+    'filters.inputs.singleValue': 'Single value',
+    'filters.inputs.multipleValues': 'Multiple values',
+    'filters.autocomplete.manageValuesTooltip': 'Manage filter values',
+    'filters.autocomplete.refreshTooltip': 'Click to refresh filter values',
+    'filters.autocomplete.resultsLoadedAt': 'Results loaded at {time}',
+    'filters.manageValues.title': 'Manage values',
+    'filters.manageValues.filterValuesTitle': 'Manage filter values',
+    'filters.manageValues.clearAllValues': 'Clear all values',
+    'filters.manageValues.importCsv': 'Import CSV',
+    'filters.manageValues.importCsvAria': 'Import CSV file',
+    'filters.manageValues.selectAllShown': 'Select all shown',
+    'filters.manageValues.selections': 'Selections',
+    'filters.manageValues.searchPlaceholder': 'Search values…',
+    'filters.manageValues.valuesCount': '{n} values',
+    'filters.manageValues.selectedCount': '({n} selected)',
+    'filters.manageValues.noValuesYet': 'No values yet',
+    'filters.manageValues.noMatches': 'No matches',
+    'filters.manageValues.tryDifferentSearch': 'Try a different search.',
+    'filters.manageValues.importCsvHint':
+        'Import a CSV to populate this filter, then you can review and remove items here.',
+    'filters.resetAll': 'Reset all filters',
+    'filters.unsavedFiltersTooltip': 'Filters you add are not saved',
+    'filters.summary.hideFilters': 'Hide filters',
+    'filters.summary.hide': 'Hide',
+    'dashboard.exportAllTiles': 'Export all tiles',
+    'dashboard.printPage': 'Print this page',
 } as const satisfies Record<string, string>;
 
 export type UiStringKey = keyof typeof DEFAULT_UI_STRINGS;

@@ -107,6 +107,26 @@ describe('getConditionalRuleLabel composed values', () => {
         ).toEqual('3 mois révolus');
     });
 
+    it('renders boolean values from defaults and resolver', () => {
+        const rule: FilterRule = {
+            id: 'rule-4',
+            target: { fieldId: 'field-1' },
+            operator: FilterOperator.EQUALS,
+            values: [true],
+        };
+        expect(
+            getConditionalRuleLabel(rule, FilterType.BOOLEAN, 'Field').value,
+        ).toEqual('True');
+        expect(
+            getConditionalRuleLabel(
+                rule,
+                FilterType.BOOLEAN,
+                'Field',
+                withOverride({ 'filters.values.true': 'ჭეშმარიტი' }),
+            ).value,
+        ).toEqual('ჭეშმარიტი');
+    });
+
     it('renders period-to-date labels', () => {
         const rule: FilterRule = {
             id: 'rule-3',

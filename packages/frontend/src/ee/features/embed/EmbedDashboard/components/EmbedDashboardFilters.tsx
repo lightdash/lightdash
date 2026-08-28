@@ -9,6 +9,7 @@ import AddFilterButton from '../../../../../features/dashboardFilters/AddFilterB
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { embedContractClass } from '../../styles/embedClassContract';
 
 type Props = {
@@ -16,6 +17,7 @@ type Props = {
 };
 
 const EmbedDashboardFilters: FC<Props> = ({ canAddFilters = false }) => {
+    const getUiString = useUiStrings();
     const { track } = useTracking();
     const [openPopoverId, setPopoverId] = useState<string>();
 
@@ -117,15 +119,20 @@ const EmbedDashboardFilters: FC<Props> = ({ canAddFilters = false }) => {
                         dropdownClassName={embedContractClass(
                             'ld-dashboard-add-filter-dropdown',
                         )}
-                        unsavedFiltersTooltip="Filters you add are not saved"
+                        unsavedFiltersTooltip={getUiString(
+                            'filters.unsavedFiltersTooltip',
+                        )}
                     />
                 )}
                 {showResetFiltersButton && (
                     // TODO: create a common component for this
-                    <Tooltip label="Reset all filters" withinPortal>
+                    <Tooltip
+                        label={getUiString('filters.resetAll')}
+                        withinPortal
+                    >
                         <Button
                             data-dashboard-filter-control
-                            aria-label="Reset all filters"
+                            aria-label={getUiString('filters.resetAll')}
                             size="xs"
                             variant="default"
                             radius="md"

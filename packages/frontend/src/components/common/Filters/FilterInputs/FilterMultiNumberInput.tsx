@@ -2,6 +2,7 @@ import { ActionIcon, Box, TextInput, Tooltip } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconListDetails } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import MantineIcon from '../../MantineIcon';
 import { PillTagsInput } from '../../TagsInput/PillTagsInput';
 import { TagPill } from '../../TagsInput/TagPill';
@@ -39,6 +40,7 @@ const FilterMultiNumberInput: FC<Props> = ({
     onModalOpen,
     onModalClose,
 }) => {
+    const getUiString = useUiStrings();
     const [opened, { open: openInternal, close: closeInternal }] =
         useDisclosure(false);
     const { ref, hovered } = useHover();
@@ -120,7 +122,10 @@ const FilterMultiNumberInput: FC<Props> = ({
     );
 
     const manageButton = disabled ? undefined : (
-        <Tooltip withinPortal label="Edit filter values">
+        <Tooltip
+            withinPortal
+            label={getUiString('filters.autocomplete.editValuesTooltip')}
+        >
             <ActionIcon
                 variant="subtle"
                 color="gray"
@@ -142,7 +147,7 @@ const FilterMultiNumberInput: FC<Props> = ({
                 onClose={close}
                 values={values}
                 onChange={onChange}
-                title="Manage filter values"
+                title={getUiString('filters.manageValues.filterValuesTitle')}
                 validateValue={isValidNumber}
             />
 

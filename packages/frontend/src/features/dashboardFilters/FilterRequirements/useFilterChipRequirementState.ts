@@ -1,5 +1,6 @@
 import { type DashboardFilterRule } from '@lightdash/common';
 import { useMemo } from 'react';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 
 export type FilterChipRequirementState = {
@@ -14,6 +15,7 @@ export const useFilterChipRequirementState = (
     const unmetFilterRequirements = useDashboardContext(
         (c) => c.unmetFilterRequirements,
     );
+    const getUiString = useUiStrings();
 
     return useMemo(() => {
         // Unmet state comes from the same context value that locks the
@@ -32,9 +34,11 @@ export const useFilterChipRequirementState = (
             showRequirementIcon:
                 !!filterRule.required || !!filterRule.requiredGroupId,
             isRequirementUnmet,
-            requirementTooltip: isGroupMember
-                ? 'Required: set a value on this or an alternative filter to run this dashboard'
-                : 'Required: set a value to run this dashboard',
+            requirementTooltip: getUiString(
+                isGroupMember
+                    ? 'filters.required.setValueGroupTooltip'
+                    : 'filters.required.setValueTooltip',
+            ),
         };
-    }, [unmetFilterRequirements, filterRule]);
+    }, [unmetFilterRequirements, filterRule, getUiString]);
 };

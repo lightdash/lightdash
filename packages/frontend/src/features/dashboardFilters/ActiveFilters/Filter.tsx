@@ -66,7 +66,7 @@ type Props = {
 const Filter: FC<Props> = ({
     isEditMode,
     isOrphaned,
-    orphanedTooltip = 'This filter is not applied to any tiles',
+    orphanedTooltip,
     isTemporary,
     field,
     filterRule,
@@ -213,14 +213,18 @@ const Filter: FC<Props> = ({
         return getFilterRuleTables(filterRule, field, allFilterableFields);
     }, [filterRule, field, allFilterableFields]);
 
-    // Determine if this is a date/timestamp filter that shouldn't use truncated display
-    // Date filters have formatted values like "2 months" that shouldn't be truncated
-    const isDateFilter = useMemo(() => {
+    // Date values carry units ("2 months") and boolean values have localized
+    // labels, so both render the composed rule label instead of raw values
+    const showsComposedValue = useMemo(() => {
         const type =
             field?.type ??
             filterRule.target.fallbackType ??
             DimensionType.STRING;
-        return type === DimensionType.DATE || type === DimensionType.TIMESTAMP;
+        return (
+            type === DimensionType.DATE ||
+            type === DimensionType.TIMESTAMP ||
+            type === DimensionType.BOOLEAN
+        );
     }, [field?.type, filterRule.target.fallbackType]);
 
     // Truncated values display - show max 2 values with "+N" badge
@@ -228,10 +232,10 @@ const Filter: FC<Props> = ({
         () =>
             getTruncatedValuesDisplay(
                 filterRule.values,
-                isDateFilter,
+                showsComposedValue,
                 filterRule.operator,
             ),
-        [filterRule.values, filterRule.operator, isDateFilter],
+        [filterRule.values, filterRule.operator, showsComposedValue],
     );
 
     const { showRequirementIcon, isRequirementUnmet, requirementTooltip } =
@@ -286,7 +290,8 @@ const Filter: FC<Props> = ({
                         label={
                             isReadOnlyLocked
                                 ? 'Locked by the dashboard editor — switch to edit mode to change it'
-                                : orphanedTooltip
+                                : (orphanedTooltip ??
+                                  getUiString('filters.notAppliedToAnyTiles'))
                         }
                         disabled={!isOrphaned && !isReadOnlyLocked}
                         withinPortal
@@ -400,11 +405,11 @@ const Filter: FC<Props> = ({
                                     {!isEditMode && isLocked && (
                                         <span
                                             className={classes.lockSlotActive}
-                                            aria-label={
+                                            aria-label={getUiString(
                                                 hasTabs
-                                                    ? 'Filter is locked on this tab'
-                                                    : 'Filter is locked'
-                                            }
+                                                    ? 'filters.filterIsLockedOnTab'
+                                                    : 'filters.filterIsLocked',
+                                            )}
                                         >
                                             <MantineIcon
                                                 size="sm"
@@ -456,9 +461,12 @@ const Filter: FC<Props> = ({
                                         offset={8}
                                         label={
                                             <Text>
-                                                {filterRuleTables?.length === 1
-                                                    ? 'Table: '
-                                                    : 'Tables: '}
+                                                {getUiString(
+                                                    filterRuleTables?.length ===
+                                                        1
+                                                        ? 'filters.tableLabel'
+                                                        : 'filters.tablesLabel',
+                                                )}
                                                 <Text span fw={600}>
                                                     {filterRuleTables?.join(
                                                         ', ',
@@ -478,7 +486,7 @@ const Filter: FC<Props> = ({
                                             filterRule,
                                         )) ? (
                                         <Text span c="ldGray.6" truncate>
-                                            is any value
+                                            {getUiString('filters.isAnyValue')}
                                         </Text>
                                     ) : (
                                         <>

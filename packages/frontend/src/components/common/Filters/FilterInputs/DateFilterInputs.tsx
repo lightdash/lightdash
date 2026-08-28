@@ -13,6 +13,7 @@ import {
 import { Flex, Text } from '@mantine/core';
 import dayjs from 'dayjs';
 import { type FilterInputsProps } from '.';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import { NumberInput } from '../../NumberInput';
 import useFiltersContext from '../useFiltersContext';
 import { getFirstDayOfWeek } from '../utils/filterDateUtils';
@@ -44,6 +45,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
 ) => {
     const { field, rule, onChange, popoverProps, disabled, filterType } = props;
     const { startOfWeek } = useFiltersContext();
+    const getUiString = useUiStrings();
 
     const isTimestamp =
         !field ||
@@ -61,12 +63,14 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
         operator: rule.operator,
         disabled: isFilterRuleDisabled,
         singleValue: true,
+        getUiString,
     });
     const multiDatePlaceholder = getPlaceholderByFilterTypeAndOperator({
         type: filterType,
         operator: rule.operator,
         disabled: isFilterRuleDisabled,
         singleValue: false,
+        getUiString,
     });
     const invalidDateFilterValue = getInvalidDateFilterValue(rule.values);
 

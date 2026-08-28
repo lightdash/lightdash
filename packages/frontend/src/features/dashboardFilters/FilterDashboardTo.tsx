@@ -1,6 +1,7 @@
 import {
     FilterOperator,
     friendlyName,
+    interpolateUiString,
     type FilterDashboardToRule,
 } from '@lightdash/common';
 import { Group, Menu, Text } from '@mantine/core';
@@ -9,6 +10,7 @@ import isNil from 'lodash/isNil';
 import { Fragment, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import TruncatedText from '../../components/common/TruncatedText';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 
 const MAX_FILTER_VALUE_WIDTH = 250;
@@ -29,6 +31,7 @@ const getExcludeFilter = (
 });
 
 export const FilterDashboardTo: FC<Props> = ({ filters, onAddFilter }) => {
+    const getUiString = useUiStrings();
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
     );
@@ -49,17 +52,24 @@ export const FilterDashboardTo: FC<Props> = ({ filters, onAddFilter }) => {
                 return (
                     <Fragment key={filter.id}>
                         <Menu.Label>
-                            Filter dashboard on {fieldName} to
+                            {interpolateUiString(
+                                getUiString('filters.crossFilter.menuLabel'),
+                                { field: fieldName },
+                            )}
                         </Menu.Label>
                         {(
                             [
                                 {
-                                    label: 'Show only',
+                                    label: getUiString(
+                                        'filters.crossFilter.showOnly',
+                                    ),
                                     icon: IconFilter,
                                     getFilter: () => filter,
                                 },
                                 {
-                                    label: 'Exclude',
+                                    label: getUiString(
+                                        'filters.crossFilter.exclude',
+                                    ),
                                     icon: IconFilterX,
                                     getFilter: () => getExcludeFilter(filter),
                                 },

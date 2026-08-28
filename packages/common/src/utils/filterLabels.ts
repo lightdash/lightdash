@@ -222,7 +222,16 @@ const getValueAsString = (
                 }
             }
         case FilterType.BOOLEAN:
-            return values?.map(formatBoolean).join(', ');
+            return values
+                ?.map((value) =>
+                    resolveUiString(
+                        formatBoolean(value) === 'True'
+                            ? 'filters.values.true'
+                            : 'filters.values.false',
+                        getUiString,
+                    ),
+                )
+                .join(', ');
         case FilterType.DATE:
             switch (operator) {
                 case FilterOperator.IN_THE_PAST:

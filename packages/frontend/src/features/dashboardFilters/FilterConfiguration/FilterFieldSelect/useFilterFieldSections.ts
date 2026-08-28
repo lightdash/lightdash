@@ -13,6 +13,7 @@ import {
     type Item,
 } from '@lightdash/common';
 import { useMemo } from 'react';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 
 type FieldGroup = {
     tableLabel: string;
@@ -124,6 +125,7 @@ export const useFilterFieldSections = ({
     tabs,
     search,
 }: UseFilterFieldSectionsArgs): FieldSection[] => {
+    const getUiString = useUiStrings();
     return useMemo(() => {
         const filtered = fields.filter((f) => matchesSearch(f, search));
 
@@ -166,7 +168,7 @@ export const useFilterFieldSections = ({
         if (activeTabFields.length > 0) {
             const sorted = sortFields(activeTabFields);
             sections.push({
-                label: 'Fields in this tab',
+                label: getUiString('filters.config.fieldsInThisTab'),
                 groups: groupByTable(sorted),
                 dimmed: false,
             });
@@ -175,12 +177,20 @@ export const useFilterFieldSections = ({
         if (otherFields.length > 0) {
             const sorted = sortFields(otherFields);
             sections.push({
-                label: 'Other available fields',
+                label: getUiString('filters.config.otherAvailableFields'),
                 groups: groupByTable(sorted),
                 dimmed: true,
             });
         }
 
         return sections;
-    }, [fields, availableTileFilters, tiles, activeTabUuid, tabs, search]);
+    }, [
+        fields,
+        availableTileFilters,
+        tiles,
+        activeTabUuid,
+        tabs,
+        search,
+        getUiString,
+    ]);
 };

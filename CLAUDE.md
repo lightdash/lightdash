@@ -437,6 +437,26 @@ the contract explicit instead of relying on the name:
   `entity.uuid` (via `getByIdOrSlug`) before being used as a key, FK, or in any
   comparison — never pass the raw arg downstream.
 
+## Translation — deliberately limited to embeds
+
+There is no i18n framework and no full-app localization (that is PROD-3774,
+not built). Two embed-scoped mechanisms exist, with a strict boundary:
+
+-   **Content** (chart/dashboard names, tile titles, labels): `LanguageMap` /
+    the SDK `contentOverrides` prop — slug-keyed, schema-derived.
+-   **UI chrome** (filter operators/inputs, date zoom, tile menus, filter
+    bar): the SDK `uiOverrides` prop — a flat key→string map. The registry
+    `DEFAULT_UI_STRINGS` in `packages/common/src/utils/i18n/uiStrings.ts` is
+    the single source of truth; components render `override ?? English
+    default` via `useUiStrings()`. Shipped keys are a public SDK contract:
+    additive only, never rename or remove.
+
+When adding user-visible strings to embed-reachable surfaces (anything a
+dashboard viewer sees), follow the mandate in
+`packages/frontend/src/components/common/Filters/CLAUDE.md` — it generalizes
+beyond filters. English strings for those surfaces live only in the registry,
+never inline. Do not add an i18n framework; host apps own locale state.
+
 ## Development Troubleshooting
 
 -   If there are issues running dbt, make sure there is a python3 venv in the root of the repo, which has dbt-core and dbt-postgres installed

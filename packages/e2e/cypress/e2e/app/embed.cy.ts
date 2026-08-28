@@ -80,7 +80,9 @@ describe('Embedded dashboard', () => {
                     cy.contains('Days between created and first order'); // table chart
 
                     // Check filters
-                    cy.contains('Is completed is true');
+                    // Boolean pill values render the localized label ("True"),
+                    // not the raw value, since the uiOverrides refactor
+                    cy.contains('Is completed is True');
 
                     cy.contains(
                         'Order date year in the last 10 completed years',

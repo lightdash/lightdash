@@ -12,6 +12,7 @@ import { useExportDashboardContent } from '../../../../../hooks/dashboard/useDas
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import { type EventData } from '../../../../../providers/Tracking/types';
 import useTracking from '../../../../../providers/Tracking/useTracking';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { embedContractClass } from '../../styles/embedClassContract';
 
 type Props = {
@@ -23,6 +24,7 @@ type Props = {
 // the non-embedded export modal (formatted values, table row limit) so embed
 // viewers get a one-click "download everything" without extra configuration.
 const EmbedDashboardExportAll: FC<Props> = ({ dashboard, projectUuid }) => {
+    const getUiString = useUiStrings();
     const { track } = useTracking();
     const exportDashboardContentMutation = useExportDashboardContent();
     const dashboardFilters = useDashboardContext((c) => c.allFilters);
@@ -71,7 +73,7 @@ const EmbedDashboardExportAll: FC<Props> = ({ dashboard, projectUuid }) => {
         <Menu position="bottom-end" withinPortal>
             <Menu.Target>
                 <Tooltip
-                    label="Export all tiles"
+                    label={getUiString('dashboard.exportAllTiles')}
                     withinPortal
                     position="bottom"
                 >
