@@ -1,3 +1,10 @@
+# [2.42.0](https://github.com/lightdash/lightdash/compare/2.41.0...2.42.0) (2026-08-28)
+
+
+### Features
+
+* emit embed dashboard tab and tile load events ([#28230](https://github.com/lightdash/lightdash/issues/28230)) ([91c258b](https://github.com/lightdash/lightdash/commit/91c258b3f28652da18ac3254a7130eb0363bbb83))
+
 # [2.41.0](https://github.com/lightdash/lightdash/compare/2.40.0...2.41.0) (2026-08-27)
 
 
