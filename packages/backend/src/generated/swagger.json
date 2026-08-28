@@ -54562,6 +54562,11 @@
                             "metadata": {
                                 "$ref": "#/components/schemas/QueryResultsMetadata"
                             },
+                            "resolvedTimezone": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Resolved display timezone the query was built with (what execute\nresponses return as `resolvedTimezone`); null for SQL queries and when\ntimezone support is off. Temporal column formats cannot be rendered\nfrom the page without it."
+                            },
                             "rows": {
                                 "items": {
                                     "$ref": "#/components/schemas/ResultRow"
@@ -57237,7 +57242,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.45.1",
+        "version": "2.46.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,3 +1,10 @@
+# [2.46.0](https://github.com/lightdash/lightdash/compare/2.45.1...2.46.0) (2026-08-28)
+
+
+### Features
+
+* **backend:** sql, merge and compose results carry honest column metadata ([#28241](https://github.com/lightdash/lightdash/issues/28241)) ([c2eab8c](https://github.com/lightdash/lightdash/commit/c2eab8c791e2a2570bc507b04c195152dd72e528)), closes [#0](https://github.com/lightdash/lightdash/issues/0)
+
 ## [2.45.1](https://github.com/lightdash/lightdash/compare/2.45.0...2.45.1) (2026-08-28)
 
 

@@ -54274,6 +54274,13 @@ const models: TsoaRoute.Models = {
                             ref: 'QueryResultsMetadata',
                             required: true,
                         },
+                        resolvedTimezone: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
                         rows: {
                             dataType: 'array',
                             array: { dataType: 'refAlias', ref: 'ResultRow' },
