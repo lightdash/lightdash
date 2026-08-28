@@ -212,7 +212,7 @@ const DashboardTileStatusProvider: React.FC<
         embedLoadCycleKey,
         embedToken,
         isEmbedEventReady,
-        visibleEmbedTileUuids.length,
+        visibleEmbedTileUuids,
     ]);
 
     // Custom granularities discovered from explores: key -> label (e.g., "fiscal_quarter" -> "Fiscal Quarter")
