@@ -507,7 +507,10 @@ export class McpService extends BaseService {
         this.aiRouterService = aiRouterService;
         this.aiWritebackService = aiWritebackService;
         try {
-            this.mcpServer = this.buildMcpServer({ runSqlEnabled: false });
+            this.mcpServer = this.buildMcpServer({
+                runSqlEnabled: false,
+                runMetricQueryEnabled: true,
+            });
             this.setupHandlers();
         } catch (error) {
             this.logger.error('Error initializing MCP server:', error);
@@ -515,7 +518,10 @@ export class McpService extends BaseService {
         }
     }
 
-    private buildMcpServer(args: { runSqlEnabled: boolean }): McpServer {
+    private buildMcpServer(args: {
+        runSqlEnabled: boolean;
+        runMetricQueryEnabled: boolean;
+    }): McpServer {
         return Sentry.wrapMcpServerWithSentry(
             new McpServer(
                 {
@@ -542,6 +548,7 @@ export class McpService extends BaseService {
                 {
                     instructions: getMcpAnalystPrompt({
                         runSqlEnabled: args.runSqlEnabled,
+                        runMetricQueryEnabled: args.runMetricQueryEnabled,
                     }),
                 },
             ),
@@ -3918,6 +3925,7 @@ export class McpService extends BaseService {
     }): Promise<McpServer> {
         const newServer = this.buildMcpServer({
             runSqlEnabled: options?.runSqlEnabled ?? false,
+            runMetricQueryEnabled: options?.runMetricQueryEnabled ?? false,
         });
 
         // Temporarily swap the server to register handlers on the new instance.
