@@ -45,6 +45,8 @@ export const getGenerateDataApp = ({ generateDataApp }: Dependencies) =>
                     ),
                     metadata: {
                         status: 'error' as const,
+                        appUuid: null,
+                        reason: 'failed' as const,
                         message: getErrorMessage(error),
                     },
                 };

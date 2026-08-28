@@ -4,9 +4,11 @@ import {
     type AiMcpServer,
     isToolEditDbtProjectResult,
     isToolEditRepoResult,
+    isToolGenerateDataAppResult,
     isToolSetupPreviewDeployResult,
     type ToolEditDbtProjectOutput,
     type ToolEditRepoOutput,
+    type ToolGenerateDataAppOutput,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -66,6 +68,7 @@ import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
+import { AiDataAppBuildCard } from './DataAppBuildCard/AiDataAppBuildCard';
 import { isHiddenToolName } from './hiddenToolNames';
 import {
     MEMORY_CITATION_ALLOWED_TAGS,
@@ -364,6 +367,22 @@ const SqlMarkdownCodeBlock: FC<
     );
 };
 
+/**
+ * The streamed part carrying a tool's finished output. The streaming slice
+ * mirrors each tool's full return shape into its part's `toolResult`.
+ */
+const findLiveToolPart = (
+    parts: StreamPart[] | undefined,
+    toolNames: string[],
+): Extract<StreamPart, { type: 'toolCall' }> | undefined =>
+    parts?.find(
+        (p): p is Extract<StreamPart, { type: 'toolCall' }> =>
+            p.type === 'toolCall' &&
+            toolNames.includes(p.toolName) &&
+            p.toolResult !== null &&
+            p.isPreliminary !== true,
+    );
+
 const AssistantBubbleContent: FC<{
     message: AiAgentMessageAssistant;
     projectUuid: string;
@@ -511,14 +530,10 @@ const AssistantBubbleContent: FC<{
                 isPreviewDeploySetup: true,
             };
 
-        const livePart = streamingState?.parts.find(
-            (p): p is Extract<StreamPart, { type: 'toolCall' }> =>
-                p.type === 'toolCall' &&
-                (p.toolName === 'editDbtProject' ||
-                    p.toolName === 'setupPreviewDeploy') &&
-                p.toolResult !== null &&
-                p.isPreliminary !== true,
-        );
+        const livePart = findLiveToolPart(streamingState?.parts, [
+            'editDbtProject',
+            'setupPreviewDeploy',
+        ]);
         const liveOutput = livePart?.toolResult as
             | ToolEditDbtProjectOutput
             | undefined;
@@ -535,16 +550,19 @@ const AssistantBubbleContent: FC<{
     const editRepoMetadata: ToolEditRepoOutput['metadata'] | null = (() => {
         const persisted = message.toolResults.find(isToolEditRepoResult);
         if (persisted) return persisted.metadata;
-        const livePart = streamingState?.parts.find(
-            (p): p is Extract<StreamPart, { type: 'toolCall' }> =>
-                p.type === 'toolCall' &&
-                p.toolName === 'editRepo' &&
-                p.toolResult !== null &&
-                p.isPreliminary !== true,
-        );
-        const liveOutput = livePart?.toolResult as
-            | ToolEditRepoOutput
-            | undefined;
+        const liveOutput = findLiveToolPart(streamingState?.parts, ['editRepo'])
+            ?.toolResult as ToolEditRepoOutput | undefined;
+        return liveOutput?.metadata ?? null;
+    })();
+
+    const generateDataAppMetadata:
+        | ToolGenerateDataAppOutput['metadata']
+        | null = (() => {
+        const persisted = message.toolResults.find(isToolGenerateDataAppResult);
+        if (persisted) return persisted.metadata;
+        const liveOutput = findLiveToolPart(streamingState?.parts, [
+            'generateDataApp',
+        ])?.toolResult as ToolGenerateDataAppOutput | undefined;
         return liveOutput?.metadata ?? null;
     })();
 
@@ -930,6 +948,16 @@ const AssistantBubbleContent: FC<{
                 <AiEditRepoToolCall
                     metadata={editRepoMetadata}
                     projectUuid={projectUuid}
+                />
+            )}
+            {generateDataAppMetadata && (
+                <AiDataAppBuildCard
+                    metadata={generateDataAppMetadata}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    threadUuid={message.threadUuid}
+                    messageUuid={message.uuid}
+                    compact={!isLastMessage}
                 />
             )}
         </>

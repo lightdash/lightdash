@@ -66,6 +66,9 @@ export const toolGenerateDataAppOutputSchema = z.object({
         }),
         z.object({
             status: z.literal('error'),
+            // Null when the build never started, so no app exists to open.
+            appUuid: z.string().nullable(),
+            reason: z.enum(['failed', 'cancelled']),
             message: z.string(),
         }),
     ]),
@@ -147,23 +150,29 @@ export const getGenerateDataAppBuildOutcome = ({
             metadata: { status: 'success', appUuid, version, name, href },
         };
     }
-    const message =
-        error === APP_VERSION_CANCELLED_BY_USER
-            ? 'The build was cancelled.'
-            : (statusMessage ?? 'The build failed.');
+    const cancelled = error === APP_VERSION_CANCELLED_BY_USER;
+    const message = cancelled
+        ? 'The build was cancelled.'
+        : (statusMessage ?? 'The build failed.');
     return {
         result: `The data app build did not finish: ${message}`,
-        metadata: { status: 'error', message },
+        metadata: {
+            status: 'error',
+            appUuid,
+            reason: cancelled ? 'cancelled' : 'failed',
+            message,
+        },
     };
 };
 
-export const getExpiredGenerateDataAppBuildOutcome =
-    (): ToolGenerateDataAppTerminalResult => {
-        const message = `The build did not report an outcome within ${
-            AI_DATA_APP_BUILD_PENDING_GRACE_MS / 60_000
-        } minutes.`;
-        return {
-            result: `The data app build did not finish: ${message}`,
-            metadata: { status: 'error', message },
-        };
+export const getExpiredGenerateDataAppBuildOutcome = (
+    appUuid: string,
+): ToolGenerateDataAppTerminalResult => {
+    const message = `The build did not report an outcome within ${
+        AI_DATA_APP_BUILD_PENDING_GRACE_MS / 60_000
+    } minutes.`;
+    return {
+        result: `The data app build did not finish: ${message}`,
+        metadata: { status: 'error', appUuid, reason: 'failed', message },
     };
+};

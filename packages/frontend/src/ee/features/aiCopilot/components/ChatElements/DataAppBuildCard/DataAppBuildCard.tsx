@@ -307,7 +307,6 @@ const renderCells = (
  * Presentational build card shown under the agent's reply. Pure function of
  * `state`; navigation and data live in the caller.
  */
-// ts-unused-exports:disable-next-line
 export const DataAppBuildCard: FC<Props> = ({
     state,
     compact,

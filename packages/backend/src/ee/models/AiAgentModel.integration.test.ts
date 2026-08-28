@@ -1046,7 +1046,7 @@ describe('AiAgentModel pending data app builds', () => {
     });
 
     it('resolves a pending result to error once the version failed', async () => {
-        const { promptUuid } = await createPendingBuild({
+        const { promptUuid, appUuid } = await createPendingBuild({
             status: 'error',
             error: 'boom',
             statusMessage: 'Build timed out. Please try again.',
@@ -1056,12 +1056,14 @@ describe('AiAgentModel pending data app builds', () => {
 
         expect(result.metadata).toEqual({
             status: 'error',
+            appUuid,
+            reason: 'failed',
             message: 'Build timed out. Please try again.',
         });
     });
 
     it('resolves a pending result to error once the version was cancelled', async () => {
-        const { promptUuid } = await createPendingBuild({
+        const { promptUuid, appUuid } = await createPendingBuild({
             status: 'error',
             error: APP_VERSION_CANCELLED_BY_USER,
             statusMessage: APP_VERSION_CANCELLED_BY_USER,
@@ -1071,6 +1073,8 @@ describe('AiAgentModel pending data app builds', () => {
 
         expect(result.metadata).toEqual({
             status: 'error',
+            appUuid,
+            reason: 'cancelled',
             message: 'The build was cancelled.',
         });
     });
@@ -1090,14 +1094,18 @@ describe('AiAgentModel pending data app builds', () => {
     });
 
     it('expires a pending result still building after the grace period', async () => {
-        const { promptUuid } = await createPendingBuild({
+        const { promptUuid, appUuid } = await createPendingBuild({
             status: 'generating',
             startedAgoMs: AI_DATA_APP_BUILD_PENDING_GRACE_MS + 1000,
         });
 
         const [result] = await model.getToolResultsForPrompt(promptUuid);
 
-        expect(result.metadata).toMatchObject({ status: 'error' });
+        expect(result.metadata).toMatchObject({
+            status: 'error',
+            appUuid,
+            reason: 'failed',
+        });
         expect(result.metadata).toHaveProperty(
             'message',
             expect.stringContaining('30 minutes'),

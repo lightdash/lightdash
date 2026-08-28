@@ -628,6 +628,12 @@ export const useDeleteAiAgentThreadMutation = (projectUuid: string) => {
     });
 };
 
+export const getAiAgentThreadQueryKey = (
+    projectUuid: string,
+    agentUuid: string | undefined,
+    threadUuid: string | null | undefined,
+) => [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads', threadUuid] as const;
+
 export const useAiAgentThread = (
     projectUuid: string,
     agentUuid: string | undefined,
@@ -638,13 +644,7 @@ export const useAiAgentThread = (
     const navigate = useNavigate();
 
     return useQuery<ApiAiAgentThreadResponse['results'], ApiError>({
-        queryKey: [
-            AI_AGENTS_KEY,
-            projectUuid,
-            agentUuid,
-            'threads',
-            threadUuid,
-        ],
+        queryKey: getAiAgentThreadQueryKey(projectUuid, agentUuid, threadUuid),
         queryFn: () => {
             return getAgentThread(projectUuid, agentUuid!, threadUuid!);
         },

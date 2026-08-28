@@ -185,6 +185,14 @@ still writes the app.
 _Avoid_: AI analyst, copilot (in code and docs), assistant, the agent
 (where more than one agent is in scope)
 
+**Build card**:
+The card under an AI agent reply that follows a build the agent started:
+queued, building (status message and narration), ready, failed, cancelled,
+or unavailable. It reads the version while the tool result is pending and
+the tool result once it is terminal; when a build watched in the thread
+lands, the app opens in the thread's preview panel.
+_Avoid_: job card, progress card, status widget
+
 **External agent**:
 Any agent outside Lightdash — Claude Code, an MCP client, a CLI script —
 reading data apps through MCP or editing their source through data apps as
