@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    DirectAccessResourceType,
     canMutateVerifiedContent,
     ContentType,
     ResourceViewItemType,
@@ -45,6 +46,7 @@ import {
     IconStarFilled,
     IconTrash,
     IconUpload,
+    IconUsers,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -52,6 +54,11 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { useToggle } from 'react-use';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import DashboardAsCodeModal from '../../../features/contentAsCode/components/DashboardAsCodeModal';
+import {
+    DirectAccessModal,
+    useCanManageDirectAccess,
+    useDirectAccessAvailability,
+} from '../../../features/directAccess';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteDashboardDiffMutation,
@@ -174,6 +181,16 @@ const DashboardHeader = memo(
             useToggle(false);
         const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
             useDisclosure(false);
+        const [isDirectAccessModalOpen, directAccessModalHandlers] =
+            useDisclosure(false);
+        const directAccessAvailability = useDirectAccessAvailability();
+        const canManageDashboardAccess = useCanManageDirectAccess({
+            projectUuid,
+            spaceUuid: dashboard.spaceUuid,
+            createdByUserUuid: null,
+            access: dashboard.access ?? [],
+            grantRoles: [],
+        });
         const [isPreAggAuditOpen, preAggAuditHandlers] = useDisclosure(false);
         const [isPreAggRefreshOpen, preAggRefreshHandlers] =
             useDisclosure(false);
@@ -516,6 +533,19 @@ const DashboardHeader = memo(
                         />
                     )}
 
+                    {isDirectAccessModalOpen && projectUuid && (
+                        <DirectAccessModal
+                            opened={isDirectAccessModalOpen}
+                            onClose={directAccessModalHandlers.close}
+                            projectUuid={projectUuid}
+                            resource={{
+                                resourceType:
+                                    DirectAccessResourceType.DASHBOARD,
+                                resourceUuid: dashboard.uuid,
+                                name: dashboard.name,
+                            }}
+                        />
+                    )}
                     {isTransferToSpaceModalOpen && projectUuid && (
                         <TransferItemsModal
                             projectUuid={projectUuid}
@@ -870,6 +900,22 @@ const DashboardHeader = memo(
                                             >
                                                 Move dashboard
                                             </Menu.Item>
+
+                                            {directAccessAvailability.isAvailable &&
+                                                canManageDashboardAccess && (
+                                                    <Menu.Item
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={IconUsers}
+                                                            />
+                                                        }
+                                                        onClick={
+                                                            directAccessModalHandlers.open
+                                                        }
+                                                    >
+                                                        Share
+                                                    </Menu.Item>
+                                                )}
                                         </>
                                     )}
 

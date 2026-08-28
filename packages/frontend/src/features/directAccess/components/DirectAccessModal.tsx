@@ -27,7 +27,7 @@ import {
     getUserNameOrEmail,
 } from '../../../components/common/ShareSpaceModal/Utils';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
-import { useProjectAccess } from '../../../hooks/useProjectAccess';
+import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import useApp from '../../../providers/App/useApp';
 import { useProjectGroupAccessList } from '../../projectGroupAccess/hooks/useProjectGroupAccess';
 import { type DirectAccessResourceRef } from '../api';
@@ -189,7 +189,7 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
     const [selectedRole, setSelectedRole] = useState<SpaceMemberRole>(
         SpaceMemberRole.VIEWER,
     );
-    const projectAccess = useProjectAccess(projectUuid);
+    const organizationUsers = useOrganizationUsers({ projectUuid });
     const groupAccess = useProjectGroupAccessList(projectUuid);
     const organizationGroups = useOrganizationGroups({});
 
@@ -200,7 +200,7 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
                 group.name,
             ]),
         );
-        const userOptions = (projectAccess.data ?? [])
+        const userOptions = (organizationUsers.data ?? [])
             .map((member) => ({
                 value: `${DirectAccessPrincipalType.USER}:${member.userUuid}`,
                 label:
@@ -224,7 +224,7 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
             { group: 'Groups', items: groupOptions },
         ].filter((section) => section.items.length > 0);
     }, [
-        projectAccess.data,
+        organizationUsers.data,
         groupAccess.data,
         organizationGroups.data,
         assignedKeys,

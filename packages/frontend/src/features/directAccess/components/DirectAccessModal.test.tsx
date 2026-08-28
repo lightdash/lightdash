@@ -27,8 +27,8 @@ vi.mock('../hooks/useDirectAccess', () => ({
     useResetDirectAccess: vi.fn(),
 }));
 
-vi.mock('../../../hooks/useProjectAccess', () => ({
-    useProjectAccess: vi.fn(() => ({
+vi.mock('../../../hooks/useOrganizationUsers', () => ({
+    useOrganizationUsers: vi.fn(() => ({
         data: [
             {
                 userUuid: 'member-uuid',

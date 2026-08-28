@@ -39,6 +39,8 @@ export type ContentArgs = {
     dataAppVizsFilter?: 'exclude' | 'only';
     // Restrict to dashboards owned by these users (other content types are excluded)
     ownerUserUuids?: string[];
+    // Only resources directly granted to the caller or their groups.
+    sharedWithMe?: boolean;
 };
 
 const contentTypeLabel = (contentType: ContentType): string =>

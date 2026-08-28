@@ -92,7 +92,14 @@ const SpaceSelector = ({
             {userCanManageProject ? (
                 <AdminContentViewFilter
                     value={selectedAdminContentType}
-                    onChange={setSelectedAdminContentType}
+                    onChange={(value) => {
+                        // Folder scoping only: this selector never renders the
+                        // all-user "Shared with me" segment, so the control's
+                        // wider union narrows back to the two modes here.
+                        if (value !== 'shared-with-me') {
+                            setSelectedAdminContentType(value);
+                        }
+                    }}
                     withDivider={false}
                     segmentedControlProps={{
                         flex: '0 0 auto',

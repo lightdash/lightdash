@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    DirectAccessResourceType,
     getAppDisplayName,
     isApiError,
     type AppVersionStatus,
@@ -28,6 +29,7 @@ import {
     IconSend,
     IconSparkles,
     IconTrash,
+    IconUsers,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState, type FC, type ReactNode } from 'react';
@@ -40,6 +42,11 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useProject } from '../../../hooks/useProject';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
+import {
+    DirectAccessModal,
+    useCanManageDirectAccess,
+    useDirectAccessAvailability,
+} from '../../directAccess';
 import { AppSchedulersModal } from '../../scheduler/components/SchedulerModals';
 import { AppSyncModal } from '../../sync/components';
 import {
@@ -222,6 +229,16 @@ const AppHeaderActions: FC<Props> = ({
     const [isMoveToSpaceOpen, setIsMoveToSpaceOpen] = useState(false);
     const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isDirectAccessModalOpen, setIsDirectAccessModalOpen] =
+        useState(false);
+    const directAccessAvailability = useDirectAccessAvailability();
+    const canManageAppAccess = useCanManageDirectAccess({
+        projectUuid,
+        spaceUuid: appSpaceUuid ?? null,
+        createdByUserUuid: appCreatedByUserUuid ?? null,
+        access: [],
+        grantRoles: [],
+    });
 
     const handleDuplicate = useCallback(() => {
         duplicateMutate(
@@ -461,6 +478,22 @@ const AppHeaderActions: FC<Props> = ({
                                     Promote
                                 </Menu.Item>
                             )}
+                            {directAccessAvailability.isAvailable &&
+                                canManageAppAccess && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconUsers}
+                                                size={14}
+                                            />
+                                        }
+                                        onClick={() =>
+                                            setIsDirectAccessModalOpen(true)
+                                        }
+                                    >
+                                        Share
+                                    </Menu.Item>
+                                )}
                             <Menu.Divider />
                             <Menu.Item
                                 color="red"
@@ -495,6 +528,18 @@ const AppHeaderActions: FC<Props> = ({
                     initialDescription={appDescription ?? ''}
                     onClose={() => setIsUpdateModalOpen(false)}
                     onConfirm={() => setIsUpdateModalOpen(false)}
+                />
+            )}
+            {isDirectAccessModalOpen && (
+                <DirectAccessModal
+                    opened={isDirectAccessModalOpen}
+                    onClose={() => setIsDirectAccessModalOpen(false)}
+                    projectUuid={projectUuid}
+                    resource={{
+                        resourceType: DirectAccessResourceType.APP,
+                        resourceUuid: appUuid,
+                        name: appName,
+                    }}
                 />
             )}
             {isMoveToSpaceOpen && (

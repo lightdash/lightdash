@@ -45,6 +45,7 @@ export enum PageName {
     NO_PROJECT_ACCESS = 'no_project_access',
     SPACE = 'space',
     SPACES = 'spaces',
+    SHARED_WITH_ME = 'shared_with_me',
     SHARE = 'share',
     USER_ACTIVITY = 'user_activity',
     QUERY_HISTORY = 'query_history',

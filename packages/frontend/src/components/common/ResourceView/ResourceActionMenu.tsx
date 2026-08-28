@@ -2,10 +2,12 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     ChartSourceType,
+    DirectAccessResourceType,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     ResourceViewItemType,
     type ResourceViewItem,
+    type SpaceMemberRole,
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu, Tooltip } from '@mantine/core';
 import {
@@ -32,6 +34,11 @@ import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/As
 import { FavoritePersonalDataAppModal } from '../../../features/apps/components/FavoritePersonalDataAppModal';
 import { PromoteAppModal } from '../../../features/apps/components/PromoteAppModal';
 import { useDuplicateApp } from '../../../features/apps/hooks/useDuplicateApp';
+import {
+    DirectAccessModal,
+    useCanManageDirectAccess,
+    useDirectAccessAvailability,
+} from '../../../features/directAccess';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteChartDiffMutation,
@@ -65,6 +72,8 @@ export interface ResourceViewActionMenuCommonProps {
 interface ResourceViewActionMenuProps extends ResourceViewActionMenuCommonProps {
     disabled?: boolean;
     item: ResourceViewItem;
+    /** Roles the viewer holds on this item through direct grants. */
+    grantRoles?: SpaceMemberRole[];
     allowDelete?: boolean;
     hideVerification?: boolean;
     isOpen?: boolean;
@@ -75,6 +84,7 @@ interface ResourceViewActionMenuProps extends ResourceViewActionMenuCommonProps 
 const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     disabled = false,
     item,
+    grantRoles = [],
     allowDelete = true,
     hideVerification = false,
     isOpen,
@@ -88,11 +98,31 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const projectUuid = useProjectUuid();
     const { data: project } = useProject(projectUuid);
     const [isPromoteAppOpen, setIsPromoteAppOpen] = useState(false);
+    const [isManageAccessOpen, setIsManageAccessOpen] = useState(false);
+    const directAccessAvailability = useDirectAccessAvailability();
     const [isFavoriteSpaceModalOpen, setIsFavoriteSpaceModalOpen] =
         useState(false);
     const { mutate: duplicateApp } = useDuplicateApp();
     const organizationUuid = user.data?.organizationUuid;
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
+    // Direct grants are the second path to a resource: without them the
+    // per-type checks below see an empty access list and hide every action.
+    const grantAccess = user.data?.userUuid
+        ? grantRoles.map((role) => ({ userUuid: user.data!.userUuid, role }))
+        : [];
+    const canManageAccess = useCanManageDirectAccess({
+        projectUuid,
+        spaceUuid:
+            item.type === ResourceViewItemType.SPACE
+                ? null
+                : (item.data.spaceUuid ?? null),
+        createdByUserUuid:
+            item.type === ResourceViewItemType.DATA_APP
+                ? item.data.createdByUserUuid
+                : null,
+        access: [],
+        grantRoles,
+    });
     const isPinned = !!item.data.pinnedListUuid;
     const isDashboardPage = location.pathname.includes('/dashboards');
 
@@ -177,6 +207,17 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                 : 'Move to space'
             : 'Move';
 
+    const directAccessResourceType =
+        item.type === ResourceViewItemType.DASHBOARD
+            ? DirectAccessResourceType.DASHBOARD
+            : item.type === ResourceViewItemType.CHART
+              ? isSqlChart
+                  ? DirectAccessResourceType.SQL_CHART
+                  : DirectAccessResourceType.CHART
+              : item.type === ResourceViewItemType.DATA_APP
+                ? DirectAccessResourceType.APP
+                : null;
+
     const favoritesContext = useFavoritesContext();
     const isFavorited = favoritesContext?.isFavorited(item.data.uuid) ?? false;
 
@@ -194,7 +235,10 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         subject('SqlRunner', {
                             organizationUuid,
                             projectUuid,
-                            access: userAccess ? [userAccess] : [],
+                            access: [
+                                ...(userAccess ? [userAccess] : []),
+                                ...grantAccess,
+                            ],
                         }),
                     ) === true &&
                     user.data?.ability?.can(
@@ -203,7 +247,10 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             ...item.data,
                             projectUuid,
                             organizationUuid,
-                            access: userAccess ? [userAccess] : [],
+                            access: [
+                                ...(userAccess ? [userAccess] : []),
+                                ...grantAccess,
+                            ],
                         }),
                     ) === true;
             } else {
@@ -214,7 +261,10 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             ...item.data,
                             projectUuid,
                             organizationUuid,
-                            access: userAccess ? [userAccess] : [],
+                            access: [
+                                ...(userAccess ? [userAccess] : []),
+                                ...grantAccess,
+                            ],
                         }),
                     ) === true;
             }
@@ -231,7 +281,10 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         ...item.data,
                         projectUuid,
                         organizationUuid,
-                        access: userAccess ? [userAccess] : [],
+                        access: [
+                            ...(userAccess ? [userAccess] : []),
+                            ...grantAccess,
+                        ],
                     }),
                 ) === true;
             break;
@@ -262,7 +315,10 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     subject('DataApp', {
                         organizationUuid,
                         projectUuid,
-                        access: userAccess ? [userAccess] : [],
+                        access: [
+                            ...(userAccess ? [userAccess] : []),
+                            ...grantAccess,
+                        ],
                         createdByUserUuid: item.data.createdByUserUuid,
                     }),
                 ) === true;
@@ -663,6 +719,26 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 {moveActionLabel}
                             </Menu.Item>
 
+                            {directAccessAvailability.isAvailable &&
+                                directAccessResourceType !== null &&
+                                canManageAccess && (
+                                    <Menu.Item
+                                        component="button"
+                                        role="menuitem"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconUsers}
+                                                size={18}
+                                            />
+                                        }
+                                        onClick={() => {
+                                            setIsManageAccessOpen(true);
+                                        }}
+                                    >
+                                        Share
+                                    </Menu.Item>
+                                )}
+
                             {item.type === ResourceViewItemType.SPACE && (
                                 <Menu.Item
                                     component="button"
@@ -747,6 +823,20 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         appUuid={item.data.uuid}
                         opened
                         onClose={() => setIsPromoteAppOpen(false)}
+                    />
+                )}
+            {isManageAccessOpen &&
+                projectUuid &&
+                directAccessResourceType !== null && (
+                    <DirectAccessModal
+                        opened
+                        onClose={() => setIsManageAccessOpen(false)}
+                        projectUuid={projectUuid}
+                        resource={{
+                            resourceType: directAccessResourceType,
+                            resourceUuid: item.data.uuid,
+                            name: item.data.name,
+                        }}
                     />
                 )}
             {isFavoriteSpaceModalOpen &&
