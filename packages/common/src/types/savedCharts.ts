@@ -801,6 +801,7 @@ export type DataAppVizChart = {
     dataAppVizUuid: string;
     /**
      * The version of the project chart type this saved chart renders.
+     * @isInt
      * @minimum 1
      */
     dataAppVizVersion?: number;

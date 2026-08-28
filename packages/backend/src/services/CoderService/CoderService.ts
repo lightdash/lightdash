@@ -163,6 +163,10 @@ import {
     getScheduledDeliveryTargetsAsCode,
 } from './scheduledContent';
 
+type RuntimeChartAsCode = Omit<ChartAsCode, 'chartConfig'> & {
+    chartConfig: ChartConfig;
+};
+
 type ContentAsCodeSpaceContentMetadata = {
     savedChartUuid?: string;
     dashboardUuid?: string;
@@ -1426,7 +1430,7 @@ export class CoderService extends BaseService {
         spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
         dashboardSlugs: Record<string, string>,
         verificationMap: Map<string, ContentVerificationInfo>,
-    ): ChartAsCode {
+    ): RuntimeChartAsCode {
         const contentSpace = spaceSummary.find(
             (space) => space.uuid === chart.spaceUuid,
         );
@@ -2171,7 +2175,7 @@ export class CoderService extends BaseService {
      * within its source project.
      */
     private static withDataAppVizSlugs(
-        charts: ChartAsCode[],
+        charts: RuntimeChartAsCode[],
         dataAppVizSlugByUuid: ReadonlyMap<string, string>,
     ): ChartAsCode[] {
         return charts.map((chart) => {
@@ -2181,15 +2185,11 @@ export class CoderService extends BaseService {
             ) {
                 return chart;
             }
-            const runtimeConfig = chart.chartConfig
-                .config as typeof chart.chartConfig.config & {
-                dataAppVizVersion?: number;
-            };
             const {
                 dataAppVizUuid,
                 dataAppVizVersion: _dataAppVizVersion,
                 ...portableConfig
-            } = runtimeConfig;
+            } = chart.chartConfig.config;
             const dataAppVizSlug =
                 dataAppVizUuid !== undefined
                     ? dataAppVizSlugByUuid.get(dataAppVizUuid)
@@ -2848,7 +2848,9 @@ export class CoderService extends BaseService {
 
     // The instance content in its canonical as-code form — the same document
     // an upload of the current state would have applied.
-    async getCurrentChartAsCode(chartUuid: string): Promise<ChartAsCode> {
+    async getCurrentChartAsCode(
+        chartUuid: string,
+    ): Promise<RuntimeChartAsCode> {
         const chart = await this.savedChartModel.get(chartUuid);
         const spaces = await this.spaceModel.find({
             spaceUuids: chart.spaceUuid ? [chart.spaceUuid] : [],
@@ -2881,7 +2883,7 @@ export class CoderService extends BaseService {
 
     private async makeChartAsCodePortable(
         projectUuid: string,
-        chartAsCode: ChartAsCode,
+        chartAsCode: RuntimeChartAsCode,
     ): Promise<ChartAsCode> {
         const dataAppVizUuid =
             chartAsCode.chartConfig.type === ChartType.DATA_APP_VIZ
