@@ -51,6 +51,26 @@ describe('mobile login config', () => {
     });
 });
 
+describe('license config', () => {
+    it('supports an offline license file with a license key', () => {
+        process.env.LIGHTDASH_LICENSE_KEY = 'license-key';
+        process.env.LIGHTDASH_LICENSE_CERTIFICATE = 'license-certificate';
+
+        expect(parseConfig().license).toEqual({
+            licenseKey: 'license-key',
+            licenseCertificate: 'license-certificate',
+        });
+    });
+
+    it('requires a license key with an offline license file', () => {
+        process.env.LIGHTDASH_LICENSE_CERTIFICATE = 'license-certificate';
+
+        expect(() => parseConfig()).toThrow(
+            'LIGHTDASH_LICENSE_KEY is required when LIGHTDASH_LICENSE_CERTIFICATE is set',
+        );
+    });
+});
+
 describe('AI prompt input request classifier config', () => {
     it('is disabled by default', () => {
         expect(parseConfig().ai.promptInputRequestClassifier.enabled).toBe(

@@ -133,6 +133,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
     const licenseClient = new LicenseClient({
         validationProxyEnabled:
             process.env.LIGHTDASH_LICENSE_VALIDATION_PROXY_ENABLED === 'true',
+        offlineLicenseCertificate:
+            lightdashConfig.license.licenseCertificate ?? undefined,
     });
 
     const license = await licenseClient.get(lightdashConfig.license.licenseKey);

@@ -156,6 +156,7 @@ describe('health', () => {
                 ...lightdashConfigMock,
                 license: {
                     licenseKey: 'test-license-key',
+                    licenseCertificate: null,
                 },
             },
             licenseService,
