@@ -49393,9 +49393,86 @@
                 "required": ["name", "id"],
                 "type": "object"
             },
+            "InviteLinkAuthenticationOptions": {
+                "properties": {
+                    "ssoProviders": {
+                        "items": {
+                            "$ref": "#/components/schemas/OpenIdIdentityIssuerType"
+                        },
+                        "type": "array"
+                    },
+                    "allowPasswordSignup": {
+                        "type": "boolean"
+                    },
+                    "allowOneClickActivation": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "ssoProviders",
+                    "allowPasswordSignup",
+                    "allowOneClickActivation"
+                ],
+                "type": "object"
+            },
             "InviteLinkPurpose": {
                 "enum": ["member", "setup"],
                 "type": "string"
+            },
+            "InviteLinkWithAuthenticationOptions": {
+                "properties": {
+                    "purpose": {
+                        "$ref": "#/components/schemas/InviteLinkPurpose"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "inviteUrl": {
+                        "type": "string"
+                    },
+                    "inviteCode": {
+                        "type": "string"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "authentication": {
+                        "$ref": "#/components/schemas/InviteLinkAuthenticationOptions"
+                    }
+                },
+                "required": [
+                    "purpose",
+                    "email",
+                    "userUuid",
+                    "organizationUuid",
+                    "inviteUrl",
+                    "inviteCode",
+                    "expiresAt",
+                    "authentication"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ApiGetInviteLinkResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/InviteLinkWithAuthenticationOptions"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "InviteLink": {
                 "properties": {
@@ -57248,7 +57325,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.49.0",
+        "version": "2.49.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -84422,7 +84499,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiInviteLinkResponse"
+                                    "$ref": "#/components/schemas/ApiGetInviteLinkResponse"
                                 }
                             }
                         }

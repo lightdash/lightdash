@@ -49176,9 +49176,65 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    InviteLinkAuthenticationOptions: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                ssoProviders: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refEnum',
+                        ref: 'OpenIdIdentityIssuerType',
+                    },
+                    required: true,
+                },
+                allowPasswordSignup: { dataType: 'boolean', required: true },
+                allowOneClickActivation: {
+                    dataType: 'boolean',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     InviteLinkPurpose: {
         dataType: 'refEnum',
         enums: ['member', 'setup'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    InviteLinkWithAuthenticationOptions: {
+        dataType: 'refObject',
+        properties: {
+            purpose: { ref: 'InviteLinkPurpose', required: true },
+            email: { dataType: 'string', required: true },
+            userUuid: { dataType: 'string', required: true },
+            organizationUuid: { dataType: 'string', required: true },
+            inviteUrl: { dataType: 'string', required: true },
+            inviteCode: { dataType: 'string', required: true },
+            expiresAt: { dataType: 'datetime', required: true },
+            authentication: {
+                ref: 'InviteLinkAuthenticationOptions',
+                required: true,
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGetInviteLinkResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'InviteLinkWithAuthenticationOptions',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     InviteLink: {

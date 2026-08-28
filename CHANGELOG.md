@@ -1,3 +1,10 @@
+## [2.49.1](https://github.com/lightdash/lightdash/compare/2.49.0...2.49.1) (2026-08-28)
+
+
+### Bug Fixes
+
+* **auth:** respect organization SSO for invite links ([#28272](https://github.com/lightdash/lightdash/issues/28272)) ([f2f0f75](https://github.com/lightdash/lightdash/commit/f2f0f75a48e44387f08a32bad7ef4fdb5e468cef))
+
 # [2.49.0](https://github.com/lightdash/lightdash/compare/2.48.1...2.49.0) (2026-08-28)
 
 
