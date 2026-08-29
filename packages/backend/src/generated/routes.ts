@@ -73338,6 +73338,7 @@ export function RegisterRoutes(app: Router) {
             name: 'enableSqlMode',
             dataType: 'boolean',
         },
+        context: { in: 'query', name: 'context', dataType: 'string' },
     };
     app.get(
         '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/suggestions',

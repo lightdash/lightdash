@@ -1,3 +1,10 @@
+# [2.57.0](https://github.com/lightdash/lightdash/compare/2.56.0...2.57.0) (2026-08-29)
+
+
+### Features
+
+* make agent suggestions use pinned context ([#28310](https://github.com/lightdash/lightdash/issues/28310)) ([bc30531](https://github.com/lightdash/lightdash/commit/bc30531371d0de96043eafa9710525c60c3abb27))
+
 # [2.56.0](https://github.com/lightdash/lightdash/compare/2.55.1...2.56.0) (2026-08-28)
 
 
