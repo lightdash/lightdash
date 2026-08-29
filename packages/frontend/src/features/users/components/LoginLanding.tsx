@@ -274,6 +274,7 @@ const LoginForm: FC<{
                 {formStage === 'precheck' ? (
                     <Button
                         type="submit"
+                        color="pink"
                         loading={isFormLoading}
                         disabled={isFormLoading}
                         fullWidth={isNewLayout}
