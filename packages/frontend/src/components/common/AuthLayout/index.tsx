@@ -1,5 +1,6 @@
 import { Box, Card, Group, Stack, Text, Title } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import { type FC, type PropsWithChildren, type ReactNode } from 'react';
 import LightdashLogo from '../../LightdashLogo/LightdashLogo';
 import PageSpinner from '../../PageSpinner';
@@ -29,6 +30,8 @@ type Props = {
     /** Pages that bring their own cards (Invite) opt out of the legacy card. */
     withLegacyCard?: boolean;
     footer?: ReactNode;
+    /** Extra class applied to the page's background container, for page-specific theming. */
+    backgroundClassName?: string;
 };
 
 const AuthLayout: FC<PropsWithChildren<Props>> = ({
@@ -39,6 +42,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     cardId,
     withLegacyCard = true,
     footer,
+    backgroundClassName,
     children,
 }) => {
     const { isNewLayout, isInitialLoading } = useAuthLayoutVariant();
@@ -50,7 +54,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     if (!isNewLayout) {
         return (
             <Page title={pageTitle} withCenteredContent withNavbar={false}>
-                <Stack w={400} mt="4xl">
+                <Stack w={400} mt="4xl" className={backgroundClassName}>
                     <Box mx="auto" my="lg">
                         <LightdashLogo />
                     </Box>
@@ -82,7 +86,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
         <>
             <DocumentTitle title={pageTitle} />
 
-            <Box className={classes.root}>
+            <Box className={clsx(classes.root, backgroundClassName)}>
                 <Box className={classes.brandPanel}>
                     <Box className={classes.decorationTop} aria-hidden />
                     <Box className={classes.decorationBottom} aria-hidden />
@@ -128,7 +132,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                     </Stack>
                 </Box>
 
-                <Box className={classes.formPanel}>
+                <Box className={clsx(classes.formPanel, backgroundClassName)}>
                     <Stack id={cardId} className={classes.formContent} gap="xl">
                         <Group
                             gap="sm"
