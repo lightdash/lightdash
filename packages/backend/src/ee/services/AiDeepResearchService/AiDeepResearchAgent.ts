@@ -3,9 +3,7 @@ import {
     AI_DEEP_RESEARCH_MAX_WORKERS,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
-    aiDeepResearchReportSchema,
     type AiDeepResearchBudget,
-    type AiDeepResearchSubmittedReport,
     type AiDeepResearchWorkerTask,
 } from '@lightdash/common';
 import { escapeXmlText, xmlBuilder } from '../ai/xmlBuilder';
@@ -15,10 +13,6 @@ export {
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
 };
-
-export const parseAiDeepResearchReport = (
-    input: unknown,
-): AiDeepResearchSubmittedReport => aiDeepResearchReportSchema.parse(input);
 
 /**
  * A worker answers one narrow question, so it needs a slice of the run budget

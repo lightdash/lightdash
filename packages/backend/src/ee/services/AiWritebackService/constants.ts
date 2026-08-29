@@ -59,9 +59,6 @@ export const PR_DESCRIPTION_CLOSE = '</lightdash-writeback-pr-description>';
 export const PR_SUMMARY_OPEN = '<lightdash-writeback-pr-summary>';
 export const PR_SUMMARY_CLOSE = '</lightdash-writeback-pr-summary>';
 
-// Installation tokens authenticate over HTTPS with a fixed username.
-export const GIT_USERNAME = 'x-access-token';
-
 // Commit identity for changes the agent produces.
 export const COMMIT_AUTHOR_NAME = 'Lightdash';
 export const COMMIT_AUTHOR_EMAIL = 'developers@lightdash.com';

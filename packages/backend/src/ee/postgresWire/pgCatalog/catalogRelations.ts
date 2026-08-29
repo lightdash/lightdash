@@ -108,9 +108,6 @@ const TYPE_ROWS_BY_OID = new Map(
     schema.pgTypeRows.map((row) => [Number(row.oid), row]),
 );
 
-export const exploreOid = (catalog: PgWireTable[], name: string): number =>
-    FIRST_EXPLORE_OID + catalog.findIndex((table) => table.name === name);
-
 const relationKey = (schemaName: string, name: string): string =>
     `${schemaName}.${name}`;
 
