@@ -11,6 +11,7 @@ import {
     AiAgentProjectThreadSummary,
     AiAgentReviewClassifierEventType,
     AiAgentReviewRemediationRunJobPayload,
+    AiAgentSuggestionContext,
     AiAgentSummary,
     AiAgentThread,
     AiAgentThreadFilters,
@@ -91,6 +92,7 @@ import {
     isAiMergeChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     isAiWritebackRunInProgress,
+    isDashboardChartTileType,
     isGithubMcpServerUrl,
     isGitProjectType,
     isSlackMessageTooLongError,
@@ -426,6 +428,11 @@ import {
     filterSuggestionsByEnabledTools,
     getEnabledSuggestionTools,
 } from './suggestionAccess';
+import {
+    buildChartSuggestionContext,
+    buildDashboardSuggestionContext,
+    getPinnedSuggestionContextInput,
+} from './suggestionPinnedContext';
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
@@ -433,6 +440,10 @@ type ThreadMessageContext = Array<
 
 type ThreadCompaction = NonNullable<
     Awaited<ReturnType<AiAgentModel['findLatestThreadCompaction']>>
+>;
+
+type SuggestionThreadMessages = Awaited<
+    ReturnType<AiAgentModel['findThreadMessages']>
 >;
 
 type AgentConversationContext = {
@@ -1904,12 +1915,14 @@ export class AiAgentService extends BaseService {
             threadUuid,
             afterMessageUuid,
             enableSqlMode = false,
+            context,
         }: {
             projectUuid: string;
             agentUuid: string;
             threadUuid?: string;
             afterMessageUuid?: string;
             enableSqlMode?: boolean;
+            context?: AiAgentSuggestionContext;
         },
     ): Promise<{ chips: AgentSuggestion[] }> {
         const { organizationUuid } = user;
@@ -1934,6 +1947,21 @@ export class AiAgentService extends BaseService {
                 return { chips: [] };
             }
         }
+
+        const threadMessages = threadUuid
+            ? await this.aiAgentModel.findThreadMessages({
+                  organizationUuid,
+                  threadUuid,
+              })
+            : undefined;
+        const contextInput = context
+            ? [context]
+            : getPinnedSuggestionContextInput(threadMessages);
+        const validatedContext = await this.validatePromptContextAccess(
+            user,
+            agent,
+            contextInput,
+        );
 
         const auditedAbility = this.createAuditedAbility(user);
         const canRunSql =
@@ -2013,22 +2041,30 @@ export class AiAgentService extends BaseService {
             projectUuid,
         );
 
-        const recentUserConversations = threadUuid
-            ? undefined
-            : await this.fetchSuggestionsRecentConversations({
-                  organizationUuid,
-                  agentUuid,
-                  userUuid: user.userUuid,
-              });
+        const recentUserConversations =
+            threadUuid || validatedContext
+                ? undefined
+                : await this.fetchSuggestionsRecentConversations({
+                      organizationUuid,
+                      agentUuid,
+                      userUuid: user.userUuid,
+                  });
 
-        const threadContext = threadUuid
-            ? await this.buildSuggestionsThreadContext({
-                  organizationUuid,
-                  threadUuid,
+        const threadContext = threadMessages
+            ? this.buildSuggestionsThreadContext({
+                  messages: threadMessages,
                   afterMessageUuid,
                   availableExplores,
               })
             : null;
+        const pinnedContext = validatedContext
+            ? await this.buildSuggestionsPinnedContext({
+                  user,
+                  projectUuid,
+                  context: validatedContext,
+                  availableExplores,
+              })
+            : undefined;
 
         const validationCatalog: SuggestionValidationCatalog = {
             exploreNames: new Set(availableExplores.map((e) => e.name)),
@@ -2068,6 +2104,7 @@ export class AiAgentService extends BaseService {
                     verifiedQuestions,
                     verifiedContentTags: agent.tags ?? [],
                     verifiedContent,
+                    pinnedContext,
                     recentUserConversations,
                     thread: threadContext ?? undefined,
                 },
@@ -2254,21 +2291,15 @@ export class AiAgentService extends BaseService {
         }
     }
 
-    private async buildSuggestionsThreadContext({
-        organizationUuid,
-        threadUuid,
+    private buildSuggestionsThreadContext({
+        messages,
         afterMessageUuid,
         availableExplores,
     }: {
-        organizationUuid: string;
-        threadUuid: string;
+        messages: SuggestionThreadMessages;
         afterMessageUuid?: string;
         availableExplores: Explore[];
-    }): Promise<NonNullable<SuggestionPromptContext['thread']> | null> {
-        const messages = await this.aiAgentModel.findThreadMessages({
-            organizationUuid,
-            threadUuid,
-        });
+    }): NonNullable<SuggestionPromptContext['thread']> | null {
         if (messages.length === 0) return null;
 
         // Pick the target assistant message: the one named by afterMessageUuid
@@ -2311,6 +2342,75 @@ export class AiAgentService extends BaseService {
                 latestQueryExplore,
             },
         };
+    }
+
+    private async buildSuggestionsPinnedContext({
+        user,
+        projectUuid,
+        context,
+        availableExplores,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        context: AiPromptContextInput;
+        availableExplores: Explore[];
+    }): Promise<SuggestionPromptContext['pinnedContext']> {
+        return Promise.all(
+            context.flatMap((item) => {
+                if (item.type === 'chart') {
+                    return [
+                        (async () => {
+                            const chart = await this.savedChartService.get(
+                                item.chartUuid,
+                                fromSession(user),
+                                { projectUuid },
+                            );
+                            return buildChartSuggestionContext(
+                                chart,
+                                availableExplores,
+                                item.runtimeOverrides,
+                            );
+                        })(),
+                    ];
+                }
+                if (item.type === 'dashboard') {
+                    return [
+                        (async () => {
+                            const dashboard =
+                                await this.dashboardService.getByIdOrSlug(
+                                    user,
+                                    item.dashboardUuid,
+                                    { projectUuid },
+                                );
+                            const chartUuids = dashboard.tiles
+                                .filter(isDashboardChartTileType)
+                                .flatMap((tile) =>
+                                    tile.properties.savedChartUuid
+                                        ? [tile.properties.savedChartUuid]
+                                        : [],
+                                )
+                                .slice(0, 12);
+                            const charts = await Promise.all(
+                                chartUuids.map((chartUuid) =>
+                                    this.savedChartService.get(
+                                        chartUuid,
+                                        fromSession(user),
+                                        { projectUuid },
+                                    ),
+                                ),
+                            );
+                            return buildDashboardSuggestionContext(
+                                dashboard,
+                                charts,
+                                availableExplores,
+                                item.runtimeOverrides,
+                            );
+                        })(),
+                    ];
+                }
+                return [];
+            }),
+        );
     }
 
     private async fetchSuggestionsRecentConversations({

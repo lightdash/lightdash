@@ -3,6 +3,8 @@ import {
     agentSuggestionsModelSchema,
     type AgentSuggestion,
     type AgentSuggestionsModelObject,
+    type AiChartRuntimeOverrides,
+    type AiDashboardRuntimeOverrides,
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import {
@@ -33,6 +35,7 @@ FORBIDDEN PROMPT-CHIP PATTERNS — these read like commands the agent cannot ful
 - "Open the {chart}" / "Show me the {dashboard}" — there is no deep-link to verified content; if the user wants to see something, propose a PROMPT chip that asks the agent to find/rebuild it (use the findContent tool).
 
 How to use the context (PROMPT chips):
+- pinnedContext: PRIMARY SIGNAL. When present, every chip must ask a useful question about the pinned chart or dashboard. Use its real field labels and metadata to propose drill-downs, comparisons, explanations, or related analyses. Do not emit navigate chips when pinnedContext is present.
 - recentUserConversations: TOPIC SIGNAL. If the user has been digging into "product events", propose a NEW angle as a prompt chip ("Compare conversion rate across product surfaces"). For resumption, emit a navigate chip instead.
 - verifiedContent: TOPIC SIGNAL. If there's a "Revenue Summary" verified chart, propose a fresh angle on revenue ("Break down revenue by month").
 - verifiedQuestions: these ARE complete prompts. Use them verbatim as prompt chips when they fit — they're the highest-quality chip you can produce.
@@ -55,14 +58,15 @@ Two modes:
 
 1. ANSWER mode — when <thread.latestAssistantTurn.askedClarifyingQuestion> is true, the chips ARE the user's likely answers to the agent's question. Pull options from the choices the agent presented in its reply. 5-40 chars typically.
 
-2. CONTINUE mode — natural next prompts (drill-in, refinement, comparison, follow-up). Use ONLY field labels visible in <thread.latestAssistantTurn.latestQueryExplore> (preferred — these are the fields the agent JUST used), or in <thread.latestAssistantTurn.text>, or in <explores>. Never invent terms — if a concept doesn't appear in the data, do not propose it. In defaults.dimensions and defaults.metrics, use field IDs from the catalogue, not labels.
+2. CONTINUE mode — natural next prompts (drill-in, refinement, comparison, follow-up). Use ONLY field labels visible in <pinnedContext>, <thread.latestAssistantTurn.latestQueryExplore> (preferred — these are the fields the agent JUST used), <thread.latestAssistantTurn.text>, or <explores>. Never invent terms — if a concept doesn't appear in the data, do not propose it. In defaults.dimensions and defaults.metrics, use field IDs from the catalogue, not labels.
 
 PREFERRED CONTEXT:
+- When <pinnedContext> is present, keep suggestions grounded in the pinned chart or dashboard and its fields unless the latest assistant turn clearly moved elsewhere.
 - When <thread.latestAssistantTurn.latestQueryExplore> is present, lean on its dimensions and metrics first. These are the fields the agent just touched — the user is almost certainly thinking in that explore's frame.
 - defaults.explore for CONTINUE chips SHOULD match latestQueryExplore.name unless you are deliberately pivoting.
 
 HARD RULES:
-- Never reference a field name, segment, tier, or metric that does not appear in <thread.latestAssistantTurn.latestQueryExplore>, <explores>, <thread.latestAssistantTurn.text>, or <verifiedContent>. This is the #1 failure mode.
+- Never reference a field name, segment, tier, or metric that does not appear in <pinnedContext>, <thread.latestAssistantTurn.latestQueryExplore>, <explores>, <thread.latestAssistantTurn.text>, or <verifiedContent>. This is the #1 failure mode.
 - If <thread.latestAssistantTurn.refused> is true (the agent just said it couldn't do something): do NOT repeat the refused line. Pivot — propose a different explore, a related verified question, or an adjacent angle the data actually supports.
 - 3 chips is ideal. 5 is the maximum.
 - Verified questions, verified content, and content tags reflect the user's curated workflow — prefer them when they fit the next-step slot. A chip that points at a verified chart ("Find the {name} chart") via \`findContent\` is often stronger than a new query.
@@ -155,6 +159,36 @@ type SuggestionFieldContext = {
     label: string;
 };
 
+type SuggestionPinnedFieldContext = SuggestionFieldContext & {
+    kind: 'dimension' | 'metric';
+};
+
+export type SuggestionPinnedContext =
+    | {
+          type: 'chart';
+          name: string;
+          description: string | null;
+          fields: SuggestionPinnedFieldContext[];
+          metadata: {
+              chartType: string;
+              exploreName: string;
+              runtimeOverrides: AiChartRuntimeOverrides | null;
+          };
+      }
+    | {
+          type: 'dashboard';
+          name: string;
+          description: string | null;
+          fields: SuggestionPinnedFieldContext[];
+          metadata: {
+              chartNames: string[];
+              chartTypes: string[];
+              exploreNames: string[];
+              tabNames: string[];
+              runtimeOverrides: AiDashboardRuntimeOverrides | null;
+          };
+      };
+
 export type SuggestionPromptContext = {
     agentName: string;
     agentInstruction: string | null;
@@ -172,6 +206,7 @@ export type SuggestionPromptContext = {
     verifiedQuestions: string[];
     verifiedContentTags: string[];
     verifiedContent: VerifiedContentItem[];
+    pinnedContext?: SuggestionPinnedContext[];
     // Fully-qualified `database.schema.table` names — only set for
     // semantic-layer-less projects with no explores, to ground chips via runSql.
     warehouseTables?: string[];
@@ -225,6 +260,7 @@ export async function generateAgentSuggestions(
             verifiedQuestions: context.verifiedQuestions,
             verifiedContentTags: context.verifiedContentTags,
             verifiedContent: context.verifiedContent,
+            pinnedContext: context.pinnedContext ?? null,
             recentUserConversations: recentForLLM ?? null,
             thread: context.thread ?? null,
         },
