@@ -105,6 +105,7 @@ export * from './types/any';
 export * from './types/api';
 export * from './types/api/comments';
 export * from './types/api/errors';
+export * from './types/api/mobilePushNotifications';
 export * from './types/api/notifications';
 export * from './types/api/paginatedQuery';
 export * from './types/api/parameters';

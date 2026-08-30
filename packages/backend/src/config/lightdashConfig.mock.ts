@@ -236,6 +236,13 @@ export const lightdashConfigMock: LightdashConfig = {
             ios: null,
         },
     },
+    mobilePushNotifications: {
+        enabled: false,
+        bundleId: 'com.lightdash.mobile',
+        teamId: undefined,
+        sandbox: undefined,
+        production: undefined,
+    },
     license: {
         licenseKey: null,
         licenseCertificate: null,

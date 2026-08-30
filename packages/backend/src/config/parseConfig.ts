@@ -1423,6 +1423,24 @@ export type LightdashSecrets = {
     readonly all: readonly string[];
 };
 
+export type MobilePushNotificationsConfig = {
+    enabled: boolean;
+    bundleId: string;
+    teamId: string | undefined;
+    sandbox:
+        | {
+              keyId: string;
+              privateKey: string;
+          }
+        | undefined;
+    production:
+        | {
+              keyId: string;
+              privateKey: string;
+          }
+        | undefined;
+};
+
 export type LightdashConfig = {
     /** Always equals `lightdashSecrets.active`; kept for compatibility */
     lightdashSecret: string;
@@ -1449,6 +1467,7 @@ export type LightdashConfig = {
     rudder: RudderConfig;
     mode: LightdashMode;
     mobile: HealthState['mobile'];
+    mobilePushNotifications: MobilePushNotificationsConfig;
     license: {
         licenseKey: string | null;
         licenseCertificate: string | null;
@@ -2559,6 +2578,28 @@ const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
     // Add per migration; truthy env value disables the flag.
 ];
 
+const parseMobilePushCredential = (
+    environment: 'SANDBOX' | 'PRODUCTION',
+): MobilePushNotificationsConfig['sandbox'] => {
+    const keyIdVariable =
+        `MOBILE_PUSH_NOTIFICATIONS_APNS_${environment}_KEY_ID` as const;
+    const privateKeyVariable =
+        `MOBILE_PUSH_NOTIFICATIONS_APNS_${environment}_PRIVATE_KEY` as const;
+    const keyId = process.env[keyIdVariable];
+    const privateKey = process.env[privateKeyVariable];
+
+    if ((keyId === undefined) !== (privateKey === undefined)) {
+        throw new ParseError(
+            `${keyIdVariable} and ${privateKeyVariable} must be set together`,
+            {},
+        );
+    }
+
+    return keyId === undefined || privateKey === undefined
+        ? undefined
+        : { keyId, privateKey };
+};
+
 export const parseConfig = (): LightdashConfig => {
     const lightdashSecret = process.env.LIGHTDASH_SECRET;
     if (!lightdashSecret) {
@@ -2688,6 +2729,19 @@ export const parseConfig = (): LightdashConfig => {
     const natsWorkerQueueTimeoutMs =
         getIntegerFromEnvironmentVariable('NATS_QUEUE_TIMEOUT_MS') ?? 180000;
     const lightdashCloudInstance = process.env.LIGHTDASH_CLOUD_INSTANCE;
+    const mobilePushSandbox = parseMobilePushCredential('SANDBOX');
+    const mobilePushProduction = parseMobilePushCredential('PRODUCTION');
+    const mobilePushTeamId = process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID;
+    if (
+        (mobilePushSandbox !== undefined ||
+            mobilePushProduction !== undefined) &&
+        mobilePushTeamId === undefined
+    ) {
+        throw new ParseError(
+            'MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID is required when APNs credentials are set',
+            {},
+        );
+    }
     const motherduckInstanceCache = {
         enabled: process.env.MOTHERDUCK_INSTANCE_CACHE_ENABLED === 'true',
         projectUuids: getArrayFromCommaSeparatedList(
@@ -2755,6 +2809,19 @@ export const parseConfig = (): LightdashConfig => {
                     'LIGHTDASH_MOBILE_MINIMUM_IOS_VERSION',
                 ),
             },
+        },
+        mobilePushNotifications: {
+            enabled:
+                lightdashCloudInstance !== undefined &&
+                mobilePushTeamId !== undefined &&
+                (mobilePushSandbox !== undefined ||
+                    mobilePushProduction !== undefined),
+            bundleId:
+                process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_BUNDLE_ID ??
+                'com.lightdash.mobile',
+            teamId: mobilePushTeamId,
+            sandbox: mobilePushSandbox,
+            production: mobilePushProduction,
         },
         cookieSameSite: iframeEmbeddingEnabled ? 'none' : 'lax',
         license: {

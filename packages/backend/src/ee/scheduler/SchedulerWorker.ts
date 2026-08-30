@@ -36,6 +36,7 @@ import { AppGenerateService } from '../services/AppGenerateService/AppGenerateSe
 import type { EmbedService } from '../services/EmbedService/EmbedService';
 import type { ExternalSourceService } from '../services/ExternalSourceService/ExternalSourceService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
+import { type MobilePushNotificationService } from '../services/MobilePushNotificationService/MobilePushNotificationService';
 import { type OnboardingAgentService } from '../services/OnboardingAgentService/OnboardingAgentService';
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
 import type { ProjectHomepageService } from '../services/ProjectHomepageService';
@@ -133,6 +134,10 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
         ExternalSourceService,
         'runIngest' | 'markIngestError' | 'maintain'
     >;
+    mobilePushNotificationService: Pick<
+        MobilePushNotificationService,
+        'reconcileLiveActivity' | 'sweepLiveActivities'
+    >;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
@@ -178,6 +183,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly externalSourceService: CommercialSchedulerWorkerArguments['externalSourceService'];
 
+    protected readonly mobilePushNotificationService: CommercialSchedulerWorkerArguments['mobilePushNotificationService'];
+
     private readonly cleanupMetrics: PrometheusMetrics | null;
 
     constructor(args: CommercialSchedulerWorkerArguments) {
@@ -206,6 +213,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.mcpToolCallModel = args.mcpToolCallModel;
         this.projectHomepageService = args.projectHomepageService;
         this.externalSourceService = args.externalSourceService;
+        this.mobilePushNotificationService = args.mobilePushNotificationService;
         this.cleanupMetrics = args.prometheusMetrics ?? null;
     }
 
@@ -259,6 +267,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 pattern: '0 */3 * * *',
                 options: {
                     backfillPeriod: 6 * 60 * 60 * 1000,
+                    maxAttempts: 1,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.SWEEP_MOBILE_PUSH_LIVE_ACTIVITIES,
+                pattern: '*/2 * * * *',
+                options: {
+                    backfillPeriod: 5 * 60 * 1000,
                     maxAttempts: 1,
                 },
             },
@@ -830,6 +846,26 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             [EE_SCHEDULER_TASKS.SWEEP_DUE_ANNOUNCEMENTS]: async () => {
                 await this.projectHomepageService.sweepDueAnnouncements();
             },
+            [EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY]: async (
+                payload,
+                helpers,
+            ) => {
+                await SchedulerClient.processJob(
+                    EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY,
+                    helpers.job.id,
+                    helpers.job.run_at,
+                    payload,
+                    async () => {
+                        await this.mobilePushNotificationService.reconcileLiveActivity(
+                            payload.liveActivityUuid,
+                        );
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.SWEEP_MOBILE_PUSH_LIVE_ACTIVITIES]:
+                async () => {
+                    await this.mobilePushNotificationService.sweepLiveActivities();
+                },
             [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: async () => {
                 const swept = await this.aiWritebackService.sweepStaleRuns();
                 // A chat run's card reflects the tool-result row, not the run

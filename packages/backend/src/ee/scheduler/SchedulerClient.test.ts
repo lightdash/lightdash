@@ -218,3 +218,33 @@ describe('CommercialSchedulerClient.aiAgentMemoryConsolidatePartition', () => {
         );
     });
 });
+
+describe('CommercialSchedulerClient.mobilePushLiveActivity', () => {
+    it('keeps one replaceable reconciliation job per activity', async () => {
+        const addJob = vi.fn().mockResolvedValue({ id: 'job-1' });
+        const client = Object.create(
+            CommercialSchedulerClient.prototype,
+        ) as CommercialSchedulerClient;
+        client.graphileUtils = Promise.resolve({ addJob } as AnyType);
+        const payload = {
+            liveActivityUuid: 'activity-1',
+            organizationUuid: 'organization-1',
+            projectUuid: 'project-1',
+            userUuid: 'user-1',
+        };
+        const runAt = new Date('2026-08-30T12:04:00.000Z');
+
+        await client.mobilePushLiveActivity(payload, runAt);
+
+        expect(addJob).toHaveBeenCalledWith(
+            EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY,
+            payload,
+            {
+                runAt,
+                maxAttempts: 5,
+                jobKey: 'mobile-push-live-activity:activity-1',
+                priority: JobPriority.MEDIUM,
+            },
+        );
+    });
+});

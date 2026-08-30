@@ -413,6 +413,7 @@ import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import type { AiWritebackSource } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
+import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import {
@@ -626,6 +627,10 @@ type AiAgentServiceDependencies = {
         'recordClicked'
     >;
     prometheusMetrics?: PrometheusMetrics;
+    mobilePushNotificationService?: Pick<
+        MobilePushNotificationService,
+        'enqueueThreadReconciliation'
+    >;
 };
 
 export type RelevantVerifiedAnswer = {
@@ -979,6 +984,8 @@ export class AiAgentService extends BaseService {
 
     private readonly aiAgentMcpRuntimeClient: AiAgentMcpRuntimeClient;
 
+    private readonly mobilePushNotificationService: AiAgentServiceDependencies['mobilePushNotificationService'];
+
     private static getPinnedContextAnalyticsProperties(
         context: AiPromptContextInput | undefined,
     ): Pick<
@@ -1310,6 +1317,8 @@ export class AiAgentService extends BaseService {
             dependencies.aiAgentReviewClassifierModel;
         this.aiAgentReviewNotificationModel =
             dependencies.aiAgentReviewNotificationModel;
+        this.mobilePushNotificationService =
+            dependencies.mobilePushNotificationService;
         this.aiAgentMcpRuntimeClient = new AiAgentMcpRuntimeClient({
             aiAgentModel: this.aiAgentModel,
             lightdashConfig: this.lightdashConfig,
@@ -1430,12 +1439,27 @@ export class AiAgentService extends BaseService {
             instanceCopilotConfig: this.lightdashConfig.ai.copilot,
             aiAgentModel: this.aiAgentModel,
             analytics: this.analytics,
-        }).catch((error) => {
-            Logger.error(
-                'Failed to persist AI agent prompt input request classification',
-                error,
-            );
-        });
+        })
+            .then(() =>
+                this.enqueueMobilePushThreadReconciliation(args.threadUuid),
+            )
+            .catch((error) => {
+                Logger.error(
+                    'Failed to persist AI agent prompt input request classification',
+                    error,
+                );
+            });
+    }
+
+    private enqueueMobilePushThreadReconciliation(threadUuid: string): void {
+        void this.mobilePushNotificationService
+            ?.enqueueThreadReconciliation(threadUuid)
+            .catch((error) => {
+                Logger.error(
+                    'Failed to enqueue mobile push Live Activity reconciliation',
+                    error,
+                );
+            });
     }
 
     /**
@@ -3302,6 +3326,7 @@ export class AiAgentService extends BaseService {
             decision,
             user.userUuid,
         );
+        this.enqueueMobilePushThreadReconciliation(threadUuid);
         if (!recorded) {
             // A decision was already in place for this tool call — likely a
             // double-click or a race between Slack and the web UI. First
@@ -3479,6 +3504,7 @@ export class AiAgentService extends BaseService {
                 context,
                 modelConfig,
             });
+            this.enqueueMobilePushThreadReconciliation(threadUuid);
 
             this.analytics.track<AiAgentPromptCreatedEvent>({
                 event: 'ai_agent_prompt.created',
@@ -3618,6 +3644,7 @@ export class AiAgentService extends BaseService {
             modelConfig: body.modelConfig,
             hidden: body.hidden,
         });
+        this.enqueueMobilePushThreadReconciliation(threadUuid);
 
         this.analytics.track<AiAgentPromptCreatedEvent>({
             event: 'ai_agent_prompt.created',
@@ -6122,6 +6149,11 @@ export class AiAgentService extends BaseService {
                 : { onlyIfPending: isTerminalStreamUpdate },
         );
         const persistedUpdatePromise = modelUpdatePromise.then((persisted) => {
+            if (persisted && classificationContext !== undefined) {
+                this.enqueueMobilePushThreadReconciliation(
+                    classificationContext.threadUuid,
+                );
+            }
             if (
                 persisted &&
                 isClassifiableTerminalUpdate &&
@@ -6437,6 +6469,7 @@ export class AiAgentService extends BaseService {
             promptUuid: messageUuid,
             createdByUserUuid: user.userUuid,
         });
+        this.enqueueMobilePushThreadReconciliation(threadUuid);
     }
 
     async createAgentThreadMessageSteer(
@@ -9773,6 +9806,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 },
                 () => this.aiAgentModel.createToolCall(args),
             );
+            this.enqueueMobilePushThreadReconciliation(prompt.threadUuid);
         };
 
         const storeToolCallError: StoreToolCallErrorFn = async (args) => {
@@ -9797,6 +9831,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 })),
                 () => this.aiAgentModel.createToolResults(args),
             );
+            this.enqueueMobilePushThreadReconciliation(prompt.threadUuid);
         };
 
         const storeReasoning: StoreReasoningFn = async (
@@ -11141,20 +11176,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
             ) => {
-                const completedResponse = update.response;
-                const updatePromise = this.persistTrackedPromptUpdate(
-                    update,
-                    completedResponse !== undefined &&
-                        shouldClassifyPromptInputRequestForUpdate(update)
-                        ? {
-                              organizationUuid: agentSettings.organizationUuid,
-                              projectUuid: prompt.projectUuid,
-                              agentUuid: agentSettings.uuid,
-                              threadUuid: prompt.threadUuid,
-                              userUuid: user.userUuid,
-                          }
-                        : undefined,
-                );
+                const updatePromise = this.persistTrackedPromptUpdate(update, {
+                    organizationUuid: agentSettings.organizationUuid,
+                    projectUuid: prompt.projectUuid,
+                    agentUuid: agentSettings.uuid,
+                    threadUuid: prompt.threadUuid,
+                    userUuid: user.userUuid,
+                });
                 if (!updatePromise) {
                     return Promise.resolve();
                 }

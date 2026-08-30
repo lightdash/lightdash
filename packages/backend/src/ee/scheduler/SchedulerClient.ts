@@ -18,6 +18,7 @@ import {
     GenerateArtifactQuestionJobPayload,
     IngestExternalSourceJobPayload,
     JobPriority,
+    MobilePushLiveActivityJobPayload,
     PublishAnnouncementPayload,
     SlackPromptJobPayload,
 } from '@lightdash/common';
@@ -57,6 +58,24 @@ export const aiAgentMemoryDistillEventRunAt = (now: Date): Date =>
     new Date(now.getTime() + MEMORY_DISTILL_EVENT_DEBOUNCE_MS);
 
 export class CommercialSchedulerClient extends SchedulerClient {
+    async mobilePushLiveActivity(
+        payload: MobilePushLiveActivityJobPayload,
+        runAt: Date = new Date(),
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY,
+            payload,
+            {
+                runAt,
+                maxAttempts: 5,
+                jobKey: `mobile-push-live-activity:${payload.liveActivityUuid}`,
+                priority: JobPriority.MEDIUM,
+            },
+        );
+        return { jobId };
+    }
+
     /**
      * One pending publish per announcement: the stable jobKey (default
      * jobKeyMode `replace`) makes rescheduling an in-place move of `runAt`.

@@ -43,8 +43,12 @@ describe('AiAgentService prompt input classification persistence', () => {
 
     const buildService = (classifierEnabled = true) => {
         const updateModelResponse = vi.fn().mockResolvedValue(true);
+        const enqueueThreadReconciliation = vi
+            .fn()
+            .mockResolvedValue(undefined);
         const instance = new AiAgentService({
             aiAgentModel: { updateModelResponse },
+            mobilePushNotificationService: { enqueueThreadReconciliation },
             lightdashConfig: {
                 ...lightdashConfigMock,
                 ai: {
@@ -59,6 +63,7 @@ describe('AiAgentService prompt input classification persistence', () => {
         return {
             service: instance as unknown as ServiceHarness,
             updateModelResponse: vi.mocked(updateModelResponse),
+            enqueueThreadReconciliation,
         };
     };
 
@@ -123,7 +128,8 @@ describe('AiAgentService prompt input classification persistence', () => {
     });
 
     it('does not classify a final update blocked by an existing error', async () => {
-        const { service, updateModelResponse } = buildService();
+        const { service, updateModelResponse, enqueueThreadReconciliation } =
+            buildService();
         updateModelResponse.mockResolvedValueOnce(false);
         const classifyPromptInputRequestAfterResponse = vi
             .spyOn(service, 'classifyPromptInputRequestAfterResponse')
@@ -138,6 +144,30 @@ describe('AiAgentService prompt input classification persistence', () => {
             onlyIfUnfinalized: true,
         });
         expect(classifyPromptInputRequestAfterResponse).not.toHaveBeenCalled();
+        expect(enqueueThreadReconciliation).not.toHaveBeenCalled();
+    });
+
+    it('enqueues reconciliation after each persisted state update', async () => {
+        const { service, enqueueThreadReconciliation } = buildService();
+        vi.spyOn(
+            service,
+            'classifyPromptInputRequestAfterResponse',
+        ).mockImplementation(() => undefined);
+
+        await service.persistTrackedPromptUpdate(
+            {
+                promptUuid: 'prompt-uuid',
+                response: 'Intermediate response',
+            },
+            classificationContext,
+        );
+        await service.persistTrackedPromptUpdate(
+            terminalUpdate,
+            classificationContext,
+        );
+
+        expect(enqueueThreadReconciliation).toHaveBeenCalledTimes(2);
+        expect(enqueueThreadReconciliation).toHaveBeenCalledWith('thread-uuid');
     });
 
     it('keeps the pending guard for a terminal response when classification is disabled', async () => {
