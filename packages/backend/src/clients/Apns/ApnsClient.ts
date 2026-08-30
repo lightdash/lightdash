@@ -30,6 +30,10 @@ export type AlertPayload = {
             body: string;
         };
     };
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+    promptUuid: string;
 };
 
 export type ApnsDeliveryResult =

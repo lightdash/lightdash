@@ -181,7 +181,13 @@ export class MobilePushNotificationReconciler {
             environment: activity.environment,
             deviceToken: activity.deviceToken,
             collapseId: activity.liveActivityUuid,
-            payload: { aps: { alert: this.completionAlert } },
+            payload: {
+                aps: { alert: this.completionAlert },
+                projectUuid: activity.projectUuid,
+                agentUuid: activity.agentUuid,
+                threadUuid: activity.threadUuid,
+                promptUuid: activity.promptUuid,
+            },
         });
         this.track({
             event: 'mobile_push.completion_alert_delivery',

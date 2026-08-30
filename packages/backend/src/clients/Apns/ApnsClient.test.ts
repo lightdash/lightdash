@@ -158,6 +158,10 @@ describe('ApnsClient.sendAlert', () => {
                     body: 'Approved body',
                 },
             },
+            projectUuid: 'project-uuid',
+            agentUuid: 'agent-uuid',
+            threadUuid: 'thread-uuid',
+            promptUuid: 'prompt-uuid',
         };
 
         await expect(
