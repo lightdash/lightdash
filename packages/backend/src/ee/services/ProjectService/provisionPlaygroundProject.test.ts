@@ -78,8 +78,16 @@ const buildArguments = () => {
         shownSuccessAt: null,
         playgroundProjectDeletedAt: null,
     }));
+    const getPlaygroundContentSeedVersion = vi.fn<
+        ProvisionPlaygroundProjectArguments['onboardingModel']['getPlaygroundContentSeedVersion']
+    >(async () => null);
+    const setPlaygroundContentSeedVersion = vi.fn<
+        ProvisionPlaygroundProjectArguments['onboardingModel']['setPlaygroundContentSeedVersion']
+    >(async () => undefined);
     const onboardingModel = {
         getByOrganizationUuid,
+        getPlaygroundContentSeedVersion,
+        setPlaygroundContentSeedVersion,
         runInPlaygroundProvisioningLock: vi.fn(
             async (_organizationUuid, callback) => callback({} as never),
         ),
@@ -124,6 +132,8 @@ const buildArguments = () => {
         canViewProject,
         indexCatalog,
         seedPlaygroundContent,
+        getPlaygroundContentSeedVersion,
+        setPlaygroundContentSeedVersion,
         createWithoutCompile,
         runInPlaygroundProvisioningLock,
         track,
@@ -175,6 +185,11 @@ describe('provisionPlaygroundProject', () => {
             user,
             content: expect.objectContaining({ version: 1 }),
         });
+        expect(mocks.setPlaygroundContentSeedVersion).toHaveBeenCalledWith(
+            organizationUuid,
+            1,
+            expect.anything(),
+        );
         expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
             event: 'playground_project.skipped',
             userId: user.userUuid,
@@ -186,6 +201,44 @@ describe('provisionPlaygroundProject', () => {
                 reason: 'playground_already_exists',
             },
         });
+    });
+
+    it('does not reseed an existing playground after content was seeded', async () => {
+        const mocks = buildArguments();
+        mocks.getAllByOrganizationUuid.mockResolvedValue([
+            project('playground'),
+        ]);
+        mocks.getPlaygroundContentSeedVersion.mockResolvedValue(1);
+
+        await expect(provisionPlaygroundProject(mocks.args)).resolves.toEqual({
+            projectUuid,
+            created: false,
+        });
+
+        expect(mocks.saveExploresToCache).toHaveBeenCalledWith(
+            projectUuid,
+            expect.any(Array),
+            true,
+        );
+        expect(mocks.seedPlaygroundContent).not.toHaveBeenCalled();
+        expect(mocks.setPlaygroundContentSeedVersion).not.toHaveBeenCalled();
+    });
+
+    it('still returns an existing playground when repair seeding fails', async () => {
+        const mocks = buildArguments();
+        mocks.getAllByOrganizationUuid.mockResolvedValue([
+            project('playground'),
+        ]);
+        mocks.seedPlaygroundContent.mockRejectedValue(
+            new TypeError('Content unavailable'),
+        );
+
+        await expect(provisionPlaygroundProject(mocks.args)).resolves.toEqual({
+            projectUuid,
+            created: false,
+        });
+
+        expect(mocks.setPlaygroundContentSeedVersion).not.toHaveBeenCalled();
     });
 
     it('returns an existing real project without creating a playground', async () => {
@@ -287,6 +340,11 @@ describe('provisionPlaygroundProject', () => {
             user,
             content: expect.objectContaining({ version: 1 }),
         });
+        expect(mocks.setPlaygroundContentSeedVersion).toHaveBeenCalledWith(
+            organizationUuid,
+            1,
+            expect.anything(),
+        );
         expect(mocks.runInPlaygroundProvisioningLock).toHaveBeenCalledWith(
             organizationUuid,
             expect.any(Function),
@@ -377,6 +435,7 @@ describe('provisionPlaygroundProject', () => {
             projectUuid,
             user.userUuid,
         );
+        expect(mocks.setPlaygroundContentSeedVersion).not.toHaveBeenCalled();
         expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
             event: 'playground_project.provisioned',
             userId: user.userUuid,

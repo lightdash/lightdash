@@ -77,6 +77,46 @@ export class OnboardingModel {
         };
     }
 
+    async getPlaygroundContentSeedVersion(
+        organizationUuid: string,
+        transaction?: Knex.Transaction,
+    ): Promise<number | null> {
+        const database = transaction ?? this.database;
+        await this.getByOrganizationUuid(organizationUuid, transaction);
+        const onboarding = await database(OnboardingTableName)
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${OnboardingTableName}.organization_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .select(`${OnboardingTableName}.playground_content_seed_version`)
+            .first();
+
+        return onboarding?.playground_content_seed_version ?? null;
+    }
+
+    async setPlaygroundContentSeedVersion(
+        organizationUuid: string,
+        version: number,
+        transaction?: Knex.Transaction,
+    ): Promise<void> {
+        const database = transaction ?? this.database;
+        await this.getByOrganizationUuid(organizationUuid, transaction);
+        await database(OnboardingTableName)
+            .where(
+                'organization_id',
+                database(OrganizationTableName)
+                    .where('organization_uuid', organizationUuid)
+                    .select('organization_id')
+                    .first(),
+            )
+            .update({ playground_content_seed_version: version });
+    }
+
     async update(
         organizationUuid: string,
         data: Partial<OnbordingRecord>,

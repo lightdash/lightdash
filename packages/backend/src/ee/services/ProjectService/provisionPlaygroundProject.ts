@@ -41,7 +41,10 @@ export type ProvisionPlaygroundProjectArguments = {
     >;
     onboardingModel: Pick<
         OnboardingModel,
-        'getByOrganizationUuid' | 'runInPlaygroundProvisioningLock'
+        | 'getByOrganizationUuid'
+        | 'getPlaygroundContentSeedVersion'
+        | 'setPlaygroundContentSeedVersion'
+        | 'runInPlaygroundProvisioningLock'
     >;
     projectService: Pick<ProjectService, 'createWithoutCompile'>;
     catalogService: Pick<CatalogService, 'indexCatalog'>;
@@ -178,7 +181,7 @@ export const provisionPlaygroundProject = async ({
     try {
         return await onboardingModel.runInPlaygroundProvisioningLock(
             organizationUuid,
-            async () => {
+            async (trx) => {
                 const dataDirectory = path.resolve(
                     playgroundDataDirectory ??
                         process.env.PLAYGROUND_DATA_DIR ??
@@ -204,11 +207,23 @@ export const provisionPlaygroundProject = async ({
                         true,
                     );
                     try {
-                        await seedPlaygroundContent({
-                            projectUuid: playground.projectUuid,
-                            user,
-                            content,
-                        });
+                        const seedVersion =
+                            await onboardingModel.getPlaygroundContentSeedVersion(
+                                organizationUuid,
+                                trx,
+                            );
+                        if (seedVersion === null) {
+                            await seedPlaygroundContent({
+                                projectUuid: playground.projectUuid,
+                                user,
+                                content,
+                            });
+                            await onboardingModel.setPlaygroundContentSeedVersion(
+                                organizationUuid,
+                                content.version,
+                                trx,
+                            );
+                        }
                     } catch (error) {
                         Sentry.captureException(error);
                         Logger.error(
@@ -251,10 +266,10 @@ export const provisionPlaygroundProject = async ({
                     };
                 }
 
-                const onboarding =
-                    await onboardingModel.getByOrganizationUuid(
-                        organizationUuid,
-                    );
+                const onboarding = await onboardingModel.getByOrganizationUuid(
+                    organizationUuid,
+                    trx,
+                );
                 if (onboarding.playgroundProjectDeletedAt) {
                     trackSkipped('playground_previously_removed', null);
                     throw new NotFoundError(
@@ -315,6 +330,11 @@ export const provisionPlaygroundProject = async ({
                         user,
                         content,
                     });
+                    await onboardingModel.setPlaygroundContentSeedVersion(
+                        organizationUuid,
+                        content.version,
+                        trx,
+                    );
                 } catch (error) {
                     Sentry.captureException(error);
                     Logger.error(
