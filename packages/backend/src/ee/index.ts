@@ -104,6 +104,7 @@ import { ProjectContextService } from './services/ProjectContextService/ProjectC
 import { ProjectHomepageService } from './services/ProjectHomepageService';
 import { provisionOnboardingHomepage } from './services/ProjectService/provisionOnboardingHomepage';
 import { provisionPlaygroundProject } from './services/ProjectService/provisionPlaygroundProject';
+import { seedPlaygroundContent } from './services/ProjectService/seedPlaygroundContent';
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
@@ -985,6 +986,20 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             projectModel: models.getProjectModel(),
                             onboardingModel: models.getOnboardingModel(),
                             catalogService: repository.getCatalogService(),
+                            seedPlaygroundContent: ({
+                                projectUuid,
+                                user: seedUser,
+                                content,
+                            }) =>
+                                seedPlaygroundContent({
+                                    projectUuid,
+                                    user: seedUser,
+                                    content,
+                                    spaceModel: models.getSpaceModel(),
+                                    savedChartModel:
+                                        models.getSavedChartModel(),
+                                    dashboardModel: models.getDashboardModel(),
+                                }),
                             analytics: context.lightdashAnalytics,
                         }),
                 }),

@@ -92,6 +92,7 @@ const buildArguments = () => {
         hasContentCopy: false,
     })) as unknown as ProvisionPlaygroundProjectArguments['projectService']['createWithoutCompile'];
     const track = vi.fn();
+    const seedPlaygroundContent = vi.fn(async () => undefined);
     const hasActiveAgentOnboardingRun = vi.fn(async () => true);
     return {
         args: {
@@ -105,6 +106,7 @@ const buildArguments = () => {
             onboardingModel,
             projectService: { createWithoutCompile },
             catalogService: { indexCatalog },
+            seedPlaygroundContent,
             analytics: { track },
             canViewProject,
             hasActiveAgentOnboardingRun,
@@ -121,6 +123,7 @@ const buildArguments = () => {
         validatePlaygroundDatabase,
         canViewProject,
         indexCatalog,
+        seedPlaygroundContent,
         createWithoutCompile,
         runInPlaygroundProvisioningLock,
         track,
@@ -167,6 +170,11 @@ describe('provisionPlaygroundProject', () => {
             expect.any(Array),
             true,
         );
+        expect(mocks.seedPlaygroundContent).toHaveBeenCalledWith({
+            projectUuid,
+            user,
+            content: expect.objectContaining({ version: 1 }),
+        });
         expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
             event: 'playground_project.skipped',
             userId: user.userUuid,
@@ -274,6 +282,11 @@ describe('provisionPlaygroundProject', () => {
             projectUuid,
             user.userUuid,
         );
+        expect(mocks.seedPlaygroundContent).toHaveBeenCalledWith({
+            projectUuid,
+            user,
+            content: expect.objectContaining({ version: 1 }),
+        });
         expect(mocks.runInPlaygroundProvisioningLock).toHaveBeenCalledWith(
             organizationUuid,
             expect.any(Function),
@@ -286,6 +299,7 @@ describe('provisionPlaygroundProject', () => {
                 projectId: projectUuid,
                 trigger: 'invite_expert',
                 onboardingFlow: 'new',
+                contentSeedErrorType: null,
                 catalogIndexErrorType: null,
             },
         });
@@ -343,7 +357,36 @@ describe('provisionPlaygroundProject', () => {
                 projectId: projectUuid,
                 trigger: 'invite_expert',
                 onboardingFlow: 'new',
+                contentSeedErrorType: null,
                 catalogIndexErrorType: 'Error',
+            },
+        });
+    });
+
+    it('still provisions when content seeding fails, tracking the error type', async () => {
+        const mocks = buildArguments();
+        mocks.seedPlaygroundContent.mockRejectedValue(
+            new TypeError('Content unavailable'),
+        );
+
+        await expect(provisionPlaygroundProject(mocks.args)).resolves.toEqual({
+            projectUuid,
+            created: true,
+        });
+        expect(mocks.indexCatalog).toHaveBeenCalledWith(
+            projectUuid,
+            user.userUuid,
+        );
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'playground_project.provisioned',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                trigger: 'invite_expert',
+                onboardingFlow: 'new',
+                contentSeedErrorType: 'TypeError',
+                catalogIndexErrorType: null,
             },
         });
     });
@@ -400,6 +443,7 @@ describe('provisionPlaygroundProject', () => {
                     projectId: projectUuid,
                     trigger: 'agent_onboarding_wait',
                     onboardingFlow: 'new',
+                    contentSeedErrorType: null,
                     catalogIndexErrorType: null,
                 },
             });

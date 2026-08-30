@@ -1,13 +1,20 @@
-import { DimensionType, SupportedDbtVersions } from '@lightdash/common';
+import {
+    DimensionType,
+    findFieldByIdInExplore,
+    isExploreError,
+    SupportedDbtVersions,
+    type Explore,
+    type ExploreError,
+} from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
     cp,
-    mkdtemp,
     mkdir,
-    readFile,
+    mkdtemp,
     readdir,
+    readFile,
     rm,
     writeFile,
 } from 'node:fs/promises';
@@ -17,6 +24,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { DbtLocalProjectAdapter } from '../../packages/backend/src/projectAdapters/dbtLocalProjectAdapter';
+import { playgroundContent } from './content';
 
 type DuckDbConnection = {
     closeSync(): void;
@@ -34,6 +42,7 @@ const seedDir = path.join(sourceDbtProjectDir, 'data');
 const outputDir = path.join(root, 'packages/backend/assets/playground');
 const databasePath = path.join(outputDir, 'jaffle_shop.duckdb');
 const exploresPath = path.join(outputDir, 'explores.json');
+const contentPath = path.join(outputDir, 'content.json');
 const checksumsPath = path.join(outputDir, 'SHA256SUMS');
 const venvBin = path.join(__dirname, '.venv/bin');
 const execFileAsync = promisify(execFile);
@@ -84,14 +93,18 @@ const loadSeeds = async () => {
 
     await withDatabase(async (connection) => {
         await connection.run('CREATE SCHEMA jaffle');
-        for (const file of csvFiles) {
-            const table = path.basename(file, '.csv');
-            await connection.run(
-                `CREATE TABLE jaffle.${quoteIdentifier(table)} AS ` +
-                    `SELECT * FROM read_csv_auto(${quoteLiteral(path.join(seedDir, file))}, header = true) ` +
-                    `LIMIT ${maxSeedRows}`,
-            );
-        }
+        await csvFiles.reduce(
+            (previous, file) =>
+                previous.then(() => {
+                    const table = path.basename(file, '.csv');
+                    return connection.run(
+                        `CREATE TABLE jaffle.${quoteIdentifier(table)} AS ` +
+                            `SELECT * FROM read_csv_auto(${quoteLiteral(path.join(seedDir, file))}, header = true) ` +
+                            `LIMIT ${maxSeedRows}`,
+                    );
+                }),
+            Promise.resolve(),
+        );
     });
     return csvFiles.length;
 };
@@ -131,6 +144,62 @@ const getCatalog = () =>
         }
         return catalog;
     });
+
+const validatePlaygroundContent = (
+    explores: (Explore | ExploreError)[],
+): void => {
+    const chartKeys = new Set<string>();
+
+    for (const chart of playgroundContent.charts) {
+        if (chartKeys.has(chart.key)) {
+            throw new Error(`Duplicate playground chart key: ${chart.key}`);
+        }
+        chartKeys.add(chart.key);
+
+        const explore = explores.find(
+            ({ name }) => name === chart.metricQuery.exploreName,
+        );
+        if (!explore || isExploreError(explore)) {
+            throw new Error(
+                `Playground chart ${chart.key} references an unavailable explore: ${chart.metricQuery.exploreName}`,
+            );
+        }
+
+        const fieldIds = [
+            ...chart.metricQuery.dimensions,
+            ...chart.metricQuery.metrics,
+            ...chart.metricQuery.sorts.map(({ fieldId }) => fieldId),
+        ];
+        for (const fieldId of fieldIds) {
+            const field = findFieldByIdInExplore(explore, fieldId);
+            if (!field) {
+                throw new Error(
+                    `Playground chart ${chart.key} references an unavailable field: ${fieldId}`,
+                );
+            }
+            if (
+                field.requiredAttributes ||
+                field.anyAttributes ||
+                field.tablesRequiredAttributes
+            ) {
+                throw new Error(
+                    `Playground chart ${chart.key} references a restricted field: ${fieldId}`,
+                );
+            }
+        }
+    }
+
+    for (const tile of playgroundContent.dashboard.tiles) {
+        if (
+            tile.type === 'saved_chart' &&
+            !chartKeys.has(tile.properties.chartKey)
+        ) {
+            throw new Error(
+                `Playground dashboard references an unavailable chart: ${tile.properties.chartKey}`,
+            );
+        }
+    }
+};
 
 const main = async () => {
     await mkdir(outputDir, { recursive: true });
@@ -178,6 +247,7 @@ const main = async () => {
             warehouseCatalog: undefined,
             onWarehouseCatalogChange: () => {},
         },
+        environmentVariableAllowlist: [],
         dbtVersion: SupportedDbtVersions.V1_10,
     });
 
@@ -209,10 +279,14 @@ const main = async () => {
 
         adapter.cachedWarehouse.warehouseCatalog = await getCatalog();
         const explores = await adapter.compileAllExplores();
+        validatePlaygroundContent(explores);
         const exploresJson = `${JSON.stringify(explores)}\n`;
+        const contentJson = `${JSON.stringify(playgroundContent)}\n`;
         await writeFile(exploresPath, exploresJson);
+        await writeFile(contentPath, contentJson);
         const checksums = [
             ['explores.json', Buffer.from(exploresJson)],
+            ['content.json', Buffer.from(contentJson)],
             ['jaffle_shop.duckdb', await readFile(databasePath)],
         ]
             .map(

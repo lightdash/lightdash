@@ -1034,6 +1034,7 @@ type PlaygroundProjectProvisionedEvent = BaseTrack & {
         projectId: string;
         trigger: PlaygroundProjectTrigger;
         onboardingFlow: OnboardingFlow;
+        contentSeedErrorType: string | null;
         catalogIndexErrorType: string | null;
     };
 };
