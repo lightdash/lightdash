@@ -133,4 +133,45 @@ describe('MobilePushNotificationModel', () => {
         expect(result).not.toHaveProperty('encryptedPushToken');
         expect(result).not.toHaveProperty('encryptedDeviceToken');
     });
+
+    it('returns all active Live Activities for a thread in one query', async () => {
+        tracker.on.select(AiAgentLiveActivitiesTableName).responseOnce([
+            {
+                liveActivityUuid: 'first-activity-uuid',
+                organizationUuid: 'first-organization-uuid',
+                projectUuid: 'first-project-uuid',
+                userUuid: 'first-user-uuid',
+            },
+            {
+                liveActivityUuid: 'second-activity-uuid',
+                organizationUuid: 'second-organization-uuid',
+                projectUuid: 'second-project-uuid',
+                userUuid: 'second-user-uuid',
+            },
+        ]);
+
+        const result =
+            await model.findActiveLiveActivitiesForThread('thread-uuid');
+
+        expect(result).toEqual([
+            {
+                liveActivityUuid: 'first-activity-uuid',
+                organizationUuid: 'first-organization-uuid',
+                projectUuid: 'first-project-uuid',
+                userUuid: 'first-user-uuid',
+            },
+            {
+                liveActivityUuid: 'second-activity-uuid',
+                organizationUuid: 'second-organization-uuid',
+                projectUuid: 'second-project-uuid',
+                userUuid: 'second-user-uuid',
+            },
+        ]);
+        expect(tracker.history.all).toHaveLength(1);
+        expect(tracker.history.select).toHaveLength(1);
+        expect(tracker.history.select[0].sql).toBe(
+            'select "live_activity_uuid" as "liveActivityUuid", "organization_uuid" as "organizationUuid", "project_uuid" as "projectUuid", "user_uuid" as "userUuid" from "ai_agent_live_activities" where "thread_uuid" = $1 and "ended_at" is null',
+        );
+        expect(tracker.history.select[0].bindings).toEqual(['thread-uuid']);
+    });
 });

@@ -314,32 +314,25 @@ export class MobilePushNotificationModel {
         };
     }
 
-    async findActiveLiveActivitiesForThread(
-        threadUuid: string,
-    ): Promise<AiAgentLiveActivity[]> {
-        const rows = await this.database<DbAiAgentLiveActivity>(
+    async findActiveLiveActivitiesForThread(threadUuid: string): Promise<
+        {
+            liveActivityUuid: string;
+            organizationUuid: string;
+            projectUuid: string;
+            userUuid: string;
+        }[]
+    > {
+        return this.database<DbAiAgentLiveActivity>(
             AiAgentLiveActivitiesTableName,
         )
-            .join<DbMobilePushInstallation>(
-                MobilePushInstallationsTableName,
-                `${AiAgentLiveActivitiesTableName}.mobile_push_installation_uuid`,
-                `${MobilePushInstallationsTableName}.mobile_push_installation_uuid`,
-            )
             .select({
-                liveActivityUuid: `${AiAgentLiveActivitiesTableName}.live_activity_uuid`,
+                liveActivityUuid: 'live_activity_uuid',
+                organizationUuid: 'organization_uuid',
+                projectUuid: 'project_uuid',
+                userUuid: 'user_uuid',
             })
-            .where(`${AiAgentLiveActivitiesTableName}.thread_uuid`, threadUuid)
-            .whereNull(`${AiAgentLiveActivitiesTableName}.ended_at`);
-
-        const activities = await Promise.all(
-            rows.map(({ liveActivityUuid }) =>
-                this.findLiveActivity(liveActivityUuid),
-            ),
-        );
-        return activities.filter(
-            (activity): activity is AiAgentLiveActivity =>
-                activity !== undefined,
-        );
+            .where('thread_uuid', threadUuid)
+            .whereNull('ended_at');
     }
 
     async findLiveActivitiesDueForReconciliation(
