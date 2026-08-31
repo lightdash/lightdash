@@ -8154,7 +8154,7 @@ Filter expressions use the form "field operator=value".
 
 Available operators: isNull, notNull, equals, notEquals, startsWith, endsWith, include, doesNotInclude, lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual, inThePast, notInThePast, inTheNext, inTheCurrent, notInTheCurrent, inBetween, notInBetween.
 
-- Join flat rules with AND or OR. Do not mix both connectors in one expression.
+- Join flat rules with AND only. OR is not supported by this tool.
 - Quote values containing commas, braces, equals signs, whitespace, parentheses, backslashes, or reserved words with single or double quotes.
 - Inside quotes, commas and braces are literal; do not backslash-escape them. Backslash escapes quotes, backslashes, slashes, control characters, and four-digit Unicode sequences.
 - Quote unusual field IDs with backticks. AND and OR are reserved field IDs unless quoted.
@@ -8164,6 +8164,9 @@ Available operators: isNull, notNull, equals, notEquals, startsWith, endsWith, i
 - Current dates use one unit (for example inTheCurrent=months).
 - Safety limits: 256 rules per expression, 256 values (including settings) per rule, 256 characters per literal, and 16384 characters per expression.
 - Nested groups and parentheses are not supported yet.
+
+AND-only multiple-rule example:
+- orders_status equals=example AND orders_amount greaterThan=100
 
 Examples by field filter type. Each line is one complete raw string expression:
 string:

@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
 import { getFieldIdSchema } from '../fieldId';
-import { FILTER_EXPRESSION_EXAMPLES_DESCRIPTION } from '../filterExpressions/examples';
+import { FILTER_EXPRESSION_AND_ONLY_EXAMPLES_DESCRIPTION } from '../filterExpressions/examples';
 import {
-    FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
+    FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION,
     filterExpressionInputSchema,
 } from '../filterExpressions/expressionSchemas';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
@@ -54,9 +54,9 @@ Usage Tips:
 - When filters is provided, pass one flat AND expression containing dimension fields only
 
 Filter expression syntax:
-${FILTER_EXPRESSION_GRAMMAR_DESCRIPTION}
+${FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION}
 
-${FILTER_EXPRESSION_EXAMPLES_DESCRIPTION}
+${FILTER_EXPRESSION_AND_ONLY_EXAMPLES_DESCRIPTION}
 `;
 
 export const toolSearchFieldValuesArgsSchema = createToolSchema()

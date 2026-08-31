@@ -25,11 +25,21 @@ import {
     FILTER_EXPRESSION_MAX_VALUES_PER_RULE,
 } from './parse';
 
-export const FILTER_EXPRESSION_GRAMMAR_DESCRIPTION = `Filter expressions use the form "field operator=value".
+const connectorInstructionByPolicy = {
+    andOnly: 'Join flat rules with AND only. OR is not supported by this tool.',
+    andOr: 'Join flat rules with AND or OR. Do not mix both connectors in one expression.',
+};
+
+type FilterExpressionConnectorPolicy =
+    keyof typeof connectorInstructionByPolicy;
+
+const buildFilterExpressionGrammarDescription = (
+    connectorPolicy: FilterExpressionConnectorPolicy,
+) => `Filter expressions use the form "field operator=value".
 
 Available operators: ${filterExpressionOperators.join(', ')}.
 
-- Join flat rules with AND or OR. Do not mix both connectors in one expression.
+- ${connectorInstructionByPolicy[connectorPolicy]}
 - Quote values containing commas, braces, equals signs, whitespace, parentheses, backslashes, or reserved words with single or double quotes.
 - Inside quotes, commas and braces are literal; do not backslash-escape them. Backslash escapes quotes, backslashes, slashes, control characters, and four-digit Unicode sequences.
 - Quote unusual field IDs with backticks. AND and OR are reserved field IDs unless quoted.
@@ -39,6 +49,12 @@ Available operators: ${filterExpressionOperators.join(', ')}.
 - Current dates use one unit (for example inTheCurrent=months).
 - Safety limits: ${FILTER_EXPRESSION_MAX_RULES} rules per expression, ${FILTER_EXPRESSION_MAX_VALUES_PER_RULE} values (including settings) per rule, ${FILTER_EXPRESSION_MAX_LITERAL_LENGTH} characters per literal, and ${FILTER_EXPRESSION_MAX_LENGTH} characters per expression.
 - Nested groups and parentheses are not supported yet.`;
+
+export const FILTER_EXPRESSION_GRAMMAR_DESCRIPTION =
+    buildFilterExpressionGrammarDescription('andOr');
+
+export const FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION =
+    buildFilterExpressionGrammarDescription('andOnly');
 
 export const filterExpressionInputSchema = z
     .string()
