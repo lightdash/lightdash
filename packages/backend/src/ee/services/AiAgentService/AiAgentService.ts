@@ -10258,7 +10258,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             const writeback = await this.projectContextService.writebackEntry({
                 user,
                 projectUuid,
-                dbtSourceUuid: entry.dbtSourceUuid ?? options?.dbtSourceUuid,
+                dbtSourceUuid: options?.dbtSourceUuid,
                 entry,
                 branchTimestamp: Date.now(),
                 sourceThread,

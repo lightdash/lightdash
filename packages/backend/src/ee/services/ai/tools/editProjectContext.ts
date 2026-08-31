@@ -36,18 +36,9 @@ const toolDefinition = editProjectContextToolDefinition.for('agent');
 export const getEditProjectContext = ({ editProjectContext }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async ({
-            dbtSourceUuid,
-            op,
-            id,
-            kind,
-            content,
-            terms,
-            objects,
-        }) => {
+        execute: async ({ op, id, kind, content, terms, objects }) => {
             try {
                 const { prUrl, prAction } = await editProjectContext({
-                    dbtSourceUuid,
                     op,
                     id,
                     kind,

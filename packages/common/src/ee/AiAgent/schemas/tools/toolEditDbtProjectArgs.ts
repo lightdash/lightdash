@@ -7,22 +7,16 @@ export const TOOL_EDIT_DBT_PROJECT_DESCRIPTION = [
     'Open or update a pull request that modifies the dbt project / Lightdash semantic layer for this project.',
     'Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata.',
     'Do NOT use this tool for read-only questions, querying data, exploring fields, or for changes that can be made inside Lightdash (use editContent for those).',
+    'When a project has more than one dbt source, the prompt must name the source or its owner/repo verbatim, or you will be asked to choose one.',
     'This tool applies the change on your behalf: it runs in an isolated sandbox, edits the repo, runs `lightdash compile`, and opens a pull request — but the call returns immediately once the run has started, before any of that finishes (status: "pending"). Give a brief acknowledgement that you have started the change, then end your turn. Do not wait for it or call this tool again to check on it.',
     'A single conversation can open several pull requests: follow-up edits continue the most recent one, prUrl targets a specific existing one, and startNewPullRequest opens a fresh one for an unrelated change.',
 ].join(' ');
 
 export const toolEditDbtProjectArgsSchema = z.object({
-    dbtSourceUuid: z
-        .string()
-        .uuid()
-        .optional()
-        .describe(
-            'The project dbt source UUID to edit. Use the projectDbtSourceUuid returned by a prior source-selection result. Omit it only when the project has one dbt source.',
-        ),
     prompt: z
         .string()
         .describe(
-            'A focused, self-contained natural-language instruction describing exactly which files in the dbt project to change and how. The change is applied in a fresh sandbox that does not see this conversation, so include every detail it needs (model name, file path hints, the literal change to make). Do not include preamble or pleasantries.',
+            'A focused, self-contained natural-language instruction describing exactly which files in the dbt project to change and how. The change is applied in a fresh sandbox that does not see this conversation, so include every detail it needs (model name, file path hints, the literal change to make). When the project has multiple dbt sources, include the source name or owner/repo verbatim. Do not include preamble or pleasantries.',
         ),
     prUrl: z
         .string()
