@@ -935,7 +935,7 @@ Restart Claude Code to load the new `statusLine` command. If there's no command-
 
 The `SessionStart` hook runs `./scripts/dev-resources.sh hook-start` to report Docker-dev resource use across all claimed instances. It summarises PM2 memory, running containers, and `ld-*` volumes, and flags unclaimed processes or containers as cleanup candidates.
 
-The hook is silent when no Docker-dev resources are present. When it does report, relay the result in 1–2 lines and offer to clean up specific instances with `stop`, `destroy`, `stop-all`, or `gc`.
+The hook is opt-in: it no-ops unless `LIGHTDASH_DEV_RESOURCES_HOOK` is set. It is also silent when no Docker-dev resources are present. When it does report, relay the result in 1–2 lines and offer to clean up specific instances with `stop`, `destroy`, `stop-all`, or `gc`.
 
 Run the report at any time with:
 
