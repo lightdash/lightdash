@@ -8150,112 +8150,59 @@ Usage Tips:
 - When filters is provided, pass one flat AND expression containing dimension fields only
 
 Filter expression syntax:
-Filter expressions use the form "field operator=value".
-
-Available operators: isNull, notNull, equals, notEquals, startsWith, endsWith, include, doesNotInclude, lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual, inThePast, notInThePast, inTheNext, inTheCurrent, notInTheCurrent, inBetween, notInBetween.
-
 - Join flat rules with AND only. OR is not supported by this tool.
-- Quote values containing commas, braces, equals signs, whitespace, parentheses, backslashes, or reserved words with single or double quotes.
-- Inside quotes, commas and braces are literal; do not backslash-escape them. Backslash escapes quotes, backslashes, slashes, control characters, and four-digit Unicode sequences.
-- Quote unusual field IDs with backticks. AND and OR are reserved field IDs unless quoted.
-- Use isNull/notNull without values. equals=null and notEquals=null are equivalent null checks.
-- Presence operators take no values. Other operators require one or more comma-separated values according to the field type.
-- Relative dates use a count followed by named settings (for example inThePast=30{unit:days,completed:false}). completed=false includes the current partial period; completed=true uses completed periods only.
-- Current dates use one unit (for example inTheCurrent=months).
-- Safety limits: 256 rules per expression, 256 values (including settings) per rule, 256 characters per literal, and 16384 characters per expression.
-- Nested groups and parentheses are not supported yet.
+- Quote delimiters/reserved values; commas/braces are literal in quotes; backslash escapes.
+- Limits: 256 rules; 256 values including settings/rule; 256 characters/literal; 16384 characters/expression.
 
-AND-only multiple-rule example:
-- orders_status equals=example AND orders_amount greaterThan=100
+### string
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`startsWith=<value>[,<value>...] [1+ values]\`
+- \`endsWith=<value>[,<value>...] [1+ values]\`
+- \`include=<value>[,<value>...] [1+ values]\`
+- \`doesNotInclude=<value>[,<value>...] [1+ values]\`
 
-Examples by field filter type. Each line is one complete raw string expression:
-string:
-- isNull: orders_status isNull
-- notNull: orders_status notNull
-- equals: orders_status equals=example
-- equals: orders_status equals=example,another
-- notEquals: orders_status notEquals=excluded
-- notEquals: orders_status notEquals=excluded,another
-- startsWith: orders_status startsWith=prefix
-- startsWith: orders_status startsWith=prefix,another
-- endsWith: orders_status endsWith=suffix
-- endsWith: orders_status endsWith=suffix,another
-- include: orders_status include=contains
-- include: orders_status include=contains,another
-- doesNotInclude: orders_status doesNotInclude=exclude
-- doesNotInclude: orders_status doesNotInclude=exclude,another
-number:
-- isNull: orders_amount isNull
-- notNull: orders_amount notNull
-- equals: orders_amount equals=100
-- equals: orders_amount equals=100,500
-- notEquals: orders_amount notEquals=100
-- notEquals: orders_amount notEquals=100,500
-- lessThan: orders_amount lessThan=100
-- lessThanOrEqual: orders_amount lessThanOrEqual=100
-- greaterThan: orders_amount greaterThan=100
-- greaterThanOrEqual: orders_amount greaterThanOrEqual=100
-- inBetween: orders_amount inBetween=100,500
-- notInBetween: orders_amount notInBetween=100,500
-date:
-- isNull: orders_order_date isNull
-- notNull: orders_order_date notNull
-- equals: orders_order_date equals=2024-01-01
-- equals: orders_order_date equals=2024-01-01,2024-02-01
-- notEquals: orders_order_date notEquals=2024-01-01T00:00:00Z
-- notEquals: orders_order_date notEquals=2024-01-01T00:00:00Z,2024-02-01
-- lessThan: orders_order_date lessThan=2024-02-01T00:00:00Z
-- lessThanOrEqual: orders_order_date lessThanOrEqual=2024-02-01
-- greaterThan: orders_order_date greaterThan=2024-01-01
-- greaterThanOrEqual: orders_order_date greaterThanOrEqual=2024-01-01
-- inThePast: orders_order_date inThePast=2{unit:days,completed:false}
-- inThePast: orders_order_date inThePast=2{unit:days,completed:true}
-- inThePast: orders_order_date inThePast=2{unit:weeks,completed:false}
-- inThePast: orders_order_date inThePast=2{unit:weeks,completed:true}
-- inThePast: orders_order_date inThePast=2{unit:months,completed:false}
-- inThePast: orders_order_date inThePast=2{unit:months,completed:true}
-- inThePast: orders_order_date inThePast=2{unit:quarters,completed:false}
-- inThePast: orders_order_date inThePast=2{unit:quarters,completed:true}
-- inThePast: orders_order_date inThePast=2{unit:years,completed:false}
-- inThePast: orders_order_date inThePast=2{unit:years,completed:true}
-- notInThePast: orders_order_date notInThePast=2{unit:days,completed:false}
-- notInThePast: orders_order_date notInThePast=2{unit:days,completed:true}
-- notInThePast: orders_order_date notInThePast=2{unit:weeks,completed:false}
-- notInThePast: orders_order_date notInThePast=2{unit:weeks,completed:true}
-- notInThePast: orders_order_date notInThePast=2{unit:months,completed:false}
-- notInThePast: orders_order_date notInThePast=2{unit:months,completed:true}
-- notInThePast: orders_order_date notInThePast=2{unit:quarters,completed:false}
-- notInThePast: orders_order_date notInThePast=2{unit:quarters,completed:true}
-- notInThePast: orders_order_date notInThePast=2{unit:years,completed:false}
-- notInThePast: orders_order_date notInThePast=2{unit:years,completed:true}
-- inTheNext: orders_order_date inTheNext=2{unit:days,completed:false}
-- inTheNext: orders_order_date inTheNext=2{unit:days,completed:true}
-- inTheNext: orders_order_date inTheNext=2{unit:weeks,completed:false}
-- inTheNext: orders_order_date inTheNext=2{unit:weeks,completed:true}
-- inTheNext: orders_order_date inTheNext=2{unit:months,completed:false}
-- inTheNext: orders_order_date inTheNext=2{unit:months,completed:true}
-- inTheNext: orders_order_date inTheNext=2{unit:quarters,completed:false}
-- inTheNext: orders_order_date inTheNext=2{unit:quarters,completed:true}
-- inTheNext: orders_order_date inTheNext=2{unit:years,completed:false}
-- inTheNext: orders_order_date inTheNext=2{unit:years,completed:true}
-- inTheCurrent: orders_order_date inTheCurrent=days
-- inTheCurrent: orders_order_date inTheCurrent=weeks
-- inTheCurrent: orders_order_date inTheCurrent=months
-- inTheCurrent: orders_order_date inTheCurrent=quarters
-- inTheCurrent: orders_order_date inTheCurrent=years
-- notInTheCurrent: orders_order_date notInTheCurrent=days
-- notInTheCurrent: orders_order_date notInTheCurrent=weeks
-- notInTheCurrent: orders_order_date notInTheCurrent=months
-- notInTheCurrent: orders_order_date notInTheCurrent=quarters
-- notInTheCurrent: orders_order_date notInTheCurrent=years
-- inBetween: orders_order_date inBetween=2024-01-01,2024-01-31
-boolean:
-- isNull: orders_is_completed isNull
-- notNull: orders_is_completed notNull
-- equals: orders_is_completed equals=true
-- equals: orders_is_completed equals=false
-- notEquals: orders_is_completed notEquals=true
-- notEquals: orders_is_completed notEquals=false
+### number
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`lessThan=<value> [1 value]\`
+- \`lessThanOrEqual=<value> [1 value]\`
+- \`greaterThan=<value> [1 value]\`
+- \`greaterThanOrEqual=<value> [1 value]\`
+- \`inBetween=<first value>,<second value> [2 values]\`
+- \`notInBetween=<first value>,<second value> [2 values]\`
+
+### date
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`lessThan=<value> [1 value]\`
+- \`lessThanOrEqual=<value> [1 value]\`
+- \`greaterThan=<value> [1 value]\`
+- \`greaterThanOrEqual=<value> [1 value]\`
+- \`inThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`notInThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`inTheNext=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`inTheCurrent=<unit> [1 unit]\`
+- \`notInTheCurrent=<unit> [1 unit]\`
+- \`inBetween=<first value>,<second value> [2 values]\`
+- Units: days, weeks, months, quarters, years; completed=false includes partial, true completed only.
+
+### boolean
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value> [1 value]\`
+- \`notEquals=<value> [1 value]\`
+
 ",
   "inputSchema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -8367,20 +8314,58 @@ Notes:
 - Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.
 
 Filter expression syntax:
-Filter expressions use the form "field operator=value".
-
-Available operators: isNull, notNull, equals, notEquals, startsWith, endsWith, include, doesNotInclude, lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual, inThePast, notInThePast, inTheNext, inTheCurrent, notInTheCurrent, inBetween, notInBetween.
-
 - Join flat rules with AND or OR. Do not mix both connectors in one expression.
-- Quote values containing commas, braces, equals signs, whitespace, parentheses, backslashes, or reserved words with single or double quotes.
-- Inside quotes, commas and braces are literal; do not backslash-escape them. Backslash escapes quotes, backslashes, slashes, control characters, and four-digit Unicode sequences.
-- Quote unusual field IDs with backticks. AND and OR are reserved field IDs unless quoted.
-- Use isNull/notNull without values. equals=null and notEquals=null are equivalent null checks.
-- Presence operators take no values. Other operators require one or more comma-separated values according to the field type.
-- Relative dates use a count followed by named settings (for example inThePast=30{unit:days,completed:false}). completed=false includes the current partial period; completed=true uses completed periods only.
-- Current dates use one unit (for example inTheCurrent=months).
-- Safety limits: 256 rules per expression, 256 values (including settings) per rule, 256 characters per literal, and 16384 characters per expression.
-- Nested groups and parentheses are not supported yet.",
+- Quote delimiters/reserved values; commas/braces are literal in quotes; backslash escapes.
+- Limits: 256 rules; 256 values including settings/rule; 256 characters/literal; 16384 characters/expression.
+
+### string
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`startsWith=<value>[,<value>...] [1+ values]\`
+- \`endsWith=<value>[,<value>...] [1+ values]\`
+- \`include=<value>[,<value>...] [1+ values]\`
+- \`doesNotInclude=<value>[,<value>...] [1+ values]\`
+
+### number
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`lessThan=<value> [1 value]\`
+- \`lessThanOrEqual=<value> [1 value]\`
+- \`greaterThan=<value> [1 value]\`
+- \`greaterThanOrEqual=<value> [1 value]\`
+- \`inBetween=<first value>,<second value> [2 values]\`
+- \`notInBetween=<first value>,<second value> [2 values]\`
+
+### date
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`lessThan=<value> [1 value]\`
+- \`lessThanOrEqual=<value> [1 value]\`
+- \`greaterThan=<value> [1 value]\`
+- \`greaterThanOrEqual=<value> [1 value]\`
+- \`inThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`notInThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`inTheNext=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`inTheCurrent=<unit> [1 unit]\`
+- \`notInTheCurrent=<unit> [1 unit]\`
+- \`inBetween=<first value>,<second value> [2 values]\`
+- Units: days, weeks, months, quarters, years; completed=false includes partial, true completed only.
+
+### boolean
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value> [1 value]\`
+- \`notEquals=<value> [1 value]\`",
   "inputSchema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "additionalProperties": false,

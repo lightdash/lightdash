@@ -22,96 +22,58 @@ Raw placement examples:
 - metrics: orders_total_order_amount greaterThan=100
 - tableCalculations: rank lessThanOrEqual=10
 
-### Generated raw expression matrix
-Each line is one complete raw string expression, labeled by filter type and operator:
-string:
-- isNull: orders_status isNull
-- notNull: orders_status notNull
-- equals: orders_status equals=example
-- equals: orders_status equals=example,another
-- notEquals: orders_status notEquals=excluded
-- notEquals: orders_status notEquals=excluded,another
-- startsWith: orders_status startsWith=prefix
-- startsWith: orders_status startsWith=prefix,another
-- endsWith: orders_status endsWith=suffix
-- endsWith: orders_status endsWith=suffix,another
-- include: orders_status include=contains
-- include: orders_status include=contains,another
-- doesNotInclude: orders_status doesNotInclude=exclude
-- doesNotInclude: orders_status doesNotInclude=exclude,another
-- equals: orders_status equals="Coffee Filters (100pk), \\"special\\" \\\\ stock"
-number:
-- isNull: orders_amount isNull
-- notNull: orders_amount notNull
-- equals: orders_amount equals=100
-- equals: orders_amount equals=100,500
-- notEquals: orders_amount notEquals=100
-- notEquals: orders_amount notEquals=100,500
-- lessThan: orders_amount lessThan=100
-- lessThanOrEqual: orders_amount lessThanOrEqual=100
-- greaterThan: orders_amount greaterThan=100
-- greaterThanOrEqual: orders_amount greaterThanOrEqual=100
-- inBetween: orders_amount inBetween=100,500
-- notInBetween: orders_amount notInBetween=100,500
-date:
-- isNull: orders_order_date isNull
-- notNull: orders_order_date notNull
-- equals: orders_order_date equals=2024-01-01
-- equals: orders_order_date equals=2024-01-01,2024-02-01
-- notEquals: orders_order_date notEquals=2024-01-01T00:00:00Z
-- notEquals: orders_order_date notEquals=2024-01-01T00:00:00Z,2024-02-01
-- lessThan: orders_order_date lessThan=2024-02-01T00:00:00Z
-- lessThanOrEqual: orders_order_date lessThanOrEqual=2024-02-01
-- greaterThan: orders_order_date greaterThan=2024-01-01
-- greaterThanOrEqual: orders_order_date greaterThanOrEqual=2024-01-01
-- inThePast: orders_order_date inThePast=2{unit:days,completed:false}
-- inThePast: orders_order_date inThePast=2{unit:days,completed:true}
-- inThePast: orders_order_date inThePast=2{unit:weeks,completed:false}
-- inThePast: orders_order_date inThePast=2{unit:weeks,completed:true}
-- inThePast: orders_order_date inThePast=2{unit:months,completed:false}
-- inThePast: orders_order_date inThePast=2{unit:months,completed:true}
-- inThePast: orders_order_date inThePast=2{unit:quarters,completed:false}
-- inThePast: orders_order_date inThePast=2{unit:quarters,completed:true}
-- inThePast: orders_order_date inThePast=2{unit:years,completed:false}
-- inThePast: orders_order_date inThePast=2{unit:years,completed:true}
-- notInThePast: orders_order_date notInThePast=2{unit:days,completed:false}
-- notInThePast: orders_order_date notInThePast=2{unit:days,completed:true}
-- notInThePast: orders_order_date notInThePast=2{unit:weeks,completed:false}
-- notInThePast: orders_order_date notInThePast=2{unit:weeks,completed:true}
-- notInThePast: orders_order_date notInThePast=2{unit:months,completed:false}
-- notInThePast: orders_order_date notInThePast=2{unit:months,completed:true}
-- notInThePast: orders_order_date notInThePast=2{unit:quarters,completed:false}
-- notInThePast: orders_order_date notInThePast=2{unit:quarters,completed:true}
-- notInThePast: orders_order_date notInThePast=2{unit:years,completed:false}
-- notInThePast: orders_order_date notInThePast=2{unit:years,completed:true}
-- inTheNext: orders_order_date inTheNext=2{unit:days,completed:false}
-- inTheNext: orders_order_date inTheNext=2{unit:days,completed:true}
-- inTheNext: orders_order_date inTheNext=2{unit:weeks,completed:false}
-- inTheNext: orders_order_date inTheNext=2{unit:weeks,completed:true}
-- inTheNext: orders_order_date inTheNext=2{unit:months,completed:false}
-- inTheNext: orders_order_date inTheNext=2{unit:months,completed:true}
-- inTheNext: orders_order_date inTheNext=2{unit:quarters,completed:false}
-- inTheNext: orders_order_date inTheNext=2{unit:quarters,completed:true}
-- inTheNext: orders_order_date inTheNext=2{unit:years,completed:false}
-- inTheNext: orders_order_date inTheNext=2{unit:years,completed:true}
-- inTheCurrent: orders_order_date inTheCurrent=days
-- inTheCurrent: orders_order_date inTheCurrent=weeks
-- inTheCurrent: orders_order_date inTheCurrent=months
-- inTheCurrent: orders_order_date inTheCurrent=quarters
-- inTheCurrent: orders_order_date inTheCurrent=years
-- notInTheCurrent: orders_order_date notInTheCurrent=days
-- notInTheCurrent: orders_order_date notInTheCurrent=weeks
-- notInTheCurrent: orders_order_date notInTheCurrent=months
-- notInTheCurrent: orders_order_date notInTheCurrent=quarters
-- notInTheCurrent: orders_order_date notInTheCurrent=years
-- inBetween: orders_order_date inBetween=2024-01-01,2024-01-31
-boolean:
-- isNull: orders_is_completed isNull
-- notNull: orders_is_completed notNull
-- equals: orders_is_completed equals=true
-- equals: orders_is_completed equals=false
-- notEquals: orders_is_completed notEquals=true
-- notEquals: orders_is_completed notEquals=false
+- Join flat rules with AND or OR. Do not mix both connectors in one expression.
+- Quote delimiters/reserved values; commas/braces are literal in quotes; backslash escapes.
+- Limits: 256 rules; 256 values including settings/rule; 256 characters/literal; 16384 characters/expression.
+
+### string
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`startsWith=<value>[,<value>...] [1+ values]\`
+- \`endsWith=<value>[,<value>...] [1+ values]\`
+- \`include=<value>[,<value>...] [1+ values]\`
+- \`doesNotInclude=<value>[,<value>...] [1+ values]\`
+
+### number
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`lessThan=<value> [1 value]\`
+- \`lessThanOrEqual=<value> [1 value]\`
+- \`greaterThan=<value> [1 value]\`
+- \`greaterThanOrEqual=<value> [1 value]\`
+- \`inBetween=<first value>,<second value> [2 values]\`
+- \`notInBetween=<first value>,<second value> [2 values]\`
+
+### date
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`lessThan=<value> [1 value]\`
+- \`lessThanOrEqual=<value> [1 value]\`
+- \`greaterThan=<value> [1 value]\`
+- \`greaterThanOrEqual=<value> [1 value]\`
+- \`inThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`notInThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`inTheNext=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`inTheCurrent=<unit> [1 unit]\`
+- \`notInTheCurrent=<unit> [1 unit]\`
+- \`inBetween=<first value>,<second value> [2 values]\`
+- Units: days, weeks, months, quarters, years; completed=false includes partial, true completed only.
+
+### boolean
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value> [1 value]\`
+- \`notEquals=<value> [1 value]\`
 
 ## Time-based filtering
 

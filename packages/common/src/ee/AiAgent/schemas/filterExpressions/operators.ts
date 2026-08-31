@@ -1,15 +1,28 @@
-import { FilterOperator, FilterType } from '../../../../types/filter';
+import {
+    FilterOperator,
+    FilterType,
+    UnitOfTime,
+} from '../../../../types/filter';
 
 export type FilterExpressionArgumentCount = 0 | 1 | 2 | 'oneOrMore';
 
+type FilterExpressionOperatorSyntax =
+    | {
+          syntax: 'presence';
+          argumentSyntax: 'none';
+      }
+    | {
+          syntax: 'values';
+          argumentSyntax: 'values' | 'relativeDate' | 'currentDate';
+      };
+
 export type FilterExpressionOperatorDefinition = {
     operator: FilterOperator;
-    syntax: 'presence' | 'values';
     argumentCountByFilterType: Record<
         FilterType,
         FilterExpressionArgumentCount | null
     >;
-};
+} & FilterExpressionOperatorSyntax;
 
 const allTypes = (argumentCount: FilterExpressionArgumentCount) => ({
     [FilterType.BOOLEAN]: argumentCount,
@@ -57,20 +70,31 @@ const currentDateOperators = [
     FilterOperator.NOT_IN_THE_CURRENT,
 ] as const;
 
+export const filterExpressionDateUnits = [
+    UnitOfTime.days,
+    UnitOfTime.weeks,
+    UnitOfTime.months,
+    UnitOfTime.quarters,
+    UnitOfTime.years,
+] as const;
+
 export const filterExpressionOperatorDefinitions = [
     {
         operator: FilterOperator.NULL,
         syntax: 'presence',
+        argumentSyntax: 'none',
         argumentCountByFilterType: allTypes(0),
     },
     {
         operator: FilterOperator.NOT_NULL,
         syntax: 'presence',
+        argumentSyntax: 'none',
         argumentCountByFilterType: allTypes(0),
     },
     {
         operator: FilterOperator.EQUALS,
         syntax: 'values',
+        argumentSyntax: 'values',
         argumentCountByFilterType: {
             [FilterType.BOOLEAN]: 1,
             [FilterType.STRING]: 'oneOrMore',
@@ -81,6 +105,7 @@ export const filterExpressionOperatorDefinitions = [
     {
         operator: FilterOperator.NOT_EQUALS,
         syntax: 'values',
+        argumentSyntax: 'values',
         argumentCountByFilterType: {
             [FilterType.BOOLEAN]: 1,
             [FilterType.STRING]: 'oneOrMore',
@@ -93,6 +118,7 @@ export const filterExpressionOperatorDefinitions = [
             ({
                 operator,
                 syntax: 'values',
+                argumentSyntax: 'values',
                 argumentCountByFilterType: {
                     ...unsupportedTypes,
                     [FilterType.STRING]: 'oneOrMore',
@@ -104,6 +130,7 @@ export const filterExpressionOperatorDefinitions = [
             ({
                 operator,
                 syntax: 'values',
+                argumentSyntax: 'values',
                 argumentCountByFilterType: {
                     ...unsupportedTypes,
                     [FilterType.NUMBER]: 1,
@@ -116,6 +143,7 @@ export const filterExpressionOperatorDefinitions = [
             ({
                 operator,
                 syntax: 'values',
+                argumentSyntax: 'relativeDate',
                 argumentCountByFilterType: {
                     ...unsupportedTypes,
                     [FilterType.DATE]: 1,
@@ -127,6 +155,7 @@ export const filterExpressionOperatorDefinitions = [
             ({
                 operator,
                 syntax: 'values',
+                argumentSyntax: 'currentDate',
                 argumentCountByFilterType: {
                     ...unsupportedTypes,
                     [FilterType.DATE]: 1,
@@ -136,6 +165,7 @@ export const filterExpressionOperatorDefinitions = [
     {
         operator: FilterOperator.IN_BETWEEN,
         syntax: 'values',
+        argumentSyntax: 'values',
         argumentCountByFilterType: {
             ...unsupportedTypes,
             [FilterType.NUMBER]: 2,
@@ -145,6 +175,7 @@ export const filterExpressionOperatorDefinitions = [
     {
         operator: FilterOperator.NOT_IN_BETWEEN,
         syntax: 'values',
+        argumentSyntax: 'values',
         argumentCountByFilterType: {
             ...unsupportedTypes,
             [FilterType.NUMBER]: 2,

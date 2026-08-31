@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
 import { getFieldIdSchema } from '../fieldId';
-import { FILTER_EXPRESSION_AND_ONLY_EXAMPLES_DESCRIPTION } from '../filterExpressions/examples';
 import {
     FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION,
     filterExpressionInputSchema,
@@ -56,7 +55,6 @@ Usage Tips:
 Filter expression syntax:
 ${FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION}
 
-${FILTER_EXPRESSION_AND_ONLY_EXAMPLES_DESCRIPTION}
 `;
 
 export const toolSearchFieldValuesArgsSchema = createToolSchema()

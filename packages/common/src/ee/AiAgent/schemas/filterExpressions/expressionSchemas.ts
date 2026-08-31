@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { FilterType } from '../../../../types/filter';
+import assertUnreachable from '../../../../utils/assertUnreachable';
 import {
     aggregationCustomMetricSchema,
     customMetricsSchema,
@@ -17,7 +19,12 @@ import {
 } from '../tools/toolRunQueryArgs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
-import { filterExpressionOperators } from './operators';
+import {
+    filterExpressionDateUnits,
+    filterExpressionOperatorDefinitions,
+    type FilterExpressionArgumentCount,
+    type FilterExpressionOperatorDefinition,
+} from './operators';
 import {
     FILTER_EXPRESSION_MAX_LENGTH,
     FILTER_EXPRESSION_MAX_LITERAL_LENGTH,
@@ -28,33 +35,73 @@ import {
 const connectorInstructionByPolicy = {
     andOnly: 'Join flat rules with AND only. OR is not supported by this tool.',
     andOr: 'Join flat rules with AND or OR. Do not mix both connectors in one expression.',
+} satisfies Record<FilterExpressionConnectorPolicy, string>;
+
+export type FilterExpressionConnectorPolicy = 'andOnly' | 'andOr';
+
+const ruleSyntaxByArgumentCount = {
+    0: '<operator>',
+    1: '<operator>=<value>',
+    2: '<operator>=<first value>,<second value>',
+    oneOrMore: '<operator>=<value>[,<value>...]',
+} satisfies Record<FilterExpressionArgumentCount, string>;
+
+const getOperatorSyntax = (
+    definition: FilterExpressionOperatorDefinition,
+    argumentCount: FilterExpressionArgumentCount,
+): string => {
+    switch (definition.argumentSyntax) {
+        case 'none':
+            return `${definition.operator} [0 values]`;
+        case 'relativeDate':
+            return `${definition.operator}=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]`;
+        case 'currentDate':
+            return `${definition.operator}=<unit> [1 unit]`;
+        case 'values':
+            return `${ruleSyntaxByArgumentCount[argumentCount].replace(
+                '<operator>',
+                definition.operator,
+            )} [${argumentCount === 'oneOrMore' ? '1+ values' : `${argumentCount} ${argumentCount === 1 ? 'value' : 'values'}`}]`;
+        default:
+            return assertUnreachable(
+                definition,
+                'Unknown filter expression argument syntax',
+            );
+    }
 };
 
-type FilterExpressionConnectorPolicy =
-    keyof typeof connectorInstructionByPolicy;
+const getFilterTypeGrammar = (filterType: FilterType): string => {
+    const operators = filterExpressionOperatorDefinitions.flatMap(
+        (definition) => {
+            const argumentCount =
+                definition.argumentCountByFilterType[filterType];
+            return argumentCount === null
+                ? []
+                : [`- \`${getOperatorSyntax(definition, argumentCount)}\``];
+        },
+    );
 
-const buildFilterExpressionGrammarDescription = (
+    const dateGuidance =
+        filterType === FilterType.DATE
+            ? `\n- Units: ${filterExpressionDateUnits.join(', ')}; completed=false includes partial, true completed only.`
+            : '';
+
+    return `### ${filterType}\nGrammar: <field> <operator form>\n${operators.join('\n')}${dateGuidance}`;
+};
+
+export const getFilterExpressionGrammarDescription = (
     connectorPolicy: FilterExpressionConnectorPolicy,
-) => `Filter expressions use the form "field operator=value".
+): string => `- ${connectorInstructionByPolicy[connectorPolicy]}
+- Quote delimiters/reserved values; commas/braces are literal in quotes; backslash escapes.
+- Limits: ${FILTER_EXPRESSION_MAX_RULES} rules; ${FILTER_EXPRESSION_MAX_VALUES_PER_RULE} values including settings/rule; ${FILTER_EXPRESSION_MAX_LITERAL_LENGTH} characters/literal; ${FILTER_EXPRESSION_MAX_LENGTH} characters/expression.
 
-Available operators: ${filterExpressionOperators.join(', ')}.
-
-- ${connectorInstructionByPolicy[connectorPolicy]}
-- Quote values containing commas, braces, equals signs, whitespace, parentheses, backslashes, or reserved words with single or double quotes.
-- Inside quotes, commas and braces are literal; do not backslash-escape them. Backslash escapes quotes, backslashes, slashes, control characters, and four-digit Unicode sequences.
-- Quote unusual field IDs with backticks. AND and OR are reserved field IDs unless quoted.
-- Use isNull/notNull without values. equals=null and notEquals=null are equivalent null checks.
-- Presence operators take no values. Other operators require one or more comma-separated values according to the field type.
-- Relative dates use a count followed by named settings (for example inThePast=30{unit:days,completed:false}). completed=false includes the current partial period; completed=true uses completed periods only.
-- Current dates use one unit (for example inTheCurrent=months).
-- Safety limits: ${FILTER_EXPRESSION_MAX_RULES} rules per expression, ${FILTER_EXPRESSION_MAX_VALUES_PER_RULE} values (including settings) per rule, ${FILTER_EXPRESSION_MAX_LITERAL_LENGTH} characters per literal, and ${FILTER_EXPRESSION_MAX_LENGTH} characters per expression.
-- Nested groups and parentheses are not supported yet.`;
+${Object.values(FilterType).map(getFilterTypeGrammar).join('\n\n')}`;
 
 export const FILTER_EXPRESSION_GRAMMAR_DESCRIPTION =
-    buildFilterExpressionGrammarDescription('andOr');
+    getFilterExpressionGrammarDescription('andOr');
 
 export const FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION =
-    buildFilterExpressionGrammarDescription('andOnly');
+    getFilterExpressionGrammarDescription('andOnly');
 
 export const filterExpressionInputSchema = z
     .string()

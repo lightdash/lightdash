@@ -28,9 +28,8 @@ describe('searchFieldValues filter schemas', () => {
                 'Join flat rules with AND only. OR is not supported by this tool.',
             );
             expect(description).not.toContain('Join flat rules with AND or OR');
-            expect(description).toContain(
-                'orders_status equals=example AND orders_amount greaterThan=100',
-            );
+            expect(description).toContain('### string');
+            expect(description).toContain('### date');
         },
     );
 
