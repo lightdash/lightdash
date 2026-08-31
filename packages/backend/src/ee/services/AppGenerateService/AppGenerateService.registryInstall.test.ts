@@ -3,6 +3,7 @@
 import {
     DATA_APP_VIZ_TEMPLATE,
     dataAppVizSchema,
+    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
@@ -12,6 +13,7 @@ import {
     type DataAppVizSchema,
     type SessionUser,
 } from '@lightdash/common';
+import { DatabaseError } from 'pg';
 import { pack } from 'tar-stream';
 import { AppGenerateService } from './AppGenerateService';
 
@@ -136,6 +138,13 @@ async function buildTar(
     });
 }
 
+/** A real `pg` DatabaseError carrying the given SQLSTATE code, matching how `isUniqueConstraintViolation` detects it. */
+const databaseError = (code: string): DatabaseError => {
+    const error = new DatabaseError(`database error ${code}`, 0, 'error');
+    error.code = code;
+    return error;
+};
+
 type FakeCommand = {
     constructor: { name: string };
     input: Record<string, unknown>;
@@ -186,6 +195,8 @@ function buildService(overrides: {
     chartRegistryClient?: Record<string, unknown>;
     s3ClientOverride?: { client: never; bucket: string };
     ability?: { can: () => boolean; cannot: () => boolean };
+    // Per-featureFlagId overrides; any flag not listed defaults to enabled.
+    featureFlags?: Partial<Record<string, boolean>>;
 }): AppGenerateService {
     const {
         appModel = {},
@@ -193,6 +204,7 @@ function buildService(overrides: {
         chartRegistryClient = {},
         s3ClientOverride,
         ability = { can: () => true, cannot: () => false },
+        featureFlags = {},
     } = overrides;
 
     const fullAppModel = {
@@ -217,7 +229,13 @@ function buildService(overrides: {
     };
 
     const featureFlagModel = {
-        get: vi.fn().mockResolvedValue({ enabled: true }),
+        get: vi
+            .fn()
+            .mockImplementation(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    enabled: featureFlags[featureFlagId] ?? true,
+                }),
+            ),
     };
     const spacePermissionService = {
         resolveAccess: vi.fn().mockResolvedValue({}),
@@ -563,6 +581,48 @@ describe('AppGenerateService.installRegistryChartType', () => {
         expect(fakeS3.objects.size).toBe(0);
     });
 
+    it('concurrent install losing the (app_id, version) race does NOT delete the winning install S3 keys', async () => {
+        const sourceTar = await buildTar([
+            { name: 'src/App.tsx', content: 'x' },
+        ]);
+        const distTar = await buildTar([
+            { name: 'dist/index.html', content: '<html/>' },
+        ]);
+        const fakeS3 = makeFakeS3();
+        const appModel = {
+            listRegistryInstalledApps: vi.fn().mockResolvedValue([]),
+            createWithVersion: vi
+                .fn()
+                .mockRejectedValue(databaseError('23505')),
+        };
+        const chartRegistryClient = {
+            downloadArtifact: vi
+                .fn()
+                .mockImplementation(
+                    (_entry: unknown, kind: 'source' | 'dist') =>
+                        Promise.resolve(
+                            kind === 'source' ? sourceTar : distTar,
+                        ),
+                ),
+        };
+        const svc = buildService({
+            appModel,
+            chartRegistryClient,
+            s3ClientOverride: fakeS3,
+        });
+
+        await expect(
+            svc.installRegistryChartType(fakeUser, PROJECT_UUID, 'sankey'),
+        ).rejects.toThrow(ParameterError);
+
+        const deleteCalls = fakeS3.send.mock.calls
+            .map(([cmd]) => cmd as FakeCommand)
+            .filter((cmd) => cmd.constructor.name === 'DeleteObjectsCommand');
+        expect(deleteCalls).toHaveLength(0);
+        // The winner's PutObject writes are still intact.
+        expect(fakeS3.objects.size).toBeGreaterThan(0);
+    });
+
     it('requires create DataApp ability', async () => {
         const svc = buildService({});
         vi.spyOn(
@@ -571,6 +631,48 @@ describe('AppGenerateService.installRegistryChartType', () => {
             },
             'assertDataAppAbility',
         ).mockRejectedValue(new ForbiddenError('nope'));
+
+        await expect(
+            svc.installRegistryChartType(fakeUser, PROJECT_UUID, 'sankey'),
+        ).rejects.toThrow(ForbiddenError);
+    });
+});
+
+describe('AppGenerateService registry feature-flag gates', () => {
+    it('listRegistryChartTypes throws ForbiddenError when EnableDataApps is disabled', async () => {
+        const svc = buildService({
+            featureFlags: { [FeatureFlags.EnableDataApps]: false },
+        });
+
+        await expect(
+            svc.listRegistryChartTypes(fakeUser, PROJECT_UUID),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('listRegistryChartTypes throws ForbiddenError when ChartTypeRegistry is disabled', async () => {
+        const svc = buildService({
+            featureFlags: { [FeatureFlags.ChartTypeRegistry]: false },
+        });
+
+        await expect(
+            svc.listRegistryChartTypes(fakeUser, PROJECT_UUID),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('installRegistryChartType throws ForbiddenError when EnableDataApps is disabled', async () => {
+        const svc = buildService({
+            featureFlags: { [FeatureFlags.EnableDataApps]: false },
+        });
+
+        await expect(
+            svc.installRegistryChartType(fakeUser, PROJECT_UUID, 'sankey'),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('installRegistryChartType throws ForbiddenError when ChartTypeRegistry is disabled', async () => {
+        const svc = buildService({
+            featureFlags: { [FeatureFlags.ChartTypeRegistry]: false },
+        });
 
         await expect(
             svc.installRegistryChartType(fakeUser, PROJECT_UUID, 'sankey'),

@@ -150,6 +150,7 @@ import {
     type DbAppActivityRow,
     type DbAppVersion,
 } from '../../../database/entities/apps';
+import { isUniqueConstraintViolation } from '../../../database/errors';
 import { type CaslAuditWrapper } from '../../../logging/caslAuditWrapper';
 import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import {
@@ -8790,6 +8791,15 @@ export class AppGenerateService extends BaseService {
                 );
             }
         } catch (e) {
+            // A concurrent install of the same chart type can also win the
+            // race to (app_id, version) — its createVersion/createWithVersion
+            // already committed to this exact S3 prefix, so cleaning it up
+            // here would delete the winner's just-written bundle.
+            if (isUniqueConstraintViolation(e)) {
+                throw new ParameterError(
+                    'Another install of this chart type is in progress — retry',
+                );
+            }
             await this.deleteVersionS3Prefix(
                 s3Client,
                 bucket,
