@@ -48,6 +48,7 @@ Treat each scope in `scopes.ts` as a user-facing permission contract:
 - `roleToScopeMapping.ts` must stay aligned with system-role abilities so duplicated system roles and parity tests keep working.
 - A role's `level` (`'project' | 'organization'`) gates which scopes it may hold and where it can be assigned: org-level roles may only contain org-assignable scopes (`getOrgAssignableScopes` / `isScopeAssignableAtLevel`) and build org-level conditions with `{ organizationUuid }`; project-level roles build project-level conditions with `{ projectUuid }`. This applies to both human-user and service-account custom roles.
 - Org-level grants are deliberately hard to restrict with project-level custom roles because layers are additive.
+- `manage:PersonalAccessToken` becomes authoritative on the organization primary slot only for orgs opted in via `CommercialFeatureFlags.PatScopeAuthoritative` on a licensed deployment (`patScopeAuthoritative` in `index.ts`): the role emits no token rule unless it lists the scope, downstream scope sets have the scope stripped, and the deployment config (`DISABLE_PAT`, `PAT_ALLOWED_ORG_ROLES`) still caps it. Without the opt-in, every scope set keeps inheriting token access from the config, as always.
 
 ## Role Types
 
