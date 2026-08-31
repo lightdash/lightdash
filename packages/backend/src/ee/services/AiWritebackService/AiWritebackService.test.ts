@@ -852,6 +852,21 @@ describe('AiWritebackService dbt source targeting', () => {
         });
     });
 
+    it('resolves the only source before validating an explicit dbtSourceUuid', async () => {
+        const result = await resolve(serviceWithSources([]), {
+            dbtSourceUuid: 'does-not-exist',
+        });
+
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: {
+                sourceUuid: null,
+                optionUuid: PRIMARY_SOURCE_UUID,
+                isPrimary: true,
+            },
+        });
+    });
+
     it('honours an explicit additional dbtSourceUuid', async () => {
         const result = await resolve(serviceWithSources([marketingSource()]), {
             dbtSourceUuid: 'src-marketing',
@@ -876,12 +891,35 @@ describe('AiWritebackService dbt source targeting', () => {
         });
     });
 
-    it('rejects an explicit dbtSourceUuid that is not a target', async () => {
-        await expect(
-            resolve(serviceWithSources([marketingSource()]), {
-                dbtSourceUuid: 'does-not-exist',
-            }),
-        ).rejects.toThrow(ParameterError);
+    it('asks the caller to choose when an explicit dbtSourceUuid is not a target', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            dbtSourceUuid: 'does-not-exist',
+        });
+
+        expect(result.kind).toBe('select');
+        expect(result.options).toHaveLength(2);
+        expect(result.options).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    projectDbtSourceUuid: PRIMARY_SOURCE_UUID,
+                    isPrimary: true,
+                }),
+                expect.objectContaining({
+                    projectDbtSourceUuid: 'src-marketing',
+                    repository: 'acme/marketing',
+                }),
+            ]),
+        );
+    });
+
+    it('does not infer a prompt-named source when an explicit dbtSourceUuid is not a target', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            prompt: 'add a spend metric to the marketing models',
+            dbtSourceUuid: 'does-not-exist',
+        });
+
+        expect(result.kind).toBe('select');
+        expect(result.options).toHaveLength(2);
     });
 
     it('infers the source from the prompt when exactly one matches', async () => {
@@ -980,6 +1018,7 @@ describe('AiWritebackService dbt source targeting', () => {
             // The prompt names the primary repo, but the thread is bound to the
             // additional source — binding wins so the resumed sandbox stays put.
             prompt: 'change something in analytics',
+            dbtSourceUuid: PRIMARY_SOURCE_UUID,
             existingRow: { project_dbt_source_uuid: 'src-marketing' },
         });
         expect(result).toMatchObject({
