@@ -1,3 +1,10 @@
+## [2.67.2](https://github.com/lightdash/lightdash/compare/2.67.1...2.67.2) (2026-08-31)
+
+
+### Bug Fixes
+
+* omit stale date from ended live activities ([#28365](https://github.com/lightdash/lightdash/issues/28365)) ([ef518db](https://github.com/lightdash/lightdash/commit/ef518db18572aa9c259f8388cba1c8d9e3ff0745))
+
 ## [2.67.1](https://github.com/lightdash/lightdash/compare/2.67.0...2.67.1) (2026-08-31)
 
 
