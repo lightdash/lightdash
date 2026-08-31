@@ -2866,8 +2866,8 @@ export class AiWritebackService extends BaseService {
      * Decide which dbt source a turn targets. Precedence:
      * 1. a resumed thread stays bound to its original source (never re-infer, or
      *    a follow-up could retarget the sandbox's already-cloned repo);
-     * 2. an explicit `dbtSourceUuid` (a UI picker, or an agent re-call);
-     * 3. the only source, when the project has one — unchanged behaviour;
+     * 2. the only source, when the project has one, unconditionally;
+     * 3. an explicit `dbtSourceUuid` (a UI picker, or an agent re-call);
      * 4. the source the prompt names, when exactly one matches;
      * otherwise return the candidates for the caller to choose from.
      */
@@ -2918,20 +2918,21 @@ export class AiWritebackService extends BaseService {
             return { kind: 'resolved', candidate: primary ?? candidates[0] };
         }
 
+        if (candidates.length === 1) {
+            return { kind: 'resolved', candidate: candidates[0] };
+        }
+
         if (dbtSourceUuid) {
             const chosen = candidates.find(
                 (c) => c.optionUuid === dbtSourceUuid,
             );
-            if (!chosen) {
-                throw new ParameterError(
-                    'The specified dbt source is not a valid writeback target for this project',
-                );
+            if (chosen) {
+                return { kind: 'resolved', candidate: chosen };
             }
-            return { kind: 'resolved', candidate: chosen };
-        }
-
-        if (candidates.length === 1) {
-            return { kind: 'resolved', candidate: candidates[0] };
+            return {
+                kind: 'select',
+                options: candidates.map(AiWritebackService.toDbtSourceOption),
+            };
         }
 
         // Score each candidate by how specifically the prompt names it (the

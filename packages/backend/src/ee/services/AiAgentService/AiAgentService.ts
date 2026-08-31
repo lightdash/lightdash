@@ -9876,7 +9876,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 isSlackPrompt: isSlackPrompt(prompt),
                 toolCallId: args.progressId,
                 writebackPrompt,
-                dbtSourceUuid: args.dbtSourceUuid ?? options?.dbtSourceUuid,
+                dbtSourceUuid: options?.dbtSourceUuid,
                 source,
                 prUrl: args.prUrl,
                 startNewPullRequest: args.startNewPullRequest ?? null,
