@@ -11,6 +11,11 @@ case "$MODE" in
         ;;
 esac
 
+# Hook mode is opt-in, like the other agent hooks gate on their env vars.
+if [ "$MODE" = "hook-start" ] && [ -z "${LIGHTDASH_DEV_RESOURCES_HOOK:-}" ]; then
+    exit 0
+fi
+
 if ! command -v python3 >/dev/null 2>&1; then
     [ "$MODE" = "hook-start" ] && exit 0
     echo "python3: unavailable"
