@@ -1,3 +1,10 @@
+# [2.67.0](https://github.com/lightdash/lightdash/compare/2.66.0...2.67.0) (2026-08-31)
+
+
+### Features
+
+* **permissions:** gate PAT scope authority behind the org opt-in ([#28355](https://github.com/lightdash/lightdash/issues/28355)) ([86f2c07](https://github.com/lightdash/lightdash/commit/86f2c0769730215e918b7d794f3e592320b09754)), closes [#28356](https://github.com/lightdash/lightdash/issues/28356) [#28356](https://github.com/lightdash/lightdash/issues/28356)
+
 # [2.66.0](https://github.com/lightdash/lightdash/compare/2.65.0...2.66.0) (2026-08-31)
 
 
