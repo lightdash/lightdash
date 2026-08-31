@@ -2612,20 +2612,27 @@ export class AppGenerateService extends BaseService {
                 `App ${appUuid}: could not carry the Claude session over the upgrade: ${getErrorMessage(error)}`,
             );
         }
-        try {
-            await this.getSandboxManager().destroy({
-                sandboxUuid: app.sandbox_id,
-            });
-        } catch (error) {
-            this.logger.warn(
-                `App ${appUuid}: failed to destroy the old sandbox on upgrade: ${getErrorMessage(error)}`,
-            );
-        }
-        await this.appModel.updateSandboxUuid(appUuid, null);
+        await this.destroySandboxAndClearReference(appUuid, app.sandbox_id);
         this.logger.info(
             `App ${appUuid}: upgrade cold-start prepared (sessionCarried=${sessionTar !== null})`,
         );
         return sessionTar;
+    }
+
+    private async destroySandboxAndClearReference(
+        appUuid: string,
+        sandboxUuid: string,
+    ): Promise<void> {
+        try {
+            await this.getSandboxManager().destroy({
+                sandboxUuid,
+            });
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to destroy sandbox before cold start: ${getErrorMessage(error)}`,
+            );
+        }
+        await this.appModel.updateSandboxUuid(appUuid, null);
     }
 
     /** Best-effort restore of a carried Claude session into the new box. */
@@ -7561,6 +7568,13 @@ export class AppGenerateService extends BaseService {
             targetAppUuid,
             upstreamLinks,
         );
+
+        if (upstreamApp?.sandbox_id) {
+            await this.destroySandboxAndClearReference(
+                targetAppUuid,
+                upstreamApp.sandbox_id,
+            );
+        }
 
         this.analytics.track({
             event: 'data_app.promoted',
