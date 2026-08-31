@@ -1,3 +1,10 @@
+# [2.59.0](https://github.com/lightdash/lightdash/compare/2.58.0...2.59.0) (2026-08-31)
+
+
+### Features
+
+* **ai-agent:** build card wired into the thread; ready app opens in the preview panel ([#28261](https://github.com/lightdash/lightdash/issues/28261)) ([f907c8c](https://github.com/lightdash/lightdash/commit/f907c8c5cfa85aa7fa9a35eb0899c8c42ea3a6a0)), closes [#28255](https://github.com/lightdash/lightdash/issues/28255) [#28229](https://github.com/lightdash/lightdash/issues/28229) [#28255](https://github.com/lightdash/lightdash/issues/28255)
+
 # [2.58.0](https://github.com/lightdash/lightdash/compare/2.57.1...2.58.0) (2026-08-31)
 
 

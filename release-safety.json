@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.58.0",
-  "previousVersion": "2.57.1",
-  "releaseDate": "2026-08-31T10:14:46.820Z",
+  "version": "2.59.0",
+  "previousVersion": "2.58.0",
+  "releaseDate": "2026-08-31T10:21:06.482Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,10 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `generateDataApp` enum value to the `results/allOf[subschema #2]/messages/items/anyOf[#/components/schemas/AiAgentMessageAssistant]/toolResults/items/allOf[subschema #2]/anyOf[subschema #1]/toolName` response property for the response status `200`"
-      ],
-      "advisoryCount": 1
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

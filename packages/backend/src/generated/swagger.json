@@ -25660,6 +25660,17 @@
                                                     "message": {
                                                         "type": "string"
                                                     },
+                                                    "reason": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "cancelled",
+                                                            "failed"
+                                                        ]
+                                                    },
+                                                    "appUuid": {
+                                                        "type": "string",
+                                                        "nullable": true
+                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["error"],
@@ -25668,6 +25679,8 @@
                                                 },
                                                 "required": [
                                                     "message",
+                                                    "reason",
+                                                    "appUuid",
                                                     "status"
                                                 ],
                                                 "type": "object"
@@ -31688,8 +31701,8 @@
                     "queued",
                     "running",
                     "failed",
-                    "completed",
-                    "cancelled"
+                    "cancelled",
+                    "completed"
                 ]
             },
             "AgentOnboardingStage": {
@@ -32831,8 +32844,8 @@
                     "queued",
                     "running",
                     "failed",
-                    "completed",
                     "cancelled",
+                    "completed",
                     "partially_completed"
                 ]
             },
@@ -57615,7 +57628,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.58.0",
+        "version": "2.59.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

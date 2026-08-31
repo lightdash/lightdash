@@ -24799,6 +24799,33 @@ const models: TsoaRoute.Models = {
                                                     dataType: 'string',
                                                     required: true,
                                                 },
+                                                reason: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [
+                                                                'cancelled',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: ['failed'],
+                                                        },
+                                                    ],
+                                                    required: true,
+                                                },
+                                                appUuid: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        { dataType: 'string' },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [null],
+                                                        },
+                                                    ],
+                                                    required: true,
+                                                },
                                                 status: {
                                                     dataType: 'enum',
                                                     enums: ['error'],
@@ -31134,8 +31161,8 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['queued'] },
                 { dataType: 'enum', enums: ['running'] },
                 { dataType: 'enum', enums: ['failed'] },
-                { dataType: 'enum', enums: ['completed'] },
                 { dataType: 'enum', enums: ['cancelled'] },
+                { dataType: 'enum', enums: ['completed'] },
             ],
             validators: {},
         },
@@ -32363,8 +32390,8 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['queued'] },
                 { dataType: 'enum', enums: ['running'] },
                 { dataType: 'enum', enums: ['failed'] },
-                { dataType: 'enum', enums: ['completed'] },
                 { dataType: 'enum', enums: ['cancelled'] },
+                { dataType: 'enum', enums: ['completed'] },
                 { dataType: 'enum', enums: ['partially_completed'] },
             ],
             validators: {},
