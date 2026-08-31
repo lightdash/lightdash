@@ -6,18 +6,27 @@ type DbOnboarding = {
     ranQuery_at: Date | null;
     shownSuccess_at: Date | null;
     playground_project_deleted_at: Date | null;
+    playground_content_seed_version: number | null;
 };
 
 type CreateDbOnboarding = Pick<
     DbOnboarding,
     'organization_id' | 'ranQuery_at' | 'shownSuccess_at'
 > &
-    Partial<Pick<DbOnboarding, 'playground_project_deleted_at'>>;
+    Partial<
+        Pick<
+            DbOnboarding,
+            'playground_project_deleted_at' | 'playground_content_seed_version'
+        >
+    >;
 
 type UpdateDbOnboarding = Partial<
     Pick<
         DbOnboarding,
-        'ranQuery_at' | 'shownSuccess_at' | 'playground_project_deleted_at'
+        | 'ranQuery_at'
+        | 'shownSuccess_at'
+        | 'playground_project_deleted_at'
+        | 'playground_content_seed_version'
     >
 >;
 

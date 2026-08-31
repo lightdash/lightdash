@@ -78,8 +78,16 @@ const buildArguments = () => {
         shownSuccessAt: null,
         playgroundProjectDeletedAt: null,
     }));
+    const getPlaygroundContentSeedVersion = vi.fn<
+        ProvisionPlaygroundProjectArguments['onboardingModel']['getPlaygroundContentSeedVersion']
+    >(async () => null);
+    const setPlaygroundContentSeedVersion = vi.fn<
+        ProvisionPlaygroundProjectArguments['onboardingModel']['setPlaygroundContentSeedVersion']
+    >(async () => undefined);
     const onboardingModel = {
         getByOrganizationUuid,
+        getPlaygroundContentSeedVersion,
+        setPlaygroundContentSeedVersion,
         runInPlaygroundProvisioningLock: vi.fn(
             async (_organizationUuid, callback) => callback({} as never),
         ),
@@ -92,6 +100,7 @@ const buildArguments = () => {
         hasContentCopy: false,
     })) as unknown as ProvisionPlaygroundProjectArguments['projectService']['createWithoutCompile'];
     const track = vi.fn();
+    const seedPlaygroundContent = vi.fn(async () => undefined);
     const hasActiveAgentOnboardingRun = vi.fn(async () => true);
     return {
         args: {
@@ -105,6 +114,7 @@ const buildArguments = () => {
             onboardingModel,
             projectService: { createWithoutCompile },
             catalogService: { indexCatalog },
+            seedPlaygroundContent,
             analytics: { track },
             canViewProject,
             hasActiveAgentOnboardingRun,
@@ -121,6 +131,9 @@ const buildArguments = () => {
         validatePlaygroundDatabase,
         canViewProject,
         indexCatalog,
+        seedPlaygroundContent,
+        getPlaygroundContentSeedVersion,
+        setPlaygroundContentSeedVersion,
         createWithoutCompile,
         runInPlaygroundProvisioningLock,
         track,
@@ -167,6 +180,16 @@ describe('provisionPlaygroundProject', () => {
             expect.any(Array),
             true,
         );
+        expect(mocks.seedPlaygroundContent).toHaveBeenCalledWith({
+            projectUuid,
+            user,
+            content: expect.objectContaining({ version: 1 }),
+        });
+        expect(mocks.setPlaygroundContentSeedVersion).toHaveBeenCalledWith(
+            organizationUuid,
+            1,
+            expect.anything(),
+        );
         expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
             event: 'playground_project.skipped',
             userId: user.userUuid,
@@ -178,6 +201,44 @@ describe('provisionPlaygroundProject', () => {
                 reason: 'playground_already_exists',
             },
         });
+    });
+
+    it('does not reseed an existing playground after content was seeded', async () => {
+        const mocks = buildArguments();
+        mocks.getAllByOrganizationUuid.mockResolvedValue([
+            project('playground'),
+        ]);
+        mocks.getPlaygroundContentSeedVersion.mockResolvedValue(1);
+
+        await expect(provisionPlaygroundProject(mocks.args)).resolves.toEqual({
+            projectUuid,
+            created: false,
+        });
+
+        expect(mocks.saveExploresToCache).toHaveBeenCalledWith(
+            projectUuid,
+            expect.any(Array),
+            true,
+        );
+        expect(mocks.seedPlaygroundContent).not.toHaveBeenCalled();
+        expect(mocks.setPlaygroundContentSeedVersion).not.toHaveBeenCalled();
+    });
+
+    it('still returns an existing playground when repair seeding fails', async () => {
+        const mocks = buildArguments();
+        mocks.getAllByOrganizationUuid.mockResolvedValue([
+            project('playground'),
+        ]);
+        mocks.seedPlaygroundContent.mockRejectedValue(
+            new TypeError('Content unavailable'),
+        );
+
+        await expect(provisionPlaygroundProject(mocks.args)).resolves.toEqual({
+            projectUuid,
+            created: false,
+        });
+
+        expect(mocks.setPlaygroundContentSeedVersion).not.toHaveBeenCalled();
     });
 
     it('returns an existing real project without creating a playground', async () => {
@@ -274,6 +335,16 @@ describe('provisionPlaygroundProject', () => {
             projectUuid,
             user.userUuid,
         );
+        expect(mocks.seedPlaygroundContent).toHaveBeenCalledWith({
+            projectUuid,
+            user,
+            content: expect.objectContaining({ version: 1 }),
+        });
+        expect(mocks.setPlaygroundContentSeedVersion).toHaveBeenCalledWith(
+            organizationUuid,
+            1,
+            expect.anything(),
+        );
         expect(mocks.runInPlaygroundProvisioningLock).toHaveBeenCalledWith(
             organizationUuid,
             expect.any(Function),
@@ -286,6 +357,7 @@ describe('provisionPlaygroundProject', () => {
                 projectId: projectUuid,
                 trigger: 'invite_expert',
                 onboardingFlow: 'new',
+                contentSeedErrorType: null,
                 catalogIndexErrorType: null,
             },
         });
@@ -343,7 +415,37 @@ describe('provisionPlaygroundProject', () => {
                 projectId: projectUuid,
                 trigger: 'invite_expert',
                 onboardingFlow: 'new',
+                contentSeedErrorType: null,
                 catalogIndexErrorType: 'Error',
+            },
+        });
+    });
+
+    it('still provisions when content seeding fails, tracking the error type', async () => {
+        const mocks = buildArguments();
+        mocks.seedPlaygroundContent.mockRejectedValue(
+            new TypeError('Content unavailable'),
+        );
+
+        await expect(provisionPlaygroundProject(mocks.args)).resolves.toEqual({
+            projectUuid,
+            created: true,
+        });
+        expect(mocks.indexCatalog).toHaveBeenCalledWith(
+            projectUuid,
+            user.userUuid,
+        );
+        expect(mocks.setPlaygroundContentSeedVersion).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'playground_project.provisioned',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                trigger: 'invite_expert',
+                onboardingFlow: 'new',
+                contentSeedErrorType: 'TypeError',
+                catalogIndexErrorType: null,
             },
         });
     });
@@ -400,6 +502,7 @@ describe('provisionPlaygroundProject', () => {
                     projectId: projectUuid,
                     trigger: 'agent_onboarding_wait',
                     onboardingFlow: 'new',
+                    contentSeedErrorType: null,
                     catalogIndexErrorType: null,
                 },
             });
