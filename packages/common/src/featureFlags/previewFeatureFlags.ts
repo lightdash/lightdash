@@ -33,6 +33,9 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     // Derived from instance configuration: left to their config handler so a
     // preview never advertises a feature whose backend isn't configured.
     CommercialFeatureFlags.AiCopilot,
+    // Changes permission semantics per org: makes the org custom role's PAT
+    // scope authoritative. Opt-in only; QA enables via feature_flag_overrides.
+    CommercialFeatureFlags.PatScopeAuthoritative,
     FeatureFlags.ResultsCacheEnabled,
     FeatureFlags.EnableTimezoneSupport,
 ]);
