@@ -43,10 +43,19 @@ describe('Live Activity push-to-start migration', () => {
             'create table "ai_agent_live_activity_start_attempts"',
         );
         expect(migrationSql).toContain(
-            'unique ("mobile_push_installation_uuid", "prompt_uuid")',
+            'constraint "live_activity_start_attempts_installation_prompt_uq" unique ("mobile_push_installation_uuid", "prompt_uuid")',
         );
         expect(migrationSql).toContain(
-            'unique ("environment", "push_to_start_token_fingerprint")',
+            'constraint "mobile_push_installations_push_start_token_uq" unique ("environment", "push_to_start_token_fingerprint")',
+        );
+        expect(migrationSql).toContain(
+            'constraint "live_activity_start_attempts_installation_fk" foreign key ("mobile_push_installation_uuid")',
+        );
+        expect(migrationSql).toContain(
+            'create index "live_activity_start_attempts_installation_idx"',
+        );
+        expect(migrationSql).toContain(
+            'create index "live_activity_start_attempts_status_attempted_idx"',
         );
         expect(migrationSql).toContain(
             '"live_activity_uuid" uuid not null default uuid_generate_v4()',

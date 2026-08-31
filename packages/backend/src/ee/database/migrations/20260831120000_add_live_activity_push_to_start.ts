@@ -7,6 +7,16 @@ export const classification = {
 
 const installationsTable = 'mobile_push_installations';
 const startAttemptsTable = 'ai_agent_live_activity_start_attempts';
+const installationsPushToStartTokenUnique =
+    'mobile_push_installations_push_start_token_uq';
+const startAttemptsInstallationForeign =
+    'live_activity_start_attempts_installation_fk';
+const startAttemptsInstallationIndex =
+    'live_activity_start_attempts_installation_idx';
+const startAttemptsInstallationPromptUnique =
+    'live_activity_start_attempts_installation_prompt_uq';
+const startAttemptsStatusAttemptedIndex =
+    'live_activity_start_attempts_status_attempted_idx';
 
 export async function up(knex: Knex): Promise<void> {
     await knex.raw(`SET LOCAL lock_timeout = '5s'`);
@@ -14,7 +24,9 @@ export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable(installationsTable, (table) => {
         table.binary('encrypted_push_to_start_token').nullable();
         table.string('push_to_start_token_fingerprint', 64).nullable();
-        table.unique(['environment', 'push_to_start_token_fingerprint']);
+        table.unique(['environment', 'push_to_start_token_fingerprint'], {
+            indexName: installationsPushToStartTokenUnique,
+        });
     });
 
     await knex.schema.createTable(startAttemptsTable, (table) => {
@@ -33,7 +45,8 @@ export async function up(knex: Knex): Promise<void> {
             .references('mobile_push_installation_uuid')
             .inTable(installationsTable)
             .onDelete('CASCADE')
-            .index();
+            .withKeyName(startAttemptsInstallationForeign)
+            .index(startAttemptsInstallationIndex);
         table
             .uuid('prompt_uuid')
             .notNullable()
@@ -65,8 +78,13 @@ export async function up(knex: Knex): Promise<void> {
             .notNullable()
             .defaultTo(knex.fn.now());
 
-        table.unique(['mobile_push_installation_uuid', 'prompt_uuid']);
-        table.index(['status', 'last_attempted_at']);
+        table.unique(['mobile_push_installation_uuid', 'prompt_uuid'], {
+            indexName: startAttemptsInstallationPromptUnique,
+        });
+        table.index(
+            ['status', 'last_attempted_at'],
+            startAttemptsStatusAttemptedIndex,
+        );
     });
 }
 
