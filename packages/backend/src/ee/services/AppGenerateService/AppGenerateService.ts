@@ -7446,6 +7446,21 @@ this.sandboxManager = sandboxManager ?? undefined;
             'Insufficient permissions to promote into the upstream project',
         );
 
+        // Resolved (and guarded) before any persistent write below —
+        // getOrCreateUpstreamSpace() can create the upstream space and its
+        // ancestors, so the registry check must run first or a blocked
+        // promotion still leaves orphan empty spaces behind.
+        const upstreamApp = await this.findLinkedUpstreamApp(
+            sourceApp,
+            upstreamProjectUuid,
+        );
+        if (upstreamApp) {
+            AppGenerateService.assertNotRegistryManaged(
+                upstreamApp,
+                'promoted onto',
+            );
+        }
+
         const sourceVersion = await this.appModel.getLatestReadyVersion(
             sourceApp.app_id,
         );
@@ -7499,20 +7514,6 @@ this.sandboxManager = sandboxManager ?? undefined;
             : `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/view`;
         const prompt = `Promote [${sourceDisplayName}](${sourcePreviewPath})`;
         const { client: s3Client, bucket } = this.getS3Client();
-
-        // Re-read the link immediately before branching to narrow (not fully
-        // close) the window where two concurrent first-promotions could both
-        // create a production app. A duplicate is a rare, recoverable outcome.
-        const upstreamApp = await this.findLinkedUpstreamApp(
-            sourceApp,
-            upstreamProjectUuid,
-        );
-        if (upstreamApp) {
-            AppGenerateService.assertNotRegistryManaged(
-                upstreamApp,
-                'promoted onto',
-            );
-        }
 
         const metadata = {
             name: sourceApp.name,
@@ -7809,6 +7810,14 @@ this.sandboxManager = sandboxManager ?? undefined;
             projectUuid,
             'Insufficient permissions to duplicate this data app',
         );
+
+        // Mirrors updateApp's name validation. Empty-after-trim is not an
+        // error here — it falls back to the default "Duplicate of ..." name.
+        if (options?.name !== undefined && options.name.trim().length > 255) {
+            throw new ParameterError(
+                'App name must be 255 characters or fewer',
+            );
+        }
 
         const sourceVersion = await this.appModel.getLatestReadyVersion(
             sourceApp.app_id,

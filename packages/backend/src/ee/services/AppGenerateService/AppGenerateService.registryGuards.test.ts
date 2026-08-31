@@ -3,6 +3,7 @@
 import {
     ForbiddenError,
     OrganizationMemberRole,
+    ParameterError,
     type ImportAppCodeRequestBody,
     type SessionUser,
 } from '@lightdash/common';
@@ -82,6 +83,7 @@ function buildService(
         appModel?: Record<string, unknown>;
         externalConnectionModel?: Record<string, unknown>;
         projectModel?: Record<string, unknown>;
+        promoteService?: Record<string, unknown>;
     } = {},
 ) {
     const appModel = {
@@ -125,6 +127,13 @@ function buildService(
         get: vi.fn().mockResolvedValue({ enabled: true }),
     };
 
+    const promoteService = {
+        getOrCreateUpstreamSpace: vi
+            .fn()
+            .mockResolvedValue('resolved-space-uuid'),
+        ...overrides.promoteService,
+    };
+
     const svc = new AppGenerateService({
         lightdashConfig: {
             softDelete: { enabled: true },
@@ -152,7 +161,7 @@ function buildService(
         coderService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
-        promoteService: {} as never,
+        promoteService: promoteService as never,
         externalConnectionModel: externalConnectionModel as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
@@ -176,7 +185,13 @@ function buildService(
         bucket: 'test-bucket',
     });
 
-    return { service: svc, appModel, externalConnectionModel, projectModel };
+    return {
+        service: svc,
+        appModel,
+        externalConnectionModel,
+        projectModel,
+        promoteService,
+    };
 }
 
 describe('read-only invariant for registry-managed apps', () => {
@@ -293,10 +308,14 @@ describe('read-only invariant for registry-managed apps', () => {
         expect(appModel.updateApp).not.toHaveBeenCalled();
     });
 
-    it('promoteApp onto a registry-managed upstream app throws ForbiddenError', async () => {
-        const { service, appModel } = buildService();
+    it('promoteApp onto a registry-managed upstream app throws ForbiddenError before creating the upstream space', async () => {
+        const { service, appModel, promoteService } = buildService();
         const sourceApp = {
             ...baseApp,
+            // A truthy space_uuid means, absent the fix, promoteApp would
+            // call getOrCreateUpstreamSpace() — a persistent write — before
+            // ever reaching the registry guard below.
+            space_uuid: 'preview-space-uuid',
             upstream_app_uuid: UPSTREAM_APP_UUID,
         };
         const upstreamApp = {
@@ -327,6 +346,8 @@ describe('read-only invariant for registry-managed apps', () => {
         await expect(
             service.promoteApp(makeUser(), PROJECT_UUID, APP_UUID),
         ).rejects.toThrow(ForbiddenError);
+        expect(promoteService.getOrCreateUpstreamSpace).not.toHaveBeenCalled();
+        expect(appModel.getLatestReadyVersion).not.toHaveBeenCalled();
     });
 
     it('deleteApp is still allowed', async () => {
@@ -424,5 +445,24 @@ describe('duplicateApp fork lineage', () => {
         ];
         expect(appArg).not.toHaveProperty('registry_slug');
         expect(appArg).not.toHaveProperty('registry_url');
+    });
+
+    it('rejects an options.name longer than 255 characters', async () => {
+        const { service, appModel } = buildService();
+        const sourceApp = { ...baseApp, name: 'Sankey' };
+        appModel.getApp.mockResolvedValue(sourceApp);
+        appModel.getLatestReadyVersion.mockResolvedValue({
+            version: 4,
+            resources: null,
+            viz_schema: null,
+            data_references: null,
+        });
+
+        await expect(
+            service.duplicateApp(makeUser(), PROJECT_UUID, APP_UUID, {
+                name: 'a'.repeat(256),
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
     });
 });
