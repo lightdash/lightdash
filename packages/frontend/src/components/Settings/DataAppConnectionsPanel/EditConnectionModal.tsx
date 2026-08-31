@@ -6,7 +6,7 @@ import {
 import { Button, Stack, Tabs, Text, Textarea } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
-import { type FC, useEffect, useState } from 'react';
+import { type FC, useState } from 'react';
 import { isValidOAuthScope } from '../../../features/externalConnections/constants';
 import { useSaveConnectionSample } from '../../../features/externalConnections/hooks/useSaveConnectionSample';
 import { useUpdateExternalConnection } from '../../../features/externalConnections/hooks/useUpdateExternalConnection';
@@ -158,16 +158,11 @@ const EditConnectionModalContent: FC<Props> = ({
 
     const draftConfig = toUpdateExternalConnection(form.values);
     const draftConfigFingerprint = JSON.stringify(draftConfig);
+    const validPendingSample =
+        pendingSample?.configFingerprint === draftConfigFingerprint
+            ? pendingSample
+            : null;
     const isSaving = isUpdating || isSavingSample;
-
-    useEffect(() => {
-        if (
-            pendingSample &&
-            pendingSample.configFingerprint !== draftConfigFingerprint
-        ) {
-            setPendingSample(null);
-        }
-    }, [draftConfigFingerprint, pendingSample]);
 
     const handleSubmit = async (values: ExternalConnectionFormValues) => {
         const data = toUpdateExternalConnection(values);
@@ -178,11 +173,11 @@ const EditConnectionModalContent: FC<Props> = ({
             data,
         });
         if (
-            pendingSample &&
-            pendingSample.configFingerprint === submittedConfigFingerprint
+            validPendingSample &&
+            validPendingSample.configFingerprint === submittedConfigFingerprint
         ) {
             const { configFingerprint: _configFingerprint, ...sample } =
-                pendingSample;
+                validPendingSample;
             await saveSample({
                 projectUuid,
                 connectionUuid: connection.externalConnectionUuid,
@@ -255,10 +250,7 @@ const EditConnectionModalContent: FC<Props> = ({
                             connection={connection}
                             config={draftConfig}
                             hasUnsavedChanges={form.isDirty()}
-                            isSampleQueued={
-                                pendingSample?.configFingerprint ===
-                                draftConfigFingerprint
-                            }
+                            isSampleQueued={validPendingSample !== null}
                             onQueueSample={(sample) =>
                                 setPendingSample({
                                     ...sample,
