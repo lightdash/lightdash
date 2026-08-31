@@ -8358,6 +8358,7 @@ export class AppGenerateService extends BaseService {
         }[];
         hasMore: boolean;
         latestReadyVersion: number | null;
+        registrySlug: string | null;
     }> {
         await this.assertDataAppsEnabled(user);
 
@@ -8383,6 +8384,7 @@ export class AppGenerateService extends BaseService {
             pinnedListOrder,
             versions,
             hasMore,
+            registrySlug,
         } = await this.appModel.getAppWithVersions(appUuid, projectUuid, opts);
 
         const appAuthorization = await this.assertCanViewApp(user, {
@@ -8465,6 +8467,7 @@ export class AppGenerateService extends BaseService {
             })),
             hasMore,
             latestReadyVersion: latestReady?.version ?? null,
+            registrySlug,
         };
     }
 
@@ -8544,6 +8547,7 @@ export class AppGenerateService extends BaseService {
             schema: app.viz_schema,
             createdAt: app.created_at,
             createdByUserUuid: app.created_by_user_uuid,
+            registrySlug: app.registry_slug,
         };
     }
 

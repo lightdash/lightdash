@@ -527,6 +527,9 @@ export type ApiGetAppResponse = ApiSuccess<{
     // Viewers must use this (not scan `versions`) to decide whether the app
     // can be previewed — the ready version may be older than the page window.
     latestReadyVersion: number | null;
+    // The registry slug it was installed from, or null for a project-authored
+    // (or forked) app. Registry-installed chart types are read-only.
+    registrySlug: string | null;
 }>;
 
 export type ApiUpdateAppRequest = {
@@ -1117,7 +1120,15 @@ export type DataAppViz = {
     schema: DataAppVizSchema | null;
     createdAt: Date;
     createdByUserUuid: string;
+    // Registry slug it was installed from, or null if project-authored (or
+    // forked). Registry-installed chart types are read-only; fork to edit.
+    registrySlug: string | null;
 };
+
+/** Whether a chart type is a registry install: read-only, only editable by forking. */
+export const isOfficialChartType = (
+    viz: Pick<DataAppViz, 'registrySlug'>,
+): boolean => viz.registrySlug !== null;
 
 export type ApiListDataAppVizsResponse = ApiSuccess<
     KnexPaginatedData<DataAppViz[]>

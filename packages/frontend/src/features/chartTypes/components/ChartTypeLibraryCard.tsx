@@ -9,6 +9,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
 import { registryAssetUrl } from '../utils/registryAssetUrl';
 import classes from './ChartTypeLibraryCard.module.css';
+import OfficialChartTypeBadge from './OfficialChartTypeBadge';
 
 const StateBadge: FC<{ item: RegistryChartTypeListItem }> = ({ item }) => {
     switch (item.state) {
@@ -79,9 +80,7 @@ const ChartTypeLibraryCard: FC<Props> = ({ item, onClick }) => (
                 <Text fz={13} fw={600} truncate="end">
                     {item.name}
                 </Text>
-                <Badge size="xs" variant="light" color="blue">
-                    Official
-                </Badge>
+                <OfficialChartTypeBadge />
             </Group>
             <Text fz="xs" c="dimmed" lh={1.35} lineClamp={2}>
                 {item.description || 'No description'}

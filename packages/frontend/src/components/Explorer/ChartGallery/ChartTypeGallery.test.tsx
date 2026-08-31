@@ -35,6 +35,7 @@ const projectChartType = {
     createdAt: new Date('2026-08-20T00:00:00Z'),
     createdByUserUuid: 'user-uuid',
     schema: { fields: [], configOptions: [], colorPalette: null },
+    registrySlug: null,
 } satisfies DataAppViz;
 
 const itemsMap = { orders_status: { name: 'status' } } as unknown as ItemsMap;
