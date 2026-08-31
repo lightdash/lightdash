@@ -100,9 +100,11 @@ export const getUserAbilityBuilder = ({
                         isEnterprise,
                         organizationRole: user.role,
                         permissionsConfig,
-                        // The primary slot replaces the system role outright,
-                        // so its scopes decide PAT access rather than
-                        // inheriting the deployment default.
+                        // Every scope set a human user holds declines the
+                        // fallback: the organization layer alone decides token
+                        // access, so no later role can re-grant what the
+                        // primary slot withheld. Only the service-account path
+                        // in UserModel still inherits the deployment default.
                         applyPatConfigFallback: false,
                     },
                     builder,
@@ -128,6 +130,7 @@ export const getUserAbilityBuilder = ({
                     isEnterprise,
                     organizationRole: user.role,
                     permissionsConfig,
+                    applyPatConfigFallback: false,
                 },
                 builder,
             ),
@@ -162,6 +165,7 @@ export const getUserAbilityBuilder = ({
                             isEnterprise,
                             organizationRole: user.role,
                             permissionsConfig,
+                            applyPatConfigFallback: false,
                         },
                         builder,
                     ),
@@ -184,6 +188,7 @@ export const getUserAbilityBuilder = ({
                         isEnterprise,
                         organizationRole: user.role,
                         permissionsConfig,
+                        applyPatConfigFallback: false,
                     },
                     builder,
                 ),

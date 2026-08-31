@@ -46,7 +46,7 @@ export async function up(knex: Knex): Promise<void> {
     } catch (error) {
         // eslint-disable-next-line no-console
         console.error(
-            `[migration 20260826152304] Failed to backfill ${PAT_SCOPE} for organization-level custom roles. Affected roles will need to grant ${PAT_SCOPE} manually.`,
+            `[migration 20260826152304] Failed to backfill ${PAT_SCOPE} for organization-level custom roles. Users on those roles lose token access, and their existing personal access tokens stop authenticating, until the scope is granted manually.`,
             error,
         );
     }

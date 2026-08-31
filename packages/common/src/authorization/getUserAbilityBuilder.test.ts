@@ -603,6 +603,7 @@ describe('getUserAbilityBuilder — role sets (extra custom roles)', () => {
 describe('getUserAbilityBuilder — personal access tokens', () => {
     const PROJECT_UUID = 'test-project-uuid';
     const PAT_ROLE_UUID = '33333333-3333-4333-a333-333333333333';
+    const OTHER_ROLE_UUID = '44444444-4444-4444-a444-444444444444';
     const PAT_SCOPE = 'manage:PersonalAccessToken';
 
     const patAllowed = {
@@ -672,6 +673,62 @@ describe('getUserAbilityBuilder — personal access tokens', () => {
                 roleUuid: PAT_ROLE_UUID,
                 scopes: [PAT_SCOPE],
                 permissionsConfig: patDisabled,
+            });
+            expect(canCreatePat(builder)).toBe(false);
+        });
+
+        // Regression: the config fallback used to still run for every other
+        // scope set, and its "no PAT rule yet" guard read the primary slot's
+        // deliberate refusal as an omission to repair.
+        it('stays denied when the user also holds a project custom role', () => {
+            const builder = buildFor({
+                roleUuid: PAT_ROLE_UUID,
+                scopes: ['view:Dashboard'],
+                projectProfiles: [
+                    {
+                        projectUuid: PROJECT_UUID,
+                        role: ProjectMemberRole.VIEWER,
+                        userUuid: USER_UUID,
+                        roleUuid: OTHER_ROLE_UUID,
+                    },
+                ],
+            });
+            expect(canCreatePat(builder)).toBe(false);
+        });
+
+        it('stays denied when the user also holds an extra org custom role', () => {
+            const { builder } = getUserAbilityBuilder({
+                user: {
+                    role: OrganizationMemberRole.MEMBER,
+                    organizationUuid: ORG_UUID,
+                    userUuid: USER_UUID,
+                    roleUuid: PAT_ROLE_UUID,
+                },
+                orgExtraRoleUuids: [OTHER_ROLE_UUID],
+                projectProfiles: [],
+                permissionsConfig: patAllowed,
+                customRoleScopes: {
+                    [PAT_ROLE_UUID]: ['view:Dashboard'],
+                    [OTHER_ROLE_UUID]: ['view:Dashboard'],
+                },
+                customRolesEnabled: true,
+                isEnterprise: true,
+            });
+            expect(canCreatePat(builder)).toBe(false);
+        });
+
+        it('stays denied when the user also holds a project system role', () => {
+            const builder = buildFor({
+                roleUuid: PAT_ROLE_UUID,
+                scopes: ['view:Dashboard'],
+                projectProfiles: [
+                    {
+                        projectUuid: PROJECT_UUID,
+                        role: ProjectMemberRole.VIEWER,
+                        userUuid: USER_UUID,
+                        roleUuid: undefined,
+                    },
+                ],
             });
             expect(canCreatePat(builder)).toBe(false);
         });
