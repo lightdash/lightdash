@@ -1,3 +1,10 @@
+# [2.63.0](https://github.com/lightdash/lightdash/compare/2.62.2...2.63.0) (2026-08-31)
+
+
+### Features
+
+* seed the playground with sample content ([#28315](https://github.com/lightdash/lightdash/issues/28315)) ([e0e7fd1](https://github.com/lightdash/lightdash/commit/e0e7fd124c742a38594f938778bb1e659ca702e5))
+
 ## [2.62.2](https://github.com/lightdash/lightdash/compare/2.62.1...2.62.2) (2026-08-31)
 
 

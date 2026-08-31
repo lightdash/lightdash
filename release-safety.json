@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.62.2",
-  "previousVersion": "2.62.1",
-  "releaseDate": "2026-08-31T14:16:48.166Z",
+  "version": "2.63.0",
+  "previousVersion": "2.62.2",
+  "releaseDate": "2026-08-31T14:23:11.935Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260830120000_add_playground_content_seed_version.ts",
+        "edition": "core",
+        "tables": [
+          "onboarding"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
