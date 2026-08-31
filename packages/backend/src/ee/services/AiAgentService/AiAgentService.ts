@@ -8068,19 +8068,25 @@ export class AiAgentService extends BaseService {
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
         }
+        return this.getAgentForPrompt(user.organizationUuid, prompt);
+    }
 
-        // Priority: Use agentUuid if available (set by multi-agent channel selection or web app)
-        // Fallback: Get agent by slack channel ID for single-agent channels
+    // Priority: agentUuid if available (set by multi-agent channel selection or
+    // web app), falling back to the slack channel's agent for single-agent channels.
+    private async getAgentForPrompt(
+        organizationUuid: string,
+        prompt: SlackPrompt | AiWebAppPrompt,
+    ): Promise<AiAgent> {
         if (prompt.agentUuid) {
             return this.aiAgentModel.getAgent({
-                organizationUuid: user.organizationUuid,
+                organizationUuid,
                 agentUuid: prompt.agentUuid,
             });
         }
 
         if ('slackChannelId' in prompt) {
             return this.aiAgentModel.getAgentBySlackChannelId({
-                organizationUuid: user.organizationUuid,
+                organizationUuid,
                 slackChannelId: prompt.slackChannelId,
             });
         }
@@ -9380,15 +9386,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 aiAgentToolCall.promptUuid,
                 aiAgentToolCall.toolCallId,
             );
-            await this.aiAgentModel.updateToolResult(
+            // A job timeout and a late pipeline exit both land here; only the
+            // call that flips pending → terminal posts to Slack.
+            const won = await this.aiAgentModel.updateToolResultIfPending(
                 aiAgentToolCall.promptUuid,
                 aiAgentToolCall.toolCallId,
                 outcome,
             );
-            await this.postDataAppBuildOutcomeToSlack(
-                aiAgentToolCall.promptUuid,
-                outcome,
-            );
+            if (won) {
+                await this.postDataAppBuildOutcomeToSlack(
+                    aiAgentToolCall.promptUuid,
+                    outcome,
+                );
+            }
         } catch (error) {
             // Never fail the build job over the tool result.
             Logger.error(
@@ -9424,16 +9434,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         try {
             let agentName: string | undefined;
             try {
-                const agent = prompt.agentUuid
-                    ? await this.aiAgentModel.getAgent({
-                          organizationUuid: prompt.organizationUuid,
-                          agentUuid: prompt.agentUuid,
-                      })
-                    : await this.aiAgentModel.getAgentBySlackChannelId({
-                          organizationUuid: prompt.organizationUuid,
-                          slackChannelId: prompt.slackChannelId,
-                      });
-                agentName = agent.name;
+                agentName = (
+                    await this.getAgentForPrompt(
+                        prompt.organizationUuid,
+                        prompt,
+                    )
+                ).name;
             } catch {
                 // Fall back to the app's default name.
             }
