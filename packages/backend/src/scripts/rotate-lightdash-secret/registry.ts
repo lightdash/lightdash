@@ -102,6 +102,16 @@ export const CIPHERTEXT_REGISTRY: CiphertextRegistryEntry[] = [
         column: 'service_account_token',
     },
     {
+        table: 'mobile_push_installations',
+        primaryKeyColumn: 'mobile_push_installation_uuid',
+        column: 'encrypted_device_token',
+    },
+    {
+        table: 'ai_agent_live_activities',
+        primaryKeyColumn: 'live_activity_uuid',
+        column: 'encrypted_push_token',
+    },
+    {
         table: 'ai_mcp_server_credential',
         primaryKeyColumn: 'ai_mcp_server_credential_uuid',
         column: 'encrypted_credentials',

@@ -50,6 +50,7 @@ import { ExternalSourceModel } from './models/ExternalSourceModel';
 import { HomepageRecommendedActionSkipsModel } from './models/HomepageRecommendedActionSkipsModel';
 import { ManagedAgentModel } from './models/ManagedAgentModel';
 import { McpToolCallModel } from './models/McpToolCallModel';
+import { MobilePushNotificationModel } from './models/MobilePushNotificationModel';
 import { ProjectCiStatusModel } from './models/ProjectCiStatusModel';
 import { ProjectContextModel } from './models/ProjectContextModel';
 import { ProjectHomepageModel } from './models/ProjectHomepageModel';
@@ -96,6 +97,8 @@ import { HomepageRecommendedActionSkipsService } from './services/HomepageRecomm
 import { EnterpriseLicenseService } from './services/LicenseService/LicenseService';
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
 import { McpService } from './services/McpService/McpService';
+import { MobilePushNotificationReconciler } from './services/MobilePushNotificationService/MobilePushNotificationReconciler';
+import { MobilePushNotificationService } from './services/MobilePushNotificationService/MobilePushNotificationService';
 import { OnboardingAgentService } from './services/OnboardingAgentService/OnboardingAgentService';
 import { provisionOnboardingOrgFlags } from './services/OrganizationService/provisionOnboardingOrgFlags';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
@@ -162,6 +165,30 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new EnterpriseLicenseService({
                     licenseKey: lightdashConfig.license.licenseKey,
                 }),
+            mobilePushNotificationService: ({ models, clients, context }) => {
+                const notificationStore =
+                    models.getMobilePushNotificationModel<MobilePushNotificationModel>();
+                const threadStore = models.getAiAgentModel<AiAgentModel>();
+                const scheduler =
+                    clients.getSchedulerClient() as CommercialSchedulerClient;
+                const reconciler = new MobilePushNotificationReconciler({
+                    notificationStore,
+                    threadStore,
+                    apnsClient: clients.getApnsClient(),
+                    scheduler,
+                    analytics: context.lightdashAnalytics,
+                    completionAlert: undefined,
+                });
+                return new MobilePushNotificationService({
+                    mobilePushNotificationStore: notificationStore,
+                    threadStore,
+                    mobilePushNotificationsConfig:
+                        context.lightdashConfig.mobilePushNotifications,
+                    scheduler,
+                    reconciler,
+                    analytics: context.lightdashAnalytics,
+                });
+            },
             linearAppService: ({ models, context }) => {
                 const aiAgentReviewNotificationModel =
                     models.getAiAgentReviewNotificationModel<AiAgentReviewNotificationModel>();
@@ -631,6 +658,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
                     aiAgentReviewNotificationModel:
                         models.getAiAgentReviewNotificationModel<AiAgentReviewNotificationModel>(),
+                    mobilePushNotificationService:
+                        repository.getMobilePushNotificationService<MobilePushNotificationService>(),
                     prometheusMetrics,
                 }),
             aiAgentAdminService: ({ models, repository, context, clients }) =>
@@ -1286,6 +1315,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     database,
                     encryptionUtil: utils.getEncryptionUtil(),
                 }),
+            mobilePushNotificationModel: ({ database, utils }) =>
+                new MobilePushNotificationModel({
+                    database,
+                    encryptionUtil: utils.getEncryptionUtil(),
+                }),
             featureFlagModel: ({ database }) =>
                 new CommercialFeatureFlagModel({ database, lightdashConfig }),
         },
@@ -1380,6 +1414,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getProjectHomepageService<ProjectHomepageService>(),
                 externalSourceService:
                     context.serviceRepository.getExternalSourceService<ExternalSourceService>(),
+                mobilePushNotificationService:
+                    context.serviceRepository.getMobilePushNotificationService<MobilePushNotificationService>(),
                 prometheusMetrics: context.prometheusMetrics,
             }),
         clientProviders: {

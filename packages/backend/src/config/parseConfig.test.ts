@@ -51,6 +51,64 @@ describe('mobile login config', () => {
     });
 });
 
+describe('mobile push notification config', () => {
+    it('is disabled when APNs credentials are absent', () => {
+        expect(parseConfig().mobilePushNotifications).toEqual({
+            enabled: false,
+            bundleId: 'com.lightdash.mobile',
+            teamId: undefined,
+            sandbox: undefined,
+            production: undefined,
+        });
+    });
+
+    it('enables a complete sandbox credential on Lightdash Cloud', () => {
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID = 'TEAMID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_SANDBOX_KEY_ID = 'KEYID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_SANDBOX_PRIVATE_KEY =
+            'private-key';
+
+        expect(parseConfig().mobilePushNotifications).toEqual({
+            enabled: true,
+            bundleId: 'com.lightdash.mobile',
+            teamId: 'TEAMID',
+            sandbox: { keyId: 'KEYID', privateKey: 'private-key' },
+            production: undefined,
+        });
+    });
+
+    it('stays disabled outside Lightdash Cloud', () => {
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID = 'TEAMID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_KEY_ID = 'KEYID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_PRIVATE_KEY =
+            'private-key';
+
+        expect(parseConfig().mobilePushNotifications.enabled).toBe(false);
+    });
+
+    it('rejects a partial environment credential', () => {
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID = 'TEAMID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_SANDBOX_KEY_ID = 'KEYID';
+
+        expect(() => parseConfig()).toThrow(
+            'MOBILE_PUSH_NOTIFICATIONS_APNS_SANDBOX_KEY_ID and MOBILE_PUSH_NOTIFICATIONS_APNS_SANDBOX_PRIVATE_KEY must be set together',
+        );
+    });
+
+    it('requires a team ID when an environment credential is present', () => {
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_KEY_ID = 'KEYID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_PRIVATE_KEY =
+            'private-key';
+
+        expect(() => parseConfig()).toThrow(
+            'MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID is required when APNs credentials are set',
+        );
+    });
+});
+
 describe('license config', () => {
     it('supports an offline license file with a license key', () => {
         process.env.LIGHTDASH_LICENSE_KEY = 'license-key';

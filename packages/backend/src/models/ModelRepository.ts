@@ -190,6 +190,7 @@ export type ModelManifest = {
     aiRouterModel: unknown;
     mcpToolCallModel: unknown;
     managedAgentModel: unknown;
+    mobilePushNotificationModel: unknown;
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
     serviceAccountModel: unknown;
@@ -930,6 +931,10 @@ export class ModelRepository
 
     public getAiAgentModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiAgentModel');
+    }
+
+    public getMobilePushNotificationModel<ModelImplT>(): ModelImplT {
+        return this.getModel('mobilePushNotificationModel');
     }
 
     public getAiAgentMemoryModel<ModelImplT>(): ModelImplT {

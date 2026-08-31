@@ -199,6 +199,7 @@ interface ServiceManifest {
     externalConnectionCoderService: unknown;
     instanceConfigurationService: unknown;
     managedAgentService: unknown;
+    mobilePushNotificationService: unknown;
     mcpService: unknown;
     rolesService: RolesService;
     slackService: SlackService;
@@ -1730,6 +1731,25 @@ export class ServiceRepository
         ManagedAgentServiceImplT,
     >(): ManagedAgentServiceImplT {
         return this.getService('managedAgentService');
+    }
+
+    public getMobilePushNotificationService<
+        MobilePushNotificationServiceImplT,
+    >(): MobilePushNotificationServiceImplT {
+        return this.getService(
+            'mobilePushNotificationService',
+            () =>
+                ({
+                    getStatus: () => ({ enabled: false, environments: [] }),
+                    registerInstallation: async () => undefined,
+                    revokeInstallation: async () => undefined,
+                    registerLiveActivity: async () => undefined,
+                    revokeLiveActivity: async () => undefined,
+                    enqueueThreadReconciliation: async () => undefined,
+                    sweepLiveActivities: async () => undefined,
+                    reconcileLiveActivity: async () => undefined,
+                }) as MobilePushNotificationServiceImplT,
+        );
     }
 
     public getMcpService<McpServiceImplT>(): McpServiceImplT {

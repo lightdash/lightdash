@@ -3389,6 +3389,63 @@ export type FeatureFlagCheckedAggregatedEvent = BaseTrack & {
     };
 };
 
+export type MobilePushNotificationEvent =
+    | (BaseTrack & {
+          event: 'mobile_push.installation_registered';
+          userId: string;
+          properties: {
+              organizationId: string;
+              installationId: string;
+              environment: 'sandbox' | 'production';
+          };
+      })
+    | (BaseTrack & {
+          event: 'mobile_push.live_activity_registered';
+          userId: string;
+          properties: {
+              organizationId: string;
+              projectId: string;
+              agentId: string;
+              threadId: string;
+              promptId: string;
+              installationId: string;
+              liveActivityId: string;
+              environment: 'sandbox' | 'production';
+          };
+      })
+    | (BaseTrack & {
+          event: 'mobile_push.live_activity_delivery';
+          userId: string;
+          properties: {
+              organizationId: string;
+              projectId: string;
+              agentId: string;
+              threadId: string;
+              promptId: string;
+              installationId: string;
+              liveActivityId: string;
+              environment: 'sandbox' | 'production';
+              state: 'working' | 'waiting_for_you' | 'idle';
+              activityEvent: 'update' | 'end';
+              outcome: 'sent' | 'invalid_token' | 'retryable' | 'failed';
+          };
+      })
+    | (BaseTrack & {
+          event: 'mobile_push.completion_alert_delivery';
+          userId: string;
+          properties: {
+              organizationId: string;
+              projectId: string;
+              agentId: string;
+              threadId: string;
+              promptId: string;
+              installationId: string;
+              liveActivityId: string;
+              environment: 'sandbox' | 'production';
+              outcome: 'sent' | 'invalid_token' | 'retryable' | 'failed';
+          };
+      });
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -3561,6 +3618,7 @@ type TypedEvent =
     | ImpersonationEvent
     | PromptFetchedEvent
     | FeatureFlagCheckedAggregatedEvent
+    | MobilePushNotificationEvent
     | PersistentFileGenerationRequestedEvent
     | PersistentFileGenerationCompletedEvent
     | PersistentFileUrlRequestedEvent

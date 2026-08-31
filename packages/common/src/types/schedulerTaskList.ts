@@ -159,6 +159,10 @@ export type AiAgentMemoryConsolidatePartitionJobPayload = TraceTaskBase & {
     ownerUserUuid: UUID;
 };
 
+export type MobilePushLiveActivityJobPayload = TraceTaskBase & {
+    liveActivityUuid: UUID;
+};
+
 export const EE_SCHEDULER_TASKS = {
     SLACK_AI_PROMPT: 'slackAiPrompt',
     AI_AGENT_EVAL_RESULT: 'aiAgentEvalResult',
@@ -192,6 +196,8 @@ export const EE_SCHEDULER_TASKS = {
     INGEST_EXTERNAL_SOURCE: 'ingestExternalSource',
     INGEST_EXTERNAL_SOURCE_ATTACHMENT: 'ingestExternalSourceAttachment',
     MAINTAIN_EXTERNAL_SOURCES: 'maintainExternalSources',
+    MOBILE_PUSH_LIVE_ACTIVITY: 'mobilePushLiveActivity',
+    SWEEP_MOBILE_PUSH_LIVE_ACTIVITIES: 'sweepMobilePushLiveActivities',
 } as const;
 
 export const SCHEDULER_TASKS = {
@@ -309,6 +315,8 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: IngestExternalSourceJobPayload;
     [SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT]: IngestExternalSourceJobPayload;
     [SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: Record<string, never>;
+    [SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY]: MobilePushLiveActivityJobPayload;
+    [SCHEDULER_TASKS.SWEEP_MOBILE_PUSH_LIVE_ACTIVITIES]: Record<string, never>;
     [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
     [SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
     [SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: AgentOnboardingPipelineJobPayload;
@@ -348,6 +356,11 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: IngestExternalSourceJobPayload;
     [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT]: IngestExternalSourceJobPayload;
     [EE_SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: Record<string, never>;
+    [EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY]: MobilePushLiveActivityJobPayload;
+    [EE_SCHEDULER_TASKS.SWEEP_MOBILE_PUSH_LIVE_ACTIVITIES]: Record<
+        string,
+        never
+    >;
 }
 
 export type SchedulerTaskName =
