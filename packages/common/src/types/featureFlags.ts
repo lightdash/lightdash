@@ -352,6 +352,12 @@ export enum FeatureFlags {
      * still delete threads from the agent admin threads view. Off by default.
      */
     AiDisableThreadDeletion = 'ai-disable-thread-deletion',
+
+    /**
+     * Enables the chart type library tab: browsing and installing official
+     * chart types from the configured chart registry. Default: off.
+     */
+    ChartTypeRegistry = 'chart-type-registry',
 }
 
 export type FeatureFlag = {
