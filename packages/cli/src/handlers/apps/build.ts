@@ -10,6 +10,27 @@ export type AppsBuildOptions = {
     verbose: boolean;
 };
 
+/**
+ * The build wipes outDir before copying the new output in. If outDir is (or
+ * contains) appDir, that wipe deletes the app source being built. Both
+ * arguments must already be resolved to absolute paths.
+ */
+export const assertOutDirDoesNotContainAppDir = (
+    appDir: string,
+    outDir: string,
+): void => {
+    const relativeAppDirFromOutDir = path.relative(outDir, appDir);
+    const appDirIsInsideOutDir =
+        relativeAppDirFromOutDir !== '' &&
+        !relativeAppDirFromOutDir.startsWith('..') &&
+        !path.isAbsolute(relativeAppDirFromOutDir);
+    if (outDir === appDir || appDirIsInsideOutDir) {
+        throw new ParameterError(
+            '--out-dir must not contain the app directory (would delete the app source on build)',
+        );
+    }
+};
+
 export const appsBuildHandler = async (
     pathArg: string | undefined,
     options: AppsBuildOptions,
@@ -20,6 +41,7 @@ export const appsBuildHandler = async (
         process.cwd(),
         options.outDir ?? path.join(appDir, 'dist'),
     );
+    assertOutDirDoesNotContainAppDir(appDir, outDir);
 
     let bundle: Awaited<ReturnType<typeof readBundleFromDir>>;
     try {

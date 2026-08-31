@@ -7,7 +7,7 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { readBundleFromDir, writeBundleToDir } from './appCodeFiles';
-import { appsBuildHandler } from './build';
+import { appsBuildHandler, assertOutDirDoesNotContainAppDir } from './build';
 import { validateDataAppBuild, type RunDataAppBuildCommand } from './validate';
 
 const defaultManifest: DataAppManifest = {
@@ -164,5 +164,87 @@ describe('appsBuildHandler', () => {
         await expect(appsBuildHandler(dir, { verbose: false })).rejects.toThrow(
             /no files under src\//,
         );
+    });
+
+    it('refuses --out-dir equal to the app directory before doing any build work', async () => {
+        const appDir = await makeApp();
+
+        await expect(
+            appsBuildHandler(appDir, { outDir: appDir, verbose: false }),
+        ).rejects.toThrow(ParameterError);
+        // The app bundle must still be intact — no wipe happened.
+        await expect(
+            fs.stat(path.join(appDir, 'src', 'App.tsx')),
+        ).resolves.toBeDefined();
+    });
+
+    it('refuses --out-dir that is a parent of the app directory before doing any build work', async () => {
+        const parentDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'ld-app-build-parent-'),
+        );
+        const appDir = path.join(parentDir, 'app');
+        await fs.mkdir(appDir);
+        const code: DataAppCode = {
+            manifest: defaultManifest,
+            files: [
+                {
+                    path: 'src/App.tsx',
+                    contentBase64: Buffer.from(validSource).toString('base64'),
+                },
+            ],
+        };
+        await writeBundleToDir(appDir, code);
+        await fs.mkdir(path.join(appDir, 'node_modules'));
+
+        await expect(
+            appsBuildHandler(appDir, {
+                outDir: parentDir,
+                verbose: false,
+            }),
+        ).rejects.toThrow(ParameterError);
+        await expect(
+            fs.stat(path.join(appDir, 'src', 'App.tsx')),
+        ).resolves.toBeDefined();
+    });
+});
+
+describe('assertOutDirDoesNotContainAppDir', () => {
+    it('throws when outDir equals appDir', () => {
+        expect(() =>
+            assertOutDirDoesNotContainAppDir(
+                '/repo/apps/orders',
+                '/repo/apps/orders',
+            ),
+        ).toThrow(ParameterError);
+    });
+
+    it('throws when appDir is nested inside outDir', () => {
+        expect(() =>
+            assertOutDirDoesNotContainAppDir('/repo/apps/orders', '/repo/apps'),
+        ).toThrow(ParameterError);
+    });
+
+    it('throws when outDir is the filesystem root and appDir is anywhere under it', () => {
+        expect(() =>
+            assertOutDirDoesNotContainAppDir('/repo/apps/orders', '/'),
+        ).toThrow(ParameterError);
+    });
+
+    it('does not throw for a normal sibling out-dir', () => {
+        expect(() =>
+            assertOutDirDoesNotContainAppDir(
+                '/repo/apps/orders',
+                '/repo/build-output',
+            ),
+        ).not.toThrow();
+    });
+
+    it('does not throw for the default outDir nested inside appDir (appDir/dist)', () => {
+        expect(() =>
+            assertOutDirDoesNotContainAppDir(
+                '/repo/apps/orders',
+                '/repo/apps/orders/dist',
+            ),
+        ).not.toThrow();
     });
 });
