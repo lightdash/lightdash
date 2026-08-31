@@ -74,7 +74,7 @@ export const applyProposalToWizardValues = (
         name: proposal.name,
         origin: proposal.origin,
         type: proposal.type,
-        allowBrowserImages: false,
+        allowBrowserImages: proposal.allowBrowserImages,
         allowDataAppBuilderLinking: false,
         secret: '',
         apiKeyName: proposal.apiKeyName ?? '',

@@ -189,6 +189,7 @@ export type ExternalConnectionConfigProposal = {
     name: string;
     origin: string;
     type: ExternalConnectionAuthType;
+    allowBrowserImages: boolean;
     apiKeyName: string | null;
     apiKeyLocation: ApiKeyLocation | null;
     oauthScopes: string[] | null;
