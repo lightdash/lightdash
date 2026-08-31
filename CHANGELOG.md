@@ -1,3 +1,10 @@
+# [2.64.0](https://github.com/lightdash/lightdash/compare/2.63.0...2.64.0) (2026-08-31)
+
+
+### Features
+
+* add Live Activity push delivery ([#28316](https://github.com/lightdash/lightdash/issues/28316)) ([a7543c2](https://github.com/lightdash/lightdash/commit/a7543c27001a0963ee07240e99694fe3e6951345))
+
 # [2.63.0](https://github.com/lightdash/lightdash/compare/2.62.2...2.63.0) (2026-08-31)
 
 

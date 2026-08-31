@@ -12221,6 +12221,54 @@
                 "required": ["opening", "enabled"],
                 "type": "object"
             },
+            "MobilePushEnvironment": {
+                "type": "string",
+                "enum": ["sandbox", "production"]
+            },
+            "ApiSuccess__enabled-boolean--environments-MobilePushEnvironment-Array__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "environments": {
+                                "items": {
+                                    "$ref": "#/components/schemas/MobilePushEnvironment"
+                                },
+                                "type": "array"
+                            },
+                            "enabled": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["environments", "enabled"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiMobilePushNotificationStatusResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__enabled-boolean--environments-MobilePushEnvironment-Array__"
+            },
+            "ApiMobilePushInstallationResponse": {
+                "$ref": "#/components/schemas/ApiSuccessEmpty"
+            },
+            "ApiMobilePushInstallationRequest": {
+                "properties": {
+                    "deviceToken": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "$ref": "#/components/schemas/MobilePushEnvironment"
+                    }
+                },
+                "required": ["deviceToken", "environment"],
+                "type": "object"
+            },
             "ManagedAgentScheduleOption": {
                 "enum": [
                     "every_6_hours",
@@ -21683,6 +21731,24 @@
                     }
                 },
                 "required": ["alwaysIncludeInContext"],
+                "type": "object"
+            },
+            "ApiMobilePushLiveActivityResponse": {
+                "$ref": "#/components/schemas/ApiSuccessEmpty"
+            },
+            "ApiMobilePushLiveActivityRequest": {
+                "properties": {
+                    "pushToken": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    },
+                    "installationUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": ["pushToken", "promptUuid", "installationUuid"],
                 "type": "object"
             },
             "ApiCreateAiAgentDocument": {
@@ -42205,6 +42271,8 @@
                     "ingestExternalSource",
                     "ingestExternalSourceAttachment",
                     "maintainExternalSources",
+                    "mobilePushLiveActivity",
+                    "sweepMobilePushLiveActivities",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
                     "sendEmailNotification",
@@ -57628,7 +57696,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.63.0",
+        "version": "2.64.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -63159,6 +63227,122 @@
                 }
             }
         },
+        "/api/v1/mobile/push-notifications/status": {
+            "get": {
+                "operationId": "getMobilePushNotificationStatus",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMobilePushNotificationStatusResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Mobile push notifications"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/mobile/push-notifications/installations/{installationUuid}": {
+            "put": {
+                "operationId": "registerMobilePushInstallation",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMobilePushInstallationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Mobile push notifications"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "installationUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiMobilePushInstallationRequest"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "revokeMobilePushInstallation",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMobilePushInstallationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Mobile push notifications"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "installationUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/databricks/sso/is-authenticated": {
             "get": {
                 "operationId": "getDatabricksAccessToken",
@@ -63843,6 +64027,148 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/live-activities/{liveActivityUuid}": {
+            "put": {
+                "operationId": "registerAiAgentLiveActivity",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMobilePushLiveActivityResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["AI agent Live Activities"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "liveActivityUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiMobilePushLiveActivityRequest"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "revokeAiAgentLiveActivity",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMobilePushLiveActivityResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["AI agent Live Activities"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "liveActivityUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "installationUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]

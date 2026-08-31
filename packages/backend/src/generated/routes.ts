@@ -147,6 +147,8 @@ import { AiAgentController } from './../ee/controllers/aiAgentController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AiAgentDocumentController } from './../ee/controllers/aiAgentDocumentController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { AiAgentLiveActivityController } from './../ee/controllers/aiAgentLiveActivityController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AiAgentMemoryController } from './../ee/controllers/AiAgentMemoryController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AiAgentScopedDocumentController } from './../ee/controllers/aiAgentScopedDocumentController';
@@ -180,6 +182,8 @@ import { ExternalSourceController } from './../ee/controllers/externalSourceCont
 import { HomepageRecommendedActionSkipsController } from './../ee/controllers/HomepageRecommendedActionSkipsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ManagedAgentController } from './../ee/controllers/managedAgentController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { MobilePushNotificationController } from './../ee/controllers/mobilePushNotificationController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OnboardingAgentController } from './../ee/controllers/OnboardingAgentController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -11542,6 +11546,69 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MobilePushEnvironment: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['sandbox'] },
+                { dataType: 'enum', enums: ['production'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess__enabled-boolean--environments-MobilePushEnvironment-Array__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        environments: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'MobilePushEnvironment',
+                            },
+                            required: true,
+                        },
+                        enabled: { dataType: 'boolean', required: true },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiMobilePushNotificationStatusResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess__enabled-boolean--environments-MobilePushEnvironment-Array__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiMobilePushInstallationResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccessEmpty', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiMobilePushInstallationRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                deviceToken: { dataType: 'string', required: true },
+                environment: { ref: 'MobilePushEnvironment', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ManagedAgentScheduleOption: {
         dataType: 'refEnum',
         enums: [
@@ -19937,6 +20004,24 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 alwaysIncludeInContext: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiMobilePushLiveActivityResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccessEmpty', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiMobilePushLiveActivityRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pushToken: { dataType: 'string', required: true },
+                promptUuid: { ref: 'UUID', required: true },
+                installationUuid: { ref: 'UUID', required: true },
             },
             validators: {},
         },
@@ -42077,6 +42162,8 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['ingestExternalSource'] },
                 { dataType: 'enum', enums: ['ingestExternalSourceAttachment'] },
                 { dataType: 'enum', enums: ['maintainExternalSources'] },
+                { dataType: 'enum', enums: ['mobilePushLiveActivity'] },
+                { dataType: 'enum', enums: ['sweepMobilePushLiveActivities'] },
                 { dataType: 'enum', enums: ['handleScheduledDelivery'] },
                 { dataType: 'enum', enums: ['sendSlackNotification'] },
                 { dataType: 'enum', enums: ['sendEmailNotification'] },
@@ -64286,6 +64373,190 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsMobilePushNotificationController_getMobilePushNotificationStatus: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/mobile/push-notifications/status',
+        ...fetchMiddlewares<RequestHandler>(MobilePushNotificationController),
+        ...fetchMiddlewares<RequestHandler>(
+            MobilePushNotificationController.prototype
+                .getMobilePushNotificationStatus,
+        ),
+
+        async function MobilePushNotificationController_getMobilePushNotificationStatus(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsMobilePushNotificationController_getMobilePushNotificationStatus,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<MobilePushNotificationController>(
+                        MobilePushNotificationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getMobilePushNotificationStatus',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsMobilePushNotificationController_registerInstallation: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        installationUuid: {
+            in: 'path',
+            name: 'installationUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiMobilePushInstallationRequest',
+        },
+    };
+    app.put(
+        '/api/v1/mobile/push-notifications/installations/:installationUuid',
+        ...fetchMiddlewares<RequestHandler>(MobilePushNotificationController),
+        ...fetchMiddlewares<RequestHandler>(
+            MobilePushNotificationController.prototype.registerInstallation,
+        ),
+
+        async function MobilePushNotificationController_registerInstallation(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsMobilePushNotificationController_registerInstallation,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<MobilePushNotificationController>(
+                        MobilePushNotificationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'registerInstallation',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsMobilePushNotificationController_revokeInstallation: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        installationUuid: {
+            in: 'path',
+            name: 'installationUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.delete(
+        '/api/v1/mobile/push-notifications/installations/:installationUuid',
+        ...fetchMiddlewares<RequestHandler>(MobilePushNotificationController),
+        ...fetchMiddlewares<RequestHandler>(
+            MobilePushNotificationController.prototype.revokeInstallation,
+        ),
+
+        async function MobilePushNotificationController_revokeInstallation(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsMobilePushNotificationController_revokeInstallation,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<MobilePushNotificationController>(
+                        MobilePushNotificationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'revokeInstallation',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsManagedAgentController_getSettings: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -71774,6 +72045,176 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'deleteDocument',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentLiveActivityController_registerLiveActivity: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        agentUuid: {
+            in: 'path',
+            name: 'agentUuid',
+            required: true,
+            dataType: 'string',
+        },
+        threadUuid: {
+            in: 'path',
+            name: 'threadUuid',
+            required: true,
+            dataType: 'string',
+        },
+        liveActivityUuid: {
+            in: 'path',
+            name: 'liveActivityUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiMobilePushLiveActivityRequest',
+        },
+    };
+    app.put(
+        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/threads/:threadUuid/live-activities/:liveActivityUuid',
+        ...fetchMiddlewares<RequestHandler>(AiAgentLiveActivityController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentLiveActivityController.prototype.registerLiveActivity,
+        ),
+
+        async function AiAgentLiveActivityController_registerLiveActivity(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentLiveActivityController_registerLiveActivity,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentLiveActivityController>(
+                        AiAgentLiveActivityController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'registerLiveActivity',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentLiveActivityController_revokeLiveActivity: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        agentUuid: {
+            in: 'path',
+            name: 'agentUuid',
+            required: true,
+            dataType: 'string',
+        },
+        threadUuid: {
+            in: 'path',
+            name: 'threadUuid',
+            required: true,
+            dataType: 'string',
+        },
+        liveActivityUuid: {
+            in: 'path',
+            name: 'liveActivityUuid',
+            required: true,
+            dataType: 'string',
+        },
+        installationUuid: {
+            in: 'query',
+            name: 'installationUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.delete(
+        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/threads/:threadUuid/live-activities/:liveActivityUuid',
+        ...fetchMiddlewares<RequestHandler>(AiAgentLiveActivityController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentLiveActivityController.prototype.revokeLiveActivity,
+        ),
+
+        async function AiAgentLiveActivityController_revokeLiveActivity(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentLiveActivityController_revokeLiveActivity,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentLiveActivityController>(
+                        AiAgentLiveActivityController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'revokeLiveActivity',
                     controller,
                     response,
                     next,
