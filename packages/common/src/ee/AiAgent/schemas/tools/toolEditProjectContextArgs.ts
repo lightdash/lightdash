@@ -11,13 +11,6 @@ export const TOOL_EDIT_PROJECT_CONTEXT_DESCRIPTION = [
 // Mirrors AiAgentJudgeProjectContextEntry — the structured entry the
 // deterministic ProjectContextService.writebackEntry applies to the YAML.
 export const toolEditProjectContextArgsSchema = z.object({
-    dbtSourceUuid: z
-        .string()
-        .uuid()
-        .optional()
-        .describe(
-            'The project dbt source UUID that owns the project context file. Omit it for the primary dbt source.',
-        ),
     op: z
         .enum(['create', 'update'])
         .describe(
