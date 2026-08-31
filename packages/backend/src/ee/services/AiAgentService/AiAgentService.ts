@@ -146,6 +146,7 @@ import {
     type PivotConfiguration,
     type SessionUser,
     type SuggestionValidationCatalog,
+    type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
     type VerifiedContentListItem,
 } from '@lightdash/common';
@@ -8067,19 +8068,25 @@ export class AiAgentService extends BaseService {
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
         }
+        return this.getAgentForPrompt(user.organizationUuid, prompt);
+    }
 
-        // Priority: Use agentUuid if available (set by multi-agent channel selection or web app)
-        // Fallback: Get agent by slack channel ID for single-agent channels
+    // Priority: agentUuid if available (set by multi-agent channel selection or
+    // web app), falling back to the slack channel's agent for single-agent channels.
+    private async getAgentForPrompt(
+        organizationUuid: string,
+        prompt: SlackPrompt | AiWebAppPrompt,
+    ): Promise<AiAgent> {
         if (prompt.agentUuid) {
             return this.aiAgentModel.getAgent({
-                organizationUuid: user.organizationUuid,
+                organizationUuid,
                 agentUuid: prompt.agentUuid,
             });
         }
 
         if ('slackChannelId' in prompt) {
             return this.aiAgentModel.getAgentBySlackChannelId({
-                organizationUuid: user.organizationUuid,
+                organizationUuid,
                 slackChannelId: prompt.slackChannelId,
             });
         }
@@ -9159,8 +9166,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 metadata: { status: 'error', errorCode },
             });
             if (isSlackPrompt(prompt)) {
-                await this.postWritebackOutcomeToSlack(
-                    user,
+                await this.postOutcomeToSlack(
                     prompt,
                     getMarkdownBlocks(`:x: ${toolResult}`),
                     toolResult,
@@ -9300,8 +9306,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 const prCardBlocks =
                     getModernPullRequestCardBlocks(finalToolResults);
                 if (prCardBlocks.length > 0) {
-                    await this.postWritebackOutcomeToSlack(
-                        user,
+                    await this.postOutcomeToSlack(
                         prompt,
                         prCardBlocks,
                         'Your pull request is ready.',
@@ -9381,11 +9386,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 aiAgentToolCall.promptUuid,
                 aiAgentToolCall.toolCallId,
             );
-            await this.aiAgentModel.updateToolResult(
+            // A job timeout and a late pipeline exit both land here; only the
+            // call that flips pending → terminal posts to Slack.
+            const won = await this.aiAgentModel.updateToolResultIfPending(
                 aiAgentToolCall.promptUuid,
                 aiAgentToolCall.toolCallId,
                 outcome,
             );
+            if (won) {
+                await this.postDataAppBuildOutcomeToSlack(
+                    aiAgentToolCall.promptUuid,
+                    outcome,
+                );
+            }
         } catch (error) {
             // Never fail the build job over the tool result.
             Logger.error(
@@ -9406,15 +9419,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     }
 
     /**
-     * Post the writeback outcome as a follow-up message in the Slack thread. The
-     * agent's turn ends ~1s after the editDbtProject tool starts — long before
-     * the async pipeline resolves — so its final message carries no result. This
-     * delivers the PR card (or the failure) once the pipeline actually finishes,
-     * mirroring what the web chat card shows. Best-effort: a Slack failure must
-     * never fail the run.
+     * Post an async pipeline's outcome (dbt writeback, data app build) as a
+     * follow-up message in the Slack thread. The agent's turn ends long before
+     * the pipeline resolves, so its final message carries no result. This
+     * delivers the outcome once the pipeline actually finishes, mirroring what
+     * the web chat card shows. Best-effort: a Slack failure must never fail
+     * the run.
      */
-    private async postWritebackOutcomeToSlack(
-        user: SessionUser,
+    private async postOutcomeToSlack(
         prompt: SlackPrompt,
         blocks: (Block | KnownBlock)[],
         text: string,
@@ -9422,7 +9434,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         try {
             let agentName: string | undefined;
             try {
-                agentName = (await this.getAgentSettings(user, prompt)).name;
+                agentName = (
+                    await this.getAgentForPrompt(
+                        prompt.organizationUuid,
+                        prompt,
+                    )
+                ).name;
             } catch {
                 // Fall back to the app's default name.
             }
@@ -9436,11 +9453,38 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 unfurl_links: false,
             });
         } catch (error) {
-            Logger.error(
-                'Failed to post AI writeback outcome to Slack:',
-                error,
-            );
+            Logger.error('Failed to post AI outcome to Slack:', error);
         }
+    }
+
+    // In Slack there is no build card, so a Slack-originated build gets its
+    // outcome as a follow-up message in the thread. Web prompts resolve to
+    // nothing here and post nothing.
+    private async postDataAppBuildOutcomeToSlack(
+        promptUuid: string,
+        outcome: ToolGenerateDataAppTerminalResult,
+    ): Promise<void> {
+        const prompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
+        if (!prompt) {
+            return;
+        }
+        const { metadata } = outcome;
+        if (metadata.status === 'success') {
+            await this.postOutcomeToSlack(
+                prompt,
+                getMarkdownBlocks(
+                    `:white_check_mark: Your data app **${metadata.name}** is ready — [Open it in the builder](${metadata.href})`,
+                ),
+                `Your data app "${metadata.name}" is ready: ${metadata.href}`,
+            );
+            return;
+        }
+        const text = `The data app build did not finish: ${metadata.message}`;
+        await this.postOutcomeToSlack(
+            prompt,
+            getMarkdownBlocks(`:x: ${text}`),
+            text,
+        );
     }
 
     /**

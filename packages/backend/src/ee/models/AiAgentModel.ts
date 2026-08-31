@@ -8076,6 +8076,27 @@ export class AiAgentModel {
             });
     }
 
+    // Terminal-once transition: updates only while the stored result is still
+    // pending, so racing terminal writers (job timeout vs late pipeline exit)
+    // resolve to exactly one winner. Returns whether this call won.
+    async updateToolResultIfPending(
+        promptUuid: string,
+        toolCallId: string,
+        data: { result: string; metadata: AgentToolOutput['metadata'] },
+    ): Promise<boolean> {
+        const updated = await this.database(AiAgentToolResultTableName)
+            .where({
+                ai_prompt_uuid: promptUuid,
+                tool_call_id: toolCallId,
+            })
+            .whereRaw(`metadata->>'status' = ?`, ['pending'])
+            .update({
+                result: data.result,
+                metadata: data.metadata,
+            });
+        return updated > 0;
+    }
+
     async hasToolResult(
         promptUuid: string,
         toolCallId: string,
