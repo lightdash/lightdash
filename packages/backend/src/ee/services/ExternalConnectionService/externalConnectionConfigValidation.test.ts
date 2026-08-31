@@ -43,17 +43,17 @@ describe('validateExternalConnectionConfig', () => {
             ).toThrow(/only available for no-auth/);
         });
 
-        it('requires GET', () => {
+        it('accepts an image-only connection', () => {
             expect(() =>
                 validateExternalConnectionConfig(
                     {
                         ...base,
-                        allowedMethods: ['POST'],
+                        allowedMethods: [],
                         allowBrowserImages: true,
                     },
                     false,
                 ),
-            ).toThrow(/requires GET/);
+            ).not.toThrow();
         });
     });
 

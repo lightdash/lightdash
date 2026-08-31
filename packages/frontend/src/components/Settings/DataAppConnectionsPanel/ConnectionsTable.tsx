@@ -34,6 +34,16 @@ const authLabel = (type: ExternalConnection['type']): string => {
     }
 };
 
+const accessLabel = (connection: ExternalConnection): string => {
+    const methods = connection.allowedMethods.join(', ');
+
+    if (connection.allowBrowserImages) {
+        return methods ? `${methods} + public images` : 'Public images only';
+    }
+
+    return methods || '—';
+};
+
 const ConnectionRow: FC<
     { connection: ExternalConnectionListItem } & Pick<
         Props,
@@ -56,7 +66,7 @@ const ConnectionRow: FC<
         </Table.Td>
         <Table.Td>
             <Text fz="sm" c="ldGray.6">
-                {connection.allowedMethods.join(', ')}
+                {accessLabel(connection)}
             </Text>
         </Table.Td>
         <Table.Td>
@@ -126,7 +136,7 @@ export const ConnectionsTable: FC<Props> = ({
                         <Table.Th w={300}>Name</Table.Th>
                         <Table.Th>Origin</Table.Th>
                         <Table.Th>Auth</Table.Th>
-                        <Table.Th>Methods</Table.Th>
+                        <Table.Th>Access</Table.Th>
                         <Table.Th>Linked apps</Table.Th>
                         <Table.Th>Builder linking</Table.Th>
                         <Table.Th></Table.Th>
