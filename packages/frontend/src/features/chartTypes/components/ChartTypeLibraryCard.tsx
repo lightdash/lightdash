@@ -47,7 +47,8 @@ type Props = {
 
 const ChartTypeLibraryCard: FC<Props> = ({ item, onClick }) => (
     <PolymorphicPaperButton
-        component="div"
+        component="button"
+        type="button"
         withBorder
         radius="md"
         shadow="subtle"

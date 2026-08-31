@@ -1,6 +1,12 @@
+/* Rendered as a native <button> for keyboard access — reset the UA
+   defaults a <div> never had (see AppTemplatePicker.module.css). */
 .card {
     position: relative;
+    width: 100%;
     padding: 0;
+    text-align: left;
+    font: inherit;
+    color: inherit;
     transition:
         box-shadow 150ms ease-in-out,
         transform 150ms ease-in-out;

@@ -196,6 +196,16 @@ describe('ChartTypeLibrarySection', () => {
         ).toBeInTheDocument();
     });
 
+    it('renders each card as a keyboard-focusable button', () => {
+        setFlag(true);
+        setRegistryData([makeItem({ slug: 'radial-gauge' })]);
+        renderSection();
+
+        expect(
+            screen.getByRole('button', { name: /Radial gauge/ }),
+        ).toBeInTheDocument();
+    });
+
     it('opens the detail modal but hides Install without permission', async () => {
         setFlag(true);
         setRegistryData([makeItem({ slug: 'radial-gauge' })]);
@@ -231,6 +241,49 @@ describe('ChartTypeLibrarySection', () => {
 
         expect(
             await screen.findByRole('button', { name: 'Install' }),
+        ).toBeInTheDocument();
+    });
+
+    it('shows the incompatible explanation and disabled Install without gating on permission', async () => {
+        // No defaultAbility grant — the informational incompatible footer
+        // must still render for viewers who cannot create data apps.
+        setFlag(true);
+        setRegistryData([
+            makeItem({
+                slug: 'radial-gauge',
+                state: 'incompatible',
+                minLightdashVersion: '99.0.0',
+            }),
+        ]);
+        renderSection();
+
+        fireEvent.click(screen.getByText('Radial gauge'));
+
+        // findBy (rather than getBy) still gives the async user query a
+        // chance to resolve, to prove this isn't just a race that beat the
+        // (now-absent) permission gate.
+        expect(
+            await screen.findByText('Requires Lightdash v99.0.0 or later'),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Install' })).toBeDisabled();
+    });
+
+    it('shows View in gallery for the installed state without gating on permission', async () => {
+        setFlag(true);
+        setRegistryData([
+            makeItem({
+                slug: 'radial-gauge',
+                state: 'installed',
+                installedAppUuid: 'app-1',
+                installedRegistryVersion: '1.0.0',
+            }),
+        ]);
+        renderSection();
+
+        fireEvent.click(screen.getByText('Radial gauge'));
+
+        expect(
+            await screen.findByRole('button', { name: 'View in gallery' }),
         ).toBeInTheDocument();
     });
 });

@@ -47,25 +47,40 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
         );
     };
 
+    // Only the mutating actions (Install / Upgrade) need the create
+    // permission — the informational states below (view-in-gallery,
+    // incompatible explanation) render for every viewer.
+    const canInstallGate = (button: ReactNode) => (
+        <Can
+            I="create"
+            this={subject('DataApp', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            })}
+        >
+            {button}
+        </Can>
+    );
+
     const footerAction: ReactNode = (() => {
         switch (item.state) {
             case 'not_installed':
-                return (
+                return canInstallGate(
                     <Button
                         loading={installMutation.isLoading}
                         onClick={handleInstall}
                     >
                         Install
-                    </Button>
+                    </Button>,
                 );
             case 'update_available':
-                return (
+                return canInstallGate(
                     <Button
                         loading={installMutation.isLoading}
                         onClick={handleInstall}
                     >
                         Upgrade to v{item.version}
-                    </Button>
+                    </Button>,
                 );
             case 'installed':
                 return (
@@ -99,17 +114,7 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
             subtitle={`v${item.version}`}
             bodyScrollAreaMaxHeight="calc(100vh - 200px)"
             cancelLabel={item.state === 'installed' ? false : 'Cancel'}
-            actions={
-                <Can
-                    I="create"
-                    this={subject('DataApp', {
-                        organizationUuid: user.data?.organizationUuid,
-                        projectUuid,
-                    })}
-                >
-                    {footerAction}
-                </Can>
-            }
+            actions={footerAction}
         >
             <Stack gap="md">
                 {item.screenshots.length > 0 ? (
