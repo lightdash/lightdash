@@ -825,7 +825,7 @@ function compileSelect(
     };
 
     /** MIN/MAX commute with monotonic date conversions, so DATE(col) and date casts unwrap */
-    const aggregateArgRef = (
+    const unwrapAggregateArg = (
         fn: string,
         arg: Expr,
     ): DimensionAggregateArg | null => {
@@ -978,7 +978,7 @@ function compileSelect(
         if (!(fn in DIMENSION_AGGREGATE_TYPES)) return false;
         const distinct = expr.distinct === 'distinct';
         if (distinct && fn !== 'count') return false;
-        const arg = aggregateArgRef(fn, expr.args[0]);
+        const arg = unwrapAggregateArg(fn, expr.args[0]);
         if (!arg) return false;
         const resolved = resolveRef(ctx, arg.ref);
         if (!resolved?.field || resolved.kind !== 'dimension') return false;
@@ -1000,7 +1000,7 @@ function compileSelect(
             ? `${field.name}_pgwire_${metricType}_${castTo}`
             : `${field.name}_pgwire_${metricType}`;
         const fieldId = `${field.table}_${metricName}`;
-        if (!additionalMetrics.some((m) => m.name === metricName)) {
+        if (!metrics.includes(fieldId)) {
             additionalMetrics.push({
                 name: metricName,
                 table: field.table,
@@ -1039,7 +1039,7 @@ function compileSelect(
         const { expr } = col;
         // count(*): a system COUNT(*) metric on the explore's base table
         if (isCountStar(expr)) {
-            if (additionalMetrics.length === 0) {
+            if (!metrics.includes(rowCountFieldId)) {
                 additionalMetrics.push({
                     name: ROW_COUNT_METRIC_NAME,
                     table: table.name,

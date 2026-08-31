@@ -59,6 +59,15 @@ const ORDERS: PgWireTable = {
             type: 'string',
             description: null,
         },
+        // same column name as orders_amount, different table
+        {
+            fieldId: 'customers_amount',
+            table: 'customers',
+            name: 'amount',
+            kind: 'dimension',
+            type: 'number',
+            description: null,
+        },
         {
             fieldId: 'orders_total_order_amount',
             table: 'orders',
@@ -190,6 +199,7 @@ describe('compileSqlToMetricQuery', () => {
                 'orders_is_completed',
                 'orders_amount',
                 'customers_first_name',
+                'customers_amount',
             ]);
             expect(result.metricQuery.metrics).toEqual([
                 'orders_total_order_amount',
@@ -1464,7 +1474,7 @@ describe('aggregate passthrough', () => {
 });
 
 describe('dimension aggregates', () => {
-    it('compiles the Looker Studio date-range probe (ticket repro)', () => {
+    it('compiles the Looker Studio date-range probe', () => {
         const compiled = compileSqlToMetricQuery(
             'SELECT MIN(DATE(orders_order_date)) AS min_date, MAX(DATE(orders_order_date)) AS max_date FROM orders',
             CATALOG,
@@ -1506,7 +1516,7 @@ describe('dimension aggregates', () => {
         ]);
     });
 
-    it('compiles SUM over a numeric dimension (ticket repro)', () => {
+    it('compiles SUM over a numeric dimension', () => {
         const compiled = compileSqlToMetricQuery(
             'SELECT SUM(orders_amount) AS amount FROM orders',
             CATALOG,
@@ -1590,6 +1600,33 @@ describe('dimension aggregates', () => {
             );
             expect(compiled.columns[0].type).toBe('date');
         }
+    });
+
+    it('keeps count(*) working alongside dimension aggregates', () => {
+        const compiled = compileSqlToMetricQuery(
+            'SELECT MIN(orders_order_date) AS m, COUNT(*) AS c FROM orders',
+            CATALOG,
+        );
+        expect(compiled.metricQuery.metrics).toEqual([
+            'orders_order_date_pgwire_min',
+            'orders_pgwire_row_count',
+        ]);
+        expect(compiled.metricQuery.additionalMetrics).toHaveLength(2);
+    });
+
+    it('keeps same-named dimensions from different tables distinct', () => {
+        const compiled = compileSqlToMetricQuery(
+            'SELECT sum(orders_amount) AS a, sum(customers_amount) AS b FROM orders',
+            CATALOG,
+        );
+        expect(compiled.metricQuery.metrics).toEqual([
+            'orders_amount_pgwire_sum',
+            'customers_amount_pgwire_sum',
+        ]);
+        expect(compiled.metricQuery.additionalMetrics).toHaveLength(2);
+        expect(
+            compiled.metricQuery.additionalMetrics?.map((m) => m.table),
+        ).toEqual(['orders', 'customers']);
     });
 
     it('reuses one additional metric for repeated aggregates', () => {
