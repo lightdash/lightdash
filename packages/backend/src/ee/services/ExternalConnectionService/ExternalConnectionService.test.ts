@@ -1161,6 +1161,7 @@ describe('ExternalConnectionService proposeConfig', () => {
         name: 'Example API',
         origin: 'https://api.example.com',
         type: 'bearer_token',
+        allowBrowserImages: false,
         apiKeyName: null,
         apiKeyLocation: null,
         oauthScopes: null,

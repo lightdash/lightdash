@@ -11,6 +11,7 @@ const proposal = (
     name: 'Google Sheets',
     origin: 'https://sheets.googleapis.com',
     type: 'google_service_account',
+    allowBrowserImages: false,
     apiKeyName: null,
     apiKeyLocation: null,
     oauthScopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
@@ -47,6 +48,18 @@ describe('applyProposalToWizardValues', () => {
         expect(values.allowedPathPrefixes.map((p) => p.value)).toEqual([
             '/v4/spreadsheets',
         ]);
+    });
+
+    it('applies browser image access from the proposal', () => {
+        const values = applyProposalToWizardValues(
+            proposal({
+                type: 'none',
+                allowBrowserImages: true,
+                allowedMethods: [],
+            }),
+        );
+        expect(values.allowBrowserImages).toBe(true);
+        expect(values.allowedMethods).toEqual([]);
     });
 
     it('derives allow-all path mode from a root prefix', () => {

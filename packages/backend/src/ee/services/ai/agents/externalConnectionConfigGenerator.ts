@@ -24,13 +24,18 @@ const MAX_PATH_PREFIXES = 20;
 const MAX_CUSTOM_HEADERS = 20;
 const MAX_OAUTH_SCOPES = 10;
 
-// The wizard hides content types and always creates JSON connections; the
-// proposal validates against the same default so what the user saves is what
-// was checked here.
+// The wizard hides content types. Keep these defaults in sync with its create
+// payload so the proposal is validated as the config the user will save.
 const PROPOSAL_ALLOWED_CONTENT_TYPES = ['application/json'];
+const PROPOSAL_BROWSER_IMAGE_CONTENT_TYPES = [
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    'image/gif',
+];
 
 const NOT_CONFIDENT_MESSAGE =
-    'Couldn\'t identify which API to connect to. Try naming the provider explicitly, e.g. "the Google Sheets API".';
+    "Couldn't identify which API or image host to connect to. Try naming the provider or domain explicitly.";
 
 // No `.max()` on arrays (Anthropic structured output rejects maxItems) and no
 // z.record (it emits additionalProperties) — caps live in the prompt and are
@@ -39,7 +44,7 @@ const ProposalSchema = z.object({
     confident: z
         .boolean()
         .describe(
-            'False when no specific API service could be identified from the description',
+            'False when no specific API service or public image host could be identified from the description',
         ),
     name: z
         .string()
@@ -48,11 +53,16 @@ const ProposalSchema = z.object({
         .string()
         .nullable()
         .describe(
-            'Official https base URL of the API host with no path, e.g. https://sheets.googleapis.com. Null when not confident.',
+            'Official https base URL of the API or public image host with no path, e.g. https://sheets.googleapis.com. Null when not confident.',
         ),
     type: z
         .enum(['none', 'api_key', 'bearer_token', 'google_service_account'])
         .describe('How the API authenticates requests'),
+    allowBrowserImages: z
+        .boolean()
+        .describe(
+            'Whether linked apps may load public images directly from this origin in the browser',
+        ),
     apiKeyName: z
         .string()
         .nullable()
@@ -112,16 +122,17 @@ const ProposalSchema = z.object({
 type RawProposal = z.infer<typeof ProposalSchema>;
 
 export const buildProposalSystemPrompt = (): string =>
-    `You configure outbound HTTP connections ("external connections") for Lightdash data apps. A connection is an egress allowlist plus auth config enforced by a server-side proxy. Propose exactly one connection config for the user's described integration.
+    `You configure outbound HTTP connections ("external connections") for Lightdash data apps. A connection is an egress allowlist plus auth config enforced by a server-side proxy and can separately allow direct browser image loading. Propose exactly one connection config for the user's described integration.
 
 FIELD SEMANTICS:
-- origin: the https base URL of the API host — bare host, no path or query (e.g. https://sheets.googleapis.com).
+- origin: the https base URL of the API or public image host — bare host, no path or query (e.g. https://sheets.googleapis.com).
 - allowedPathPrefixes: absolute path prefixes (starting with /) the proxy allows, matched on whole path segments.
 - allowedMethods: HTTP methods the proxy allows.
 - type api_key: credential sent as a header or query parameter — set apiKeyName and apiKeyLocation.
 - type bearer_token: credential sent as "Authorization: Bearer <token>".
 - type google_service_account: service-account keyfile JSON with least-privilege oauthScopes.
 - type none: public API, no credential.
+- allowBrowserImages: whether linked apps may load public images directly from this origin in image tags, CSS, or map tile layers. This bypasses the server-side proxy and is only valid with type none.
 - customHeaders: static NON-SECRET headers sent on every request (e.g. version headers like anthropic-version). Never put credentials here — credential-shaped header names are rejected.
 - instructions: guidance for the AI that later builds data apps on this connection — key endpoints, request/response shapes, pagination, quirks. At most ~1500 characters.
 - credentialGuide: numbered markdown steps the user follows in the provider's console to create or find the credential, using the least-privilege role/scope, ending with a link to the relevant docs page. Null only for type none.
@@ -129,8 +140,9 @@ FIELD SEMANTICS:
 - notes: short caveats the user must double-check (e.g. region-specific hosts, plan requirements). Null when none.
 
 RULES:
-- The origin MUST be the provider's official documented API host. Never guess lookalike domains or regional variants you are unsure about. If you cannot confidently identify a specific service, set confident=false and origin=null instead of guessing.
+- The origin MUST be the provider's official documented API or public image host. Never guess lookalike domains or regional variants you are unsure about. If you cannot confidently identify a specific service or image host, set confident=false and origin=null instead of guessing.
 - Least privilege: propose the narrowest allowedPathPrefixes and allowedMethods that serve the described use case. GET-only unless the use case clearly needs writes. Use ["/"] only when the API genuinely requires broad path access.
+- Set allowBrowserImages=true only when the user explicitly wants to render public images or map tiles from the origin. For an image-only connection, use type=none and allowedMethods=[] because no proxy access is needed. Otherwise set allowBrowserImages=false.
 - NEVER include, invent, or placeholder any credential value anywhere in the config.
 - For Google-hosted APIs prefer type google_service_account with minimal scopes, and make credentialGuide mention sharing the target resource with the service account's client_email.
 - At most ${MAX_PATH_PREFIXES} allowedPathPrefixes, ${MAX_CUSTOM_HEADERS} customHeaders, and ${MAX_OAUTH_SCOPES} oauthScopes.`;
@@ -153,11 +165,12 @@ const normalizeOrigin = (origin: string): string => {
 
 const normalizeMethods = (
     methods: ExternalConnectionMethod[],
+    allowBrowserImages: boolean,
 ): ExternalConnectionMethod[] => {
     const unique = EXTERNAL_CONNECTION_METHODS.filter((method) =>
         methods.includes(method),
     );
-    return unique.length > 0 ? unique : ['GET'];
+    return unique.length > 0 || allowBrowserImages ? unique : ['GET'];
 };
 
 const normalizePathPrefixes = (prefixes: string[]): string[] => {
@@ -214,11 +227,15 @@ export const normalizeProposal = (
         name,
         origin,
         type: raw.type,
+        allowBrowserImages: raw.allowBrowserImages,
         apiKeyName: isApiKey ? normalizeString(raw.apiKeyName) : null,
         apiKeyLocation: isApiKey ? (raw.apiKeyLocation ?? 'header') : null,
         oauthScopes,
         customHeaders: normalizeCustomHeaders(raw.customHeaders),
-        allowedMethods: normalizeMethods(raw.allowedMethods),
+        allowedMethods: normalizeMethods(
+            raw.allowedMethods,
+            raw.allowBrowserImages,
+        ),
         allowedPathPrefixes: normalizePathPrefixes(raw.allowedPathPrefixes),
         instructions: normalizeString(raw.instructions),
         credentialGuide:
@@ -233,10 +250,16 @@ const toValidatableConfig = (
 ): ValidatableExternalConnectionConfig => ({
     type: proposal.type,
     origin: proposal.origin,
+    allowBrowserImages: proposal.allowBrowserImages,
     instructions: proposal.instructions,
     allowedPathPrefixes: proposal.allowedPathPrefixes,
     allowedMethods: proposal.allowedMethods,
-    allowedContentTypes: PROPOSAL_ALLOWED_CONTENT_TYPES,
+    allowedContentTypes: proposal.allowBrowserImages
+        ? [
+              ...PROPOSAL_ALLOWED_CONTENT_TYPES,
+              ...PROPOSAL_BROWSER_IMAGE_CONTENT_TYPES,
+          ]
+        : PROPOSAL_ALLOWED_CONTENT_TYPES,
     apiKeyName: proposal.apiKeyName,
     apiKeyLocation: proposal.apiKeyLocation,
     oauthScopes: proposal.oauthScopes,
