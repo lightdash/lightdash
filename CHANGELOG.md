@@ -1,3 +1,10 @@
+## [2.64.1](https://github.com/lightdash/lightdash/compare/2.64.0...2.64.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* **data-apps:** configure image origins in AI onboarding ([#28348](https://github.com/lightdash/lightdash/issues/28348)) ([ba9ec23](https://github.com/lightdash/lightdash/commit/ba9ec23656d212e54d8465b46a84d2899c9b9ef5))
+
 # [2.64.0](https://github.com/lightdash/lightdash/compare/2.63.0...2.64.0) (2026-08-31)
 
 

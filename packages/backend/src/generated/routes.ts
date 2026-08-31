@@ -13005,6 +13005,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                allowBrowserImages: { dataType: 'boolean', required: true },
                 type: { ref: 'ExternalConnectionAuthType', required: true },
                 origin: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
