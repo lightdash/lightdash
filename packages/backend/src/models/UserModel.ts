@@ -32,6 +32,7 @@ import {
     ProjectType,
     Role,
     RoleWithScopes,
+    ServiceAccount,
     ServiceAccountScope,
     SessionUser,
     UpdateUserArgs,
@@ -1229,12 +1230,14 @@ export class UserModel {
         userUuid: string,
         { trx = this.database }: { trx?: Knex } = {},
     ): Promise<
-        | {
-              uuid: string;
-              description: string;
-              scopes: ServiceAccountScope[];
-              organizationUuid: string;
-          }
+        | Pick<
+              ServiceAccount,
+              | 'uuid'
+              | 'description'
+              | 'scopes'
+              | 'organizationUuid'
+              | 'expiresAt'
+          >
         | undefined
     > {
         const row = await trx('service_accounts')
@@ -1245,12 +1248,14 @@ export class UserModel {
                     description: string;
                     scopes: string[];
                     organization_uuid: string;
+                    expires_at: Date | null;
                 }[]
             >(
                 'service_account_uuid',
                 'description',
                 'scopes',
                 'organization_uuid',
+                'expires_at',
             )
             .first();
         if (!row) {
@@ -1261,6 +1266,7 @@ export class UserModel {
             description: row.description,
             scopes: row.scopes as ServiceAccountScope[],
             organizationUuid: row.organization_uuid,
+            expiresAt: row.expires_at,
         };
     }
 

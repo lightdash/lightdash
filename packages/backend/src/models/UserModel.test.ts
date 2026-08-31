@@ -51,18 +51,7 @@ type TestableUserModel = {
         organizationId: number,
         trx?: Knex,
     ) => Promise<string[]>;
-    findServiceAccountByUserUuid: (
-        userUuid: string,
-        options?: { trx?: Knex },
-    ) => Promise<
-        | {
-              uuid: string;
-              description: string;
-              scopes: ServiceAccountScope[];
-              organizationUuid: string;
-          }
-        | undefined
-    >;
+    findServiceAccountByUserUuid: UserModel['findServiceAccountByUserUuid'];
     customRoleScopes: (
         roleUuids: string[],
         trx?: Knex,
@@ -135,6 +124,7 @@ const createUserModel = (): TestableUserModel => {
         description: 'Service account',
         scopes: [ServiceAccountScope.SYSTEM_MEMBER],
         organizationUuid: 'org-1',
+        expiresAt: null,
     }));
     model.customRoleScopes = vi.fn(async () => ({
         'custom-role': ['view:Dashboard'],

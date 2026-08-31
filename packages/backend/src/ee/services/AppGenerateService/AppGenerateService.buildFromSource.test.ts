@@ -1,6 +1,10 @@
+import { Ability } from '@casl/ability';
 import {
+    ProjectType,
     type AppBuildFromSourceJobPayload,
     type AppVersionDependencies,
+    type ServiceAccount,
+    type SessionUser,
 } from '@lightdash/common';
 import { AppGenerateService } from './AppGenerateService';
 
@@ -68,10 +72,45 @@ const CUSTOM_DEPS: AppVersionDependencies = {
     lockfileHash: 'abc123',
 };
 
+type ServiceAccountLookup = Pick<
+    ServiceAccount,
+    'uuid' | 'description' | 'scopes' | 'organizationUuid' | 'expiresAt'
+>;
+
+const SERVICE_ACCOUNT: ServiceAccountLookup = {
+    uuid: 'service-account-uuid',
+    description: 'CI',
+    scopes: [],
+    organizationUuid: 'org-uuid-1',
+    expiresAt: null,
+};
+
+const makeServiceAccountUser = (): SessionUser => {
+    const ability = new Ability([{ action: 'manage', subject: 'DataApp' }]);
+    return {
+        userUuid: 'user-uuid-1',
+        organizationUuid: 'org-uuid-1',
+        isActive: false,
+        ability,
+        abilityRules: ability.rules,
+    } as unknown as SessionUser;
+};
+
 function buildService(
     versionDependencies: AppVersionDependencies | null = null,
+    authorization?: {
+        user: SessionUser;
+        serviceAccount: ServiceAccountLookup | undefined;
+    },
 ) {
     const appModel = {
+        getApp: vi.fn().mockResolvedValue({
+            app_id: 'app-uuid-1',
+            project_uuid: 'proj-uuid-1',
+            organization_uuid: 'org-uuid-1',
+            space_uuid: null,
+            created_by_user_uuid: 'user-uuid-1',
+        }),
         updateVersionStatusIfInProgress: vi.fn().mockResolvedValue(true),
         updateSandboxUuid: vi.fn().mockResolvedValue(undefined),
         updateStatusMessage: vi.fn().mockResolvedValue(undefined),
@@ -84,6 +123,14 @@ function buildService(
                     : null,
             ),
     };
+    const userModel = {
+        findSessionUserAndOrgByUuid: vi
+            .fn()
+            .mockResolvedValue(authorization?.user),
+        findServiceAccountByUserUuid: vi
+            .fn<() => Promise<ServiceAccountLookup | undefined>>()
+            .mockResolvedValue(authorization?.serviceAccount),
+    };
 
     const raw = new AppGenerateService({
         lightdashConfig: {
@@ -95,20 +142,36 @@ function buildService(
         analytics: {} as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
-        userModel: {} as never,
+        userModel: userModel as never,
         appModel: appModel as never,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
         } as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
-        projectModel: {} as never,
+        projectModel: {
+            getSummary: vi.fn().mockResolvedValue({
+                organizationUuid: 'org-uuid-1',
+                type: ProjectType.DEFAULT,
+                createdByUserUuid: 'user-uuid-1',
+                upstreamProjectUuid: null,
+            }),
+        } as never,
         projectParametersModel: {} as never,
         spaceModel: {} as never,
         savedChartModel: {} as never,
         schedulerClient: {} as never,
         savedChartService: {} as never,
-        spacePermissionService: {} as never,
+        spacePermissionService: {
+            resolveAccess: vi.fn().mockResolvedValue({
+                organizationUuid: 'org-uuid-1',
+                projectUuid: 'proj-uuid-1',
+                inheritsFromOrgOrProject: false,
+                admins: [],
+                access: [],
+                directOnly: false,
+            }),
+        } as never,
         coderService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
@@ -141,9 +204,11 @@ function buildService(
     service.uploadToS3 = vi.fn().mockResolvedValue(100);
     service.suspendSandbox = vi.fn().mockResolvedValue(undefined);
     service.markError = vi.fn().mockResolvedValue(true);
-    service.authorizePipelineExecution = vi.fn().mockResolvedValue({});
+    if (authorization === undefined) {
+        service.authorizePipelineExecution = vi.fn().mockResolvedValue({});
+    }
 
-    return { service, appModel };
+    return { service, appModel, userModel };
 }
 
 describe('AppGenerateService.runBuildFromSourcePipeline', () => {
@@ -170,6 +235,40 @@ describe('AppGenerateService.runBuildFromSourcePipeline', () => {
         expect(service.getS3Client).not.toHaveBeenCalled();
         expect(service.createSandbox).not.toHaveBeenCalled();
         expect(service.runBuild).not.toHaveBeenCalled();
+    });
+
+    it('builds when queued by a valid service account', async () => {
+        const { service } = buildService(null, {
+            user: makeServiceAccountUser(),
+            serviceAccount: SERVICE_ACCOUNT,
+        });
+        service.runBuild = vi
+            .fn()
+            .mockResolvedValue({ exitCode: 0, stdout: '', stderr: '' });
+
+        await service.runBuildFromSourcePipeline(makePayload());
+
+        expect(service.markError).not.toHaveBeenCalled();
+        expect(service.createSandbox).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+        ['deleted', undefined],
+        ['expired', { ...SERVICE_ACCOUNT, expiresAt: new Date('2020-01-01') }],
+        [
+            'cross-organization',
+            { ...SERVICE_ACCOUNT, organizationUuid: 'other-organization' },
+        ],
+    ])('rejects a %s service account', async (_name, serviceAccount) => {
+        const { service } = buildService(null, {
+            user: makeServiceAccountUser(),
+            serviceAccount,
+        });
+
+        await service.runBuildFromSourcePipeline(makePayload());
+
+        expect(service.markError).toHaveBeenCalledOnce();
+        expect(service.createSandbox).not.toHaveBeenCalled();
     });
 
     it('happy path: advances sandbox→building→packaging→ready, uploads, no markError', async () => {
