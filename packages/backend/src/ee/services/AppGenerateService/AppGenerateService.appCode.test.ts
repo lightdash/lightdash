@@ -235,6 +235,7 @@ function buildService(
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
 
     // Stub ability checks to allow everything

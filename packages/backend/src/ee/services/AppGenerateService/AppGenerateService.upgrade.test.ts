@@ -138,6 +138,7 @@ function buildService(
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
 
     const canManage = opts.canManage ?? true;

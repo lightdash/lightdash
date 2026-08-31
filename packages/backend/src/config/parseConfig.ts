@@ -2099,6 +2099,12 @@ export type AppRuntimeConfig = {
      * the UI. Env var `LIGHTDASH_APP_SAMPLE_DATA_ENABLED`; defaults to `true`.
      */
     sampleDataEnabled: boolean;
+    chartRegistry: {
+        /** null disables the chart type library entirely */
+        url: string | null;
+        /** dev-only: allow http/private addresses for a local fixture registry */
+        allowInsecure: boolean;
+    };
 };
 
 export type DataAppOtelConfig = {
@@ -2305,6 +2311,8 @@ export type PostmarkConfig = {
 };
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
+
+const DEFAULT_CHART_REGISTRY_URL: string | null = null; // flip to the official registry URL at bootstrap (see charts-repo plan)
 
 const parseSandboxProvider = (
     value: string | undefined,
@@ -2529,6 +2537,16 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             'false',
         sampleDataEnabled:
             process.env.LIGHTDASH_APP_SAMPLE_DATA_ENABLED !== 'false',
+        chartRegistry: {
+            // Unset → official registry once the repo exists; explicit '' → disabled.
+            url: ((raw) => {
+                if (raw === undefined) return DEFAULT_CHART_REGISTRY_URL;
+                const trimmed = raw.trim();
+                return trimmed === '' ? null : trimmed.replace(/\/$/, '');
+            })(process.env.LIGHTDASH_CHART_REGISTRY_URL),
+            allowInsecure:
+                process.env.LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE === 'true',
+        },
     };
 };
 

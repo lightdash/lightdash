@@ -98,6 +98,7 @@ function buildService(
         } as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
     // Bypass real CASL — the mapping/flow is what these tests cover.
     (

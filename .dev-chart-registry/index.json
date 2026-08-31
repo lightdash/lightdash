@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-31T16:41:34.121Z",
+  "charts": [
+    {
+      "slug": "fixture-gauge",
+      "name": "Fixture Gauge",
+      "description": "Dev/E2E fixture chart type — a minimal renderer used to validate the chart registry install/upgrade flow locally.",
+      "version": "1.2.0",
+      "publishedAt": "2026-08-31T16:41:34.120Z",
+      "tags": [
+        "fixture"
+      ],
+      "changelog": "Fixture upgrade",
+      "minLightdashVersion": null,
+      "vizSchema": {
+        "fields": [
+          {
+            "name": "value",
+            "label": "Value",
+            "type": "metric",
+            "required": true
+          },
+          {
+            "name": "category",
+            "label": "Category",
+            "type": "dimension",
+            "required": false
+          }
+        ],
+        "configOptions": [],
+        "colorPalette": null
+      },
+      "thumbnail": "charts/fixture-gauge/1.2.0/thumb.png",
+      "screenshots": [
+        "charts/fixture-gauge/1.2.0/screenshot-1.png"
+      ],
+      "artifacts": {
+        "source": {
+          "path": "charts/fixture-gauge/1.2.0/source.tar",
+          "sha256": "b71e1ccb842915d8906348848a10b5d34e8fed022cff0e56a29c459ade50802c"
+        },
+        "dist": {
+          "path": "charts/fixture-gauge/1.2.0/dist.tar",
+          "sha256": "5c50a13d09ed0547c6b8ea9399ec19c87ef41fa7e6884f9e65680b3b34c7baae"
+        }
+      }
+    }
+  ]
+}

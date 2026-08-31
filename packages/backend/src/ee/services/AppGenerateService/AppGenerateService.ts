@@ -177,6 +177,7 @@ import {
     getOtelTraceHeaders,
     runWithOtelSpanContext,
 } from '../../../tracing/tracing';
+import { ChartRegistryClient } from '../../clients/ChartRegistryClient';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -367,9 +368,10 @@ type AppGenerateServiceDeps = {
     externalConnectionModel: ExternalConnectionModel;
     sandboxRegistryModel: SandboxRegistryModel;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
-    /** Test seams: null in production, where both are built from config. */
+/** Test seams: null in production, where both are built from config. */
     sandboxManager: SandboxManagerPort | null;
     appRuntimeS3: AppRuntimeS3 | null;
+    chartRegistryClient: ChartRegistryClient;
 };
 
 // Inputs for the AI agent's code-free data app read: manifest fields, the
@@ -591,7 +593,9 @@ export class AppGenerateService extends BaseService {
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
-    private readonly appRuntimeS3: AppRuntimeS3 | null;
+private readonly appRuntimeS3: AppRuntimeS3 | null;
+
+    private readonly chartRegistryClient: ChartRegistryClient;
 
     private sandboxManager: SandboxManagerPort | undefined;
 
@@ -624,8 +628,9 @@ export class AppGenerateService extends BaseService {
         externalConnectionModel,
         sandboxRegistryModel,
         orgAiCopilotConfigResolver,
-        sandboxManager,
+sandboxManager,
         appRuntimeS3,
+        chartRegistryClient,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -651,8 +656,9 @@ export class AppGenerateService extends BaseService {
         this.externalConnectionModel = externalConnectionModel;
         this.sandboxRegistryModel = sandboxRegistryModel;
         this.orgAiCopilotConfigResolver = orgAiCopilotConfigResolver;
-        this.sandboxManager = sandboxManager ?? undefined;
+this.sandboxManager = sandboxManager ?? undefined;
         this.appRuntimeS3 = appRuntimeS3;
+        this.chartRegistryClient = chartRegistryClient;
     }
 
     private async getDataAppProjectContext(
