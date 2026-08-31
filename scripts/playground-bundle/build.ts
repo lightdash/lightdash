@@ -25,6 +25,7 @@ import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { DbtLocalProjectAdapter } from '../../packages/backend/src/projectAdapters/dbtLocalProjectAdapter';
 import { playgroundContent } from './content';
+import { replaceTableMaterializations } from './projectYaml';
 
 type DuckDbConnection = {
     closeSync(): void;
@@ -217,13 +218,7 @@ const main = async () => {
     });
     const projectFile = path.join(dbtProjectDir, 'dbt_project.yml');
     const projectYaml = await readFile(projectFile, 'utf8');
-    await writeFile(
-        projectFile,
-        projectYaml.replace(
-            '    materialized: table',
-            '    materialized: view',
-        ),
-    );
+    await writeFile(projectFile, replaceTableMaterializations(projectYaml));
     const profiles = `jaffle_shop:
   target: jaffle
   outputs:
