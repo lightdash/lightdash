@@ -91,14 +91,13 @@ const EditConnectionModalContent: FC<Props> = ({
                     : null;
             },
             customHeaders: validateCustomHeaderRows,
-            allowedMethods: (value) =>
-                value.length === 0 ? 'Select at least one method' : null,
+            allowedMethods: (value, values) =>
+                value.length === 0 && !values.allowBrowserImages
+                    ? 'Select at least one method or allow public images'
+                    : null,
             allowBrowserImages: (value, values) => {
                 if (value && values.type !== 'none') {
                     return 'Public browser images require no authentication';
-                }
-                if (value && !values.allowedMethods.includes('GET')) {
-                    return 'Public browser images require GET';
                 }
                 return null;
             },
