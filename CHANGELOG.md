@@ -1,3 +1,10 @@
+# [2.62.0](https://github.com/lightdash/lightdash/compare/2.61.0...2.62.0) (2026-08-31)
+
+
+### Features
+
+* **data-apps:** allow image-only external connections ([#28335](https://github.com/lightdash/lightdash/issues/28335)) ([509b14c](https://github.com/lightdash/lightdash/commit/509b14cb2c8ac6b2735e9650dace472bc9118b2b))
+
 # [2.61.0](https://github.com/lightdash/lightdash/compare/2.60.1...2.61.0) (2026-08-31)
 
 
