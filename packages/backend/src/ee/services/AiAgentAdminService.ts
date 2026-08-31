@@ -2394,12 +2394,10 @@ export class AiAgentAdminService extends BaseService {
 
             if (
                 plan.strategy === 'prompt' &&
-                plan.dbtSourceResolution !== 'unique'
+                plan.dbtSourceResolution === 'ambiguous'
             ) {
                 throw new ParameterError(
-                    plan.dbtSourceResolution === 'ambiguous'
-                        ? 'This finding spans more than one dbt source. A single writeback cannot safely target several repositories at once.'
-                        : 'Could not determine which dbt source this finding belongs to, so the automatic writeback was skipped.',
+                    'This finding spans more than one dbt source. A single writeback cannot safely target several repositories at once.',
                 );
             }
 

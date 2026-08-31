@@ -2602,13 +2602,51 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
         );
     });
 
+    it('continues the build-fix thread when the dbt source is unresolved', async () => {
+        const generateAgentThreadResponse = vi
+            .fn()
+            .mockResolvedValue('Opened a pull request.');
+        const setReviewItemWritebackStatus = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                getReviewItem: vi.fn().mockResolvedValue(
+                    makeReviewItem({
+                        latestFinding: makeLatestFinding(),
+                    }),
+                ),
+                setReviewItemWritebackStatus,
+            },
+            projectModel: {
+                findExploresFromCache: vi.fn().mockResolvedValue({
+                    orders: {
+                        name: 'orders',
+                        tables: {
+                            orders: {
+                                name: 'orders',
+                                ymlPath: 'models/orders.yml',
+                            },
+                        },
+                    },
+                }),
+            },
+            aiAgentService: { generateAgentThreadResponse },
+        });
+
+        await expect(
+            service.runReviewItemWritebackJob(payload),
+        ).resolves.toBeUndefined();
+        expect(generateAgentThreadResponse).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ dbtSourceUuid: undefined }),
+        );
+        expect(setReviewItemWritebackStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: 'completed' }),
+        );
+    });
+
     it.each([
-        {
-            resolution: 'unresolved',
-            sourceUuids: [],
-            expectedMessage:
-                'Could not determine which dbt source this finding belongs to, so the automatic writeback was skipped.',
-        },
         {
             resolution: 'ambiguous',
             sourceUuids: [
@@ -2621,10 +2659,7 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
     ])(
         'fails an $resolution source before starting the build-fix thread',
         async ({ sourceUuids, expectedMessage }) => {
-            const modelNames =
-                sourceUuids.length === 0
-                    ? ['orders']
-                    : sourceUuids.map((_, index) => `model_${index}`);
+            const modelNames = sourceUuids.map((_, index) => `model_${index}`);
             const generateAgentThreadResponse = vi.fn();
             const updateReviewRemediationStatus = vi
                 .fn()
