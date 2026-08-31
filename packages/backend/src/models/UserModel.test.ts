@@ -1,5 +1,11 @@
-import { subject, type AbilityBuilder, type RawRuleOf } from '@casl/ability';
 import {
+    Ability,
+    AbilityBuilder,
+    subject,
+    type RawRuleOf,
+} from '@casl/ability';
+import {
+    CommercialFeatureFlags,
     LightdashMode,
     LightdashUser,
     MemberAbility,
@@ -8,6 +14,7 @@ import {
     PasswordLoginBlockedError,
     projectMemberAbilities,
     ProjectMemberRole,
+    ProjectType,
     ServiceAccountScope,
     type SessionUser,
 } from '@lightdash/common';
@@ -17,6 +24,13 @@ import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { type LightdashConfig } from '../config/parseConfig';
 import { EmailTableName } from '../database/entities/emails';
 import { PasswordLoginTableName } from '../database/entities/passwordLogins';
+import { ProjectMembershipCustomRolesTableName } from '../database/entities/projectMembershipCustomRoles';
+import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
+import { ProjectTableName } from '../database/entities/projects';
+import {
+    RolesTableName,
+    ScopedRolesTableName,
+} from '../database/entities/roles';
 import { UserTableName } from '../database/entities/users';
 import { hashWithSecret } from '../utils/hash';
 import { type FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
@@ -56,6 +70,7 @@ type TestableUserModel = {
         roleUuids: string[],
         trx?: Knex,
     ) => Promise<Record<string, string[]>>;
+    roleExists: (roleUuid: string, trx?: Knex) => Promise<boolean>;
     applyServiceAccountProjectMemberships: (
         userId: number,
         userUuid: string,
@@ -501,6 +516,382 @@ describe('UserModel', () => {
                         organizationUuid: userDetails.organization_uuid,
                     }),
                 ),
+            ).toBe(true);
+        });
+    });
+
+    describe('customRoleScopes (loader)', () => {
+        // Table-scoped fake trx: avoids knex-mock-client's global tracker,
+        // whose SQL-substring matcher can't tell "roles" from "scoped_roles".
+        const createScopedRolesTrx = (
+            scopedRolesRows: { role_uuid: string; scope_name: string }[],
+        ) =>
+            vi.fn((tableName: string) => {
+                if (tableName === ScopedRolesTableName) {
+                    return {
+                        select: () => ({
+                            whereIn: async () => scopedRolesRows,
+                        }),
+                    };
+                }
+                throw new Error(`Unexpected table ${tableName}`);
+            }) as unknown as Knex;
+
+        const createRawUserModel = (
+            scopedRolesRows: { role_uuid: string; scope_name: string }[],
+        ) =>
+            new UserModel({
+                database: createScopedRolesTrx(scopedRolesRows),
+                lightdashConfig,
+                featureFlagModel,
+            }) as unknown as TestableUserModel;
+
+        // Only scoped_roles rows drive this map: an existing role with zero
+        // rows and a missing/unknown roleUuid are indistinguishable here —
+        // both produce no entry. Distinguishing them is the narrow job of
+        // `roleExists`, scoped to the human primary-org-role check only.
+        it('omits a role with zero scoped_roles rows entirely, rather than an empty list', async () => {
+            const model = createRawUserModel([]);
+
+            const result = await model.customRoleScopes(['empty-role']);
+
+            expect(result).toEqual({});
+            expect(
+                Object.prototype.hasOwnProperty.call(result, 'empty-role'),
+            ).toBe(false);
+        });
+
+        it('omits a missing/unknown roleUuid entirely, rather than an empty list', async () => {
+            const model = createRawUserModel([]);
+
+            const result = await model.customRoleScopes(['unknown-role']);
+
+            expect(result).toEqual({});
+            expect(
+                Object.prototype.hasOwnProperty.call(result, 'unknown-role'),
+            ).toBe(false);
+        });
+
+        it('still returns the stored scopes for a role that has them', async () => {
+            const model = createRawUserModel([
+                { role_uuid: 'scoped-role', scope_name: 'view:Dashboard' },
+                { role_uuid: 'scoped-role', scope_name: 'manage:Space' },
+            ]);
+
+            await expect(
+                model.customRoleScopes(['scoped-role']),
+            ).resolves.toEqual({
+                'scoped-role': ['view:Dashboard', 'manage:Space'],
+            });
+        });
+    });
+
+    describe('roleExists', () => {
+        const createRolesTrx = (rolesRows: { role_uuid: string }[]) =>
+            vi.fn((tableName: string) => {
+                if (tableName === RolesTableName) {
+                    return {
+                        select: () => ({
+                            where: () => ({
+                                first: async () => rolesRows[0],
+                            }),
+                        }),
+                    };
+                }
+                throw new Error(`Unexpected table ${tableName}`);
+            }) as unknown as Knex;
+
+        const createRawUserModel = (rolesRows: { role_uuid: string }[]) =>
+            new UserModel({
+                database: createRolesTrx(rolesRows),
+                lightdashConfig,
+                featureFlagModel,
+            }) as unknown as TestableUserModel;
+
+        it('resolves true for an existing role uuid', async () => {
+            const model = createRawUserModel([{ role_uuid: 'exists' }]);
+
+            await expect(model.roleExists('exists')).resolves.toBe(true);
+        });
+
+        it('resolves false for a missing/unknown role uuid', async () => {
+            const model = createRawUserModel([]);
+
+            await expect(model.roleExists('missing')).resolves.toBe(false);
+        });
+    });
+
+    describe('org custom role PAT scope authority (pat-scope-authoritative flag)', () => {
+        const orgCustomRoleUuid = 'org-custom-role';
+        const patHumanDetails: DbUserDetails = {
+            ...userDetails,
+            user_uuid: 'pat-human-user',
+            is_internal: false,
+            role: OrganizationMemberRole.MEMBER,
+            role_uuid: orgCustomRoleUuid,
+        };
+
+        const patLightdashConfig = {
+            ...lightdashConfig,
+            auth: {
+                pat: {
+                    enabled: true,
+                    allowedOrgRoles: [OrganizationMemberRole.MEMBER],
+                },
+            },
+            customRoles: { enabled: true },
+            license: { licenseKey: 'test-license-key' },
+        } as unknown as LightdashConfig;
+
+        const createFeatureFlagModelFor = (
+            patScopeAuthoritative: boolean,
+        ): FeatureFlagModel =>
+            ({
+                get: vi.fn(async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId ===
+                        CommercialFeatureFlags.PatScopeAuthoritative
+                            ? patScopeAuthoritative
+                            : false,
+                })),
+            }) as unknown as FeatureFlagModel;
+
+        const createPatHumanModel = (
+            patScopeAuthoritative: boolean,
+            roleScopes: string[],
+        ) => {
+            const model = new UserModel({
+                database: vi.fn() as unknown as Knex,
+                lightdashConfig: patLightdashConfig,
+                featureFlagModel: createFeatureFlagModelFor(
+                    patScopeAuthoritative,
+                ),
+            }) as unknown as TestableUserModel;
+            model.hasAuthentication = vi.fn(async () => true);
+            model.getUserProjectRoles = vi.fn(async () => []);
+            model.getUserGroupProjectRoles = vi.fn(async () => []);
+            model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
+            model.customRoleScopes = vi.fn(async () => ({
+                [orgCustomRoleUuid]: roleScopes,
+            }));
+            model.findServiceAccountByUserUuid = vi.fn(async () => undefined);
+            model.applyServiceAccountProjectMemberships = vi.fn(async () => {});
+            return model;
+        };
+
+        it('flag off: a role that omits the scope still gets PAT from the config fallback', async () => {
+            const model = createPatHumanModel(false, [
+                'manage:OrganizationMemberProfile',
+            ]);
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(patHumanDetails);
+
+            expect(
+                abilityBuilder.build().can('manage', 'PersonalAccessToken'),
+            ).toBe(true);
+        });
+
+        it('flag on: the same role is denied PAT once the org opts in', async () => {
+            const model = createPatHumanModel(true, [
+                'manage:OrganizationMemberProfile',
+            ]);
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(patHumanDetails);
+
+            expect(
+                abilityBuilder.build().can('manage', 'PersonalAccessToken'),
+            ).toBe(false);
+        });
+
+        it('flag on + empty role: denied, with no system-role fallback', async () => {
+            const model = createPatHumanModel(true, []);
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(patHumanDetails);
+            const ability = abilityBuilder.build();
+
+            expect(ability.can('manage', 'PersonalAccessToken')).toBe(false);
+            // A system MEMBER role would grant this; its absence proves the
+            // empty custom role did not fall back to the system role.
+            expect(
+                ability.can(
+                    'view',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: patHumanDetails.organization_uuid,
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        // customRoleScopes only queries scoped_roles; roleExists separately
+        // confirms the uuid is a real (not deleted/unknown) role via `roles`.
+        const createExistingEmptyRoleTrx = () =>
+            vi.fn((tableName: string) => {
+                if (tableName === ScopedRolesTableName) {
+                    return { select: () => ({ whereIn: async () => [] }) };
+                }
+                if (tableName === RolesTableName) {
+                    return {
+                        select: () => ({
+                            where: () => ({
+                                first: async () => ({
+                                    role_uuid: orgCustomRoleUuid,
+                                }),
+                            }),
+                        }),
+                    };
+                }
+                throw new Error(`Unexpected table ${tableName}`);
+            }) as unknown as Knex;
+
+        it('end-to-end: flag on + an existing org custom role with zero scoped_roles rows denies PAT via the real loader, no system fallback', async () => {
+            const model = new UserModel({
+                database: createExistingEmptyRoleTrx(),
+                lightdashConfig: patLightdashConfig,
+                featureFlagModel: createFeatureFlagModelFor(true),
+            }) as unknown as TestableUserModel;
+            model.hasAuthentication = vi.fn(async () => true);
+            model.getUserProjectRoles = vi.fn(async () => []);
+            model.getUserGroupProjectRoles = vi.fn(async () => []);
+            model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
+            model.findServiceAccountByUserUuid = vi.fn(async () => undefined);
+            model.applyServiceAccountProjectMemberships = vi.fn(async () => {});
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(patHumanDetails);
+            const ability = abilityBuilder.build();
+
+            expect(ability.can('manage', 'PersonalAccessToken')).toBe(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: patHumanDetails.organization_uuid,
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('end-to-end: flag off + the same existing empty org custom role still falls back to the system role (legacy behavior preserved)', async () => {
+            const model = new UserModel({
+                database: createExistingEmptyRoleTrx(),
+                lightdashConfig: patLightdashConfig,
+                featureFlagModel: createFeatureFlagModelFor(false),
+            }) as unknown as TestableUserModel;
+            model.hasAuthentication = vi.fn(async () => true);
+            model.getUserProjectRoles = vi.fn(async () => []);
+            model.getUserGroupProjectRoles = vi.fn(async () => []);
+            model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
+            model.findServiceAccountByUserUuid = vi.fn(async () => undefined);
+            model.applyServiceAccountProjectMemberships = vi.fn(async () => {});
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(patHumanDetails);
+            const ability = abilityBuilder.build();
+
+            // System MEMBER abilities, including config-granted PAT: the
+            // narrow empty-role check never ran (flag off), so the missing
+            // scopes entry falls back exactly like it always has on main.
+            expect(ability.can('manage', 'PersonalAccessToken')).toBe(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: patHumanDetails.organization_uuid,
+                    }),
+                ),
+            ).toBe(true);
+        });
+    });
+
+    describe('empty existing role still falls back everywhere except the flagged human primary org role', () => {
+        it('a service account bound to an existing role with zero scoped_roles rows still falls back to legacy service_accounts.scopes', async () => {
+            const model = createUserModel();
+            // Restored loader semantics: an existing role with no
+            // scoped_roles rows has no entry, same as an unknown uuid.
+            model.customRoleScopes = vi.fn(async () => ({}));
+
+            const { abilityBuilder } = await model.generateUserAbilityBuilder({
+                ...userDetails,
+                role_uuid: 'custom-role',
+            });
+            const ability = abilityBuilder.build();
+
+            // createUserModel()'s default findServiceAccountByUserUuid mock
+            // returns legacy scopes: [SYSTEM_MEMBER], which grants this.
+            expect(model.findServiceAccountByUserUuid).toHaveBeenCalled();
+            expect(
+                ability.can(
+                    'view',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: userDetails.organization_uuid,
+                    }),
+                ),
+            ).toBe(true);
+        });
+
+        it('a project membership on an existing role with zero scoped_roles rows still falls back to projectMemberAbilities', async () => {
+            const projectUuid = 'project-1';
+            const rolesTrx = vi.fn((tableName: string) => {
+                if (tableName === ProjectMembershipsTableName) {
+                    return {
+                        leftJoin: () => ({
+                            select: () => ({
+                                where: async () => [
+                                    {
+                                        project_id: 1,
+                                        project_uuid: projectUuid,
+                                        role: ProjectMemberRole.ADMIN,
+                                        role_uuid: 'empty-project-role',
+                                        project_type: ProjectType.DEFAULT,
+                                        created_by_user_uuid: null,
+                                    },
+                                ],
+                            }),
+                        }),
+                    };
+                }
+                if (tableName === ProjectMembershipCustomRolesTableName) {
+                    return {
+                        join: () => ({
+                            where: () => ({
+                                whereIn: () => ({
+                                    select: () => ({
+                                        orderBy: async () => [],
+                                    }),
+                                }),
+                            }),
+                        }),
+                    };
+                }
+                throw new Error(`Unexpected table ${tableName}`);
+            }) as unknown as Knex;
+
+            const model = new UserModel({
+                database: rolesTrx,
+                lightdashConfig,
+                featureFlagModel,
+            }) as unknown as TestableUserModel;
+            // Restored loader semantics: an existing role with no
+            // scoped_roles rows has no entry, same as an unknown uuid.
+            model.customRoleScopes = vi.fn(async () => ({}));
+
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            await model.applyServiceAccountProjectMemberships(
+                1,
+                'sa-user',
+                builder,
+                rolesTrx,
+            );
+            const ability = builder.build();
+
+            // ADMIN grants this via projectMemberAbilities: project custom
+            // roles are untouched by the narrow human-primary-role check.
+            expect(
+                ability.can('manage', subject('DataApp', { projectUuid })),
             ).toBe(true);
         });
     });

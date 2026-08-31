@@ -140,4 +140,27 @@ describe('validateOrganizationScopesCanBeGranted', () => {
             }),
         ).rejects.toThrow('Cannot grant permissions exceeding your own');
     });
+
+    // Call sites always pass the pure `pat.enabled && allowedOrgRoles.includes(role)`
+    // condition — no flag ever relaxes this ceiling. Config-derived token access is
+    // still self-escalation: a token-restricted caller could grant/invite a system
+    // role that carries PAT from config, authenticate as it, and regain the token
+    // (the #26771 invariant).
+    describe('system-role grant ceiling stays strict (no flag relief)', () => {
+        it('a token-restricted caller cannot grant a system role that carries token access from config', async () => {
+            await expect(
+                validateOrganizationScopesCanBeGranted({
+                    user: customRoleCaller({
+                        canManagePersonalAccessToken: false,
+                    }),
+                    organizationUuid: ORG,
+                    grantedScopes: getOrganizationSystemRoleScopes(
+                        OrganizationMemberRole.MEMBER,
+                        { includePersonalAccessToken: true },
+                    ),
+                    rolesModel: rolesModelWithScopes(managerScopes),
+                }),
+            ).rejects.toThrow('Cannot grant permissions exceeding your own');
+        });
+    });
 });
