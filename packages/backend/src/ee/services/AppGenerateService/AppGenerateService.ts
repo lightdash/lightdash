@@ -350,7 +350,10 @@ type AppGenerateServiceDeps = {
     projectModel: ProjectModel;
     projectParametersModel: ProjectParametersModel;
     spaceModel: SpaceModel;
-    userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
+    userModel: Pick<
+        UserModel,
+        'findSessionUserAndOrgByUuid' | 'findServiceAccountByUserUuid'
+    >;
     savedChartModel: SavedChartModel;
     schedulerClient: CommercialSchedulerClient;
     savedChartService: SavedChartService;
@@ -556,7 +559,10 @@ export class AppGenerateService extends BaseService {
 
     private readonly spaceModel: SpaceModel;
 
-    private readonly userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
+    private readonly userModel: Pick<
+        UserModel,
+        'findSessionUserAndOrgByUuid' | 'findServiceAccountByUserUuid'
+    >;
 
     private readonly savedChartModel: SavedChartModel;
 
@@ -869,9 +875,20 @@ export class AppGenerateService extends BaseService {
             payload.organizationUuid,
         );
         if (!user.isActive) {
-            throw new ForbiddenError(
-                'The recorded data app principal is no longer active',
-            );
+            const serviceAccount =
+                await this.userModel.findServiceAccountByUserUuid(
+                    payload.userUuid,
+                );
+            if (
+                serviceAccount === undefined ||
+                serviceAccount.organizationUuid !== payload.organizationUuid ||
+                (serviceAccount.expiresAt !== null &&
+                    serviceAccount.expiresAt < new Date())
+            ) {
+                throw new ForbiddenError(
+                    'The recorded data app principal is no longer active',
+                );
+            }
         }
         await this.assertDataAppsEnabled(user);
 
