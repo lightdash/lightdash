@@ -3073,6 +3073,7 @@ All branches of an IF must return the same type.",
                             },
                             "name": {
                               "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
+                              "pattern": "^[a-zA-Z0-9_]+$",
                               "type": "string",
                             },
                             "resultType": {
@@ -6508,6 +6509,7 @@ All branches of an IF must return the same type.",
                       },
                       "name": {
                         "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
+                        "pattern": "^[a-zA-Z0-9_]+$",
                         "type": "string",
                       },
                       "resultType": {
