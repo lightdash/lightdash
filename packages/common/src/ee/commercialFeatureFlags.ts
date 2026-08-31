@@ -7,4 +7,9 @@ export enum CommercialFeatureFlags {
     CustomRoles = 'custom-roles',
     DirectAccess = 'direct-access',
     HomepageBuilder = 'homepage-builder',
+    /**
+     * Org opt-in: the primary-slot org custom role's scope list fully decides
+     * `manage:PersonalAccessToken` instead of inheriting the deployment default.
+     */
+    PatScopeAuthoritative = 'pat-scope-authoritative',
 }
