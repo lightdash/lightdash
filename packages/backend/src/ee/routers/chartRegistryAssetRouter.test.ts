@@ -1,3 +1,4 @@
+import { ForbiddenError, type SessionUser } from '@lightdash/common';
 import express from 'express';
 import { once } from 'node:events';
 import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
@@ -25,6 +26,8 @@ vi.mock('../../controllers/authentication', () => ({
 
 type AppGenerateServiceStub = Pick<AppGenerateService, 'getRegistryAsset'>;
 
+const fakeUser = { userUuid: 'user-uuid' } as SessionUser;
+
 const requestAsset = async ({
     getRegistryAsset,
     path,
@@ -38,6 +41,7 @@ const requestAsset = async ({
 }> => {
     const app = express();
     app.use((req, _res, next) => {
+        req.user = fakeUser;
         req.services = {
             getAppGenerateService: () =>
                 ({ getRegistryAsset }) as unknown as AppGenerateService,
@@ -130,7 +134,10 @@ describe('chartRegistryAssetRouter GET /assets', () => {
         });
 
         expect(response.status).toBe(404);
-        expect(getRegistryAsset).toHaveBeenCalledWith('sankey/1.3.0/thumb.png');
+        expect(getRegistryAsset).toHaveBeenCalledWith(
+            fakeUser,
+            'sankey/1.3.0/thumb.png',
+        );
     });
 
     it('returns 200 with the asset bytes and exact headers', async () => {
@@ -164,6 +171,23 @@ describe('chartRegistryAssetRouter GET /assets', () => {
         expect(response.status).toBe(500);
         expect(JSON.parse(response.body.toString('utf8'))).toEqual({
             error: 'registry unreachable',
+        });
+    });
+
+    it('propagates a ForbiddenError from the service (flags-off gate) to the error handler', async () => {
+        const getRegistryAsset = vi
+            .fn()
+            .mockRejectedValue(
+                new ForbiddenError('The chart type library is not enabled'),
+            );
+
+        const response = await requestAsset({
+            getRegistryAsset,
+            path: '/assets?path=sankey%2F1.3.0%2Fthumb.png',
+        });
+
+        expect(JSON.parse(response.body.toString('utf8'))).toEqual({
+            error: 'The chart type library is not enabled',
         });
     });
 });

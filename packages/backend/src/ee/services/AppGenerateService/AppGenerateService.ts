@@ -8830,13 +8830,25 @@ export class AppGenerateService extends BaseService {
     /**
      * Thin pass-through to the chart registry's index-listed images
      * (thumbnails/screenshots). No ability check beyond route auth — these
-     * are catalog metadata, not project data — but still gated on the
-     * registry being enabled since `chartRegistryClient.getAsset` throws
-     * when it isn't.
+     * are catalog metadata, not project data — but gated the same way as
+     * `listRegistryChartTypes`: the data-apps flag, then the
+     * `ChartTypeRegistry` rollout flag, before falling back to the registry
+     * client's own enabled check (`chartRegistryClient.getAsset` throws when
+     * it isn't).
      */
     async getRegistryAsset(
+        user: SessionUser,
         path: string,
     ): Promise<{ buffer: Buffer; contentType: string } | undefined> {
+        await this.assertDataAppsEnabled(user);
+        const { enabled: registryFlagEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ChartTypeRegistry,
+            });
+        if (!registryFlagEnabled) {
+            throw new ForbiddenError('The chart type library is not enabled');
+        }
         if (!this.chartRegistryClient.isEnabled()) {
             return undefined;
         }

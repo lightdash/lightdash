@@ -28,7 +28,7 @@ chartRegistryAssetRouter.get(
             }
             const service =
                 req.services.getAppGenerateService<AppGenerateService>();
-            const asset = await service.getRegistryAsset(path);
+            const asset = await service.getRegistryAsset(req.user!, path);
             if (!asset) {
                 res.status(404).send('Not found');
                 return;

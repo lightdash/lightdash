@@ -687,7 +687,10 @@ describe('AppGenerateService.getRegistryAsset', () => {
             chartRegistryClient: { isEnabled: () => false, getAsset },
         });
 
-        const result = await svc.getRegistryAsset('sankey/1.3.0/thumb.png');
+        const result = await svc.getRegistryAsset(
+            fakeUser,
+            'sankey/1.3.0/thumb.png',
+        );
 
         expect(result).toBeUndefined();
         expect(getAsset).not.toHaveBeenCalled();
@@ -703,7 +706,10 @@ describe('AppGenerateService.getRegistryAsset', () => {
             chartRegistryClient: { isEnabled: () => true, getAsset },
         });
 
-        const result = await svc.getRegistryAsset('sankey/1.3.0/thumb.png');
+        const result = await svc.getRegistryAsset(
+            fakeUser,
+            'sankey/1.3.0/thumb.png',
+        );
 
         expect(getAsset).toHaveBeenCalledWith('sankey/1.3.0/thumb.png');
         expect(result).toBe(asset);
@@ -715,8 +721,28 @@ describe('AppGenerateService.getRegistryAsset', () => {
             chartRegistryClient: { isEnabled: () => true, getAsset },
         });
 
-        const result = await svc.getRegistryAsset('unknown/path.png');
+        const result = await svc.getRegistryAsset(fakeUser, 'unknown/path.png');
 
         expect(result).toBeUndefined();
+    });
+
+    it('throws ForbiddenError when EnableDataApps is disabled', async () => {
+        const svc = buildService({
+            featureFlags: { [FeatureFlags.EnableDataApps]: false },
+        });
+
+        await expect(
+            svc.getRegistryAsset(fakeUser, 'sankey/1.3.0/thumb.png'),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('throws ForbiddenError when ChartTypeRegistry is disabled', async () => {
+        const svc = buildService({
+            featureFlags: { [FeatureFlags.ChartTypeRegistry]: false },
+        });
+
+        await expect(
+            svc.getRegistryAsset(fakeUser, 'sankey/1.3.0/thumb.png'),
+        ).rejects.toThrow(ForbiddenError);
     });
 });
