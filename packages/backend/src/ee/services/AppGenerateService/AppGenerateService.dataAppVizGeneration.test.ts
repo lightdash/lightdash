@@ -96,6 +96,8 @@ function buildService(
             // the org has no Data App model restrictions.
             getDataAppModelVisibility: async () => null,
         } as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
     });
     // Bypass real CASL — the mapping/flow is what these tests cover.
     (

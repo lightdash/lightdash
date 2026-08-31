@@ -450,6 +450,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         featureFlagService: repository.getFeatureFlagService(),
                         aiModelCatalog,
                     }),
+                    sandboxManager: null,
+                    appRuntimeS3: null,
                 }),
             roadmapService: ({ context, repository }) =>
                 new RoadmapService({

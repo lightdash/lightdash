@@ -104,6 +104,8 @@ function buildService() {
                 .mockResolvedValue({ defaultProvider: 'openai' }),
             resolveFastModel,
         } as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
     });
     // Bypass real CASL — the prompt/context selection is what these tests cover.
     (

@@ -231,6 +231,8 @@ function buildService(overrides: {
         externalConnectionModel: fullExternalConnectionModel as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
     });
 
     vi.spyOn(
