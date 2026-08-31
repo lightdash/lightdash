@@ -1,3 +1,10 @@
+# [2.60.0](https://github.com/lightdash/lightdash/compare/2.59.0...2.60.0) (2026-08-31)
+
+
+### Features
+
+* **ai-agent:** generateDataApp brief carries thread analysis; unknown slugs are agent errors, not incidents ([#28319](https://github.com/lightdash/lightdash/issues/28319)) ([888dd7e](https://github.com/lightdash/lightdash/commit/888dd7ecee3d115135ef8c3449f511a0e96aeb62)), closes [#28261](https://github.com/lightdash/lightdash/issues/28261) [#28255](https://github.com/lightdash/lightdash/issues/28255)
+
 # [2.59.0](https://github.com/lightdash/lightdash/compare/2.58.0...2.59.0) (2026-08-31)
 
 
