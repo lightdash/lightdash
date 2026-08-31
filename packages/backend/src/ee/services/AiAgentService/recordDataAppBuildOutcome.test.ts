@@ -20,16 +20,41 @@ const PAYLOAD = {
     aiAgentToolCall: { promptUuid: 'prompt-1', toolCallId: 'tool-call-1' },
 };
 
-const buildService = (version: {
-    status: string;
-    error?: string | null;
-    status_message?: string | null;
-}) => {
+const SLACK_PROMPT = {
+    promptUuid: 'prompt-1',
+    threadUuid: 'thread-1',
+    organizationUuid: 'org-1',
+    projectUuid: 'proj-1',
+    slackChannelId: 'C123',
+    promptSlackTs: '111.222',
+};
+
+const buildService = (
+    version: {
+        status: string;
+        error?: string | null;
+        status_message?: string | null;
+    },
+    options?: { isSlack?: boolean },
+) => {
     const updateToolResult = vi.fn().mockResolvedValue(undefined);
     const hasToolResult = vi.fn().mockResolvedValue(true);
+    const postMessage = vi.fn().mockResolvedValue(undefined);
     const service = new AiAgentService({
         lightdashConfig: { siteUrl: 'https://ld.example.com' },
-        aiAgentModel: { updateToolResult, hasToolResult },
+        aiAgentModel: {
+            updateToolResult,
+            hasToolResult,
+            findSlackPrompt: vi
+                .fn()
+                .mockResolvedValue(options?.isSlack ? SLACK_PROMPT : undefined),
+            getAgentBySlackChannelId: vi
+                .fn()
+                .mockResolvedValue({
+                    uuid: 'agent-1',
+                    name: 'Analytics Agent',
+                }),
+        },
         appModel: {
             findAppByUuid: vi.fn().mockResolvedValue({ name: 'Revenue app' }),
             getVersion: vi.fn().mockResolvedValue({
@@ -38,9 +63,10 @@ const buildService = (version: {
                 ...version,
             }),
         },
+        slackClient: { postMessage },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
-    return { service, updateToolResult };
+    return { service, updateToolResult, postMessage };
 };
 
 describe('AiAgentService.recordDataAppBuildOutcome', () => {
@@ -87,5 +113,89 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
         await service.recordDataAppBuildOutcome(PAYLOAD);
 
         expect(updateToolResult).not.toHaveBeenCalled();
+    });
+
+    it('posts the builder link to the Slack thread when a Slack-originated build is ready', async () => {
+        const { service, postMessage } = buildService(
+            { status: 'ready' },
+            { isSlack: true },
+        );
+
+        await service.recordDataAppBuildOutcome(PAYLOAD);
+
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                organizationUuid: 'org-1',
+                channel: 'C123',
+                thread_ts: '111.222',
+                username: 'Analytics Agent',
+                blocks: [
+                    expect.objectContaining({
+                        text: expect.stringContaining(
+                            '[Open it in the builder](https://ld.example.com/projects/proj-1/apps/app-1)',
+                        ),
+                    }),
+                ],
+                text: expect.stringContaining('Revenue app'),
+            }),
+        );
+    });
+
+    it('posts the failure message to the Slack thread when the build fails', async () => {
+        const { service, postMessage } = buildService(
+            {
+                status: 'error',
+                error: 'sandbox exploded',
+                status_message: 'The coding agent hit an error.',
+            },
+            { isSlack: true },
+        );
+
+        await service.recordDataAppBuildOutcome(PAYLOAD);
+
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                channel: 'C123',
+                thread_ts: '111.222',
+                blocks: [
+                    expect.objectContaining({
+                        text: expect.stringContaining(
+                            'The coding agent hit an error.',
+                        ),
+                    }),
+                ],
+            }),
+        );
+    });
+
+    it('posts the cancelled message to the Slack thread when the build is cancelled', async () => {
+        const { service, postMessage } = buildService(
+            { status: 'error', error: 'Cancelled by user' },
+            { isSlack: true },
+        );
+
+        await service.recordDataAppBuildOutcome(PAYLOAD);
+
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                channel: 'C123',
+                thread_ts: '111.222',
+                blocks: [
+                    expect.objectContaining({
+                        text: expect.stringContaining(
+                            'The build was cancelled.',
+                        ),
+                    }),
+                ],
+            }),
+        );
+    });
+
+    it('posts nothing to Slack for a web-originated build', async () => {
+        const { service, postMessage } = buildService({ status: 'ready' });
+
+        await service.recordDataAppBuildOutcome(PAYLOAD);
+
+        expect(postMessage).not.toHaveBeenCalled();
     });
 });
