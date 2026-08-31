@@ -58,6 +58,11 @@ export const getUserAbilityBuilder = ({
 }: UserAbilityBuilderArgs): UserAbilityBuilderResult => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     const invalidScopes: string[] = [];
+    // `manage:PersonalAccessToken` is an enterprise scope, so it is absent from
+    // the vocabulary without a license and a role could never list it. Declining
+    // the fallback there would deny tokens with no way to grant them back, so an
+    // unlicensed deployment keeps inheriting the deployment default.
+    const applyPatConfigFallback = !isEnterprise;
     // Extra custom roles are unioned on top of the slot; unknown uuids are
     // skipped (logged) rather than granting anything.
     const applyExtraRoles = (
@@ -100,12 +105,12 @@ export const getUserAbilityBuilder = ({
                         isEnterprise,
                         organizationRole: user.role,
                         permissionsConfig,
-                        // Every scope set a human user holds declines the
-                        // fallback: the organization layer alone decides token
-                        // access, so no later role can re-grant what the
-                        // primary slot withheld. Only the service-account path
-                        // in UserModel still inherits the deployment default.
-                        applyPatConfigFallback: false,
+                        // Every scope set a human user holds shares one answer:
+                        // the organization layer alone decides token access, so
+                        // no later role can re-grant what the primary slot
+                        // withheld. Only the service-account path in UserModel
+                        // always inherits the deployment default.
+                        applyPatConfigFallback,
                     },
                     builder,
                 ),
@@ -130,7 +135,7 @@ export const getUserAbilityBuilder = ({
                     isEnterprise,
                     organizationRole: user.role,
                     permissionsConfig,
-                    applyPatConfigFallback: false,
+                    applyPatConfigFallback,
                 },
                 builder,
             ),
@@ -165,7 +170,7 @@ export const getUserAbilityBuilder = ({
                             isEnterprise,
                             organizationRole: user.role,
                             permissionsConfig,
-                            applyPatConfigFallback: false,
+                            applyPatConfigFallback,
                         },
                         builder,
                     ),
@@ -188,7 +193,7 @@ export const getUserAbilityBuilder = ({
                         isEnterprise,
                         organizationRole: user.role,
                         permissionsConfig,
-                        applyPatConfigFallback: false,
+                        applyPatConfigFallback,
                     },
                     builder,
                 ),

@@ -756,6 +756,27 @@ describe('getUserAbilityBuilder — personal access tokens', () => {
         });
     });
 
+    it('keeps inheriting tokens on an unlicensed deployment', () => {
+        // The scope is enterprise-only, so without a license it is absent from
+        // the vocabulary and no role could ever list it. Declining the fallback
+        // there would deny tokens unrecoverably.
+        const { builder, invalidScopes } = getUserAbilityBuilder({
+            user: {
+                role: OrganizationMemberRole.MEMBER,
+                organizationUuid: ORG_UUID,
+                userUuid: USER_UUID,
+                roleUuid: PAT_ROLE_UUID,
+            },
+            projectProfiles: [],
+            permissionsConfig: patAllowed,
+            customRoleScopes: { [PAT_ROLE_UUID]: [PAT_SCOPE] },
+            customRolesEnabled: true,
+            isEnterprise: false,
+        });
+        expect(invalidScopes).toContain(PAT_SCOPE);
+        expect(canCreatePat(builder)).toBe(true);
+    });
+
     describe('system org roles are unchanged', () => {
         it.each([
             OrganizationMemberRole.MEMBER,
