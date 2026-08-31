@@ -2,6 +2,12 @@
     "dashboard": {
         "jaffle-dashboard": {
             "name": "Jaffle dashboard",
+            "filters": {
+                "labels": {
+                    "Completed orders": "Completed orders",
+                    "Order period": "Order period"
+                }
+            },
             "tiles": [
                 {
                     "type": "loom",

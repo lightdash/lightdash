@@ -2,6 +2,12 @@
     "dashboard": {
         "jaffle-dashboard": {
             "name": "Tablero de Jaffle",
+            "filters": {
+                "labels": {
+                    "Completed orders": "Pedidos completados",
+                    "Order period": "Período del pedido"
+                }
+            },
             "tiles": [
                 {
                     "type": "loom",
