@@ -61,7 +61,7 @@ export const useUnlinkAppExternalConnection = () => {
             showToastInfo({
                 title: `Unlinked ${name}`,
                 subtitle:
-                    'The chart type still calls it until you ask for a change.',
+                    'The generated code still calls it until you ask for a change.',
             });
         },
         onError: ({ error }, { projectUuid, appUuid }, context) => {

@@ -3,6 +3,7 @@ import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 import {
+    AttachButton,
     ConnectionAttachButton,
     ConnectionPickerView,
     SelectedQuerySection,
@@ -43,12 +44,32 @@ vi.mock('../externalConnections/hooks/useAppExternalConnections', () => ({
             ? [
                   {
                       alias: 'linked_api',
-                      connection: { externalConnectionUuid: 'c-linked' },
+                      connection: {
+                          externalConnectionUuid: 'c-linked',
+                          name: 'Linked API',
+                          origin: 'https://c-linked.example.com',
+                      },
                   },
                   {
                       alias: 'selected_api',
-                      connection: { externalConnectionUuid: 'c-selected' },
+                      connection: {
+                          externalConnectionUuid: 'c-selected',
+                          name: 'Selected API',
+                          origin: 'https://c-selected.example.com',
+                      },
                   },
+                  ...(appUuid === 'app-with-admin-only-link'
+                      ? [
+                            {
+                                alias: 'admin_only_api',
+                                connection: {
+                                    externalConnectionUuid: 'c-admin-only',
+                                    name: 'Admin-only API',
+                                    origin: 'https://admin-only.example.com',
+                                },
+                            },
+                        ]
+                      : []),
               ]
             : undefined,
     }),
@@ -178,6 +199,7 @@ it('counts linked and newly selected connections together, without double counti
 });
 
 it('shows linked connections as checked, and unlinks them on click', () => {
+    unlink.mockClear();
     const onSelect = vi.fn();
     const onDeselect = vi.fn();
     render(
@@ -213,6 +235,49 @@ it('shows linked connections as checked, and unlinks them on click', () => {
     expect(onSelect).toHaveBeenCalledWith(
         expect.objectContaining({ externalConnectionUuid: 'c-plain' }),
     );
+});
+
+it('lets an app unlink a connection that is no longer available for linking', () => {
+    unlink.mockClear();
+    const onDeselectConnection = vi.fn();
+    render(
+        <MantineProvider env="test">
+            <AttachButton
+                selectedCharts={[]}
+                onSelectChart={() => undefined}
+                onDeselectChart={() => undefined}
+                selectedDashboard={null}
+                onSelectDashboard={() => undefined}
+                onDeselectDashboard={() => undefined}
+                selectedConnections={[]}
+                onSelectConnection={() => undefined}
+                onDeselectConnection={onDeselectConnection}
+                onAddFiles={() => undefined}
+                disabled={false}
+                filesDisabled={false}
+                linkedAppUuid="app-with-admin-only-link"
+            />
+        </MantineProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Attach resources' }));
+    fireEvent.click(
+        screen.getByRole('button', { name: /External connections/ }),
+    );
+
+    const linkedRow = screen.getByRole('checkbox', {
+        name: /Admin-only API/,
+    });
+    expect(linkedRow).toBeChecked();
+
+    fireEvent.click(linkedRow);
+    expect(unlink).toHaveBeenCalledWith({
+        projectUuid: 'project-1',
+        appUuid: 'app-with-admin-only-link',
+        alias: 'admin_only_api',
+        name: 'Admin-only API',
+    });
+    expect(onDeselectConnection).toHaveBeenCalledWith('c-admin-only');
 });
 
 it('never unlinks before a first build exists', () => {

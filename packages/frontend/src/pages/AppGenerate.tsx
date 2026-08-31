@@ -2794,6 +2794,9 @@ const AppGenerate: FC = () => {
                                                         fileAttachments.length >=
                                                         MAX_APP_FILES_PER_VERSION
                                                     }
+                                                    linkedAppUuid={
+                                                        activeAppUuid
+                                                    }
                                                 />
                                                 {previewApp &&
                                                     screenshotAvailable && (

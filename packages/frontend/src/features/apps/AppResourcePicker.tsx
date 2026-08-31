@@ -965,6 +965,20 @@ export const ConnectionPickerView: FC<{
         enabled ? projectUuid : undefined,
         linkedAppUuid,
     );
+    const visibleConnections = useMemo(() => {
+        const byUuid = new Map(
+            (existingLinks ?? []).map((link) => [
+                link.connection.externalConnectionUuid,
+                link.connection,
+            ]),
+        );
+
+        for (const connection of connections ?? []) {
+            byUuid.set(connection.externalConnectionUuid, connection);
+        }
+
+        return [...byUuid.values()];
+    }, [connections, existingLinks]);
     const linkedAliases = useMemo(
         () =>
             new Map(
@@ -1002,16 +1016,15 @@ export const ConnectionPickerView: FC<{
 
     const filtered = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
-        const list = connections ?? [];
-        if (!q) return list;
-        return list.filter(
+        if (!q) return visibleConnections;
+        return visibleConnections.filter(
             (c) =>
                 c.name.toLowerCase().includes(q) ||
                 c.origin.toLowerCase().includes(q),
         );
-    }, [connections, searchQuery]);
+    }, [searchQuery, visibleConnections]);
 
-    const hasConnections = (connections?.length ?? 0) > 0;
+    const hasConnections = visibleConnections.length > 0;
     let emptyMessage = 'No connections match your search';
     if (!hasConnections) {
         emptyMessage = canManageConnections
@@ -1177,6 +1190,7 @@ export const AttachButton: FC<{
     onAddFiles: () => void;
     disabled: boolean;
     filesDisabled: boolean;
+    linkedAppUuid?: string;
 }> = ({
     selectedCharts,
     onSelectChart,
@@ -1190,6 +1204,7 @@ export const AttachButton: FC<{
     onAddFiles,
     disabled,
     filesDisabled,
+    linkedAppUuid,
 }) => {
     const projectUuid = useProjectUuid();
     const [opened, setOpened] = useState(false);
@@ -1377,6 +1392,7 @@ export const AttachButton: FC<{
                                     setView('menu');
                                 }}
                                 enabled={opened}
+                                linkedAppUuid={linkedAppUuid}
                             />
                         ) : (
                             <DashboardPickerView
