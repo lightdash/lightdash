@@ -13,9 +13,105 @@ const FETCH_TIMEOUT_MS = 20_000;
 const MAX_INDEX_BYTES = 8 * 1024 * 1024;
 const MAX_ARTIFACT_BYTES = 50 * 1024 * 1024;
 
+// getAsset's response is streamed straight to the browser by a later task;
+// svg is excluded because it can carry inline script.
+const ALLOWED_ASSET_CONTENT_TYPES = new Set([
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    'image/gif',
+]);
+
+const normalizeContentType = (contentType: string): string =>
+    contentType.split(';')[0].trim().toLowerCase();
+
+export type ChartRegistryRawResponse = {
+    status: number;
+    body: Buffer;
+    contentType: string | null;
+};
+
 export type ChartRegistryFetch = (
     url: string,
-) => Promise<{ status: number; body: Buffer; contentType: string | null }>;
+    maxBytes: number,
+) => Promise<ChartRegistryRawResponse>;
+
+/** Reads a fetch response body, aborting the moment it exceeds maxBytes. */
+async function readBodyWithCap(
+    response: Response,
+    maxBytes: number,
+    url: string,
+): Promise<Buffer> {
+    const reader = response.body?.getReader();
+    if (!reader) {
+        return Buffer.alloc(0);
+    }
+    const chunks: Buffer[] = [];
+    let total = 0;
+    for (;;) {
+        // eslint-disable-next-line no-await-in-loop
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > maxBytes) {
+            // eslint-disable-next-line no-await-in-loop
+            await reader.cancel();
+            throw new ParameterError(
+                `Chart registry response for "${url}" exceeds the maximum allowed size`,
+            );
+        }
+        chunks.push(Buffer.from(value));
+    }
+    return Buffer.concat(chunks);
+}
+
+/**
+ * The real network fetch behind ChartRegistryClient's default fetchImpl,
+ * exported standalone so tests can exercise it directly against a real
+ * server. Validates the URL is public, refuses to follow redirects (a
+ * redirect target is unvalidated — see secureFetch.ts), and streams the
+ * body with a hard byte cap instead of buffering an unbounded response.
+ */
+export async function chartRegistryFetch(
+    url: string,
+    options: { maxBytes: number; allowPrivateAddresses: boolean },
+): Promise<ChartRegistryRawResponse> {
+    await validatePublicHttpUrl(url, {
+        allowedProtocols: options.allowPrivateAddresses
+            ? ['http:', 'https:']
+            : ['https:'],
+        allowPrivateAddresses: options.allowPrivateAddresses,
+    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+        const response = await fetch(url, {
+            redirect: 'manual',
+            signal: controller.signal,
+        });
+        // validatePublicHttpUrl only validated this URL; a redirect target
+        // is unvalidated, so the chain stops here.
+        if (response.status >= 300 && response.status < 400) {
+            throw new ParameterError(
+                `Chart registry request to "${url}" was redirected; redirects are not allowed`,
+            );
+        }
+        const contentLength = response.headers.get('content-length');
+        if (contentLength && Number(contentLength) > options.maxBytes) {
+            throw new ParameterError(
+                `Chart registry response for "${url}" exceeds the maximum allowed size`,
+            );
+        }
+        const body = await readBodyWithCap(response, options.maxBytes, url);
+        return {
+            status: response.status,
+            body,
+            contentType: response.headers.get('content-type'),
+        };
+    } finally {
+        clearTimeout(timeout);
+    }
+}
 
 export class ChartRegistryClient {
     private readonly baseUrl: string | null;
@@ -69,6 +165,7 @@ export class ChartRegistryClient {
         try {
             const { body } = await this.fetchImpl(
                 this.resolveUrl('index.json').toString(),
+                MAX_INDEX_BYTES,
             );
             const index = this.parseIndex(body);
             this.cache = { index, fetchedAt: Date.now() };
@@ -108,7 +205,10 @@ export class ChartRegistryClient {
     ): Promise<Buffer> {
         const artifact = entry.artifacts[kind];
         const url = this.resolveUrl(artifact.path);
-        const { body } = await this.fetchImpl(url.toString());
+        const { body } = await this.fetchImpl(
+            url.toString(),
+            MAX_ARTIFACT_BYTES,
+        );
         const digest = createHash('sha256').update(body).digest('hex');
         if (digest !== artifact.sha256) {
             throw new ParameterError(
@@ -116,6 +216,19 @@ export class ChartRegistryClient {
             );
         }
         return body;
+    }
+
+    /** Non-2xx or a content type outside the image allowlist is treated as absent. */
+    private isServableAsset(
+        status: number,
+        contentType: string | null,
+    ): boolean {
+        return (
+            status >= 200 &&
+            status < 300 &&
+            contentType !== null &&
+            ALLOWED_ASSET_CONTENT_TYPES.has(normalizeContentType(contentType))
+        );
     }
 
     async getAsset(
@@ -129,47 +242,26 @@ export class ChartRegistryClient {
         if (!isKnownAsset) {
             return undefined;
         }
-        const { body, contentType } = await this.fetchImpl(
+        const { status, body, contentType } = await this.fetchImpl(
             this.resolveUrl(path).toString(),
+            MAX_ARTIFACT_BYTES,
         );
+        if (!this.isServableAsset(status, contentType)) {
+            return undefined;
+        }
         return {
             buffer: body,
-            contentType: contentType ?? 'application/octet-stream',
+            contentType: normalizeContentType(contentType as string),
         };
     }
 
-    private async defaultFetch(
+    private defaultFetch(
         url: string,
-    ): Promise<{ status: number; body: Buffer; contentType: string | null }> {
-        await validatePublicHttpUrl(url, {
-            allowedProtocols: this.allowInsecure
-                ? ['http:', 'https:']
-                : ['https:'],
+        maxBytes: number,
+    ): Promise<ChartRegistryRawResponse> {
+        return chartRegistryFetch(url, {
+            maxBytes,
             allowPrivateAddresses: this.allowInsecure,
         });
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-        try {
-            const response = await fetch(url, { signal: controller.signal });
-            const contentLength = response.headers.get('content-length');
-            if (contentLength && Number(contentLength) > MAX_ARTIFACT_BYTES) {
-                throw new ParameterError(
-                    `Chart registry response for "${url}" exceeds the maximum allowed size`,
-                );
-            }
-            const arrayBuffer = await response.arrayBuffer();
-            if (arrayBuffer.byteLength > MAX_ARTIFACT_BYTES) {
-                throw new ParameterError(
-                    `Chart registry response for "${url}" exceeds the maximum allowed size`,
-                );
-            }
-            return {
-                status: response.status,
-                body: Buffer.from(arrayBuffer),
-                contentType: response.headers.get('content-type'),
-            };
-        } finally {
-            clearTimeout(timeout);
-        }
     }
 }
