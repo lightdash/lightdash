@@ -44,6 +44,10 @@ import { type EmbedExploreOptions } from '../../../../providers/Embed/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 import { useEmbedDashboardTabChange } from '../../hooks/useEmbedDashboardTabChange';
 import { embedContractClass } from '../../styles/embedClassContract';
+import {
+    applyFilterLabelOverrides,
+    restoreFilterLabelOverrides,
+} from '../filterLabelOverrides';
 import { useEmbedDashboard } from '../hooks';
 import { canUseEmbeddedChartBuilder } from '../utils';
 import EmbedDashboardChartEditorModal from './EmbedDashboardChartEditorModal';
@@ -330,6 +334,7 @@ const EmbedDashboard: FC<{
         content,
         embedToken,
         embedWriteContext,
+        languageMap,
         mode,
         onExplore,
         paletteUuid,
@@ -422,12 +427,34 @@ const EmbedDashboard: FC<{
         setDraftDashboardName(dashboard.name);
     }, [dashboard, isEditMode]);
 
+    const filterLabelOverrides = useMemo(
+        () =>
+            dashboard
+                ? languageMap?.dashboard?.[dashboard.slug]?.filters
+                : undefined,
+        [dashboard, languageMap],
+    );
+
+    // Translated filter labels are applied before the dashboard seeds the
+    // provider so every viewer surface (pills, guided setup, popovers) sees
+    // them; handleSaveDashboard restores the untranslated labels.
+    const translatedDashboard = useMemo(() => {
+        if (!dashboard || !filterLabelOverrides) return dashboard;
+        return {
+            ...dashboard,
+            filters: applyFilterLabelOverrides(
+                dashboard.filters,
+                filterLabelOverrides,
+            ),
+        };
+    }, [dashboard, filterLabelOverrides]);
+
     const setEmbedDashboard = useDashboardContext((c) => c.setEmbedDashboard);
     useEffect(() => {
-        if (dashboard) {
-            setEmbedDashboard(dashboard);
+        if (translatedDashboard) {
+            setEmbedDashboard(translatedDashboard);
         }
-    }, [dashboard, setEmbedDashboard]);
+    }, [translatedDashboard, setEmbedDashboard]);
     const unmetFilterRequirements = useDashboardContext(
         (c) => c.unmetFilterRequirements,
     );
@@ -692,20 +719,24 @@ const EmbedDashboard: FC<{
 
         updateDashboard({
             tiles: currentDashboardTiles,
-            filters: {
-                dimensions: [
-                    ...dashboardFilters.dimensions,
-                    ...dashboardTemporaryFilters.dimensions,
-                ],
-                metrics: [
-                    ...dashboardFilters.metrics,
-                    ...dashboardTemporaryFilters.metrics,
-                ],
-                tableCalculations: [
-                    ...dashboardFilters.tableCalculations,
-                    ...dashboardTemporaryFilters.tableCalculations,
-                ],
-            },
+            filters: restoreFilterLabelOverrides(
+                {
+                    dimensions: [
+                        ...dashboardFilters.dimensions,
+                        ...dashboardTemporaryFilters.dimensions,
+                    ],
+                    metrics: [
+                        ...dashboardFilters.metrics,
+                        ...dashboardTemporaryFilters.metrics,
+                    ],
+                    tableCalculations: [
+                        ...dashboardFilters.tableCalculations,
+                        ...dashboardTemporaryFilters.tableCalculations,
+                    ],
+                },
+                dashboard.filters,
+                filterLabelOverrides,
+            ),
             name: draftDashboardName.trim() || dashboard.name,
             tabs: dashboardTabs,
             config: dashboard.config,
@@ -718,6 +749,7 @@ const EmbedDashboard: FC<{
         dashboardTemporaryFilters,
         draftDashboardName,
         currentDashboardTiles,
+        filterLabelOverrides,
         updateDashboard,
     ]);
 

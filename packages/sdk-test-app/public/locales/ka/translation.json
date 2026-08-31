@@ -2,6 +2,12 @@
     "dashboard": {
         "jaffle-dashboard": {
             "name": "Jaffle-ის დაფა",
+            "filters": {
+                "labels": {
+                    "Completed orders": "დასრულებული შეკვეთები",
+                    "Order period": "შეკვეთის პერიოდი"
+                }
+            },
             "tiles": [
                 {
                     "type": "loom",
