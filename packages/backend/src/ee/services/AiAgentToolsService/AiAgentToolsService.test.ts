@@ -2888,3 +2888,166 @@ describe('AiAgentToolsService.aggregateDataAppDataReferences', () => {
         ]);
     });
 });
+
+describe('AiAgentToolsService generateDataApp', () => {
+    const makeAppGenerateService = ({
+        enabled = true,
+        canCreate = true,
+    }: { enabled?: boolean; canCreate?: boolean } = {}) => ({
+        dataAppsEnabledFor: vi.fn().mockResolvedValue(enabled),
+        canCreateDataApp: vi.fn().mockResolvedValue(canCreate),
+        generateApp: vi
+            .fn()
+            .mockResolvedValue({ appUuid: 'app-uuid', version: 1 }),
+    });
+
+    const dashboardService = {
+        getByIdOrSlug: vi.fn().mockResolvedValue({
+            uuid: 'dashboard-uuid',
+            spaceUuid: 'sales-space-uuid',
+        }),
+    };
+    const savedChartService = {
+        get: vi.fn().mockResolvedValue({
+            uuid: 'chart-uuid',
+            spaceUuid: 'sales-space-uuid',
+        }),
+    };
+
+    const runGenerate = (
+        service: AiAgentToolsService,
+        context: AiAgentToolsRuntimeContext & { source: 'ai_agent' },
+        args: Partial<
+            Parameters<
+                ReturnType<typeof service.createRuntime>['generateDataApp']
+            >[0]
+        > = {},
+    ) =>
+        service.createRuntime(context).generateDataApp({
+            prompt: 'Build a revenue app',
+            template: null,
+            dashboardSlug: null,
+            chartSlugs: null,
+            toolCallId: 'tool-call-1',
+            ...args,
+        });
+
+    describe('gating', () => {
+        it.each([
+            [true, true, true],
+            [false, true, false],
+            [true, false, false],
+        ])(
+            'enabled=%s canCreate=%s → %s',
+            async (enabled, canCreate, expected) => {
+                const service = makeService({
+                    appGenerateService: makeAppGenerateService({
+                        enabled,
+                        canCreate,
+                    }),
+                });
+                expect(
+                    await service.canGenerateDataApp({ user, projectUuid }),
+                ).toBe(expected);
+            },
+        );
+    });
+
+    it('starts a personal ai_agent build linked to the tool call', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({ appGenerateService });
+
+        const result = await runGenerate(
+            service,
+            makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+            { template: 'slideshow' },
+        );
+
+        expect(result).toEqual({ appUuid: 'app-uuid', version: 1 });
+        const [
+            calledUser,
+            calledProject,
+            prompt,
+            ,
+            ,
+            ,
+            ,
+            template,
+            ,
+            ,
+            ,
+            opts,
+        ] = appGenerateService.generateApp.mock.calls[0];
+        expect(calledUser).toBe(user);
+        expect(calledProject).toBe(projectUuid);
+        expect(prompt).toBe('Build a revenue app');
+        expect(template).toBe('slideshow');
+        expect(opts).toEqual({
+            creationExperience: 'ai_agent',
+            aiAgentToolCall: {
+                promptUuid: 'prompt-uuid',
+                toolCallId: 'tool-call-1',
+            },
+        });
+    });
+
+    it('resolves dashboard and chart slugs to references', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            dashboardService,
+            savedChartService,
+        });
+
+        await runGenerate(
+            service,
+            makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+            { dashboardSlug: 'sales-overview', chartSlugs: ['revenue'] },
+        );
+
+        expect(dashboardService.getByIdOrSlug).toHaveBeenCalledWith(
+            user,
+            'sales-overview',
+            { projectUuid },
+        );
+        expect(savedChartService.get).toHaveBeenCalledWith('revenue', account, {
+            projectUuid,
+        });
+        const [, , , , , charts, dashboard] =
+            appGenerateService.generateApp.mock.calls[0];
+        expect(charts).toEqual([
+            { uuid: 'chart-uuid', includeSampleData: true, linkLive: true },
+        ]);
+        expect(dashboard).toEqual({
+            uuid: 'dashboard-uuid',
+            includeSampleData: true,
+        });
+    });
+
+    it('does not build on charts outside the scoped agent spaces', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({ appGenerateService, savedChartService });
+
+        await expect(
+            runGenerate(
+                service,
+                makeRuntimeContext({
+                    promptUuid: 'prompt-uuid',
+                    spaceAccess: ['other-space-uuid'],
+                }),
+                { chartSlugs: ['revenue'] },
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(appGenerateService.generateApp).not.toHaveBeenCalled();
+    });
+
+    it('requires a prompt to link the build to', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({ appGenerateService });
+
+        await expect(
+            runGenerate(service, makeRuntimeContext()),
+        ).rejects.toThrow('generateDataApp requires a prompt');
+        expect(appGenerateService.generateApp).not.toHaveBeenCalled();
+    });
+});

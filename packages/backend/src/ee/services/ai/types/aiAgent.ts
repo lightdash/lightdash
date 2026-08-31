@@ -49,6 +49,7 @@ import {
     FindContentFn,
     FindCustomChartTypesFn,
     FindExploresFn,
+    GenerateDataAppFn,
     GetDashboardChartsFn,
     GetKnowledgeDocumentContentFn,
     GetProjectInfoFn,
@@ -217,6 +218,8 @@ export type AiAgentArgs = AnyAiModel & {
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
     enableContentTools: boolean;
+    // Data apps enabled + user may create them + content tools (trusted identity).
+    enableGenerateDataApp: boolean;
     enableAiWriteback: boolean;
     // Only on inside review-remediation work threads: lets the agent open/update
     // the project_context.yml PR via the deterministic editProjectContext tool.
@@ -341,6 +344,7 @@ export type AiAgentDependencies = {
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
+    generateDataApp: GenerateDataAppFn;
     editDbtProject: EditDbtProjectFn;
     editProjectContext: EditProjectContextFn;
     editRepo: EditRepoFn;

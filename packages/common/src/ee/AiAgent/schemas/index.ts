@@ -11,6 +11,7 @@ import {
     type ToolFindDashboardsOutput,
     type ToolFindExploresOutput,
     type ToolFindFieldsOutput,
+    type ToolGenerateDataAppOutput,
     type ToolGenerateHashesOutput,
     type ToolGenerateUuidsOutput,
     type ToolGetKnowledgeDocumentContentOutput,
@@ -54,6 +55,7 @@ export type AgentToolOutput =
     | ToolListWarehouseTablesOutput
     | ToolLoadSkillOutput
     | ToolEditDbtProjectOutput
+    | ToolGenerateDataAppOutput
     | ToolSyncDbtProjectOutput
     | ToolReadContentOutput
     | ToolRunQueryOutput

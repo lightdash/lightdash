@@ -57,6 +57,7 @@ import { getExploreRepo } from '../tools/exploreRepo';
 import { getFindContent } from '../tools/findContent';
 import { getFindCustomChartTypes } from '../tools/findCustomChartTypes';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
+import { getGenerateDataApp } from '../tools/generateDataApp';
 import { getGenerateHashes } from '../tools/generateHashes';
 import { getGenerateUuids } from '../tools/generateUuids';
 import { getGenerateVisualization } from '../tools/generateVisualization';
@@ -954,6 +955,12 @@ export const getAgentTools = (
         enableDataAccess: args.enableDataAccess,
     });
 
+    const generateDataApp = args.enableGenerateDataApp
+        ? getGenerateDataApp({
+              generateDataApp: dependencies.generateDataApp,
+          })
+        : null;
+
     const editDbtProject = args.enableAiWriteback
         ? getEditDbtProject({
               editDbtProject: dependencies.editDbtProject,
@@ -1147,6 +1154,7 @@ export const getAgentTools = (
         runSavedChart,
         generateHashes,
         generateUuids,
+        ...(generateDataApp ? { generateDataApp } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
         ...(editProjectContext ? { editProjectContext } : {}),
         ...(editRepo ? { editRepo } : {}),
@@ -1467,6 +1475,7 @@ export const getAgentMessages = (
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         enableContentTools: args.enableDataAccess && args.enableContentTools,
+        enableGenerateDataApp: args.enableGenerateDataApp,
         slackChannelId: args.slackChannelId,
         canRunSql: args.canRunSql,
         enableComposerQueries: args.enableComposerQueries,

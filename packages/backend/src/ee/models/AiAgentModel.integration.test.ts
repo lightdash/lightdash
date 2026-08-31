@@ -1,12 +1,18 @@
 import {
+    AI_DATA_APP_BUILD_PENDING_GRACE_MS,
     AiDuplicateSlackPromptError,
+    APP_VERSION_CANCELLED_BY_USER,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
     SEED_ORG_2,
     SEED_ORG_2_ADMIN,
     SEED_PROJECT,
+    type AppVersionStatus,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { lightdashConfig } from '../../config/lightdashConfig';
+import { AppsTableName } from '../../database/entities/apps';
+import { type AppModel } from '../../models/AppModel';
 import { getModels, getTestContext } from '../../vitest.setup.integration';
 import {
     AiAgentToolResultTableName,
@@ -914,5 +920,187 @@ describe('AiAgentModel prompt activity', () => {
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
         });
         expect(await model.hasAiPromptInterrupt(promptUuid)).toBe(true);
+    });
+});
+
+describe('AiAgentModel pending data app builds', () => {
+    let database: Knex;
+    let model: AiAgentModel;
+    let appModel: AppModel;
+    const threadUuids = new Set<string>();
+    const appUuids = new Set<string>();
+
+    beforeAll(() => {
+        const context = getTestContext();
+        database = context.db;
+        model = getModels(context.app).aiAgentModel;
+        appModel = context.app.getModels().getAppModel();
+    });
+
+    afterEach(async () => {
+        await database(AiThreadTableName)
+            .whereIn('ai_thread_uuid', [...threadUuids])
+            .delete();
+        threadUuids.clear();
+        await database(AppsTableName)
+            .whereIn('app_id', [...appUuids])
+            .delete();
+        appUuids.clear();
+    });
+
+    const toolCallId = 'generate-data-app-call';
+
+    const createPendingBuild = async ({
+        status,
+        error = null,
+        statusMessage = null,
+        startedAgoMs = 0,
+    }: {
+        status: AppVersionStatus;
+        error?: string | null;
+        statusMessage?: string | null;
+        startedAgoMs?: number;
+    }) => {
+        const { app } = await appModel.createWithVersion(
+            {
+                project_uuid: SEED_PROJECT.project_uuid,
+                created_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+                name: 'Revenue app',
+            },
+            { version: 1, prompt: 'Build a revenue app' },
+            'pending',
+        );
+        appUuids.add(app.app_id);
+        await appModel.updateVersionStatus(
+            app.app_id,
+            1,
+            status,
+            error,
+            statusMessage,
+        );
+
+        const threadUuid = await model.createWebAppThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            userUuid: SEED_ORG_1_ADMIN.user_uuid,
+            createdFrom: 'web_app',
+            agentUuid: null,
+        });
+        threadUuids.add(threadUuid);
+        const promptUuid = await model.createWebAppPrompt({
+            threadUuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            prompt: 'Build me a revenue app',
+        });
+        await model.createToolCall({
+            promptUuid,
+            toolCallId,
+            toolName: 'generateDataApp',
+            toolArgs: {
+                prompt: 'Build a revenue app',
+                template: null,
+                dashboardSlug: null,
+                chartSlugs: null,
+            },
+            parentToolCallId: null,
+        });
+        await model.createToolResults([
+            {
+                promptUuid,
+                toolCallId,
+                toolName: 'generateDataApp',
+                result: 'Started the data app build.',
+                metadata: {
+                    status: 'pending',
+                    appUuid: app.app_id,
+                    version: 1,
+                },
+            },
+        ]);
+        if (startedAgoMs > 0) {
+            await database.raw('UPDATE ?? SET ?? = ? WHERE ?? = ?', [
+                AiAgentToolResultTableName,
+                'created_at',
+                new Date(Date.now() - startedAgoMs),
+                'ai_prompt_uuid',
+                promptUuid,
+            ]);
+        }
+        return { promptUuid, appUuid: app.app_id };
+    };
+
+    it('resolves a pending result to success once the version is ready', async () => {
+        const { promptUuid, appUuid } = await createPendingBuild({
+            status: 'ready',
+        });
+
+        const [result] = await model.getToolResultsForPrompt(promptUuid);
+
+        expect(result.metadata).toEqual({
+            status: 'success',
+            appUuid,
+            version: 1,
+            name: 'Revenue app',
+            href: `${lightdashConfig.siteUrl}/projects/${SEED_PROJECT.project_uuid}/apps/${appUuid}`,
+        });
+    });
+
+    it('resolves a pending result to error once the version failed', async () => {
+        const { promptUuid } = await createPendingBuild({
+            status: 'error',
+            error: 'boom',
+            statusMessage: 'Build timed out. Please try again.',
+        });
+
+        const [result] = await model.getToolResultsForPrompt(promptUuid);
+
+        expect(result.metadata).toEqual({
+            status: 'error',
+            message: 'Build timed out. Please try again.',
+        });
+    });
+
+    it('resolves a pending result to error once the version was cancelled', async () => {
+        const { promptUuid } = await createPendingBuild({
+            status: 'error',
+            error: APP_VERSION_CANCELLED_BY_USER,
+            statusMessage: APP_VERSION_CANCELLED_BY_USER,
+        });
+
+        const [result] = await model.getToolResultsForPrompt(promptUuid);
+
+        expect(result.metadata).toEqual({
+            status: 'error',
+            message: 'The build was cancelled.',
+        });
+    });
+
+    it('keeps a fresh pending result while the version is still building', async () => {
+        const { promptUuid, appUuid } = await createPendingBuild({
+            status: 'generating',
+        });
+
+        const [result] = await model.getToolResultsForPrompt(promptUuid);
+
+        expect(result.metadata).toEqual({
+            status: 'pending',
+            appUuid,
+            version: 1,
+        });
+    });
+
+    it('expires a pending result still building after the grace period', async () => {
+        const { promptUuid } = await createPendingBuild({
+            status: 'generating',
+            startedAgoMs: AI_DATA_APP_BUILD_PENDING_GRACE_MS + 1000,
+        });
+
+        const [result] = await model.getToolResultsForPrompt(promptUuid);
+
+        expect(result.metadata).toMatchObject({ status: 'error' });
+        expect(result.metadata).toHaveProperty(
+            'message',
+            expect.stringContaining('30 minutes'),
+        );
     });
 });
