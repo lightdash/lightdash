@@ -1,3 +1,11 @@
+## [2.67.3](https://github.com/lightdash/lightdash/compare/2.67.2...2.67.3) (2026-08-31)
+
+
+### Bug Fixes
+
+* remove dbtSourceUuid from writeback tool schemas ([#28363](https://github.com/lightdash/lightdash/issues/28363)) ([f9e72ec](https://github.com/lightdash/lightdash/commit/f9e72ecb1f9bf5970a90c68d3772837413264131))
+* resolve the sole dbt source before selector validation ([#28362](https://github.com/lightdash/lightdash/issues/28362)) ([9220359](https://github.com/lightdash/lightdash/commit/922035918b94fa64a3df60dd8b8a3f00092aa60c))
+
 ## [2.67.2](https://github.com/lightdash/lightdash/compare/2.67.1...2.67.2) (2026-08-31)
 
 
