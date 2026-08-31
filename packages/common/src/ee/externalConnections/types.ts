@@ -157,6 +157,9 @@ export type ApiTestExternalConnectionRequest = {
     path: string;
     query?: Record<string, string>;
     body?: unknown;
+    /** Optional unsaved edit values to test against the stored connection.
+     *  Blank/omitted secret keeps the stored credential when it is still valid. */
+    config?: UpdateExternalConnection;
 };
 
 /** Test an unsaved connection config (incl. plaintext secret) before creating

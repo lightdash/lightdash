@@ -374,6 +374,7 @@ export class ExternalConnectionController extends BaseController {
                 path: body.path,
                 query: body.query,
                 body: body.body,
+                config: body.config,
             },
         );
         return { status: 'ok', results };
