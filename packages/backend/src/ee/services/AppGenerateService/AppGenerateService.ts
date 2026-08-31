@@ -8828,6 +8828,22 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Thin pass-through to the chart registry's index-listed images
+     * (thumbnails/screenshots). No ability check beyond route auth — these
+     * are catalog metadata, not project data — but still gated on the
+     * registry being enabled since `chartRegistryClient.getAsset` throws
+     * when it isn't.
+     */
+    async getRegistryAsset(
+        path: string,
+    ): Promise<{ buffer: Buffer; contentType: string } | undefined> {
+        if (!this.chartRegistryClient.isEnabled()) {
+            return undefined;
+        }
+        return this.chartRegistryClient.getAsset(path);
+    }
+
+    /**
      * `version` answers with that version's own schema instead of the latest
      * ready one, so a builder previewing an older version can configure the
      * options that version declares. It resolves through the same guard as the

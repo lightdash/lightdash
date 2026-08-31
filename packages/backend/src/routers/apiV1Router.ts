@@ -33,6 +33,7 @@ import {
     createOneLoginStrategyForConfig,
     isOneLoginPassportStrategyAvailableToUse,
 } from '../controllers/authentication/strategies/oneLoginStrategy';
+import { chartRegistryAssetRouter } from '../ee/routers/chartRegistryAssetRouter';
 import { AiAgentService } from '../ee/services/AiAgentService/AiAgentService';
 import { createAuditLogEvent } from '../logging/auditLog';
 import { createActorFromUser } from '../logging/caslAuditWrapper';
@@ -903,3 +904,4 @@ apiV1Router.use('/jobs', jobsRouter);
 apiV1Router.use('/headless-browser', headlessBrowserRouter);
 apiV1Router.use('/mcp', mcpRouter);
 apiV1Router.use('/oauth', oauthRouter);
+apiV1Router.use('/ee/chart-registry', chartRegistryAssetRouter);

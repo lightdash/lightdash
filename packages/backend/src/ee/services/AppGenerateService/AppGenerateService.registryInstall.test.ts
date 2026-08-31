@@ -679,3 +679,44 @@ describe('AppGenerateService registry feature-flag gates', () => {
         ).rejects.toThrow(ForbiddenError);
     });
 });
+
+describe('AppGenerateService.getRegistryAsset', () => {
+    it('returns undefined when the registry client is disabled, without calling getAsset', async () => {
+        const getAsset = vi.fn();
+        const svc = buildService({
+            chartRegistryClient: { isEnabled: () => false, getAsset },
+        });
+
+        const result = await svc.getRegistryAsset('sankey/1.3.0/thumb.png');
+
+        expect(result).toBeUndefined();
+        expect(getAsset).not.toHaveBeenCalled();
+    });
+
+    it('delegates to chartRegistryClient.getAsset when enabled', async () => {
+        const asset = {
+            buffer: Buffer.from('fake-png'),
+            contentType: 'image/png',
+        };
+        const getAsset = vi.fn().mockResolvedValue(asset);
+        const svc = buildService({
+            chartRegistryClient: { isEnabled: () => true, getAsset },
+        });
+
+        const result = await svc.getRegistryAsset('sankey/1.3.0/thumb.png');
+
+        expect(getAsset).toHaveBeenCalledWith('sankey/1.3.0/thumb.png');
+        expect(result).toBe(asset);
+    });
+
+    it('returns undefined when the underlying client returns undefined (path not in the index)', async () => {
+        const getAsset = vi.fn().mockResolvedValue(undefined);
+        const svc = buildService({
+            chartRegistryClient: { isEnabled: () => true, getAsset },
+        });
+
+        const result = await svc.getRegistryAsset('unknown/path.png');
+
+        expect(result).toBeUndefined();
+    });
+});
