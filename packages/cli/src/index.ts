@@ -16,6 +16,7 @@ import {
 } from './env';
 import { getDiagnosticsHint } from './error';
 import GlobalState from './globalState';
+import { appsBuildHandler } from './handlers/apps/build';
 import { createAppHandler } from './handlers/apps/createApp';
 import { appsPreviewHandler } from './handlers/apps/preview';
 import {
@@ -1258,6 +1259,17 @@ appsProgram
     )
     .option('--verbose', undefined, false)
     .action(appsValidateHandler);
+appsProgram
+    .command('build [path]')
+    .description(
+        'Build a data app or custom chart type with the same Vite production build as Lightdash Cloud, and keep the output.',
+    )
+    .option(
+        '--out-dir <dir>',
+        'Directory to write the built dist output to (default: <path>/dist)',
+    )
+    .option('--verbose', undefined, false)
+    .action(appsBuildHandler);
 
 program
     .command('deploy')

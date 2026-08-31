@@ -375,6 +375,7 @@ export const validateDataAppBuild = async (args: {
     appDir: string;
     bundle: DataAppCode;
     runCommand?: RunDataAppBuildCommand;
+    outDir?: string;
 }): Promise<AppsValidationIssue[]> => {
     const runCommand = args.runCommand ?? runDataAppBuildCommand;
     let dependencies: Awaited<ReturnType<typeof readDependenciesFromDir>>;
@@ -487,6 +488,13 @@ export const validateDataAppBuild = async (args: {
                 ),
             ];
         }
+
+        if (args.outDir !== undefined) {
+            await fs.cp(path.join(buildDir, 'dist'), args.outDir, {
+                recursive: true,
+            });
+        }
+
         return [];
     } catch (error) {
         return [
@@ -734,7 +742,7 @@ const formatCoverage = (coverage: AppsValidationCoverage): string => {
     return `Coverage: ${coverage.unanalyzed} of ${coverage.callSites} data-reference call site(s) couldn't be fully analyzed; unresolved values were skipped and are not errors.`;
 };
 
-const formatIssue = (entry: AppsValidationIssue): string => {
+export const formatIssue = (entry: AppsValidationIssue): string => {
     const prefix = entry.location
         ? `${entry.location.path}:${entry.location.line}:${entry.location.column} — `
         : '';
