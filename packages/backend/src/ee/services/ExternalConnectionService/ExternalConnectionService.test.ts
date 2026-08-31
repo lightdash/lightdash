@@ -551,6 +551,112 @@ describe('ExternalConnectionService.testConnection', () => {
         expect(result).toEqual(fetchResponse);
     });
 
+    it('tests unsaved policy changes with the stored secret without persisting them', async () => {
+        const { service, model } = buildService({});
+        mockAbility(service, true);
+
+        executeSpy = vi
+            .spyOn(
+                service as unknown as {
+                    executeExternalFetch: (...a: unknown[]) => Promise<unknown>;
+                },
+                'executeExternalFetch',
+            )
+            .mockResolvedValue({
+                response: fetchResponse,
+                requestBytes: 0,
+                responseBytes: 0,
+            });
+
+        await service.testConnection(
+            adminAccount,
+            projectUuid,
+            connectionUuid,
+            {
+                method: 'POST',
+                path: '/v2/items',
+                config: {
+                    allowedMethods: ['POST'],
+                    allowedPathPrefixes: ['/v2/'],
+                    customHeaders: { 'x-api-version': '2' },
+                },
+            },
+        );
+
+        expect(model.getDecryptedSecret).toHaveBeenCalledWith(connectionUuid);
+        expect(model.update).not.toHaveBeenCalled();
+        expect(executeSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                allowedMethods: ['POST'],
+                allowedPathPrefixes: ['/v2/'],
+                customHeaders: { 'x-api-version': '2' },
+            }),
+            's3cr3t',
+            expect.objectContaining({ method: 'POST', path: '/v2/items' }),
+        );
+    });
+
+    it('rejects testing an unsaved origin with the old stored secret', async () => {
+        const { service, model } = buildService({});
+        mockAbility(service, true);
+        const executeExternalFetchSpy = vi.spyOn(
+            service as unknown as {
+                executeExternalFetch: (...a: unknown[]) => Promise<unknown>;
+            },
+            'executeExternalFetch',
+        );
+
+        await expect(
+            service.testConnection(adminAccount, projectUuid, connectionUuid, {
+                method: 'GET',
+                path: '/v1/current',
+                config: { origin: 'https://other.example.com' },
+            }),
+        ).rejects.toThrow('type "bearer_token" requires a secret');
+
+        expect(model.getDecryptedSecret).not.toHaveBeenCalled();
+        expect(executeExternalFetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('uses a replacement secret when testing an unsaved origin', async () => {
+        const { service, model } = buildService({});
+        mockAbility(service, true);
+
+        executeSpy = vi
+            .spyOn(
+                service as unknown as {
+                    executeExternalFetch: (...a: unknown[]) => Promise<unknown>;
+                },
+                'executeExternalFetch',
+            )
+            .mockResolvedValue({
+                response: fetchResponse,
+                requestBytes: 0,
+                responseBytes: 0,
+            });
+
+        await service.testConnection(
+            adminAccount,
+            projectUuid,
+            connectionUuid,
+            {
+                method: 'GET',
+                path: '/v1/current',
+                config: {
+                    origin: 'https://other.example.com',
+                    secret: 'replacement-secret',
+                },
+            },
+        );
+
+        expect(model.getDecryptedSecret).not.toHaveBeenCalled();
+        expect(executeSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ origin: 'https://other.example.com' }),
+            'replacement-secret',
+            expect.objectContaining({ method: 'GET', path: '/v1/current' }),
+        );
+    });
+
     it('defaults method to GET when omitted', async () => {
         const { service } = buildService({});
         mockAbility(service, true);

@@ -1,12 +1,14 @@
 import {
+    type ApiSaveExternalConnectionSampleRequest,
     type ExternalConnection,
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import { Button, Stack, Tabs, Text, Textarea } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, useState } from 'react';
 import { isValidOAuthScope } from '../../../features/externalConnections/constants';
+import { useSaveConnectionSample } from '../../../features/externalConnections/hooks/useSaveConnectionSample';
 import { useUpdateExternalConnection } from '../../../features/externalConnections/hooks/useUpdateExternalConnection';
 import {
     customHeaderRowsToRecord,
@@ -28,6 +30,41 @@ import {
 
 const FORM_ID = 'edit-external-connection-form';
 
+const toUpdateExternalConnection = (
+    values: ExternalConnectionFormValues,
+): UpdateExternalConnection => ({
+    name: values.name,
+    origin: values.origin,
+    instructions: values.instructions.trim() || null,
+    type: values.type,
+    allowBrowserImages: values.allowBrowserImages,
+    allowDataAppBuilderLinking: values.allowDataAppBuilderLinking,
+    allowedMethods: values.allowedMethods,
+    allowedPathPrefixes: resolvePathPrefixes(
+        values.pathMode,
+        values.allowedPathPrefixes,
+    ),
+    allowedContentTypes: values.allowedContentTypes,
+    responseMaxBytes: values.responseMaxBytes,
+    requestMaxBytes: values.requestMaxBytes,
+    timeoutMs: values.timeoutMs,
+    rateLimitPerMinute: values.rateLimitPerMinute,
+    apiKeyName: values.type === 'api_key' ? values.apiKeyName : null,
+    apiKeyLocation: values.type === 'api_key' ? values.apiKeyLocation : null,
+    oauthScopes:
+        values.type === 'google_service_account' ? values.oauthScopes : null,
+    customHeaders: customHeaderRowsToRecord(values.customHeaders),
+    // Blank => omit so the stored secret is unchanged. A non-blank value on a
+    // non-"none" type is used for both testing and credential rotation.
+    ...(values.type !== 'none' && values.secret
+        ? { secret: values.secret }
+        : {}),
+});
+
+type PendingSample = ApiSaveExternalConnectionSampleRequest & {
+    configFingerprint: string;
+};
+
 type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     projectUuid: string;
     connection: ExternalConnection;
@@ -39,7 +76,13 @@ const EditConnectionModalContent: FC<Props> = ({
     projectUuid,
     connection,
 }) => {
-    const { mutateAsync, isLoading: isSaving } = useUpdateExternalConnection();
+    const { mutateAsync, isLoading: isUpdating } =
+        useUpdateExternalConnection();
+    const { mutateAsync: saveSample, isLoading: isSavingSample } =
+        useSaveConnectionSample();
+    const [pendingSample, setPendingSample] = useState<PendingSample | null>(
+        null,
+    );
     const pathRules = derivePathRules(connection.allowedPathPrefixes);
     const form = useForm<ExternalConnectionFormValues>({
         initialValues: {
@@ -113,43 +156,34 @@ const EditConnectionModalContent: FC<Props> = ({
         },
     });
 
+    const draftConfig = toUpdateExternalConnection(form.values);
+    const draftConfigFingerprint = JSON.stringify(draftConfig);
+    const validPendingSample =
+        pendingSample?.configFingerprint === draftConfigFingerprint
+            ? pendingSample
+            : null;
+    const isSaving = isUpdating || isSavingSample;
+
     const handleSubmit = async (values: ExternalConnectionFormValues) => {
-        const data: UpdateExternalConnection = {
-            name: values.name,
-            origin: values.origin,
-            instructions: values.instructions.trim() || null,
-            type: values.type,
-            allowBrowserImages: values.allowBrowserImages,
-            allowDataAppBuilderLinking: values.allowDataAppBuilderLinking,
-            allowedMethods: values.allowedMethods,
-            allowedPathPrefixes: resolvePathPrefixes(
-                values.pathMode,
-                values.allowedPathPrefixes,
-            ),
-            allowedContentTypes: values.allowedContentTypes,
-            responseMaxBytes: values.responseMaxBytes,
-            requestMaxBytes: values.requestMaxBytes,
-            timeoutMs: values.timeoutMs,
-            rateLimitPerMinute: values.rateLimitPerMinute,
-            apiKeyName: values.type === 'api_key' ? values.apiKeyName : null,
-            apiKeyLocation:
-                values.type === 'api_key' ? values.apiKeyLocation : null,
-            oauthScopes:
-                values.type === 'google_service_account'
-                    ? values.oauthScopes
-                    : null,
-            customHeaders: customHeaderRowsToRecord(values.customHeaders),
-            // Blank => omit so the stored secret is unchanged. A non-blank
-            // value on a non-"none" type rotates it via PATCH.
-            ...(values.type !== 'none' && values.secret
-                ? { secret: values.secret }
-                : {}),
-        };
+        const data = toUpdateExternalConnection(values);
+        const submittedConfigFingerprint = JSON.stringify(data);
         await mutateAsync({
             projectUuid,
             connectionUuid: connection.externalConnectionUuid,
             data,
         });
+        if (
+            validPendingSample &&
+            validPendingSample.configFingerprint === submittedConfigFingerprint
+        ) {
+            const { configFingerprint: _configFingerprint, ...sample } =
+                validPendingSample;
+            await saveSample({
+                projectUuid,
+                connectionUuid: connection.externalConnectionUuid,
+                ...sample,
+            });
+        }
         onClose();
     };
 
@@ -214,6 +248,16 @@ const EditConnectionModalContent: FC<Props> = ({
                         <ConnectionExamplesPanel
                             projectUuid={projectUuid}
                             connection={connection}
+                            config={draftConfig}
+                            hasUnsavedChanges={form.isDirty()}
+                            isSampleQueued={validPendingSample !== null}
+                            onQueueSample={(sample) =>
+                                setPendingSample({
+                                    ...sample,
+                                    configFingerprint: draftConfigFingerprint,
+                                })
+                            }
+                            onClearQueuedSample={() => setPendingSample(null)}
                         />
                     </Tabs.Panel>
                 </Tabs>
