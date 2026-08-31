@@ -30,6 +30,40 @@ const createClient = (response: { status: number; body?: string }) => {
 };
 
 describe('ApnsClient.sendLiveActivity', () => {
+    it.each<MobilePushNotificationsConfig>([
+        { ...config, enabled: false },
+        { ...config, teamId: undefined },
+        { ...config, sandbox: undefined },
+    ])(
+        'does not attempt delivery with incomplete configuration',
+        async (incompleteConfig) => {
+            const transport = {
+                send: vi.fn(async () => ({ status: 200 })),
+            } satisfies ApnsHttpTransport;
+            const providerTokenSource = {
+                getToken: vi.fn(async () => 'provider-token'),
+            } satisfies ApnsProviderTokenSource;
+            const client = new ApnsClient({
+                config: incompleteConfig,
+                transport,
+                providerTokenSource,
+            });
+
+            await expect(
+                client.sendLiveActivity({
+                    environment: 'sandbox',
+                    pushToken: 'activity-token',
+                    payload: { aps: { timestamp: 1, event: 'update' } },
+                }),
+            ).resolves.toEqual({
+                status: 'failed',
+                reason: 'environment_not_configured',
+            });
+            expect(providerTokenSource.getToken).not.toHaveBeenCalled();
+            expect(transport.send).not.toHaveBeenCalled();
+        },
+    );
+
     it('sends a sandbox Live Activity request with exact APNs headers', async () => {
         const { client, transport, providerTokenSource } = createClient({
             status: 200,

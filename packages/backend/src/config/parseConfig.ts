@@ -2588,13 +2588,6 @@ const parseMobilePushCredential = (
     const keyId = process.env[keyIdVariable];
     const privateKey = process.env[privateKeyVariable];
 
-    if ((keyId === undefined) !== (privateKey === undefined)) {
-        throw new ParseError(
-            `${keyIdVariable} and ${privateKeyVariable} must be set together`,
-            {},
-        );
-    }
-
     return keyId === undefined || privateKey === undefined
         ? undefined
         : { keyId, privateKey };
@@ -2732,16 +2725,6 @@ export const parseConfig = (): LightdashConfig => {
     const mobilePushSandbox = parseMobilePushCredential('SANDBOX');
     const mobilePushProduction = parseMobilePushCredential('PRODUCTION');
     const mobilePushTeamId = process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID;
-    if (
-        (mobilePushSandbox !== undefined ||
-            mobilePushProduction !== undefined) &&
-        mobilePushTeamId === undefined
-    ) {
-        throw new ParseError(
-            'MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID is required when APNs credentials are set',
-            {},
-        );
-    }
     const motherduckInstanceCache = {
         enabled: process.env.MOTHERDUCK_INSTANCE_CACHE_ENABLED === 'true',
         projectUuids: getArrayFromCommaSeparatedList(
