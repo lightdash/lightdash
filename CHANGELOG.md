@@ -1,3 +1,10 @@
+# [2.61.0](https://github.com/lightdash/lightdash/compare/2.60.1...2.61.0) (2026-08-31)
+
+
+### Features
+
+* **ai-agent:** Slack thread gets the data app build's outcome ([#28333](https://github.com/lightdash/lightdash/issues/28333)) ([f038ab6](https://github.com/lightdash/lightdash/commit/f038ab664d52b93ab0d4c649af73c56267df725b))
+
 ## [2.60.1](https://github.com/lightdash/lightdash/compare/2.60.0...2.60.1) (2026-08-31)
 
 
