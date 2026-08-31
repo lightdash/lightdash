@@ -107,7 +107,11 @@ export const buildLiveActivityPayload = (args: {
     aps: {
         timestamp: Math.floor(args.timestamp.getTime() / 1000),
         event: args.event,
-        'stale-date': Math.floor(args.staleAt.getTime() / 1000),
+        ...(args.event === 'update'
+            ? {
+                  'stale-date': Math.floor(args.staleAt.getTime() / 1000),
+              }
+            : {}),
         'content-state': {
             state: args.state,
             projectUuid: args.projectUuid,

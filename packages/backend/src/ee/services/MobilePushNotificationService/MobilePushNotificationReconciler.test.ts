@@ -159,7 +159,7 @@ describe('MobilePushNotificationReconciler.reconcileLiveActivity', () => {
         ).not.toContain('activity-token');
     });
 
-    it('ends an idle activity and dismisses it after one minute', async () => {
+    it('ends an idle activity without a stale date and dismisses it after one minute', async () => {
         const dependencies = createDependencies();
         dependencies.threadStore.findThreadLiveStateSignals.mockResolvedValue([
             {
@@ -175,19 +175,24 @@ describe('MobilePushNotificationReconciler.reconcileLiveActivity', () => {
 
         await reconciler.reconcileLiveActivity(activity.liveActivityUuid);
 
-        expect(dependencies.apnsClient.sendLiveActivity).toHaveBeenCalledWith(
-            expect.objectContaining({
-                payload: expect.objectContaining({
-                    aps: expect.objectContaining({
-                        event: 'end',
-                        'dismissal-date': 1788091320,
-                        'content-state': expect.objectContaining({
-                            state: 'idle',
-                        }),
-                    }),
-                }),
-            }),
-        );
+        expect(dependencies.apnsClient.sendLiveActivity).toHaveBeenCalledWith({
+            environment: 'sandbox',
+            pushToken: 'activity-token',
+            payload: {
+                aps: {
+                    timestamp: 1788091260,
+                    event: 'end',
+                    'dismissal-date': 1788091320,
+                    'content-state': {
+                        state: 'idle',
+                        projectUuid: 'project-uuid',
+                        agentUuid: 'agent-uuid',
+                        threadUuid: 'thread-uuid',
+                        promptUuid: 'prompt-uuid',
+                    },
+                },
+            },
+        });
         expect(
             dependencies.notificationStore.markLiveActivityDelivered,
         ).toHaveBeenCalledWith(
