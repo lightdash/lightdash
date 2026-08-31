@@ -26,6 +26,26 @@ function listTarEntryNames(buffer: Buffer): Promise<string[]> {
     });
 }
 
+/** Reads back every entry's name -> utf-8 content in a tar buffer. */
+function readTarFiles(buffer: Buffer): Promise<Record<string, string>> {
+    return new Promise((resolve, reject) => {
+        const files: Record<string, string> = {};
+        const extractor = extract();
+        extractor.on('entry', (header, stream, next) => {
+            const chunks: Buffer[] = [];
+            stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+            stream.on('end', () => {
+                files[header.name] = Buffer.concat(chunks).toString('utf-8');
+                next();
+            });
+            stream.resume();
+        });
+        extractor.on('finish', () => resolve(files));
+        extractor.on('error', reject);
+        extractor.end(buffer);
+    });
+}
+
 describe('buildChartRegistryFixture', () => {
     let outDir: string;
 
@@ -102,6 +122,26 @@ describe('buildChartRegistryFixture', () => {
         expect(names.length).toBeGreaterThan(0);
         names.forEach((name) => expect(name.startsWith('dist/')).toBe(true));
         expect(names).toContain('dist/index.html');
+        expect(names).toContain('dist/assets/app.js');
+    });
+
+    it('index.html has no inline script — only an external module script tag (CSP has no script-src unsafe-inline)', async () => {
+        const { index } = await buildChartRegistryFixture({ outDir });
+        const entry = index.charts[0];
+        const distBuffer = await readFile(
+            path.join(outDir, entry.artifacts.dist.path),
+        );
+        const files = await readTarFiles(distBuffer);
+        const indexHtml = files['dist/index.html'];
+
+        const scriptTags = [
+            ...indexHtml.matchAll(/<script\b[^>]*>([^<]*)<\/script>/g),
+        ];
+        expect(scriptTags).toHaveLength(1);
+        const [fullTag, body] = scriptTags[0];
+        expect(fullTag).toMatch(/type="module"/);
+        expect(fullTag).toMatch(/src="\.\/assets\/app\.js"/);
+        expect(body.trim()).toBe('');
     });
 
     it('source.tar entries are all prefixed with src/', async () => {

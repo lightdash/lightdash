@@ -47,40 +47,52 @@ const ONE_PX_PNG_BASE64 =
 
 const SOURCE_APP_JSX = `export default function App() { return null; }\n`;
 
-// Genuinely renderable: shows a placeholder immediately, then listens for the
-// host's viz-context push (mirroring @lightdash/query-sdk's useVizContext
-// handshake) and reports what it received, so an E2E check can prove the
-// bundle both loads and receives real context — without pulling in React or
-// any bundler.
-const DIST_ASSET_APP_JS = `(function () {
-  var root = document.getElementById('root');
-  function render(text) {
-    root.textContent = text;
-  }
-  render('Fixture Gauge');
+// Genuinely renderable: shows a placeholder immediately, then runs the same
+// handshake @lightdash/query-sdk's useVizContext runs (packages/query-sdk/src/vizContext.ts):
+// listen for the host's push, then ask for it. The host's listener
+// (useAppSdkBridge.ts) is registered unconditionally on iframe mount and
+// replies to the request with no sdk:ready/sdk:manifest gate in between, so
+// no boot handshake beyond this pair is needed. All JS lives here — none
+// inline in index.html — because the preview iframe's CSP `script-src` has
+// no `'unsafe-inline'` (see appPreviewRouter.ts's buildCspHeader), only
+// `'self'`/the preview origin/blob:, matching what a same-origin external
+// file needs.
+const DIST_ASSET_APP_JS = `const root = document.getElementById('root');
 
-  window.addEventListener('message', function (event) {
-    var data = event.data;
-    if (!data || data.type !== 'lightdash:sdk:data-app-viz-context') return;
-    var rows = Array.isArray(data.rows) ? data.rows : [];
-    var fieldCount = data.fieldMapping
-      ? Object.keys(data.fieldMapping).length
-      : 0;
-    render('Fixture Gauge \\u2014 fields: ' + fieldCount + ', rows: ' + rows.length);
-  });
+function render(text) {
+  root.textContent = text;
+}
 
-  if (window.parent) {
-    window.parent.postMessage({ type: 'lightdash:sdk:viz-context-request' }, '*');
-  }
-})();
+render('Fixture Gauge');
+
+window.addEventListener('message', (event) => {
+  const data = event.data;
+  if (!data || data.type !== 'lightdash:sdk:data-app-viz-context') return;
+  const fieldMapping = data.fieldMapping || {};
+  const fieldNames = Object.keys(fieldMapping);
+  const rowCount = Array.isArray(data.rows) ? data.rows.length : 0;
+  render(
+    'Fixture Gauge \\u2014 fields: ' +
+      (fieldNames.length ? fieldNames.join(', ') : '(none)') +
+      ', rows: ' +
+      rowCount,
+  );
+});
+
+window.parent?.postMessage({ type: 'lightdash:sdk:viz-context-request' }, '*');
 `;
 
+// `type="module" crossorigin` matches the tag shape a real Vite build emits
+// (Vite's `base: './'` output) — module scripts are always CORS-mode
+// fetches, which is what the real template relies on when assets are served
+// from a CDN origin distinct from the document (see buildCspHeader's
+// `cdnOrigin`); harmless for same-origin dev serving.
 const DIST_INDEX_HTML = `<!doctype html>
 <html>
 <head><meta charset="utf-8" /><title>Fixture Gauge</title></head>
 <body>
 <div id="root">Fixture Gauge</div>
-<script src="./assets/app.js"></script>
+<script type="module" crossorigin src="./assets/app.js"></script>
 </body>
 </html>
 `;
