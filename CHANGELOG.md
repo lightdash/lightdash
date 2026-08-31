@@ -1,3 +1,10 @@
+## [2.64.2](https://github.com/lightdash/lightdash/compare/2.64.1...2.64.2) (2026-08-31)
+
+
+### Bug Fixes
+
+* **data-apps:** test connection examples with draft settings ([#28342](https://github.com/lightdash/lightdash/issues/28342)) ([59803f0](https://github.com/lightdash/lightdash/commit/59803f02c45ae114ee76b6b9b491dbb488e409f8))
+
 ## [2.64.1](https://github.com/lightdash/lightdash/compare/2.64.0...2.64.1) (2026-08-31)
 
 
