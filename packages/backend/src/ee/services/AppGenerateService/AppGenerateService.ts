@@ -19,6 +19,7 @@ import {
     assertUnreachable,
     ChartType,
     checkThemeLimits,
+    compareSemverVersions,
     DATA_APP_CLAUDE_MODELS,
     DATA_APP_CODEX_MODELS,
     DATA_APP_VIZ_TEMPLATE,
@@ -40,6 +41,7 @@ import {
     getVisibleDataAppClaudeModels,
     isDashboardChartTileType,
     isExploreError,
+    isSemverVersion,
     isValidDataAppSlug,
     MAX_APP_FILES_PER_VERSION,
     MissingConfigError,
@@ -110,6 +112,8 @@ import {
     type PersistedDataAppDataReferences,
     type PromoteAppAction,
     type PromoteAppDiff,
+    type RegistryChartTypeListItem,
+    type RegistryChartTypeState,
     type SavedChart,
     type SessionUser,
     type TogglePinnedItemInfo,
@@ -177,6 +181,7 @@ import {
     getOtelTraceHeaders,
     runWithOtelSpanContext,
 } from '../../../tracing/tracing';
+import { VERSION } from '../../../version';
 import { ChartRegistryClient } from '../../clients/ChartRegistryClient';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
@@ -8569,6 +8574,249 @@ export class AppGenerateService extends BaseService {
         return { data: data.map(AppGenerateService.mapDataAppViz), pagination };
     }
 
+    /** Whether the given entry's `minLightdashVersion` is newer than this instance. Non-semver instance versions are treated as compatible. */
+    private static isRegistryEntryIncompatible(entry: {
+        minLightdashVersion: string | null;
+    }): boolean {
+        return (
+            entry.minLightdashVersion !== null &&
+            isSemverVersion(VERSION) &&
+            compareSemverVersions(VERSION, entry.minLightdashVersion) < 0
+        );
+    }
+
+    /**
+     * The catalog of installable chart types from the configured chart
+     * registry, merged with this project's install state. Gated behind
+     * both the data-apps flag and the `ChartTypeRegistry` rollout flag; the
+     * library is offered to whoever can build a chart in an explore, same as
+     * `listDataAppVisualizations`.
+     */
+    async listRegistryChartTypes(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{
+        registryEnabled: boolean;
+        charts: RegistryChartTypeListItem[];
+    }> {
+        await this.assertDataAppsEnabled(user);
+        const { enabled: registryFlagEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ChartTypeRegistry,
+            });
+        if (!registryFlagEnabled) {
+            throw new ForbiddenError('The chart type library is not enabled');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError('Insufficient permissions');
+        }
+
+        if (!this.chartRegistryClient.isEnabled()) {
+            return { registryEnabled: false, charts: [] };
+        }
+        const [index, installed] = await Promise.all([
+            this.chartRegistryClient.getIndex(),
+            this.appModel.listRegistryInstalledApps(projectUuid),
+        ]);
+        const bySlug = new Map(installed.map((a) => [a.registry_slug, a]));
+        const charts: RegistryChartTypeListItem[] = index.charts.map(
+            (entry) => {
+                const inst = bySlug.get(entry.slug);
+                const incompatible =
+                    AppGenerateService.isRegistryEntryIncompatible(entry);
+                let state: RegistryChartTypeState = 'not_installed';
+                if (inst?.latest_ready_registry_version) {
+                    state =
+                        !incompatible &&
+                        compareSemverVersions(
+                            inst.latest_ready_registry_version,
+                            entry.version,
+                        ) < 0
+                            ? 'update_available'
+                            : 'installed';
+                } else if (incompatible) {
+                    state = 'incompatible';
+                }
+                return {
+                    ...entry,
+                    state,
+                    installedAppUuid: inst?.app_id ?? null,
+                    installedRegistryVersion:
+                        inst?.latest_ready_registry_version ?? null,
+                };
+            },
+        );
+        return { registryEnabled: true, charts };
+    }
+
+    /**
+     * Install a chart type from the chart registry, or append a new version
+     * when it's already installed at an older registry version. Registry
+     * artifacts are verified (digest-checked) and downloaded before any S3 or
+     * DB write; a DB write failure rolls back the copied S3 keys.
+     */
+    async installRegistryChartType(
+        user: SessionUser,
+        projectUuid: string,
+        chartSlug: string,
+    ): Promise<{
+        appUuid: string;
+        slug: string;
+        version: number;
+        action: 'installed' | 'upgraded' | 'unchanged';
+    }> {
+        await this.assertDataAppsEnabled(user);
+        const { enabled: registryFlagEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ChartTypeRegistry,
+            });
+        if (!registryFlagEnabled) {
+            throw new ForbiddenError('The chart type library is not enabled');
+        }
+        const { organizationUuid } = await this.assertDataAppAbility(
+            user,
+            'create',
+            projectUuid,
+            'Insufficient permissions to install chart types',
+        );
+
+        const entry = await this.chartRegistryClient.getEntry(chartSlug);
+        if (!entry) {
+            throw new NotFoundError(
+                `Chart type "${chartSlug}" not found in the registry`,
+            );
+        }
+        if (AppGenerateService.isRegistryEntryIncompatible(entry)) {
+            throw new ParameterError(
+                `Chart type "${entry.slug}" requires a newer Lightdash version (>= ${entry.minLightdashVersion}); this instance is on ${VERSION}`,
+            );
+        }
+        // Belt-and-braces: the index was already zod-validated when fetched.
+        const vizSchemaParse = dataAppVizSchema.safeParse(entry.vizSchema);
+        if (!vizSchemaParse.success) {
+            throw new ParameterError(
+                `Chart type "${entry.slug}" has an invalid vizSchema and cannot be installed`,
+            );
+        }
+        const vizSchema = vizSchemaParse.data;
+
+        const installedApps =
+            await this.appModel.listRegistryInstalledApps(projectUuid);
+        const existing = installedApps.find(
+            (a) => a.registry_slug === chartSlug,
+        );
+        if (
+            existing &&
+            existing.latest_ready_registry_version === entry.version
+        ) {
+            const latest = await this.appModel.getLatestReadyVersion(
+                existing.app_id,
+            );
+            return {
+                appUuid: existing.app_id,
+                slug: chartSlug,
+                version: latest!.version,
+                action: 'unchanged',
+            };
+        }
+
+        const [sourceTar, distTar] = await Promise.all([
+            this.chartRegistryClient.downloadArtifact(entry, 'source'),
+            this.chartRegistryClient.downloadArtifact(entry, 'dist'),
+        ]);
+        const { client: s3Client, bucket } = this.getS3Client();
+        const appUuid = existing?.app_id ?? uuidv4();
+        const version = existing
+            ? (await this.appModel.getLatestVersion(appUuid))!.version + 1
+            : 1;
+        const prefix = versionPrefix(appUuid, version);
+        await s3Client.send(
+            new PutObjectCommand({
+                Bucket: bucket,
+                Key: `${prefix}source.tar`,
+                Body: sourceTar,
+                ContentType: 'application/x-tar',
+            }),
+        );
+        await AppGenerateService.extractAndUploadToS3(
+            distTar,
+            s3Client,
+            bucket,
+            prefix,
+        );
+
+        const prompt = `Installed ${entry.name} v${entry.version} from the chart type library`;
+        try {
+            if (existing) {
+                await this.appModel.createVersion(
+                    appUuid,
+                    { version, prompt },
+                    'ready',
+                    user.userUuid,
+                    undefined,
+                    undefined,
+                    vizSchema,
+                    { registryVersion: entry.version },
+                );
+            } else {
+                await this.appModel.createWithVersion(
+                    {
+                        app_id: appUuid,
+                        project_uuid: projectUuid,
+                        created_by_user_uuid: user.userUuid,
+                        name: entry.name,
+                        description: entry.description,
+                        slug: entry.slug,
+                        template: DATA_APP_VIZ_TEMPLATE,
+                        registry_slug: entry.slug,
+                        registry_url: this.chartRegistryClient.getBaseUrl(),
+                    },
+                    { version: 1, prompt },
+                    'ready',
+                    undefined,
+                    undefined,
+                    vizSchema,
+                    { registryVersion: entry.version },
+                );
+            }
+        } catch (e) {
+            await this.deleteVersionS3Prefix(
+                s3Client,
+                bucket,
+                appUuid,
+                version,
+            );
+            throw e;
+        }
+
+        const action = existing ? 'upgraded' : 'installed';
+        this.analytics.track({
+            event: 'data_app.registry_installed',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                appUuid,
+                chartSlug: entry.slug,
+                version,
+                registryVersion: entry.version,
+                action,
+            },
+        });
+
+        return { appUuid, slug: entry.slug, version, action };
+    }
+
     /**
      * `version` answers with that version's own schema instead of the latest
      * ready one, so a builder previewing an older version can configure the
@@ -9311,6 +9559,55 @@ export class AppGenerateService extends BaseService {
         this.logger.info(
             `App ${appUuid}: deleted ${totalDeleted} S3 object(s) under ${prefix}`,
         );
+    }
+
+    /**
+     * Best-effort cleanup of the objects copied for a single app version
+     * (used to roll back a registry install/upgrade when the DB write
+     * fails). Logs rather than throwing — a leaked S3 key is harmless.
+     */
+    private async deleteVersionS3Prefix(
+        s3Client: S3Client,
+        bucket: string,
+        appUuid: string,
+        version: number,
+    ): Promise<void> {
+        const prefix = versionPrefix(appUuid, version);
+        try {
+            let continuationToken: string | undefined;
+            /* eslint-disable no-await-in-loop */
+            do {
+                const listResponse = await s3Client.send(
+                    new ListObjectsV2Command({
+                        Bucket: bucket,
+                        Prefix: prefix,
+                        ContinuationToken: continuationToken,
+                    }),
+                );
+                const objects: ObjectIdentifier[] = (
+                    listResponse.Contents ?? []
+                )
+                    .map((obj) => obj.Key)
+                    .filter((key): key is string => typeof key === 'string')
+                    .map((Key) => ({ Key }));
+                if (objects.length > 0) {
+                    await s3Client.send(
+                        new DeleteObjectsCommand({
+                            Bucket: bucket,
+                            Delete: { Objects: objects, Quiet: true },
+                        }),
+                    );
+                }
+                continuationToken = listResponse.IsTruncated
+                    ? listResponse.NextContinuationToken
+                    : undefined;
+            } while (continuationToken);
+            /* eslint-enable no-await-in-loop */
+        } catch (e) {
+            this.logger.error(
+                `Failed to clean up S3 objects under ${prefix} after a failed registry install: ${getErrorMessage(e)}`,
+            );
+        }
     }
 
     /**

@@ -1974,6 +1974,20 @@ export type DataAppUploadRejectedEvent = BaseTrack & {
     };
 };
 
+export type DataAppRegistryInstalledEvent = BaseTrack & {
+    event: 'data_app.registry_installed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        chartSlug: string;
+        version: number;
+        registryVersion: string;
+        action: 'installed' | 'upgraded';
+    };
+};
+
 export type DataAppEvent =
     | DataAppCreatedEvent
     | DataAppIteratedEvent
@@ -1988,7 +2002,8 @@ export type DataAppEvent =
     | DataAppPromotedEvent
     | DataAppDownloadedEvent
     | DataAppUploadedEvent
-    | DataAppUploadRejectedEvent;
+    | DataAppUploadRejectedEvent
+    | DataAppRegistryInstalledEvent;
 
 export type AiWritebackStartedEvent = BaseTrack & {
     event: 'ai_writeback.started';

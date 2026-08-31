@@ -1087,6 +1087,33 @@ export class AppModel {
         return KnexPaginate.paginate(query, paginateArgs);
     }
 
+    /** Registry-installed apps in the project, with their latest ready registry version. */
+    async listRegistryInstalledApps(projectUuid: string): Promise<
+        Array<{
+            app_id: string;
+            registry_slug: string;
+            latest_ready_registry_version: string | null;
+        }>
+    > {
+        return this.joinLatestReadyVersion(this.database(AppsTableName))
+            .where(`${AppsTableName}.project_uuid`, projectUuid)
+            .whereNotNull(`${AppsTableName}.registry_slug`)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .select<
+                Array<{
+                    app_id: string;
+                    registry_slug: string;
+                    latest_ready_registry_version: string | null;
+                }>
+            >(
+                `${AppsTableName}.app_id`,
+                `${AppsTableName}.registry_slug`,
+                this.database
+                    .ref(`${AppVersionsTableName}.registry_version`)
+                    .as('latest_ready_registry_version'),
+            );
+    }
+
     /**
      * A single data app viz by its project-scoped slug, with its latest ready
      * schema. Undefined when the slug is not a schema-bearing data app viz.
