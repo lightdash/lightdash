@@ -18229,7 +18229,8 @@
                 "enum": [
                     "app_builder",
                     "explorer_chart_config",
-                    "chart_type_builder"
+                    "chart_type_builder",
+                    "ai_agent"
                 ]
             },
             "AppChartReference": {
@@ -24822,6 +24823,7 @@
                     "loadSkill",
                     "loadProjectContext",
                     "loadMcpTools",
+                    "generateDataApp",
                     "editDbtProject",
                     "editProjectContext",
                     "editRepo",
@@ -25599,6 +25601,75 @@
                                                     }
                                                 },
                                                 "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "version": {
+                                                        "type": "number",
+                                                        "format": "double"
+                                                    },
+                                                    "appUuid": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": ["pending"],
+                                                        "nullable": false
+                                                    }
+                                                },
+                                                "required": [
+                                                    "version",
+                                                    "appUuid",
+                                                    "status"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "href": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "version": {
+                                                        "type": "number",
+                                                        "format": "double"
+                                                    },
+                                                    "appUuid": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": ["success"],
+                                                        "nullable": false
+                                                    }
+                                                },
+                                                "required": [
+                                                    "href",
+                                                    "name",
+                                                    "version",
+                                                    "appUuid",
+                                                    "status"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "message": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": ["error"],
+                                                        "nullable": false
+                                                    }
+                                                },
+                                                "required": [
+                                                    "message",
+                                                    "status"
+                                                ],
                                                 "type": "object"
                                             },
                                             {
@@ -57544,7 +57615,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.57.1",
+        "version": "2.58.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

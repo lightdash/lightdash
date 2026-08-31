@@ -16793,6 +16793,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['app_builder'] },
                 { dataType: 'enum', enums: ['explorer_chart_config'] },
                 { dataType: 'enum', enums: ['chart_type_builder'] },
+                { dataType: 'enum', enums: ['ai_agent'] },
             ],
             validators: {},
         },
@@ -23116,6 +23117,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['loadSkill'] },
                 { dataType: 'enum', enums: ['loadProjectContext'] },
                 { dataType: 'enum', enums: ['loadMcpTools'] },
+                { dataType: 'enum', enums: ['generateDataApp'] },
                 { dataType: 'enum', enums: ['editDbtProject'] },
                 { dataType: 'enum', enums: ['editProjectContext'] },
                 { dataType: 'enum', enums: ['editRepo'] },
@@ -24738,6 +24740,64 @@ const models: TsoaRoute.Models = {
                                                                 'undefined',
                                                         },
                                                     ],
+                                                },
+                                                status: {
+                                                    dataType: 'enum',
+                                                    enums: ['error'],
+                                                    required: true,
+                                                },
+                                            },
+                                        },
+                                        {
+                                            dataType: 'nestedObjectLiteral',
+                                            nestedProperties: {
+                                                version: {
+                                                    dataType: 'double',
+                                                    required: true,
+                                                },
+                                                appUuid: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
+                                                status: {
+                                                    dataType: 'enum',
+                                                    enums: ['pending'],
+                                                    required: true,
+                                                },
+                                            },
+                                        },
+                                        {
+                                            dataType: 'nestedObjectLiteral',
+                                            nestedProperties: {
+                                                href: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
+                                                name: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
+                                                version: {
+                                                    dataType: 'double',
+                                                    required: true,
+                                                },
+                                                appUuid: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
+                                                status: {
+                                                    dataType: 'enum',
+                                                    enums: ['success'],
+                                                    required: true,
+                                                },
+                                            },
+                                        },
+                                        {
+                                            dataType: 'nestedObjectLiteral',
+                                            nestedProperties: {
+                                                message: {
+                                                    dataType: 'string',
+                                                    required: true,
                                                 },
                                                 status: {
                                                     dataType: 'enum',

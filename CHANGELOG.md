@@ -1,3 +1,10 @@
+# [2.58.0](https://github.com/lightdash/lightdash/compare/2.57.1...2.58.0) (2026-08-31)
+
+
+### Features
+
+* **ai-agent:** generateDataApp starts a data app build; tool result records the outcome ([#28255](https://github.com/lightdash/lightdash/issues/28255)) ([8667367](https://github.com/lightdash/lightdash/commit/8667367f8a765b7a75b9758266653e67a27c2e20))
+
 ## [2.57.1](https://github.com/lightdash/lightdash/compare/2.57.0...2.57.1) (2026-08-31)
 
 
