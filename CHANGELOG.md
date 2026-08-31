@@ -1,3 +1,15 @@
+# [2.66.0](https://github.com/lightdash/lightdash/compare/2.65.0...2.66.0) (2026-08-31)
+
+
+### Bug Fixes
+
+* keep optional APNs config from blocking startup ([#28357](https://github.com/lightdash/lightdash/issues/28357)) ([6398425](https://github.com/lightdash/lightdash/commit/639842574bbc6d2d0b6ecb2d0550e04a13bead76))
+
+
+### Features
+
+* **permissions:** add opt-in pat-scope-authoritative flag ([#28353](https://github.com/lightdash/lightdash/issues/28353)) ([4ad0d58](https://github.com/lightdash/lightdash/commit/4ad0d58c3e53a14b34cb8987004b25e551dac63d))
+
 # [2.65.0](https://github.com/lightdash/lightdash/compare/2.64.2...2.65.0) (2026-08-31)
 
 
