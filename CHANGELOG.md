@@ -1,3 +1,10 @@
+## [2.57.1](https://github.com/lightdash/lightdash/compare/2.57.0...2.57.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* **ai:** quote pivot identifiers ([#28317](https://github.com/lightdash/lightdash/issues/28317)) ([458e819](https://github.com/lightdash/lightdash/commit/458e81955c0fb947093071cc9eb5c7497adbcb83))
+
 # [2.57.0](https://github.com/lightdash/lightdash/compare/2.56.0...2.57.0) (2026-08-29)
 
 
