@@ -100,15 +100,26 @@ if (!mapleBin) {
 
 const frontendArgs = fePort ? `--port ${fePort}` : undefined;
 
-// Opt-in via LD_WATCHER_MEMORY_CAP (e.g. 1500M in .env.development.local):
-// bounce a tsc watcher whose RSS exceeds the cap. Watchers recompile the
-// world on branch switches and never release the memory; the post-restart
-// incremental rebuild is cheap. Unset = no cap, today's behavior.
+// Opt-in via LD_WATCHER_MEMORY_CAP (e.g. 4G in .env.development.local): hard
+// backstop that bounces a runaway tsc watcher. Keep it well above GOMEMLIMIT —
+// a cap below the full-rebuild peak kills tsc mid-build and loops on cold
+// rebuilds. Unset = no cap.
 const watcherMemoryCap =
     process.env.LD_WATCHER_MEMORY_CAP ?? env.LD_WATCHER_MEMORY_CAP;
 const watcherMemoryCapConfig = watcherMemoryCap
     ? { max_memory_restart: watcherMemoryCap }
     : {};
+
+// tsgo (TS7 native) is a Go binary: GOMEMLIMIT is a soft cap its GC works to
+// stay under, releasing freed memory back to the OS, so branch-switch rebuilds
+// can't balloon to multi-GB peaks. LD_WATCHER_GOMEMLIMIT overrides ('off'
+// disables).
+const watcherGoMemLimit =
+    process.env.LD_WATCHER_GOMEMLIMIT ??
+    env.LD_WATCHER_GOMEMLIMIT ??
+    '1500MiB';
+const watcherEnv =
+    watcherGoMemLimit === 'off' ? {} : { GOMEMLIMIT: watcherGoMemLimit };
 
 module.exports = {
     apps: [
@@ -128,8 +139,19 @@ module.exports = {
                 OTEL_SERVICE_NAME: instanceId,
                 PORT: apiPort,
             },
-            watch: ['src'],
-            ignore_watch: ['src/generated/swagger.json'],
+            // Restart when common's CJS build completes (single sentinel
+            // file) rather than on every emitted dist file.
+            watch: ['src', '../common/dist/cjs/.tsbuildinfo'],
+            // Setting ignore_watch replaces chokidar's default node_modules
+            // ignore; without the explicit entries + followSymlinks:false,
+            // mcp-chart-app/node_modules (a symlink back into packages/common)
+            // turns every common rebuild into thousands of API restarts.
+            ignore_watch: [
+                'src/generated/swagger.json',
+                '**/node_modules',
+                '**/node_modules/**',
+            ],
+            watch_options: { followSymlinks: false },
             watch_delay: 500,
             autorestart: true,
             kill_timeout: 5000,
@@ -199,6 +221,7 @@ module.exports = {
             args: '--build --watch --preserveWatchOutput --incremental tsconfig.build.json',
             interpreter: 'none',
             cwd: path.join(__dirname, 'packages/common'),
+            env: watcherEnv,
             watch: false,
             autorestart: false,
             ...watcherMemoryCapConfig,
@@ -214,6 +237,7 @@ module.exports = {
             args: '--build --watch --preserveWatchOutput tsconfig.json',
             interpreter: 'none',
             cwd: path.join(__dirname, 'packages/formula'),
+            env: watcherEnv,
             watch: false,
             autorestart: false,
             ...watcherMemoryCapConfig,
@@ -229,6 +253,7 @@ module.exports = {
             args: '--build --watch --preserveWatchOutput tsconfig.json',
             interpreter: 'none',
             cwd: path.join(__dirname, 'packages/warehouses'),
+            env: watcherEnv,
             watch: false,
             autorestart: false,
             ...watcherMemoryCapConfig,

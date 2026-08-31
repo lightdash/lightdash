@@ -34,8 +34,19 @@ module.exports = {
                 HEADLESS: 'true',
                 NODE_ENV: 'development',
             },
-            watch: ['src'],
-            ignore_watch: ['src/generated/swagger.json'],
+            // Restart when common's CJS build completes (single sentinel
+            // file) rather than on every emitted dist file.
+            watch: ['src', '../common/dist/cjs/.tsbuildinfo'],
+            // Setting ignore_watch replaces chokidar's default node_modules
+            // ignore; without the explicit entries + followSymlinks:false,
+            // mcp-chart-app/node_modules (a symlink back into packages/common)
+            // turns every common rebuild into thousands of API restarts.
+            ignore_watch: [
+                'src/generated/swagger.json',
+                '**/node_modules',
+                '**/node_modules/**',
+            ],
+            watch_options: { followSymlinks: false },
             watch_delay: 500,
             autorestart: true,
             kill_timeout: 5000,
@@ -82,6 +93,8 @@ module.exports = {
             args: '--build --watch --preserveWatchOutput --incremental tsconfig.build.json',
             interpreter: 'none',
             cwd: path.join(__dirname, 'packages/common'),
+            // tsgo is a Go binary: soft cap so rebuilds return memory to the OS
+            env: { GOMEMLIMIT: '1500MiB' },
             watch: false,
             autorestart: false,
             kill_timeout: 3000,
@@ -96,6 +109,7 @@ module.exports = {
             args: '--build --watch --preserveWatchOutput tsconfig.json',
             interpreter: 'none',
             cwd: path.join(__dirname, 'packages/warehouses'),
+            env: { GOMEMLIMIT: '1500MiB' },
             watch: false,
             autorestart: false,
             kill_timeout: 3000,

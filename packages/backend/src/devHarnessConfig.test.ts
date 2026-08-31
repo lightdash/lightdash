@@ -11,6 +11,7 @@ type Pm2App = {
     autorestart?: boolean;
     watch?: string[];
     ignore_watch?: string[];
+    watch_options?: { followSymlinks?: boolean };
 };
 
 type Pm2Config = {
@@ -37,8 +38,16 @@ const expectApiReloadContract = (config: Pm2Config) => {
         interpreter: 'node',
         node_args: expect.stringContaining('--import tsx'),
         autorestart: true,
-        watch: ['src'],
-        ignore_watch: ['src/generated/swagger.json'],
+        watch: ['src', '../common/dist/cjs/.tsbuildinfo'],
+        // ignore_watch replaces chokidar's default node_modules ignore, so the
+        // explicit entries + followSymlinks:false guard against restart storms
+        // via symlinked node_modules inside src (e.g. mcp-chart-app).
+        ignore_watch: [
+            'src/generated/swagger.json',
+            '**/node_modules',
+            '**/node_modules/**',
+        ],
+        watch_options: { followSymlinks: false },
     });
     expect(routeWatcher).toMatchObject({
         script: 'pnpm',
