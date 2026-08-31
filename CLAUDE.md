@@ -4,6 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Agent skills
 
+### Issue tracker
+
+Linear (internal, default) + GitHub Issues (public, customer-facing). See `docs/agents/issue-tracker.md`.
+
 ### Triage labels
 
 Use the repository's mapped triage vocabulary. See `docs/agents/triage-labels.md`.
