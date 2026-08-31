@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 
 export const AI_WRITEBACK_PENDING_GRACE_MS = 5 * 60 * 1000;
 
@@ -126,27 +127,7 @@ export type ToolEditDbtProjectOutput = z.infer<
     typeof toolEditDbtProjectOutputSchema
 >;
 
-type ToolEditDbtProjectResultLike = {
-    toolType: string;
-    toolName: string;
-    metadata:
-        | ToolEditDbtProjectOutput['metadata']
-        | Record<string, unknown>
-        | null;
-};
-
-type ToolEditDbtProjectResult = ToolEditDbtProjectResultLike & {
-    toolType: 'built-in';
-    toolName: 'editDbtProject';
-    metadata: ToolEditDbtProjectOutput['metadata'];
-};
-
-export const isToolEditDbtProjectResult = <
-    T extends ToolEditDbtProjectResultLike,
->(
-    result: T,
-): result is T & ToolEditDbtProjectResult =>
-    result.toolType === 'built-in' &&
-    result.toolName === 'editDbtProject' &&
-    toolEditDbtProjectOutputSchema.shape.metadata.safeParse(result.metadata)
-        .success;
+export const isToolEditDbtProjectResult = makeBuiltInToolResultGuard(
+    'editDbtProject',
+    toolEditDbtProjectOutputSchema.shape.metadata,
+);
