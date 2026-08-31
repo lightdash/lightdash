@@ -1,6 +1,6 @@
 import { FilterOperator, FilterType } from '../../../../types/filter';
 
-export type FilterExpressionArgumentCount = 0 | 1 | 2 | 3 | 'oneOrMore';
+export type FilterExpressionArgumentCount = 0 | 1 | 2 | 'oneOrMore';
 
 export type FilterExpressionOperatorDefinition = {
     operator: FilterOperator;
