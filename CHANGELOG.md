@@ -1,3 +1,10 @@
+## [2.62.1](https://github.com/lightdash/lightdash/compare/2.62.0...2.62.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* cold-start promoted data apps ([#28337](https://github.com/lightdash/lightdash/issues/28337)) ([5b4280d](https://github.com/lightdash/lightdash/commit/5b4280d3082dc1d3bc06d940274555bc703af7a3))
+
 # [2.62.0](https://github.com/lightdash/lightdash/compare/2.61.0...2.62.0) (2026-08-31)
 
 
