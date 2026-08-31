@@ -330,7 +330,7 @@ describe('buildComposeMergeSql', () => {
             limit: 500,
             parameterReferences: [],
             usedParametersValues: {},
-            warehouseClient: duckdbWarehouseClient,
+            warehouseSqlBuilder: duckdbWarehouseClient,
             // Indexed pivot (groupByColumns present), so the DENSE_RANK
             // row/column-index pipeline compiles for the DuckDB dialect —
             // the shape a pivoted merged visualization sends

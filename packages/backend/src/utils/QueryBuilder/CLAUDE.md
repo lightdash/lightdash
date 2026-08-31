@@ -109,7 +109,7 @@ rather than add another embed:
   (dropped from the collapsed query, never aggregated). Persisted per-calc in
   `saved_queries_version_table_calculations.total_mode`.
 
-**SqlQueryComposer** — the facade for SQL charts (`extends QueryComposer`). SQL charts run user-written SQL rather than compiling a metric query, so this builds everything from raw inputs — the virtual view (`createVirtualView`) from the discovered columns, the wrapping `SqlQueryBuilder` (reference map + dialect config off the warehouse client), a mock `MetricQuery` metadata carrier, and (on the dashboard path) the applied dashboard filters/sorts — then overrides `computeCompiled()` to shape the wrapped user SQL into a `CompiledQuery`. Because `getSql()` is inherited, a request/config `pivotConfiguration` flows through the same seam as metric queries. Used by `AsyncQueryService.prepareSqlChartAsyncQueryArgs` for all three SQL execute paths (raw SQL runner, saved SQL chart, dashboard SQL chart).
+**SqlQueryComposer** — the facade for SQL charts (`extends QueryComposer`). SQL charts run user-written SQL rather than compiling a metric query, so this builds everything from raw inputs — the virtual view (`createVirtualView`) from the discovered columns, the wrapping `SqlQueryBuilder` (reference map + dialect config off the warehouse SQL builder), a mock `MetricQuery` metadata carrier, and (on the dashboard path) the applied dashboard filters/sorts — then overrides `computeCompiled()` to shape the wrapped user SQL into a `CompiledQuery`. Because `getSql()` is inherited, a request/config `pivotConfiguration` flows through the same seam as metric queries. Used by `AsyncQueryService.prepareSqlChartAsyncQueryArgs` for all three SQL execute paths (raw SQL runner, saved SQL chart, dashboard SQL chart).
 
 ```typescript
 import { SqlQueryComposer } from './SqlQueryComposer';
@@ -117,7 +117,7 @@ import { SqlQueryComposer } from './SqlQueryComposer';
 const composer = new SqlQueryComposer({
     userSql, // user SQL with user attributes already replaced
     columns, // discovered via a LIMIT 1 probe query
-    warehouseClient,
+    warehouseSqlBuilder,
     pivotConfiguration, // request-supplied (SQL runner) or derived from chart config
     limit,
     parameters,

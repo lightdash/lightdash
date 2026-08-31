@@ -221,7 +221,9 @@ const projectModel = {
     getWarehouseCredentialsForProject: vi.fn(
         async () => warehouseClientMock.credentials,
     ),
-    getWarehouseClientFromCredentials: vi.fn(() => ({
+    getWarehouseClientFromCredentials: vi.fn<
+        ProjectModel['getWarehouseClientFromCredentials']
+    >(() => ({
         ...warehouseClientMock,
         runQuery: vi.fn(async () => resultsWith1Row),
     })),
@@ -3727,11 +3729,31 @@ describe('AsyncQueryService', () => {
                 dbname: 'testdb',
                 schema: 'public',
             };
+            const getRunAsyncArgs = (): RunAsyncWarehouseQueryArgs => ({
+                userUuid: sessionAccount.user.id,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                isPreviewProject: false,
+                isRegisteredUser: true,
+                onboardingFlow: 'legacy',
+                projectUuid,
+                query: 'SELECT * FROM test',
+                fieldsMap: {},
+                usedParameters: null,
+                queryTags: { query_context: QueryExecutionContext.EXPLORE },
+                warehouseCredentialsOverrides: undefined,
+                queryUuid: 'test-query-uuid',
+                cacheKey: 'test-cache-key',
+                pivotConfiguration: undefined,
+                originalColumns: undefined,
+                queryCreatedAt: new Date(),
+                displayTimezone: null,
+            });
 
             beforeEach(() => {
                 (
                     mockSshTunnel.connect as import('vitest').Mock
                 ).mockReturnValueOnce(Promise.resolve(sshTunnelCredentials));
+                vi.mocked(mockSshTunnel.disconnect).mockReset();
             });
 
             test('SSH Tunnel Integration - Complete Flow', async () => {
@@ -3759,49 +3781,18 @@ describe('AsyncQueryService', () => {
                 // Mock query history update
                 service.queryHistoryModel.update = vi.fn();
 
-                const getWarehouseClientSpy = vi.spyOn(
-                    service,
-                    '_getWarehouseClient',
-                );
-
                 const runQueryAndTransformRowsSpy = vi.spyOn(
                     AsyncQueryService,
                     'runQueryAndTransformRows',
                 );
 
-                const runAsyncArgs: RunAsyncWarehouseQueryArgs = {
-                    userUuid: sessionAccount.user.id,
-                    organizationUuid:
-                        sessionAccount.organization.organizationUuid!,
-                    isPreviewProject: false,
-                    isRegisteredUser: true,
-                    onboardingFlow: 'legacy',
-                    projectUuid,
-                    query: 'SELECT * FROM test',
-                    fieldsMap: {},
-                    usedParameters: null,
-                    queryTags: { query_context: QueryExecutionContext.EXPLORE },
-                    warehouseCredentialsOverrides: undefined,
-                    queryUuid: 'test-query-uuid',
-                    cacheKey: 'test-cache-key',
-                    pivotConfiguration: undefined,
-                    originalColumns: undefined,
-                    queryCreatedAt: new Date(),
-                    displayTimezone: null,
-                };
+                const runAsyncArgs = getRunAsyncArgs();
 
                 // WHEN: runAsyncWarehouseQuery is called
                 await service.runAsyncWarehouseQuery(runAsyncArgs);
 
                 // THEN: SSH tunnel connection established with tunnel credentials
                 expect(mockSshTunnel.connect).toHaveBeenCalledWith();
-
-                // THEN: _getWarehouseClient called with original credentials
-                expect(getWarehouseClientSpy).toHaveBeenCalledWith(
-                    projectUuid,
-                    originalCredentials,
-                    undefined,
-                );
 
                 // THEN: Warehouse client created with tunneled credentials
                 expect(
@@ -3835,6 +3826,42 @@ describe('AsyncQueryService', () => {
                         error: null,
                     }),
                     expect.any(Object), // session account
+                );
+            });
+
+            test('rejects when tunnel cleanup fails after a successful query', async () => {
+                const cleanupError = new Error('tunnel cleanup failed');
+                vi.mocked(mockSshTunnel.disconnect).mockRejectedValueOnce(
+                    cleanupError,
+                );
+                const mockProjectModel = {
+                    ...projectModel,
+                    getWarehouseCredentialsForProject: vi.fn(
+                        async () => originalCredentials,
+                    ),
+                    getWarehouseClientFromCredentials: vi.fn(() => ({
+                        ...warehouseClientMock,
+                        credentials: sshTunnelCredentials,
+                    })),
+                };
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        projectModel:
+                            mockProjectModel as unknown as ProjectModel,
+                    },
+                );
+
+                await expect(
+                    service.runAsyncWarehouseQuery(getRunAsyncArgs()),
+                ).rejects.toBe(cleanupError);
+                expect(
+                    service.queryHistoryModel.updateStatusToError,
+                ).toHaveBeenCalledWith(
+                    'test-query-uuid',
+                    projectUuid,
+                    cleanupError.message,
+                    expect.any(Object),
                 );
             });
         });
@@ -4078,6 +4105,10 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncSqlQuery', () => {
+        beforeEach(() => {
+            vi.mocked(mockSshTunnel.disconnect).mockReset();
+        });
+
         it('throws ForbiddenError when the account lacks manage:SqlRunner', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
 
@@ -4103,23 +4134,19 @@ describe('AsyncQueryService', () => {
 
         it('disconnects the SSH tunnel when column discovery fails', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
-            const disconnect = vi.fn();
             const discoveryError = new Error('Column discovery failed');
 
             service.getUserAttributes = vi.fn(async () => ({
                 userAttributes: {},
                 intrinsicUserAttributes: { email: 'test@example.com' },
             }));
-            service._getWarehouseClient = vi.fn(async () => ({
-                warehouseClient: {
-                    ...warehouseClientMock,
-                    streamQuery: vi.fn().mockRejectedValue(discoveryError),
-                },
-                sshTunnel: {
-                    disconnect,
-                } as unknown as SshTunnel<CreateWarehouseCredentials>,
-                tunnelConnectMs: null,
-            }));
+            const warehouseClient: WarehouseClient = {
+                ...warehouseClientMock,
+                streamQuery: vi.fn().mockRejectedValue(discoveryError),
+            };
+            vi.mocked(
+                projectModel.getWarehouseClientFromCredentials,
+            ).mockReturnValueOnce(warehouseClient);
 
             await expect(
                 service.executeAsyncSqlQuery({
@@ -4129,7 +4156,7 @@ describe('AsyncQueryService', () => {
                     context: QueryExecutionContext.SQL_RUNNER,
                 }),
             ).rejects.toBe(discoveryError);
-            expect(disconnect).toHaveBeenCalledOnce();
+            expect(mockSshTunnel.disconnect).toHaveBeenCalledOnce();
         });
 
         describe('cache invalidation', () => {
@@ -4181,11 +4208,13 @@ describe('AsyncQueryService', () => {
                     }),
                 };
 
-                service._getWarehouseClient = vi.fn(async () => ({
-                    warehouseClient: mockWarehouseClient,
-                    sshTunnel: mockSshTunnel,
-                    tunnelConnectMs: null,
-                }));
+                vi.mocked(
+                    projectModel.getWarehouseClientFromCredentials,
+                ).mockReturnValueOnce(
+                    mockWarehouseClient as ReturnType<
+                        ProjectModel['getWarehouseClientFromCredentials']
+                    >,
+                );
 
                 await service.executeAsyncSqlQuery({
                     account: sessionAccount,
@@ -4269,12 +4298,13 @@ describe('AsyncQueryService', () => {
                     }),
                 };
 
-                // Override the _getWarehouseClient method to return our mock
-                service._getWarehouseClient = vi.fn(async () => ({
-                    warehouseClient: mockWarehouseClient,
-                    sshTunnel: mockSshTunnel,
-                    tunnelConnectMs: null,
-                }));
+                vi.mocked(
+                    projectModel.getWarehouseClientFromCredentials,
+                ).mockReturnValueOnce(
+                    mockWarehouseClient as ReturnType<
+                        ProjectModel['getWarehouseClientFromCredentials']
+                    >,
+                );
 
                 // WHEN: executeAsyncSqlQuery is called with SQL containing user attributes
                 const sqlWithUserAttributes =
@@ -4417,14 +4447,14 @@ describe('AsyncQueryService', () => {
 
                 const streamQuery = vi.fn();
 
-                service._getWarehouseClient = vi.fn(async () => ({
-                    warehouseClient: {
-                        ...warehouseClientMock,
-                        streamQuery,
-                    },
-                    sshTunnel: mockSshTunnel,
-                    tunnelConnectMs: null,
-                }));
+                vi.mocked(
+                    projectModel.getWarehouseClientFromCredentials,
+                ).mockReturnValueOnce({
+                    ...warehouseClientMock,
+                    streamQuery,
+                } as ReturnType<
+                    ProjectModel['getWarehouseClientFromCredentials']
+                >);
 
                 return { service, streamQuery };
             };

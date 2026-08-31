@@ -12,7 +12,7 @@ import {
     type ParametersValuesMap,
     type PivotConfiguration,
     type SortField,
-    type WarehouseClient,
+    type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
 import { CompiledQuery } from './MetricQueryBuilder';
@@ -30,7 +30,7 @@ export type SqlQueryComposerArguments = {
     /** User SQL with user attributes already replaced. */
     userSql: string;
     columns: SqlQueryColumn[];
-    warehouseClient: WarehouseClient;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
     pivotConfiguration: PivotConfiguration | undefined;
     limit: number | undefined;
     parameters: ParametersValuesMap | undefined;
@@ -63,7 +63,7 @@ export class SqlQueryComposer extends QueryComposer {
             },
             {
                 explore: built.virtualView,
-                warehouseSqlBuilder: args.warehouseClient,
+                warehouseSqlBuilder: args.warehouseSqlBuilder,
                 parameters: args.parameters,
                 displayTimezone: null,
             },
@@ -106,7 +106,7 @@ export class SqlQueryComposer extends QueryComposer {
         const {
             userSql,
             columns,
-            warehouseClient,
+            warehouseSqlBuilder,
             limit,
             parameters,
             dashboardFilters,
@@ -123,7 +123,7 @@ export class SqlQueryComposer extends QueryComposer {
             SQL_QUERY_MOCK_EXPLORER_NAME,
             userSql,
             vizColumns,
-            warehouseClient,
+            warehouseSqlBuilder,
         );
 
         // Only the columns the SQL actually selects — the virtual view also
@@ -134,8 +134,8 @@ export class SqlQueryComposer extends QueryComposer {
             .filter((d) => d.timeInterval === undefined)
             .map((d) => convertFieldRefToFieldId(d.name, virtualView.name));
 
-        const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
-        const adapterType = warehouseClient.getAdapterType();
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const adapterType = warehouseSqlBuilder.getAdapterType();
 
         const referenceMap: ReferenceMap = {};
         vizColumns.forEach((col) => {
@@ -203,13 +203,13 @@ export class SqlQueryComposer extends QueryComposer {
             },
             {
                 fieldQuoteChar,
-                stringQuoteChar: warehouseClient.getStringQuoteChar(),
+                stringQuoteChar: warehouseSqlBuilder.getStringQuoteChar(),
                 escapeStringQuoteChar:
-                    warehouseClient.getEscapeStringQuoteChar(),
-                startOfWeek: warehouseClient.getStartOfWeek(),
-                adapterType: warehouseClient.getAdapterType(),
+                    warehouseSqlBuilder.getEscapeStringQuoteChar(),
+                startOfWeek: warehouseSqlBuilder.getStartOfWeek(),
+                adapterType: warehouseSqlBuilder.getAdapterType(),
                 escapeString:
-                    warehouseClient.escapeString.bind(warehouseClient),
+                    warehouseSqlBuilder.escapeString.bind(warehouseSqlBuilder),
             },
         );
 

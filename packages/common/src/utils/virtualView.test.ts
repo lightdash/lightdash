@@ -7,7 +7,7 @@ import { TimeFrames } from '../types/timeFrames';
 import type { WarehouseClient } from '../types/warehouse';
 import type { VizColumn } from '../visualizations/types';
 import { WeekDay } from './timeFrames';
-import { createVirtualView } from './virtualView';
+import { createVirtualView, getVirtualViewWarehouseType } from './virtualView';
 import { defaultNullSafeEqualSql } from './warehouse';
 
 const fakeWarehouseClient: WarehouseClient = {
@@ -78,6 +78,21 @@ const columns: VizColumn[] = [
 ];
 
 describe('createVirtualView', () => {
+    test.each([
+        [SupportedDbtAdapter.BIGQUERY, WarehouseTypes.BIGQUERY],
+        [SupportedDbtAdapter.DATABRICKS, WarehouseTypes.DATABRICKS],
+        [SupportedDbtAdapter.SPARK, WarehouseTypes.DATABRICKS],
+        [SupportedDbtAdapter.SNOWFLAKE, WarehouseTypes.SNOWFLAKE],
+        [SupportedDbtAdapter.REDSHIFT, WarehouseTypes.REDSHIFT],
+        [SupportedDbtAdapter.POSTGRES, WarehouseTypes.POSTGRES],
+        [SupportedDbtAdapter.DUCKDB, WarehouseTypes.DUCKDB],
+        [SupportedDbtAdapter.TRINO, WarehouseTypes.TRINO],
+        [SupportedDbtAdapter.CLICKHOUSE, WarehouseTypes.CLICKHOUSE],
+        [SupportedDbtAdapter.ATHENA, WarehouseTypes.ATHENA],
+    ])('maps %s adapter metadata to %s warehouse metadata', (adapter, type) => {
+        expect(getVirtualViewWarehouseType(adapter)).toBe(type);
+    });
+
     test('should create a virtual view with basic properties', () => {
         const result = createVirtualView(
             'my_view',

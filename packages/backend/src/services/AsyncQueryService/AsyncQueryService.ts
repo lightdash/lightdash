@@ -153,7 +153,10 @@ import {
     type WarehouseResults,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import { DuckdbWarehouseClient, SshTunnel } from '@lightdash/warehouses';
+import {
+    DuckdbWarehouseClient,
+    warehouseSqlBuilderFromType,
+} from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { Readable, Writable } from 'stream';
 import {
@@ -3245,13 +3248,10 @@ export class AsyncQueryService extends ProjectService {
               }
             | undefined;
 
-        let sshTunnel: SshTunnel<CreateWarehouseCredentials> | undefined;
-
         let warehouseCredentialsType:
             | CreateWarehouseCredentials['type']
             | undefined;
-        let warehouseClient: WarehouseClient;
-        let tunnelConnectMs: number | null = null;
+        let warehouseQueryCompletedBeforeCleanup = false;
 
         const analyticsIdentity = isRegisteredUser
             ? { userId: userUuid }
@@ -3267,35 +3267,19 @@ export class AsyncQueryService extends ProjectService {
             warehouseClientOverride ? 'pre_aggregate_duckdb' : 'warehouse';
         let queryStartTime = Date.now();
 
-        try {
-            if (warehouseClientOverride) {
-                warehouseClient = warehouseClientOverride;
-                warehouseCredentialsType =
-                    warehouseCredentialsTypeOverride ??
-                    warehouseClient.credentials.type;
-            } else {
-                const warehouseCredentials = await this.getWarehouseCredentials(
-                    {
-                        projectUuid,
-                        userId: userUuid,
-                        isRegisteredUser,
-                        isServiceAccount,
-                    },
+        const executeWithWarehouseClient = async ({
+            warehouseClient,
+            tunnelConnectMs,
+        }: {
+            warehouseClient: WarehouseClient;
+            tunnelConnectMs: number | null;
+        }) => {
+            const credentialsType = warehouseCredentialsType;
+            if (credentialsType === undefined) {
+                throw new UnexpectedServerError(
+                    'Warehouse credentials type unavailable for query execution',
                 );
-
-                warehouseCredentialsType = warehouseCredentials.type;
-
-                // Get warehouse client using the projectService
-                const warehouseConnection = await this._getWarehouseClient(
-                    projectUuid,
-                    warehouseCredentials,
-                    warehouseCredentialsOverrides,
-                );
-                warehouseClient = warehouseConnection.warehouseClient;
-                sshTunnel = warehouseConnection.sshTunnel;
-                tunnelConnectMs = warehouseConnection.tunnelConnectMs;
             }
-
             const isTimezoneSupportEnabled =
                 await this.isTimezoneSupportEnabled({
                     userUuid,
@@ -3423,13 +3407,13 @@ export class AsyncQueryService extends ProjectService {
 
             this.prometheusMetrics?.observeWarehouseDuration(
                 durationMs,
-                warehouseCredentialsType,
+                credentialsType,
                 queryTags.query_context,
             );
 
             this.prometheusMetrics?.observeWarehousePhaseDurations(
                 warehousePhaseTimings,
-                warehouseCredentialsType,
+                credentialsType,
                 queryTags.query_context,
             );
 
@@ -3441,7 +3425,7 @@ export class AsyncQueryService extends ProjectService {
                 this.prometheusMetrics?.observeProjectQueryPhaseDurations(
                     projectUuid,
                     warehousePhaseTimings,
-                    warehouseCredentialsType,
+                    credentialsType,
                     queryTags.query_context,
                 );
             }
@@ -3617,7 +3601,53 @@ export class AsyncQueryService extends ProjectService {
                 queryCreatedAt,
                 queryTags.query_context || 'unknown',
             );
+        };
+
+        try {
+            if (warehouseClientOverride) {
+                warehouseCredentialsType =
+                    warehouseCredentialsTypeOverride ??
+                    warehouseClientOverride.credentials.type;
+                await executeWithWarehouseClient({
+                    warehouseClient: warehouseClientOverride,
+                    tunnelConnectMs: null,
+                });
+            } else {
+                const warehouseCredentials = await this.getWarehouseCredentials(
+                    {
+                        projectUuid,
+                        userId: userUuid,
+                        isRegisteredUser,
+                        isServiceAccount,
+                    },
+                );
+                warehouseCredentialsType = warehouseCredentials.type;
+                await this.withWarehouseClient(
+                    {
+                        projectUuid,
+                        credentials: warehouseCredentials,
+                        overrides: warehouseCredentialsOverrides,
+                    },
+                    async ({ warehouseClient, tunnelConnectMs }) => {
+                        await executeWithWarehouseClient({
+                            warehouseClient,
+                            tunnelConnectMs,
+                        });
+                        warehouseQueryCompletedBeforeCleanup = true;
+                    },
+                );
+            }
         } catch (e) {
+            if (warehouseQueryCompletedBeforeCleanup) {
+                await this.queryHistoryModel.updateStatusToError(
+                    queryUuid,
+                    projectUuid,
+                    getErrorMessage(e),
+                    queryHistoryAccount,
+                );
+                throw e;
+            }
+
             this.logger.error(
                 `Query ${queryUuid} execution error: ${getErrorMessage(e)}`,
                 {
@@ -3663,7 +3693,6 @@ export class AsyncQueryService extends ProjectService {
 
         try {
             // await for the cleanup functions so that the error is thrown if they fail
-            await sshTunnel?.disconnect();
             await stream?.close();
         } catch (e) {
             await this.queryHistoryModel.updateStatusToError(
@@ -6841,7 +6870,6 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const {
-            warehouseConnection,
             warehouseCredentials,
             queryTags,
             queryComposer,
@@ -6858,9 +6886,6 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             pivotConfiguration,
         });
-
-        // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
-        await warehouseConnection.sshTunnel.disconnect();
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -7130,7 +7155,7 @@ export class AsyncQueryService extends ProjectService {
         const placeholderComposer = new SqlQueryComposer({
             userSql: sql,
             columns: [],
-            warehouseClient,
+            warehouseSqlBuilder: warehouseClient,
             pivotConfiguration: undefined,
             limit,
             parameters: undefined,
@@ -7355,7 +7380,7 @@ export class AsyncQueryService extends ProjectService {
         const placeholderComposer = new SqlQueryComposer({
             userSql: sql,
             columns: [],
-            warehouseClient,
+            warehouseSqlBuilder: warehouseClient,
             pivotConfiguration: undefined,
             limit,
             parameters: undefined,
@@ -7592,7 +7617,7 @@ export class AsyncQueryService extends ProjectService {
             const composer = new SqlQueryComposer({
                 userSql: resolvedSql,
                 columns,
-                warehouseClient,
+                warehouseSqlBuilder: warehouseClient,
                 pivotConfiguration: undefined,
                 limit,
                 parameters: undefined,
@@ -7922,28 +7947,23 @@ export class AsyncQueryService extends ProjectService {
             }),
             this.getUserAttributes({ account }),
         ]);
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            warehouseCredentials,
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
         );
 
-        let composer: MergeQueryComposer;
-        try {
-            composer = new MergeQueryComposer({
-                coreSql: compiledMerge.coreSql,
-                terminalWrapper: compiledMerge.terminalWrapper,
-                itemsMap: compiledMerge.itemsMap,
-                typedColumns: compiledMerge.typedColumns,
-                columnOrder: Object.values(compiledMerge.fieldIdByColumn),
-                limit: mergeQuery.limit,
-                parameterReferences: compiledMerge.parameterReferences,
-                usedParametersValues: compiledMerge.usedParametersValues,
-                warehouseClient,
-                pivotConfiguration,
-            });
-        } finally {
-            await sshTunnel.disconnect();
-        }
+        const composer = new MergeQueryComposer({
+            coreSql: compiledMerge.coreSql,
+            terminalWrapper: compiledMerge.terminalWrapper,
+            itemsMap: compiledMerge.itemsMap,
+            typedColumns: compiledMerge.typedColumns,
+            columnOrder: Object.values(compiledMerge.fieldIdByColumn),
+            limit: mergeQuery.limit,
+            parameterReferences: compiledMerge.parameterReferences,
+            usedParametersValues: compiledMerge.usedParametersValues,
+            warehouseSqlBuilder,
+            pivotConfiguration,
+        });
 
         const baseQueryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
@@ -8132,7 +8152,7 @@ export class AsyncQueryService extends ProjectService {
             limit: mergeQuery.limit,
             parameterReferences: compiledMerge.parameterReferences,
             usedParametersValues: compiledMerge.usedParametersValues,
-            warehouseClient,
+            warehouseSqlBuilder: warehouseClient,
             pivotConfiguration,
         });
         const sql = composer.getSql({
@@ -8452,189 +8472,211 @@ export class AsyncQueryService extends ProjectService {
             }),
             this.getUserAttributes({ account }),
         ]);
-        const warehouseConnection = await this._getWarehouseClient(
-            projectUuid,
-            warehouseCredentials,
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
         );
+        return this.withWarehouseClient(
+            { projectUuid, credentials: warehouseCredentials },
+            async ({ warehouseClient }) => {
+                const baseQueryTags: RunQueryTags = {
+                    ...this.getUserQueryTags(account),
+                    ...AsyncQueryService.getSchedulerQueryTags(),
+                    organization_uuid: organizationUuid,
+                    project_uuid: projectUuid,
+                    query_context: context,
+                    ...(chartUuid ? { chart_uuid: chartUuid } : {}),
+                    ...(dashboardUuid ? { dashboard_uuid: dashboardUuid } : {}),
+                };
+                const queryTags = AsyncQueryService.addUserAttributeQueryTags(
+                    baseQueryTags,
+                    { userAttributes, intrinsicUserAttributes },
+                );
+                const durationWarehouseAndUserAttributes =
+                    performance.now() - sectionStartWarehouse;
 
-        const baseQueryTags: RunQueryTags = {
-            ...this.getUserQueryTags(account),
-            ...AsyncQueryService.getSchedulerQueryTags(),
-            organization_uuid: organizationUuid,
-            project_uuid: projectUuid,
-            query_context: context,
-            ...(chartUuid ? { chart_uuid: chartUuid } : {}),
-            ...(dashboardUuid ? { dashboard_uuid: dashboardUuid } : {}),
-        };
-        const queryTags = AsyncQueryService.addUserAttributeQueryTags(
-            baseQueryTags,
-            { userAttributes, intrinsicUserAttributes },
-        );
-        const durationWarehouseAndUserAttributes =
-            performance.now() - sectionStartWarehouse;
+                // 3. Column Discovery
+                const sectionStartColumnDiscovery = performance.now();
+                // Get one row to get the column definitions
+                const columns: { name: string; type: DimensionType }[] = [];
 
-        // 3. Column Discovery
-        const sectionStartColumnDiscovery = performance.now();
-        // Get one row to get the column definitions
-        const columns: { name: string; type: DimensionType }[] = [];
+                // Replace user attributes first
+                const sqlWithUserAttributes = replaceUserAttributesAsStrings(
+                    sql,
+                    intrinsicUserAttributes,
+                    userAttributes,
+                    warehouseSqlBuilder,
+                    { noWrap: true },
+                );
 
-        // Replace user attributes first
-        const sqlWithUserAttributes = replaceUserAttributesAsStrings(
-            sql,
-            intrinsicUserAttributes,
-            userAttributes,
-            warehouseConnection.warehouseClient,
-            { noWrap: true },
-        );
+                // Then replace parameters in SQL before running column discovery query
+                const {
+                    replacedSql: columnDiscoverySql,
+                    missingReferences: columnDiscoveryMissingParameters,
+                } = safeReplaceParametersWithSqlBuilder(
+                    sqlWithUserAttributes,
+                    parameters ?? {},
+                    warehouseSqlBuilder,
+                );
 
-        // Then replace parameters in SQL before running column discovery query
-        const {
-            replacedSql: columnDiscoverySql,
-            missingReferences: columnDiscoveryMissingParameters,
-        } = safeReplaceParametersWithSqlBuilder(
-            sqlWithUserAttributes,
-            parameters ?? {},
-            warehouseConnection.warehouseClient,
-        );
+                if (columnDiscoveryMissingParameters.size > 0) {
+                    const missing = Array.from(
+                        columnDiscoveryMissingParameters,
+                    );
+                    throw new ParameterError(
+                        `Missing values for SQL parameter(s): ${missing.join(', ')}`,
+                        { missingReferences: missing },
+                    );
+                }
 
-        if (columnDiscoveryMissingParameters.size > 0) {
-            const missing = Array.from(columnDiscoveryMissingParameters);
-            throw new ParameterError(
-                `Missing values for SQL parameter(s): ${missing.join(', ')}`,
-                { missingReferences: missing },
-            );
-        }
+                const limitedColumnDiscoverySql = applyLimitToSqlQuery({
+                    sqlQuery: columnDiscoverySql,
+                    limit: 1,
+                });
+                this.logger.info('column_discovery.started', {
+                    event: 'column_discovery.started',
+                    projectUuid,
+                    sqlBytes: Buffer.byteLength(
+                        limitedColumnDiscoverySql,
+                        'utf8',
+                    ),
+                    ...queryTags,
+                });
+                try {
+                    await warehouseClient.streamQuery(
+                        limitedColumnDiscoverySql,
+                        (chunk) => {
+                            // Only handle the first call
+                            if (columns.length === 0 && chunk.fields) {
+                                Object.keys(chunk.fields).forEach((key) => {
+                                    columns.push({
+                                        name: key,
+                                        type: chunk.fields[key].type,
+                                    });
+                                });
+                            }
+                        },
+                        {
+                            tags: queryTags,
+                        },
+                    );
+                } catch (e) {
+                    const durationMs =
+                        performance.now() - sectionStartColumnDiscovery;
+                    this.logger.error('column_discovery.failed', {
+                        event: 'column_discovery.failed',
+                        projectUuid,
+                        durationMs,
+                        sqlBytes: Buffer.byteLength(
+                            limitedColumnDiscoverySql,
+                            'utf8',
+                        ),
+                        errorName: e instanceof Error ? e.name : undefined,
+                        errorCode: (e as { code?: string })?.code,
+                        errorMessage: getErrorMessage(e),
+                        ...queryTags,
+                    });
+                    throw e;
+                }
+                const durationColumnDiscovery =
+                    performance.now() - sectionStartColumnDiscovery;
+                this.logger.info('column_discovery.completed', {
+                    event: 'column_discovery.completed',
+                    projectUuid,
+                    durationMs: durationColumnDiscovery,
+                    sqlBytes: Buffer.byteLength(
+                        limitedColumnDiscoverySql,
+                        'utf8',
+                    ),
+                    columnCount: columns.length,
+                    ...queryTags,
+                });
 
-        const limitedColumnDiscoverySql = applyLimitToSqlQuery({
-            sqlQuery: columnDiscoverySql,
-            limit: 1,
-        });
-        this.logger.info('column_discovery.started', {
-            event: 'column_discovery.started',
-            projectUuid,
-            sqlBytes: Buffer.byteLength(limitedColumnDiscoverySql, 'utf8'),
-            ...queryTags,
-        });
-        try {
-            await warehouseConnection.warehouseClient.streamQuery(
-                limitedColumnDiscoverySql,
-                (chunk) => {
-                    // Only handle the first call
-                    if (columns.length === 0 && chunk.fields) {
-                        Object.keys(chunk.fields).forEach((key) => {
-                            columns.push({
-                                name: key,
-                                type: chunk.fields[key].type,
-                            });
-                        });
-                    }
-                },
-                {
-                    tags: queryTags,
-                },
-            );
-        } catch (e) {
-            const durationMs = performance.now() - sectionStartColumnDiscovery;
-            this.logger.error('column_discovery.failed', {
-                event: 'column_discovery.failed',
-                projectUuid,
-                durationMs,
-                sqlBytes: Buffer.byteLength(limitedColumnDiscoverySql, 'utf8'),
-                errorName: e instanceof Error ? e.name : undefined,
-                errorCode: (e as { code?: string })?.code,
-                errorMessage: getErrorMessage(e),
-                ...queryTags,
-            });
-            await warehouseConnection.sshTunnel.disconnect();
-            throw e;
-        }
-        const durationColumnDiscovery =
-            performance.now() - sectionStartColumnDiscovery;
-        this.logger.info('column_discovery.completed', {
-            event: 'column_discovery.completed',
-            projectUuid,
-            durationMs: durationColumnDiscovery,
-            sqlBytes: Buffer.byteLength(limitedColumnDiscoverySql, 'utf8'),
-            columnCount: columns.length,
-            ...queryTags,
-        });
+                // 4. Query Building
+                const sectionStartQueryBuilding = performance.now();
+                // Convert to ResultColumns format for storing as original columns
+                const originalColumns: ResultColumns = columns.reduce(
+                    (acc, col) => {
+                        acc[col.name] = {
+                            reference: col.name,
+                            type: col.type,
+                        };
+                        return acc;
+                    },
+                    {} as ResultColumns,
+                );
 
-        // 4. Query Building
-        const sectionStartQueryBuilding = performance.now();
-        // Convert to ResultColumns format for storing as original columns
-        const originalColumns: ResultColumns = columns.reduce((acc, col) => {
-            acc[col.name] = {
-                reference: col.name,
-                type: col.type,
-            };
-            return acc;
-        }, {} as ResultColumns);
+                // Pivot comes from the request (SQL runner) or the chart config
+                // (saved/dashboard SQL charts).
+                const resolvedPivotConfiguration:
+                    | PivotConfiguration
+                    | undefined =
+                    pivotConfiguration ??
+                    (config && !isVizTableConfig(config) && config.fieldConfig
+                        ? {
+                              indexColumn: config.fieldConfig.x,
+                              valuesColumns: config.fieldConfig.y,
+                              groupByColumns: config.fieldConfig.groupBy,
+                              sortBy: config.fieldConfig.sortBy,
+                          }
+                        : undefined);
 
-        // Pivot comes from the request (SQL runner) or the chart config
-        // (saved/dashboard SQL charts).
-        const resolvedPivotConfiguration: PivotConfiguration | undefined =
-            pivotConfiguration ??
-            (config && !isVizTableConfig(config) && config.fieldConfig
-                ? {
-                      indexColumn: config.fieldConfig.x,
-                      valuesColumns: config.fieldConfig.y,
-                      groupByColumns: config.fieldConfig.groupBy,
-                      sortBy: config.fieldConfig.sortBy,
-                  }
-                : undefined);
+                const composer = new SqlQueryComposer({
+                    userSql: sqlWithUserAttributes,
+                    columns,
+                    warehouseSqlBuilder,
+                    pivotConfiguration: resolvedPivotConfiguration,
+                    limit,
+                    parameters,
+                    dashboardFilters,
+                    tileUuid,
+                    dashboardSorts,
+                });
+                const durationQueryBuilding =
+                    performance.now() - sectionStartQueryBuilding;
 
-        const composer = new SqlQueryComposer({
-            userSql: sqlWithUserAttributes,
-            columns,
-            warehouseClient: warehouseConnection.warehouseClient,
-            pivotConfiguration: resolvedPivotConfiguration,
-            limit,
-            parameters,
-            dashboardFilters,
-            tileUuid,
-            dashboardSorts,
-        });
-        const durationQueryBuilding =
-            performance.now() - sectionStartQueryBuilding;
+                const sectionStartSqlGeneration = performance.now();
+                const compiled = composer.compile();
+                const durationSqlGeneration =
+                    performance.now() - sectionStartSqlGeneration;
 
-        const sectionStartSqlGeneration = performance.now();
-        const compiled = composer.compile();
-        const durationSqlGeneration =
-            performance.now() - sectionStartSqlGeneration;
+                const totalTime = performance.now() - startTime;
 
-        const totalTime = performance.now() - startTime;
+                this.logger.info(
+                    `prepareSqlChartAsyncQueryArgs completed in ${totalTime.toFixed(2)}`,
+                    {
+                        event: 'prepare_sql_chart_async_query_args.completed',
+                        projectUuid,
+                        totalTimeMs: totalTime,
+                        warehouseAndUserAttributesMs:
+                            durationWarehouseAndUserAttributes,
+                        columnDiscoveryMs: durationColumnDiscovery,
+                        queryBuildingMs: durationQueryBuilding,
+                        sqlGenerationMs: durationSqlGeneration,
+                        ...queryTags,
+                    },
+                );
 
-        this.logger.info(
-            `prepareSqlChartAsyncQueryArgs completed in ${totalTime.toFixed(2)}`,
-            {
-                event: 'prepare_sql_chart_async_query_args.completed',
-                projectUuid,
-                totalTimeMs: totalTime,
-                warehouseAndUserAttributesMs:
-                    durationWarehouseAndUserAttributes,
-                columnDiscoveryMs: durationColumnDiscovery,
-                queryBuildingMs: durationQueryBuilding,
-                sqlGenerationMs: durationSqlGeneration,
-                ...queryTags,
+                return {
+                    metricQuery: composer.getMetricQuery(),
+                    pivotConfiguration: composer.getPivotConfiguration(),
+                    virtualView: composer.getExplore(),
+                    queryTags,
+                    warehouseCredentials,
+                    queryComposer: composer,
+                    parameterReferences: Array.from(
+                        compiled.parameterReferences,
+                    ),
+                    missingParameterReferences: Array.from(
+                        compiled.missingParameterReferences,
+                    ),
+                    appliedDashboardFilters:
+                        composer.getAppliedDashboardFilters(),
+                    originalColumns,
+                    usedParameters: compiled.usedParameters,
+                };
             },
         );
-
-        return {
-            metricQuery: composer.getMetricQuery(),
-            pivotConfiguration: composer.getPivotConfiguration(),
-            virtualView: composer.getExplore(),
-            queryTags,
-            warehouseConnection,
-            warehouseCredentials,
-            queryComposer: composer,
-            parameterReferences: Array.from(compiled.parameterReferences),
-            missingParameterReferences: Array.from(
-                compiled.missingParameterReferences,
-            ),
-            appliedDashboardFilters: composer.getAppliedDashboardFilters(),
-            originalColumns,
-            usedParameters: compiled.usedParameters,
-        };
     }
 
     async executeAsyncSqlChartQuery(
@@ -8662,7 +8704,6 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const {
-            warehouseConnection,
             warehouseCredentials,
             queryTags,
             metricQuery,
@@ -8681,9 +8722,6 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             chartUuid: sqlChart.savedSqlUuid,
         });
-
-        // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
-        await warehouseConnection.sshTunnel.disconnect();
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -8804,7 +8842,6 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const {
-            warehouseConnection,
             warehouseCredentials,
             queryTags,
             metricQuery,
@@ -8828,9 +8865,6 @@ export class AsyncQueryService extends ProjectService {
             chartUuid: savedChart.savedSqlUuid,
             dashboardUuid,
         });
-
-        // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
-        await warehouseConnection.sshTunnel.disconnect();
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {

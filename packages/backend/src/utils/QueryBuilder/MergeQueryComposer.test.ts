@@ -101,7 +101,7 @@ const compose = () =>
         columnOrder: ['merge_k0', 'a_followers_count'],
         limit: 500,
         ...parameterMetadata,
-        warehouseClient: mockWarehouseClient,
+        warehouseSqlBuilder: mockWarehouseClient,
     });
 
 describe('MergeQueryComposer', () => {
@@ -161,7 +161,7 @@ describe('MergeQueryComposer', () => {
             columnOrder: ['merge_k0', 'merge_k1', 'a_followers_count'],
             limit: 500,
             ...parameterMetadata,
-            warehouseClient: mockWarehouseClient,
+            warehouseSqlBuilder: mockWarehouseClient,
             pivotConfiguration: {
                 indexColumn: { reference: 'merge_k0', type: VizIndexType.TIME },
                 valuesColumns: [
@@ -196,7 +196,7 @@ describe('MergeQueryComposer', () => {
             columnOrder: ['merge_k0', 'merge_k1', 'a_followers_count'],
             limit: 500,
             ...parameterMetadata,
-            warehouseClient: mockWarehouseClient,
+            warehouseSqlBuilder: mockWarehouseClient,
             pivotConfiguration: {
                 indexColumn: { reference: 'merge_k0', type: VizIndexType.TIME },
                 valuesColumns: [

@@ -9,7 +9,7 @@ import {
     type MetricQuery,
     type ParametersValuesMap,
     type PivotConfiguration,
-    type WarehouseClient,
+    type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { applyMergeTerminalWrapper } from './MergeQueryBuilder';
 import { type CompiledQuery } from './MetricQueryBuilder';
@@ -28,7 +28,7 @@ export type MergeQueryComposerArguments = {
     limit: number;
     parameterReferences: string[];
     usedParametersValues: ParametersValuesMap;
-    warehouseClient: WarehouseClient;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
     /**
      * Standard pivot stage over the merged rows. Every merged dimension is a
      * join key part, so anything pivotable here is shared by both sources.
@@ -100,7 +100,7 @@ export class MergeQueryComposer extends QueryComposer {
             limit,
             parameterReferences,
             usedParametersValues,
-            warehouseClient,
+            warehouseSqlBuilder,
             pivotConfiguration,
         } = args;
 
@@ -117,9 +117,9 @@ export class MergeQueryComposer extends QueryComposer {
                 explore: MergeQueryComposer.buildVirtualView(
                     coreSql,
                     typedColumns,
-                    warehouseClient,
+                    warehouseSqlBuilder,
                 ),
-                warehouseSqlBuilder: warehouseClient,
+                warehouseSqlBuilder,
                 // The pivot resolves field metadata against the merged items
                 // map — there is no freshly compiled metric query to fall
                 // back on.
@@ -165,13 +165,13 @@ export class MergeQueryComposer extends QueryComposer {
     private static buildVirtualView(
         sql: string,
         typedColumns: MergeTypedColumn[],
-        warehouseClient: WarehouseClient,
+        warehouseSqlBuilder: WarehouseSqlBuilder,
     ): Explore {
         return createVirtualView(
             MERGE_TABLE_NAME,
             sql,
             typedColumns.map(({ reference, type }) => ({ reference, type })),
-            warehouseClient,
+            warehouseSqlBuilder,
         );
     }
 }

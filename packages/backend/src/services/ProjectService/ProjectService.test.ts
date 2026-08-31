@@ -48,9 +48,13 @@ import {
     type RegisteredAccount,
     type UpdateProject,
     type UserWarehouseCredentialsWithSecrets,
+    type WarehouseClient,
     type WarehouseLocation,
 } from '@lightdash/common';
-import { warehouseClientFromCredentials } from '@lightdash/warehouses';
+import {
+    SshTunnel,
+    warehouseClientFromCredentials,
+} from '@lightdash/warehouses';
 import { Readable } from 'stream';
 import { gunzipSync } from 'zlib';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -178,20 +182,23 @@ vi.mock('worker_threads', async () => {
     };
 });
 
+const mockSshTunnel = {
+    connect: vi.fn(() => warehouseClientMock.credentials),
+    disconnect: vi.fn(),
+};
+
 vi.mock('@lightdash/warehouses', () => ({
     SshTunnel: vi.fn().mockImplementation(
         // eslint-disable-next-line prefer-arrow-callback
         function MockSshTunnel() {
-            return {
-                connect: vi.fn(() => warehouseClientMock.credentials),
-                disconnect: vi.fn(),
-            };
+            return mockSshTunnel;
         },
     ),
     exchangeDatabricksOAuthCredentials: vi.fn(),
     refreshDatabricksOAuthToken: vi.fn(),
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID: 'default-client-id',
     warehouseClientFromCredentials: vi.fn(() => warehouseClientMock),
+    warehouseSqlBuilderFromType: vi.fn(() => warehouseClientMock),
 }));
 
 const projectModel = {
@@ -222,7 +229,9 @@ const projectModel = {
     getWarehouseCredentialsForProject: vi.fn(
         async () => warehouseClientMock.credentials,
     ),
-    getWarehouseClientFromCredentials: vi.fn(() => ({
+    getWarehouseClientFromCredentials: vi.fn<
+        ProjectModel['getWarehouseClientFromCredentials']
+    >(() => ({
         ...warehouseClientMock,
         runQuery: vi.fn(async () => resultsWith1Row),
     })),
@@ -245,6 +254,8 @@ const projectModel = {
     ),
     update: vi.fn(async () => undefined),
     delete: vi.fn(async () => undefined),
+    createVirtualView: vi.fn(async () => virtualExplore),
+    updateVirtualView: vi.fn(async () => virtualExplore),
     getResultsCacheSettings: vi.fn<ProjectModel['getResultsCacheSettings']>(
         async () => ({ cacheTtlSeconds: null }),
     ),
@@ -534,6 +545,161 @@ describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = getMockedProjectService(lightdashConfigMock);
 
+    beforeEach(() => {
+        mockSshTunnel.connect.mockReset();
+        mockSshTunnel.connect.mockResolvedValue(
+            warehouseClientMock.credentials,
+        );
+        mockSshTunnel.disconnect.mockReset();
+        vi.mocked(SshTunnel).mockClear();
+    });
+
+    describe('withWarehouseClient', () => {
+        const sshCredentials = [
+            {
+                type: WarehouseTypes.POSTGRES,
+                host: 'warehouse.internal',
+                user: 'warehouse-user',
+                password: 'password',
+                port: 5432,
+                dbname: 'analytics',
+                schema: 'public',
+                useSshTunnel: true,
+                sshTunnelHost: 'ssh.internal',
+                sshTunnelPort: 22,
+                sshTunnelUser: 'ssh-user',
+                sshTunnelPrivateKey: 'private-key',
+            },
+            {
+                type: WarehouseTypes.REDSHIFT,
+                host: 'warehouse.internal',
+                user: 'warehouse-user',
+                password: 'password',
+                port: 5439,
+                dbname: 'analytics',
+                schema: 'public',
+                authenticationType: RedshiftAuthenticationType.PASSWORD,
+                useSshTunnel: true,
+                sshTunnelHost: 'ssh.internal',
+                sshTunnelPort: 22,
+                sshTunnelUser: 'ssh-user',
+                sshTunnelPrivateKey: 'private-key',
+            },
+        ] satisfies CreateWarehouseCredentials[];
+
+        test.each(sshCredentials)(
+            'releases a $type tunnel after a successful callback',
+            async (credentials) => {
+                mockSshTunnel.connect.mockResolvedValueOnce({
+                    ...credentials,
+                    host: '127.0.0.1',
+                    port: 32000,
+                });
+
+                const result = await service.withWarehouseClient(
+                    { projectUuid, credentials },
+                    async () => 'callback result',
+                );
+
+                expect(result).toBe('callback result');
+                expect(mockSshTunnel.disconnect).toHaveBeenCalledOnce();
+            },
+        );
+
+        it('releases the tunnel when the callback fails', async () => {
+            const callbackError = new Error('query failed');
+
+            await expect(
+                service.withWarehouseClient(
+                    { projectUuid, credentials: sshCredentials[0] },
+                    async () => {
+                        throw callbackError;
+                    },
+                ),
+            ).rejects.toBe(callbackError);
+            expect(mockSshTunnel.disconnect).toHaveBeenCalledOnce();
+        });
+
+        it('releases a connected tunnel when client construction fails', async () => {
+            const constructionError = new Error('client construction failed');
+            vi.mocked(
+                projectModel.getWarehouseClientFromCredentials,
+            ).mockImplementationOnce(() => {
+                throw constructionError;
+            });
+
+            await expect(
+                service.withWarehouseClient(
+                    {
+                        projectUuid: 'partial-acquisition-project',
+                        credentials: sshCredentials[0],
+                    },
+                    async () => undefined,
+                ),
+            ).rejects.toBe(constructionError);
+            expect(mockSshTunnel.disconnect).toHaveBeenCalledOnce();
+        });
+
+        it('does not reuse clients created for SSH tunnels', async () => {
+            const credentials = sshCredentials[0];
+            const tunneledCredentials = {
+                ...credentials,
+                host: '127.0.0.1',
+                port: 32000,
+            };
+            const firstClient: WarehouseClient = {
+                ...warehouseClientMock,
+                credentials: tunneledCredentials,
+            };
+            const secondClient: WarehouseClient = {
+                ...warehouseClientMock,
+                credentials: tunneledCredentials,
+            };
+            mockSshTunnel.connect
+                .mockResolvedValueOnce(tunneledCredentials)
+                .mockResolvedValueOnce(tunneledCredentials);
+            vi.mocked(projectModel.getWarehouseClientFromCredentials)
+                .mockReturnValueOnce(firstClient)
+                .mockReturnValueOnce(secondClient);
+
+            const first = await service.withWarehouseClient(
+                { projectUuid: 'ssh-cache-project', credentials },
+                async ({ warehouseClient }) => warehouseClient,
+            );
+            const second = await service.withWarehouseClient(
+                { projectUuid: 'ssh-cache-project', credentials },
+                async ({ warehouseClient }) => warehouseClient,
+            );
+
+            expect(first).toBe(firstClient);
+            expect(second).toBe(secondClient);
+        });
+    });
+
+    describe('compile-only warehouse work', () => {
+        it('creates a virtual view without opening an SSH tunnel', async () => {
+            const virtualViewAccount = buildAccount();
+            virtualViewAccount.user.ability = new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'view' },
+                { subject: 'VirtualView', action: 'create' },
+            ]);
+            projectModel.findExploresFromCache.mockResolvedValueOnce([]);
+
+            await service.createVirtualView(
+                virtualViewAccount,
+                projectUuid,
+                {
+                    name: 'orders_view',
+                    sql: 'select * from orders',
+                    columns: [],
+                },
+                false,
+            );
+
+            expect(SshTunnel).not.toHaveBeenCalled();
+        });
+    });
+
     describe('MotherDuck instance cache enablement', () => {
         test.each([
             {
@@ -613,9 +779,12 @@ describe('ProjectService', () => {
                     projectModel.getWarehouseClientFromCredentials,
                 ).mockClear();
 
-                await configuredService._getWarehouseClient(
-                    targetProjectUuid,
-                    warehouseClientMock.credentials,
+                await configuredService.withWarehouseClient(
+                    {
+                        projectUuid: targetProjectUuid,
+                        credentials: warehouseClientMock.credentials,
+                    },
+                    async () => undefined,
                 );
 
                 expect(
@@ -641,9 +810,12 @@ describe('ProjectService', () => {
                 projectModel.getWarehouseClientFromCredentials,
             ).mockClear();
 
-            await configuredService._getWarehouseClient(
-                projectUuid,
-                warehouseClientMock.credentials,
+            await configuredService.withWarehouseClient(
+                {
+                    projectUuid,
+                    credentials: warehouseClientMock.credentials,
+                },
+                async () => undefined,
             );
 
             expect(

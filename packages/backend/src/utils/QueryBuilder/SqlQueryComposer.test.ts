@@ -34,7 +34,7 @@ const PIVOT_CONFIGURATION: PivotConfiguration = {
 const baseArgs = {
     userSql: USER_SQL,
     columns: COLUMNS,
-    warehouseClient: warehouseClientMock,
+    warehouseSqlBuilder: warehouseClientMock,
     limit: 500,
     parameters: undefined,
     dashboardFilters: undefined,

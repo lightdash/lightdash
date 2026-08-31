@@ -498,6 +498,18 @@ type ResolvedCompileAdapter = {
     adapter: ProjectAdapter;
     stagedMergedManifest?: Buffer;
 };
+
+type WarehouseClientOverrides = {
+    snowflakeVirtualWarehouse?: string;
+    databricksCompute?: string;
+};
+
+type WithWarehouseClientArgs = {
+    projectUuid: UUID;
+    credentials: CreateWarehouseCredentials;
+    overrides?: WarehouseClientOverrides;
+};
+
 export class ProjectService extends BaseService {
     static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
 
@@ -2066,123 +2078,154 @@ export class ProjectService extends BaseService {
         });
     }
 
-    async _getWarehouseClient(
-        projectUuid: string,
+    private async acquireWarehouseClient(
+        projectUuid: UUID,
         credentials: CreateWarehouseCredentials,
-        overrides?: {
-            snowflakeVirtualWarehouse?: string;
-            databricksCompute?: string;
-        },
+        overrides?: WarehouseClientOverrides,
     ): Promise<{
         warehouseClient: WarehouseClient;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
         tunnelConnectMs: number | null;
     }> {
         Sentry.setTag('warehouse.type', credentials.type);
-        // Setup SSH tunnel for client (user needs to close this)
         const sshTunnel = new SshTunnel(credentials);
-        const usedSshTunnel =
-            'useSshTunnel' in credentials && !!credentials.useSshTunnel;
-        const tunnelStart = performance.now();
-        const warehouseSshCredentials = await sshTunnel.connect();
-        const tunnelConnectMs = usedSshTunnel
-            ? performance.now() - tunnelStart
-            : null;
+        try {
+            const usedSshTunnel =
+                'useSshTunnel' in credentials && !!credentials.useSshTunnel;
+            const tunnelStart = performance.now();
+            const warehouseSshCredentials = await sshTunnel.connect();
+            const tunnelConnectMs = usedSshTunnel
+                ? performance.now() - tunnelStart
+                : null;
 
-        const { snowflakeVirtualWarehouse, databricksCompute } =
-            overrides || {};
+            const { snowflakeVirtualWarehouse, databricksCompute } =
+                overrides || {};
 
-        const cacheKey = `${projectUuid}${snowflakeVirtualWarehouse || ''}${
-            databricksCompute || ''
-        }`;
-        // Check cache for existing client (always false if ssh tunnel was connected)
-        const existingClient = this.warehouseClients[cacheKey] as
-            | (typeof this.warehouseClients)[string]
-            | undefined;
-        if (
-            existingClient &&
-            deepEqual(existingClient.credentials, warehouseSshCredentials)
-        ) {
-            // if existing client uses identical credentials, use it
-            return {
-                warehouseClient: existingClient,
-                sshTunnel,
-                tunnelConnectMs,
-            };
-        }
-        // otherwise create a new client and cache for future use
-        const getSnowflakeWarehouse = (
-            snowflakeCredentials: CreateSnowflakeCredentials,
-        ): string => {
-            if (snowflakeCredentials.override) {
-                this.logger.debug(
-                    `Overriding snowflake warehouse ${snowflakeVirtualWarehouse} with ${snowflakeCredentials.warehouse}`,
-                );
-                return snowflakeCredentials.warehouse;
+            const cacheKey = `${projectUuid}${snowflakeVirtualWarehouse || ''}${
+                databricksCompute || ''
+            }`;
+            const existingClient = usedSshTunnel
+                ? undefined
+                : (this.warehouseClients[cacheKey] as
+                      | (typeof this.warehouseClients)[string]
+                      | undefined);
+            if (
+                existingClient &&
+                deepEqual(existingClient.credentials, warehouseSshCredentials)
+            ) {
+                // if existing client uses identical credentials, use it
+                return {
+                    warehouseClient: existingClient,
+                    sshTunnel,
+                    tunnelConnectMs,
+                };
             }
-            return snowflakeVirtualWarehouse || snowflakeCredentials.warehouse;
-        };
-
-        const credsType = warehouseSshCredentials.type;
-        let credentialsWithOverrides: CreateWarehouseCredentials;
-
-        switch (credsType) {
-            case WarehouseTypes.SNOWFLAKE:
-                credentialsWithOverrides = {
-                    ...warehouseSshCredentials,
-                    warehouse: getSnowflakeWarehouse(warehouseSshCredentials),
-                };
-                break;
-            case WarehouseTypes.DATABRICKS:
-                const getDatabricksHttpPath = (
-                    databricksCredentials: CreateDatabricksCredentials,
-                ): string => {
-                    if (databricksCredentials.compute) {
-                        return (
-                            databricksCredentials.compute.find(
-                                (compute) => compute.name === databricksCompute,
-                            )?.httpPath ?? databricksCredentials.httpPath
-                        );
-                    }
-                    return databricksCredentials.httpPath;
-                };
-
-                credentialsWithOverrides = {
-                    ...warehouseSshCredentials,
-                    httpPath: getDatabricksHttpPath(warehouseSshCredentials),
-                };
-                break;
-            case WarehouseTypes.REDSHIFT:
-            case WarehouseTypes.POSTGRES:
-            case WarehouseTypes.BIGQUERY:
-            case WarehouseTypes.TRINO:
-            case WarehouseTypes.CLICKHOUSE:
-            case WarehouseTypes.ATHENA:
-            case WarehouseTypes.DUCKDB:
-                credentialsWithOverrides = warehouseSshCredentials;
-                break;
-            default:
-                return assertUnreachable(
-                    credsType,
-                    `Unknown warehouse type: ${credsType}`,
+            // otherwise create a new client and cache for future use
+            const getSnowflakeWarehouse = (
+                snowflakeCredentials: CreateSnowflakeCredentials,
+            ): string => {
+                if (snowflakeCredentials.override) {
+                    this.logger.debug(
+                        `Overriding snowflake warehouse ${snowflakeVirtualWarehouse} with ${snowflakeCredentials.warehouse}`,
+                    );
+                    return snowflakeCredentials.warehouse;
+                }
+                return (
+                    snowflakeVirtualWarehouse || snowflakeCredentials.warehouse
                 );
-        }
+            };
 
-        const { enabled, projectUuids } =
-            this.lightdashConfig.motherduckInstanceCache;
-        const emptyAllowlistEnablesAllProjects =
-            this.lightdashConfig.lightdashCloudInstance === undefined;
-        const enableInstanceCache =
-            enabled &&
-            (projectUuids.includes(projectUuid) ||
-                (projectUuids.length === 0 &&
-                    emptyAllowlistEnablesAllProjects));
-        const client = this.projectModel.getWarehouseClientFromCredentials(
-            credentialsWithOverrides,
-            { enableInstanceCache, projectUuid, logger: this.logger },
-        );
-        this.warehouseClients[cacheKey] = client;
-        return { warehouseClient: client, sshTunnel, tunnelConnectMs };
+            const credsType = warehouseSshCredentials.type;
+            let credentialsWithOverrides: CreateWarehouseCredentials;
+
+            switch (credsType) {
+                case WarehouseTypes.SNOWFLAKE:
+                    credentialsWithOverrides = {
+                        ...warehouseSshCredentials,
+                        warehouse: getSnowflakeWarehouse(
+                            warehouseSshCredentials,
+                        ),
+                    };
+                    break;
+                case WarehouseTypes.DATABRICKS:
+                    const getDatabricksHttpPath = (
+                        databricksCredentials: CreateDatabricksCredentials,
+                    ): string => {
+                        if (databricksCredentials.compute) {
+                            return (
+                                databricksCredentials.compute.find(
+                                    (compute) =>
+                                        compute.name === databricksCompute,
+                                )?.httpPath ?? databricksCredentials.httpPath
+                            );
+                        }
+                        return databricksCredentials.httpPath;
+                    };
+
+                    credentialsWithOverrides = {
+                        ...warehouseSshCredentials,
+                        httpPath: getDatabricksHttpPath(
+                            warehouseSshCredentials,
+                        ),
+                    };
+                    break;
+                case WarehouseTypes.REDSHIFT:
+                case WarehouseTypes.POSTGRES:
+                case WarehouseTypes.BIGQUERY:
+                case WarehouseTypes.TRINO:
+                case WarehouseTypes.CLICKHOUSE:
+                case WarehouseTypes.ATHENA:
+                case WarehouseTypes.DUCKDB:
+                    credentialsWithOverrides = warehouseSshCredentials;
+                    break;
+                default:
+                    return assertUnreachable(
+                        credsType,
+                        `Unknown warehouse type: ${credsType}`,
+                    );
+            }
+
+            const { enabled, projectUuids } =
+                this.lightdashConfig.motherduckInstanceCache;
+            const emptyAllowlistEnablesAllProjects =
+                this.lightdashConfig.lightdashCloudInstance === undefined;
+            const enableInstanceCache =
+                enabled &&
+                (projectUuids.includes(projectUuid) ||
+                    (projectUuids.length === 0 &&
+                        emptyAllowlistEnablesAllProjects));
+            const client = this.projectModel.getWarehouseClientFromCredentials(
+                credentialsWithOverrides,
+                { enableInstanceCache, projectUuid, logger: this.logger },
+            );
+            if (!usedSshTunnel) {
+                this.warehouseClients[cacheKey] = client;
+            }
+            return { warehouseClient: client, sshTunnel, tunnelConnectMs };
+        } catch (error) {
+            await sshTunnel.disconnect();
+            throw error;
+        }
+    }
+
+    async withWarehouseClient<T>(
+        { projectUuid, credentials, overrides }: WithWarehouseClientArgs,
+        callback: (connection: {
+            warehouseClient: WarehouseClient;
+            tunnelConnectMs: number | null;
+        }) => Promise<T>,
+    ): Promise<T> {
+        const { warehouseClient, sshTunnel, tunnelConnectMs } =
+            await this.acquireWarehouseClient(
+                projectUuid,
+                credentials,
+                overrides,
+            );
+        try {
+            return await callback({ warehouseClient, tunnelConnectMs });
+        } finally {
+            await sshTunnel.disconnect();
+        }
     }
 
     private async syncPreAggregateDefinitionsRegistry(
@@ -7391,185 +7434,208 @@ export class ProjectService extends BaseService {
                             isRegisteredUser: account.isRegisteredUser(),
                             isServiceAccount: account.isServiceAccount(),
                         });
-                    const { warehouseClient, sshTunnel } =
-                        await this._getWarehouseClient(
+                    return await this.withWarehouseClient(
+                        {
                             projectUuid,
-                            warehouseCredentials,
-                            {
+                            credentials: warehouseCredentials,
+                            overrides: {
                                 snowflakeVirtualWarehouse: explore.warehouse,
                                 databricksCompute: explore.databricksCompute,
                             },
-                        );
-
-                    const { userAttributes, intrinsicUserAttributes } =
-                        await this.getUserAttributes({
-                            account,
-                        });
-
-                    const mergedUserAttributes = userAttributeOverrides
-                        ? {
-                              ...userAttributes,
-                              ...userAttributeOverrides,
-                          }
-                        : userAttributes;
-
-                    const availableParameterDefinitions =
-                        await this.getAvailableParameters(projectUuid, explore);
-
-                    const projectTimezone =
-                        await this.getQueryTimezoneForProject(projectUuid);
-                    const timezone = resolveQueryTimezone({
-                        sessionTimezone: null,
-                        metricQuery: metricQueryWithLimit,
-                        projectTimezone,
-                        userTimezone: getAccountUserTimezone(account),
-                    });
-                    const useTimezoneAwareDateTrunc =
-                        await this.isTimezoneSupportEnabled({
-                            userUuid: account.user.id,
-                            organizationUuid:
-                                account.organization.organizationUuid,
-                        });
-
-                    const fullQuery = new QueryComposer(
-                        { metricQuery: metricQueryWithLimit },
-                        {
-                            explore,
-                            warehouseSqlBuilder: warehouseClient,
-                            intrinsicUserAttributes,
-                            userAttributes: mergedUserAttributes,
-                            timezone,
-                            dateZoom,
-                            parameters,
-                            availableParameterDefinitions,
-                            pivotDimensions:
-                                metricQueryWithLimit.pivotDimensions,
-                            useTimezoneAwareDateTrunc,
-                            columnTimezone: getColumnTimezone(
-                                warehouseClient.credentials,
-                            ),
-                            dataTimezone:
-                                warehouseClient.credentials.dataTimezone,
                         },
-                    ).compile();
+                        async ({ warehouseClient }) => {
+                            const { userAttributes, intrinsicUserAttributes } =
+                                await this.getUserAttributes({
+                                    account,
+                                });
 
-                    const { query } = fullQuery;
+                            const mergedUserAttributes = userAttributeOverrides
+                                ? {
+                                      ...userAttributes,
+                                      ...userAttributeOverrides,
+                                  }
+                                : userAttributes;
 
-                    const resolvedMetricOverrides =
-                        getMetricOverridesWithPopInheritance(metricQuery);
-
-                    const fieldsWithOverrides: ItemsMap = Object.fromEntries(
-                        Object.entries(fullQuery.fields).map(([key, value]) => {
-                            // Check for metric or dimension overrides. PoP
-                            // metric overrides are inherited from their base
-                            // metric by the shared util above.
-                            const override =
-                                resolvedMetricOverrides[key] ||
-                                metricQuery.dimensionOverrides?.[key];
-                            const formatOptions = override?.formatOptions;
-                            if (formatOptions) {
-                                return [
-                                    key,
-                                    {
-                                        ...value,
-                                        ...getFieldFormatOverrideProps(
-                                            formatOptions,
-                                        ),
-                                    },
-                                ];
-                            }
-                            return [key, value];
-                        }),
-                    );
-
-                    const onboardingFlow = await this.getOnboardingFlow({
-                        userUuid: account.user.id,
-                        organizationUuid: account.organization.organizationUuid,
-                    });
-                    const onboardingRecord =
-                        await this.onboardingModel.getByOrganizationUuid(
-                            account.organization.organizationUuid,
-                        );
-                    if (!onboardingRecord.ranQueryAt) {
-                        await this.onboardingModel.update(
-                            account.organization.organizationUuid,
-                            {
-                                ranQueryAt: new Date(),
-                            },
-                        );
-                        this.analytics.trackAccount(account, {
-                            event: 'onboarding.step_completed',
-                            properties: {
-                                step: 'first_query',
-                                stepIndex: 5,
-                                onboardingFlow,
-                                organizationId:
-                                    account.organization.organizationUuid,
-                            },
-                        });
-                    }
-
-                    this.analytics.trackAccount(account, {
-                        event: 'query.executed',
-                        properties: {
-                            organizationId: organizationUuid,
-                            projectId: projectUuid,
-                            context,
-                            onboardingFlow,
-                            ...ProjectService.getMetricQueryExecutionProperties(
-                                {
-                                    metricQuery: metricQueryWithLimit,
-                                    queryTags,
-                                    chartUuid,
-                                    dateZoom,
+                            const availableParameterDefinitions =
+                                await this.getAvailableParameters(
+                                    projectUuid,
                                     explore,
-                                    parameters,
-                                },
-                            ),
-                        },
-                    });
-                    this.logger.debug(
-                        `Fetch query results from cache or warehouse`,
-                    );
-                    span.setAttribute('generatedSql', query);
+                                );
 
-                    span.setAttribute('lightdash.projectUuid', projectUuid);
-                    span.setAttribute(
-                        'warehouse.type',
-                        warehouseClient.credentials.type,
-                    );
-                    const userUuid = getCacheUserUuid(
-                        warehouseCredentials,
-                        account.user.id,
-                    );
-                    const { rows, cacheMetadata } =
-                        await this.getResultsFromCacheOrWarehouse({
-                            projectUuid,
-                            userUuid,
-                            user: {
-                                userUuid: account.user.id,
-                                organizationUuid:
+                            const projectTimezone =
+                                await this.getQueryTimezoneForProject(
+                                    projectUuid,
+                                );
+                            const timezone = resolveQueryTimezone({
+                                sessionTimezone: null,
+                                metricQuery: metricQueryWithLimit,
+                                projectTimezone,
+                                userTimezone: getAccountUserTimezone(account),
+                            });
+                            const useTimezoneAwareDateTrunc =
+                                await this.isTimezoneSupportEnabled({
+                                    userUuid: account.user.id,
+                                    organizationUuid:
+                                        account.organization.organizationUuid,
+                                });
+
+                            const fullQuery = new QueryComposer(
+                                { metricQuery: metricQueryWithLimit },
+                                {
+                                    explore,
+                                    warehouseSqlBuilder: warehouseClient,
+                                    intrinsicUserAttributes,
+                                    userAttributes: mergedUserAttributes,
+                                    timezone,
+                                    dateZoom,
+                                    parameters,
+                                    availableParameterDefinitions,
+                                    pivotDimensions:
+                                        metricQueryWithLimit.pivotDimensions,
+                                    useTimezoneAwareDateTrunc,
+                                    columnTimezone: getColumnTimezone(
+                                        warehouseClient.credentials,
+                                    ),
+                                    dataTimezone:
+                                        warehouseClient.credentials
+                                            .dataTimezone,
+                                },
+                            ).compile();
+
+                            const { query } = fullQuery;
+
+                            const resolvedMetricOverrides =
+                                getMetricOverridesWithPopInheritance(
+                                    metricQuery,
+                                );
+
+                            const fieldsWithOverrides: ItemsMap =
+                                Object.fromEntries(
+                                    Object.entries(fullQuery.fields).map(
+                                        ([key, value]) => {
+                                            // Check for metric or dimension overrides. PoP
+                                            // metric overrides are inherited from their base
+                                            // metric by the shared util above.
+                                            const override =
+                                                resolvedMetricOverrides[key] ||
+                                                metricQuery
+                                                    .dimensionOverrides?.[key];
+                                            const formatOptions =
+                                                override?.formatOptions;
+                                            if (formatOptions) {
+                                                return [
+                                                    key,
+                                                    {
+                                                        ...value,
+                                                        ...getFieldFormatOverrideProps(
+                                                            formatOptions,
+                                                        ),
+                                                    },
+                                                ];
+                                            }
+                                            return [key, value];
+                                        },
+                                    ),
+                                );
+
+                            const onboardingFlow = await this.getOnboardingFlow(
+                                {
+                                    userUuid: account.user.id,
+                                    organizationUuid:
+                                        account.organization.organizationUuid,
+                                },
+                            );
+                            const onboardingRecord =
+                                await this.onboardingModel.getByOrganizationUuid(
                                     account.organization.organizationUuid,
-                                organizationName: account.organization.name,
-                            },
-                            context,
-                            warehouseClient,
-                            metricQuery: metricQueryWithLimit,
-                            resolvedTimezone: timezone,
-                            query,
-                            queryTags,
-                            invalidateCache,
-                        });
-                    await sshTunnel.disconnect();
-                    return {
-                        rows,
-                        cacheMetadata,
-                        fields: fieldsWithOverrides,
-                        displayTimezone: useTimezoneAwareDateTrunc
-                            ? timezone
-                            : undefined,
-                        warehouseType: warehouseClient.credentials.type,
-                    };
+                                );
+                            if (!onboardingRecord.ranQueryAt) {
+                                await this.onboardingModel.update(
+                                    account.organization.organizationUuid,
+                                    {
+                                        ranQueryAt: new Date(),
+                                    },
+                                );
+                                this.analytics.trackAccount(account, {
+                                    event: 'onboarding.step_completed',
+                                    properties: {
+                                        step: 'first_query',
+                                        stepIndex: 5,
+                                        onboardingFlow,
+                                        organizationId:
+                                            account.organization
+                                                .organizationUuid,
+                                    },
+                                });
+                            }
+
+                            this.analytics.trackAccount(account, {
+                                event: 'query.executed',
+                                properties: {
+                                    organizationId: organizationUuid,
+                                    projectId: projectUuid,
+                                    context,
+                                    onboardingFlow,
+                                    ...ProjectService.getMetricQueryExecutionProperties(
+                                        {
+                                            metricQuery: metricQueryWithLimit,
+                                            queryTags,
+                                            chartUuid,
+                                            dateZoom,
+                                            explore,
+                                            parameters,
+                                        },
+                                    ),
+                                },
+                            });
+                            this.logger.debug(
+                                `Fetch query results from cache or warehouse`,
+                            );
+                            span.setAttribute('generatedSql', query);
+
+                            span.setAttribute(
+                                'lightdash.projectUuid',
+                                projectUuid,
+                            );
+                            span.setAttribute(
+                                'warehouse.type',
+                                warehouseClient.credentials.type,
+                            );
+                            const userUuid = getCacheUserUuid(
+                                warehouseCredentials,
+                                account.user.id,
+                            );
+                            const { rows, cacheMetadata } =
+                                await this.getResultsFromCacheOrWarehouse({
+                                    projectUuid,
+                                    userUuid,
+                                    user: {
+                                        userUuid: account.user.id,
+                                        organizationUuid:
+                                            account.organization
+                                                .organizationUuid,
+                                        organizationName:
+                                            account.organization.name,
+                                    },
+                                    context,
+                                    warehouseClient,
+                                    metricQuery: metricQueryWithLimit,
+                                    resolvedTimezone: timezone,
+                                    query,
+                                    queryTags,
+                                    invalidateCache,
+                                });
+                            return {
+                                rows,
+                                cacheMetadata,
+                                fields: fieldsWithOverrides,
+                                displayTimezone: useTimezoneAwareDateTrunc
+                                    ? timezone
+                                    : undefined,
+                                warehouseType: warehouseClient.credentials.type,
+                            };
+                        },
+                    );
                 } catch (e) {
                     span.setStatus({
                         code: 2, // ERROR
@@ -7612,36 +7678,38 @@ export class ProjectService extends BaseService {
                 onboardingFlow: await this.getOnboardingFlow(user),
             },
         });
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            await this.getWarehouseCredentials({
+        return this.withWarehouseClient(
+            {
                 projectUuid,
-                userId: user.userUuid,
-                isRegisteredUser: true,
-            }),
+                credentials: await this.getWarehouseCredentials({
+                    projectUuid,
+                    userId: user.userUuid,
+                    isRegisteredUser: true,
+                }),
+            },
+            async ({ warehouseClient }) => {
+                this.logger.debug(`Run query against warehouse`);
+                const queryTags: RunQueryTags = {
+                    organization_uuid: organizationUuid,
+                    user_uuid: user.userUuid,
+                    query_context: QueryExecutionContext.SQL_RUNNER,
+                };
+
+                const { maxLimit } = await resolveOrganizationExportLimits(
+                    this.organizationSettingsModel,
+                    this.lightdashConfig.query,
+                    organizationUuid,
+                );
+
+                // enforce limit for current SQL queries as it may crash server. We are working on a new SQL runner that supports streaming
+                const cteWithLimit = applyLimitToSqlQuery({
+                    sqlQuery: sql,
+                    limit: maxLimit,
+                });
+
+                return warehouseClient.runQuery(cteWithLimit, queryTags);
+            },
         );
-        this.logger.debug(`Run query against warehouse`);
-        const queryTags: RunQueryTags = {
-            organization_uuid: organizationUuid,
-            user_uuid: user.userUuid,
-            query_context: QueryExecutionContext.SQL_RUNNER,
-        };
-
-        const { maxLimit } = await resolveOrganizationExportLimits(
-            this.organizationSettingsModel,
-            this.lightdashConfig.query,
-            organizationUuid,
-        );
-
-        // enforce limit for current SQL queries as it may crash server. We are working on a new SQL runner that supports streaming
-        const cteWithLimit = applyLimitToSqlQuery({
-            sqlQuery: sql,
-            limit: maxLimit,
-        });
-
-        const results = await warehouseClient.runQuery(cteWithLimit, queryTags);
-        await sshTunnel.disconnect();
-        return results;
     }
 
     // TODO: consider removing this method in milestone #212
@@ -7677,54 +7745,58 @@ export class ProjectService extends BaseService {
                 }),
             },
         });
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            await this.getWarehouseCredentials({
+        return this.withWarehouseClient(
+            {
                 projectUuid,
-                userId: userUuid,
-                isRegisteredUser: true,
-            }),
-        );
-        this.logger.debug(`Stream query against warehouse`);
-        const queryTags: RunQueryTags = {
-            organization_uuid: organizationUuid,
-            user_uuid: userUuid,
-            query_context: context,
-        };
+                credentials: await this.getWarehouseCredentials({
+                    projectUuid,
+                    userId: userUuid,
+                    isRegisteredUser: true,
+                }),
+            },
+            async ({ warehouseClient }) => {
+                this.logger.debug(`Stream query against warehouse`);
+                const queryTags: RunQueryTags = {
+                    organization_uuid: organizationUuid,
+                    user_uuid: userUuid,
+                    query_context: context,
+                };
 
-        const columns: VizColumn[] = [];
+                const columns: VizColumn[] = [];
 
-        const fileUrl = await this.downloadFileModel.streamFunction(
-            this.fileStorageClient,
-            projectUuid,
-        )(
-            `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
-            async (writer) => {
-                await warehouseClient.streamQuery(
-                    query,
-                    async ({ rows, fields }) => {
-                        if (!columns.length) {
-                            // Get column types from first row of results
-                            columns.push(
-                                ...Object.keys(fields).map((fieldName) => ({
-                                    reference: fieldName,
-                                    type: fields[fieldName].type,
-                                })),
-                            );
-                        }
+                const fileUrl = await this.downloadFileModel.streamFunction(
+                    this.fileStorageClient,
+                    projectUuid,
+                )(
+                    `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
+                    async (writer) => {
+                        await warehouseClient.streamQuery(
+                            query,
+                            async ({ rows, fields }) => {
+                                if (!columns.length) {
+                                    // Get column types from first row of results
+                                    columns.push(
+                                        ...Object.keys(fields).map(
+                                            (fieldName) => ({
+                                                reference: fieldName,
+                                                type: fields[fieldName].type,
+                                            }),
+                                        ),
+                                    );
+                                }
 
-                        rows.forEach(writer);
-                    },
-                    {
-                        tags: queryTags,
+                                rows.forEach(writer);
+                            },
+                            {
+                                tags: queryTags,
+                            },
+                        );
                     },
                 );
+
+                return { fileUrl, columns };
             },
         );
-
-        await sshTunnel.disconnect();
-
-        return { fileUrl, columns };
     }
 
     async pivotQueryWorkerTask({
@@ -7769,159 +7841,174 @@ export class ProjectService extends BaseService {
                 }),
             },
         });
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            warehouseCredentials,
-        );
+        return this.withWarehouseClient(
+            { projectUuid, credentials: warehouseCredentials },
+            async ({ warehouseClient }) => {
+                // Apply limit and pivot to the SQL query
+                const pivotQueryBuilder = new PivotQueryBuilder(
+                    sql,
+                    {
+                        indexColumn: indexColumns,
+                        valuesColumns,
+                        groupByColumns,
+                        sortBy,
+                    },
+                    warehouseClient,
+                    limit,
+                );
 
-        // Apply limit and pivot to the SQL query
-        const pivotQueryBuilder = new PivotQueryBuilder(
-            sql,
-            {
-                indexColumn: indexColumns,
-                valuesColumns,
-                groupByColumns,
-                sortBy,
-            },
-            warehouseClient,
-            limit,
-        );
+                const pivotedSql = pivotQueryBuilder.toSql({
+                    columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+                });
 
-        const pivotedSql = pivotQueryBuilder.toSql({
-            columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
-        });
+                this.logger.debug(`Stream query against warehouse`);
+                const queryTags: RunQueryTags = {
+                    organization_uuid: organizationUuid,
+                    user_uuid: userUuid,
+                    query_context: context,
+                };
 
-        this.logger.debug(`Stream query against warehouse`);
-        const queryTags: RunQueryTags = {
-            organization_uuid: organizationUuid,
-            user_uuid: userUuid,
-            query_context: context,
-        };
+                const columns: VizColumn[] = [];
+                let currentRowIndex = 0;
+                let currentTransformedRow: ResultRow | undefined;
+                const valuesColumnData = new Map<string, PivotValuesColumn>();
 
-        const columns: VizColumn[] = [];
-        let currentRowIndex = 0;
-        let currentTransformedRow: ResultRow | undefined;
-        const valuesColumnData = new Map<string, PivotValuesColumn>();
+                let columnCount: undefined | number;
 
-        let columnCount: undefined | number;
-
-        const fileUrl = await this.downloadFileModel.streamFunction(
-            this.fileStorageClient,
-            projectUuid,
-        )(
-            `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
-            async (writer) => {
-                try {
-                    await warehouseClient.streamQuery(
-                        pivotedSql,
-                        async ({ rows, fields }) => {
-                            if ('total_columns' in rows[0]) {
-                                columnCount = rows[0].total_columns;
-                            }
-                            if (
-                                !groupByColumns ||
-                                groupByColumns.length === 0
-                            ) {
-                                rows.forEach(writer);
-                                return;
-                            }
-
-                            // columns appears unused
-                            if (!columns.length) {
-                                // Get column types from first row of results
-                                columns.push(
-                                    ...Object.keys(fields).map((fieldName) => ({
-                                        reference: fieldName,
-                                        type: fields[fieldName].type,
-                                    })),
-                                );
-                            }
-
-                            rows.forEach((row) => {
-                                // Write rows to file in order of row_index. This is so that we can pivot the data later
-                                if (currentRowIndex !== row.row_index) {
-                                    if (currentTransformedRow) {
-                                        writer(currentTransformedRow);
+                const fileUrl = await this.downloadFileModel.streamFunction(
+                    this.fileStorageClient,
+                    projectUuid,
+                )(
+                    `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
+                    async (writer) => {
+                        try {
+                            await warehouseClient.streamQuery(
+                                pivotedSql,
+                                async ({ rows, fields }) => {
+                                    if ('total_columns' in rows[0]) {
+                                        columnCount = rows[0].total_columns;
+                                    }
+                                    if (
+                                        !groupByColumns ||
+                                        groupByColumns.length === 0
+                                    ) {
+                                        rows.forEach(writer);
+                                        return;
                                     }
 
-                                    currentTransformedRow =
-                                        indexColumns.reduce<ResultRow>(
-                                            (acc, indexCol) => {
-                                                acc[indexCol.reference] =
-                                                    row[indexCol.reference];
-                                                return acc;
-                                            },
-                                            {},
+                                    // columns appears unused
+                                    if (!columns.length) {
+                                        // Get column types from first row of results
+                                        columns.push(
+                                            ...Object.keys(fields).map(
+                                                (fieldName) => ({
+                                                    reference: fieldName,
+                                                    type: fields[fieldName]
+                                                        .type,
+                                                }),
+                                            ),
                                         );
+                                    }
 
-                                    currentRowIndex = row.row_index;
-                                }
-                                // Suffix the value column with the group by columns to avoid collisions.
-                                // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
-                                // then the value column will be 'value_1_a_b'
-                                const valueSuffix = groupByColumns
-                                    ?.map((col) => row[col.reference])
-                                    .join('_');
-                                valuesColumns.forEach((col) => {
-                                    const valueColumnReference = `${col.reference}_${col.aggregation}_${valueSuffix}`;
-                                    valuesColumnData.set(valueColumnReference, {
-                                        referenceField: col.reference, // The original y field name
-                                        pivotColumnName: valueColumnReference, // The pivoted y field name and agg eg amount_avg_false
-                                        aggregation: col.aggregation,
-                                        pivotValues: groupByColumns?.map(
-                                            (c) => ({
-                                                referenceField: c.reference,
-                                                value: row[c.reference],
-                                            }),
-                                        ),
+                                    rows.forEach((row) => {
+                                        // Write rows to file in order of row_index. This is so that we can pivot the data later
+                                        if (currentRowIndex !== row.row_index) {
+                                            if (currentTransformedRow) {
+                                                writer(currentTransformedRow);
+                                            }
+
+                                            currentTransformedRow =
+                                                indexColumns.reduce<ResultRow>(
+                                                    (acc, indexCol) => {
+                                                        acc[
+                                                            indexCol.reference
+                                                        ] =
+                                                            row[
+                                                                indexCol.reference
+                                                            ];
+                                                        return acc;
+                                                    },
+                                                    {},
+                                                );
+
+                                            currentRowIndex = row.row_index;
+                                        }
+                                        // Suffix the value column with the group by columns to avoid collisions.
+                                        // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
+                                        // then the value column will be 'value_1_a_b'
+                                        const valueSuffix = groupByColumns
+                                            ?.map((col) => row[col.reference])
+                                            .join('_');
+                                        valuesColumns.forEach((col) => {
+                                            const valueColumnReference = `${col.reference}_${col.aggregation}_${valueSuffix}`;
+                                            valuesColumnData.set(
+                                                valueColumnReference,
+                                                {
+                                                    referenceField:
+                                                        col.reference, // The original y field name
+                                                    pivotColumnName:
+                                                        valueColumnReference, // The pivoted y field name and agg eg amount_avg_false
+                                                    aggregation:
+                                                        col.aggregation,
+                                                    pivotValues:
+                                                        groupByColumns?.map(
+                                                            (c) => ({
+                                                                referenceField:
+                                                                    c.reference,
+                                                                value: row[
+                                                                    c.reference
+                                                                ],
+                                                            }),
+                                                        ),
+                                                },
+                                            );
+                                            currentTransformedRow =
+                                                currentTransformedRow ?? {};
+                                            currentTransformedRow[
+                                                valueColumnReference
+                                            ] =
+                                                row[
+                                                    `${col.reference}_${col.aggregation}`
+                                                ];
+                                        });
                                     });
-                                    currentTransformedRow =
-                                        currentTransformedRow ?? {};
-                                    currentTransformedRow[
-                                        valueColumnReference
-                                    ] =
-                                        row[
-                                            `${col.reference}_${col.aggregation}`
-                                        ];
-                                });
-                            });
-                        },
-                        {
-                            tags: queryTags,
-                        },
-                    );
-                } catch (error) {
-                    this.logger.error(
-                        `Error running pivot query: ${error}\nSQL: ${pivotedSql}`,
-                    );
-                    throw error;
-                }
-                // Write the last row
-                if (currentTransformedRow) {
-                    writer(currentTransformedRow);
-                }
+                                },
+                                {
+                                    tags: queryTags,
+                                },
+                            );
+                        } catch (error) {
+                            this.logger.error(
+                                `Error running pivot query: ${error}\nSQL: ${pivotedSql}`,
+                            );
+                            throw error;
+                        }
+                        // Write the last row
+                        if (currentTransformedRow) {
+                            writer(currentTransformedRow);
+                        }
+                    },
+                );
+
+                const processedColumns =
+                    groupByColumns && groupByColumns.length > 0
+                        ? Array.from(valuesColumnData.values())
+                        : valuesColumns.map((col) => ({
+                              referenceField: col.reference,
+                              pivotColumnName: `${col.reference}_${col.aggregation}`,
+                              aggregation: col.aggregation,
+                              pivotValues: [],
+                          }));
+
+                return {
+                    queryUuid: undefined,
+                    fileUrl,
+                    valuesColumns: processedColumns,
+                    indexColumn: indexColumns,
+                    columnCount: Number(columnCount) || undefined,
+                };
             },
         );
-
-        await sshTunnel.disconnect();
-
-        const processedColumns =
-            groupByColumns && groupByColumns.length > 0
-                ? Array.from(valuesColumnData.values())
-                : valuesColumns.map((col) => ({
-                      referenceField: col.reference,
-                      pivotColumnName: `${col.reference}_${col.aggregation}`,
-                      aggregation: col.aggregation,
-                      pivotValues: [],
-                  }));
-
-        return {
-            queryUuid: undefined,
-            fileUrl,
-            valuesColumns: processedColumns,
-            indexColumn: indexColumns,
-            columnCount: Number(columnCount) || undefined,
-        };
     }
 
     /** @deprecated Only used by the deprecated SQL runner results endpoint; use AsyncQueryService.getAsyncQueryResults instead. */
@@ -8089,149 +8176,159 @@ export class ProjectService extends BaseService {
             this.isTimezoneSupportEnabled(user),
         ]);
 
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            warehouseCredentials,
+        return this.withWarehouseClient(
             {
-                snowflakeVirtualWarehouse: explore.warehouse,
-                databricksCompute: explore.databricksCompute,
+                projectUuid,
+                credentials: warehouseCredentials,
+                overrides: {
+                    snowflakeVirtualWarehouse: explore.warehouse,
+                    databricksCompute: explore.databricksCompute,
+                },
             },
-        );
+            async ({ warehouseClient }) => {
+                const mergedUserAttributes = userAttributeOverrides
+                    ? {
+                          ...userAttributes,
+                          ...userAttributeOverrides,
+                      }
+                    : userAttributes;
 
-        const mergedUserAttributes = userAttributeOverrides
-            ? {
-                  ...userAttributes,
-                  ...userAttributeOverrides,
-              }
-            : userAttributes;
+                const timezone = resolveQueryTimezone({
+                    sessionTimezone: null,
+                    metricQuery,
+                    projectTimezone,
+                    userTimezone: user.timezone,
+                });
 
-        const timezone = resolveQueryTimezone({
-            sessionTimezone: null,
-            metricQuery,
-            projectTimezone,
-            userTimezone: user.timezone,
-        });
+                const { query } = new QueryComposer(
+                    { metricQuery },
+                    {
+                        explore,
+                        warehouseSqlBuilder: warehouseClient,
+                        intrinsicUserAttributes,
+                        userAttributes: mergedUserAttributes,
+                        timezone,
+                        parameters: combinedParameters,
+                        availableParameterDefinitions,
+                        useTimezoneAwareDateTrunc,
+                        columnTimezone: getColumnTimezone(
+                            warehouseClient.credentials,
+                        ),
+                    },
+                ).compile();
 
-        const { query } = new QueryComposer(
-            { metricQuery },
-            {
-                explore,
-                warehouseSqlBuilder: warehouseClient,
-                intrinsicUserAttributes,
-                userAttributes: mergedUserAttributes,
-                timezone,
-                parameters: combinedParameters,
-                availableParameterDefinitions,
-                useTimezoneAwareDateTrunc,
-                columnTimezone: getColumnTimezone(warehouseClient.credentials),
-            },
-        ).compile();
+                const isUserCacheEnabled =
+                    this.lightdashConfig.results.autocompleteEnabled &&
+                    !!user.userUuid;
 
-        const isUserCacheEnabled =
-            this.lightdashConfig.results.autocompleteEnabled && !!user.userUuid;
+                const userUuid = getCacheUserUuid(
+                    warehouseCredentials,
+                    user.userUuid,
+                );
 
-        const userUuid = getCacheUserUuid(warehouseCredentials, user.userUuid);
+                const hashParts = [
+                    projectUuid,
+                    userUuid,
+                    'cache_autocomplete',
+                    query,
+                    timezone,
+                ];
+                const queryHash = buildCacheHash(hashParts);
 
-        const hashParts = [
-            projectUuid,
-            userUuid,
-            'cache_autocomplete',
-            query,
-            timezone,
-        ];
-        const queryHash = buildCacheHash(hashParts);
-
-        if (!forceRefresh && isUserCacheEnabled) {
-            const stringResults = await this.s3CacheClient
-                .getIfFresh(
-                    queryHash,
-                    this.lightdashConfig.results.cacheStateTimeSeconds,
-                )
-                .catch(() => undefined);
-            if (stringResults) {
-                try {
-                    await sshTunnel.disconnect();
-                    return JSON.parse(stringResults);
-                } catch (e) {
-                    this.logger.error(
-                        'Error parsing autocomplete cache results:',
-                        e,
-                    );
-                }
-            }
-        }
-
-        const queryTags: RunQueryTags = {
-            organization_uuid: organizationUuid,
-            user_uuid: user.userUuid,
-            project_uuid: projectUuid,
-            explore_name: explore.name,
-            query_context: context,
-        };
-
-        const { rows } = await warehouseClient.runQuery(query, queryTags);
-        const valueFieldId = getItemId(field);
-        const allResults: Set<string | number | boolean> = new Set();
-        const resultsWithLabels: FilterAutocompleteValue[] = [];
-        const seenLabeledValues = new Set<string>();
-        for (const row of rows) {
-            const value = row[valueFieldId];
-            if (value !== null && value !== undefined) {
-                allResults.add(value);
-                if (labelFieldId) {
-                    const valueKey = String(value);
-                    if (!seenLabeledValues.has(valueKey)) {
-                        seenLabeledValues.add(valueKey);
-                        const rawLabel = row[labelFieldId];
-                        resultsWithLabels.push({
-                            value: valueKey,
-                            label:
-                                rawLabel !== null && rawLabel !== undefined
-                                    ? String(rawLabel)
-                                    : valueKey,
-                        });
+                if (!forceRefresh && isUserCacheEnabled) {
+                    const stringResults = await this.s3CacheClient
+                        .getIfFresh(
+                            queryHash,
+                            this.lightdashConfig.results.cacheStateTimeSeconds,
+                        )
+                        .catch(() => undefined);
+                    if (stringResults) {
+                        try {
+                            return JSON.parse(stringResults);
+                        } catch (e) {
+                            this.logger.error(
+                                'Error parsing autocomplete cache results:',
+                                e,
+                            );
+                        }
                     }
                 }
-            }
-        }
 
-        const resultsArray = Array.from(allResults);
+                const queryTags: RunQueryTags = {
+                    organization_uuid: organizationUuid,
+                    user_uuid: user.userUuid,
+                    project_uuid: projectUuid,
+                    explore_name: explore.name,
+                    query_context: context,
+                };
 
-        if (isUserCacheEnabled) {
-            const searchResults = {
-                search,
-                results: resultsArray,
-                ...(labelFieldId ? { resultsWithLabels } : {}),
-                refreshedAt: new Date(),
-                cached: true,
-            };
-            const buffer = Buffer.from(JSON.stringify(searchResults));
-            this.s3CacheClient
-                .uploadResults(queryHash, buffer, queryTags)
-                .catch(() => undefined);
-        }
+                const { rows } = await warehouseClient.runQuery(
+                    query,
+                    queryTags,
+                );
+                const valueFieldId = getItemId(field);
+                const allResults: Set<string | number | boolean> = new Set();
+                const resultsWithLabels: FilterAutocompleteValue[] = [];
+                const seenLabeledValues = new Set<string>();
+                for (const row of rows) {
+                    const value = row[valueFieldId];
+                    if (value !== null && value !== undefined) {
+                        allResults.add(value);
+                        if (labelFieldId) {
+                            const valueKey = String(value);
+                            if (!seenLabeledValues.has(valueKey)) {
+                                seenLabeledValues.add(valueKey);
+                                const rawLabel = row[labelFieldId];
+                                resultsWithLabels.push({
+                                    value: valueKey,
+                                    label:
+                                        rawLabel !== null &&
+                                        rawLabel !== undefined
+                                            ? String(rawLabel)
+                                            : valueKey,
+                                });
+                            }
+                        }
+                    }
+                }
 
-        await sshTunnel.disconnect();
+                const resultsArray = Array.from(allResults);
 
-        this.analytics.track({
-            event: 'field_value.search',
-            userId: user.userUuid,
-            properties: {
-                projectId: projectUuid,
-                fieldId: valueFieldId,
-                searchCharCount: search.length,
-                resultsCount: resultsArray.length,
-                searchLimit: metricQuery.limit,
+                if (isUserCacheEnabled) {
+                    const searchResults = {
+                        search,
+                        results: resultsArray,
+                        ...(labelFieldId ? { resultsWithLabels } : {}),
+                        refreshedAt: new Date(),
+                        cached: true,
+                    };
+                    const buffer = Buffer.from(JSON.stringify(searchResults));
+                    this.s3CacheClient
+                        .uploadResults(queryHash, buffer, queryTags)
+                        .catch(() => undefined);
+                }
+
+                this.analytics.track({
+                    event: 'field_value.search',
+                    userId: user.userUuid,
+                    properties: {
+                        projectId: projectUuid,
+                        fieldId: valueFieldId,
+                        searchCharCount: search.length,
+                        resultsCount: resultsArray.length,
+                        searchLimit: metricQuery.limit,
+                    },
+                });
+
+                return {
+                    search,
+                    results: resultsArray,
+                    ...(labelFieldId ? { resultsWithLabels } : {}),
+                    refreshedAt: new Date(),
+                    cached: false,
+                };
             },
-        });
-
-        return {
-            search,
-            results: resultsArray,
-            ...(labelFieldId ? { resultsWithLabels } : {}),
-            refreshedAt: new Date(),
-            cached: false,
-        };
+        );
     }
 
     private async getProjectContextFromAdapter({
@@ -9388,35 +9485,34 @@ export class ProjectService extends BaseService {
             isRegisteredUser: true,
         });
 
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            credentials,
+        return this.withWarehouseClient(
+            { projectUuid, credentials },
+            async ({ warehouseClient }) => {
+                const warehouseTables = await warehouseClient.getAllTables();
+
+                const catalog =
+                    WarehouseAvailableTablesModel.toWarehouseCatalog(
+                        warehouseTables.map((t) => ({
+                            ...t,
+                            partition_column: t.partitionColumn || null,
+                        })),
+                    );
+
+                if (credentials.userWarehouseCredentialsUuid) {
+                    await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
+                        credentials.userWarehouseCredentialsUuid,
+                        warehouseTables,
+                    );
+                } else {
+                    await this.warehouseAvailableTablesModel.createAvailableTablesForProjectWarehouseCredentials(
+                        projectUuid,
+                        warehouseTables,
+                    );
+                }
+
+                return catalog;
+            },
         );
-
-        const warehouseTables = await warehouseClient.getAllTables();
-
-        const catalog = WarehouseAvailableTablesModel.toWarehouseCatalog(
-            warehouseTables.map((t) => ({
-                ...t,
-                partition_column: t.partitionColumn || null,
-            })),
-        );
-
-        if (credentials.userWarehouseCredentialsUuid) {
-            await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
-                credentials.userWarehouseCredentialsUuid,
-                warehouseTables,
-            );
-        } else {
-            await this.warehouseAvailableTablesModel.createAvailableTablesForProjectWarehouseCredentials(
-                projectUuid,
-                warehouseTables,
-            );
-        }
-
-        await sshTunnel.disconnect();
-
-        return catalog;
     }
 
     async getWarehouseTables(
@@ -9503,11 +9599,6 @@ export class ProjectService extends BaseService {
             isRegisteredUser: true,
         });
 
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            credentials,
-        );
-
         const queryTags: RunQueryTags = {
             organization_uuid: user.organizationUuid,
             project_uuid: projectUuid,
@@ -9533,26 +9624,31 @@ export class ProjectService extends BaseService {
             throw new ParameterError('Table name is required');
         }
 
-        try {
-            const warehouseCatalog = await warehouseClient.getFields(
-                tableName,
-                schemaName,
-                database,
-                queryTags,
-            );
+        return this.withWarehouseClient(
+            { projectUuid, credentials },
+            async ({ warehouseClient }) => {
+                try {
+                    const warehouseCatalog = await warehouseClient.getFields(
+                        tableName,
+                        schemaName,
+                        database,
+                        queryTags,
+                    );
 
-            await sshTunnel.disconnect();
-
-            return warehouseCatalog[database][schemaName][tableName];
-        } catch (error) {
-            this.logger.error('Error fetching warehouse fields', { error });
-            if (error instanceof WarehouseConnectionError) {
-                throw error;
-            }
-            throw new NotFoundError(
-                `Could not find table "${tableName}" in schema "${schemaName}" of database "${database}". Please verify the table exists and you have access to it.`,
-            );
-        }
+                    return warehouseCatalog[database][schemaName][tableName];
+                } catch (error) {
+                    this.logger.error('Error fetching warehouse fields', {
+                        error,
+                    });
+                    if (error instanceof WarehouseConnectionError) {
+                        throw error;
+                    }
+                    throw new NotFoundError(
+                        `Could not find table "${tableName}" in schema "${schemaName}" of database "${database}". Please verify the table exists and you have access to it.`,
+                    );
+                }
+            },
+        );
     }
 
     async getTablesConfiguration(
@@ -11238,14 +11334,15 @@ export class ProjectService extends BaseService {
                 'Virtual view with this name already exists',
             );
         }
-        const { warehouseClient } = await this._getWarehouseClient(
+        const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-            }),
+            userId: account.user.id,
+            isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
+        });
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
         );
         const effectiveParameterValues = resolveParameterValues
             ? await this.resolveVirtualViewParameters(
@@ -11261,7 +11358,7 @@ export class ProjectService extends BaseService {
                 ...payload,
                 parameterValues: effectiveParameterValues,
             },
-            warehouseClient,
+            warehouseSqlBuilder,
         );
 
         this.analytics.trackAccount(account, {
@@ -11318,14 +11415,15 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const { warehouseClient } = await this._getWarehouseClient(
+        const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-            }),
+            userId: account.user.id,
+            isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
+        });
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
         );
 
         const effectiveParameterValues = resolveParameterValues
@@ -11343,7 +11441,7 @@ export class ProjectService extends BaseService {
                 ...payload,
                 parameterValues: effectiveParameterValues,
             },
-            warehouseClient,
+            warehouseSqlBuilder,
             expectedExplore,
         );
 
@@ -12074,14 +12172,14 @@ export class ProjectService extends BaseService {
                 ['model', 'seed'].includes(node.resource_type) && node.meta,
         ) as DbtRawModelNode[];
 
-        const { warehouseClient } = await this._getWarehouseClient(
-            projectUuid,
-            project.warehouseConnection,
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            project.warehouseConnection.type,
+            project.warehouseConnection.startOfWeek,
         );
 
         const [dbtModelNode, exploreErrors] =
             DbtBaseProjectAdapter._validateDbtModel(
-                warehouseClient.getAdapterType(),
+                warehouseSqlBuilder.getAdapterType(),
                 models,
                 DbtManifestVersion.V12,
             );
@@ -12092,8 +12190,8 @@ export class ProjectService extends BaseService {
         const convertedExplores = await convertExplores(
             dbtModelNode,
             false,
-            warehouseClient.getAdapterType(),
-            warehouseClient,
+            warehouseSqlBuilder.getAdapterType(),
+            warehouseSqlBuilder,
             {
                 spotlight: {
                     default_visibility: 'hide', // todo: pass correct config
