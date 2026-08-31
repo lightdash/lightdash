@@ -23,6 +23,7 @@ const { mocks } = vi.hoisted(() => ({
         navigate: vi.fn(),
         dispatch: vi.fn(),
         canCreateDataApp: vi.fn(() => true),
+        canEditChartType: vi.fn(() => true),
     },
 }));
 
@@ -72,6 +73,9 @@ vi.mock(
 );
 vi.mock('../../../features/apps/hooks/useCanCreateDataApp', () => ({
     useCanCreateDataApp: () => mocks.canCreateDataApp(),
+}));
+vi.mock('../../../features/apps/hooks/useCanEditDataApp', () => ({
+    useCanEditDataAppChecker: () => mocks.canEditChartType,
 }));
 vi.mock('../../../features/explorer/store', () => ({
     useExplorerDispatch: () => mocks.dispatch,
@@ -411,6 +415,10 @@ describe('ExplorerChartTypeGallery', () => {
         vi.clearAllMocks();
         dataAppsEnabled.current = true;
         mocks.canCreateDataApp.mockReturnValue(true);
+        // False by default (mirrors the real ability hook with no grants),
+        // so existing selection/search tests keep a single "Event pulse"
+        // match; edit-affordance tests opt in explicitly.
+        mocks.canEditChartType.mockReturnValue(false);
         setProjectQuery();
     });
 
@@ -486,6 +494,48 @@ describe('ExplorerChartTypeGallery', () => {
             itemsMap,
         );
         expect(onSelected).toHaveBeenCalledTimes(1);
+    });
+
+    it('hides the edit affordance for an official (registry-installed) chart type', () => {
+        mocks.canEditChartType.mockReturnValue(true);
+        mockedUseDataAppVisualizations.mockReturnValue({
+            data: {
+                pages: [
+                    {
+                        data: [
+                            projectChartType,
+                            {
+                                ...projectChartType,
+                                dataAppVizUuid: 'official-chart-type',
+                                name: 'Radial gauge',
+                                registrySlug: 'radial-gauge',
+                            },
+                        ],
+                        pagination: {
+                            page: 1,
+                            pageSize: 25,
+                            totalPageCount: 1,
+                            totalResults: 2,
+                        },
+                    },
+                ],
+                pageParams: [1],
+            },
+            isInitialLoading: false,
+            error: null,
+            refetch: mocks.refetch,
+            hasNextPage: false,
+            fetchNextPage: mocks.fetchNextPage,
+            isFetchingNextPage: false,
+        } as unknown as ReturnType<typeof useDataAppVisualizations>);
+        renderGallery();
+
+        expect(
+            screen.getByRole('button', { name: 'Edit Event pulse' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Edit Radial gauge' }),
+        ).not.toBeInTheDocument();
     });
 
     it('starts authoring a new chart type in place from the project section', async () => {

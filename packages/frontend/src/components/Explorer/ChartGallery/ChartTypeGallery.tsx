@@ -1,4 +1,8 @@
-import { FeatureFlags, type DataAppViz } from '@lightdash/common';
+import {
+    FeatureFlags,
+    isOfficialChartType,
+    type DataAppViz,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -445,14 +449,18 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                     }
                     onSelected();
                 },
-                onEdit: canEditChartType(dataAppViz)
-                    ? () =>
-                          dispatch(
-                              explorerActions.startChartTypeAuthoring({
-                                  dataAppVizUuid: dataAppViz.dataAppVizUuid,
-                              }),
-                          )
-                    : null,
+                // Official (registry-installed) types are read-only; forking
+                // them lives in the gallery page, not this inline picker.
+                onEdit:
+                    canEditChartType(dataAppViz) &&
+                    !isOfficialChartType(dataAppViz)
+                        ? () =>
+                              dispatch(
+                                  explorerActions.startChartTypeAuthoring({
+                                      dataAppVizUuid: dataAppViz.dataAppVizUuid,
+                                  }),
+                              )
+                        : null,
             };
         },
     );
