@@ -1,3 +1,10 @@
+## [2.62.2](https://github.com/lightdash/lightdash/compare/2.62.1...2.62.2) (2026-08-31)
+
+
+### Bug Fixes
+
+* close SSH tunnel after failed column discovery ([#28338](https://github.com/lightdash/lightdash/issues/28338)) ([3405387](https://github.com/lightdash/lightdash/commit/3405387c76fe96739a3c308a7e973596a7b62766)), closes [#28334](https://github.com/lightdash/lightdash/issues/28334)
+
 ## [2.62.1](https://github.com/lightdash/lightdash/compare/2.62.0...2.62.1) (2026-08-31)
 
 
