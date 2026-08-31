@@ -1,3 +1,10 @@
+## [2.67.1](https://github.com/lightdash/lightdash/compare/2.67.0...2.67.1) (2026-08-31)
+
+
+### Performance Improvements
+
+* fetch active Live Activities in one query ([#28354](https://github.com/lightdash/lightdash/issues/28354)) ([1bf61b7](https://github.com/lightdash/lightdash/commit/1bf61b716b308fdf5e13f3744eb1644edc3b87fc))
+
 # [2.67.0](https://github.com/lightdash/lightdash/compare/2.66.0...2.67.0) (2026-08-31)
 
 
