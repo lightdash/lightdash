@@ -1,5 +1,7 @@
 # Triage labels
 
+Labels exist under these names in both trackers (Linear and GitHub).
+
 | Canonical role | Repository label | Meaning |
 | --- | --- | --- |
 | `needs-triage` | `needs-triage` | Maintainer needs to evaluate the issue |
