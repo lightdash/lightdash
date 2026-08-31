@@ -89,10 +89,38 @@ describe('validateDataAppBuild outDir', () => {
         await expect(fs.stat(buildDirs[0])).rejects.toThrow();
     });
 
-    it('does not copy anything and surfaces the error when the build fails', async () => {
+    it('clears stale files from a previous build before copying the new output', async () => {
         const appDir = await makeApp();
         const bundle = await readBundleFromDir(appDir);
         const outDir = await makeOutDir();
+        await fs.mkdir(outDir, { recursive: true });
+        await fs.writeFile(
+            path.join(outDir, 'stale-chunk-abc123.js'),
+            '// stale',
+        );
+
+        const issues = await validateDataAppBuild({
+            appDir,
+            bundle,
+            runCommand: fakeSuccessfulViteBuild,
+            outDir,
+        });
+
+        expect(issues).toEqual([]);
+        await expect(
+            fs.readFile(path.join(outDir, 'index.html'), 'utf-8'),
+        ).resolves.toBe('<html>built</html>');
+        await expect(
+            fs.stat(path.join(outDir, 'stale-chunk-abc123.js')),
+        ).rejects.toThrow();
+    });
+
+    it('does not copy anything and leaves a pre-existing outDir untouched when the build fails', async () => {
+        const appDir = await makeApp();
+        const bundle = await readBundleFromDir(appDir);
+        const outDir = await makeOutDir();
+        await fs.mkdir(outDir, { recursive: true });
+        await fs.writeFile(path.join(outDir, 'previous-build.js'), '// kept');
         const viteError = Object.assign(new Error('Command failed'), {
             stderr: 'src/App.tsx:1: broken import',
         });
@@ -110,7 +138,9 @@ describe('validateDataAppBuild outDir', () => {
                 message: expect.stringContaining('broken import'),
             }),
         ]);
-        await expect(fs.stat(outDir)).rejects.toThrow();
+        await expect(
+            fs.readFile(path.join(outDir, 'previous-build.js'), 'utf-8'),
+        ).resolves.toBe('// kept');
     });
 });
 

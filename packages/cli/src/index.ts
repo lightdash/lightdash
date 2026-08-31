@@ -1266,7 +1266,7 @@ appsProgram
     )
     .option(
         '--out-dir <dir>',
-        'Directory to write the built dist output to (default: <path>/dist)',
+        'Directory to write the built dist output to. Relative paths resolve against the current working directory (default: <path>/dist)',
     )
     .option('--verbose', undefined, false)
     .action(appsBuildHandler);

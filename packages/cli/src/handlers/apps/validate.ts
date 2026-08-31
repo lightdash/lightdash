@@ -490,6 +490,11 @@ export const validateDataAppBuild = async (args: {
         }
 
         if (args.outDir !== undefined) {
+            // Vite emits content-hashed chunk filenames, so a merge-only copy
+            // would leave stale chunks from a previous build behind. Clear
+            // outDir immediately before copying a successful build into it —
+            // never on the failure path, which must leave it untouched.
+            await fs.rm(args.outDir, { recursive: true, force: true });
             await fs.cp(path.join(buildDir, 'dist'), args.outDir, {
                 recursive: true,
             });
