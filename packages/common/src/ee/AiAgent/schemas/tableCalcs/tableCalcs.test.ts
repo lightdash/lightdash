@@ -35,6 +35,20 @@ describe('tableCalcsSchema (wide, persisted args)', () => {
         ]);
         expect(result.success).toBe(true);
     });
+
+    it('rejects a name with characters that are unsafe as a SQL identifier', () => {
+        const result = tableCalcsSchema.safeParse([
+            {
+                type: 'formula',
+                name: "aov\") FROM x; SELECT read_text('/etc/passwd') --",
+                displayName: 'AOV',
+                formula: 'orders_revenue / orders_count',
+                format: null,
+                resultType: null,
+            },
+        ]);
+        expect(result.success).toBe(false);
+    });
 });
 
 describe('formulaTableCalcsSchema (advertised agent contract)', () => {

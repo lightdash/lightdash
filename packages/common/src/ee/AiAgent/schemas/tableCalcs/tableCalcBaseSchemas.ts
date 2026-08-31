@@ -23,6 +23,10 @@ export const partitionBySchemaDescription = [
 export const baseTableCalcSchema = z.object({
     name: z
         .string()
+        .regex(
+            /^[a-zA-Z0-9_]+$/,
+            'Name must contain only letters, numbers, and underscores',
+        )
         .describe(
             'Unique name for the table calculation, e.g. "percent_change_from_previous"',
         ),

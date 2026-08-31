@@ -9,6 +9,8 @@ const getNullsFirstLast = (sort: SortField) => {
     return sort.nullsFirst ? ' NULLS FIRST' : ' NULLS LAST';
 };
 
+const quoteId = (id: string) => `"${id.replace(/"/g, '""')}"`;
+
 export const getPivotedResults = async (
     rows: Record<string, unknown>[],
     fieldsMap: Record<string, unknown>,
@@ -17,7 +19,7 @@ export const getPivotedResults = async (
     sorts: SortField[],
 ): Promise<PivotedResults> => {
     const fields = Object.keys(fieldsMap);
-    const usingFields = metrics.map((metric) => `FIRST(${metric})`);
+    const usingFields = metrics.map((metric) => `FIRST(${quoteId(metric)})`);
 
     // Get the grouping columns (all non-pivot, non-metric fields)
     const groupByFields = fields.filter(
@@ -36,7 +38,7 @@ export const getPivotedResults = async (
         ? `ORDER BY ${validSorts
               .map(
                   (sort) =>
-                      `${sort.fieldId} ${
+                      `${quoteId(sort.fieldId)} ${
                           sort.descending ? 'DESC' : 'ASC'
                       }${getNullsFirstLast(sort)}`,
               )
@@ -45,21 +47,24 @@ export const getPivotedResults = async (
 
     // Build GROUP BY clause if we have grouping fields
     const groupByPart = groupByFields.length
-        ? `GROUP BY ${groupByFields.join(', ')}`
+        ? `GROUP BY ${groupByFields.map(quoteId).join(', ')}`
         : '';
 
     // For multiple pivot fields, create a composite key
     let query: string;
     if (pivotFields.length === 1) {
         query = `PIVOT results_data
-    ON ${pivotFields[0]}
+    ON ${quoteId(pivotFields[0])}
     USING ${usingFields.join(', ')}
     ${groupByPart}
     ${orderByPart}`;
     } else {
         // Create composite key by concatenating pivot fields with ' - ' separator
         const compositeKey = pivotFields
-            .map((field) => `COALESCE(CAST(${field} AS VARCHAR), 'NULL')`)
+            .map(
+                (field) =>
+                    `COALESCE(CAST(${quoteId(field)} AS VARCHAR), 'NULL')`,
+            )
             .join(" || ' - ' || ");
         query = `PIVOT (
         SELECT *, ${compositeKey} as __pivot_key__ FROM results_data
@@ -74,6 +79,10 @@ export const getPivotedResults = async (
     try {
         const connection = await instance.connect();
         try {
+            await connection.run('SET allow_community_extensions = false');
+            await connection.run('SET autoinstall_known_extensions = false');
+            await connection.run('SET autoload_known_extensions = false');
+
             const tmpFile = path.join(
                 os.tmpdir(),
                 `lightdash_pivot_${Date.now()}_${Math.random()
@@ -88,6 +97,8 @@ export const getPivotedResults = async (
             } finally {
                 await fs.unlink(tmpFile).catch(() => {});
             }
+
+            await connection.run('SET enable_external_access = false');
 
             const result = await connection.run(query);
             // getRowObjectsJS keeps the JS value mapping the legacy duckdb client
