@@ -3,7 +3,6 @@ import { Knex } from 'knex';
 
 export const AnalyticsChartViewsTableName = 'analytics_chart_views';
 export const AnalyticsDashboardViewsTableName = 'analytics_dashboard_views';
-export const AnalyticsSqlChartViewsTableName = 'analytics_sql_chart_views';
 export const AnalyticsAppViewsTableName = 'analytics_app_views';
 
 export type DbAnalyticsChartViews = {
