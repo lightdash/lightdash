@@ -5378,22 +5378,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -7802,20 +7802,6 @@
                 "required": ["order", "name", "uuid"],
                 "type": "object"
             },
-            "DashboardDraftOverlayError": {
-                "properties": {
-                    "draftUuid": {
-                        "type": "string"
-                    },
-                    "code": {
-                        "type": "string",
-                        "enum": ["invalid_dashboard_draft"],
-                        "nullable": false
-                    }
-                },
-                "required": ["draftUuid", "code"],
-                "type": "object"
-            },
             "Required_CreateDashboardTileBase_": {
                 "properties": {
                     "uuid": {
@@ -8112,6 +8098,20 @@
                     }
                 ]
             },
+            "DashboardDraftOverlayError": {
+                "properties": {
+                    "draftUuid": {
+                        "type": "string"
+                    },
+                    "code": {
+                        "type": "string",
+                        "enum": ["invalid_dashboard_draft"],
+                        "nullable": false
+                    }
+                },
+                "required": ["draftUuid", "code"],
+                "type": "object"
+            },
             "UpdatedByUser": {
                 "properties": {
                     "userUuid": {
@@ -8164,6 +8164,18 @@
                     "filters": {
                         "$ref": "#/components/schemas/DashboardFilters"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "tabs": {
                         "items": {
                             "$ref": "#/components/schemas/DashboardTab"
@@ -8175,6 +8187,12 @@
                     },
                     "uuid": {
                         "type": "string"
+                    },
+                    "tiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTile"
+                        },
+                        "type": "array"
                     },
                     "organizationUuid": {
                         "type": "string"
@@ -8214,24 +8232,6 @@
                     },
                     "versionUuid": {
                         "type": "string"
-                    },
-                    "verification": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ContentVerificationInfo"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "tiles": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardTile"
-                        },
-                        "type": "array"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -8295,17 +8295,17 @@
                     "name",
                     "slug",
                     "filters",
+                    "updatedAt",
+                    "verification",
                     "tabs",
                     "uuid",
+                    "tiles",
                     "organizationUuid",
                     "projectUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "dashboardVersionId",
                     "versionUuid",
-                    "verification",
-                    "updatedAt",
-                    "tiles",
                     "spaceUuid",
                     "spaceName",
                     "views",
@@ -8622,6 +8622,36 @@
                         "$ref": "#/components/schemas/ParametersValuesMap",
                         "description": "Parameter values for the chart query"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when the chart was last updated"
+                    },
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object",
+                        "description": "Table view configuration"
+                    },
+                    "dashboardSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "uuid": {
                         "type": "string"
                     },
@@ -8668,19 +8698,6 @@
                         "type": "string",
                         "description": "The caller's latest dismissed draft, available to reopen."
                     },
-                    "verification": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ContentVerificationInfo"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the chart was last updated"
-                    },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
                     },
@@ -8715,28 +8732,11 @@
                         "type": "object",
                         "nullable": true
                     },
-                    "tableConfig": {
-                        "properties": {
-                            "columnOrder": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columnOrder"],
-                        "type": "object",
-                        "description": "Table view configuration"
-                    },
                     "dashboardUuid": {
                         "type": "string",
                         "nullable": true
                     },
                     "dashboardName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "dashboardSlug": {
                         "type": "string",
                         "nullable": true
                     },
@@ -8758,17 +8758,17 @@
                     "metricQuery",
                     "chartConfig",
                     "slug",
+                    "updatedAt",
+                    "tableConfig",
+                    "verification",
                     "uuid",
                     "organizationUuid",
                     "projectUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
-                    "verification",
-                    "updatedAt",
                     "spaceUuid",
                     "spaceName",
                     "colorPaletteUuid",
-                    "tableConfig",
                     "dashboardUuid",
                     "dashboardName",
                     "colorPalette",
@@ -9015,15 +9015,6 @@
                         "$ref": "#/components/schemas/ParametersValuesMap",
                         "description": "Parameter values for the chart query"
                     },
-                    "verification": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ContentVerificationInfo"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "Detailed verification info (who/when). Read-only; ignored on upload."
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time",
@@ -9067,6 +9058,15 @@
                     "verified": {
                         "type": "boolean",
                         "description": "Declarative verification state.\n`true` verifies the chart on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the chart is verified."
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Detailed verification info (who/when). Read-only; ignored on upload."
                     }
                 },
                 "required": [
@@ -9110,12 +9110,6 @@
                         "type": "number",
                         "format": "double"
                     },
-                    "sql": {
-                        "type": "string"
-                    },
-                    "chartKind": {
-                        "$ref": "#/components/schemas/ChartKind"
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -9133,16 +9127,22 @@
                     "downloadedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "chartKind": {
+                        "$ref": "#/components/schemas/ChartKind"
                     }
                 },
                 "required": [
                     "name",
                     "slug",
                     "limit",
-                    "sql",
-                    "chartKind",
                     "version",
-                    "spaceSlug"
+                    "spaceSlug",
+                    "sql",
+                    "chartKind"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -9220,24 +9220,6 @@
                         },
                         "type": "object"
                     },
-                    "tabs": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardTabAsCode"
-                        },
-                        "type": "array"
-                    },
-                    "config": {
-                        "$ref": "#/components/schemas/DashboardConfig"
-                    },
-                    "verification": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ContentVerificationInfo"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "Detailed verification info (who/when). Read-only; ignored on upload."
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time",
@@ -9261,13 +9243,31 @@
                         "type": "boolean",
                         "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
                     },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Detailed verification info (who/when). Read-only; ignored on upload."
+                    },
+                    "tabs": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTabAsCode"
+                        },
+                        "type": "array"
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
+                    },
                     "ownerEmail": {
                         "type": "string",
                         "nullable": true,
                         "description": "Declarative dashboard owner, referenced by email so it is portable across projects.\nA string assigns the organization member with that email as owner, `null` unassigns\nthe owner, `undefined` leaves the current owner untouched. Download sets this to the\nowner's email when an owner is assigned."
                     }
                 },
-                "required": ["name", "slug", "tabs", "version", "spaceSlug"],
+                "required": ["name", "slug", "version", "spaceSlug", "tabs"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -21473,6 +21473,10 @@
                     "name": {
                         "type": "string"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "uuid": {
                         "type": "string"
                     },
@@ -21482,10 +21486,6 @@
                     "projectUuid": {
                         "type": "string",
                         "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "createdAt": {
                         "type": "string",
@@ -21524,10 +21524,10 @@
                 },
                 "required": [
                     "name",
+                    "updatedAt",
                     "uuid",
                     "organizationUuid",
                     "projectUuid",
-                    "updatedAt",
                     "createdAt",
                     "originalFilename",
                     "mimeType",
@@ -21799,6 +21799,14 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "uuid": {
                         "type": "string"
                     },
@@ -21807,14 +21815,6 @@
                     },
                     "projectUuid": {
                         "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "version": {
-                        "type": "number",
-                        "format": "double"
                     },
                     "createdAt": {
                         "type": "string",
@@ -21910,11 +21910,11 @@
                 "required": [
                     "name",
                     "description",
+                    "updatedAt",
+                    "version",
                     "uuid",
                     "organizationUuid",
                     "projectUuid",
-                    "updatedAt",
-                    "version",
                     "createdAt",
                     "userAccess",
                     "integrations",
@@ -22534,6 +22534,14 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "uuid": {
                         "type": "string"
                     },
@@ -22542,14 +22550,6 @@
                     },
                     "projectUuid": {
                         "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "version": {
-                        "type": "number",
-                        "format": "double"
                     },
                     "createdAt": {
                         "type": "string",
@@ -22645,11 +22645,11 @@
                 "required": [
                     "name",
                     "description",
+                    "updatedAt",
+                    "version",
                     "uuid",
                     "organizationUuid",
                     "projectUuid",
-                    "updatedAt",
-                    "version",
                     "createdAt",
                     "userAccess",
                     "integrations",
@@ -23391,12 +23391,12 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "projectUuid": {
-                        "type": "string"
-                    },
                     "version": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "projectUuid": {
+                        "type": "string"
                     },
                     "userAccess": {
                         "items": {
@@ -23458,8 +23458,8 @@
                 "required": [
                     "name",
                     "description",
-                    "projectUuid",
                     "version",
+                    "projectUuid",
                     "userAccess",
                     "integrations",
                     "tags",
@@ -23525,12 +23525,12 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "projectUuid": {
-                        "type": "string"
-                    },
                     "version": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "projectUuid": {
+                        "type": "string"
                     },
                     "userAccess": {
                         "items": {
@@ -27393,12 +27393,12 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "title": {
-                        "type": "string"
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "title": {
+                        "type": "string"
                     },
                     "createdAt": {
                         "type": "string",
@@ -27413,8 +27413,8 @@
                 },
                 "required": [
                     "description",
-                    "title",
                     "updatedAt",
+                    "title",
                     "createdAt",
                     "evalUuid",
                     "agentUuid"
@@ -34334,12 +34334,12 @@
                     "name": {
                         "type": "string"
                     },
-                    "uuid": {
-                        "type": "string"
-                    },
                     "version": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "uuid": {
+                        "type": "string"
                     },
                     "integrations": {
                         "items": {
@@ -34398,8 +34398,8 @@
                 },
                 "required": [
                     "name",
-                    "uuid",
                     "version",
+                    "uuid",
                     "integrations",
                     "tags",
                     "instruction",
@@ -41207,6 +41207,10 @@
                         "type": "string",
                         "description": "Unique identifier slug for this chart"
                     },
+                    "dashboardSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "uuid": {
                         "type": "string"
                     },
@@ -41231,10 +41235,6 @@
                         "nullable": true
                     },
                     "dashboardName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "dashboardSlug": {
                         "type": "string",
                         "nullable": true
                     }
@@ -41297,21 +41297,21 @@
             },
             "Pick_SavedChart.updatedAt-or-updatedByUser-or-pinnedListOrder_": {
                 "properties": {
-                    "pinnedListOrder": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time",
                         "description": "Timestamp when the chart was last updated"
                     },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
                     }
                 },
-                "required": ["pinnedListOrder", "updatedAt"],
+                "required": ["updatedAt", "pinnedListOrder"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -41412,6 +41412,10 @@
                     "slug": {
                         "type": "string"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "uuid": {
                         "type": "string"
                     },
@@ -41429,10 +41433,6 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -41460,12 +41460,12 @@
                 "required": [
                     "name",
                     "slug",
+                    "updatedAt",
                     "uuid",
                     "organizationUuid",
                     "projectUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
-                    "updatedAt",
                     "spaceUuid",
                     "views",
                     "firstViewedAt"
@@ -46821,6 +46821,18 @@
                     "slug": {
                         "type": "string"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "uuid": {
                         "type": "string"
                     },
@@ -46832,18 +46844,6 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true
-                    },
-                    "verification": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ContentVerificationInfo"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -46886,11 +46886,11 @@
                 "required": [
                     "name",
                     "slug",
+                    "updatedAt",
+                    "verification",
                     "uuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
-                    "verification",
-                    "updatedAt",
                     "spaceUuid",
                     "views",
                     "firstViewedAt"
@@ -46941,6 +46941,19 @@
                         "type": "string",
                         "description": "Unique identifier slug for this chart"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when the chart was last updated"
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "uuid": {
                         "type": "string"
                     },
@@ -46955,19 +46968,6 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true
-                    },
-                    "verification": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ContentVerificationInfo"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Timestamp when the chart was last updated"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -47004,11 +47004,11 @@
                 "required": [
                     "name",
                     "slug",
+                    "updatedAt",
+                    "verification",
                     "uuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
-                    "verification",
-                    "updatedAt",
                     "spaceUuid",
                     "views",
                     "firstViewedAt"
@@ -56572,8 +56572,8 @@
                     "slug": {
                         "type": "string"
                     },
-                    "uuid": {
-                        "type": "string"
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType"
                     },
                     "verification": {
                         "allOf": [
@@ -56583,6 +56583,9 @@
                         ],
                         "nullable": true
                     },
+                    "uuid": {
+                        "type": "string"
+                    },
                     "views": {
                         "type": "number",
                         "format": "double"
@@ -56591,9 +56594,6 @@
                         "type": "string",
                         "format": "date-time",
                         "nullable": true
-                    },
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentType"
                     },
                     "organization": {
                         "properties": {
@@ -56665,11 +56665,11 @@
                     "name",
                     "description",
                     "slug",
-                    "uuid",
+                    "contentType",
                     "verification",
+                    "uuid",
                     "views",
                     "firstViewedAt",
-                    "contentType",
                     "organization",
                     "createdAt",
                     "project",
@@ -56692,8 +56692,8 @@
                     "slug": {
                         "type": "string"
                     },
-                    "uuid": {
-                        "type": "string"
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.DATA_APP"
                     },
                     "verification": {
                         "allOf": [
@@ -56703,6 +56703,9 @@
                         ],
                         "nullable": true
                     },
+                    "uuid": {
+                        "type": "string"
+                    },
                     "views": {
                         "type": "number",
                         "format": "double"
@@ -56711,9 +56714,6 @@
                         "type": "string",
                         "format": "date-time",
                         "nullable": true
-                    },
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentType.DATA_APP"
                     },
                     "organization": {
                         "properties": {
@@ -56844,11 +56844,11 @@
                     "name",
                     "description",
                     "slug",
-                    "uuid",
+                    "contentType",
                     "verification",
+                    "uuid",
                     "views",
                     "firstViewedAt",
-                    "contentType",
                     "organization",
                     "createdAt",
                     "project",
@@ -57704,7 +57704,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.64.2",
+        "version": "2.65.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

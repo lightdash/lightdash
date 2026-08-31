@@ -1,3 +1,10 @@
+# [2.65.0](https://github.com/lightdash/lightdash/compare/2.64.2...2.65.0) (2026-08-31)
+
+
+### Features
+
+* translate user-defined dashboard filter labels via language map ([#28349](https://github.com/lightdash/lightdash/issues/28349)) ([b7e3a24](https://github.com/lightdash/lightdash/commit/b7e3a24c67157425d2ac728b13bd06d17468a041))
+
 ## [2.64.2](https://github.com/lightdash/lightdash/compare/2.64.1...2.64.2) (2026-08-31)
 
 
