@@ -507,6 +507,37 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
         });
     });
 
+    it('posts the dbt source selection question to Slack', async () => {
+        const run = vi.fn().mockResolvedValue({
+            ...WRITEBACK_RESULT,
+            prUrl: null,
+            prAction: null,
+            needsDbtSourceSelection: true,
+            dbtSourceOptions: [
+                { name: 'jaffle-2', repository: null, isPrimary: false },
+            ],
+        });
+        const { service, postMessage } = buildService({
+            isSlack: true,
+            run,
+            getRunStatus: getRunStatusMock('error'),
+        });
+
+        await service.runEditDbtProjectPipeline({
+            ...PAYLOAD,
+            isSlackPrompt: true,
+        });
+
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                channel: 'C123',
+                thread_ts: '111.222',
+                text: expect.stringContaining('jaffle-2'),
+                blocks: expect.arrayContaining([expect.anything()]),
+            }),
+        );
+    });
+
     it('skips a stale success once the run was already finalized as an error', async () => {
         const { service, updateToolResult } = buildService({
             getRunStatus: getRunStatusMock('error'),

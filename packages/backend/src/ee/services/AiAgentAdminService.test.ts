@@ -94,6 +94,30 @@ const makeReviewItem = (
     ...overrides,
 });
 
+const makeLatestFinding = (
+    targetRefs: NonNullable<
+        AiAgentReviewItemSummary['latestFinding']
+    >['targetRefs'] = [
+        {
+            type: 'model',
+            modelName: 'orders',
+        },
+    ],
+): NonNullable<AiAgentReviewItemSummary['latestFinding']> => ({
+    uuid: 'finding-1',
+    promptUuid: PROMPT_UUID,
+    threadUuid: THREAD_UUID,
+    projectUuid: PROJECT_UUID,
+    agentUuid: AGENT_UUID,
+    subcategories: [],
+    fixTargets: ['semantic_yaml_patch'],
+    targetRefs,
+    evidenceExcerpts: [],
+    recommendation: null,
+    projectContextEntry: null,
+    createdAt: NOW,
+});
+
 const makeRemediation = (
     overrides: Partial<AiAgentReviewRemediation> = {},
 ): AiAgentReviewRemediation => ({
@@ -323,9 +347,12 @@ const makeService = ({
         },
         aiAgentReviewClassifierModel: {
             getReviewRemediation: vi.fn().mockResolvedValue(makeRemediation()),
-            getReviewItem: vi
-                .fn()
-                .mockResolvedValue(makeReviewItem({ title: 'Review revenue' })),
+            getReviewItem: vi.fn().mockResolvedValue(
+                makeReviewItem({
+                    title: 'Review revenue',
+                    latestFinding: makeLatestFinding(),
+                }),
+            ),
             setReviewRemediationPreviewThread: vi
                 .fn()
                 .mockResolvedValue(undefined),
@@ -399,7 +426,19 @@ const makeService = ({
             getPreviewAiAgentUuid: vi
                 .fn()
                 .mockResolvedValue(PREVIEW_AGENT_UUID),
-            findExploresFromCache: vi.fn().mockResolvedValue({}),
+            findExploresFromCache: vi.fn().mockResolvedValue({
+                orders: {
+                    name: 'orders',
+                    tables: {
+                        orders: {
+                            name: 'orders',
+                            ymlPath: 'models/orders.yml',
+                            dbtSourceUuid:
+                                '00000000-0000-0000-0000-000000000013',
+                        },
+                    },
+                },
+            }),
             getAllByOrganizationUuid: vi.fn().mockResolvedValue([]),
             ...projectModel,
         },
@@ -2562,6 +2601,96 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
             }),
         );
     });
+
+    it.each([
+        {
+            resolution: 'unresolved',
+            sourceUuids: [],
+            expectedMessage:
+                'Could not determine which dbt source this finding belongs to, so the automatic writeback was skipped.',
+        },
+        {
+            resolution: 'ambiguous',
+            sourceUuids: [
+                '00000000-0000-0000-0000-000000000013',
+                '00000000-0000-0000-0000-000000000014',
+            ],
+            expectedMessage:
+                'This finding spans more than one dbt source. A single writeback cannot safely target several repositories at once.',
+        },
+    ])(
+        'fails an $resolution source before starting the build-fix thread',
+        async ({ sourceUuids, expectedMessage }) => {
+            const modelNames =
+                sourceUuids.length === 0
+                    ? ['orders']
+                    : sourceUuids.map((_, index) => `model_${index}`);
+            const generateAgentThreadResponse = vi.fn();
+            const updateReviewRemediationStatus = vi
+                .fn()
+                .mockResolvedValue(undefined);
+            const setReviewItemWritebackStatus = vi
+                .fn()
+                .mockResolvedValue(undefined);
+            const service = makeService({
+                aiAgentReviewClassifierModel: {
+                    getReviewItem: vi.fn().mockResolvedValue(
+                        makeReviewItem({
+                            latestFinding: makeLatestFinding(
+                                modelNames.map((modelName) => ({
+                                    type: 'model',
+                                    modelName,
+                                })),
+                            ),
+                        }),
+                    ),
+                    updateReviewRemediationStatus,
+                    setReviewItemWritebackStatus,
+                },
+                projectModel: {
+                    findExploresFromCache: vi.fn().mockResolvedValue(
+                        Object.fromEntries(
+                            sourceUuids.map((dbtSourceUuid, index) => {
+                                const modelName = modelNames[index];
+                                return [
+                                    modelName,
+                                    {
+                                        name: modelName,
+                                        tables: {
+                                            [modelName]: {
+                                                name: modelName,
+                                                ymlPath: `models/${modelName}.yml`,
+                                                dbtSourceUuid,
+                                            },
+                                        },
+                                    },
+                                ];
+                            }),
+                        ),
+                    ),
+                },
+                aiAgentService: { generateAgentThreadResponse },
+            });
+
+            await expect(
+                service.runReviewItemWritebackJob(payload),
+            ).rejects.toThrow(expectedMessage);
+            expect(generateAgentThreadResponse).not.toHaveBeenCalled();
+            expect(updateReviewRemediationStatus).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    remediationUuid: REMEDIATION_UUID,
+                    status: 'failed',
+                    errorMessage: expectedMessage,
+                }),
+            );
+            expect(setReviewItemWritebackStatus).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    status: 'failed',
+                    message: expectedMessage,
+                }),
+            );
+        },
+    );
 
     it('waits for a pending dbt writeback to finish and uses its pull request', async () => {
         const setReviewItemPrLink = vi.fn().mockResolvedValue(undefined);

@@ -24,6 +24,7 @@ export type ReviewWritebackPlan =
           promptText: string;
           aggregationKey: string | null;
           dbtSourceUuid: string | null;
+          dbtSourceResolution: 'unique' | 'ambiguous' | 'unresolved';
       }
     | {
           strategy: 'project_context';
@@ -114,7 +115,16 @@ const buildSemanticLayerWritebackPrompt = (
             )
             .filter((uuid): uuid is string => uuid !== null),
     );
-    const dbtSourceUuid = sourceUuids.size === 1 ? [...sourceUuids][0] : null;
+    let dbtSourceResolution: 'unique' | 'ambiguous' | 'unresolved';
+    if (sourceUuids.size === 1) {
+        dbtSourceResolution = 'unique';
+    } else if (sourceUuids.size === 0) {
+        dbtSourceResolution = 'unresolved';
+    } else {
+        dbtSourceResolution = 'ambiguous';
+    }
+    const dbtSourceUuid =
+        dbtSourceResolution === 'unique' ? [...sourceUuids][0] : null;
     if (item.source === 'manual') {
         const manualTargetLines = item.targetRefs
             .filter(isSemanticTargetRef)
@@ -135,6 +145,7 @@ const buildSemanticLayerWritebackPrompt = (
             promptText: sections.join('\n\n'),
             aggregationKey: null,
             dbtSourceUuid,
+            dbtSourceResolution,
         };
     }
     const targetLines = (finding?.targetRefs ?? [])
@@ -159,6 +170,7 @@ const buildSemanticLayerWritebackPrompt = (
         promptText: sections.join('\n\n'),
         aggregationKey: null,
         dbtSourceUuid,
+        dbtSourceResolution,
     };
 };
 
