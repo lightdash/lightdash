@@ -191,7 +191,7 @@ export const ReasoningHistoryRow: FC<{
     const hasOverflow = previewClean.length > REASONING_PREVIEW_LENGTH;
 
     return (
-        <Box className={styles.reasoningRow}>
+        <Box className={styles.reasoningRow} data-live={isLive}>
             <UnstyledButton
                 w="100%"
                 onClick={() => setOpen((prev) => !prev)}

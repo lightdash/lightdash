@@ -4,6 +4,31 @@
     --card-icon-size: 22px;
 }
 
+.cardActive {
+    border-color: var(--mantine-color-ldDark-9);
+    background-color: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-ldDark-7)
+    );
+}
+
+.split {
+    display: flex;
+    align-items: stretch;
+}
+
+.splitMain {
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
+}
+
+.splitMenuButton {
+    height: auto;
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+    border-left: 0;
+}
+
 .cardUnavailable {
     background-color: light-dark(
         var(--mantine-color-ldGray-0),

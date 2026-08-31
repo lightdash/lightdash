@@ -13,6 +13,7 @@ describe('DataAppBuildCard', () => {
             <DataAppBuildCard
                 state={{ kind: 'queued' }}
                 compact={false}
+                isActive={false}
                 onOpenBuilder={onOpenBuilder}
                 onView={noop}
             />,
@@ -41,6 +42,7 @@ describe('DataAppBuildCard', () => {
                     },
                 }}
                 compact={false}
+                isActive={false}
                 onOpenBuilder={noop}
                 onView={noop}
             />,
@@ -59,7 +61,7 @@ describe('DataAppBuildCard', () => {
         ).toBeVisible();
     });
 
-    it('ready: names the app, version, duration and wires both actions', async () => {
+    it('ready: names the app, version, duration; View is primary and the builder sits in its menu', async () => {
         const onOpenBuilder = vi.fn();
         const onView = vi.fn();
         renderWithProviders(
@@ -72,6 +74,7 @@ describe('DataAppBuildCard', () => {
                     completionMessage: 'Your app is ready.',
                 }}
                 compact={false}
+                isActive={false}
                 onOpenBuilder={onOpenBuilder}
                 onView={onView}
             />,
@@ -81,8 +84,16 @@ describe('DataAppBuildCard', () => {
         expect(screen.getByText('Your app is ready.')).toBeVisible();
         await userEvent.click(screen.getByRole('button', { name: 'View' }));
         expect(onView).toHaveBeenCalledTimes(1);
+        expect(
+            screen.queryByText('Continue in builder'),
+        ).not.toBeInTheDocument();
         await userEvent.click(
-            screen.getByRole('button', { name: 'Continue in builder' }),
+            screen.getByRole('button', { name: 'More actions' }),
+        );
+        await userEvent.click(
+            await screen.findByRole('menuitem', {
+                name: 'Continue in builder',
+            }),
         );
         expect(onOpenBuilder).toHaveBeenCalledTimes(1);
     });
@@ -98,6 +109,7 @@ describe('DataAppBuildCard', () => {
                     completionMessage: 'Done.',
                 }}
                 compact={false}
+                isActive={false}
                 onOpenBuilder={noop}
                 onView={noop}
             />,
@@ -114,6 +126,7 @@ describe('DataAppBuildCard', () => {
                     message: 'Build failed while generating.',
                 }}
                 compact={false}
+                isActive={false}
                 onOpenBuilder={onOpenBuilder}
                 onView={noop}
             />,
@@ -133,6 +146,7 @@ describe('DataAppBuildCard', () => {
             <DataAppBuildCard
                 state={{ kind: 'cancelled' }}
                 compact={false}
+                isActive={false}
                 onOpenBuilder={noop}
                 onView={noop}
             />,
@@ -148,6 +162,7 @@ describe('DataAppBuildCard', () => {
             <DataAppBuildCard
                 state={{ kind: 'unavailable' }}
                 compact={false}
+                isActive={false}
                 onOpenBuilder={noop}
                 onView={noop}
             />,
@@ -158,7 +173,7 @@ describe('DataAppBuildCard', () => {
         expect(screen.queryAllByRole('button')).toHaveLength(0);
     });
 
-    it('compact ready: collapses to one row with a single builder action', () => {
+    it('compact ready: collapses to one row but keeps View', () => {
         renderWithProviders(
             <DataAppBuildCard
                 state={{
@@ -169,6 +184,7 @@ describe('DataAppBuildCard', () => {
                     completionMessage: 'Your app is ready.',
                 }}
                 compact
+                isActive={false}
                 onOpenBuilder={noop}
                 onView={noop}
             />,
@@ -178,9 +194,9 @@ describe('DataAppBuildCard', () => {
         expect(
             screen.queryByText('Your app is ready.'),
         ).not.toBeInTheDocument();
-        expect(screen.getAllByRole('button')).toHaveLength(1);
+        expect(screen.getByRole('button', { name: 'View' })).toBeVisible();
         expect(
-            screen.getByRole('button', { name: 'Continue in builder' }),
+            screen.getByRole('button', { name: 'More actions' }),
         ).toBeVisible();
     });
 
@@ -192,6 +208,7 @@ describe('DataAppBuildCard', () => {
                     message: 'Build failed while generating.',
                 }}
                 compact
+                isActive={false}
                 onOpenBuilder={noop}
                 onView={noop}
             />,

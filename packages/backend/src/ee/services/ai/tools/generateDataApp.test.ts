@@ -57,6 +57,8 @@ describe('getGenerateDataApp', () => {
 
         expect(output.metadata).toEqual({
             status: 'error',
+            appUuid: null,
+            reason: 'failed',
             message: 'Data apps are not enabled',
         });
     });

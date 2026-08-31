@@ -41,6 +41,8 @@ describe('getGenerateDataAppBuildOutcome', () => {
             })?.metadata,
         ).toEqual({
             status: 'error',
+            appUuid: 'app-1',
+            reason: 'failed',
             message: 'Failed to deploy your app. Please try again.',
         });
     });
@@ -53,6 +55,11 @@ describe('getGenerateDataAppBuildOutcome', () => {
                 error: APP_VERSION_CANCELLED_BY_USER,
                 statusMessage: APP_VERSION_CANCELLED_BY_USER,
             })?.metadata,
-        ).toEqual({ status: 'error', message: 'The build was cancelled.' });
+        ).toEqual({
+            status: 'error',
+            appUuid: 'app-1',
+            reason: 'cancelled',
+            message: 'The build was cancelled.',
+        });
     });
 });

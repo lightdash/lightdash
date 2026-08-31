@@ -1044,6 +1044,7 @@ const ComponentInventory = () => (
                         <DataAppBuildCard
                             state={state}
                             compact={false}
+                            isActive={state.kind === 'ready'}
                             {...buildCardActions}
                         />
                     </Box>
@@ -1055,6 +1056,7 @@ const ComponentInventory = () => (
                             <DataAppBuildCard
                                 state={state}
                                 compact
+                                isActive={false}
                                 {...buildCardActions}
                             />
                         </Box>

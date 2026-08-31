@@ -7473,7 +7473,10 @@ export class AiAgentModel {
             ) {
                 return result;
             }
-            return { ...result, ...getExpiredGenerateDataAppBuildOutcome() };
+            return {
+                ...result,
+                ...getExpiredGenerateDataAppBuildOutcome(appUuid),
+            };
         });
     }
 

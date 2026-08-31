@@ -3976,7 +3976,20 @@ Parameters:
             {
               "additionalProperties": false,
               "properties": {
+                "appUuid": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
                 "message": {
+                  "type": "string",
+                },
+                "reason": {
+                  "enum": [
+                    "failed",
+                    "cancelled",
+                  ],
                   "type": "string",
                 },
                 "status": {
@@ -3986,6 +3999,8 @@ Parameters:
               },
               "required": [
                 "status",
+                "appUuid",
+                "reason",
                 "message",
               ],
               "type": "object",
