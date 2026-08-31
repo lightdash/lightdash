@@ -1,3 +1,11 @@
+## [2.60.1](https://github.com/lightdash/lightdash/compare/2.60.0...2.60.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* **ai-agent:** top-align build card icon with the title line ([#28233](https://github.com/lightdash/lightdash/issues/28233)) ([37e6411](https://github.com/lightdash/lightdash/commit/37e6411b932adf708eea6af71a670293e9ffb7d1)), closes [#28229](https://github.com/lightdash/lightdash/issues/28229)
+* allow service accounts to build data apps ([#28328](https://github.com/lightdash/lightdash/issues/28328)) ([740cc2c](https://github.com/lightdash/lightdash/commit/740cc2c6a87129f18e82475e13d9a71138f516b5)), closes [#28325](https://github.com/lightdash/lightdash/issues/28325)
+
 # [2.60.0](https://github.com/lightdash/lightdash/compare/2.59.0...2.60.0) (2026-08-31)
 
 
