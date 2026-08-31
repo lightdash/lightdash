@@ -10,13 +10,7 @@ import { RolesModel } from '../models/RolesModel';
 
 export const getOrganizationSystemRoleScopes = (
     role: OrganizationMemberRole,
-    { includePersonalAccessToken = false } = {},
-): string[] => {
-    const permissions = getOrganizationMemberRolePermissions(role);
-    return includePersonalAccessToken
-        ? [...permissions, 'manage:PersonalAccessToken']
-        : permissions;
-};
+): string[] => getOrganizationMemberRolePermissions(role);
 
 const getCallerOrganizationScopes = async (
     user: SessionUser,
@@ -28,13 +22,6 @@ const getCallerOrganizationScopes = async (
     if (!user.role || user.organizationUuid !== organizationUuid) {
         throw new ForbiddenError('You do not have permission');
     }
-
-    // Custom roles never list this scope, but the ability builder still grants
-    // it from the PAT config, so it is part of the caller's real footprint.
-    const canManagePersonalAccessToken = user.ability.can(
-        'manage',
-        'PersonalAccessToken',
-    );
 
     // The caller's runtime ability is the union of the slot (system role or
     // custom role from the session) and any extra custom roles they hold.
@@ -59,11 +46,13 @@ const getCallerOrganizationScopes = async (
         throw new ForbiddenError('You do not have permission');
     }
 
+    // A system role takes token access from deployment config, not its scope
+    // list, so it's read off the built ability instead.
     const scopes = [
         ...(user.roleUuid ? [] : getOrganizationSystemRoleScopes(user.role)),
         ...customRoles.flatMap((role) => role.scopes),
     ];
-    return canManagePersonalAccessToken
+    return user.ability.can('manage', 'PersonalAccessToken')
         ? [...scopes, 'manage:PersonalAccessToken']
         : scopes;
 };

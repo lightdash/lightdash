@@ -793,13 +793,7 @@ export class UserService extends BaseService {
         await validateOrganizationScopesCanBeGranted({
             user,
             organizationUuid,
-            grantedScopes: getOrganizationSystemRoleScopes(userRole, {
-                includePersonalAccessToken:
-                    this.lightdashConfig.auth?.pat?.enabled === true &&
-                    this.lightdashConfig.auth.pat.allowedOrgRoles.includes(
-                        userRole,
-                    ),
-            }),
+            grantedScopes: getOrganizationSystemRoleScopes(userRole),
             rolesModel: this.rolesModel,
         });
 
