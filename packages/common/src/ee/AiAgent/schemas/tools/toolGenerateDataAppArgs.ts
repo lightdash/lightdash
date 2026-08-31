@@ -5,6 +5,7 @@ import {
     type AppVersionStatus,
     type DataAppTemplate,
 } from '../../../apps/types';
+import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 
 /** Builds run minutes, not seconds: a pending result older than this is stale. */
 export const AI_DATA_APP_BUILD_PENDING_GRACE_MS = 30 * 60 * 1000;
@@ -99,30 +100,10 @@ export type ToolGenerateDataAppTerminalResult = {
     >;
 };
 
-type ToolGenerateDataAppResultLike = {
-    toolType: string;
-    toolName: string;
-    metadata:
-        | ToolGenerateDataAppOutput['metadata']
-        | Record<string, unknown>
-        | null;
-};
-
-type ToolGenerateDataAppResult = ToolGenerateDataAppResultLike & {
-    toolType: 'built-in';
-    toolName: 'generateDataApp';
-    metadata: ToolGenerateDataAppOutput['metadata'];
-};
-
-export const isToolGenerateDataAppResult = <
-    T extends ToolGenerateDataAppResultLike,
->(
-    result: T,
-): result is T & ToolGenerateDataAppResult =>
-    result.toolType === 'built-in' &&
-    result.toolName === 'generateDataApp' &&
-    toolGenerateDataAppOutputSchema.shape.metadata.safeParse(result.metadata)
-        .success;
+export const isToolGenerateDataAppResult = makeBuiltInToolResultGuard(
+    'generateDataApp',
+    toolGenerateDataAppOutputSchema.shape.metadata,
+);
 
 export const getDataAppBuilderPath = (projectUuid: string, appUuid: string) =>
     `/projects/${projectUuid}/apps/${appUuid}`;
