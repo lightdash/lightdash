@@ -171,10 +171,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 const threadStore = models.getAiAgentModel<AiAgentModel>();
                 const scheduler =
                     clients.getSchedulerClient() as CommercialSchedulerClient;
+                const apnsClient = clients.getApnsClient();
                 const reconciler = new MobilePushNotificationReconciler({
                     notificationStore,
                     threadStore,
-                    apnsClient: clients.getApnsClient(),
+                    apnsClient,
                     scheduler,
                     analytics: context.lightdashAnalytics,
                     completionAlert: undefined,
@@ -182,11 +183,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 return new MobilePushNotificationService({
                     mobilePushNotificationStore: notificationStore,
                     threadStore,
+                    projectStore: models.getProjectModel(),
                     mobilePushNotificationsConfig:
                         context.lightdashConfig.mobilePushNotifications,
                     scheduler,
                     reconciler,
                     analytics: context.lightdashAnalytics,
+                    apnsClient,
                 });
             },
             linearAppService: ({ models, context }) => {

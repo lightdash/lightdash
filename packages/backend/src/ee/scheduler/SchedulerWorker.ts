@@ -136,7 +136,9 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     >;
     mobilePushNotificationService: Pick<
         MobilePushNotificationService,
-        'reconcileLiveActivity' | 'sweepLiveActivities'
+        | 'deliverLiveActivityStart'
+        | 'reconcileLiveActivity'
+        | 'sweepLiveActivities'
     >;
 };
 
@@ -858,6 +860,22 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     async () => {
                         await this.mobilePushNotificationService.reconcileLiveActivity(
                             payload.liveActivityUuid,
+                        );
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY_START]: async (
+                payload,
+                helpers,
+            ) => {
+                await SchedulerClient.processJob(
+                    EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY_START,
+                    helpers.job.id,
+                    helpers.job.run_at,
+                    payload,
+                    async () => {
+                        await this.mobilePushNotificationService.deliverLiveActivityStart(
+                            payload.liveActivityStartAttemptUuid,
                         );
                     },
                 );

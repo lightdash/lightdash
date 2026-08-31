@@ -3,7 +3,10 @@ import {
     type ApiErrorPayload,
     type ApiMobilePushInstallationRequest,
     type ApiMobilePushInstallationResponse,
+    type ApiMobilePushLiveActivityPushToStartTokenRequest,
+    type ApiMobilePushLiveActivityPushToStartTokenResponse,
     type ApiMobilePushNotificationStatusResponse,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -66,6 +69,25 @@ export class MobilePushNotificationController extends BaseController {
             installationUuid,
             environment: body.environment,
             deviceToken: body.deviceToken,
+        });
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Put('/installations/{installationUuid}/live-activity-push-to-start-token')
+    @OperationId('registerMobilePushLiveActivityPushToStartToken')
+    async registerLiveActivityPushToStartToken(
+        @Request() req: express.Request,
+        @Path() installationUuid: UUID,
+        @Body() body: ApiMobilePushLiveActivityPushToStartTokenRequest,
+    ): Promise<ApiMobilePushLiveActivityPushToStartTokenResponse> {
+        assertRegisteredAccount(req.account);
+        await this.getMobilePushNotificationService().registerPushToStartToken({
+            user: toSessionUser(req.account),
+            installationUuid,
+            pushToken: body.pushToken,
         });
         this.setStatus(200);
         return { status: 'ok', results: undefined };

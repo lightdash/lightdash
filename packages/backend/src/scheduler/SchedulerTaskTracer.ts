@@ -278,6 +278,13 @@ const getTagsForTask: {
     [SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: () => ({}),
     [SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]: () => ({}),
     [SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS]: () => ({}),
+    [SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY_START]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'project.uuid': payload.projectUuid,
+        'user.uuid': payload.userUuid,
+        'mobile_push.live_activity_start_attempt_uuid':
+            payload.liveActivityStartAttemptUuid,
+    }),
     [SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'project.uuid': payload.projectUuid,

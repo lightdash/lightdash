@@ -792,6 +792,7 @@ export type ApiAiAgentThreadCreateRequest = {
     prompt?: string;
     context?: AiPromptContextInput;
     modelConfig?: AiAgentModelConfig;
+    originatingInstallationUuid?: string;
 };
 
 export type ApiAiAgentThreadCreateResponse = ApiSuccess<AiAgentThreadSummary>;
@@ -800,6 +801,7 @@ export type ApiAiAgentThreadMessageCreateRequest = {
     prompt: string;
     context?: AiPromptContextInput;
     modelConfig?: AiAgentModelConfig;
+    originatingInstallationUuid?: string;
     /**
      * Inject the prompt as a hidden turn — the agent responds to it, but the UI
      * does not render the user bubble. Used by the post-merge content-migration

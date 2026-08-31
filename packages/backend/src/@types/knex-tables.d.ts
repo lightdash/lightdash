@@ -560,6 +560,14 @@ import {
     McpToolCallTableName,
 } from '../ee/database/entities/mcpToolCall';
 import {
+    AiAgentLiveActivitiesTableName,
+    AiAgentLiveActivityStartAttemptsTableName,
+    AiAgentLiveActivityStartAttemptTable,
+    AiAgentLiveActivityTable,
+    MobilePushInstallationsTableName,
+    MobilePushInstallationTable,
+} from '../ee/database/entities/mobilePushNotifications';
+import {
     OrganizationHomepageSettingsTable,
     OrganizationHomepageSettingsTableName,
 } from '../ee/database/entities/organizationHomepageSettings';
@@ -718,6 +726,9 @@ declare module 'knex/types/tables' {
         [AiSlackPromptTableName]: AiSlackPromptTable;
         [AiWebAppPromptTableName]: AiWebAppPromptTable;
         [AiWritebackThreadTableName]: AiWritebackThreadTable;
+        [MobilePushInstallationsTableName]: MobilePushInstallationTable;
+        [AiAgentLiveActivitiesTableName]: AiAgentLiveActivityTable;
+        [AiAgentLiveActivityStartAttemptsTableName]: AiAgentLiveActivityStartAttemptTable;
         [AgentOnboardingRunsTableName]: AgentOnboardingRunsTable;
         [HomepageRecommendedActionSkipsTableName]: HomepageRecommendedActionSkipsTable;
         [ProjectCiStatusTableName]: ProjectCiStatusTable;

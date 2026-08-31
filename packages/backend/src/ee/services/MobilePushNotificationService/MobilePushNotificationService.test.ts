@@ -1,18 +1,23 @@
 import { NotFoundError, ParameterError } from '@lightdash/common';
+import { type ApnsClient } from '../../../clients/Apns/ApnsClient';
+import { type MobilePushNotificationsConfig } from '../../../config/parseConfig';
 import {
     MobilePushNotificationService,
     type MobilePushNotificationStore,
+    type MobilePushProjectStore,
     type MobilePushThreadStore,
 } from './MobilePushNotificationService';
 
 const organizationUuid = '00000000-0000-0000-0000-000000000001';
 const userUuid = '00000000-0000-0000-0000-000000000002';
 const installationUuid = '00000000-0000-0000-0000-000000000003';
+const validOriginUuid = '10000000-0000-4000-8000-000000000003';
 const projectUuid = '00000000-0000-0000-0000-000000000004';
 const agentUuid = '00000000-0000-0000-0000-000000000005';
 const threadUuid = '00000000-0000-0000-0000-000000000006';
 const promptUuid = '00000000-0000-0000-0000-000000000007';
 const liveActivityUuid = '00000000-0000-0000-0000-000000000008';
+const liveActivityStartAttemptUuid = '00000000-0000-0000-0000-000000000009';
 
 const installation = {
     mobilePushInstallationUuid: installationUuid,
@@ -40,13 +45,47 @@ const prompt = {
     createdByUserUuid: userUuid,
 };
 
+const claimedStartAttempt = {
+    liveActivityStartAttemptUuid,
+    liveActivityUuid,
+    installationUuid,
+    organizationUuid,
+    userUuid,
+    promptUuid,
+    environment: 'sandbox' as const,
+    pushToStartToken: 'push-to-start-token',
+    pushToStartTokenFingerprint: 'token-fingerprint',
+    status: 'processing' as const,
+    attemptCount: 1,
+};
+
 const createDependencies = () => {
     const mobilePushNotificationStore = {
-        findInstallation: vi.fn(async () => installation),
+        findInstallation: vi.fn<
+            MobilePushNotificationStore['findInstallation']
+        >(async () => installation),
         findLiveActivityOwner: vi.fn<
             MobilePushNotificationStore['findLiveActivityOwner']
         >(async () => undefined),
         upsertInstallation: vi.fn(async () => installation),
+        registerPushToStartToken: vi.fn<
+            MobilePushNotificationStore['registerPushToStartToken']
+        >(async () => true),
+        clearPushToStartTokenIfFingerprintMatches: vi.fn<
+            MobilePushNotificationStore['clearPushToStartTokenIfFingerprintMatches']
+        >(async () => true),
+        createLiveActivityStartAttempts: vi.fn<
+            MobilePushNotificationStore['createLiveActivityStartAttempts']
+        >(async () => []),
+        claimLiveActivityStartAttempt: vi.fn<
+            MobilePushNotificationStore['claimLiveActivityStartAttempt']
+        >(async () => undefined),
+        markLiveActivityStartAttempt: vi.fn<
+            MobilePushNotificationStore['markLiveActivityStartAttempt']
+        >(async () => true),
+        findLiveActivityStartAttemptsDue: vi.fn<
+            MobilePushNotificationStore['findLiveActivityStartAttemptsDue']
+        >(async () => []),
         deleteInstallation: vi.fn(async () => undefined),
         upsertLiveActivity: vi.fn(async () => undefined),
         deleteLiveActivity: vi.fn(async () => undefined),
@@ -58,6 +97,11 @@ const createDependencies = () => {
         >(async () => []),
     } satisfies MobilePushNotificationStore;
     const threadStore = {
+        getAgent: vi.fn<MobilePushThreadStore['getAgent']>(async () => ({
+            uuid: agentUuid,
+            organizationUuid,
+            projectUuid,
+        })),
         findThreadOwnership: vi.fn<
             MobilePushThreadStore['findThreadOwnership']
         >(async () => threadOwnership),
@@ -65,18 +109,30 @@ const createDependencies = () => {
             async () => prompt,
         ),
     } satisfies MobilePushThreadStore;
+    const projectStore = {
+        getSummary: vi.fn<MobilePushProjectStore['getSummary']>(async () => ({
+            projectUuid,
+            organizationUuid,
+        })),
+    } satisfies MobilePushProjectStore;
+
+    const mobilePushNotificationsConfig: MobilePushNotificationsConfig = {
+        enabled: true,
+        bundleId: 'com.lightdash.mobile',
+        teamId: 'TEAMID',
+        sandbox: { keyId: 'KEYID', privateKey: 'private-key' },
+        production: undefined,
+    };
 
     return {
         mobilePushNotificationStore,
         threadStore,
-        mobilePushNotificationsConfig: {
-            enabled: true,
-            bundleId: 'com.lightdash.mobile',
-            teamId: 'TEAMID',
-            sandbox: { keyId: 'KEYID', privateKey: 'private-key' },
-            production: undefined,
-        },
+        projectStore,
+        mobilePushNotificationsConfig,
         scheduler: {
+            mobilePushLiveActivityStart: vi.fn(async () => ({
+                jobId: 'start-job-uuid',
+            })),
             mobilePushLiveActivity: vi.fn(async () => ({
                 jobId: 'job-uuid',
             })),
@@ -87,6 +143,12 @@ const createDependencies = () => {
         analytics: {
             track: vi.fn(),
         },
+        apnsClient: {
+            sendLiveActivityStart: vi.fn<ApnsClient['sendLiveActivityStart']>(
+                async () => ({ status: 'sent' }),
+            ),
+        },
+        now: vi.fn(() => new Date('2026-08-31T12:00:00.000Z')),
     };
 };
 
@@ -289,7 +351,679 @@ describe('MobilePushNotificationService.registerLiveActivity', () => {
     );
 });
 
+describe('MobilePushNotificationService.registerPushToStartToken', () => {
+    it('rotates the token only on the exact owned installation', async () => {
+        const dependencies = createDependencies();
+        const service = new MobilePushNotificationService(dependencies);
+
+        await service.registerPushToStartToken({
+            user: { userUuid, organizationUuid },
+            installationUuid,
+            pushToken: 'push-to-start-token',
+        });
+
+        expect(
+            dependencies.mobilePushNotificationStore.registerPushToStartToken,
+        ).toHaveBeenCalledWith({
+            installationUuid,
+            organizationUuid,
+            userUuid,
+            environment: 'sandbox',
+            pushToken: 'push-to-start-token',
+        });
+        expect(
+            JSON.stringify(dependencies.analytics.track.mock.calls),
+        ).not.toContain('push-to-start-token');
+    });
+
+    it.each([
+        { ...installation, userUuid: 'foreign-user' },
+        { ...installation, organizationUuid: 'foreign-organization' },
+        undefined,
+    ])('denies a foreign or stale installation', async (foundInstallation) => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.findInstallation.mockResolvedValue(
+            foundInstallation,
+        );
+        const service = new MobilePushNotificationService(dependencies);
+
+        await expect(
+            service.registerPushToStartToken({
+                user: { userUuid, organizationUuid },
+                installationUuid,
+                pushToken: 'push-to-start-token',
+            }),
+        ).rejects.toBeInstanceOf(NotFoundError);
+        expect(
+            dependencies.mobilePushNotificationStore.registerPushToStartToken,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('returns unavailable for an unconfigured environment', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationsConfig.sandbox = undefined;
+        const service = new MobilePushNotificationService(dependencies);
+
+        await expect(
+            service.registerPushToStartToken({
+                user: { userUuid, organizationUuid },
+                installationUuid,
+                pushToken: 'push-to-start-token',
+            }),
+        ).rejects.toBeInstanceOf(NotFoundError);
+
+        expect(
+            dependencies.mobilePushNotificationStore.registerPushToStartToken,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('returns unavailable when mobile push is disabled', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationsConfig.enabled = false;
+        const service = new MobilePushNotificationService(dependencies);
+
+        await expect(
+            service.registerPushToStartToken({
+                user: { userUuid, organizationUuid },
+                installationUuid,
+                pushToken: 'push-to-start-token',
+            }),
+        ).rejects.toBeInstanceOf(NotFoundError);
+
+        expect(
+            dependencies.mobilePushNotificationStore.findInstallation,
+        ).not.toHaveBeenCalled();
+        expect(
+            dependencies.mobilePushNotificationStore.registerPushToStartToken,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('returns unavailable when ownership changes during registration', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.registerPushToStartToken.mockResolvedValue(
+            false,
+        );
+        const service = new MobilePushNotificationService(dependencies);
+
+        await expect(
+            service.registerPushToStartToken({
+                user: { userUuid, organizationUuid },
+                installationUuid,
+                pushToken: 'push-to-start-token',
+            }),
+        ).rejects.toBeInstanceOf(NotFoundError);
+    });
+});
+
+describe('MobilePushNotificationService.startLiveActivitiesForPrompt', () => {
+    const start = (
+        service: MobilePushNotificationService,
+        originatingInstallationUuid?: string,
+    ) =>
+        service.startLiveActivitiesForPrompt({
+            user: { userUuid, organizationUuid },
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            promptUuid,
+            originatingInstallationUuid,
+        });
+
+    it('starts every browser device in deterministic model order', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.createLiveActivityStartAttempts.mockResolvedValue(
+            [
+                {
+                    liveActivityStartAttemptUuid: 'attempt-a',
+                    installationUuid: 'installation-a',
+                },
+                {
+                    liveActivityStartAttemptUuid: 'attempt-b',
+                    installationUuid: 'installation-b',
+                },
+            ],
+        );
+        const service = new MobilePushNotificationService(dependencies);
+
+        await start(service);
+
+        expect(
+            dependencies.mobilePushNotificationStore
+                .createLiveActivityStartAttempts,
+        ).toHaveBeenCalledWith({
+            organizationUuid,
+            userUuid,
+            promptUuid,
+            excludedMobilePushInstallationUuid: null,
+            environments: ['sandbox'],
+        });
+        expect(
+            dependencies.scheduler.mobilePushLiveActivityStart,
+        ).toHaveBeenNthCalledWith(1, {
+            liveActivityStartAttemptUuid: 'attempt-a',
+            organizationUuid,
+            projectUuid,
+            userUuid,
+        });
+        expect(
+            dependencies.scheduler.mobilePushLiveActivityStart,
+        ).toHaveBeenNthCalledWith(2, {
+            liveActivityStartAttemptUuid: 'attempt-b',
+            organizationUuid,
+            projectUuid,
+            userUuid,
+        });
+    });
+
+    it('does not schedule an installation without a push-to-start token', async () => {
+        const dependencies = createDependencies();
+        const service = new MobilePushNotificationService(dependencies);
+
+        await start(service);
+
+        expect(
+            dependencies.mobilePushNotificationStore
+                .createLiveActivityStartAttempts,
+        ).toHaveBeenCalled();
+        expect(
+            dependencies.scheduler.mobilePushLiveActivityStart,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('does not inspect prompts when APNs is not configured', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationsConfig.sandbox = undefined;
+        const service = new MobilePushNotificationService(dependencies);
+
+        await start(service);
+
+        expect(dependencies.projectStore.getSummary).not.toHaveBeenCalled();
+        expect(
+            dependencies.mobilePushNotificationStore
+                .createLiveActivityStartAttempts,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('does not inspect prompts when mobile push is disabled', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationsConfig.enabled = false;
+        const service = new MobilePushNotificationService(dependencies);
+
+        await start(service);
+
+        expect(dependencies.projectStore.getSummary).not.toHaveBeenCalled();
+        expect(
+            dependencies.mobilePushNotificationStore
+                .createLiveActivityStartAttempts,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('keeps a durable excluded origin and starts every other device', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.findInstallation.mockResolvedValue(
+            {
+                ...installation,
+                mobilePushInstallationUuid: 'origin-internal-uuid',
+            },
+        );
+        dependencies.mobilePushNotificationStore.createLiveActivityStartAttempts.mockResolvedValue(
+            [
+                {
+                    liveActivityStartAttemptUuid: 'other-attempt',
+                    installationUuid: 'other-installation',
+                },
+            ],
+        );
+        const service = new MobilePushNotificationService(dependencies);
+
+        await start(service, validOriginUuid);
+
+        expect(
+            dependencies.mobilePushNotificationStore
+                .createLiveActivityStartAttempts,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                excludedMobilePushInstallationUuid: 'origin-internal-uuid',
+            }),
+        );
+        expect(
+            dependencies.scheduler.mobilePushLiveActivityStart,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                liveActivityStartAttemptUuid: 'other-attempt',
+            }),
+        );
+    });
+
+    it('ignores an invalid origin UUID without excluding a device', async () => {
+        const dependencies = createDependencies();
+        const service = new MobilePushNotificationService(dependencies);
+
+        await start(service, 'not-a-uuid');
+
+        expect(
+            dependencies.mobilePushNotificationStore.findInstallation,
+        ).not.toHaveBeenCalled();
+        expect(
+            dependencies.mobilePushNotificationStore
+                .createLiveActivityStartAttempts,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                excludedMobilePushInstallationUuid: null,
+            }),
+        );
+    });
+
+    it.each([
+        ['deleted', undefined],
+        ['foreign', { ...installation, userUuid: 'foreign-user' }],
+        [
+            'transferred',
+            {
+                ...installation,
+                organizationUuid: 'new-organization',
+                userUuid: 'new-user',
+            },
+        ],
+    ])(
+        'ignores a %s origin without excluding another owned device',
+        async (_name, foundInstallation) => {
+            const dependencies = createDependencies();
+            dependencies.mobilePushNotificationStore.findInstallation.mockResolvedValue(
+                foundInstallation,
+            );
+            const service = new MobilePushNotificationService(dependencies);
+
+            await start(service, validOriginUuid);
+
+            expect(
+                dependencies.mobilePushNotificationStore.findInstallation,
+            ).toHaveBeenCalledWith(validOriginUuid);
+            expect(
+                dependencies.mobilePushNotificationStore
+                    .createLiveActivityStartAttempts,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    excludedMobilePushInstallationUuid: null,
+                }),
+            );
+        },
+    );
+
+    it.each([
+        ['project organization', 'projectStore'],
+        ['agent project', 'agent'],
+        ['thread agent', 'thread'],
+        ['prompt user', 'prompt'],
+    ] as const)(
+        'does not create attempts when the %s ownership fact mismatches',
+        async (_name, mismatch) => {
+            const dependencies = createDependencies();
+            if (mismatch === 'projectStore') {
+                dependencies.projectStore.getSummary.mockResolvedValue({
+                    projectUuid,
+                    organizationUuid: 'foreign-organization',
+                });
+            }
+            if (mismatch === 'agent') {
+                dependencies.threadStore.getAgent.mockResolvedValue({
+                    uuid: agentUuid,
+                    organizationUuid,
+                    projectUuid: 'foreign-project',
+                });
+            }
+            if (mismatch === 'thread') {
+                dependencies.threadStore.findThreadOwnership.mockResolvedValue({
+                    ...threadOwnership,
+                    agentUuid: 'foreign-agent',
+                });
+            }
+            if (mismatch === 'prompt') {
+                dependencies.threadStore.findWebAppPrompt.mockResolvedValue({
+                    ...prompt,
+                    createdByUserUuid: 'foreign-user',
+                });
+            }
+            const service = new MobilePushNotificationService(dependencies);
+
+            await start(service);
+
+            expect(
+                dependencies.mobilePushNotificationStore
+                    .createLiveActivityStartAttempts,
+            ).not.toHaveBeenCalled();
+        },
+    );
+});
+
+describe('MobilePushNotificationService.deliverLiveActivityStart', () => {
+    it('allows only one concurrent claim to send to APNs', async () => {
+        const dependencies = createDependencies();
+        let status: 'pending' | 'processing' | 'sent' = 'pending';
+        dependencies.mobilePushNotificationStore.claimLiveActivityStartAttempt.mockImplementation(
+            async () => {
+                if (status !== 'pending') return undefined;
+                status = 'processing';
+                return claimedStartAttempt;
+            },
+        );
+        dependencies.mobilePushNotificationStore.markLiveActivityStartAttempt.mockImplementation(
+            async ({ status: nextStatus }) => {
+                if (status !== 'processing') return false;
+                status = nextStatus === 'sent' ? 'sent' : status;
+                return true;
+            },
+        );
+        const service = new MobilePushNotificationService(dependencies);
+
+        await Promise.all([
+            service.deliverLiveActivityStart(liveActivityStartAttemptUuid),
+            service.deliverLiveActivityStart(liveActivityStartAttemptUuid),
+        ]);
+
+        expect(
+            dependencies.apnsClient.sendLiveActivityStart,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+            dependencies.mobilePushNotificationStore
+                .markLiveActivityStartAttempt,
+        ).toHaveBeenCalledWith({
+            liveActivityStartAttemptUuid,
+            status: 'sent',
+            pushTokenFingerprint: 'token-fingerprint',
+            completedAt: new Date('2026-08-31T12:00:00.000Z'),
+        });
+    });
+
+    it('sends the exact owned prompt identifiers and five-minute stale date', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.claimLiveActivityStartAttempt.mockResolvedValue(
+            claimedStartAttempt,
+        );
+        const service = new MobilePushNotificationService(dependencies);
+
+        await service.deliverLiveActivityStart(liveActivityStartAttemptUuid);
+
+        expect(
+            dependencies.apnsClient.sendLiveActivityStart,
+        ).toHaveBeenCalledWith({
+            environment: 'sandbox',
+            pushToStartToken: 'push-to-start-token',
+            liveActivityUuid,
+            payload: {
+                aps: {
+                    timestamp: 1788177600,
+                    event: 'start',
+                    'content-state': {
+                        state: 'working',
+                        projectUuid,
+                        agentUuid,
+                        threadUuid,
+                        promptUuid,
+                    },
+                    'stale-date': 1788177900,
+                    'attributes-type': 'AgentRunActivityAttributes',
+                    attributes: {
+                        liveActivityUuid,
+                        installationUuid,
+                        projectUuid,
+                        agentUuid,
+                        threadUuid,
+                        promptUuid,
+                        agentName: 'Agent',
+                        taskSummary: null,
+                    },
+                    'input-push-token': 1,
+                    alert: {
+                        title: 'Lightdash',
+                        body: 'Your agent is running.',
+                    },
+                },
+            },
+        });
+    });
+
+    it('retries a transient APNs failure with the stable activity identity', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.claimLiveActivityStartAttempt
+            .mockResolvedValueOnce(claimedStartAttempt)
+            .mockResolvedValueOnce({
+                ...claimedStartAttempt,
+                pushToStartToken: 'rotated-push-to-start-token',
+                pushToStartTokenFingerprint: 'rotated-fingerprint',
+                attemptCount: 2,
+            });
+        dependencies.apnsClient.sendLiveActivityStart
+            .mockResolvedValueOnce({
+                status: 'retryable',
+                reason: 'TooManyRequests',
+            })
+            .mockResolvedValueOnce({ status: 'sent' });
+        const service = new MobilePushNotificationService(dependencies);
+
+        await expect(
+            service.deliverLiveActivityStart(liveActivityStartAttemptUuid),
+        ).rejects.toThrow('retryable');
+        await service.deliverLiveActivityStart(liveActivityStartAttemptUuid);
+
+        expect(
+            dependencies.apnsClient.sendLiveActivityStart.mock.calls.map(
+                ([args]) => args.liveActivityUuid,
+            ),
+        ).toEqual([liveActivityUuid, liveActivityUuid]);
+        expect(
+            dependencies.mobilePushNotificationStore
+                .markLiveActivityStartAttempt,
+        ).toHaveBeenNthCalledWith(1, {
+            liveActivityStartAttemptUuid,
+            status: 'retryable',
+            pushTokenFingerprint: 'token-fingerprint',
+            completedAt: null,
+        });
+        expect(
+            dependencies.mobilePushNotificationStore
+                .markLiveActivityStartAttempt,
+        ).toHaveBeenNthCalledWith(2, {
+            liveActivityStartAttemptUuid,
+            status: 'sent',
+            pushTokenFingerprint: 'rotated-fingerprint',
+            completedAt: new Date('2026-08-31T12:00:00.000Z'),
+        });
+    });
+
+    it('stops retrying at the explicit max-attempt policy', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.claimLiveActivityStartAttempt.mockResolvedValue(
+            { ...claimedStartAttempt, attemptCount: 5 },
+        );
+        dependencies.apnsClient.sendLiveActivityStart.mockResolvedValue({
+            status: 'retryable',
+            reason: 'ServiceUnavailable',
+        });
+        const service = new MobilePushNotificationService(dependencies);
+
+        await service.deliverLiveActivityStart(liveActivityStartAttemptUuid);
+
+        expect(
+            dependencies.mobilePushNotificationStore
+                .markLiveActivityStartAttempt,
+        ).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }));
+    });
+
+    it('does not reopen a sent attempt on later reconciliation', async () => {
+        const dependencies = createDependencies();
+        let status: 'pending' | 'processing' | 'sent' = 'pending';
+        dependencies.mobilePushNotificationStore.claimLiveActivityStartAttempt.mockImplementation(
+            async () => {
+                if (status !== 'pending') return undefined;
+                status = 'processing';
+                return claimedStartAttempt;
+            },
+        );
+        dependencies.mobilePushNotificationStore.markLiveActivityStartAttempt.mockImplementation(
+            async ({ status: nextStatus }) => {
+                if (status !== 'processing') return false;
+                status = nextStatus === 'sent' ? 'sent' : status;
+                return true;
+            },
+        );
+        const service = new MobilePushNotificationService(dependencies);
+
+        await service.deliverLiveActivityStart(liveActivityStartAttemptUuid);
+        await service.deliverLiveActivityStart(liveActivityStartAttemptUuid);
+
+        expect(
+            dependencies.apnsClient.sendLiveActivityStart,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+            dependencies.mobilePushNotificationStore
+                .markLiveActivityStartAttempt,
+        ).toHaveBeenCalledTimes(1);
+    });
+
+    it('clears an invalid token only when the attempted fingerprint still matches', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.claimLiveActivityStartAttempt.mockResolvedValue(
+            claimedStartAttempt,
+        );
+        dependencies.apnsClient.sendLiveActivityStart.mockResolvedValue({
+            status: 'invalid_token',
+            reason: 'BadDeviceToken',
+        });
+        const service = new MobilePushNotificationService(dependencies);
+
+        await service.deliverLiveActivityStart(liveActivityStartAttemptUuid);
+
+        expect(
+            dependencies.mobilePushNotificationStore
+                .clearPushToStartTokenIfFingerprintMatches,
+        ).toHaveBeenCalledWith({
+            installationUuid,
+            organizationUuid,
+            userUuid,
+            pushTokenFingerprint: 'token-fingerprint',
+        });
+        expect(
+            dependencies.mobilePushNotificationStore
+                .markLiveActivityStartAttempt,
+        ).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }));
+    });
+
+    it('preserves a concurrently rotated token and retries with its fingerprint', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.claimLiveActivityStartAttempt.mockResolvedValue(
+            claimedStartAttempt,
+        );
+        dependencies.apnsClient.sendLiveActivityStart.mockResolvedValue({
+            status: 'invalid_token',
+            reason: 'Unregistered',
+        });
+        dependencies.mobilePushNotificationStore.clearPushToStartTokenIfFingerprintMatches.mockResolvedValue(
+            false,
+        );
+        const service = new MobilePushNotificationService(dependencies);
+
+        await expect(
+            service.deliverLiveActivityStart(liveActivityStartAttemptUuid),
+        ).rejects.toThrow('rotated during delivery');
+
+        expect(
+            dependencies.mobilePushNotificationStore
+                .markLiveActivityStartAttempt,
+        ).toHaveBeenCalledWith({
+            liveActivityStartAttemptUuid,
+            status: 'retryable',
+            pushTokenFingerprint: 'token-fingerprint',
+            completedAt: null,
+        });
+    });
+
+    it('revalidates ownership after the atomic claim', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.claimLiveActivityStartAttempt.mockResolvedValue(
+            claimedStartAttempt,
+        );
+        dependencies.threadStore.findWebAppPrompt.mockResolvedValue({
+            ...prompt,
+            createdByUserUuid: 'foreign-user',
+        });
+        const service = new MobilePushNotificationService(dependencies);
+
+        await service.deliverLiveActivityStart(liveActivityStartAttemptUuid);
+
+        expect(
+            dependencies.apnsClient.sendLiveActivityStart,
+        ).not.toHaveBeenCalled();
+        expect(
+            dependencies.mobilePushNotificationStore
+                .markLiveActivityStartAttempt,
+        ).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }));
+    });
+});
+
 describe('MobilePushNotificationService reconciliation scheduling', () => {
+    it.each(['query', 'scheduler'] as const)(
+        'enqueues existing reconciliations before a start-attempt %s failure',
+        async (failurePoint) => {
+            const dependencies = createDependencies();
+            dependencies.mobilePushNotificationStore.findLiveActivitiesDueForReconciliation.mockResolvedValue(
+                [
+                    {
+                        liveActivityUuid,
+                        organizationUuid,
+                        projectUuid,
+                        userUuid,
+                    },
+                ],
+            );
+            if (failurePoint === 'query') {
+                dependencies.mobilePushNotificationStore.findLiveActivityStartAttemptsDue.mockRejectedValue(
+                    new Error('start query unavailable'),
+                );
+            } else {
+                dependencies.mobilePushNotificationStore.findLiveActivityStartAttemptsDue.mockResolvedValue(
+                    [
+                        {
+                            liveActivityStartAttemptUuid,
+                            installationUuid,
+                            organizationUuid,
+                            projectUuid,
+                            userUuid,
+                        },
+                    ],
+                );
+                dependencies.scheduler.mobilePushLiveActivityStart.mockRejectedValue(
+                    new Error('start scheduler unavailable'),
+                );
+            }
+            const service = new MobilePushNotificationService(dependencies);
+
+            await expect(service.sweepLiveActivities()).rejects.toThrow(
+                failurePoint === 'query'
+                    ? 'start query unavailable'
+                    : 'start scheduler unavailable',
+            );
+
+            expect(
+                dependencies.scheduler.mobilePushLiveActivity,
+            ).toHaveBeenCalledWith({
+                liveActivityUuid,
+                organizationUuid,
+                projectUuid,
+                userUuid,
+            });
+            const startFailureCall =
+                failurePoint === 'query'
+                    ? dependencies.mobilePushNotificationStore
+                          .findLiveActivityStartAttemptsDue
+                    : dependencies.scheduler.mobilePushLiveActivityStart;
+            expect(
+                dependencies.scheduler.mobilePushLiveActivity.mock
+                    .invocationCallOrder[0],
+            ).toBeLessThan(startFailureCall.mock.invocationCallOrder[0]);
+        },
+    );
+
     it('enqueues every active activity for a changed thread', async () => {
         const dependencies = createDependencies();
         dependencies.mobilePushNotificationStore.findActiveLiveActivitiesForThread.mockResolvedValue(

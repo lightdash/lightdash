@@ -1,11 +1,16 @@
 import { createHash } from 'crypto';
 import { Knex } from 'knex';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { AiPromptTableName, AiThreadTableName } from '../database/entities/ai';
 import {
     AiAgentLiveActivitiesTableName,
+    AiAgentLiveActivityStartAttemptsTableName,
     MobilePushInstallationsTableName,
+    type AiAgentLiveActivityStartAttemptTable,
     type DbAiAgentLiveActivity,
+    type DbAiAgentLiveActivityStartAttempt,
     type DbMobilePushInstallation,
+    type LiveActivityStartAttemptStatus,
     type MobilePushEnvironment,
 } from '../database/entities/mobilePushNotifications';
 
@@ -40,6 +45,28 @@ export type AiAgentLiveActivity = {
     staleAt: Date | null;
     endedAt: Date | null;
     completionAlertCompletedAt: Date | null;
+};
+
+export type LiveActivityStartAttempt = {
+    liveActivityStartAttemptUuid: string;
+    liveActivityUuid: string;
+    installationUuid: string;
+    organizationUuid: string;
+    userUuid: string;
+    promptUuid: string;
+    environment: MobilePushEnvironment;
+    pushToStartToken: string | null;
+    pushToStartTokenFingerprint: string | null;
+    status: LiveActivityStartAttemptStatus;
+    attemptCount: number;
+};
+
+export type SchedulableLiveActivityStartAttempt = {
+    liveActivityStartAttemptUuid: string;
+    installationUuid: string;
+    organizationUuid: string;
+    projectUuid: string;
+    userUuid: string;
 };
 
 const tokenFingerprint = (token: string): string =>
@@ -85,6 +112,10 @@ export class MobilePushNotificationModel {
         );
 
         return this.database.transaction(async (trx) => {
+            await trx.raw(
+                'SELECT pg_advisory_xact_lock(hashtextextended(?, 0))',
+                [args.installationUuid],
+            );
             const existing = await trx<DbMobilePushInstallation>(
                 MobilePushInstallationsTableName,
             )
@@ -92,16 +123,36 @@ export class MobilePushNotificationModel {
                     'mobile_push_installation_uuid',
                     'organization_uuid',
                     'user_uuid',
+                    'environment',
                 )
                 .where('installation_uuid', args.installationUuid)
+                .forUpdate()
                 .first();
 
-            if (
+            const ownershipChanged =
                 existing !== undefined &&
                 (existing.organization_uuid !== args.organizationUuid ||
-                    existing.user_uuid !== args.userUuid)
-            ) {
+                    existing.user_uuid !== args.userUuid);
+            const environmentChanged =
+                existing !== undefined &&
+                existing.environment !== args.environment;
+
+            if (ownershipChanged && existing !== undefined) {
                 await trx<DbAiAgentLiveActivity>(AiAgentLiveActivitiesTableName)
+                    .where(
+                        'mobile_push_installation_uuid',
+                        existing.mobile_push_installation_uuid,
+                    )
+                    .delete();
+            }
+
+            if (
+                (ownershipChanged || environmentChanged) &&
+                existing !== undefined
+            ) {
+                await trx<DbAiAgentLiveActivityStartAttempt>(
+                    AiAgentLiveActivityStartAttemptsTableName,
+                )
                     .where(
                         'mobile_push_installation_uuid',
                         existing.mobile_push_installation_uuid,
@@ -137,6 +188,12 @@ export class MobilePushNotificationModel {
                     environment: args.environment,
                     encrypted_device_token: encryptedDeviceToken,
                     device_token_fingerprint: fingerprint,
+                    ...(ownershipChanged || environmentChanged
+                        ? {
+                              encrypted_push_to_start_token: null,
+                              push_to_start_token_fingerprint: null,
+                          }
+                        : {}),
                     updated_at: new Date(),
                 })
                 .returning([
@@ -155,6 +212,436 @@ export class MobilePushNotificationModel {
                 environment: row.environment,
             };
         });
+    }
+
+    async registerPushToStartToken(args: {
+        installationUuid: string;
+        organizationUuid: string;
+        userUuid: string;
+        environment: MobilePushEnvironment;
+        pushToken: string;
+    }): Promise<boolean> {
+        const encryptedPushToken = this.encryptionUtil.encrypt(args.pushToken);
+        const fingerprint = tokenFingerprint(args.pushToken);
+
+        return this.database.transaction(async (trx) => {
+            await trx.raw(
+                'SELECT pg_advisory_xact_lock(hashtextextended(?, 0))',
+                [`push-to-start:${fingerprint}`],
+            );
+            await trx.raw(
+                'SELECT pg_advisory_xact_lock(hashtextextended(?, 0))',
+                [args.installationUuid],
+            );
+
+            const target = await trx<DbMobilePushInstallation>(
+                MobilePushInstallationsTableName,
+            )
+                .select('mobile_push_installation_uuid')
+                .where({
+                    installation_uuid: args.installationUuid,
+                    organization_uuid: args.organizationUuid,
+                    user_uuid: args.userUuid,
+                    environment: args.environment,
+                })
+                .forUpdate()
+                .first();
+            if (target === undefined) return false;
+
+            const conflicts = await trx<DbMobilePushInstallation>(
+                MobilePushInstallationsTableName,
+            )
+                .select('mobile_push_installation_uuid')
+                .where({
+                    environment: args.environment,
+                    push_to_start_token_fingerprint: fingerprint,
+                })
+                .whereNot('installation_uuid', args.installationUuid)
+                .orderBy('installation_uuid', 'asc')
+                .forUpdate();
+            if (conflicts.length > 0) return false;
+
+            const updated = await trx<DbMobilePushInstallation>(
+                MobilePushInstallationsTableName,
+            )
+                .where({
+                    installation_uuid: args.installationUuid,
+                    organization_uuid: args.organizationUuid,
+                    user_uuid: args.userUuid,
+                    environment: args.environment,
+                })
+                .update({
+                    encrypted_push_to_start_token: encryptedPushToken,
+                    push_to_start_token_fingerprint: fingerprint,
+                    updated_at: new Date(),
+                });
+
+            return updated > 0;
+        });
+    }
+
+    async clearPushToStartTokenIfFingerprintMatches(args: {
+        installationUuid: string;
+        organizationUuid: string;
+        userUuid: string;
+        pushTokenFingerprint: string;
+    }): Promise<boolean> {
+        const updated = await this.database<DbMobilePushInstallation>(
+            MobilePushInstallationsTableName,
+        )
+            .where({
+                installation_uuid: args.installationUuid,
+                organization_uuid: args.organizationUuid,
+                user_uuid: args.userUuid,
+                push_to_start_token_fingerprint: args.pushTokenFingerprint,
+            })
+            .update({
+                encrypted_push_to_start_token: null,
+                push_to_start_token_fingerprint: null,
+                updated_at: new Date(),
+            });
+
+        return updated > 0;
+    }
+
+    async createLiveActivityStartAttempts(args: {
+        organizationUuid: string;
+        userUuid: string;
+        promptUuid: string;
+        excludedMobilePushInstallationUuid: string | null;
+        environments: MobilePushEnvironment[];
+    }): Promise<
+        Pick<
+            SchedulableLiveActivityStartAttempt,
+            'liveActivityStartAttemptUuid' | 'installationUuid'
+        >[]
+    > {
+        if (args.environments.length === 0) return [];
+
+        return this.database.transaction(async (trx) => {
+            const candidateInstallations = await trx<DbMobilePushInstallation>(
+                MobilePushInstallationsTableName,
+            )
+                .select('mobile_push_installation_uuid', 'installation_uuid')
+                .where({
+                    organization_uuid: args.organizationUuid,
+                    user_uuid: args.userUuid,
+                })
+                .andWhere((candidates) => {
+                    candidates.where((eligible) =>
+                        eligible
+                            .whereIn('environment', args.environments)
+                            .whereNotNull('encrypted_push_to_start_token')
+                            .whereNotNull('push_to_start_token_fingerprint'),
+                    );
+                    if (args.excludedMobilePushInstallationUuid !== null) {
+                        void candidates.orWhere(
+                            'mobile_push_installation_uuid',
+                            args.excludedMobilePushInstallationUuid,
+                        );
+                    }
+                })
+                .orderBy('installation_uuid', 'asc')
+                .forShare();
+
+            const excludedInstallation =
+                args.excludedMobilePushInstallationUuid === null
+                    ? undefined
+                    : candidateInstallations.find(
+                          (installation) =>
+                              installation.mobile_push_installation_uuid ===
+                              args.excludedMobilePushInstallationUuid,
+                      );
+            const eligibleInstallations = candidateInstallations.filter(
+                (installation) =>
+                    installation.mobile_push_installation_uuid !==
+                    args.excludedMobilePushInstallationUuid,
+            );
+
+            const rows: Array<
+                Pick<
+                    DbAiAgentLiveActivityStartAttempt,
+                    'mobile_push_installation_uuid' | 'prompt_uuid' | 'status'
+                > &
+                    Partial<
+                        Pick<DbAiAgentLiveActivityStartAttempt, 'completed_at'>
+                    >
+            > = [
+                ...(excludedInstallation === undefined
+                    ? []
+                    : [
+                          {
+                              mobile_push_installation_uuid:
+                                  excludedInstallation.mobile_push_installation_uuid,
+                              prompt_uuid: args.promptUuid,
+                              status: 'excluded' as const,
+                              completed_at: new Date(),
+                          },
+                      ]),
+                ...eligibleInstallations.map((installation) => ({
+                    mobile_push_installation_uuid:
+                        installation.mobile_push_installation_uuid,
+                    prompt_uuid: args.promptUuid,
+                    status: 'pending' as const,
+                })),
+            ];
+
+            if (rows.length > 0) {
+                await trx<AiAgentLiveActivityStartAttemptTable>(
+                    AiAgentLiveActivityStartAttemptsTableName,
+                )
+                    .insert(rows)
+                    .onConflict([
+                        'mobile_push_installation_uuid',
+                        'prompt_uuid',
+                    ])
+                    .ignore();
+            }
+
+            return trx<DbAiAgentLiveActivityStartAttempt>(
+                AiAgentLiveActivityStartAttemptsTableName,
+            )
+                .join<DbMobilePushInstallation>(
+                    MobilePushInstallationsTableName,
+                    `${AiAgentLiveActivityStartAttemptsTableName}.mobile_push_installation_uuid`,
+                    `${MobilePushInstallationsTableName}.mobile_push_installation_uuid`,
+                )
+                .select({
+                    liveActivityStartAttemptUuid: `${AiAgentLiveActivityStartAttemptsTableName}.live_activity_start_attempt_uuid`,
+                    installationUuid: `${MobilePushInstallationsTableName}.installation_uuid`,
+                })
+                .where(
+                    `${AiAgentLiveActivityStartAttemptsTableName}.prompt_uuid`,
+                    args.promptUuid,
+                )
+                .whereIn(
+                    `${AiAgentLiveActivityStartAttemptsTableName}.status`,
+                    ['pending', 'retryable'],
+                )
+                .where(
+                    `${MobilePushInstallationsTableName}.organization_uuid`,
+                    args.organizationUuid,
+                )
+                .where(
+                    `${MobilePushInstallationsTableName}.user_uuid`,
+                    args.userUuid,
+                )
+                .whereIn(
+                    `${MobilePushInstallationsTableName}.environment`,
+                    args.environments,
+                )
+                .whereNotNull(
+                    `${MobilePushInstallationsTableName}.encrypted_push_to_start_token`,
+                )
+                .whereNotNull(
+                    `${MobilePushInstallationsTableName}.push_to_start_token_fingerprint`,
+                )
+                .orderBy(
+                    `${MobilePushInstallationsTableName}.installation_uuid`,
+                    'asc',
+                );
+        });
+    }
+
+    async claimLiveActivityStartAttempt(args: {
+        liveActivityStartAttemptUuid: string;
+        attemptedAt: Date;
+        retryProcessingBefore: Date;
+        maxAttempts: number;
+    }): Promise<LiveActivityStartAttempt | undefined> {
+        const claimed = await this.database<DbAiAgentLiveActivityStartAttempt>(
+            AiAgentLiveActivityStartAttemptsTableName,
+        )
+            .where(
+                'live_activity_start_attempt_uuid',
+                args.liveActivityStartAttemptUuid,
+            )
+            .andWhere((query) =>
+                query
+                    .whereIn('status', ['pending', 'retryable'])
+                    .orWhere((processing) =>
+                        processing
+                            .where('status', 'processing')
+                            .where(
+                                'last_attempted_at',
+                                '<=',
+                                args.retryProcessingBefore,
+                            ),
+                    ),
+            )
+            .where('attempt_count', '<', args.maxAttempts)
+            .update({
+                status: 'processing',
+                attempt_count: this.database.raw('?? + 1', ['attempt_count']),
+                last_attempted_at: args.attemptedAt,
+                updated_at: args.attemptedAt,
+            })
+            .returning('live_activity_start_attempt_uuid');
+
+        if (claimed.length === 0) return undefined;
+        return this.findLiveActivityStartAttempt(
+            args.liveActivityStartAttemptUuid,
+        );
+    }
+
+    async findLiveActivityStartAttempt(
+        liveActivityStartAttemptUuid: string,
+    ): Promise<LiveActivityStartAttempt | undefined> {
+        const row = await this.database<DbAiAgentLiveActivityStartAttempt>(
+            AiAgentLiveActivityStartAttemptsTableName,
+        )
+            .join<DbMobilePushInstallation>(
+                MobilePushInstallationsTableName,
+                `${AiAgentLiveActivityStartAttemptsTableName}.mobile_push_installation_uuid`,
+                `${MobilePushInstallationsTableName}.mobile_push_installation_uuid`,
+            )
+            .select({
+                liveActivityStartAttemptUuid: `${AiAgentLiveActivityStartAttemptsTableName}.live_activity_start_attempt_uuid`,
+                liveActivityUuid: `${AiAgentLiveActivityStartAttemptsTableName}.live_activity_uuid`,
+                installationUuid: `${MobilePushInstallationsTableName}.installation_uuid`,
+                organizationUuid: `${MobilePushInstallationsTableName}.organization_uuid`,
+                userUuid: `${MobilePushInstallationsTableName}.user_uuid`,
+                promptUuid: `${AiAgentLiveActivityStartAttemptsTableName}.prompt_uuid`,
+                environment: `${MobilePushInstallationsTableName}.environment`,
+                encryptedPushToStartToken: `${MobilePushInstallationsTableName}.encrypted_push_to_start_token`,
+                pushToStartTokenFingerprint: `${MobilePushInstallationsTableName}.push_to_start_token_fingerprint`,
+                status: `${AiAgentLiveActivityStartAttemptsTableName}.status`,
+                attemptCount: `${AiAgentLiveActivityStartAttemptsTableName}.attempt_count`,
+            })
+            .where(
+                `${AiAgentLiveActivityStartAttemptsTableName}.live_activity_start_attempt_uuid`,
+                liveActivityStartAttemptUuid,
+            )
+            .first();
+
+        if (row === undefined) return undefined;
+        return {
+            liveActivityStartAttemptUuid: row.liveActivityStartAttemptUuid,
+            liveActivityUuid: row.liveActivityUuid,
+            installationUuid: row.installationUuid,
+            organizationUuid: row.organizationUuid,
+            userUuid: row.userUuid,
+            promptUuid: row.promptUuid,
+            environment: row.environment,
+            pushToStartToken:
+                row.encryptedPushToStartToken === null
+                    ? null
+                    : this.encryptionUtil.decrypt(
+                          row.encryptedPushToStartToken,
+                      ),
+            pushToStartTokenFingerprint: row.pushToStartTokenFingerprint,
+            status: row.status,
+            attemptCount: row.attemptCount,
+        };
+    }
+
+    async markLiveActivityStartAttempt(args: {
+        liveActivityStartAttemptUuid: string;
+        status: Extract<
+            LiveActivityStartAttemptStatus,
+            'retryable' | 'sent' | 'failed'
+        >;
+        pushTokenFingerprint: string | null;
+        completedAt: Date | null;
+    }): Promise<boolean> {
+        const updated = await this.database<DbAiAgentLiveActivityStartAttempt>(
+            AiAgentLiveActivityStartAttemptsTableName,
+        )
+            .where(
+                'live_activity_start_attempt_uuid',
+                args.liveActivityStartAttemptUuid,
+            )
+            .where('status', 'processing')
+            .update({
+                status: args.status,
+                last_token_fingerprint: args.pushTokenFingerprint,
+                completed_at: args.completedAt,
+                updated_at: new Date(),
+            });
+
+        return updated > 0;
+    }
+
+    async findLiveActivityStartAttemptsDue(args: {
+        retryProcessingBefore: Date;
+        environments: MobilePushEnvironment[];
+        limit: number;
+        maxAttempts: number;
+    }): Promise<SchedulableLiveActivityStartAttempt[]> {
+        if (args.environments.length === 0) return [];
+
+        return this.database<DbAiAgentLiveActivityStartAttempt>(
+            AiAgentLiveActivityStartAttemptsTableName,
+        )
+            .join<DbMobilePushInstallation>(
+                MobilePushInstallationsTableName,
+                `${AiAgentLiveActivityStartAttemptsTableName}.mobile_push_installation_uuid`,
+                `${MobilePushInstallationsTableName}.mobile_push_installation_uuid`,
+            )
+            .join(
+                AiPromptTableName,
+                `${AiAgentLiveActivityStartAttemptsTableName}.prompt_uuid`,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+            )
+            .join(
+                AiThreadTableName,
+                `${AiPromptTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+            )
+            .select({
+                liveActivityStartAttemptUuid: `${AiAgentLiveActivityStartAttemptsTableName}.live_activity_start_attempt_uuid`,
+                installationUuid: `${MobilePushInstallationsTableName}.installation_uuid`,
+                organizationUuid: `${AiThreadTableName}.organization_uuid`,
+                projectUuid: `${AiThreadTableName}.project_uuid`,
+                userUuid: `${AiPromptTableName}.created_by_user_uuid`,
+            })
+            .where((query) =>
+                query
+                    .whereIn(
+                        `${AiAgentLiveActivityStartAttemptsTableName}.status`,
+                        ['pending', 'retryable'],
+                    )
+                    .orWhere((processing) =>
+                        processing
+                            .where(
+                                `${AiAgentLiveActivityStartAttemptsTableName}.status`,
+                                'processing',
+                            )
+                            .where(
+                                `${AiAgentLiveActivityStartAttemptsTableName}.last_attempted_at`,
+                                '<=',
+                                args.retryProcessingBefore,
+                            ),
+                    ),
+            )
+            .whereIn(
+                `${MobilePushInstallationsTableName}.environment`,
+                args.environments,
+            )
+            .whereNotNull(
+                `${MobilePushInstallationsTableName}.encrypted_push_to_start_token`,
+            )
+            .whereNotNull(
+                `${MobilePushInstallationsTableName}.push_to_start_token_fingerprint`,
+            )
+            .where(
+                `${AiAgentLiveActivityStartAttemptsTableName}.attempt_count`,
+                '<',
+                args.maxAttempts,
+            )
+            .whereRaw('?? = ??', [
+                `${MobilePushInstallationsTableName}.organization_uuid`,
+                `${AiThreadTableName}.organization_uuid`,
+            ])
+            .whereRaw('?? = ??', [
+                `${MobilePushInstallationsTableName}.user_uuid`,
+                `${AiPromptTableName}.created_by_user_uuid`,
+            ])
+            .orderBy(
+                `${MobilePushInstallationsTableName}.installation_uuid`,
+                'asc',
+            )
+            .limit(args.limit);
     }
 
     async deleteInstallation(args: {

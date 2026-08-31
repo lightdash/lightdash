@@ -1,7 +1,11 @@
+import { EventEmitter } from 'events';
+import { constants, type ClientHttp2Session } from 'http2';
 import { type MobilePushNotificationsConfig } from '../../config/parseConfig';
 import {
     ApnsClient,
     buildLiveActivityPayload,
+    buildLiveActivityStartPayload,
+    NodeApnsHttpTransport,
     type ApnsHttpTransport,
     type ApnsProviderTokenSource,
 } from './ApnsClient';
@@ -28,6 +32,44 @@ const createClient = (response: { status: number; body?: string }) => {
         providerTokenSource,
     };
 };
+
+describe('NodeApnsHttpTransport', () => {
+    it('cancels a hung HTTP/2 stream before the processing lease can reopen', async () => {
+        vi.useFakeTimers();
+        const stream = Object.assign(new EventEmitter(), {
+            setEncoding: vi.fn(),
+            end: vi.fn(),
+            close: vi.fn(),
+        });
+        const session = Object.assign(new EventEmitter(), {
+            closed: false,
+            destroyed: false,
+            request: vi.fn(() => stream),
+        }) as unknown as ClientHttp2Session;
+        const transport = new NodeApnsHttpTransport(() => session, 100);
+        const client = new ApnsClient({
+            config,
+            transport,
+            providerTokenSource: {
+                getToken: vi.fn(async () => 'provider-token'),
+            },
+        });
+
+        const delivery = client.sendLiveActivity({
+            environment: 'sandbox',
+            pushToken: 'activity-token',
+            payload: { aps: { timestamp: 1, event: 'update' } },
+        });
+        await vi.advanceTimersByTimeAsync(100);
+
+        await expect(delivery).resolves.toEqual({
+            status: 'retryable',
+            reason: 'ApnsRequestTimeoutError',
+        });
+        expect(stream.close).toHaveBeenCalledWith(constants.NGHTTP2_CANCEL);
+        vi.useRealTimers();
+    });
+});
 
 describe('ApnsClient.sendLiveActivity', () => {
     it.each<MobilePushNotificationsConfig>([
@@ -182,6 +224,52 @@ describe('ApnsClient.sendLiveActivity', () => {
     });
 });
 
+describe('ApnsClient.sendLiveActivityStart', () => {
+    it('sends the exact start payload to the push-to-start token with stable headers', async () => {
+        const { client, transport } = createClient({ status: 200 });
+        const payload = buildLiveActivityStartPayload({
+            timestamp: new Date('2026-08-31T12:00:00.000Z'),
+            staleAt: new Date('2026-08-31T12:05:00.000Z'),
+            liveActivityUuid: '00000000-0000-0000-0000-000000000008',
+            installationUuid: '00000000-0000-0000-0000-000000000003',
+            projectUuid: '00000000-0000-0000-0000-000000000004',
+            agentUuid: '00000000-0000-0000-0000-000000000005',
+            threadUuid: '00000000-0000-0000-0000-000000000006',
+            promptUuid: '00000000-0000-0000-0000-000000000007',
+        });
+
+        await client.sendLiveActivityStart({
+            environment: 'sandbox',
+            pushToStartToken: 'push-to-start-token',
+            liveActivityUuid: '00000000-0000-0000-0000-000000000008',
+            payload,
+        });
+        await client.sendLiveActivityStart({
+            environment: 'sandbox',
+            pushToStartToken: 'push-to-start-token',
+            liveActivityUuid: '00000000-0000-0000-0000-000000000008',
+            payload,
+        });
+
+        const expectedRequest = {
+            origin: 'https://api.sandbox.push.apple.com',
+            headers: {
+                ':method': 'POST',
+                ':path': '/3/device/push-to-start-token',
+                authorization: 'bearer provider-token',
+                'apns-collapse-id': '00000000-0000-0000-0000-000000000008',
+                'apns-id': '00000000-0000-0000-0000-000000000008',
+                'apns-priority': '10',
+                'apns-push-type': 'liveactivity',
+                'apns-topic': 'com.lightdash.mobile.push-type.liveactivity',
+            },
+            body: JSON.stringify(payload),
+        };
+        expect(transport.send).toHaveBeenNthCalledWith(1, expectedRequest);
+        expect(transport.send).toHaveBeenNthCalledWith(2, expectedRequest);
+    });
+});
+
 describe('ApnsClient.sendAlert', () => {
     it('sends a device alert with the app topic and a stable collapse ID', async () => {
         const { client, transport } = createClient({ status: 200 });
@@ -273,5 +361,54 @@ describe('buildLiveActivityPayload', () => {
             'dismissal-date': 1788091260,
         });
         expect(payload.aps).not.toHaveProperty('alert');
+    });
+});
+
+describe('buildLiveActivityStartPayload', () => {
+    it('matches AgentRunActivityAttributes without private prompt content', () => {
+        const payload = buildLiveActivityStartPayload({
+            timestamp: new Date('2026-08-31T12:00:00.000Z'),
+            staleAt: new Date('2026-08-31T12:05:00.000Z'),
+            liveActivityUuid: 'live-activity-uuid',
+            installationUuid: 'installation-uuid',
+            projectUuid: 'project-uuid',
+            agentUuid: 'agent-uuid',
+            threadUuid: 'thread-uuid',
+            promptUuid: 'prompt-uuid',
+        });
+
+        expect(payload).toEqual({
+            aps: {
+                timestamp: 1788177600,
+                event: 'start',
+                'content-state': {
+                    state: 'working',
+                    projectUuid: 'project-uuid',
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                    promptUuid: 'prompt-uuid',
+                },
+                'stale-date': 1788177900,
+                'attributes-type': 'AgentRunActivityAttributes',
+                attributes: {
+                    liveActivityUuid: 'live-activity-uuid',
+                    installationUuid: 'installation-uuid',
+                    projectUuid: 'project-uuid',
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                    promptUuid: 'prompt-uuid',
+                    agentName: 'Agent',
+                    taskSummary: null,
+                },
+                'input-push-token': 1,
+                alert: {
+                    title: 'Lightdash',
+                    body: 'Your agent is running.',
+                },
+            },
+        });
+        expect(JSON.stringify(payload)).not.toMatch(
+            /prompt text|answer text|dashboard|organization|customer|secret/i,
+        );
     });
 });

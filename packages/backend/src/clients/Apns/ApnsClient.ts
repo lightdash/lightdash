@@ -23,6 +23,37 @@ export type LiveActivityPayload = {
     };
 };
 
+export type LiveActivityStartPayload = {
+    aps: {
+        timestamp: number;
+        event: 'start';
+        'content-state': {
+            state: 'working';
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid: string;
+            promptUuid: string;
+        };
+        'stale-date': number;
+        'attributes-type': 'AgentRunActivityAttributes';
+        attributes: {
+            liveActivityUuid: string;
+            installationUuid: string;
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid: string;
+            promptUuid: string;
+            agentName: 'Agent';
+            taskSummary: null;
+        };
+        'input-push-token': 1;
+        alert: {
+            title: 'Lightdash';
+            body: 'Your agent is running.';
+        };
+    };
+};
+
 export type AlertPayload = {
     aps: {
         alert: {
@@ -62,6 +93,15 @@ type ProviderTokenRequest = {
 export type ApnsProviderTokenSource = {
     getToken(request: ProviderTokenRequest): Promise<string>;
 };
+
+export const APNS_REQUEST_TIMEOUT_MS = 30_000;
+
+class ApnsRequestTimeoutError extends Error {
+    constructor() {
+        super('APNs request timed out');
+        this.name = 'ApnsRequestTimeoutError';
+    }
+}
 
 type ApnsClientDependencies = {
     config: MobilePushNotificationsConfig;
@@ -129,6 +169,46 @@ export const buildLiveActivityPayload = (args: {
     },
 });
 
+export const buildLiveActivityStartPayload = (args: {
+    timestamp: Date;
+    staleAt: Date;
+    liveActivityUuid: string;
+    installationUuid: string;
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+    promptUuid: string;
+}): LiveActivityStartPayload => ({
+    aps: {
+        timestamp: Math.floor(args.timestamp.getTime() / 1000),
+        event: 'start',
+        'content-state': {
+            state: 'working',
+            projectUuid: args.projectUuid,
+            agentUuid: args.agentUuid,
+            threadUuid: args.threadUuid,
+            promptUuid: args.promptUuid,
+        },
+        'stale-date': Math.floor(args.staleAt.getTime() / 1000),
+        'attributes-type': 'AgentRunActivityAttributes',
+        attributes: {
+            liveActivityUuid: args.liveActivityUuid,
+            installationUuid: args.installationUuid,
+            projectUuid: args.projectUuid,
+            agentUuid: args.agentUuid,
+            threadUuid: args.threadUuid,
+            promptUuid: args.promptUuid,
+            agentName: 'Agent',
+            taskSummary: null,
+        },
+        'input-push-token': 1,
+        alert: {
+            title: 'Lightdash',
+            body: 'Your agent is running.',
+        },
+    },
+});
+
 export class JoseApnsProviderTokenSource implements ApnsProviderTokenSource {
     private readonly cache = new Map<
         string,
@@ -160,13 +240,26 @@ export class JoseApnsProviderTokenSource implements ApnsProviderTokenSource {
 export class NodeApnsHttpTransport implements ApnsHttpTransport {
     private readonly sessions = new Map<string, ClientHttp2Session>();
 
+    private readonly connect: (origin: string) => ClientHttp2Session;
+
+    private readonly requestTimeoutMs: number;
+
+    constructor(
+        connect: (origin: string) => ClientHttp2Session = (origin) =>
+            http2.connect(origin),
+        requestTimeoutMs: number = APNS_REQUEST_TIMEOUT_MS,
+    ) {
+        this.connect = connect;
+        this.requestTimeoutMs = requestTimeoutMs;
+    }
+
     private getSession(origin: string): ClientHttp2Session {
         const existing = this.sessions.get(origin);
         if (existing !== undefined && !existing.closed && !existing.destroyed) {
             return existing;
         }
 
-        const session = http2.connect(origin);
+        const session = this.connect(origin);
         session.on('close', () => this.sessions.delete(origin));
         session.on('error', () => this.sessions.delete(origin));
         this.sessions.set(origin, session);
@@ -183,6 +276,25 @@ export class NodeApnsHttpTransport implements ApnsHttpTransport {
             );
             let status = 0;
             let responseBody = '';
+            let settled = false;
+            const timeout = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                stream.close(http2.constants.NGHTTP2_CANCEL);
+                reject(new ApnsRequestTimeoutError());
+            }, this.requestTimeoutMs);
+            const finish = (
+                result: { status: number; body?: string } | Error,
+            ) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timeout);
+                if (result instanceof Error) {
+                    reject(result);
+                } else {
+                    resolve(result);
+                }
+            };
             stream.setEncoding('utf8');
             stream.on('response', (headers: IncomingHttpHeaders) => {
                 status = Number(headers[':status'] ?? 0);
@@ -191,14 +303,14 @@ export class NodeApnsHttpTransport implements ApnsHttpTransport {
                 responseBody += chunk;
             });
             stream.on('end', () =>
-                resolve({
+                finish({
                     status,
                     ...(responseBody.length === 0
                         ? {}
                         : { body: responseBody }),
                 }),
             );
-            stream.on('error', reject);
+            stream.on('error', (error) => finish(error));
             stream.end(request.body);
         });
     }
@@ -222,7 +334,7 @@ export class ApnsClient {
     private async send(args: {
         environment: MobilePushEnvironment;
         token: string;
-        payload: LiveActivityPayload | AlertPayload;
+        payload: LiveActivityPayload | LiveActivityStartPayload | AlertPayload;
         headers: OutgoingHttpHeaders;
     }): Promise<ApnsDeliveryResult> {
         const credential = this.config[args.environment];
@@ -285,6 +397,26 @@ export class ApnsClient {
             token: args.pushToken,
             payload: args.payload,
             headers: {
+                'apns-priority': '10',
+                'apns-push-type': 'liveactivity',
+                'apns-topic': `${this.config.bundleId}.push-type.liveactivity`,
+            },
+        });
+    }
+
+    async sendLiveActivityStart(args: {
+        environment: MobilePushEnvironment;
+        pushToStartToken: string;
+        liveActivityUuid: string;
+        payload: LiveActivityStartPayload;
+    }): Promise<ApnsDeliveryResult> {
+        return this.send({
+            environment: args.environment,
+            token: args.pushToStartToken,
+            payload: args.payload,
+            headers: {
+                'apns-collapse-id': args.liveActivityUuid,
+                'apns-id': args.liveActivityUuid,
                 'apns-priority': '10',
                 'apns-push-type': 'liveactivity',
                 'apns-topic': `${this.config.bundleId}.push-type.liveactivity`,

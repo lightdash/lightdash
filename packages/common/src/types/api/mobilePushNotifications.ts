@@ -15,6 +15,12 @@ export type ApiMobilePushInstallationRequest = {
 
 export type ApiMobilePushInstallationResponse = ApiSuccessEmpty;
 
+export type ApiMobilePushLiveActivityPushToStartTokenRequest = {
+    pushToken: string;
+};
+
+export type ApiMobilePushLiveActivityPushToStartTokenResponse = ApiSuccessEmpty;
+
 export type ApiMobilePushLiveActivityRequest = {
     installationUuid: UUID;
     promptUuid: UUID;
