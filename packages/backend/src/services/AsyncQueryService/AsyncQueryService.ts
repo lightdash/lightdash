@@ -8545,6 +8545,7 @@ export class AsyncQueryService extends ProjectService {
                 errorMessage: getErrorMessage(e),
                 ...queryTags,
             });
+            await warehouseConnection.sshTunnel.disconnect();
             throw e;
         }
         const durationColumnDiscovery =

@@ -4101,6 +4101,37 @@ describe('AsyncQueryService', () => {
             ).rejects.toThrow(ForbiddenError);
         });
 
+        it('disconnects the SSH tunnel when column discovery fails', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const disconnect = vi.fn();
+            const discoveryError = new Error('Column discovery failed');
+
+            service.getUserAttributes = vi.fn(async () => ({
+                userAttributes: {},
+                intrinsicUserAttributes: { email: 'test@example.com' },
+            }));
+            service._getWarehouseClient = vi.fn(async () => ({
+                warehouseClient: {
+                    ...warehouseClientMock,
+                    streamQuery: vi.fn().mockRejectedValue(discoveryError),
+                },
+                sshTunnel: {
+                    disconnect,
+                } as unknown as SshTunnel<CreateWarehouseCredentials>,
+                tunnelConnectMs: null,
+            }));
+
+            await expect(
+                service.executeAsyncSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    sql: 'SELECT 1',
+                    context: QueryExecutionContext.SQL_RUNNER,
+                }),
+            ).rejects.toBe(discoveryError);
+            expect(disconnect).toHaveBeenCalledOnce();
+        });
+
         describe('cache invalidation', () => {
             it('skips cache when invalidateCache is true', async () => {
                 const service = getMockedAsyncQueryService({
