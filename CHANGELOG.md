@@ -1,3 +1,10 @@
+## [2.67.4](https://github.com/lightdash/lightdash/compare/2.67.3...2.67.4) (2026-08-31)
+
+
+### Bug Fixes
+
+* handle dbt source selection in writebacks ([#28364](https://github.com/lightdash/lightdash/issues/28364)) ([ed0bb5e](https://github.com/lightdash/lightdash/commit/ed0bb5eb09c6efdd6c7d204b3e8d3c044fc89277))
+
 ## [2.67.3](https://github.com/lightdash/lightdash/compare/2.67.2...2.67.3) (2026-08-31)
 
 
