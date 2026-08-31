@@ -875,6 +875,18 @@ this.sandboxManager = sandboxManager ?? undefined;
         return appContext;
     }
 
+    /** Registry-installed chart types only receive versions from the registry. */
+    private static assertNotRegistryManaged(
+        app: Pick<DbApp, 'registry_slug'>,
+        verb: string,
+    ): void {
+        if (app.registry_slug !== null) {
+            throw new ForbiddenError(
+                `This is an official chart type and cannot be ${verb}. Fork it to customize.`,
+            );
+        }
+    }
+
     /**
      * Re-authorize queued work as the principal recorded on the job. Payload
      * snapshots are useful inputs, but never authorization evidence: the app
@@ -6422,6 +6434,7 @@ this.sandboxManager = sandboxManager ?? undefined;
             app,
             'Insufficient permissions to modify data apps',
         );
+        AppGenerateService.assertNotRegistryManaged(app, 'edited');
 
         // Resolve attachment types/filenames from the staged S3 objects so the
         // version resources can split image chips from file chips in the chat.
@@ -6784,6 +6797,7 @@ this.sandboxManager = sandboxManager ?? undefined;
             app,
             'Insufficient permissions to upgrade this data app',
         );
+        AppGenerateService.assertNotRegistryManaged(app, 'upgraded here');
 
         const latestVersion = await this.appModel.getLatestVersion(appUuid);
         if (
@@ -7015,6 +7029,7 @@ this.sandboxManager = sandboxManager ?? undefined;
             // declares a schema, so dropping it here delists the viz and
             // strips the contract from every chart bound to it.
             source.viz_schema ?? undefined,
+            { registryVersion: source.registry_version ?? undefined },
         );
         await this.persistVersionDataReferences(
             appUuid,
@@ -7492,6 +7507,12 @@ this.sandboxManager = sandboxManager ?? undefined;
             sourceApp,
             upstreamProjectUuid,
         );
+        if (upstreamApp) {
+            AppGenerateService.assertNotRegistryManaged(
+                upstreamApp,
+                'promoted onto',
+            );
+        }
 
         const metadata = {
             name: sourceApp.name,
@@ -7769,6 +7790,7 @@ this.sandboxManager = sandboxManager ?? undefined;
         user: SessionUser,
         projectUuid: string,
         sourceAppUuid: string,
+        options?: { name?: string },
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
 
@@ -7832,6 +7854,8 @@ this.sandboxManager = sandboxManager ?? undefined;
         const sourceDisplayName = sourceApp.name || 'untitled app';
         const sourcePreviewPath = `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/view`;
         const duplicatePrompt = `Duplicate [${sourceDisplayName}](${sourcePreviewPath})`;
+        const newAppName =
+            options?.name?.trim() || `Duplicate of ${sourceDisplayName}`;
 
         try {
             await this.appModel.createWithVersion(
@@ -7839,10 +7863,14 @@ this.sandboxManager = sandboxManager ?? undefined;
                     app_id: newAppUuid,
                     project_uuid: projectUuid,
                     created_by_user_uuid: user.userUuid,
-                    name: `Duplicate of ${sourceDisplayName}`,
+                    name: newAppName,
                     description: sourceApp.description,
                     template: sourceApp.template,
                     space_uuid: null,
+                    // A fork is a plain local chart type — registry lineage
+                    // is never copied, only fork lineage.
+                    origin_app_uuid: sourceApp.app_id,
+                    origin_app_version: sourceVersion.version,
                 },
                 { version: newVersion, prompt: duplicatePrompt },
                 'ready',
@@ -8999,6 +9027,7 @@ this.sandboxManager = sandboxManager ?? undefined;
             app,
             'Insufficient permissions to manage data apps',
         );
+        AppGenerateService.assertNotRegistryManaged(app, 'renamed');
 
         const fieldsToUpdate: Partial<{ name: string; description: string }> =
             {};
@@ -11177,6 +11206,14 @@ this.sandboxManager = sandboxManager ?? undefined;
                     `App ${body.targetAppUuid} not found in project ${projectUuid}`,
                 );
             }
+        }
+        // Registry-managed apps never receive uploads, including the
+        // identical-bundle short-circuit below that only patches metadata.
+        if (existingApp) {
+            AppGenerateService.assertNotRegistryManaged(
+                existingApp,
+                'updated by upload',
+            );
         }
         const action: 'create' | 'append' =
             existingApp !== undefined ? 'append' : 'create';

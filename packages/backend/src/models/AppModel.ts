@@ -91,6 +91,10 @@ export class AppModel {
                     | 'template'
                     | 'space_uuid'
                     | 'design_uuid'
+                    | 'registry_slug'
+                    | 'registry_url'
+                    | 'origin_app_uuid'
+                    | 'origin_app_version'
                 >
             >,
         version: Pick<DbAppVersion, 'version' | 'prompt'>,
@@ -103,7 +107,7 @@ export class AppModel {
         // silently minting suffixed duplicates. Default: app.slug is a base
         // hint — normalized and dedupe-suffixed (duplication derives copies'
         // slugs from the source slug this way).
-        opts?: { forceSlug?: boolean },
+        opts?: { forceSlug?: boolean; registryVersion?: string },
     ): Promise<{ app: DbApp; version: DbAppVersion }> {
         return this.database.transaction(async (trx) => {
             const appId = app.app_id ?? uuidv4();
@@ -179,6 +183,7 @@ export class AppModel {
                               ) as unknown as DataAppVizSchema,
                           }
                         : {}),
+                    registry_version: opts?.registryVersion ?? null,
                 })
                 .returning('*');
             return { app: appRow, version: versionRow };
@@ -705,6 +710,7 @@ export class AppModel {
         resources?: AppVersionResources,
         dependencies?: AppVersionDependencies,
         vizSchema?: DataAppVizSchema,
+        opts?: { registryVersion?: string },
     ): Promise<DbAppVersion> {
         const [row] = await this.database(AppVersionsTableName)
             .insert({
@@ -712,6 +718,7 @@ export class AppModel {
                 app_id: appId,
                 status,
                 created_by_user_uuid: createdByUserUuid,
+                registry_version: opts?.registryVersion ?? null,
                 ...(resources
                     ? {
                           resources: JSON.stringify(

@@ -35,6 +35,7 @@ function buildService(
             created_by_user_uuid: 'user-1',
             space_uuid: null,
             design_uuid: null,
+            registry_slug: null,
         }),
         getLatestVersion: vi.fn().mockResolvedValue({
             version: 1,

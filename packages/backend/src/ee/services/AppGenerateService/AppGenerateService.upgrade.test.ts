@@ -30,6 +30,7 @@ const makeApp = (overrides: Record<string, unknown> = {}) => ({
     sandbox_id: 'sandbox-registry-uuid',
     design_uuid: null,
     template: 'data_app',
+    registry_slug: null,
     ...overrides,
 });
 

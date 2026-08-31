@@ -285,6 +285,7 @@ describe('version metadata propagation on app copy paths', () => {
         ).mockResolvedValue({
             app_id: UPSTREAM_APP_UUID,
             project_uuid: UPSTREAM_PROJECT_UUID,
+            registry_slug: null,
         });
 
         await service.promoteApp(makeUser(), PROJECT_UUID, SOURCE_APP_UUID);
@@ -321,6 +322,7 @@ describe('version metadata propagation on app copy paths', () => {
         ).mockResolvedValue({
             app_id: UPSTREAM_APP_UUID,
             project_uuid: UPSTREAM_PROJECT_UUID,
+            registry_slug: null,
         });
 
         externalConnectionModel.listAppLinks.mockResolvedValue([
@@ -390,6 +392,7 @@ describe('version metadata propagation on app copy paths', () => {
             { images: [] },
             DEPENDENCIES,
             VIZ_SCHEMA,
+            { registryVersion: undefined },
         );
     });
 
