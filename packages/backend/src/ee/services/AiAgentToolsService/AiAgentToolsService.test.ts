@@ -3050,4 +3050,75 @@ describe('AiAgentToolsService generateDataApp', () => {
         ).rejects.toThrow('generateDataApp requires a prompt');
         expect(appGenerateService.generateApp).not.toHaveBeenCalled();
     });
+
+    it.each([
+        ['pdf', 'pdf'],
+        [null, undefined],
+    ] as const)(
+        'starts the build with template %s → %s',
+        async (template, expected) => {
+            const appGenerateService = makeAppGenerateService();
+            const service = makeService({ appGenerateService });
+
+            await runGenerate(
+                service,
+                makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+                { template },
+            );
+
+            const [, , , , , , , builderTemplate] =
+                appGenerateService.generateApp.mock.calls[0];
+            expect(builderTemplate).toBe(expected);
+        },
+    );
+
+    it('names an unknown dashboard slug and starts no build', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            dashboardService: {
+                getByIdOrSlug: vi
+                    .fn()
+                    .mockRejectedValue(
+                        new NotFoundError('Dashboard not found'),
+                    ),
+            },
+        });
+
+        await expect(
+            runGenerate(
+                service,
+                makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+                { dashboardSlug: 'no-such-dashboard' },
+            ),
+        ).rejects.toThrow('Dashboard "no-such-dashboard" was not found');
+        expect(appGenerateService.generateApp).not.toHaveBeenCalled();
+    });
+
+    it('names the unknown chart slug among known ones and starts no build', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            savedChartService: {
+                get: vi.fn().mockImplementation(async (slug: string) => {
+                    if (slug === 'revenue') {
+                        return {
+                            uuid: 'chart-uuid',
+                            spaceUuid: 'sales-space-uuid',
+                        };
+                    }
+                    throw new NotFoundError('Saved chart not found');
+                }),
+            },
+        });
+
+        await expect(
+            runGenerate(
+                service,
+                makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+                { chartSlugs: ['revenue', 'no-such-chart'] },
+            ),
+        ).rejects.toThrow('Chart "no-such-chart" was not found');
+        expect(appGenerateService.generateApp).not.toHaveBeenCalled();
+    });
 });

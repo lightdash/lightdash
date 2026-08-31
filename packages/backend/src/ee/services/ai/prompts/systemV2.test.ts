@@ -709,3 +709,28 @@ describe('getSystemPromptV2 repo-fs code search caveat', () => {
         );
     });
 });
+
+describe('getSystemPromptV2 data apps', () => {
+    test('teaches generateDataApp when enabled', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableContentTools: true,
+            enableGenerateDataApp: true,
+        });
+        expect(content).toContain('## Data apps');
+        expect(content).toContain('generateDataApp');
+        expect(content).toContain('dashboardSlug');
+        expect(content).toContain('chartSlugs');
+        expect(content).not.toContain('{{generate_data_app_section}}');
+    });
+
+    test('omits the data apps section when the tool is absent', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableContentTools: true,
+        });
+        expect(content).not.toContain('## Data apps');
+        expect(content).not.toContain('generateDataApp');
+        expect(content).not.toContain('{{generate_data_app_section}}');
+    });
+});
