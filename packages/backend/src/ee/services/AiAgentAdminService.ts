@@ -2392,6 +2392,15 @@ export class AiAgentAdminService extends BaseService {
             const planStrategy = toReviewWritebackStrategy(plan.strategy);
             strategy = planStrategy;
 
+            if (
+                plan.strategy === 'prompt' &&
+                plan.dbtSourceResolution === 'ambiguous'
+            ) {
+                throw new ParameterError(
+                    'This finding spans more than one dbt source. A single writeback cannot safely target several repositories at once.',
+                );
+            }
+
             let prUrl: string | null;
             let pullRequest: PullRequest | null = null;
             if (plan.strategy === 'project_context') {

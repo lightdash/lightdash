@@ -9361,11 +9361,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             const sourceNames = (result.dbtSourceOptions ?? [])
                 .map((option) => option.name)
                 .join(', ');
+            const sourceSelectionMessage = sourceNames
+                ? `This project has more than one dbt source: ${sourceNames}. Reply naming one and I'll try again.`
+                : "This project has more than one dbt source, so I couldn't tell which one to change. Reply naming one and I'll try again.";
             await this.aiAgentModel.updateModelResponse({
                 promptUuid,
-                response: sourceNames
-                    ? `This project has more than one dbt source: ${sourceNames}. Reply naming one and I'll try again.`
-                    : "This project has more than one dbt source, so I couldn't tell which one to change. Reply naming one and I'll try again.",
+                response: sourceSelectionMessage,
             });
             await this.aiAgentModel.setPromptNeedsUserInput({
                 promptUuid,
@@ -9375,6 +9376,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     reason: 'writeback_source_selection',
                 },
             });
+            if (isSlackPrompt(prompt)) {
+                await this.postOutcomeToSlack(
+                    prompt,
+                    getMarkdownBlocks(sourceSelectionMessage),
+                    sourceSelectionMessage,
+                );
+            }
         }
     }
 
