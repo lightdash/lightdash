@@ -1,4 +1,5 @@
 import {
+    AnnouncementCategory,
     ConflictError,
     NotFoundError,
     type HomepageConfig,
@@ -6,6 +7,7 @@ import {
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { DatabaseError } from 'pg';
+import { UserTableName } from '../../database/entities/users';
 import {
     AnnouncementsTableName,
     HomepageAssignmentsTableName,
@@ -234,6 +236,109 @@ describe('ProjectHomepageModel', () => {
             await expect(
                 model.publishProjectDraftAnnouncements(PROJECT_UUID),
             ).resolves.toEqual([]);
+        });
+
+        it('hydrates authorName from the creating user', async () => {
+            tracker.on.select(AnnouncementsTableName).responseOnce([
+                {
+                    announcement_uuid: 'ann-1',
+                    pending_slack_channel_id: 'C1',
+                },
+            ]);
+            tracker.on.update(AnnouncementsTableName).responseOnce([
+                makeDbAnnouncement({
+                    created_by_user_uuid: 'user-1',
+                }),
+            ]);
+            tracker.on.select(UserTableName).responseOnce([
+                {
+                    user_uuid: 'user-1',
+                    first_name: 'Ana',
+                    last_name: 'Silva',
+                },
+            ]);
+
+            const result =
+                await model.publishProjectDraftAnnouncements(PROJECT_UUID);
+
+            expect(result[0]?.announcement.authorName).toBe('Ana Silva');
+        });
+    });
+
+    describe('createAnnouncement', () => {
+        it('hydrates authorName from the creating user', async () => {
+            tracker.on.insert(AnnouncementsTableName).responseOnce([
+                {
+                    announcement_uuid: 'ann-new',
+                    project_uuid: PROJECT_UUID,
+                    title: 'Launch',
+                    body: null,
+                    category: 'launch',
+                    pinned: false,
+                    created_by_user_uuid: 'user-1',
+                    created_at: new Date('2026-01-01T00:00:00Z'),
+                    updated_at: new Date('2026-01-01T00:00:00Z'),
+                    published_at: new Date('2026-01-01T00:00:00Z'),
+                    pending_slack_channel_id: null,
+                    scheduled_publish_at: null,
+                },
+            ]);
+            tracker.on.select(UserTableName).responseOnce([
+                {
+                    user_uuid: 'user-1',
+                    first_name: 'Ana',
+                    last_name: 'Silva',
+                },
+            ]);
+
+            const result = await model.createAnnouncement({
+                projectUuid: PROJECT_UUID,
+                title: 'Launch',
+                body: null,
+                category: AnnouncementCategory.LAUNCH,
+                createdByUserUuid: 'user-1',
+                pendingSlackChannelId: 'C1',
+                published: true,
+                scheduledPublishAt: null,
+            });
+
+            expect(result.authorName).toBe('Ana Silva');
+        });
+    });
+
+    describe('publishPendingAnnouncements', () => {
+        it('hydrates authorName and leaves it null when the user cannot be resolved', async () => {
+            tracker.on.select(AnnouncementsTableName).responseOnce([
+                {
+                    announcement_uuid: 'ann-1',
+                    pending_slack_channel_id: 'C1',
+                },
+            ]);
+            tracker.on.update(AnnouncementsTableName).responseOnce([
+                {
+                    announcement_uuid: 'ann-1',
+                    project_uuid: PROJECT_UUID,
+                    title: 'Launch',
+                    body: null,
+                    category: null,
+                    pinned: false,
+                    created_by_user_uuid: 'user-missing',
+                    created_at: new Date('2026-01-01T00:00:00Z'),
+                    updated_at: new Date('2026-01-01T00:00:00Z'),
+                    published_at: new Date('2026-01-03T00:00:00Z'),
+                    pending_slack_channel_id: null,
+                    scheduled_publish_at: null,
+                },
+            ]);
+            tracker.on.select(UserTableName).responseOnce([]);
+
+            const result = await model.publishPendingAnnouncements({
+                announcementUuid: 'ann-1',
+                onlyDue: false,
+            });
+
+            expect(result[0]?.announcement.authorName).toBeNull();
+            expect(result[0]?.slackChannelId).toBe('C1');
         });
     });
 

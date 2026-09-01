@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ANNOUNCEMENT_BODY_MAX_LENGTH,
+    ANNOUNCEMENT_CATEGORY_META,
     assertUnreachable,
     CommercialFeatureFlags,
     convertOrganizationRoleToProjectRole,
@@ -862,6 +863,50 @@ export class ProjectHomepageService extends BaseService {
             .trim();
     }
 
+    private static announcementCategoryLabel(
+        announcement: ProjectAnnouncement,
+    ): string | null {
+        if (announcement.category == null) {
+            return null;
+        }
+        return ANNOUNCEMENT_CATEGORY_META[announcement.category]?.label ?? null;
+    }
+
+    // Context-line attribution only — omit missing parts so Slack never
+    // shows an empty "Posted by" or a dangling separator.
+    private static announcementSlackAttribution(
+        announcement: ProjectAnnouncement,
+    ): string | null {
+        const parts: string[] = [];
+        const categoryLabel =
+            ProjectHomepageService.announcementCategoryLabel(announcement);
+        if (categoryLabel) {
+            parts.push(categoryLabel);
+        }
+        if (announcement.authorName) {
+            parts.push(`Posted by ${announcement.authorName}`);
+        }
+        return parts.length > 0 ? parts.join(' · ') : null;
+    }
+
+    private static announcementSlackFallbackText(
+        announcement: ProjectAnnouncement,
+    ): string {
+        const categoryLabel =
+            ProjectHomepageService.announcementCategoryLabel(announcement);
+        const author = announcement.authorName;
+        if (categoryLabel && author) {
+            return `📢 ${categoryLabel} from ${author}: ${announcement.title}`;
+        }
+        if (categoryLabel) {
+            return `📢 ${categoryLabel}: ${announcement.title}`;
+        }
+        if (author) {
+            return `📢 New announcement from ${author}: ${announcement.title}`;
+        }
+        return `📢 New announcement: ${announcement.title}`;
+    }
+
     private async notifyAnnouncementToSlack(
         organizationUuid: string,
         projectUuid: string,
@@ -875,6 +920,8 @@ export class ProjectHomepageService extends BaseService {
         const image = announcement.body
             ? this.announcementSlackImage(announcement.body)
             : null;
+        const attribution =
+            ProjectHomepageService.announcementSlackAttribution(announcement);
         const blocks: (KnownBlock | SlackMarkdownBlock)[] = [
             {
                 type: 'header',
@@ -884,6 +931,19 @@ export class ProjectHomepageService extends BaseService {
                     emoji: true,
                 },
             },
+            ...(attribution
+                ? [
+                      {
+                          type: 'context' as const,
+                          elements: [
+                              {
+                                  type: 'mrkdwn' as const,
+                                  text: attribution,
+                              },
+                          ],
+                      },
+                  ]
+                : []),
             ...(markdown
                 ? [{ type: 'markdown' as const, text: markdown }]
                 : []),
@@ -906,7 +966,8 @@ export class ProjectHomepageService extends BaseService {
                 ],
             },
         ];
-        const text = `📢 New announcement: ${announcement.title}`;
+        const text =
+            ProjectHomepageService.announcementSlackFallbackText(announcement);
         try {
             await this.slackClient.postMessage({
                 organizationUuid,

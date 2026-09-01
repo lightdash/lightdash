@@ -22,6 +22,7 @@ import {
     type UpdateOrganizationHomepageSettings,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { UserTableName } from '../../database/entities/users';
 import { isStatementTimeout } from '../../database/errors';
 import Logger from '../../logging/logger';
 import { OrganizationHomepageSettingsTableName } from '../database/entities/organizationHomepageSettings';
@@ -763,6 +764,46 @@ export class ProjectHomepageModel {
         };
     }
 
+    private static authorNameSql(db: Knex) {
+        return db.raw(
+            `TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)) as author_name`,
+        );
+    }
+
+    // `returning('*')` on the announcements table has no author join, so
+    // publish/create paths would otherwise notify Slack with a null author.
+    private async hydrateAuthorNames(
+        announcements: ProjectAnnouncement[],
+        db: Knex = this.database,
+    ): Promise<ProjectAnnouncement[]> {
+        const userUuids = [
+            ...new Set(
+                announcements
+                    .map((announcement) => announcement.createdByUserUuid)
+                    .filter((uuid): uuid is string => uuid != null),
+            ),
+        ];
+        if (userUuids.length === 0) {
+            return announcements;
+        }
+        const users = await db(UserTableName)
+            .whereIn('user_uuid', userUuids)
+            .select('user_uuid', 'first_name', 'last_name');
+        const authorNameByUserUuid = new Map(
+            users.map((user) => [
+                user.user_uuid,
+                `${user.first_name} ${user.last_name}`.trim() || null,
+            ]),
+        );
+        return announcements.map((announcement) => ({
+            ...announcement,
+            authorName: announcement.createdByUserUuid
+                ? (authorNameByUserUuid.get(announcement.createdByUserUuid) ??
+                  null)
+                : null,
+        }));
+    }
+
     private announcementsQuery(projectUuid: string) {
         return this.database(AnnouncementsTableName)
             .where(`${AnnouncementsTableName}.project_uuid`, projectUuid)
@@ -786,15 +827,13 @@ export class ProjectHomepageModel {
         const offset = (options.page - 1) * options.pageSize;
         const itemsQuery = this.announcementsQuery(projectUuid)
             .leftJoin(
-                'users',
-                'users.user_uuid',
+                UserTableName,
+                `${UserTableName}.user_uuid`,
                 `${AnnouncementsTableName}.created_by_user_uuid`,
             )
             .select(
                 `${AnnouncementsTableName}.*`,
-                this.database.raw(
-                    `TRIM(CONCAT(users.first_name, ' ', users.last_name)) as author_name`,
-                ),
+                ProjectHomepageModel.authorNameSql(this.database),
             )
             .offset(offset)
             .limit(options.pageSize);
@@ -852,7 +891,9 @@ export class ProjectHomepageModel {
                     : data.scheduledPublishAt,
             })
             .returning('*');
-        return ProjectHomepageModel.mapDbAnnouncement(row);
+        const mapped = ProjectHomepageModel.mapDbAnnouncement(row);
+        const [announcement] = await this.hydrateAuthorNames([mapped]);
+        return announcement ?? mapped;
     }
 
     /**
@@ -898,7 +939,7 @@ export class ProjectHomepageModel {
                     draft.pending_slack_channel_id,
                 ]),
             );
-            return rows.reduce<
+            const pending = rows.reduce<
                 Array<{
                     announcement: ProjectAnnouncement;
                     slackChannelId: string;
@@ -916,11 +957,19 @@ export class ProjectHomepageModel {
                 }
                 return acc;
             }, []);
+            const announcements = await this.hydrateAuthorNames(
+                pending.map(({ announcement }) => announcement),
+                trx,
+            );
+            return pending.map((item, index) => ({
+                ...item,
+                announcement: announcements[index] ?? item.announcement,
+            }));
         });
     }
 
     /**
-     * Publishes a single unpublished announcement (publish-now / scheduled
+     * Publishes a single unpublished announcement (publish-now / scheduled)
      * job) or every due scheduled announcement across projects (sweep).
      * Idempotent by construction: rows are locked with skipLocked and the
      * update re-checks `published_at IS NULL`, so a job+sweep race publishes
@@ -974,10 +1023,18 @@ export class ProjectHomepageModel {
                     row.pending_slack_channel_id,
                 ]),
             );
-            return rows.map((row) => ({
+            const published = rows.map((row) => ({
                 announcement: ProjectHomepageModel.mapDbAnnouncement(row),
                 slackChannelId:
                     slackChannelByUuid.get(row.announcement_uuid) ?? null,
+            }));
+            const announcements = await this.hydrateAuthorNames(
+                published.map(({ announcement }) => announcement),
+                trx,
+            );
+            return published.map((item, index) => ({
+                ...item,
+                announcement: announcements[index] ?? item.announcement,
             }));
         });
     }
