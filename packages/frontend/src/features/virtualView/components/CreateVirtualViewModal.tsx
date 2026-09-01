@@ -1,7 +1,8 @@
 import { DbtProjectType, snakeCaseName } from '@lightdash/common';
 import { Button, Stack, TextInput, Tooltip } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconInfoCircle, IconTableAlias } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';

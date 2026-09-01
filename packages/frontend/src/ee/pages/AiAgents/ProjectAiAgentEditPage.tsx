@@ -16,7 +16,7 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import {
     IconAdjustmentsAlt,
     IconArrowLeft,
@@ -24,6 +24,7 @@ import {
     IconCircleCheck,
     IconMessageCircleShare,
 } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import {
     Link,

@@ -17,8 +17,9 @@ import {
     Select,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { z } from 'zod';
 import {
@@ -81,11 +82,11 @@ const projectRoleOptions: Array<{
 
 const validationSchema = z.object({
     emailDomains: z.array(z.string().nonempty()),
-    role: z.nativeEnum(OrganizationMemberRole),
+    role: z.enum(OrganizationMemberRole),
     projects: z.array(
         z.object({
             projectUuid: z.string().nonempty(),
-            role: z.nativeEnum(ProjectMemberRole),
+            role: z.enum(ProjectMemberRole),
         }),
     ),
 });

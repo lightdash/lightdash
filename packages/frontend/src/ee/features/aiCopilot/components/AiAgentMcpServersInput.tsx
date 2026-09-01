@@ -27,7 +27,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
@@ -43,6 +43,7 @@ import {
     IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { BetaBadge } from '../../../../components/common/BetaBadge';
@@ -91,7 +92,7 @@ const createMcpServerFormSchema = z
             values.bearerToken.trim().length === 0
         ) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'Bearer token is required',
                 path: ['bearerToken'],
             });
@@ -102,7 +103,7 @@ const createMcpServerFormSchema = z
             values.clientSecret.trim().length === 0
         ) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'Client secret is required',
                 path: ['clientSecret'],
             });
@@ -113,7 +114,7 @@ const createMcpServerFormSchema = z
             values.clientId.trim().length === 0
         ) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'Client ID is required',
                 path: ['clientId'],
             });
@@ -125,7 +126,7 @@ const createMcpServerFormSchema = z
                 values.clientSecret.trim().length > 0)
         ) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message:
                     'Client credentials are only supported for personal OAuth',
                 path: ['clientId'],

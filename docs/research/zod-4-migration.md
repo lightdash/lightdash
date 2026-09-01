@@ -1,0 +1,67 @@
+# Zod 4 migration research
+
+Research date: 2026-09-01. Target: exact `zod@4.4.3` in common, backend,
+and frontend. The latest registry release (`4.5.4`) was rejected by this
+repository's minimum-release-age policy; `4.4.3` was already policy-approved
+and present in the baseline lockfile as an MCP SDK peer resolution.
+
+## Baseline
+
+After installing the existing frozen lockfile and building the generated
+formula parser plus common/warehouses artifacts:
+
+- common targeted tests: 3 files, 61 tests passed
+- backend MCP/config tests: 2 files, 246 tests passed
+- frontend Mantine form compatibility: 1 file, 1 test passed
+- common, backend, and frontend package typechecks: passed
+
+Before the formula build, the backend MCP suite could not load
+`formula/src/grammar/parser`; this was missing generated setup, not a test
+failure. Before dependency installation, all commands failed before collection.
+
+## Primary-source findings
+
+- Zod 4 unifies schema error customization under `error`, removes
+  `invalid_type_error`/`required_error`, removes `ZodError.errors` in favor of
+  `issues`, and changes issue types. [Official migration guide](https://zod.dev/v4/changelog#error-customization)
+- `z.record` now requires explicit key and value schemas. Enum-keyed records
+  are exhaustive; `z.partialRecord` preserves optional enum keys.
+  [Official migration guide](https://zod.dev/v4/changelog#zrecord)
+- `ZodType` now has output/input generics only; `ZodTypeAny` is unnecessary.
+  Internal definitions moved from `_def` to `_zod.def` and are explicitly
+  unstable. [Official migration guide](https://zod.dev/v4/changelog#updates-generics)
+- Native `z.toJSONSchema` supports draft-07, `io: "input"`, inline reuse, and
+  cycle rejection. Shared schema identity is inlined by default; `reused:
+  "ref"` is the opt-in behavior. [Official JSON Schema API](https://zod.dev/json-schema#ztojsonschema)
+- Native conversion rejects transforms and other unrepresentable types by
+  default. Input-mode conversion is required for tool argument contracts whose
+  output schema contains transforms. [Official JSON Schema API](https://zod.dev/json-schema#io)
+- Zod's implementation exposes `reused: "inline"` and `cycles: "throw"`; refs
+  are extracted for reuse only when requested, while cycles otherwise require
+  refs. [Official source](https://github.com/colinhacks/zod/blob/main/packages/zod/src/v4/core/to-json-schema.ts)
+- MCP SDK 1.30's first-party source detects Zod 4 and uses native Zod JSON
+  Schema conversion in input mode. This makes Zod 4-native, acyclic schemas the
+  relevant runtime contract. [Official MCP SDK source](https://github.com/modelcontextprotocol/typescript-sdk/blob/v1.x/src/server/zod-json-schema-compat.ts)
+
+## Implementation consequences
+
+- Use `.issues`, explicit `z.record(z.string(), value)`, `error`, and Zod 4
+  output/input generics everywhere.
+- Centralize native draft-07 input-schema conversion with `reused: "inline"`
+  and `cycles: "throw"` for first-party MCP/agent JSON Schema generation.
+- Rewrite the MCP compatibility layer around Zod 4 helpers/definitions; do not
+  clone Zod internals merely to defeat Zod 3 reference detection.
+- Expose password requirement messages as a public common contract; the
+  frontend must not inspect Zod definitions/check objects.
+
+## Verification
+
+- common: typecheck and lint passed; full suite passed (165 files, 3,960 tests,
+  1 skipped)
+- backend: typecheck and lint passed; full suite passed (550 files, 9,010 tests,
+  1 skipped)
+- frontend: typecheck and lint passed; Zod form/password tests passed (2 files,
+  2 tests)
+- MCP and agent contract snapshots pass without update mode; the stable MCP
+  snapshot check passes and contains no `$ref`
+- frozen lockfile installation and supply-chain policy verification pass

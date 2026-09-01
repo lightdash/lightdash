@@ -1,6 +1,6 @@
 import { getEncoding } from 'js-tiktoken';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { toJsonSchema } from '../../../utils/zodJsonSchema';
 import { defineTool } from './defineTool';
 import { FILTER_EXPRESSION_GRAMMAR_DESCRIPTION } from './filterExpressions';
 import {
@@ -63,7 +63,7 @@ describe('defineTool', () => {
         const serializeMcp = (view: typeof mcpLegacy | typeof mcpExpression) =>
             JSON.stringify({
                 description: view.description,
-                inputSchema: zodToJsonSchema(view.inputSchema),
+                inputSchema: toJsonSchema(view.inputSchema, 'input'),
             });
         const contracts = {
             agentLegacy: serializeAgent(agentLegacy),
@@ -119,8 +119,8 @@ describe('defineTool', () => {
         };
         expectWithinBudget(measurements.agentExpression, {
             bytes: 25_000,
-            cl100kTokens: 5_500,
-            o200kTokens: 5_600,
+            cl100kTokens: 5_800,
+            o200kTokens: 5_900,
         });
         expectWithinBudget(measurements.mcpExpression, {
             bytes: 20_000,
@@ -210,12 +210,7 @@ describe('defineTool', () => {
 
         const agentInputSchema = tool.for('agent').inputSchema;
         const { jsonSchema, validate } = agentInputSchema;
-        expect(jsonSchema).toEqual(
-            zodToJsonSchema(inputSchema, {
-                $refStrategy: 'root',
-                target: 'jsonSchema7',
-            }),
-        );
+        expect(jsonSchema).toEqual(toJsonSchema(inputSchema, 'input', 'ref'));
         expect(validate?.(input)).toEqual({
             success: true,
             value: input,
@@ -229,9 +224,9 @@ describe('defineTool', () => {
 
         const mcpInputSchema = tool.for('mcp').inputSchema;
         expect(mcpInputSchema).not.toBe(inputSchema);
-        expect(JSON.stringify(zodToJsonSchema(mcpInputSchema))).not.toContain(
-            '"$ref"',
-        );
+        expect(
+            JSON.stringify(toJsonSchema(mcpInputSchema, 'input')),
+        ).not.toContain('"$ref"');
         expect(mcpInputSchema.parse(input)).toEqual(input);
     });
 

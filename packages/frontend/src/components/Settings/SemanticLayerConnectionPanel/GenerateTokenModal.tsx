@@ -7,7 +7,7 @@ import { Button, Group, Select, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconKey } from '@tabler/icons-react';
 import { addDays } from 'date-fns';
-import { zodResolver } from 'mantine-form-zod-resolver';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import { useServiceAccounts } from '../../../ee/features/serviceAccounts/useServiceAccounts';
@@ -75,7 +75,7 @@ export const GenerateTokenModal: FC<Props> = ({
     const validationSchema = z.object({
         description: z.string().min(1, { message: 'Description is required' }),
         expiresAt: z.string(),
-        role: z.nativeEnum(ProjectMemberRole),
+        role: z.enum(ProjectMemberRole),
     });
 
     const form = useForm({

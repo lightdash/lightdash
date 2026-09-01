@@ -4,8 +4,9 @@ import {
     type CreateInviteLink,
 } from '@lightdash/common';
 import { Button, Group, Select, TextInput } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconUser } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { z } from 'zod';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';

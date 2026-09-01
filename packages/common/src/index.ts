@@ -459,12 +459,18 @@ export const getEmailSchema = () =>
             message: 'Email address must not contain whitespaces',
         });
 
+export const PASSWORD_REQUIREMENT_MESSAGES = [
+    'must be at least 8 characters long',
+    'must contain a letter',
+    'must contain a number or symbol',
+] as const;
+
 export const getPasswordSchema = () =>
     z
         .string()
-        .min(8, { message: 'must be at least 8 characters long' })
-        .regex(/[a-zA-Z]/, { message: 'must contain a letter' })
-        .regex(/[\d\W_]/, { message: 'must contain a number or symbol' });
+        .min(8, { error: PASSWORD_REQUIREMENT_MESSAGES[0] })
+        .regex(/[a-zA-Z]/, { error: PASSWORD_REQUIREMENT_MESSAGES[1] })
+        .regex(/[\d\W_]/, { error: PASSWORD_REQUIREMENT_MESSAGES[2] });
 
 export const validatePassword = (password: string): boolean =>
     getPasswordSchema().safeParse(password).success;

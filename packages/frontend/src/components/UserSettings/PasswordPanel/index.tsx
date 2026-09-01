@@ -1,6 +1,7 @@
 import { getPasswordSchema } from '@lightdash/common';
 import { Button, Flex, PasswordInput, Stack } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';

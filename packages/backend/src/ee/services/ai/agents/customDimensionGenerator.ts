@@ -23,7 +23,7 @@ const CustomDimensionSchema = z.object({
         .string()
         .min(1, 'Display name must not be empty')
         .max(100, 'Display name must be 100 characters or less'),
-    dimensionType: z.nativeEnum(DimensionType),
+    dimensionType: z.enum(DimensionType),
 });
 
 export type GeneratedCustomDimension = z.infer<typeof CustomDimensionSchema>;

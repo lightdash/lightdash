@@ -21,7 +21,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import {
     IconAlertCircle,
     IconDeviceFloppy,
@@ -29,6 +29,7 @@ import {
     IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, type FC } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';

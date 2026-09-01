@@ -4,8 +4,9 @@ import {
     type Space,
 } from '@lightdash/common';
 import { Button, Group, type DefaultMantineColor } from '@mantine/core';
-import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 import { type Icon } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';

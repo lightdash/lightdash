@@ -6,9 +6,10 @@ import {
     type ContentSlugRenameRequest,
 } from '@lightdash/common';
 import { Button, Paper, Stack, Text, TextInput } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconLink } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { z } from 'zod';
 import { lightdashApi } from '../../../api';

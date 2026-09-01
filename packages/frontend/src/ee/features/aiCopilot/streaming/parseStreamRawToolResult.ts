@@ -33,7 +33,7 @@ type ToolOutputSchema<TName extends ToolName> =
     (typeof agentToolDefinitionsByName)[TName] extends ToolDefinition<
         string,
         z.ZodObject<z.ZodRawShape>,
-        z.ZodTypeAny,
+        z.ZodType,
         infer TOutputSchema
     >
         ? TOutputSchema

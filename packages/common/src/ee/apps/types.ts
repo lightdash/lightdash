@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import { type ReadyQueryResultsPage } from '../../types/api';
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
 import {
@@ -17,6 +16,7 @@ import { type DashboardParameters } from '../../types/parameters';
 import { type ResultRow } from '../../types/results';
 import { type ChartConfig, type SavedChart } from '../../types/savedCharts';
 import assertUnreachable from '../../utils/assertUnreachable';
+import { toJsonSchema } from '../../utils/zodJsonSchema';
 import {
     type DataAppVizConfigOption,
     type DataAppVizOptionValue,
@@ -821,8 +821,8 @@ const optionBase = {
     group: z
         .string()
         .nullable()
-        .optional()
         .transform((value) => value ?? undefined)
+        .optional()
         .describe(
             'Optional tab name. Options sharing a group are rendered in the same config tab; ungrouped options share a default tab.',
         ),
@@ -892,14 +892,14 @@ const vizConfigOptions = z.array(
             min: z
                 .number()
                 .nullable()
-                .optional()
                 .transform((value) => value ?? undefined)
+                .optional()
                 .describe('Optional lower bound.'),
             max: z
                 .number()
                 .nullable()
-                .optional()
                 .transform((value) => value ?? undefined)
+                .optional()
                 .describe('Optional upper bound.'),
         }),
         z.object({
@@ -924,8 +924,8 @@ const vizColorPalette = z
         group: z
             .string()
             .nullable()
-            .optional()
             .transform((value) => value ?? undefined)
+            .optional()
             .describe(
                 'Optional tab name, matching a config option `group`. The picker gets its own tab when no option shares it.',
             ),
@@ -987,13 +987,44 @@ void dataAppVizGenerationSchemaIsPersistable;
 // output. Inline shared schemas because Codex only accepts top-level references,
 // and retain draft-07 because the Claude CLI does not support the OpenAI
 // target's 2019-09 meta-schema.
-export const dataAppVizJsonSchema = {
-    ...zodToJsonSchema(dataAppVizGenerationSchema, {
-        $refStrategy: 'none',
-        target: 'openAi',
-    }),
-    $schema: 'http://json-schema.org/draft-07/schema#',
+type JsonSchemaObject = Record<string, unknown>;
+
+const makeOpenAiStrict = (value: unknown): unknown => {
+    if (Array.isArray(value)) {
+        return value.map(makeOpenAiStrict);
+    }
+    if (value === null || typeof value !== 'object') {
+        return value;
+    }
+
+    const schema = Object.fromEntries(
+        Object.entries(value).map(([key, child]) => [
+            key,
+            makeOpenAiStrict(child),
+        ]),
+    ) as JsonSchemaObject;
+    if (schema.properties && typeof schema.properties === 'object') {
+        const properties = schema.properties as Record<string, unknown>;
+        const required = new Set(
+            Array.isArray(schema.required) ? schema.required : [],
+        );
+
+        Object.keys(properties).forEach((property) => {
+            if (!required.has(property)) {
+                properties[property] = {
+                    anyOf: [properties[property], { type: 'null' }],
+                };
+            }
+        });
+        schema.required = Object.keys(properties);
+    }
+
+    return schema;
 };
+
+export const dataAppVizJsonSchema = makeOpenAiStrict(
+    toJsonSchema(dataAppVizGenerationSchema, 'input'),
+);
 
 /** Whether a stored value still has the shape the option declares. */
 const matchesDeclaredType = (

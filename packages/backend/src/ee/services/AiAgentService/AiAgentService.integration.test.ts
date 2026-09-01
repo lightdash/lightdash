@@ -79,7 +79,7 @@ describe('AiAgentService MCP support', () => {
         name: string;
         title: string;
         description: string;
-        inputSchema: Record<string, z.ZodTypeAny>;
+        inputSchema: Record<string, z.ZodType>;
     }[];
 
     beforeAll(async () => {

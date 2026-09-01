@@ -253,7 +253,7 @@ export const redshiftIamUserCredentialsSchema = z
 
         if (hasAccessKeyId !== hasSecretAccessKey) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message:
                     'Redshift IAM credentials require both AWS access key ID and secret access key.',
             });
@@ -261,7 +261,7 @@ export const redshiftIamUserCredentialsSchema = z
 
         if (!hasStaticCredentials && !hasAssumeRole) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message:
                     'Redshift IAM credentials require an assume-role ARN or AWS access keys.',
             });

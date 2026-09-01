@@ -39,7 +39,7 @@ export type StandardAgentToolOutput = {
     metadata: { status: string };
 };
 
-export type AgentOutputSchema = z.ZodTypeAny;
+export type AgentOutputSchema = z.ZodType;
 
 export type AgentToolConfig<
     TOutputSchema extends AgentOutputSchema | undefined = undefined,
@@ -144,7 +144,7 @@ export type McpToolViewWithOutput<
 export type ToolDefinitionWithoutMcpOutput<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny,
+    TInputTransformed extends z.ZodType,
     TAgentOutputSchema extends AgentOutputSchema | undefined,
 > = {
     readonly name: TName;
@@ -160,7 +160,7 @@ export type ToolDefinitionWithoutMcpOutput<
 export type ToolDefinitionWithMcpOutput<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny,
+    TInputTransformed extends z.ZodType,
     TAgentOutputSchema extends AgentOutputSchema | undefined,
     TOutputSchema extends McpOutputSchema,
 > = {
@@ -177,7 +177,7 @@ export type ToolDefinitionWithMcpOutput<
 export type ToolDefinition<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny = TInput,
+    TInputTransformed extends z.ZodType = TInput,
     TAgentOutputSchema extends AgentOutputSchema | undefined = undefined,
 > =
     | ToolDefinitionWithoutMcpOutput<
@@ -197,7 +197,7 @@ export type ToolDefinition<
 export type ToolDefinitionInstance = ToolDefinition<
     string,
     z.ZodObject<z.ZodRawShape>,
-    z.ZodTypeAny,
+    z.ZodType,
     AgentOutputSchema | undefined
 >;
 
@@ -212,7 +212,7 @@ export type ToolInputTransformed<T extends ToolDefinitionInstance> = z.infer<
 type ToolDefinitionArgsBase<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny,
+    TInputTransformed extends z.ZodType,
     TAgentOutputSchema extends AgentOutputSchema | undefined,
 > = {
     name: TName;
@@ -227,7 +227,7 @@ type ToolDefinitionArgsBase<
 type ToolDefinitionArgsWithoutMcpOutput<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny,
+    TInputTransformed extends z.ZodType,
     TAgentOutputSchema extends AgentOutputSchema | undefined,
 > = ToolDefinitionArgsBase<
     TName,
@@ -241,7 +241,7 @@ type ToolDefinitionArgsWithoutMcpOutput<
 type ToolDefinitionArgsWithMcpOutput<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny,
+    TInputTransformed extends z.ZodType,
     TAgentOutputSchema extends AgentOutputSchema | undefined,
     TOutputSchema extends McpOutputSchema,
 > = ToolDefinitionArgsBase<
@@ -279,7 +279,7 @@ const hasMcpStructuredContentSchema = (
 export function defineTool<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny = TInput,
+    TInputTransformed extends z.ZodType = TInput,
     TAgentOutputSchema extends AgentOutputSchema | undefined = undefined,
     TOutputSchema extends McpOutputSchema = McpOutputSchema,
 >(
@@ -300,7 +300,7 @@ export function defineTool<
 export function defineTool<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny = TInput,
+    TInputTransformed extends z.ZodType = TInput,
     TAgentOutputSchema extends AgentOutputSchema | undefined = undefined,
 >(
     def: ToolDefinitionArgsWithoutMcpOutput<
@@ -323,13 +323,13 @@ export function defineTool<
         | ToolDefinitionArgsWithoutMcpOutput<
               TName,
               TInput,
-              z.ZodTypeAny,
+              z.ZodType,
               AgentOutputSchema | undefined
           >
         | ToolDefinitionArgsWithMcpOutput<
               TName,
               TInput,
-              z.ZodTypeAny,
+              z.ZodType,
               AgentOutputSchema | undefined,
               McpOutputSchema
           >,
@@ -337,13 +337,13 @@ export function defineTool<
     | ToolDefinitionWithoutMcpOutput<
           TName,
           TInput,
-          z.ZodTypeAny,
+          z.ZodType,
           AgentOutputSchema | undefined
       >
     | ToolDefinitionWithMcpOutput<
           TName,
           TInput,
-          z.ZodTypeAny,
+          z.ZodType,
           AgentOutputSchema | undefined,
           McpOutputSchema
       > {

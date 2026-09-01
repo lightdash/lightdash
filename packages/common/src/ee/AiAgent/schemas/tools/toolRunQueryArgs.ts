@@ -137,7 +137,7 @@ export const mergeConfigSchema = z
                 }),
             )
             .min(1),
-        joinType: z.nativeEnum(MergeJoinType),
+        joinType: z.enum(MergeJoinType),
     })
     .nullable()
     .describe(
@@ -387,7 +387,7 @@ export const toolRunQueryArgsSchemaV2RejectingMerge = z.preprocess(
             raw.mergeConfig !== undefined
         ) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 path: ['mergeConfig'],
                 message: 'Merge queries are not enabled for this organization.',
             });
@@ -444,12 +444,19 @@ const runQueryInternalSchemaV3 = runQueryInternalSchemaV2.extend({
 });
 
 export const toolRunQueryArgsSchemaV2Transformed =
-    toolRunQueryArgsSchemaV2.pipe(runQueryInternalSchemaV2);
+    toolRunQueryArgsSchemaV2.pipe(
+        runQueryInternalSchemaV2 as z.ZodType<
+            z.output<typeof runQueryInternalSchemaV2>,
+            z.output<typeof toolRunQueryArgsSchemaV2>
+        >,
+    );
 
-export const toolRunQueryArgsSchemaTransformed: z.ZodPipeline<
-    typeof toolRunQueryArgsSchemaV3,
-    typeof runQueryInternalSchemaV3
-> = toolRunQueryArgsSchemaV3.pipe(runQueryInternalSchemaV3);
+export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchemaV3.pipe(
+    runQueryInternalSchemaV3 as z.ZodType<
+        z.output<typeof runQueryInternalSchemaV3>,
+        z.output<typeof toolRunQueryArgsSchemaV3>
+    >,
+);
 
 export type ToolRunQueryArgsTransformed = z.infer<
     typeof toolRunQueryArgsSchemaTransformed

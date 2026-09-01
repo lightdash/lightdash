@@ -158,7 +158,7 @@ export const getStringRecordFromEnvironmentVariable = (
         return undefined;
     }
 
-    const result = z.record(z.string()).safeParse(value);
+    const result = z.record(z.string(), z.string()).safeParse(value);
     if (!result.success) {
         throw new ParseError(
             `Cannot parse environment variable "${name}". Value must be a JSON object with string values. Error: ${result.error.message}`,
@@ -460,7 +460,7 @@ const startOfWeekSchema = z
             return parseWeekDay(value);
         } catch (e) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: getErrorMessage(e),
             });
             return z.NEVER;
@@ -471,24 +471,22 @@ const multiProjectSetupEntrySchema = z.object({
     name: z.string().min(1, 'Project name cannot be empty'),
     warehouseConnection: z
         .object({
-            type: z.nativeEnum(WarehouseTypes, {
-                errorMap: () => ({
-                    message: `Invalid warehouse type. Must be one of: ${Object.values(WarehouseTypes).join(', ')}`,
-                }),
+            type: z.enum(WarehouseTypes, {
+                error: () =>
+                    `Invalid warehouse type. Must be one of: ${Object.values(WarehouseTypes).join(', ')}`,
             }),
             startOfWeek: startOfWeekSchema,
         })
         .passthrough(),
     dbtConnection: z
         .object({
-            type: z.nativeEnum(DbtProjectType, {
-                errorMap: () => ({
-                    message: `Invalid dbt connection type. Must be one of: ${Object.values(DbtProjectType).join(', ')}`,
-                }),
+            type: z.enum(DbtProjectType, {
+                error: () =>
+                    `Invalid dbt connection type. Must be one of: ${Object.values(DbtProjectType).join(', ')}`,
             }),
         })
         .passthrough(),
-    dbtVersion: z.nativeEnum(SupportedDbtVersions).optional(),
+    dbtVersion: z.enum(SupportedDbtVersions).optional(),
     embed: z
         .object({
             secret: z.string().optional(),
@@ -497,19 +495,18 @@ const multiProjectSetupEntrySchema = z.object({
         .optional(),
 });
 
-const multiProjectSetupSchema = z.array(multiProjectSetupEntrySchema).refine(
-    (entries) => {
-        const names = entries.map((e) => e.name);
-        return new Set(names).size === names.length;
-    },
-    (entries) => {
+const multiProjectSetupSchema = z
+    .array(multiProjectSetupEntrySchema)
+    .superRefine((entries, ctx) => {
         const names = entries.map((e) => e.name);
         const duplicate = names.find((name, i) => names.indexOf(name) !== i);
-        return {
-            message: `Duplicate project name "${duplicate}" in LD_SETUP_PROJECTS`,
-        };
-    },
-);
+        if (duplicate !== undefined) {
+            ctx.addIssue({
+                code: 'custom',
+                message: `Duplicate project name "${duplicate}" in LD_SETUP_PROJECTS`,
+            });
+        }
+    });
 
 export const getMultiProjectSetupConfig = ():
     | MultiProjectSetupEntry[]
@@ -532,7 +529,7 @@ export const getMultiProjectSetupConfig = ():
 
     const result = multiProjectSetupSchema.safeParse(parsed);
     if (!result.success) {
-        const errorDetails = result.error.errors
+        const errorDetails = result.error.issues
             .map((err) => {
                 const path =
                     err.path.length > 0
@@ -615,19 +612,18 @@ const userAttributeSetupEntrySchema = z.object({
         .default([]),
 });
 
-const userAttributesSetupSchema = z.array(userAttributeSetupEntrySchema).refine(
-    (entries) => {
-        const names = entries.map((e) => e.name);
-        return new Set(names).size === names.length;
-    },
-    (entries) => {
+const userAttributesSetupSchema = z
+    .array(userAttributeSetupEntrySchema)
+    .superRefine((entries, ctx) => {
         const names = entries.map((e) => e.name);
         const duplicate = names.find((name, i) => names.indexOf(name) !== i);
-        return {
-            message: `Duplicate user attribute name "${duplicate}" in LD_SETUP_USER_ATTRIBUTES`,
-        };
-    },
-);
+        if (duplicate !== undefined) {
+            ctx.addIssue({
+                code: 'custom',
+                message: `Duplicate user attribute name "${duplicate}" in LD_SETUP_USER_ATTRIBUTES`,
+            });
+        }
+    });
 
 export const getUserAttributesSetupConfig = ():
     | UserAttributeSetupEntry[]
@@ -650,7 +646,7 @@ export const getUserAttributesSetupConfig = ():
 
     const result = userAttributesSetupSchema.safeParse(parsed);
     if (!result.success) {
-        const errorDetails = result.error.errors
+        const errorDetails = result.error.issues
             .map((err) =>
                 err.path.length > 0
                     ? `  - ${err.path.join('.')}: ${err.message}`
@@ -679,23 +675,18 @@ const groupProjectAccessSetupEntrySchema = z
 
 const groupProjectAccessSetupSchema = z
     .array(groupProjectAccessSetupEntrySchema)
-    .refine(
-        (entries) => {
-            const keys = entries.map(
-                (e) => `${e.groupName}::${e.projectUuid ?? e.projectName}`,
-            );
-            return new Set(keys).size === keys.length;
-        },
-        (entries) => {
-            const keys = entries.map(
-                (e) => `${e.groupName}::${e.projectUuid ?? e.projectName}`,
-            );
-            const duplicate = keys.find((k, i) => keys.indexOf(k) !== i);
-            return {
+    .superRefine((entries, ctx) => {
+        const keys = entries.map(
+            (e) => `${e.groupName}::${e.projectUuid ?? e.projectName}`,
+        );
+        const duplicate = keys.find((k, i) => keys.indexOf(k) !== i);
+        if (duplicate !== undefined) {
+            ctx.addIssue({
+                code: 'custom',
                 message: `Duplicate group/project pair "${duplicate}" in LD_SETUP_GROUP_PROJECT_ACCESS`,
-            };
-        },
-    );
+            });
+        }
+    });
 
 export const getGroupProjectAccessSetupConfig = ():
     | GroupProjectAccessSetupEntry[]
@@ -720,7 +711,7 @@ export const getGroupProjectAccessSetupConfig = ():
 
     const result = groupProjectAccessSetupSchema.safeParse(parsed);
     if (!result.success) {
-        const errorDetails = result.error.errors
+        const errorDetails = result.error.issues
             .map((err) =>
                 err.path.length > 0
                     ? `  - ${err.path.join('.')}: ${err.message}`

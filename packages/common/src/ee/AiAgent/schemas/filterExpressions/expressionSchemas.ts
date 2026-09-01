@@ -227,7 +227,7 @@ export const toolRunQueryExpressionArgsSchemaV2RejectingMerge = z.preprocess(
             raw.mergeConfig !== undefined
         ) {
             context.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 path: ['mergeConfig'],
                 message: 'Merge queries are not enabled for this organization.',
             });

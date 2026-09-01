@@ -22,7 +22,7 @@ import {
 
 const asyncQueryTagsSchema = z
     .object({
-        query_context: z.nativeEnum(QueryExecutionContext),
+        query_context: z.enum(QueryExecutionContext),
     })
     .catchall(z.string());
 

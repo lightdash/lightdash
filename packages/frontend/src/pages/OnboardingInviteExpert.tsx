@@ -18,13 +18,14 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
-import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 import { captureException } from '@sentry/react';
 import {
     IconArrowLeft,
     IconInfoCircle,
     IconUserPlus,
 } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import {
     useCallback,
     useEffect,

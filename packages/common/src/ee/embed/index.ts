@@ -139,7 +139,7 @@ export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
 
 export const EmbedJwtSchema = z
     .object({
-        userAttributes: z.record(z.unknown()).optional(),
+        userAttributes: z.record(z.string(), z.unknown()).optional(),
         user: z
             .object({
                 externalId: z.string().nullish(),

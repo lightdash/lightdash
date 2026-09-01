@@ -28,12 +28,13 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 import {
     IconArrowsTransferDown,
     IconLayoutDashboard,
     IconX,
 } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { z } from 'zod';
 import {
@@ -384,7 +385,7 @@ export const CustomBinDimensionModal: FC<{
                         },
                         { message: 'Dimension with this label already exists' },
                     ),
-                    binType: z.nativeEnum(BinType),
+                    binType: z.enum(BinType),
                     binConfig: z.object({
                         fixedNumber: z.object({
                             binNumber: z.number().positive(),
@@ -395,8 +396,8 @@ export const CustomBinDimensionModal: FC<{
                         customRange: z.array(
                             z
                                 .object({
-                                    from: z.number({ coerce: true }).optional(),
-                                    to: z.number({ coerce: true }).optional(),
+                                    from: z.coerce.number().optional(),
+                                    to: z.coerce.number().optional(),
                                 })
                                 .transform((o) => ({ from: o.from, to: o.to })),
                         ),
@@ -407,8 +408,7 @@ export const CustomBinDimensionModal: FC<{
                                 values: z.array(
                                     z.object({
                                         _id: z.string(),
-                                        matchType:
-                                            z.nativeEnum(GroupValueMatchType),
+                                        matchType: z.enum(GroupValueMatchType),
                                         value: z.string(),
                                     }),
                                 ),
@@ -422,9 +422,9 @@ export const CustomBinDimensionModal: FC<{
                             (group, groupIndex) => {
                                 if (group.name.trim().length === 0) {
                                     ctx.addIssue({
-                                        code: z.ZodIssueCode.too_small,
+                                        code: 'too_small',
                                         minimum: 1,
-                                        type: 'string',
+                                        origin: 'string',
                                         inclusive: true,
                                         message: 'Group name is required',
                                         path: [
@@ -437,9 +437,9 @@ export const CustomBinDimensionModal: FC<{
                                 }
                                 if (group.values.length === 0) {
                                     ctx.addIssue({
-                                        code: z.ZodIssueCode.too_small,
+                                        code: 'too_small',
                                         minimum: 1,
-                                        type: 'array',
+                                        origin: 'array',
                                         inclusive: true,
                                         message:
                                             'Each group must have at least one value',
@@ -454,9 +454,9 @@ export const CustomBinDimensionModal: FC<{
                                 group.values.forEach((value, valueIndex) => {
                                     if (value.value.trim().length === 0) {
                                         ctx.addIssue({
-                                            code: z.ZodIssueCode.too_small,
+                                            code: 'too_small',
                                             minimum: 1,
-                                            type: 'string',
+                                            origin: 'string',
                                             inclusive: true,
                                             message: 'Value is required',
                                             path: [
