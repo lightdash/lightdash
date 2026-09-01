@@ -1,3 +1,10 @@
+## [2.72.2](https://github.com/lightdash/lightdash/compare/2.72.1...2.72.2) (2026-09-01)
+
+
+### Bug Fixes
+
+* **ai:** let Enter send when the @-mention menu has nothing to select ([#28398](https://github.com/lightdash/lightdash/issues/28398)) ([e4c9f9a](https://github.com/lightdash/lightdash/commit/e4c9f9a0512c470f99d8e3461863fbaa4a6ebe4c))
+
 ## [2.72.1](https://github.com/lightdash/lightdash/compare/2.72.0...2.72.1) (2026-09-01)
 
 
