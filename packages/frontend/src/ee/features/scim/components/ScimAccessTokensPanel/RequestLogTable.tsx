@@ -1,5 +1,5 @@
 import { type ScimRequestLog } from '@lightdash/common';
-import { Text, Tooltip, useMantineTheme } from '@mantine/core';
+import { Text, useMantineTheme } from '@mantine/core';
 import { format } from 'date-fns';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import {
@@ -53,14 +53,14 @@ export const RequestLogTable: FC = () => {
         () => [
             {
                 accessorKey: 'createdAt',
-                header: 'Timestamp',
+                header: 'Time',
                 enableSorting: false,
-                size: 150,
+                size: 170,
                 Cell: ({ row }) => (
                     <Text c="dimmed" size="xs">
                         {format(
                             new Date(row.original.createdAt),
-                            'yyyy/MM/dd hh:mm a',
+                            'MMM d, yyyy · h:mm a',
                         )}
                     </Text>
                 ),
@@ -69,7 +69,7 @@ export const RequestLogTable: FC = () => {
                 accessorKey: 'action',
                 header: 'Action',
                 enableSorting: false,
-                size: 140,
+                size: 160,
                 Cell: ({ row }) => (
                     <Text size="xs">
                         {SCIM_ACTION_LABELS[row.original.action]}
@@ -77,35 +77,13 @@ export const RequestLogTable: FC = () => {
                 ),
             },
             {
-                accessorKey: 'url',
-                header: 'Request',
-                enableSorting: false,
-                size: 260,
-                Cell: ({ row }) => (
-                    <Tooltip
-                        label={`${row.original.method} ${row.original.url}`}
-                        openDelay={500}
-                    >
-                        <Text size="xs" truncate maw={240}>
-                            <Text span size="xs" fw={600}>
-                                {row.original.method}
-                            </Text>{' '}
-                            {row.original.url.replace(
-                                /^\/api\/v1\/scim\/v2/,
-                                '',
-                            ) || '/'}
-                        </Text>
-                    </Tooltip>
-                ),
-            },
-            {
                 accessorKey: 'targetIdentity',
-                header: 'Target',
+                header: 'Identity',
                 enableSorting: false,
-                size: 200,
+                size: 240,
                 Cell: ({ row }) =>
                     row.original.targetIdentity ? (
-                        <Text size="xs" truncate maw={180}>
+                        <Text size="xs" truncate maw={220}>
                             {row.original.targetIdentity}
                         </Text>
                     ) : (
@@ -115,44 +93,16 @@ export const RequestLogTable: FC = () => {
                     ),
             },
             {
-                accessorKey: 'affectedRoles',
-                header: 'Roles',
-                enableSorting: false,
-                size: 140,
-                Cell: ({ row }) =>
-                    row.original.affectedRoles.length > 0 ? (
-                        <Text size="xs" truncate maw={120}>
-                            {row.original.affectedRoles.join(', ')}
-                        </Text>
-                    ) : null,
-            },
-            {
                 accessorKey: 'status',
                 header: 'Status',
                 enableSorting: false,
-                size: 130,
+                size: 150,
                 Cell: ({ row }) => (
                     <RequestLogStatusBadges
                         status={row.original.status}
                         scimType={row.original.scimType}
                     />
                 ),
-            },
-            {
-                accessorKey: 'tokenDescription',
-                header: 'Token',
-                enableSorting: false,
-                size: 150,
-                Cell: ({ row }) =>
-                    row.original.tokenDescription ? (
-                        <Text size="xs" truncate maw={130}>
-                            {row.original.tokenDescription}
-                        </Text>
-                    ) : (
-                        <Text size="xs" c="dimmed">
-                            Deleted token
-                        </Text>
-                    ),
             },
         ],
         [],
@@ -176,7 +126,10 @@ export const RequestLogTable: FC = () => {
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: { maxHeight: 'calc(100dvh - 300px)' },
+            style: {
+                minHeight: 400,
+                maxHeight: 'calc(100dvh - 220px)',
+            },
             onScroll,
         },
         mantineTableProps: {
