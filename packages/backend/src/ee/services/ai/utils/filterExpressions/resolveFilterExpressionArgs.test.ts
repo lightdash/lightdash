@@ -1,6 +1,7 @@
 import {
     DimensionType,
     FieldType,
+    FILTER_EXPRESSION_MAX_RULES,
     FilterOperator,
     FilterType,
     getTotalFilterRules,
@@ -389,6 +390,89 @@ describe('resolveFilterExpressionArgs', () => {
                 { target: { fieldId: 'orders_total_revenue' } },
                 { target: { fieldId: 'orders_order_count' } },
             ],
+        });
+    });
+
+    it('propagates malformed parser syntax with its source and span', async () => {
+        const malformedLine = 'orders_product_category equals=';
+        const expression = `orders_customer_name equals=Acme AND\n${malformedLine}`;
+        const error = await expectResolutionError(
+            expressionArgs({
+                filters: {
+                    dimensions: expression,
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
+
+        expect(error.code).toBe('FILTER_EXPRESSION_SYNTAX');
+        if (error.code !== 'FILTER_EXPRESSION_SYNTAX') {
+            throw new Error('Expected a syntax resolution error');
+        }
+
+        const endPosition = {
+            offset: expression.length,
+            line: 2,
+            column: malformedLine.length + 1,
+        };
+        expect(error).toMatchObject({
+            source: {
+                kind: 'queryFilter',
+                exploreName: mockOrdersExplore.name,
+                category: 'dimensions',
+            },
+            span: { start: endPosition, end: endPosition },
+        });
+        expect(error.parserMessage).toContain('end of input');
+        expect(error.problem).toBe(error.parserMessage);
+    });
+
+    it('propagates parser bounds errors with source, span, and limit metadata', async () => {
+        const rule = 'f equals=1';
+        const connector = ' AND ';
+        const rulesBeforeExcess = Array.from(
+            { length: FILTER_EXPRESSION_MAX_RULES },
+            () => rule,
+        ).join(connector);
+        const expression = `${rulesBeforeExcess}${connector}${rule}`;
+        const firstExcessRuleOffset =
+            rulesBeforeExcess.length + connector.length;
+        const error = await expectResolutionError(
+            expressionArgs({
+                filters: {
+                    dimensions: expression,
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
+
+        expect(error.code).toBe('FILTER_EXPRESSION_BOUNDS_EXCEEDED');
+        if (error.code !== 'FILTER_EXPRESSION_BOUNDS_EXCEEDED') {
+            throw new Error('Expected a parser bounds resolution error');
+        }
+        expect(error).toMatchObject({
+            source: {
+                kind: 'queryFilter',
+                exploreName: mockOrdersExplore.name,
+                category: 'dimensions',
+            },
+            span: {
+                start: {
+                    offset: firstExcessRuleOffset,
+                    line: 1,
+                    column: firstExcessRuleOffset + 1,
+                },
+                end: {
+                    offset: firstExcessRuleOffset + rule.length,
+                    line: 1,
+                    column: firstExcessRuleOffset + rule.length + 1,
+                },
+            },
+            limit: 'ruleCount',
+            maximum: FILTER_EXPRESSION_MAX_RULES,
+            actual: FILTER_EXPRESSION_MAX_RULES + 1,
         });
     });
 
@@ -1105,24 +1189,40 @@ describe('strict expression value interpretation', () => {
         );
     });
 
-    it('reports wrong arity separately from invalid values', async () => {
-        const error = await expectResolutionError(
-            expressionArgs({
-                filters: {
-                    dimensions: 'orders_amount greaterThan=1,2',
-                    metrics: null,
-                    tableCalculations: null,
-                },
-            }),
-        );
-
-        expect(error).toMatchObject({
-            code: 'FILTER_EXPRESSION_WRONG_ARITY',
+    it.each([
+        {
+            expression: 'orders_amount greaterThan=1,2',
             operator: FilterOperator.GREATER_THAN,
             expected: 1,
             actual: 2,
-        });
-    });
+        },
+        {
+            expression: 'orders_amount inBetween=1',
+            operator: FilterOperator.IN_BETWEEN,
+            expected: 2,
+            actual: 1,
+        },
+    ])(
+        'reports wrong arity for $operator separately from invalid values',
+        async ({ expression, operator, expected, actual }) => {
+            const error = await expectResolutionError(
+                expressionArgs({
+                    filters: {
+                        dimensions: expression,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+
+            expect(error).toMatchObject({
+                code: 'FILTER_EXPRESSION_WRONG_ARITY',
+                operator,
+                expected,
+                actual,
+            });
+        },
+    );
 
     it('rejects nonnumeric table-calculation filters explicitly', async () => {
         const error = await expectResolutionError(
