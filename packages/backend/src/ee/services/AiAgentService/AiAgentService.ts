@@ -9562,7 +9562,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 prompt,
                 [
                     ...getMarkdownBlocks(
-                        `:white_check_mark: Your data app **${metadata.name}** is ready — [Open it in the builder](${metadata.href})`,
+                        `:white_check_mark: Your data app **${metadata.name}** is ready. [Open it in the builder](${metadata.href})`,
                     ),
                     ...(screenshotBlock ? [screenshotBlock] : []),
                 ],
