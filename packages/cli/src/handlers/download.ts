@@ -105,6 +105,7 @@ import {
     uploadFilterMatches,
 } from './apps/appsDownload';
 import { loadTemplateDependencies } from './apps/scaffolding';
+import { uploadAppsAsTemplates } from './apps/templateUpload';
 import {
     createBuildLimitWaitState,
     withBuildLimitRetry,
@@ -185,6 +186,7 @@ export type DownloadHandlerOptions = {
     createNew?: boolean; // upload only: always create a new app instead of updating the manifest's app
     allowCustomDependencies?: boolean; // upload only: approve custom-dependency uploads without prompting
     appSpace?: string; // upload only: space (slug or uuid) for data apps this run creates
+    asTemplate?: boolean; // upload only: publish --apps folders as org data app templates
     force: boolean;
     path?: string; // New optional path parameter
     project?: string;
@@ -3664,6 +3666,16 @@ export const uploadHandler = async (
             customPath: contentPathOption,
             config,
             sendInvites: options.sendInvites,
+        });
+        return;
+    }
+
+    // Templates are organization content: pack and publish the named app
+    // folders without selecting a project or touching any other phase.
+    if (options.asTemplate) {
+        await uploadAppsAsTemplates({
+            customPath: contentPathOption,
+            appRefs: options.apps ?? [],
         });
         return;
     }

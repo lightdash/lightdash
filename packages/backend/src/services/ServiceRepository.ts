@@ -177,6 +177,7 @@ interface ServiceManifest {
     previewDeploySetupService: unknown;
     appGenerateService: unknown;
     externalSourceService: unknown;
+    dataAppTemplateService: unknown;
     embedService: unknown;
     aiService: unknown;
     aiAgentCoderService: unknown;
@@ -1601,6 +1602,12 @@ export class ServiceRepository
         ExternalSourceServiceImplT,
     >(): ExternalSourceServiceImplT {
         return this.getService('externalSourceService');
+    }
+
+    public getDataAppTemplateService<
+        DataAppTemplateServiceImplT,
+    >(): DataAppTemplateServiceImplT {
+        return this.getService('dataAppTemplateService');
     }
 
     public getProjectContextService<

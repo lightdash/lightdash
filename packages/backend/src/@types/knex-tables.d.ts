@@ -88,6 +88,12 @@ import {
     DashboardViewTable,
 } from '../database/entities/dashboards';
 import {
+    DataAppTemplateFilesTable,
+    DataAppTemplateFilesTableName,
+    DataAppTemplatesTable,
+    DataAppTemplatesTableName,
+} from '../database/entities/dataAppTemplates';
+import {
     DownloadAuditTable,
     DownloadAuditTableName,
 } from '../database/entities/downloadAudit';
@@ -781,6 +787,8 @@ declare module 'knex/types/tables' {
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
         [OrganizationDesignsTableName]: OrganizationDesignsTable;
         [OrganizationDesignFilesTableName]: OrganizationDesignFilesTable;
+        [DataAppTemplatesTableName]: DataAppTemplatesTable;
+        [DataAppTemplateFilesTableName]: DataAppTemplateFilesTable;
         [OrganizationWarehouseCredentialsTableName]: OrganizationWarehouseCredentialsTable;
         [QueryHistoryTableName]: QueryHistoryTable;
         [PreAggregateDefinitionsTableName]: PreAggregateDefinitionsTable;

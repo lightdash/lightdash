@@ -15,6 +15,7 @@ export * from './apps/deliveryCapture';
 export * from './apps/sdkFeatures';
 export * from './apps/dataAppVizSchemaChanges';
 export * from './apps/templates';
+export * from './apps/templatePackage';
 export * from './apps/types';
 export * from './apps/code';
 export * from './apps/dataReferenceChecker';

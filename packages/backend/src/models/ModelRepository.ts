@@ -173,6 +173,7 @@ export type ModelManifest = {
     projectParametersModel: ProjectParametersModel;
     /** An implementation signature for these models are not available at this stage */
     externalSourceModel: unknown;
+    dataAppTemplateModel: unknown;
     aiAgentMemoryModel: unknown;
     aiAgentModel: unknown;
     homepageRecommendedActionSkipsModel: unknown;
@@ -947,6 +948,10 @@ export class ModelRepository
 
     public getProjectHomepageModel<ModelImplT>(): ModelImplT {
         return this.getModel('projectHomepageModel');
+    }
+
+    public getDataAppTemplateModel<ModelImplT>(): ModelImplT {
+        return this.getModel('dataAppTemplateModel');
     }
 
     public getHomepageRecommendedActionSkipsModel<ModelImplT>(): ModelImplT {

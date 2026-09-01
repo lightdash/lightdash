@@ -1168,6 +1168,11 @@ const uploadCommand = program
         false,
     )
     .option(
+        '--as-template',
+        'Publish the app folders named by --apps as organization data app templates (enterprise). Packs src/ and AGENTS.md; requires src/template.json. Org-scoped, no project is selected.',
+        false,
+    )
+    .option(
         '--organization',
         'upload all organization-scoped resources, including Data App themes, without selecting a project',
         false,
