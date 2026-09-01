@@ -119,6 +119,12 @@ process takes 27ms (median of 20 passes) against 46ms before, because the
 conversion alone is 17ms. The initial frontend payload is unchanged (identical
 raw size, +2 gzip bytes), and the normalizer runs only on the backend.
 
+The rejected-parse row does not reproduce with the real `toolRunQueryArgsSchema`
+(filters present, two invalid fields), alternating trees on a quiet machine:
+Zod 3 parses 0.016M valid and 0.016M rejected payloads per second, Zod 4
+0.20M valid and 0.065M rejected. For this schema Zod 4 rejects about 4x
+faster than Zod 3; a rejection costs about 3x a valid parse within Zod 4.
+
 Before locale pruning, the initial payload was 3,085,818 gzip bytes: +31,308
 bytes against the merge base. The Vite guard recovers 90.9% of that regression
 and fails future builds if unused non-English Zod locales return.
