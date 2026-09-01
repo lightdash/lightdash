@@ -111,11 +111,7 @@
     padding-bottom: 10px;
     margin: -4px;
     scrollbar-width: thin;
-    scrollbar-color: light-dark(
-            var(--mantine-color-gray-3),
-            var(--mantine-color-dark-3)
-        )
-        transparent;
+    scrollbar-color: var(--mantine-color-ldGray-3) transparent;
     -webkit-mask-image: linear-gradient(
         to bottom,
         black calc(100% - 10px),
@@ -137,10 +133,7 @@
 }
 
 .pickerScroll::-webkit-scrollbar-thumb {
-    background-color: light-dark(
-        var(--mantine-color-gray-3),
-        var(--mantine-color-dark-3)
-    );
+    background-color: var(--mantine-color-ldGray-3);
     border-radius: 999px;
 }
 
@@ -155,12 +148,8 @@
     display: block;
     width: 100%;
     border-radius: var(--mantine-radius-md);
-    border: 1px solid
-        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
-    background-color: light-dark(
-        var(--mantine-color-white),
-        var(--mantine-color-dark-6)
-    );
+    border: 1px solid var(--mantine-color-ldGray-3);
+    background-color: var(--mantine-color-body);
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
     transition:
         border-color 120ms ease-out,

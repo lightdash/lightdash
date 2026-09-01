@@ -22,10 +22,7 @@
     width: 1px;
     flex: 0 0 1px;
     cursor: col-resize;
-    background-color: light-dark(
-        var(--mantine-color-ldGray-2),
-        var(--mantine-color-ldDark-4)
-    );
+    background-color: var(--mantine-color-default-border);
     transition:
         background-color 120ms ease,
         box-shadow 120ms ease;

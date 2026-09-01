@@ -2,8 +2,7 @@
     width: 260px;
     flex-shrink: 0;
     padding: var(--mantine-spacing-md);
-    border-left: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-4));
+    border-left: 1px solid var(--mantine-color-default-border);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
@@ -58,8 +57,7 @@
 }
 
 .facts {
-    border-top: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-4));
+    border-top: 1px solid var(--mantine-color-default-border);
     padding-top: var(--mantine-spacing-xs);
 }
 

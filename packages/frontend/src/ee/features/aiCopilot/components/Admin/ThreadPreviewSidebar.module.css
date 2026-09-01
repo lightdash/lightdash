@@ -46,17 +46,11 @@
 }
 
 .sectionToggle[data-active='true'] {
-    color: light-dark(
-        var(--mantine-color-ldGray-9),
-        var(--mantine-color-dark-0)
-    );
+    color: var(--mantine-color-text);
 }
 
 .sectionToggle:hover {
-    color: light-dark(
-        var(--mantine-color-ldGray-9),
-        var(--mantine-color-dark-0)
-    );
+    color: var(--mantine-color-text);
 }
 
 .metaGrid {

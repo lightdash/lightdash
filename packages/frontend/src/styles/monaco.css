@@ -114,7 +114,6 @@
     }
 
     @mixin dark {
-        border-top: 1px solid var(--mantine-color-ldDark-4);
         background-color: var(--mantine-color-ldDark-6);
         border-radius: 0 0 8px 8px;
     }
