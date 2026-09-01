@@ -114,11 +114,7 @@ export class AnalyticsModel {
         userUuid: string,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
-            // TODO add sql views table for tracking user views
-            /*  await trx(AnalyticsSqlChartViewsTableName).insert({
-                chart_uuid: chartUuid,
-                user_uuid: userUuid,
-            }); */
+            // TODO: persist per-user SQL chart views once a views table exists
             await trx(SavedSqlTableName)
                 .update({
                     views_count: trx.raw(
