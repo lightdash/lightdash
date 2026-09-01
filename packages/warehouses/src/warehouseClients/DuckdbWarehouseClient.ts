@@ -294,6 +294,11 @@ class AsyncSemaphore {
 class ConcurrencyBudget {
     private active = 0;
 
+    private pendingAcquires: Array<{
+        resolve: (acquired: boolean) => void;
+        timeout?: ReturnType<typeof setTimeout>;
+    }> = [];
+
     constructor(private readonly limit: number) {}
 
     tryAcquire(): boolean {
@@ -305,7 +310,44 @@ class ConcurrencyBudget {
         return true;
     }
 
+    acquire(timeoutMs: number): Promise<boolean> {
+        if (this.tryAcquire()) {
+            return Promise.resolve(true);
+        }
+
+        return new Promise<boolean>((resolve) => {
+            const pendingAcquire: (typeof this.pendingAcquires)[number] = {
+                resolve,
+            };
+            const timeout = setTimeout(() => {
+                const index = this.pendingAcquires.indexOf(pendingAcquire);
+                if (index === -1) {
+                    return;
+                }
+
+                this.pendingAcquires.splice(index, 1);
+                resolve(false);
+            }, timeoutMs);
+            timeout.unref();
+            pendingAcquire.timeout = timeout;
+            this.pendingAcquires.push(pendingAcquire);
+        });
+    }
+
     release(): void {
+        if (this.active === 0) {
+            return;
+        }
+
+        const pendingAcquire = this.pendingAcquires.shift();
+        if (pendingAcquire) {
+            if (pendingAcquire.timeout) {
+                clearTimeout(pendingAcquire.timeout);
+            }
+            pendingAcquire.resolve(true);
+            return;
+        }
+
         this.active -= 1;
     }
 
@@ -315,6 +357,13 @@ class ConcurrencyBudget {
 
     reset(): void {
         this.active = 0;
+        const pendingAcquires = this.pendingAcquires.splice(0);
+        pendingAcquires.forEach(({ resolve, timeout }) => {
+            if (timeout) {
+                clearTimeout(timeout);
+            }
+            resolve(false);
+        });
     }
 }
 
@@ -367,9 +416,35 @@ const EMBEDDED_RESOURCE_LIMITS: Required<DuckdbResourceLimits> = {
 
 const EMBEDDED_QUERY_TIMEOUT_MS = 10_000;
 
-const EMBEDDED_MAX_CONCURRENT_QUERIES = 2;
+const getPositiveIntegerEnvironmentVariable = (
+    name: string,
+    defaultValue: number,
+): number => {
+    const environmentValue = process.env[name]?.trim();
+    if (!environmentValue || !/^\d+$/.test(environmentValue)) {
+        return defaultValue;
+    }
 
-const EMBEDDED_MAX_CONCURRENT_QUERIES_PER_ORGANIZATION = 1;
+    const value = Number(environmentValue);
+    return Number.isSafeInteger(value) && value > 0 ? value : defaultValue;
+};
+
+const EMBEDDED_MAX_CONCURRENT_QUERIES = getPositiveIntegerEnvironmentVariable(
+    'PLAYGROUND_MAX_CONCURRENT_QUERIES',
+    8,
+);
+
+const EMBEDDED_MAX_CONCURRENT_QUERIES_PER_ORGANIZATION =
+    getPositiveIntegerEnvironmentVariable(
+        'PLAYGROUND_MAX_CONCURRENT_QUERIES_PER_ORGANIZATION',
+        4,
+    );
+
+const EMBEDDED_CONCURRENCY_ACQUIRE_TIMEOUT_MS =
+    getPositiveIntegerEnvironmentVariable(
+        'PLAYGROUND_CONCURRENCY_ACQUIRE_TIMEOUT_MS',
+        15_000,
+    );
 
 const resolveEmbeddedDatabasePath = (dataset: string): string => {
     if (!EMBEDDED_DATASET_PATTERN.test(dataset)) {
@@ -643,16 +718,28 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         return this.instanceCacheKey;
     }
 
-    private static tryAcquireEmbeddedConcurrency(
+    private static async tryAcquireEmbeddedConcurrency(
         organizationUuid?: string,
-    ): (() => void) | undefined {
-        if (!DuckdbWarehouseClient.embeddedConcurrencyBudget.tryAcquire()) {
+    ): Promise<(() => void) | undefined> {
+        const acquireDeadline =
+            Date.now() + EMBEDDED_CONCURRENCY_ACQUIRE_TIMEOUT_MS;
+        const globalAcquired =
+            await DuckdbWarehouseClient.embeddedConcurrencyBudget.acquire(
+                EMBEDDED_CONCURRENCY_ACQUIRE_TIMEOUT_MS,
+            );
+        if (!globalAcquired) {
             return undefined;
         }
 
         if (!organizationUuid) {
-            return () =>
+            let released = false;
+            return () => {
+                if (released) {
+                    return;
+                }
+                released = true;
                 DuckdbWarehouseClient.embeddedConcurrencyBudget.release();
+            };
         }
 
         const organizationBudget =
@@ -667,12 +754,20 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             organizationBudget,
         );
 
-        if (!organizationBudget.tryAcquire()) {
+        const organizationAcquired = await organizationBudget.acquire(
+            Math.max(0, acquireDeadline - Date.now()),
+        );
+        if (!organizationAcquired) {
             DuckdbWarehouseClient.embeddedConcurrencyBudget.release();
             return undefined;
         }
 
+        let released = false;
         return () => {
+            if (released) {
+                return;
+            }
+            released = true;
             organizationBudget.release();
             DuckdbWarehouseClient.embeddedConcurrencyBudget.release();
             if (organizationBudget.isIdle()) {
@@ -999,6 +1094,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         DuckdbWarehouseClient.sharedInstanceResourceLimits.clear();
         DuckdbWarehouseClient.sharedInstanceSemaphores.clear();
         DuckdbWarehouseClient.embeddedConcurrencyBudget.reset();
+        DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.forEach(
+            (budget) => budget.reset(),
+        );
         DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.clear();
     }
 
@@ -1729,7 +1827,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const sessionStart = performance.now();
 
         const releaseEmbeddedConcurrency = this.embeddedConfig
-            ? DuckdbWarehouseClient.tryAcquireEmbeddedConcurrency(
+            ? await DuckdbWarehouseClient.tryAcquireEmbeddedConcurrency(
                   organizationUuid,
               )
             : undefined;
