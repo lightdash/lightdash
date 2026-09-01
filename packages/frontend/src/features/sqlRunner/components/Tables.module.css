@@ -1,25 +1,55 @@
-.tableButton {
-    border-radius: var(--mantine-radius-sm);
-    color: var(--mantine-color-ldGray-7);
-}
-
-.tableButton:hover {
-    background-color: var(--mantine-color-ldGray-2);
-}
-
-.tableButton[data-active] {
-    color: var(--mantine-color-ldGray-8);
-    background-color: var(--mantine-color-ldGray-1);
-}
-
-.tableButton[data-active]:hover {
-    background-color: var(--mantine-color-ldGray-3);
-}
-
 .schemaButton {
+    width: 100%;
+    padding: rem(6px) rem(8px);
     border-radius: var(--mantine-radius-md);
+    color: var(--mantine-color-text);
+    transition: background-color 120ms ease;
 }
 
 .schemaButton:hover {
-    background-color: var(--mantine-color-ldGray-1);
+    background-color: var(--mantine-color-default-hover);
+}
+
+.chevron {
+    flex-shrink: 0;
+    color: var(--mantine-color-dimmed);
+}
+
+.tableButton {
+    border-radius: var(--mantine-radius-md);
+    padding: rem(4px) rem(8px) rem(4px) rem(28px);
+    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
+    transition:
+        background-color 120ms ease,
+        color 120ms ease;
+}
+
+.tableButton:hover {
+    background-color: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
+}
+
+.tableButton[data-active] {
+    background-color: light-dark(rgb(24 24 27 / 0.07), rgb(236 236 238 / 0.09));
+    color: var(--mantine-color-text);
+    font-weight: 500;
+}
+
+.tableButton[data-active]:hover {
+    background-color: light-dark(rgb(24 24 27 / 0.1), rgb(236 236 238 / 0.13));
+}
+
+.tableIcon {
+    flex-shrink: 0;
+    color: var(--mantine-color-dimmed);
+}
+
+.tableButton[data-active] .tableIcon {
+    color: var(--mantine-color-text);
+}
+
+.copyButton {
+    position: absolute;
+    top: rem(4px);
+    right: rem(6px);
 }

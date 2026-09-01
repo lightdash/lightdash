@@ -81,7 +81,6 @@ export interface SqlRunnerState {
             isOpen: boolean;
         };
     };
-    isLeftSidebarOpen: boolean;
     quoteChar: string;
     warehouseConnectionType: WarehouseTypes | undefined;
     sqlColumns: VizColumn[] | undefined;
@@ -136,7 +135,6 @@ export const initialState: SqlRunnerState = {
             isOpen: false,
         },
     },
-    isLeftSidebarOpen: true,
     quoteChar: '"',
     warehouseConnectionType: undefined,
     sqlColumns: undefined,
@@ -267,10 +265,6 @@ export const sqlRunnerSlice = createSlice({
                 if (!state.selectedChartType) {
                     state.selectedChartType = ChartKind.VERTICAL_BAR;
                 }
-                // Show the sidebar when switching to the chart tab
-                if (!state.isLeftSidebarOpen) {
-                    state.isLeftSidebarOpen = true;
-                }
             }
             if (action.payload === EditorTabs.SQL) {
                 state.activeSidebarTab = SidebarTabs.TABLES;
@@ -309,9 +303,6 @@ export const sqlRunnerSlice = createSlice({
         ) => {
             state.modals[action.payload].isOpen =
                 !state.modals[action.payload].isOpen;
-        },
-        setSidebarOpen: (state, action: PayloadAction<boolean>) => {
-            state.isLeftSidebarOpen = action.payload;
         },
         setQuoteChar: (state, action: PayloadAction<string>) => {
             state.quoteChar = action.payload;
@@ -432,7 +423,6 @@ export const {
     setSavedChartData,
     setSelectedChartType,
     toggleModal,
-    setSidebarOpen,
     resetState,
     setQuoteChar,
     setWarehouseConnectionType,

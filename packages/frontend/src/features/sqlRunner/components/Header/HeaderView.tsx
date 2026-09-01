@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import {
     Group,
-    Paper,
     Stack,
     Title,
     Button,
@@ -25,6 +24,7 @@ import {
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import PageHeader from '../../../../components/common/Page/PageHeader';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
 import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
@@ -49,7 +49,6 @@ import {
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { toggleModal } from '../../store/sqlRunnerSlice';
 import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
-import headerStyles from './HeaderPaper.module.css';
 
 export const HeaderView: FC = () => {
     const navigate = useNavigate();
@@ -184,15 +183,8 @@ export const HeaderView: FC = () => {
 
     return (
         <>
-            <Paper
-                shadow="none"
-                radius={0}
-                withBorder={false}
-                px="md"
-                py="xs"
-                className={headerStyles.paper}
-            >
-                <Group justify="space-between">
+            <PageHeader cardProps={{ py: 'xs' }}>
+                <Group justify="space-between" flex={1} wrap="nowrap">
                     <Stack gap="none">
                         <Group gap="two">
                             {space && (
@@ -202,7 +194,7 @@ export const HeaderView: FC = () => {
                                     spaceName={space.name}
                                 />
                             )}
-                            <Title c="ldDark.6" order={5} fw={600}>
+                            <Title c="ldDark.9" order={5} fw={600}>
                                 {savedSqlChart.name}
                             </Title>
                         </Group>
@@ -361,7 +353,7 @@ export const HeaderView: FC = () => {
                         )}
                     </Group>
                 </Group>
-            </Paper>
+            </PageHeader>
 
             {isDirectAccessModalOpen && savedSqlChart && (
                 <DirectAccessModal
