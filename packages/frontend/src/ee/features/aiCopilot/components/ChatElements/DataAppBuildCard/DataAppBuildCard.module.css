@@ -73,6 +73,41 @@
     padding-left: calc(var(--card-icon-size) + var(--mantine-spacing-xs));
 }
 
+.summary {
+    --ai-markdown-padding-left: 0;
+    --ai-markdown-font-size: 12px;
+    --summary-line-height: 1.55;
+    --summary-collapsed-lines: 6;
+    width: 100%;
+}
+
+/* Clamped to whole lines so the cut lands between them, not through one;
+   the last line fades out to show there's more behind "See more". */
+.summaryClamped {
+    max-height: calc(
+        var(--summary-collapsed-lines) * var(--summary-line-height) *
+            var(--ai-markdown-font-size)
+    );
+    overflow: hidden;
+    mask-image: linear-gradient(
+        to bottom,
+        black calc(100% - 18px),
+        transparent
+    );
+}
+
+.summaryToggle {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.55;
+    color: var(--mantine-color-ldGray-6);
+}
+
+.summaryToggle:hover {
+    color: var(--mantine-color-ldGray-9);
+    text-decoration: underline;
+}
+
 .actions {
     grid-column: 2;
     justify-self: end;
