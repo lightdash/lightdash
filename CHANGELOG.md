@@ -1,3 +1,10 @@
+## [2.72.1](https://github.com/lightdash/lightdash/compare/2.72.0...2.72.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* **content-as-code:** give write-back branches a type folder and keep drafts beside the propose branch ([#28387](https://github.com/lightdash/lightdash/issues/28387)) ([1222e3f](https://github.com/lightdash/lightdash/commit/1222e3fd96c7c5431206f6fa603bfc901dd1d4ba)), closes [#71](https://github.com/lightdash/lightdash/issues/71)
+
 # [2.72.0](https://github.com/lightdash/lightdash/compare/2.71.3...2.72.0) (2026-09-01)
 
 
