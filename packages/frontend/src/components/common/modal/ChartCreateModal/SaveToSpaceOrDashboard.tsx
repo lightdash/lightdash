@@ -64,7 +64,7 @@ import {
 
 const saveToSpaceOrDashboardSchema = z
     .object({
-        name: z.string().min(1),
+        name: z.string().min(1, 'Name is required'),
         description: z.string().nullable(),
     })
     // for saving to the dashboard

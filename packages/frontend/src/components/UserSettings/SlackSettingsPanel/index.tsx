@@ -58,7 +58,7 @@ type SlackSettingsFormValues = SlackAppCustomSettings & {
 };
 
 const formSchema = z.object({
-    notificationChannel: z.string().min(1).nullable(),
+    notificationChannel: z.string().min(1, 'Channel is required').nullable(),
     appProfilePhotoUrl: z
         .string()
         .url({ message: 'Enter a valid URL' })
@@ -73,13 +73,15 @@ const formSchema = z.object({
                 .string({
                     message: 'You must select a Slack channel',
                 })
-                .min(1),
-            availableTags: z.array(z.string().min(1)).nullable(),
+                .min(1, 'You must select a Slack channel'),
+            availableTags: z
+                .array(z.string().min(1, 'Tag cannot be empty'))
+                .nullable(),
         }),
     ),
     aiThreadAccessConsent: z.boolean().optional(),
     aiRequireOAuth: z.boolean().optional(),
-    aiMultiAgentChannelId: z.string().min(1).optional(),
+    aiMultiAgentChannelId: z.string().min(1, 'Channel is required').optional(),
     aiMultiAgentProjectUuids: z.array(z.string().uuid()).nullable().optional(),
     unfurlsEnabled: z.boolean().optional(),
     aiAgentsEnabled: z.boolean().optional(),

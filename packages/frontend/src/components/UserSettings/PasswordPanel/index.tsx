@@ -17,7 +17,9 @@ const validationSchema = (hasCurrentPassword: boolean) => {
     return hasCurrentPassword
         ? z.object({
               // we check validity of current password on the server
-              currentPassword: z.string().nonempty(),
+              currentPassword: z
+                  .string()
+                  .min(1, 'Current password is required'),
               newPassword: passwordSchema,
           })
         : z.object({

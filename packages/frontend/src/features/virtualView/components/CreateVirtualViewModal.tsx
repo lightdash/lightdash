@@ -16,7 +16,7 @@ import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useCreateVirtualView } from '../hooks/useVirtualView';
 
 const validationSchema = z.object({
-    name: z.string().min(1),
+    name: z.string().min(1, 'Name is required'),
 });
 
 type FormValues = z.infer<typeof validationSchema>;

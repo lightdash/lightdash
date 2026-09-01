@@ -38,7 +38,7 @@ type Props = {
 type SaveToDashboardFormValues = { name: string; description: string };
 
 const validationSchema = z.object({
-    name: z.string().nonempty(),
+    name: z.string().min(1, 'Name is required'),
     description: z.string(),
 });
 

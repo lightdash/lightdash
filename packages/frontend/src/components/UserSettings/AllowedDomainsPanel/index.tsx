@@ -81,11 +81,11 @@ const projectRoleOptions: Array<{
 ];
 
 const validationSchema = z.object({
-    emailDomains: z.array(z.string().nonempty()),
+    emailDomains: z.array(z.string().min(1, 'Domain cannot be empty')),
     role: z.enum(OrganizationMemberRole),
     projects: z.array(
         z.object({
-            projectUuid: z.string().nonempty(),
+            projectUuid: z.string().min(1, 'Project is required'),
             role: z.enum(ProjectMemberRole),
         }),
     ),

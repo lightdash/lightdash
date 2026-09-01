@@ -35,7 +35,7 @@ import { useGithubDbtWritePreview } from '../hooks/useGithubDbtWritePreview';
 import { useAppSelector } from '../store/hooks';
 
 const validationSchema = z.object({
-    name: z.string().min(1),
+    name: z.string().min(1, 'Name is required'),
 });
 
 type FormValues = z.infer<typeof validationSchema>;
