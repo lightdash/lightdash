@@ -2376,6 +2376,17 @@ export class McpService extends BaseService {
                           )
                         : undefined;
                 const structuredContent = {
+                    toolAvailability: {
+                        runMetricQuery: options.runMetricQueryEnabled
+                            ? {
+                                  available: true as const,
+                                  reason: 'available' as const,
+                              }
+                            : {
+                                  available: false as const,
+                                  reason: 'omitted_by_authorization' as const,
+                              },
+                    },
                     activeProject: activeProject
                         ? {
                               projectUuid: activeProject.projectUuid,

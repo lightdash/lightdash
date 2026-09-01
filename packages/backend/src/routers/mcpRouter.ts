@@ -169,6 +169,9 @@ function isInitializeRequest(req: express.Request): boolean {
 }
 
 const MCP_SESSION_ID_HEADER = 'Mcp-Session-Id';
+const MCP_TOOL_CATALOGUE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const MCP_TOOL_LIST_CHANGED_EVENT =
+    'event: message\ndata: {"jsonrpc":"2.0","method":"notifications/tools/list_changed"}\n\n';
 
 /**
  * The transport is stateless, so the session id is purely an analytics
@@ -299,14 +302,20 @@ mcpRouter.all(
                 const heartbeat = setInterval(() => {
                     res.write('event: heartbeat\ndata: {}\n\n');
                 }, 30000);
+                const catalogueRefresh = setInterval(() => {
+                    res.write(MCP_TOOL_LIST_CHANGED_EVENT);
+                }, MCP_TOOL_CATALOGUE_REFRESH_INTERVAL_MS);
 
                 // Clean up on connection close
                 req.on('close', () => {
                     clearInterval(heartbeat);
+                    clearInterval(catalogueRefresh);
                 });
 
-                // Send initial connection event
+                // Connected clients refresh immediately and periodically, so a
+                // stale catalogue recovers without a full MCP reconnect.
                 res.write('event: connect\ndata: {"type": "connect"}\n\n');
+                res.write(MCP_TOOL_LIST_CHANGED_EVENT);
                 return await Promise.resolve();
             }
 

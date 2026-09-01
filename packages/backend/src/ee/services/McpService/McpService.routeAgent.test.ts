@@ -12,6 +12,7 @@ vi.mock('@sentry/node', () => ({
     captureException: vi.fn(),
     getActiveSpan: () => undefined,
     isEnabled: () => false,
+    startSpan: (_options: unknown, callback: CallableFunction) => callback({}),
     startSpanManual: (_options: unknown, callback: CallableFunction) =>
         callback({ spanContext: () => ({ spanId: 'span-id' }) }, vi.fn()),
     wrapMcpServerWithSentry: (server: unknown) => server,
@@ -149,6 +150,8 @@ const makeMcpService = () => {
 
     const aiAgentService = {
         getAgent: vi.fn().mockResolvedValue(selectedAgent),
+        getIsCopilotEnabled: vi.fn().mockResolvedValue(true),
+        listAgents: vi.fn().mockResolvedValue([selectedAgent]),
     };
 
     const aiAgentToolsService = {
@@ -229,7 +232,16 @@ const makeMcpService = () => {
             siteUrl: 'https://lightdash.example',
         },
         mcpContextModel,
-        projectModel: {},
+        projectModel: {
+            getAllByOrganizationUuid: vi.fn().mockResolvedValue([
+                {
+                    projectUuid,
+                    name: 'Project',
+                    type: 'DEFAULT',
+                    expiresAt: undefined,
+                },
+            ]),
+        },
         projectService: {
             getProject: vi
                 .fn()
@@ -256,6 +268,47 @@ describe('McpService route_agent', () => {
     beforeEach(() => {
         mockRegisteredMcpTools.clear();
     });
+
+    it.each([
+        {
+            runMetricQueryEnabled: true,
+            expectedAvailability: {
+                available: true,
+                reason: 'available',
+            },
+        },
+        {
+            runMetricQueryEnabled: false,
+            expectedAvailability: {
+                available: false,
+                reason: 'omitted_by_authorization',
+            },
+        },
+    ])(
+        'reports metric-query availability when enabled is $runMetricQueryEnabled',
+        async ({ runMetricQueryEnabled, expectedAvailability }) => {
+            const { service } = makeMcpService();
+            await service.createServer({ runMetricQueryEnabled });
+            const getContextTool = mockRegisteredMcpTools.get(
+                McpToolName.GET_CONTEXT,
+            );
+
+            const result = (await getContextTool!({}, extra)) as {
+                structuredContent: {
+                    toolAvailability: {
+                        runMetricQuery: {
+                            available: boolean;
+                            reason: string;
+                        };
+                    };
+                };
+            };
+
+            expect(
+                result.structuredContent.toolAvailability.runMetricQuery,
+            ).toEqual(expectedAvailability);
+        },
+    );
 
     it('writes the routed agent into context and get_current_agent returns it', async () => {
         const { aiRouterService, mcpContextModel } = makeMcpService();

@@ -1835,7 +1835,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.",
+      "description": "Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. It also reports authorization-based tool availability so clients can distinguish an intentionally omitted tool from stale discovery. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {},
@@ -1989,8 +1989,38 @@ Usage tips:
             },
             "type": "array",
           },
+          "toolAvailability": {
+            "additionalProperties": false,
+            "properties": {
+              "runMetricQuery": {
+                "additionalProperties": false,
+                "properties": {
+                  "available": {
+                    "type": "boolean",
+                  },
+                  "reason": {
+                    "enum": [
+                      "available",
+                      "omitted_by_authorization",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "available",
+                  "reason",
+                ],
+                "type": "object",
+              },
+            },
+            "required": [
+              "runMetricQuery",
+            ],
+            "type": "object",
+          },
         },
         "required": [
+          "toolAvailability",
           "activeProject",
           "activeAgent",
           "availableProjects",

@@ -108,16 +108,53 @@ const sendHttpRequest = ({
         request.end(requestBody ? JSON.stringify(requestBody) : undefined);
     });
 
+const sendSseRequest = ({ port }: { port: number }) =>
+    new Promise<{ body: string; status: number }>((resolve, reject) => {
+        const request = httpRequest(
+            {
+                headers: { authorization: 'Bearer test-token' },
+                hostname: '127.0.0.1',
+                method: 'GET',
+                path: '/api/v1/mcp',
+                port,
+            },
+            (response) => {
+                let body = '';
+                const timeout = setTimeout(() => {
+                    response.destroy();
+                    reject(
+                        new Error('Timed out waiting for tool list refresh'),
+                    );
+                }, 200);
+                response.on('data', (chunk: Buffer) => {
+                    body += chunk.toString('utf8');
+                    if (body.split('\n\n').length > 2) {
+                        clearTimeout(timeout);
+                        response.destroy();
+                        resolve({
+                            body,
+                            status: response.statusCode ?? 0,
+                        });
+                    }
+                });
+            },
+        );
+        request.on('error', reject);
+        request.end();
+    });
+
 const requestMcp = async ({
     account,
     method,
     path,
     requestBody,
+    readSseEvents = false,
 }: {
     account: Account;
     method: 'DELETE' | 'GET' | 'POST';
     path?: string;
     requestBody?: Record<string, unknown>;
+    readSseEvents?: boolean;
 }) => {
     const app = express();
     const mcpService = createMcpService();
@@ -139,12 +176,14 @@ const requestMcp = async ({
     const server = app.listen(0);
     servers.push(server);
     const address = server.address() as AddressInfo;
-    const response = await sendHttpRequest({
-        method,
-        path,
-        port: address.port,
-        requestBody,
-    });
+    const response = readSseEvents
+        ? await sendSseRequest({ port: address.port })
+        : await sendHttpRequest({
+              method,
+              path,
+              port: address.port,
+              requestBody,
+          });
 
     return { response, mcpService };
 };
@@ -206,6 +245,21 @@ describe('MCP router OAuth scope authorization', () => {
             expect(mcpService.isEnabled).toHaveBeenCalledOnce();
         },
     );
+});
+
+describe('MCP tool catalogue refresh', () => {
+    it('notifies connected clients to refresh tools without reconnecting', async () => {
+        const { response } = await requestMcp({
+            account: createAccount({ type: 'service-account' }),
+            method: 'GET',
+            readSseEvents: true,
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.body).toContain(
+            'event: message\ndata: {"jsonrpc":"2.0","method":"notifications/tools/list_changed"}',
+        );
+    });
 });
 
 describe('project-scoped MCP route', () => {

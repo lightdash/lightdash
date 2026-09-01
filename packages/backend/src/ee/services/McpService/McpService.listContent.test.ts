@@ -341,6 +341,12 @@ describe('MCP list_content', () => {
         };
 
         expect(result.structuredContent).toEqual({
+            toolAvailability: {
+                runMetricQuery: {
+                    available: true,
+                    reason: 'available',
+                },
+            },
             activeProject: {
                 projectUuid,
                 projectName: 'Project',
