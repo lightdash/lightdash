@@ -92,10 +92,10 @@ const confirmLabelFor = (
     }
 };
 
-// Publishing the homepage also flips every draft announcement live.
-const DraftAnnouncementsCallout: FC<{ projectUuid: string }> = ({
-    projectUuid,
-}) => {
+// Publishing the homepage also flips every draft announcement live. The
+// query stays in the body (mounted while the modal is closed) so the callout
+// is already resolved by the time the modal opens.
+const useDraftAnnouncementCounts = (projectUuid: string) => {
     const { data: announcementsPage } = useAnnouncements(projectUuid, {
         page: 1,
         pageSize: 100,
@@ -104,16 +104,24 @@ const DraftAnnouncementsCallout: FC<{ projectUuid: string }> = ({
     const draftAnnouncements = (announcementsPage?.items ?? []).filter(
         (announcement) => !announcement.published,
     );
-    const queuedSlackCount = draftAnnouncements.filter(
-        (announcement) => announcement.pendingSlackChannelId !== null,
-    ).length;
-    if (draftAnnouncements.length === 0) return null;
+    return {
+        draftCount: draftAnnouncements.length,
+        queuedSlackCount: draftAnnouncements.filter(
+            (announcement) => announcement.pendingSlackChannelId !== null,
+        ).length,
+    };
+};
+
+const DraftAnnouncementsCallout: FC<{
+    draftCount: number;
+    queuedSlackCount: number;
+}> = ({ draftCount, queuedSlackCount }) => {
+    if (draftCount === 0) return null;
     return (
         <Callout variant="warning">
             <Text size="sm">
                 Publishing will also make{' '}
-                {pluralise(draftAnnouncements.length, 'draft announcement')}{' '}
-                live
+                {pluralise(draftCount, 'draft announcement')} live
                 {queuedSlackCount > 0
                     ? ' and send queued Slack notifications'
                     : ''}
@@ -193,6 +201,7 @@ const PublishModalBody: FC<BodyProps> = ({
     assignments,
     reorderGroups,
 }) => {
+    const draftAnnouncements = useDraftAnnouncementCounts(projectUuid);
     const ownAssignments = assignments.filter(
         (assignment) => assignment.homepageUuid === homepageUuid,
     );
@@ -507,7 +516,7 @@ const PublishModalBody: FC<BodyProps> = ({
                     </>
                 )}
 
-                <DraftAnnouncementsCallout projectUuid={projectUuid} />
+                <DraftAnnouncementsCallout {...draftAnnouncements} />
 
                 <Group gap={7} p="10px 12px" className={classes.resolvesBar}>
                     <Text fz={11.5} fw={500} c="ldGray.5">
