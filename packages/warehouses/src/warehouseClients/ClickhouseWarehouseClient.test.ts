@@ -3,7 +3,23 @@ import {
     ClickhouseSqlBuilder,
     ClickhouseTypes,
     convertDataTypeToDimensionType,
+    getMaxOpenConnections,
 } from './ClickhouseWarehouseClient';
+
+describe('getMaxOpenConnections', () => {
+    it('defaults to 10 when concurrency is unknown', () => {
+        expect(getMaxOpenConnections()).toBe(10);
+        expect(getMaxOpenConnections(NaN)).toBe(10);
+    });
+
+    it('matches the given concurrency when larger than the default', () => {
+        expect(getMaxOpenConnections(100)).toBe(100);
+    });
+
+    it('never shrinks below the default', () => {
+        expect(getMaxOpenConnections(1)).toBe(10);
+    });
+});
 
 describe('ClickhouseSqlBuilder', () => {
     const builder = new ClickhouseSqlBuilder();
