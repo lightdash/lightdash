@@ -3,8 +3,22 @@ import {
     type ExternalConnection,
     type ExternalConnectionListItem,
 } from '@lightdash/common';
-import { ActionIcon, Badge, Menu, Paper, Table, Text } from '@mantine/core';
-import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Badge,
+    Button,
+    Menu,
+    Paper,
+    Table,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconDots,
+    IconExternalLink,
+    IconPencil,
+    IconTrash,
+} from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import MantineIcon from '../../common/MantineIcon';
@@ -16,6 +30,9 @@ type Props = {
     >;
     setConnectionToDelete: Dispatch<
         SetStateAction<ExternalConnection | undefined>
+    >;
+    setConnectionToViewUsage: Dispatch<
+        SetStateAction<ExternalConnectionListItem | undefined>
     >;
 };
 
@@ -44,12 +61,26 @@ const accessLabel = (connection: ExternalConnection): string => {
     return methods || '—';
 };
 
+const linkedResourcesLabel = (connection: ExternalConnectionListItem): string =>
+    `${connection.linkedDataAppCount} data app${
+        connection.linkedDataAppCount === 1 ? '' : 's'
+    } and ${connection.linkedChartTypeCount} chart type${
+        connection.linkedChartTypeCount === 1 ? '' : 's'
+    }`;
+
 const ConnectionRow: FC<
     { connection: ExternalConnectionListItem } & Pick<
         Props,
-        'setConnectionToEdit' | 'setConnectionToDelete'
+        | 'setConnectionToEdit'
+        | 'setConnectionToDelete'
+        | 'setConnectionToViewUsage'
     >
-> = ({ connection, setConnectionToEdit, setConnectionToDelete }) => (
+> = ({
+    connection,
+    setConnectionToEdit,
+    setConnectionToDelete,
+    setConnectionToViewUsage,
+}) => (
     <Table.Tr>
         <Table.Td>
             <Text fw={600} fz="sm">
@@ -70,13 +101,34 @@ const ConnectionRow: FC<
             </Text>
         </Table.Td>
         <Table.Td>
-            <Text fz="sm" c="ldGray.6">
-                {connection.linkedDataAppCount}
-                {connection.linkedChartTypeCount > 0 &&
-                    ` (+${connection.linkedChartTypeCount} chart type${
-                        connection.linkedChartTypeCount !== 1 ? 's' : ''
-                    })`}
-            </Text>
+            <Tooltip
+                withinPortal
+                label={`${linkedResourcesLabel(
+                    connection,
+                )}. Click to view the full list.`}
+            >
+                <Button
+                    size="compact-xs"
+                    variant="subtle"
+                    c="ldGray.7"
+                    fw={500}
+                    px={0}
+                    onClick={() => setConnectionToViewUsage(connection)}
+                    rightSection={
+                        <MantineIcon icon={IconExternalLink} size={14} />
+                    }
+                    aria-label={`View ${linkedResourcesLabel(
+                        connection,
+                    )} linked to ${connection.name}`}
+                >
+                    {connection.linkedDataAppCount} data app
+                    {connection.linkedDataAppCount === 1 ? '' : 's'}
+                    {connection.linkedChartTypeCount > 0 &&
+                        ` + ${connection.linkedChartTypeCount} chart type${
+                            connection.linkedChartTypeCount === 1 ? '' : 's'
+                        }`}
+                </Button>
+            </Tooltip>
         </Table.Td>
         <Table.Td>
             <Badge
@@ -124,6 +176,7 @@ export const ConnectionsTable: FC<Props> = ({
     connections,
     setConnectionToEdit,
     setConnectionToDelete,
+    setConnectionToViewUsage,
 }) => {
     return (
         <Paper withBorder style={{ overflow: 'hidden' }}>
@@ -137,7 +190,7 @@ export const ConnectionsTable: FC<Props> = ({
                         <Table.Th>Origin</Table.Th>
                         <Table.Th>Auth</Table.Th>
                         <Table.Th>Access</Table.Th>
-                        <Table.Th>Linked apps</Table.Th>
+                        <Table.Th>Linked to</Table.Th>
                         <Table.Th>Builder linking</Table.Th>
                         <Table.Th></Table.Th>
                     </Table.Tr>
@@ -149,6 +202,7 @@ export const ConnectionsTable: FC<Props> = ({
                             connection={connection}
                             setConnectionToEdit={setConnectionToEdit}
                             setConnectionToDelete={setConnectionToDelete}
+                            setConnectionToViewUsage={setConnectionToViewUsage}
                         />
                     ))}
                 </Table.Tbody>

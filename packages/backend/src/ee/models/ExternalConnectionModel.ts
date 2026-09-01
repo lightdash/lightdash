@@ -3,9 +3,11 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     EXTERNAL_CONNECTION_DEFAULTS,
     generateSlug,
+    getAppDisplayName,
     NotFoundError,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionLinkedApps,
     type ExternalConnectionListItem,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
@@ -13,7 +15,11 @@ import {
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
-import { AppsTableName } from '../../database/entities/apps';
+import {
+    AppsTableName,
+    type DbApp as DbDataApp,
+} from '../../database/entities/apps';
+import { SpaceTableName } from '../../database/entities/spaces';
 import { normalizeCredentialUrlOrigin } from '../../utils/credentialDestination';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
@@ -423,6 +429,88 @@ export class ExternalConnectionModel {
             linkedDataAppCount: Number(row.linked_data_app_count),
             linkedChartTypeCount: Number(row.linked_chart_type_count),
         }));
+    }
+
+    async listLinkedApps(
+        externalConnectionUuid: string,
+    ): Promise<ExternalConnectionLinkedApps> {
+        const rows = await this.database(AppExternalConnectionsTableName)
+            .innerJoin(
+                AppsTableName,
+                `${AppsTableName}.app_id`,
+                `${AppExternalConnectionsTableName}.app_id`,
+            )
+            .leftJoin(SpaceTableName, function spaceJoin() {
+                void this.on(
+                    `${SpaceTableName}.space_uuid`,
+                    '=',
+                    `${AppsTableName}.space_uuid`,
+                ).andOnNull(`${SpaceTableName}.deleted_at`);
+            })
+            .where(
+                `${AppExternalConnectionsTableName}.external_connection_uuid`,
+                externalConnectionUuid,
+            )
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .select<
+                Array<{
+                    app_id: string;
+                    name: string;
+                    slug: string;
+                    template: DbDataApp['template'];
+                    space_uuid: string | null;
+                    space_name: string | null;
+                    alias: string;
+                }>
+            >(
+                `${AppsTableName}.app_id`,
+                `${AppsTableName}.name`,
+                `${AppsTableName}.slug`,
+                `${AppsTableName}.template`,
+                `${AppsTableName}.space_uuid`,
+                `${SpaceTableName}.name as space_name`,
+                `${AppExternalConnectionsTableName}.alias`,
+            )
+            .orderBy(`${AppsTableName}.name`, 'asc')
+            .orderBy(`${AppExternalConnectionsTableName}.alias`, 'asc');
+
+        const linkedApps = new Map<
+            string,
+            ExternalConnectionLinkedApps['items'][number]
+        >();
+
+        rows.forEach((row) => {
+            const existing = linkedApps.get(row.app_id);
+            if (existing) {
+                existing.aliases.push(row.alias);
+                return;
+            }
+
+            linkedApps.set(row.app_id, {
+                appUuid: row.app_id,
+                name: row.name,
+                slug: row.slug,
+                kind:
+                    row.template === DATA_APP_VIZ_TEMPLATE
+                        ? 'project_chart_type'
+                        : 'data_app',
+                spaceUuid: row.space_uuid,
+                spaceName: row.space_name,
+                aliases: [row.alias],
+            });
+        });
+
+        const items = [...linkedApps.values()].sort((left, right) => {
+            if (left.kind !== right.kind) {
+                return left.kind === 'data_app' ? -1 : 1;
+            }
+
+            return getAppDisplayName(left.name, left.appUuid).localeCompare(
+                getAppDisplayName(right.name, right.appUuid),
+            );
+        });
+
+        return { items, total: items.length };
     }
 
     /**

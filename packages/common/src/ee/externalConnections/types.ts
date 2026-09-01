@@ -93,6 +93,28 @@ export type ExternalConnectionListItem = ExternalConnection & {
     linkedChartTypeCount: number;
 };
 
+export type ExternalConnectionLinkedApp = {
+    appUuid: string;
+    name: string;
+    slug: string;
+    kind: 'data_app' | 'project_chart_type';
+    spaceUuid: string | null;
+    spaceName: string | null;
+    aliases: string[];
+};
+
+/** Kept as an object so pagination can be added later without changing the
+ *  endpoint's top-level response shape. */
+export type ExternalConnectionLinkedApps = {
+    items: ExternalConnectionLinkedApp[];
+    total: number;
+};
+
+export type ApiListExternalConnectionLinkedAppsResponse = {
+    status: 'ok';
+    results: ExternalConnectionLinkedApps;
+};
+
 /** WRITE shape — includes the secret. */
 export type CreateExternalConnection = {
     name: string;
