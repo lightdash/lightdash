@@ -514,9 +514,17 @@ export const useUpdateDashboard = (
                     Object.keys(variables).length === 1 &&
                     Object.keys(variables).includes('name');
                 showToastSuccess({
-                    title: `Success! Dashboard ${
-                        onlyUpdatedName ? 'name ' : ''
-                    }was updated.`,
+                    ...(updatedDashboard.hasUnpublishedChanges
+                        ? {
+                              title: 'Dashboard draft saved for review',
+                              subtitle:
+                                  'Only you can see these changes until a reviewer writes them back to the repo.',
+                          }
+                        : {
+                              title: `Success! Dashboard ${
+                                  onlyUpdatedName ? 'name ' : ''
+                              }was updated.`,
+                          }),
                     action: showRedirectButton
                         ? {
                               children: 'Open dashboard',
