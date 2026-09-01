@@ -370,11 +370,9 @@ const destructiveExternalWriteAnnotations: McpToolAnnotations = {
 const emptyInputSchema = z.object({});
 
 const mcpGetContextOutputSchema = z.object({
-    toolAvailability: z.object({
-        runMetricQuery: z.object({
-            available: z.boolean(),
-            reason: z.enum(['available', 'omitted_by_authorization']),
-        }),
+    tools: z.object({
+        available: z.array(z.string()),
+        omitted: z.array(z.string()),
     }),
     activeProject: z
         .object({
@@ -591,7 +589,7 @@ export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
     typeof mcpRunMetricQueryStructuredOutputSchema
 > = defineTool({
     name: 'runQuery',
-    title: 'Run query',
+    title: 'Run metric query',
     description: TOOL_RUN_QUERY_DESCRIPTION,
     availability: ['agent', 'mcp'],
     // MCP contract: formula-only table calcs (template calls fail at the
@@ -616,7 +614,7 @@ export const runQueryFilterExpressionToolDefinition: ToolDefinitionWithMcpOutput
     typeof mcpRunMetricQueryStructuredOutputSchema
 > = defineTool({
     name: 'runQuery',
-    title: 'Run query',
+    title: 'Run metric query',
     description: TOOL_RUN_QUERY_FILTER_EXPRESSION_DESCRIPTION,
     availability: ['agent', 'mcp'],
     // Match the legacy MCP boundary: formula-only table calculations and
@@ -1521,7 +1519,7 @@ export const getContextToolDefinition: ToolDefinitionWithMcpOutput<
     name: 'getContext',
     title: 'Get context',
     description:
-        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. It also reports authorization-based tool availability so clients can distinguish an intentionally omitted tool from stale discovery. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.',
+        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. It also lists every tool registered for this session under tools.available: a tool listed there but missing from your catalogue was lost in client-side discovery, so refresh your tool list instead of substituting another tool. Tools under tools.omitted are intentionally unavailable to you (permissions, organization settings, or a pinned project). Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: {

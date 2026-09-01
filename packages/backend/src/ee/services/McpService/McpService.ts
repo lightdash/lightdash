@@ -460,6 +460,11 @@ const getMcpContext = (
 export class McpService extends BaseService {
     private lightdashConfig: LightdashConfig;
 
+    private readonly registeredToolNames = new WeakMap<
+        McpServer,
+        Set<string>
+    >();
+
     private analytics: LightdashAnalytics;
 
     private asyncQueryService: AsyncQueryService;
@@ -2344,6 +2349,9 @@ export class McpService extends BaseService {
             this.registerCreateScheduledDeliveryTool();
         }
 
+        // setupHandlers swaps this.mcpServer per request, so pin the server
+        // whose registrations this get_context handler reports on.
+        const sessionServer = this.mcpServer;
         this.registerTrackedTool(
             mcpGetContextTool.name,
             {
@@ -2376,17 +2384,7 @@ export class McpService extends BaseService {
                           )
                         : undefined;
                 const structuredContent = {
-                    toolAvailability: {
-                        runMetricQuery: options.runMetricQueryEnabled
-                            ? {
-                                  available: true as const,
-                                  reason: 'available' as const,
-                              }
-                            : {
-                                  available: false as const,
-                                  reason: 'omitted_by_authorization' as const,
-                              },
-                    },
+                    tools: this.getToolInventory(sessionServer),
                     activeProject: activeProject
                         ? {
                               projectUuid: activeProject.projectUuid,
@@ -4201,11 +4199,13 @@ export class McpService extends BaseService {
                 );
             });
 
-            // The SDK auto-advertises `resources.listChanged: true` when
-            // registerResource is called, but we never emit list_changed
-            // notifications. We also declare the skills extension so clients can
+            // The SDK auto-advertises `listChanged: true` for tools and
+            // resources as they are registered, but the transport is stateless
+            // so we never emit list_changed notifications; clients must not
+            // wait for one. We also declare the skills extension so clients can
             // detect built-in skill support.
             mcpServer.server.registerCapabilities({
+                tools: { listChanged: false },
                 resources: { subscribe: false, listChanged: false },
                 // Advertise under both: `extensions` per the final SEP, and
                 // `experimental` for draft-era clients (the de-facto wild form).
@@ -4410,12 +4410,66 @@ export class McpService extends BaseService {
         name,
         config,
         handler,
-    ) =>
-        this.mcpServer.registerTool(
+    ) => {
+        const names =
+            this.registeredToolNames.get(this.mcpServer) ?? new Set<string>();
+        this.registeredToolNames.set(this.mcpServer, names.add(name));
+        return this.mcpServer.registerTool(
             name,
             config,
             this.wrapToolCallback(name, handler),
         );
+    };
+
+    /**
+     * Every tool registered on a session's server, plus every known MCP tool
+     * deliberately left out of it. Lets a caller tell a tool its client never
+     * discovered apart from one it was never offered.
+     */
+    public getToolInventory(server: McpServer): {
+        available: string[];
+        omitted: string[];
+    } {
+        const registered = this.registeredToolNames.get(server) ?? new Set();
+        return {
+            available: Array.from(registered).sort(),
+            omitted: Object.values(McpToolName)
+                .filter((name) => !registered.has(name))
+                .sort(),
+        };
+    }
+
+    /**
+     * Records the catalogue served by a tools/list request as an mcp_tool_call
+     * row, so a session's claimed tool set can be checked against what it was
+     * actually given. Kept out of analytics: it is not tool usage.
+     */
+    public recordToolList(params: {
+        server: McpServer;
+        authInfo: AuthInfo;
+        durationMs: number;
+    }): void {
+        void Promise.resolve()
+            .then(() =>
+                this.persistToolCall({
+                    context: mcpProtocolContextSchema.parse({
+                        authInfo: params.authInfo,
+                    }),
+                    toolName: 'tools/list',
+                    toolArgs: {},
+                    durationMs: params.durationMs,
+                    status: 'success',
+                    errorMessage: null,
+                    resultMetadata: this.getToolInventory(params.server),
+                    trackAnalytics: false,
+                }),
+            )
+            .catch((error) => {
+                this.logger.warn(
+                    `Failed to record MCP tool list: ${getErrorMessage(error)}`,
+                );
+            });
+    }
 
     private wrapToolCallback<
         Callback extends (...cbArgs: AnyType[]) => AnyType,
@@ -4480,28 +4534,9 @@ export class McpService extends BaseService {
     }
 
     // Fire-and-forget: observability must never fail or slow down a tool call
-    private recordToolCall(params: {
-        toolName: string;
-        toolArgs: object;
-        extra: RequestHandlerExtra<ServerRequest, ServerNotification>;
-        durationMs: number;
-        status: 'success' | 'error';
-        errorMessage: string | null;
-    }): void {
-        void this.persistToolCall(params).catch((error) => {
-            this.logger.warn(
-                `Failed to record MCP tool call: ${getErrorMessage(error)}`,
-            );
-        });
-    }
-
-    private async persistToolCall({
-        toolName,
-        toolArgs,
+    private recordToolCall({
         extra,
-        durationMs,
-        status,
-        errorMessage,
+        ...params
     }: {
         toolName: string;
         toolArgs: object;
@@ -4509,8 +4544,42 @@ export class McpService extends BaseService {
         durationMs: number;
         status: 'success' | 'error';
         errorMessage: string | null;
+    }): void {
+        void Promise.resolve()
+            .then(() =>
+                this.persistToolCall({
+                    ...params,
+                    context: getMcpContext(extra),
+                    resultMetadata: null,
+                    trackAnalytics: true,
+                }),
+            )
+            .catch((error) => {
+                this.logger.warn(
+                    `Failed to record MCP tool call: ${getErrorMessage(error)}`,
+                );
+            });
+    }
+
+    private async persistToolCall({
+        context,
+        toolName,
+        toolArgs,
+        durationMs,
+        status,
+        errorMessage,
+        resultMetadata,
+        trackAnalytics,
+    }: {
+        context: McpProtocolContext;
+        toolName: string;
+        toolArgs: object;
+        durationMs: number;
+        status: 'success' | 'error';
+        errorMessage: string | null;
+        resultMetadata: object | null;
+        trackAnalytics: boolean;
     }): Promise<void> {
-        const context = getMcpContext(extra);
         const { user, account, organizationUuid } =
             McpService.getAccount(context);
         const { userAgent, protocolVersion, headerProjectUuid, sessionId } =
@@ -4558,24 +4627,26 @@ export class McpService extends BaseService {
 
         const authType = account.authentication.type;
 
-        this.analytics.track<McpToolCallEvent>({
-            event: 'mcp_tool_call',
-            userId: user.userUuid,
-            properties: {
-                organizationId: organizationUuid,
-                projectId: projectUuid ?? undefined,
-                agentId: agentUuid ?? undefined,
-                toolName,
-                status,
-                durationMs,
-                authType,
-                clientName: clientInfo?.client_name,
-                clientVersion: clientInfo?.client_version ?? undefined,
-                userAgent,
-                protocolVersion,
-                sessionId,
-            },
-        });
+        if (trackAnalytics) {
+            this.analytics.track<McpToolCallEvent>({
+                event: 'mcp_tool_call',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid ?? undefined,
+                    agentId: agentUuid ?? undefined,
+                    toolName,
+                    status,
+                    durationMs,
+                    authType,
+                    clientName: clientInfo?.client_name,
+                    clientVersion: clientInfo?.client_version ?? undefined,
+                    userAgent,
+                    protocolVersion,
+                    sessionId,
+                },
+            });
+        }
 
         await this.mcpToolCallModel.createToolCall({
             organization_uuid: organizationUuid,
@@ -4587,7 +4658,7 @@ export class McpService extends BaseService {
             status,
             error_message: errorMessage,
             duration_ms: durationMs,
-            result_metadata: null,
+            result_metadata: resultMetadata,
             client_name: clientInfo?.client_name ?? null,
             client_version: clientInfo?.client_version ?? null,
             user_agent: userAgent ?? null,

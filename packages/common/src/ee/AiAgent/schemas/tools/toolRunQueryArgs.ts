@@ -271,7 +271,7 @@ export const isCustomChartTypeSlugChartConfig = (
 ): chartConfig is ToolRunQueryCustomChartTypeConfig =>
     !!chartConfig && 'customChartTypeSlug' in chartConfig;
 
-export const TOOL_RUN_QUERY_DESCRIPTION = `Execute a metric query.
+export const TOOL_RUN_QUERY_DESCRIPTION = `Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore.
 
 If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
 

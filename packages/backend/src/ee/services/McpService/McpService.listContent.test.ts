@@ -341,11 +341,9 @@ describe('MCP list_content', () => {
         };
 
         expect(result.structuredContent).toEqual({
-            toolAvailability: {
-                runMetricQuery: {
-                    available: true,
-                    reason: 'available',
-                },
+            tools: {
+                available: expect.arrayContaining(['get_context']),
+                omitted: expect.any(Array),
             },
             activeProject: {
                 projectUuid,

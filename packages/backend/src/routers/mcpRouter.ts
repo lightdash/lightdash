@@ -154,24 +154,29 @@ function extractProtocolVersionFromHeader(
 }
 
 /**
- * Only single-message bodies are inspected: an initialize inside a JSON-RPC
- * batch array is missed (batching was removed in protocol 2025-06-18, so this
- * only affects older clients).
+ * Only single-message bodies are inspected: a method inside a JSON-RPC batch
+ * array is missed (batching was removed in protocol 2025-06-18, so this only
+ * affects older clients).
  */
-function isInitializeRequest(req: express.Request): boolean {
+function getJsonRpcMethod(req: express.Request): string | undefined {
     const { body }: { body: unknown } = req;
-    return (
-        typeof body === 'object' &&
+    return typeof body === 'object' &&
         body !== null &&
         'method' in body &&
-        body.method === 'initialize'
-    );
+        typeof body.method === 'string'
+        ? body.method
+        : undefined;
+}
+
+function isInitializeRequest(req: express.Request): boolean {
+    return getJsonRpcMethod(req) === 'initialize';
+}
+
+function isToolsListRequest(req: express.Request): boolean {
+    return getJsonRpcMethod(req) === 'tools/list';
 }
 
 const MCP_SESSION_ID_HEADER = 'Mcp-Session-Id';
-const MCP_TOOL_CATALOGUE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
-const MCP_TOOL_LIST_CHANGED_EVENT =
-    'event: message\ndata: {"jsonrpc":"2.0","method":"notifications/tools/list_changed"}\n\n';
 
 /**
  * The transport is stateless, so the session id is purely an analytics
@@ -302,20 +307,14 @@ mcpRouter.all(
                 const heartbeat = setInterval(() => {
                     res.write('event: heartbeat\ndata: {}\n\n');
                 }, 30000);
-                const catalogueRefresh = setInterval(() => {
-                    res.write(MCP_TOOL_LIST_CHANGED_EVENT);
-                }, MCP_TOOL_CATALOGUE_REFRESH_INTERVAL_MS);
 
                 // Clean up on connection close
                 req.on('close', () => {
                     clearInterval(heartbeat);
-                    clearInterval(catalogueRefresh);
                 });
 
-                // Connected clients refresh immediately and periodically, so a
-                // stale catalogue recovers without a full MCP reconnect.
+                // Send initial connection event
                 res.write('event: connect\ndata: {"type": "connect"}\n\n');
-                res.write(MCP_TOOL_LIST_CHANGED_EVENT);
                 return await Promise.resolve();
             }
 
@@ -484,7 +483,16 @@ mcpRouter.all(
                     };
                 }
 
-                return await transport.handleRequest(authReq, res, req.body);
+                const startedAt = Date.now();
+                await transport.handleRequest(authReq, res, req.body);
+                if (authReq.auth && isToolsListRequest(req)) {
+                    mcpService.recordToolList({
+                        server: mcpServer,
+                        authInfo: authReq.auth,
+                        durationMs: Date.now() - startedAt,
+                    });
+                }
+                return undefined;
             }
 
             res.status(405).json({ error: 'Method not allowed' });

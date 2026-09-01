@@ -270,23 +270,11 @@ describe('McpService route_agent', () => {
     });
 
     it.each([
-        {
-            runMetricQueryEnabled: true,
-            expectedAvailability: {
-                available: true,
-                reason: 'available',
-            },
-        },
-        {
-            runMetricQueryEnabled: false,
-            expectedAvailability: {
-                available: false,
-                reason: 'omitted_by_authorization',
-            },
-        },
+        { runMetricQueryEnabled: true, expectedIn: 'available' as const },
+        { runMetricQueryEnabled: false, expectedIn: 'omitted' as const },
     ])(
-        'reports metric-query availability when enabled is $runMetricQueryEnabled',
-        async ({ runMetricQueryEnabled, expectedAvailability }) => {
+        'get_context lists run_metric_query under $expectedIn when enabled is $runMetricQueryEnabled',
+        async ({ runMetricQueryEnabled, expectedIn }) => {
             const { service } = makeMcpService();
             await service.createServer({ runMetricQueryEnabled });
             const getContextTool = mockRegisteredMcpTools.get(
@@ -295,18 +283,19 @@ describe('McpService route_agent', () => {
 
             const result = (await getContextTool!({}, extra)) as {
                 structuredContent: {
-                    toolAvailability: {
-                        runMetricQuery: {
-                            available: boolean;
-                            reason: string;
-                        };
-                    };
+                    tools: { available: string[]; omitted: string[] };
                 };
             };
+            const { tools } = result.structuredContent;
 
-            expect(
-                result.structuredContent.toolAvailability.runMetricQuery,
-            ).toEqual(expectedAvailability);
+            expect(tools[expectedIn]).toContain(McpToolName.RUN_METRIC_QUERY);
+            expect(tools.available).toContain(McpToolName.GET_CONTEXT);
+            expect(tools.available).not.toEqual(
+                expect.arrayContaining(tools.omitted),
+            );
+            expect([...tools.available, ...tools.omitted].sort()).toEqual(
+                expect.arrayContaining(Object.values(McpToolName)),
+            );
         },
     );
 

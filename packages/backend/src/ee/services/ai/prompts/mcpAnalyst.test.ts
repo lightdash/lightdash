@@ -9,6 +9,18 @@ describe('getMcpAnalystPrompt', () => {
         expect(prompt).not.toContain('Saved Content Mode');
     });
 
+    it('tells the model to refresh a stale catalogue instead of substituting run_sql', () => {
+        const prompt = getMcpAnalystPrompt({
+            runSqlEnabled: true,
+            runMetricQueryEnabled: true,
+        });
+
+        expect(prompt).toContain('tools.available');
+        expect(prompt).toContain(
+            'never substitute `run_sql` for a missing `run_metric_query`',
+        );
+    });
+
     it('returns the query-building workflow when only run_sql is disabled', () => {
         const prompt = getMcpAnalystPrompt({
             runSqlEnabled: false,

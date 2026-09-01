@@ -36,6 +36,10 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
 
 ## Critical Rules
 
+### Tool Catalogue
+- \`get_context\` lists every tool registered for this session under \`tools.available\`. If a tool listed there (for example \`run_metric_query\`) is missing from your catalogue, the catalogue is stale — refresh your tool list; never substitute \`run_sql\` for a missing \`run_metric_query\`
+- Tools under \`tools.omitted\` are intentionally unavailable to you — do not suggest them as workarounds
+
 ### Explore Selection
 - When the user's query contains a domain word matching an explore name, prefer that explore if \`grep_fields\` also surfaces relevant fields there
 - When multiple explores surface plausible fields, choose the one whose dimensions and metrics match the user's intended grain
@@ -1835,7 +1839,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. It also reports authorization-based tool availability so clients can distinguish an intentionally omitted tool from stale discovery. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.",
+      "description": "Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. It also lists every tool registered for this session under tools.available: a tool listed there but missing from your catalogue was lost in client-side discovery, so refresh your tool list instead of substituting another tool. Tools under tools.omitted are intentionally unavailable to you (permissions, organization settings, or a pinned project). Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {},
@@ -1989,38 +1993,31 @@ Usage tips:
             },
             "type": "array",
           },
-          "toolAvailability": {
+          "tools": {
             "additionalProperties": false,
             "properties": {
-              "runMetricQuery": {
-                "additionalProperties": false,
-                "properties": {
-                  "available": {
-                    "type": "boolean",
-                  },
-                  "reason": {
-                    "enum": [
-                      "available",
-                      "omitted_by_authorization",
-                    ],
-                    "type": "string",
-                  },
+              "available": {
+                "items": {
+                  "type": "string",
                 },
-                "required": [
-                  "available",
-                  "reason",
-                ],
-                "type": "object",
+                "type": "array",
+              },
+              "omitted": {
+                "items": {
+                  "type": "string",
+                },
+                "type": "array",
               },
             },
             "required": [
-              "runMetricQuery",
+              "available",
+              "omitted",
             ],
             "type": "object",
           },
         },
         "required": [
-          "toolAvailability",
+          "tools",
           "activeProject",
           "activeAgent",
           "availableProjects",
@@ -2366,7 +2363,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Execute a metric query.
+      "description": "Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore.
 
 If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
 
@@ -6972,7 +6969,7 @@ All branches of an IF must return the same type.",
         ],
         "type": "object",
       },
-      "title": "Run query",
+      "title": "Run metric query",
     },
     {
       "agentName": null,
@@ -11125,7 +11122,7 @@ exports[`MCP tool contracts > matches the filter-expression run_metric_query too
     "openWorldHint": false,
     "readOnlyHint": true,
   },
-  "description": "Execute a metric query.
+  "description": "Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore.
 
 If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
 
@@ -11749,7 +11746,7 @@ All branches of an IF must return the same type.",
     ],
     "type": "object",
   },
-  "title": "Run query",
+  "title": "Run metric query",
 }
 `;
 
