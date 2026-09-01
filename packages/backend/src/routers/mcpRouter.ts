@@ -376,6 +376,7 @@ mcpRouter.all(
                     scheduledDeliveryEnabled,
                     runSqlEnabled,
                     runMetricQueryEnabled,
+                    filterExpressionsEnabled,
                 ] = await Promise.all([
                     mcpService.isContentToolsEnabled(req.user!),
                     mcpService.isCreateScheduledDeliveryEnabled(req.user!),
@@ -384,6 +385,7 @@ mcpRouter.all(
                         req.user!,
                         pinnedProjectUuid,
                     ),
+                    mcpService.isFilterExpressionsEnabled(req.user!),
                 ]);
                 const mcpServer = await mcpService.createServer({
                     projectPinned: pinnedProjectUuid !== undefined,
@@ -394,6 +396,7 @@ mcpRouter.all(
                     scheduledDeliveryEnabled,
                     runSqlEnabled,
                     runMetricQueryEnabled,
+                    filterExpressionsEnabled,
                 });
                 const transport = new StreamableHTTPServerTransport({
                     enableJsonResponse: true,

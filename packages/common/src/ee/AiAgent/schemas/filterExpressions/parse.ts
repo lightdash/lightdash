@@ -13,9 +13,9 @@ import { FILTER_EXPRESSION_MIXED_CONNECTORS_CODE } from './grammar';
 import { filterExpressionParser } from './parser';
 
 export const FILTER_EXPRESSION_MAX_LENGTH = 16_384;
-export const FILTER_EXPRESSION_MAX_RULES = 100;
-export const FILTER_EXPRESSION_MAX_VALUES_PER_RULE = 100;
-export const FILTER_EXPRESSION_MAX_LITERAL_LENGTH = 4_096;
+export const FILTER_EXPRESSION_MAX_RULES = 256;
+export const FILTER_EXPRESSION_MAX_VALUES_PER_RULE = 256;
+export const FILTER_EXPRESSION_MAX_LITERAL_LENGTH = 256;
 
 const generatedMixedConnectorsResultSchema = z
     .object({

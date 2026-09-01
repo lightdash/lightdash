@@ -70,6 +70,7 @@ import {
     resolveUrlToolDefinition,
     routeAgentToolDefinition,
     runAiWritebackToolDefinition,
+    runQueryFilterExpressionToolDefinition,
     runQueryToolDefinition,
     runSqlToolDefinition,
     searchFieldValuesToolDefinition,
@@ -80,9 +81,12 @@ import {
     toolRenderChartArgsSchemaTransformed,
     ToolRenderChartArgsTransformed,
     toolRunQueryArgsSchemaTransformed,
-    ToolRunQueryArgsTransformed,
+    toolRunQueryExpressionArgsSchemaV2Mcp,
     UnexpectedServerError,
     UserAttributeValueMap,
+    type ToolRunQueryArgsTransformed,
+    type ToolRunQueryArgsV2,
+    type ToolRunQueryExpressionArgsMcp,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
@@ -154,6 +158,10 @@ import {
 } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
 import { formatToolJsonOutput } from '../ai/tools/toolOutputFormat';
+import {
+    formatFilterExpressionError,
+    resolveFilterExpressionArgs,
+} from '../ai/utils/filterExpressions';
 import { getPivotedResults } from '../ai/utils/getPivotedResults';
 import {
     expandMetricsWithPopAdditionalMetrics,
@@ -322,6 +330,9 @@ const mcpGetCurrentAgentTool = withProjectUuidInput(
 const mcpRunMetricQueryTool = withProjectScopeInput(
     runQueryToolDefinition.for('mcp'),
 );
+const mcpRunMetricQueryFilterExpressionTool = withProjectScopeInput(
+    runQueryFilterExpressionToolDefinition.for('mcp'),
+);
 const mcpRenderChartTool = withProjectScopeInput(
     renderChartToolDefinition.for('mcp'),
 );
@@ -383,6 +394,14 @@ type McpEffectiveScope = {
     spaceAccess: string[] | null;
     agentUuid: string | null;
     agentName: string | null;
+};
+
+type McpRunMetricQueryArgs = (
+    | ToolRunQueryArgsV2
+    | ToolRunQueryExpressionArgsMcp
+) & {
+    projectUuid: string;
+    agentUuid?: string;
 };
 
 // Narrows the SDK's loosely-typed `RequestHandlerExtra` into the shape the
@@ -1886,6 +1905,7 @@ export class McpService extends BaseService {
             scheduledDeliveryEnabled: boolean;
             runSqlEnabled: boolean;
             runMetricQueryEnabled: boolean;
+            filterExpressionsEnabled: boolean;
         } = {
             projectPinned: false,
             aiWritebackEnabled: false,
@@ -1893,6 +1913,7 @@ export class McpService extends BaseService {
             scheduledDeliveryEnabled: true,
             runSqlEnabled: false,
             runMetricQueryEnabled: true,
+            filterExpressionsEnabled: false,
         },
     ): void {
         this.registerTrackedTool(
@@ -2876,16 +2897,25 @@ export class McpService extends BaseService {
         );
 
         if (options.runMetricQueryEnabled) {
+            const runMetricQueryTool = options.filterExpressionsEnabled
+                ? mcpRunMetricQueryFilterExpressionTool
+                : mcpRunMetricQueryTool;
             this.registerTrackedTool(
-                mcpRunMetricQueryTool.name,
+                runMetricQueryTool.name,
                 {
-                    title: mcpRunMetricQueryTool.title,
-                    description: mcpRunMetricQueryTool.description,
-                    inputSchema: mcpRunMetricQueryTool.inputSchema.shape,
-                    outputSchema: mcpRunMetricQueryTool.outputSchema,
-                    annotations: mcpRunMetricQueryTool.annotations,
+                    title: runMetricQueryTool.title,
+                    description: runMetricQueryTool.description,
+                    inputSchema: runMetricQueryTool.inputSchema.shape,
+                    outputSchema: runMetricQueryTool.outputSchema,
+                    annotations: runMetricQueryTool.annotations,
                 },
-                async (args, extra) => {
+                async (
+                    args: McpRunMetricQueryArgs,
+                    extra: RequestHandlerExtra<
+                        ServerRequest,
+                        ServerNotification
+                    >,
+                ) => {
                     const ctx = getMcpContext(extra);
 
                     const projectUuid = await this.resolveToolProjectUuid(
@@ -2898,10 +2928,47 @@ export class McpService extends BaseService {
                         const deadlineMs =
                             Date.now() + McpService.getMcpQueryWaitMs(extra);
                         const { account } = McpService.getAccount(ctx);
-                        const queryTool =
-                            toolRunQueryArgsSchemaTransformed.parse(
-                                argsWithProject,
+                        let queryTool: ToolRunQueryArgsTransformed;
+                        if (options.filterExpressionsEnabled) {
+                            const expressionToolArgs =
+                                toolRunQueryExpressionArgsSchemaV2Mcp.parse(
+                                    argsWithProject,
+                                );
+                            const toolsRuntime = await this.getToolsRuntime(
+                                ctx,
+                                projectUuid,
+                                args.agentUuid,
                             );
+                            // Model Context Protocol (MCP) does not advertise
+                            // mergeConfig; resolution consumes one normalized
+                            // current shape after the boundary parse.
+                            const resolution =
+                                await resolveFilterExpressionArgs({
+                                    toolArgs: {
+                                        ...expressionToolArgs,
+                                        mergeConfig: null,
+                                    },
+                                    getExplore: async (exploreName) =>
+                                        unwrapMcpRuntimeResult(
+                                            await toolsRuntime.getExplore({
+                                                table: exploreName,
+                                            }),
+                                        ),
+                                });
+                            if (!resolution.success) {
+                                return runMetricQueryTool.result.error(
+                                    formatFilterExpressionError(
+                                        resolution.error,
+                                    ),
+                                );
+                            }
+                            queryTool = resolution.data.transformed;
+                        } else {
+                            queryTool =
+                                toolRunQueryArgsSchemaTransformed.parse(
+                                    argsWithProject,
+                                );
+                        }
                         const {
                             query,
                             userAttributeOverrides,
@@ -3922,6 +3989,7 @@ export class McpService extends BaseService {
         scheduledDeliveryEnabled?: boolean;
         runSqlEnabled?: boolean;
         runMetricQueryEnabled?: boolean;
+        filterExpressionsEnabled?: boolean;
     }): Promise<McpServer> {
         const newServer = this.buildMcpServer({
             runSqlEnabled: options?.runSqlEnabled ?? false,
@@ -3940,6 +4008,8 @@ export class McpService extends BaseService {
             scheduledDeliveryEnabled: options?.scheduledDeliveryEnabled ?? true,
             runSqlEnabled: options?.runSqlEnabled ?? false,
             runMetricQueryEnabled: options?.runMetricQueryEnabled ?? false,
+            filterExpressionsEnabled:
+                options?.filterExpressionsEnabled ?? false,
         });
         this.mcpServer = originalServer;
 
@@ -4166,6 +4236,16 @@ export class McpService extends BaseService {
             settingEnabled &&
             this.createAuditedAbility(user).can('create', 'ScheduledDeliveries')
         );
+    }
+
+    public async isFilterExpressionsEnabled(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiFilterExpressions,
+        });
+        return enabled;
     }
 
     /**
