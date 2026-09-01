@@ -1,5 +1,5 @@
 import { lightdashDbtYamlSchema } from '@lightdash/common';
-import { Box, Loader, Stack, Text, useMantineColorScheme } from '@mantine/core';
+import { Box, Loader, Stack, Text } from '@mantine/core';
 import { IconFileOff } from '@tabler/icons-react';
 import type { editor } from 'monaco-editor';
 import { configureMonacoYaml } from 'monaco-yaml';
@@ -10,6 +10,7 @@ import Editor, {
     type Monaco,
     type OnMount,
 } from '../../../../components/MonacoEditor';
+import { useEditorTheme } from '../../../../hooks/useEditorTheme';
 import {
     getLightdashMonacoTheme,
     MONACO_DEFAULT_OPTIONS,
@@ -62,7 +63,7 @@ const CodeEditorPane: FC<CodeEditorPaneProps> = ({
     onSave,
     onCreatePR,
 }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const { monaco: monacoTheme } = useEditorTheme();
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
     const monacoRef = useRef<Monaco | null>(null);
 
@@ -76,11 +77,10 @@ const CodeEditorPane: FC<CodeEditorPaneProps> = ({
     // Update Monaco theme when color scheme changes
     useEffect(() => {
         if (monacoRef.current) {
-            const themeName =
-                colorScheme === 'dark' ? 'lightdash-dark' : 'lightdash-light';
+            const themeName = monacoTheme;
             monacoRef.current.editor.setTheme(themeName);
         }
-    }, [colorScheme]);
+    }, [monacoTheme]);
 
     const handleBeforeMount: BeforeMount = useCallback((monaco) => {
         // Define both light and dark themes
@@ -167,11 +167,7 @@ const CodeEditorPane: FC<CodeEditorPaneProps> = ({
                         height="100%"
                         language={language}
                         value={content}
-                        theme={
-                            colorScheme === 'dark'
-                                ? 'lightdash-dark'
-                                : 'lightdash-light'
-                        }
+                        theme={monacoTheme}
                         options={editorOptions}
                         beforeMount={handleBeforeMount}
                         onMount={handleEditorMount}

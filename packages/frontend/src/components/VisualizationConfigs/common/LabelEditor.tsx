@@ -1,4 +1,4 @@
-import { Input, Paper, Text, useMantineColorScheme } from '@mantine/core';
+import { Input, Paper, Text } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { type IDisposable, type languages } from 'monaco-editor';
 import {
@@ -12,6 +12,8 @@ import {
 } from 'react';
 import { useDeepCompareEffect } from 'react-use';
 import { getLightdashMonacoTheme } from '../../../features/sqlRunner/utils/monaco';
+import { useEditorTheme } from '../../../hooks/useEditorTheme';
+import '../../../styles/monaco.css';
 import {
     Editor,
     type BeforeMount,
@@ -19,7 +21,6 @@ import {
     type Monaco,
     type OnMount,
 } from '../../MonacoEditor';
-import '../../../styles/monaco.css';
 import styles from './LabelEditor.module.css';
 
 const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
@@ -123,7 +124,7 @@ export const LabelEditor: FC<LabelEditorProps> = ({
         [reactId],
     );
 
-    const { colorScheme } = useMantineColorScheme();
+    const { monaco: monacoTheme } = useEditorTheme();
     const [localValue, setLocalValue] = useState(value);
     const [debouncedValue] = useDebouncedValue(localValue, 500);
     const contentDisposableRef = useRef<IDisposable | null>(null);
@@ -240,11 +241,7 @@ export const LabelEditor: FC<LabelEditorProps> = ({
                     language={languageId}
                     height={`${editorHeight}px`}
                     width="100%"
-                    theme={
-                        colorScheme === 'dark'
-                            ? 'lightdash-dark'
-                            : 'lightdash-light'
-                    }
+                    theme={monacoTheme}
                     wrapperProps={{
                         id: 'label-editor',
                     }}

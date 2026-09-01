@@ -10,7 +10,6 @@ import {
     Flex,
     ScrollArea,
     Text,
-    useComputedColorScheme,
     useMantineTheme,
 } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
@@ -24,13 +23,14 @@ import {
     AiTableCalculationInputBody,
 } from '../../../ee/features/ambientAi/components/tableCalculation';
 import { useAmbientAiEnabled } from '../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
+import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useTableCalculationAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
 import { type TableCalculationForm } from '../types';
 import FormulaConversionPreviewBody from './FormulaConversionPreview';
-import classes from './SqlForm.module.css';
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
 import 'ace-builds/src-noconflict/theme-tomorrow_night';
+import classes from './SqlForm.module.css';
 
 const SQL_PLACEHOLDER = '${table_name.field_name} + ${table_name.metric_name}';
 const SOFT_WRAP_LOCAL_STORAGE_KEY = 'lightdash-sql-form-soft-wrap';
@@ -105,7 +105,7 @@ export const SqlForm: FC<Props> = ({
     conversionState,
 }) => {
     const theme = useMantineTheme();
-    const colorScheme = useComputedColorScheme();
+    const { ace: aceTheme } = useEditorTheme();
     const [isSoftWrapEnabled, setSoftWrapEnabled] = useLocalStorage({
         key: SOFT_WRAP_LOCAL_STORAGE_KEY,
         defaultValue: true,
@@ -207,7 +207,7 @@ export const SqlForm: FC<Props> = ({
             >
                 <SqlEditor
                     mode="sql"
-                    theme={colorScheme === 'dark' ? 'tomorrow_night' : 'github'}
+                    theme={aceTheme}
                     width="100%"
                     placeholder={SQL_PLACEHOLDER}
                     maxLines={Infinity}

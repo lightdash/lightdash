@@ -1,4 +1,4 @@
-import { Center, Loader, useComputedColorScheme } from '@mantine/core';
+import { Center, Loader } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
 import isEmpty from 'lodash/isEmpty';
@@ -13,6 +13,7 @@ import Editor, {
 } from '../../../components/MonacoEditor';
 import { useParameters } from '../../../hooks/parameters/useParameters';
 import '../../../styles/monaco.css';
+import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useDetectedTableFields } from '../hooks/useDetectedTableFields';
 import { useSqlEditorPreferences } from '../hooks/useSqlEditorPreferences';
 import { useTableFields } from '../hooks/useTableFields';
@@ -47,7 +48,7 @@ export const SqlEditor: FC<{
     highlightText?: MonacoHighlightLine;
     resetHighlightError?: () => void;
 }> = ({ onSubmit, highlightText, resetHighlightError }) => {
-    const colorScheme = useComputedColorScheme();
+    const { monaco: monacoTheme } = useEditorTheme();
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const dispatch = useAppDispatch();
     const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
@@ -292,9 +293,7 @@ export const SqlEditor: FC<{
             value={sql}
             onChange={onChange}
             options={MONACO_DEFAULT_OPTIONS}
-            theme={
-                colorScheme === 'dark' ? 'lightdash-dark' : 'lightdash-light'
-            }
+            theme={monacoTheme}
         />
     );
 };
