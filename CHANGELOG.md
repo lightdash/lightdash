@@ -1,3 +1,10 @@
+# [2.75.0](https://github.com/lightdash/lightdash/compare/2.74.0...2.75.0) (2026-09-01)
+
+
+### Features
+
+* **data-apps:** link external connections from settings ([#28406](https://github.com/lightdash/lightdash/issues/28406)) ([0e0a8f2](https://github.com/lightdash/lightdash/commit/0e0a8f2114959f8fb9abdc13a98d32acae47dd4a))
+
 # [2.74.0](https://github.com/lightdash/lightdash/compare/2.73.0...2.74.0) (2026-09-01)
 
 
