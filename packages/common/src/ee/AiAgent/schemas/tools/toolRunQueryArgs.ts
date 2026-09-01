@@ -22,7 +22,7 @@ import {
 import { mcpAsyncQueryUuidSchema } from './toolQueryResultSchemas';
 
 // Query configuration schema - what data to fetch
-const queryConfigBaseSchema = z.object({
+export const queryConfigBaseSchema = z.object({
     exploreName: z
         .string()
         .describe(
@@ -85,7 +85,7 @@ const queryConfigSchemaV4 = queryConfigSchemaV2.extend({
     tableCalculations: formulaTableCalcsSchema,
 });
 
-const mergeSourceQueryConfigSchema = queryConfigSchemaV2
+export const mergeSourceQueryConfigSchema = queryConfigSchemaV2
     .omit({
         limit: true,
         parameters: true,
@@ -95,7 +95,7 @@ const mergeSourceQueryConfigSchema = queryConfigSchemaV2
         'A second semantic-layer query. The primary query limit and parameter values apply to the whole merge.',
     );
 
-const mergeConfigSchema = z
+export const mergeConfigSchema = z
     .object({
         primarySourceId: z
             .string()
@@ -249,7 +249,7 @@ const chartConfigCustomChartTypeSchema = z.object({
 // persisted tool args alike: builtin viz config | custom chart type slug.
 // Server-derived custom chart type data (dataAppVizUuid) never lives inside
 // chartConfig; it sits beside the verbatim tool args in the artifact envelope.
-const chartConfigSchema = z
+export const chartConfigSchema = z
     .union([chartConfigBuiltinSchema, chartConfigCustomChartTypeSchema])
     .nullable();
 

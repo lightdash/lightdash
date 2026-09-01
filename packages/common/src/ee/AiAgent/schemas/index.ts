@@ -29,6 +29,7 @@ import {
 
 export * from './customMetrics';
 export * from './defineTool';
+export * from './filterExpressions';
 export * from './filters';
 export * from './McpSchemaCompatLayer';
 export * from './outputMetadata';
