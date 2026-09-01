@@ -493,7 +493,10 @@ export const migrateRunQueryArgsV1ToV2 = (
     },
 });
 
-// Single entry point for re-parsing a persisted artifact of either version.
+// Existing persisted filter formats have one shared connector across every
+// category, so they cannot represent dimensions using AND while metrics use
+// OR. Keep this parser unchanged for existing records; the wider persistence
+// boundary handles the per-category filter-expression format separately.
 export const parsePersistedRunQueryArgs = (
     raw: unknown,
 ): ToolRunQueryArgsTransformed | null => {

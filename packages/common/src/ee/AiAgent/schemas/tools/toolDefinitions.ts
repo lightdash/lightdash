@@ -23,6 +23,13 @@ import {
     type ToolDefinitionWithoutMcpOutput,
 } from '../defineTool';
 import {
+    FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
+    toolRunQueryExpressionArgsSchema,
+    toolRunQueryExpressionArgsSchemaV2Mcp,
+    toolRunQueryExpressionArgsSchemaV2RejectingMerge,
+    type toolRunQueryExpressionArgsSchemaV2FormulaOnly,
+} from '../filterExpressions';
+import {
     MCP_TOOL_LIST_EXPLORES_DESCRIPTION,
     mcpToolListExploresArgsSchema,
 } from './mcpToolListExploresArgs';
@@ -531,6 +538,23 @@ export const generateVisualizationToolDefinition: ToolDefinitionWithoutMcpOutput
     agent: { outputSchema: toolRunQueryOutputSchema },
 });
 
+const TOOL_RUN_QUERY_FILTER_EXPRESSION_DESCRIPTION = `${TOOL_RUN_QUERY_DESCRIPTION}\nFilter expression syntax:\n${FILTER_EXPRESSION_GRAMMAR_DESCRIPTION}`;
+
+export const generateVisualizationFilterExpressionToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'generateVisualization',
+    typeof toolRunQueryExpressionArgsSchema,
+    typeof toolRunQueryExpressionArgsSchema,
+    typeof toolRunQueryOutputSchema
+> = defineTool({
+    name: 'generateVisualization',
+    title: 'Generate visualization',
+    description: TOOL_RUN_QUERY_FILTER_EXPRESSION_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolRunQueryExpressionArgsSchema,
+    inputSchemaTransformed: toolRunQueryExpressionArgsSchema,
+    agent: { outputSchema: toolRunQueryOutputSchema },
+});
+
 export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
     'runQuery',
     typeof toolRunQueryArgsSchemaV2Mcp,
@@ -556,6 +580,29 @@ export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
+export const runQueryFilterExpressionToolDefinition: ToolDefinitionWithMcpOutput<
+    'runQuery',
+    typeof toolRunQueryExpressionArgsSchemaV2Mcp,
+    typeof toolRunQueryExpressionArgsSchemaV2Mcp,
+    typeof toolRunQueryOutputSchema,
+    typeof mcpRunMetricQueryStructuredOutputSchema
+> = defineTool({
+    name: 'runQuery',
+    title: 'Run query',
+    description: TOOL_RUN_QUERY_FILTER_EXPRESSION_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    // Match the legacy MCP boundary: formula-only table calculations and
+    // builtin chart configs. Persisted expression V2 parsing remains wide.
+    inputSchema: toolRunQueryExpressionArgsSchemaV2Mcp,
+    inputSchemaTransformed: toolRunQueryExpressionArgsSchemaV2Mcp,
+    agent: { outputSchema: toolRunQueryOutputSchema },
+    mcp: {
+        name: 'run_metric_query',
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpRunMetricQueryStructuredOutputSchema,
+    },
+});
+
 // The agent view of runQuery for runtimes without merge queries: identical
 // contract, but a merge-shaped payload fails validation instead of being
 // stripped to the primary query by Zod. Lazy, like `.for('agent')`.
@@ -567,6 +614,18 @@ export const getRunQueryAgentViewRejectingMerge = (): AgentToolView<
     ...runQueryToolDefinition.for('agent'),
     inputSchema: createAgentInputSchema(toolRunQueryArgsSchemaV2RejectingMerge),
 });
+
+export const getRunQueryFilterExpressionAgentViewRejectingMerge =
+    (): AgentToolView<
+        'runQuery',
+        typeof toolRunQueryExpressionArgsSchemaV2FormulaOnly,
+        typeof toolRunQueryOutputSchema
+    > => ({
+        ...runQueryFilterExpressionToolDefinition.for('agent'),
+        inputSchema: createAgentInputSchema(
+            toolRunQueryExpressionArgsSchemaV2RejectingMerge,
+        ),
+    });
 
 export const runSqlToolDefinition: ToolDefinitionWithMcpOutput<
     'runSql',

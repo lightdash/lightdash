@@ -9,6 +9,7 @@ import {
     filterExpressionResolvedFiltersSchema,
     filterExpressionResolvedFiltersSchemaTransformed,
     filterExpressionResolvedFiltersSchemaV1,
+    filterExpressionResolvedFiltersSchemaV2,
     toolRunQueryExpressionResolvedArgsSchema,
     toolRunQueryExpressionResolvedArgsSchemaTransformed,
 } from './resolvedArgs';
@@ -46,7 +47,6 @@ const tableCalculationRule = {
 };
 
 const perCategoryFilters = {
-    schemaVersion: 1,
     dimensions: {
         connector: 'and',
         rules: [stringRule, secondStringRule],
@@ -81,33 +81,47 @@ const withoutGeneratedIds = (value: unknown): unknown => {
 };
 
 describe('filterExpressionResolvedFiltersSchema', () => {
-    it('parses the strict per-category V1 shape', () => {
+    it('parses the strict per-category V2 shape', () => {
         expect(
-            filterExpressionResolvedFiltersSchemaV1.parse(perCategoryFilters),
+            filterExpressionResolvedFiltersSchemaV2.parse(perCategoryFilters),
         ).toEqual(perCategoryFilters);
     });
 
-    it('rejects malformed V1 payloads instead of stripping them', () => {
+    it('keeps an all-null V1 payload out of the strict V2 parser', () => {
+        const allNullV1 = {
+            type: 'and',
+            dimensions: null,
+            metrics: null,
+            tableCalculations: null,
+        };
+
         expect(
-            filterExpressionResolvedFiltersSchemaV1.safeParse({
-                ...perCategoryFilters,
-                schemaVersion: 2,
-            }).success,
+            filterExpressionResolvedFiltersSchemaV2.safeParse(allNullV1)
+                .success,
         ).toBe(false);
         expect(
-            filterExpressionResolvedFiltersSchemaV1.safeParse({
+            filterExpressionResolvedFiltersSchemaV1.parse(allNullV1),
+        ).toEqual(allNullV1);
+        expect(filterExpressionResolvedFiltersSchema.parse(allNullV1)).toEqual(
+            allNullV1,
+        );
+    });
+
+    it('rejects malformed V2 payloads instead of stripping them', () => {
+        expect(
+            filterExpressionResolvedFiltersSchemaV2.safeParse({
                 ...perCategoryFilters,
                 unknownKey: true,
             }).success,
         ).toBe(false);
         expect(
-            filterExpressionResolvedFiltersSchemaV1.safeParse({
+            filterExpressionResolvedFiltersSchemaV2.safeParse({
                 ...perCategoryFilters,
                 dimensions: { connector: 'and', rules: [] },
             }).success,
         ).toBe(false);
         expect(
-            filterExpressionResolvedFiltersSchemaV1.safeParse({
+            filterExpressionResolvedFiltersSchemaV2.safeParse({
                 ...perCategoryFilters,
                 tableCalculations: {
                     connector: 'and',
@@ -117,13 +131,13 @@ describe('filterExpressionResolvedFiltersSchema', () => {
         ).toBe(false);
     });
 
-    it('still parses the legacy shared-connector object unchanged', () => {
+    it('still parses the V1 shared-connector object unchanged', () => {
         expect(
             filterExpressionResolvedFiltersSchema.parse(legacyFilters),
         ).toEqual(legacyFilters);
     });
 
-    it('normalizes V1 payloads to independent domain filter groups', () => {
+    it('normalizes V2 payloads to independent domain filter groups', () => {
         const filters =
             filterExpressionResolvedFiltersSchemaTransformed.parse(
                 perCategoryFilters,
@@ -249,7 +263,6 @@ describe('toolRunQueryExpressionResolvedArgsSchema', () => {
                             ...legacyResolvedArgs.mergeConfig
                                 .additionalSources[0].queryConfig,
                             filters: {
-                                schemaVersion: 1,
                                 dimensions: null,
                                 metrics: {
                                     connector: 'or',

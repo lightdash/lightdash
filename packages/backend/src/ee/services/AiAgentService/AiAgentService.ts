@@ -108,7 +108,7 @@ import {
     OpenIdIdentityIssuerType,
     ParameterError,
     ParametersValuesMap,
-    parsePersistedRunQueryArgs,
+    parsePersistedRunQueryPayload,
     parseVizConfig,
     PersistentDownloadFileAccessMode,
     ProjectType,
@@ -7191,7 +7191,7 @@ export class AiAgentService extends BaseService {
             if (!mergeQueriesEnabled) {
                 throw new ForbiddenError('Merge queries are not enabled');
             }
-            const parsed = parsePersistedRunQueryArgs(
+            const parsed = parsePersistedRunQueryPayload(
                 artifact.chartConfig.config,
             );
             if (!parsed?.mergeConfig) {
@@ -10793,6 +10793,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             agentSettings.enableDataAccess &&
             !isSlackPrompt(prompt) &&
             responseExecution.mode !== 'deep_research';
+        const { enabled: filterExpressionsEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiFilterExpressions,
+            });
         let aiWritebackEnabled = hasTrustedPromptUserIdentity;
         if (!aiWritebackEnabled) {
             this.logger.info(
@@ -11062,6 +11067,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             enableRepoDiscovery: repoDiscoveryEnabled,
             enableMergeQueries: mergeQueriesEnabled,
+            enableFilterExpressions: filterExpressionsEnabled,
             repoFsRoot,
             repoFsSupportsCodeSearch,
             canRunSql,

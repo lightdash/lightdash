@@ -38,6 +38,56 @@ const customChartTypeSlugChartConfig = {
     options: { showLegend: true },
 };
 
+const statusRule = {
+    fieldId: 'orders_status',
+    fieldType: 'string',
+    fieldFilterType: 'string',
+    operator: 'equals',
+    values: ['completed'],
+};
+
+const regionRule = {
+    fieldId: 'orders_region',
+    fieldType: 'string',
+    fieldFilterType: 'string',
+    operator: 'equals',
+    values: ['emea'],
+};
+
+const revenueRule = {
+    fieldId: 'orders_revenue',
+    fieldType: 'sum',
+    fieldFilterType: 'number',
+    operator: 'greaterThan',
+    values: [100],
+};
+
+const countRule = {
+    fieldId: 'orders_count',
+    fieldType: 'count',
+    fieldFilterType: 'number',
+    operator: 'greaterThan',
+    values: [10],
+};
+
+const perCategoryResolvedConfig = {
+    ...semanticConfig,
+    queryConfig: {
+        ...semanticConfig.queryConfig,
+        filters: {
+            dimensions: {
+                connector: 'and',
+                rules: [statusRule, regionRule],
+            },
+            metrics: {
+                connector: 'or',
+                rules: [revenueRule, countRule],
+            },
+            tableCalculations: null,
+        },
+    },
+};
+
 describe('parseAiArtifactChartConfig', () => {
     it('normalizes legacy semantic configs', () => {
         expect(parseAiArtifactChartConfig(semanticConfig)).toEqual({
@@ -120,6 +170,82 @@ describe('parseAiArtifactChartConfig', () => {
         ).toBeNull();
     });
 
+    it('replays independent category connectors from persisted args', () => {
+        const artifact = parseAiArtifactChartConfig({
+            source: 'semantic',
+            config: perCategoryResolvedConfig,
+        });
+        if (artifact?.source !== 'semantic') {
+            throw new Error('Expected a semantic artifact');
+        }
+
+        const replayed = parseVizConfig(artifact.config);
+        expect(replayed?.metricQuery.filters.dimensions).toMatchObject({
+            and: [
+                { target: { fieldId: 'orders_status' } },
+                { target: { fieldId: 'orders_region' } },
+            ],
+        });
+        expect(replayed?.metricQuery.filters.metrics).toMatchObject({
+            or: [
+                { target: { fieldId: 'orders_revenue' } },
+                { target: { fieldId: 'orders_count' } },
+            ],
+        });
+    });
+
+    it('normalizes per-category filters under their semantic source', () => {
+        const normalized = {
+            source: 'semantic',
+            config: {
+                ...perCategoryResolvedConfig,
+                queryConfig: {
+                    ...perCategoryResolvedConfig.queryConfig,
+                    parameters: null,
+                },
+                mergeConfig: null,
+            },
+        };
+
+        expect(parseAiArtifactChartConfig(perCategoryResolvedConfig)).toEqual(
+            normalized,
+        );
+        expect(
+            parseAiArtifactChartConfig({
+                source: 'semantic',
+                config: perCategoryResolvedConfig,
+            }),
+        ).toEqual(normalized);
+    });
+
+    it('normalizes resolved custom chart expression args', () => {
+        const resolvedArgs = {
+            ...perCategoryResolvedConfig,
+            chartConfig: customChartTypeSlugChartConfig,
+        };
+
+        expect(
+            parseAiArtifactChartConfig({
+                source: 'customChartType',
+                schemaVersion: 1,
+                dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                config: resolvedArgs,
+            }),
+        ).toEqual({
+            source: 'customChartType',
+            schemaVersion: 1,
+            dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+            config: {
+                ...resolvedArgs,
+                queryConfig: {
+                    ...resolvedArgs.queryConfig,
+                    parameters: null,
+                },
+                mergeConfig: null,
+            },
+        });
+    });
+
     it('drops legacy SQL execution UUIDs', () => {
         expect(
             parseAiArtifactChartConfig({
@@ -186,13 +312,141 @@ describe('parseAiArtifactChartConfig', () => {
         });
     });
 
+    it('normalizes resolved merge expression args', () => {
+        const resolvedConfig = {
+            ...perCategoryResolvedConfig,
+            mergeConfig: {
+                primarySourceId: 'orders',
+                additionalSources: [
+                    {
+                        id: 'targets',
+                        queryConfig: {
+                            exploreName: 'targets',
+                            dimensions: ['targets_month'],
+                            metrics: ['targets_target'],
+                            sorts: [],
+                            customMetrics: null,
+                            filters: {
+                                dimensions: {
+                                    connector: 'or',
+                                    rules: [
+                                        {
+                                            fieldId: 'targets_month',
+                                            fieldType: 'date',
+                                            fieldFilterType: 'date',
+                                            operator: 'equals',
+                                            values: ['2025-01-01'],
+                                        },
+                                    ],
+                                },
+                                metrics: null,
+                                tableCalculations: null,
+                            },
+                        },
+                    },
+                ],
+                joinKey: [
+                    {
+                        name: 'month',
+                        fields: [
+                            {
+                                sourceId: 'orders',
+                                fieldId: 'orders_created_month',
+                            },
+                            {
+                                sourceId: 'targets',
+                                fieldId: 'targets_month',
+                            },
+                        ],
+                    },
+                ],
+                joinType: 'full',
+            },
+        } as const;
+        const normalized = {
+            source: 'merge',
+            schemaVersion: 1,
+            config: {
+                ...resolvedConfig,
+                queryConfig: {
+                    ...resolvedConfig.queryConfig,
+                    parameters: null,
+                },
+            },
+        };
+
+        expect(
+            parseAiArtifactChartConfig({
+                source: 'merge',
+                schemaVersion: 1,
+                config: resolvedConfig,
+            }),
+        ).toEqual(normalized);
+    });
+
+    it('rejects source/config mismatches', () => {
+        const mergeResolvedConfig = {
+            ...perCategoryResolvedConfig,
+            mergeConfig: {
+                primarySourceId: 'orders',
+                additionalSources: [
+                    {
+                        id: 'targets',
+                        queryConfig: {
+                            exploreName: 'targets',
+                            dimensions: ['targets_month'],
+                            metrics: ['targets_target'],
+                            sorts: [],
+                            customMetrics: null,
+                            filters: null,
+                        },
+                    },
+                ],
+                joinKey: [
+                    {
+                        name: 'month',
+                        fields: [
+                            {
+                                sourceId: 'orders',
+                                fieldId: 'orders_created_month',
+                            },
+                            {
+                                sourceId: 'targets',
+                                fieldId: 'targets_month',
+                            },
+                        ],
+                    },
+                ],
+                joinType: 'full',
+            },
+        };
+        expect(
+            parseAiArtifactChartConfig({
+                source: 'semantic',
+                config: mergeResolvedConfig,
+            }),
+        ).toBeNull();
+        // Older releases persisted merge + custom-slug configs before new
+        // writes rejected that combination. Keep those artifacts readable.
+        expect(
+            parseAiArtifactChartConfig({
+                source: 'merge',
+                schemaVersion: 1,
+                config: {
+                    ...mergeResolvedConfig,
+                    chartConfig: customChartTypeSlugChartConfig,
+                },
+            }),
+        ).toMatchObject({ source: 'merge' });
+    });
+
     it('rejects invalid configs', () => {
         expect(parseAiArtifactChartConfig({ source: 'sql' })).toBeNull();
     });
 });
 
 describe('getDataAppVizChartFromArtifact', () => {
-    it('builds the saved-chart shape from envelope uuid + verbatim tool args', () => {
+    it('builds the saved-chart shape from its persisted envelope', () => {
         expect(
             getDataAppVizChartFromArtifact({
                 source: 'customChartType',

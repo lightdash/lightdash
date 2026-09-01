@@ -1,11 +1,15 @@
+import { getEncoding } from 'js-tiktoken';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { defineTool } from './defineTool';
+import { FILTER_EXPRESSION_GRAMMAR_DESCRIPTION } from './filterExpressions';
 import {
     agentToolNames,
     findContentToolDefinition,
+    generateVisualizationFilterExpressionToolDefinition,
     generateVisualizationToolDefinition,
     mcpToolDefinitions,
+    runQueryFilterExpressionToolDefinition,
     runQueryToolDefinition,
 } from './tools';
 import { ToolNameSchema } from './visualizations';
@@ -19,6 +23,113 @@ describe('defineTool', () => {
         expect(mcpView.name).toBe('run_metric_query');
         expect(mcpView.canonicalName).toBe('runQuery');
         expect(mcpView.outputSchema).toBeDefined();
+    });
+
+    it('keeps runtime-selected filter expression definitions out of default arrays', () => {
+        expect(
+            mcpToolDefinitions.includes(runQueryFilterExpressionToolDefinition),
+        ).toBe(false);
+        expect(
+            generateVisualizationFilterExpressionToolDefinition.for('agent')
+                .name,
+        ).toBe('generateVisualization');
+        expect(runQueryFilterExpressionToolDefinition.for('mcp').name).toBe(
+            'run_metric_query',
+        );
+    });
+
+    it('keeps compact query contracts within size and token budgets', () => {
+        const agentLegacy = generateVisualizationToolDefinition.for('agent');
+        const agentExpression =
+            generateVisualizationFilterExpressionToolDefinition.for('agent');
+        const mcpLegacy = runQueryToolDefinition.for('mcp');
+        const mcpExpression = runQueryFilterExpressionToolDefinition.for('mcp');
+        const serializeAgent = (
+            view: typeof agentLegacy | typeof agentExpression,
+        ) =>
+            JSON.stringify({
+                description: view.description,
+                inputSchema: view.inputSchema.jsonSchema,
+            });
+        const serializeMcp = (view: typeof mcpLegacy | typeof mcpExpression) =>
+            JSON.stringify({
+                description: view.description,
+                inputSchema: zodToJsonSchema(view.inputSchema),
+            });
+        const contracts = {
+            agentLegacy: serializeAgent(agentLegacy),
+            agentExpression: serializeAgent(agentExpression),
+            mcpLegacy: serializeMcp(mcpLegacy),
+            mcpExpression: serializeMcp(mcpExpression),
+        };
+        const cl100k = getEncoding('cl100k_base');
+        const o200k = getEncoding('o200k_base');
+        const measure = (contract: string) => ({
+            bytes: new TextEncoder().encode(contract).length,
+            cl100kTokens: cl100k.encode(contract).length,
+            o200kTokens: o200k.encode(contract).length,
+        });
+        const measurementKeys = [
+            'bytes',
+            'cl100kTokens',
+            'o200kTokens',
+        ] satisfies (keyof ReturnType<typeof measure>)[];
+        const expectWithinBudget = (
+            measurement: ReturnType<typeof measure>,
+            budget: ReturnType<typeof measure>,
+        ) => {
+            measurementKeys.forEach((key) => {
+                expect(measurement[key]).toBeLessThanOrEqual(budget[key]);
+            });
+        };
+        const expectAtMostRatio = (
+            expression: ReturnType<typeof measure>,
+            legacy: ReturnType<typeof measure>,
+            maximumRatio: number,
+        ) => {
+            measurementKeys.forEach((key) => {
+                expect(expression[key] / legacy[key]).toBeLessThanOrEqual(
+                    maximumRatio,
+                );
+            });
+        };
+
+        expect(contracts.agentExpression).not.toContain('fieldFilterType');
+        expect(contracts.mcpExpression).not.toContain('fieldFilterType');
+        expect(
+            mcpExpression.description.split(
+                FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
+            ),
+        ).toHaveLength(2);
+
+        const measurements = {
+            agentLegacy: measure(contracts.agentLegacy),
+            agentExpression: measure(contracts.agentExpression),
+            mcpLegacy: measure(contracts.mcpLegacy),
+            mcpExpression: measure(contracts.mcpExpression),
+        };
+        expectWithinBudget(measurements.agentExpression, {
+            bytes: 25_000,
+            cl100kTokens: 5_500,
+            o200kTokens: 5_600,
+        });
+        expectWithinBudget(measurements.mcpExpression, {
+            bytes: 20_000,
+            cl100kTokens: 4_500,
+            o200kTokens: 4_600,
+        });
+        // Preserve at least a 45% agent reduction and a 60% Model Context
+        // Protocol (MCP) reduction across bytes and both tokenizers.
+        expectAtMostRatio(
+            measurements.agentExpression,
+            measurements.agentLegacy,
+            0.55,
+        );
+        expectAtMostRatio(
+            measurements.mcpExpression,
+            measurements.mcpLegacy,
+            0.4,
+        );
     });
 
     it('uses runtime-available dashboard detail tools', () => {

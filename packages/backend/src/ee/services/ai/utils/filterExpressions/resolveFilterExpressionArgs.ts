@@ -81,7 +81,7 @@ type ResolvedQueryConfigParts = {
 };
 
 export type ResolveFilterExpressionArgsResult = ResolutionResult<{
-    rawArgs: ToolRunQueryExpressionResolvedArgs;
+    persistedArgs: ToolRunQueryExpressionResolvedArgs;
     transformed: ToolRunQueryArgsTransformed;
 }>;
 
@@ -1080,7 +1080,7 @@ const resolveQueryFilters = ({
     // different connectors. When every explicit connector agrees, emit the
     // legacy shared-connector filters object so resolved data stays
     // byte-identical to previously persisted artifacts; only diverging
-    // connectors need the per-category V1 shape.
+    // connectors need the per-category V2 shape.
     const explicitConnectors = [
         ...new Set(
             categories.flatMap((category) => {
@@ -1105,7 +1105,6 @@ const resolveQueryFilters = ({
             : { connector: group.connector ?? 'and', rules: group.rules };
 
     return success({
-        schemaVersion: 1,
         dimensions: toResolvedGroup(resolvedGroups.dimensions),
         metrics: toResolvedGroup(resolvedGroups.metrics),
         tableCalculations: toResolvedGroup(resolvedGroups.tableCalculations),
@@ -1192,12 +1191,14 @@ export const resolveFilterExpressionArgs = async ({
         mergeConfig = { ...inputMergeConfig, additionalSources };
     }
 
-    const rawArgs = toolRunQueryExpressionResolvedArgsSchema.parse({
+    const persistedArgs = toolRunQueryExpressionResolvedArgsSchema.parse({
         ...toolArgs,
         queryConfig,
         mergeConfig,
     });
     const transformed =
-        toolRunQueryExpressionResolvedArgsSchemaTransformed.parse(rawArgs);
-    return success({ rawArgs, transformed });
+        toolRunQueryExpressionResolvedArgsSchemaTransformed.parse(
+            persistedArgs,
+        );
+    return success({ persistedArgs, transformed });
 };

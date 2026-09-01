@@ -3,10 +3,12 @@ import {
     AiResultType,
     convertAiTableCalcsSchemaToTableCalcs,
     filterAggregationCustomMetrics,
+    generateVisualizationFilterExpressionToolDefinition,
     generateVisualizationToolDefinition,
     getItemId,
     getReferencedExploreParameterDefinitions,
     getRunQueryAgentViewRejectingMerge,
+    getRunQueryFilterExpressionAgentViewRejectingMerge,
     getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
@@ -15,14 +17,23 @@ import {
     isSlackPrompt,
     MERGE_TABLE_NAME,
     toolRunQueryArgsSchemaTransformed,
+    toolRunQueryExpressionArgsSchema,
+    toolRunQueryExpressionArgsSchemaV2RejectingMerge,
+    type AiCustomChartTypeChartArtifactConfig,
+    type AiMergeChartArtifactConfig,
+    type AiSemanticChartArtifactConfig,
     type Explore,
     type ItemsMap,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type SlackPrompt,
+    type ToolRunQueryArgs,
     type ToolRunQueryArgsTransformed,
+    type ToolRunQueryExpressionArgs,
+    type ToolRunQueryExpressionResolvedArgs,
+    type ToolRunQueryExpressionRuntimeArgs,
 } from '@lightdash/common';
-import { tool } from 'ai';
+import { tool, type Schema } from 'ai';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     CreateOrUpdateArtifactFn,
@@ -40,6 +51,10 @@ import {
     buildAiMergeSourceConfigs,
 } from '../utils/buildAiMergeQuery';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
+import {
+    formatFilterExpressionError,
+    resolveFilterExpressionArgs,
+} from '../utils/filterExpressions';
 import { getPivotedResults } from '../utils/getPivotedResults';
 import {
     expandMetricsWithPopAdditionalMetrics,
@@ -69,6 +84,8 @@ import {
     validateTableCalculations,
 } from '../utils/validators';
 
+type RunQueryToolInput = ToolRunQueryArgs | ToolRunQueryExpressionRuntimeArgs;
+
 type Dependencies = {
     updateProgress: UpdateProgressFn;
     runAsyncQuery: RunAsyncQueryFn;
@@ -83,6 +100,7 @@ type Dependencies = {
     // Project-level parameter definitions; model-level ones come from the explore.
     projectParameterDefinitions: ParameterDefinitions;
     enableMergeQueries: boolean;
+    enableFilterExpressions: boolean;
     runAsyncMergeQuery: RunAsyncMergeQueryFn;
     resolveCustomChartType: ResolveCustomChartTypeFn;
     exportCustomChartTypeImage: ExportCustomChartTypeImageFn;
@@ -249,6 +267,41 @@ export const validateRunQueryTool = (
 const CUSTOM_CHART_TYPE_IMAGE_BUDGET_MS = 60_000;
 const CUSTOM_CHART_TYPE_IMAGE_ATTEMPTS = 2;
 
+type ResolvedRunQueryArtifactConfig =
+    | AiSemanticChartArtifactConfig
+    | AiMergeChartArtifactConfig
+    | AiCustomChartTypeChartArtifactConfig;
+
+const buildResolvedRunQueryArtifactConfig = ({
+    persistedArgs,
+    dataAppVizUuid,
+}: {
+    persistedArgs: ToolRunQueryExpressionResolvedArgs;
+    dataAppVizUuid: string | null;
+}): ResolvedRunQueryArtifactConfig => {
+    if (persistedArgs.mergeConfig !== null) {
+        return {
+            source: 'merge',
+            schemaVersion: 1,
+            config: persistedArgs,
+        };
+    }
+
+    if (dataAppVizUuid !== null) {
+        return {
+            source: 'customChartType',
+            schemaVersion: 1,
+            dataAppVizUuid,
+            config: persistedArgs,
+        };
+    }
+
+    return {
+        source: 'semantic',
+        config: persistedArgs,
+    };
+};
+
 // One retry inside a total wall-clock budget. An image failure must never
 // fail the answer — null means fall back to CSV.
 const exportCustomChartTypeImageBounded = async (
@@ -360,21 +413,73 @@ export const getRunQuery = ({
     enableDataAccess,
     projectParameterDefinitions,
     enableMergeQueries,
+    enableFilterExpressions,
     runAsyncMergeQuery,
     resolveCustomChartType,
     exportCustomChartTypeImage,
-}: Dependencies) =>
-    tool({
-        ...(enableMergeQueries
+}: Dependencies) => {
+    const toolView = (() => {
+        if (enableFilterExpressions) {
+            return enableMergeQueries
+                ? generateVisualizationFilterExpressionToolDefinition.for(
+                      'agent',
+                  )
+                : getRunQueryFilterExpressionAgentViewRejectingMerge();
+        }
+        return enableMergeQueries
             ? generateVisualizationToolDefinition.for('agent')
-            : getRunQueryAgentViewRejectingMerge()),
+            : getRunQueryAgentViewRejectingMerge();
+    })();
+    const inputSchema: Schema<RunQueryToolInput> = toolView.inputSchema;
+
+    return tool({
+        ...toolView,
+        inputSchema,
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 await updateProgress('Running your query...');
 
-                const queryTool =
-                    toolRunQueryArgsSchemaTransformed.parse(toolArgs);
                 const ctx = AgentContext.from(context);
+                let queryTool: ToolRunQueryArgsTransformed;
+                let persistedExpressionArgs: ToolRunQueryExpressionResolvedArgs | null =
+                    null;
+
+                if (enableFilterExpressions) {
+                    let normalizedExpressionToolArgs: ToolRunQueryExpressionArgs;
+                    if (enableMergeQueries) {
+                        normalizedExpressionToolArgs =
+                            toolRunQueryExpressionArgsSchema.parse(toolArgs);
+                    } else {
+                        const parsedExpressionToolArgs =
+                            toolRunQueryExpressionArgsSchemaV2RejectingMerge.parse(
+                                toolArgs,
+                            );
+                        normalizedExpressionToolArgs = {
+                            ...parsedExpressionToolArgs,
+                            mergeConfig: null,
+                        };
+                    }
+                    const resolution = await resolveFilterExpressionArgs({
+                        toolArgs: normalizedExpressionToolArgs,
+                        getExplore: (exploreName) =>
+                            ctx.getExplore(exploreName),
+                    });
+                    if (!resolution.success) {
+                        return {
+                            result: formatFilterExpressionError(
+                                resolution.error,
+                            ),
+                            metadata: { status: 'error' as const },
+                        };
+                    }
+
+                    queryTool = resolution.data.transformed;
+                    persistedExpressionArgs = resolution.data.persistedArgs;
+                } else {
+                    queryTool =
+                        toolRunQueryArgsSchemaTransformed.parse(toolArgs);
+                }
+
                 const explore = ctx.getExplore(
                     queryTool.queryConfig.exploreName,
                 );
@@ -491,11 +596,18 @@ export const getRunQuery = ({
                             artifactType: 'chart',
                             title: toolArgs.title,
                             description: toolArgs.description,
-                            vizConfig: {
-                                source: 'merge',
-                                schemaVersion: 1,
-                                config: toolArgs,
-                            },
+                            vizConfig:
+                                persistedExpressionArgs === null
+                                    ? {
+                                          source: 'merge',
+                                          schemaVersion: 1,
+                                          config: toolArgs,
+                                      }
+                                    : buildResolvedRunQueryArtifactConfig({
+                                          persistedArgs:
+                                              persistedExpressionArgs,
+                                          dataAppVizUuid: null,
+                                      }),
                         });
 
                     if (!enableDataAccess && !isSlackPrompt(prompt)) {
@@ -562,8 +674,7 @@ export const getRunQuery = ({
 
                 // Custom chart type answers: resolve the slug project-scoped
                 // and validate the field mapping against the type's schema.
-                // The resolved uuid is persisted beside the verbatim tool
-                // args in the artifact envelope.
+                // The resolved uuid is persisted beside the replay payload.
                 let customChartTypeDataAppVizUuid: string | null = null;
                 if (isCustomChartTypeSlugChartConfig(queryTool.chartConfig)) {
                     const customChartConfig = queryTool.chartConfig;
@@ -629,6 +740,50 @@ export const getRunQuery = ({
                     };
                 }
 
+                const expandedPersistedExpressionArgs =
+                    persistedExpressionArgs !== null &&
+                    expandedMetrics.length >
+                        queryTool.queryConfig.metrics.length &&
+                    persistedExpressionArgs.chartConfig &&
+                    !isCustomChartTypeSlugChartConfig(
+                        persistedExpressionArgs.chartConfig,
+                    )
+                        ? {
+                              ...persistedExpressionArgs,
+                              chartConfig: {
+                                  ...persistedExpressionArgs.chartConfig,
+                                  yAxisMetrics:
+                                      expandMetricsWithPopAdditionalMetrics(
+                                          persistedExpressionArgs.chartConfig
+                                              .yAxisMetrics,
+                                          populatedCustomMetrics,
+                                      ),
+                              },
+                          }
+                        : persistedExpressionArgs;
+
+                const structuredArtifactConfig =
+                    customChartTypeDataAppVizUuid === null
+                        ? {
+                              source: 'semantic',
+                              config: expandedToolArgs,
+                          }
+                        : {
+                              // Envelope: model output verbatim,
+                              // server-derived uuid beside it.
+                              source: 'customChartType',
+                              schemaVersion: 1,
+                              dataAppVizUuid: customChartTypeDataAppVizUuid,
+                              config: toolArgs,
+                          };
+                const artifactConfig =
+                    expandedPersistedExpressionArgs === null
+                        ? structuredArtifactConfig
+                        : buildResolvedRunQueryArtifactConfig({
+                              persistedArgs: expandedPersistedExpressionArgs,
+                              dataAppVizUuid: customChartTypeDataAppVizUuid,
+                          });
+
                 const createOrUpdateArtifactHook = () =>
                     createOrUpdateArtifact({
                         threadUuid: prompt.threadUuid,
@@ -636,19 +791,7 @@ export const getRunQuery = ({
                         artifactType: 'chart',
                         title: toolArgs.title,
                         description: toolArgs.description,
-                        vizConfig: customChartTypeDataAppVizUuid
-                            ? {
-                                  // Envelope: model output verbatim, server-
-                                  // derived uuid beside it.
-                                  source: 'customChartType',
-                                  schemaVersion: 1,
-                                  dataAppVizUuid: customChartTypeDataAppVizUuid,
-                                  config: toolArgs,
-                              }
-                            : {
-                                  source: 'semantic',
-                                  config: expandedToolArgs,
-                              },
+                        vizConfig: artifactConfig,
                     });
 
                 // Early artifact creation for non-data-access mode
@@ -775,3 +918,4 @@ export const getRunQuery = ({
         },
         toModelOutput: ({ output }) => toModelOutput(output),
     });
+};

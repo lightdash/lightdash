@@ -33,6 +33,7 @@ export * from './filterExpressions';
 export * from './filters';
 export * from './McpSchemaCompatLayer';
 export * from './outputMetadata';
+export * from './persistedRunQueryArgs';
 export * from './sortField';
 export * from './tableCalcs/tableCalcFormula';
 export * from './tableCalcs/tableCalcs';

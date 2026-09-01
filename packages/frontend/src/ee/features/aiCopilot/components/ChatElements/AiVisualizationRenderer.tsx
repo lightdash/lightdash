@@ -9,7 +9,7 @@ import {
     type ChartConfig,
     type DataAppVizChart,
     type EChartsSeries,
-    type ToolRunQueryArgs,
+    type PersistedRunQueryPayload,
 } from '@lightdash/common';
 import {
     Box,
@@ -57,7 +57,7 @@ import {
 type Props = {
     vizQueryData: ApiAiAgentThreadMessageVizQuery;
     results: InfiniteQueryResults;
-    chartConfig: ToolRunQueryArgs;
+    chartConfig: PersistedRunQueryPayload;
     // Set for custom chart type answers (from the artifact envelope): the
     // saved-chart shape the dedicated renderer mounts with.
     customChartType?: DataAppVizChart | null;

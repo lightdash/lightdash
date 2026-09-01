@@ -955,6 +955,9 @@ importers:
       '@types/uuid':
         specifier: 10.0.0
         version: 10.0.0
+      js-tiktoken:
+        specifier: 1.0.16
+        version: 1.0.16
       oxlint:
         specifier: 1.75.0
         version: 1.75.0(oxlint-tsgolint@7.0.2001)

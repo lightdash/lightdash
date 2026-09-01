@@ -1,6 +1,6 @@
 import { type ItemsMap } from '../../../../types/field';
 import { type MetricQuery } from '../../../../types/metricQuery';
-import { type ToolRunQueryArgs } from '../../schemas';
+import { type PersistedRunQueryPayload } from '../../schemas';
 import { parseVizConfig } from '../../utils';
 import { getRunQueryChartConfig } from './runQueryTool/getRunQueryChartConfig';
 
@@ -11,7 +11,7 @@ export const getWebAiChartConfig = ({
     fieldsMap,
     overrideChartType,
 }: {
-    vizConfig: ToolRunQueryArgs;
+    vizConfig: PersistedRunQueryPayload;
     metricQuery: MetricQuery;
     maxQueryLimit?: number;
     fieldsMap: ItemsMap;

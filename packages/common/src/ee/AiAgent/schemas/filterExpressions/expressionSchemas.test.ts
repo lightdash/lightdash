@@ -161,6 +161,15 @@ describe('filter expression input schemas', () => {
         expectTypeOf<ToolRunQueryExpressionArgsNoMerge>().not.toExtend<ToolRunQueryExpressionArgs>();
     });
 
+    it('documents independent category connectors and their implicit AND', () => {
+        expect(filterExpressionsSchema.description).toContain(
+            'Each category chooses AND or OR independently',
+        );
+        expect(filterExpressionsSchema.description).toContain(
+            '(D1 AND D2) AND (M1 OR M2)',
+        );
+    });
+
     it('requires a strict, separately nullable category shape', () => {
         expect(
             filterExpressionsSchema.safeParse({

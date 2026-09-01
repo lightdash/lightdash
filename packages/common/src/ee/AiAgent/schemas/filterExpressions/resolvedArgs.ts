@@ -26,7 +26,7 @@ import visualizationMetadataSchema from '../visualizationMetadata';
 // queries. Each query category (dimensions, metrics, tableCalculations) owns
 // an independent FilterGroup, so categories may resolve to different
 // connectors — which the legacy shared-connector filters object
-// (filtersSchemaV2's single `type`) cannot represent. The V1 shape below
+// (filtersSchemaV2's single `type`) cannot represent. The V2 shape below
 // carries one connector per category. Resolved data emitted before this shape
 // existed (and resolved data whose categories agree) uses the legacy object,
 // so parsers accept both. None of this is advertised to models; the model
@@ -48,11 +48,13 @@ const resolvedNumberFilterGroupSchema = z
     })
     .strict();
 
-// Discriminated from the legacy filters object by `schemaVersion` (the legacy
-// shape has a required `type` and no schemaVersion).
-export const filterExpressionResolvedFiltersSchemaV1 = z
+// These versions describe persisted filter shapes, independently from the
+// run-query tool schema versions. The historical filtersSchemaV2 tool shape is
+// V1 here; its required root `type` distinguishes it from V2.
+export const filterExpressionResolvedFiltersSchemaV1 = filtersSchemaV2;
+
+export const filterExpressionResolvedFiltersSchemaV2 = z
     .object({
-        schemaVersion: z.literal(1),
         dimensions: resolvedFilterGroupSchema.nullable(),
         metrics: resolvedFilterGroupSchema.nullable(),
         tableCalculations: resolvedNumberFilterGroupSchema.nullable(),
@@ -60,12 +62,15 @@ export const filterExpressionResolvedFiltersSchemaV1 = z
     .strict();
 
 export const filterExpressionResolvedFiltersSchema = z.union([
+    filterExpressionResolvedFiltersSchemaV2,
     filterExpressionResolvedFiltersSchemaV1,
-    filtersSchemaV2,
 ]);
 
 export type FilterExpressionResolvedFiltersV1 = z.infer<
     typeof filterExpressionResolvedFiltersSchemaV1
+>;
+export type FilterExpressionResolvedFiltersV2 = z.infer<
+    typeof filterExpressionResolvedFiltersSchemaV2
 >;
 export type FilterExpressionResolvedFilters = z.infer<
     typeof filterExpressionResolvedFiltersSchema
@@ -99,9 +104,11 @@ const toFilterGroup = (
     }
 };
 
-const filterExpressionResolvedFiltersSchemaV1Transformed = z
+const filterExpressionResolvedFiltersSchemaV1Transformed =
+    filtersSchemaTransformed;
+
+const filterExpressionResolvedFiltersSchemaV2Transformed = z
     .object({
-        schemaVersion: z.literal(1),
         dimensions: resolvedFilterGroupTransformed.nullable(),
         metrics: resolvedFilterGroupTransformed.nullable(),
         tableCalculations: resolvedFilterGroupTransformed.nullable(),
@@ -115,12 +122,13 @@ const filterExpressionResolvedFiltersSchemaV1Transformed = z
         }),
     );
 
-// Accepts the V1 per-category shape, the legacy shared-connector object, and
-// null; always normalizes to domain Filters. Replay needs neither the Explore
-// nor the feature flag.
+// Try the current per-category V2 shape first, then the historical
+// shared-connector V1 shape. The V1 parser remains last because it also accepts
+// null. Both normalize to domain Filters without Explore metadata or a feature
+// flag.
 export const filterExpressionResolvedFiltersSchemaTransformed = z.union([
+    filterExpressionResolvedFiltersSchemaV2Transformed,
     filterExpressionResolvedFiltersSchemaV1Transformed,
-    filtersSchemaTransformed,
 ]);
 
 const resolvedQueryConfigSchema = queryConfigBaseSchema.extend({
