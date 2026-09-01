@@ -14,6 +14,7 @@ import {
     IconFolderX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
+import { RequestReviewModal } from '../../../ee/features/contentReview';
 import { MoveAppToSpaceModal } from '../../../features/apps/components/MoveAppToSpaceModal';
 import { useAppPinningMutation } from '../../../features/apps/hooks/useAppPinningMutation';
 import { DeleteSqlChartModal } from '../../../features/sqlRunner/components/DeleteSqlChartModal';
@@ -395,6 +396,22 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         await moveToSpace(action.item, spaceUuid);
                         handleReset();
                     }}
+                />
+            );
+
+        case ResourceViewItemAction.REQUEST_REVIEW:
+            return (
+                <RequestReviewModal
+                    projectUuid={projectUuid}
+                    contentType={
+                        action.item.type === ResourceViewItemType.DASHBOARD
+                            ? ContentType.DASHBOARD
+                            : ContentType.CHART
+                    }
+                    contentUuid={action.item.data.uuid}
+                    contentName={action.item.data.name}
+                    opened
+                    onClose={handleReset}
                 />
             );
 

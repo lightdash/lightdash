@@ -51,6 +51,11 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useToggle } from 'react-use';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import {
+    PendingReviewBadge,
+    RequestReviewModal,
+    useContentReviewEligibility,
+} from '../../../ee/features/contentReview';
 import DashboardAsCodeModal from '../../../features/contentAsCode/components/DashboardAsCodeModal';
 import {
     DirectAccessModal,
@@ -180,6 +185,14 @@ const DashboardHeader = memo(
             useToggle(false);
         const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
             useDisclosure(false);
+        const [isRequestReviewModalOpen, requestReviewModalHandlers] =
+            useDisclosure(false);
+        const contentReview = useContentReviewEligibility({
+            projectUuid,
+            contentType: ContentType.DASHBOARD,
+            contentUuid: dashboard.uuid,
+            spaceUuid: dashboard.spaceUuid,
+        });
         const [isDirectAccessModalOpen, directAccessModalHandlers] =
             useDisclosure(false);
         const directAccessAvailability = useDirectAccessAvailability();
@@ -446,6 +459,12 @@ const DashboardHeader = memo(
                         </Popover.Dropdown>
                     </Popover>
 
+                    {contentReview.pendingRequest && (
+                        <PendingReviewBadge
+                            request={contentReview.pendingRequest}
+                        />
+                    )}
+
                     {isDashboardVerified && (
                         <Tooltip
                             label={
@@ -511,6 +530,16 @@ const DashboardHeader = memo(
                                 resourceUuid: dashboard.uuid,
                                 name: dashboard.name,
                             }}
+                        />
+                    )}
+                    {isRequestReviewModalOpen && projectUuid && (
+                        <RequestReviewModal
+                            projectUuid={projectUuid}
+                            contentType={ContentType.DASHBOARD}
+                            contentUuid={dashboard.uuid}
+                            contentName={dashboard.name}
+                            opened={isRequestReviewModalOpen}
+                            onClose={requestReviewModalHandlers.close}
                         />
                     )}
                     {isTransferToSpaceModalOpen && projectUuid && (
@@ -850,6 +879,21 @@ const DashboardHeader = memo(
                                             >
                                                 Move dashboard
                                             </Menu.Item>
+
+                                            {contentReview.canRequest && (
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconSend}
+                                                        />
+                                                    }
+                                                    onClick={
+                                                        requestReviewModalHandlers.open
+                                                    }
+                                                >
+                                                    Request review
+                                                </Menu.Item>
+                                            )}
 
                                             {directAccessAvailability.isAvailable &&
                                                 canManageDashboardAccess && (
