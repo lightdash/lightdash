@@ -1,3 +1,10 @@
+## [2.68.1](https://github.com/lightdash/lightdash/compare/2.68.0...2.68.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* **pgwire:** support aggregates over dimensions ([#28350](https://github.com/lightdash/lightdash/issues/28350)) ([6ab3579](https://github.com/lightdash/lightdash/commit/6ab3579667e6c74d002e58562bd4e448d0cc851c))
+
 # [2.68.0](https://github.com/lightdash/lightdash/compare/2.67.5...2.68.0) (2026-09-01)
 
 
