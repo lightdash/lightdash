@@ -5,7 +5,11 @@ import {
     customMetricsSchemaTransformed,
 } from '../customMetrics';
 import { getFieldIdSchema } from '../fieldId';
-import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
+import {
+    filtersSchemaTransformed,
+    filtersSchemaV2,
+    filtersSchemaV2ModelInput,
+} from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import sortFieldSchema from '../sortField';
 import {
@@ -83,6 +87,13 @@ const queryConfigSchemaV2 = queryConfigBaseSchema.extend({
 // V1–V3 keep the wide union (templates + formula) for parsing persisted args.
 const queryConfigSchemaV4 = queryConfigSchemaV2.extend({
     tableCalculations: formulaTableCalcsSchema,
+    filters: filtersSchemaV2ModelInput.nullable(),
+});
+
+// Incoming model calls may omit empty filter categories. Keep V2/V3 strict
+// for persisted payload compatibility and widen only the live runtime parse.
+const queryConfigSchemaRuntimeWide = queryConfigSchemaV2.extend({
+    filters: filtersSchemaV2ModelInput.nullable(),
 });
 
 export const mergeSourceQueryConfigSchema = queryConfigSchemaV2
@@ -94,6 +105,14 @@ export const mergeSourceQueryConfigSchema = queryConfigSchemaV2
     .describe(
         'A second semantic-layer query. The primary query limit and parameter values apply to the whole merge.',
     );
+
+const mergeSourceQueryConfigSchemaModelInput =
+    mergeSourceQueryConfigSchema.extend({
+        filters: filtersSchemaV2ModelInput.nullable(),
+    });
+
+const mergeConfigDescription =
+    'null for a normal visualization. Set this to combine queryConfig with one additional semantic-layer query. Every source may contain only join-key dimensions plus metrics; other dimensions cause fan-out and are refused. In chartConfig, join-key field ids are merge_<joinKeyName>. Metric field ids are <sourceId>_<originalFieldId>. Replace dots in either name with two underscores.';
 
 export const mergeConfigSchema = z
     .object({
@@ -140,9 +159,25 @@ export const mergeConfigSchema = z
         joinType: z.enum(MergeJoinType),
     })
     .nullable()
-    .describe(
-        'null for a normal visualization. Set this to combine queryConfig with one additional semantic-layer query. Every source may contain only join-key dimensions plus metrics; other dimensions cause fan-out and are refused. In chartConfig, join-key field ids are merge_<joinKeyName>. Metric field ids are <sourceId>_<originalFieldId>. Replace dots in either name with two underscores.',
-    );
+    .describe(mergeConfigDescription);
+
+const mergeConfigSchemaModelInput = mergeConfigSchema
+    .unwrap()
+    .extend({
+        additionalSources: z
+            .array(
+                z.object({
+                    id: z.string().min(1),
+                    queryConfig: mergeSourceQueryConfigSchemaModelInput,
+                }),
+            )
+            .length(1)
+            .describe(
+                'The additional query to merge with queryConfig. Merge queries currently support exactly two sources.',
+            ),
+    })
+    .nullable()
+    .describe(mergeConfigDescription);
 
 // Chart-specific configuration for rendering hints
 const chartConfigBuiltinSchema = z.object({
@@ -341,7 +376,7 @@ export const toolRunQueryArgsSchemaV4 = createToolSchema()
         ...visualizationMetadataSchema.shape,
         queryConfig: queryConfigSchemaV4,
         chartConfig: chartConfigSchema,
-        mergeConfig: mergeConfigSchema.default(null),
+        mergeConfig: mergeConfigSchemaModelInput.default(null),
     })
     .build();
 
@@ -374,6 +409,15 @@ export const toolRunQueryArgsSchema = toolRunQueryArgsSchemaV4;
 //   narrow it — old threads must keep parsing.
 export const toolRunQueryArgsSchemaPersisted = toolRunQueryArgsSchemaV3;
 
+const toolRunQueryArgsSchemaV2RuntimeWide = toolRunQueryArgsSchemaV2.extend({
+    queryConfig: queryConfigSchemaRuntimeWide,
+});
+
+const toolRunQueryArgsSchemaV3RuntimeWide = toolRunQueryArgsSchemaV3.extend({
+    queryConfig: queryConfigSchemaRuntimeWide,
+    mergeConfig: mergeConfigSchemaModelInput.default(null),
+});
+
 // For runtimes where merge queries are disabled: a merge-shaped payload
 // must fail validation, not have Zod strip mergeConfig and run only the
 // primary query. The preprocess leaves the emitted JSON schema unchanged.
@@ -400,11 +444,18 @@ export const toolRunQueryArgsSchemaV2RejectingMerge = z.preprocess(
 
 export type ToolRunQueryArgsV1 = z.infer<typeof toolRunQueryArgsSchemaV1>;
 export type ToolRunQueryArgsV2 = z.infer<typeof toolRunQueryArgsSchemaV2>;
+export type ToolRunQueryArgsV2FormulaOnly = z.infer<
+    typeof toolRunQueryArgsSchemaV2FormulaOnly
+>;
 export type ToolRunQueryArgsV3 = z.infer<typeof toolRunQueryArgsSchemaV3>;
 export type ToolRunQueryArgsV4 = z.infer<typeof toolRunQueryArgsSchemaV4>;
-// Deliberately wide (no V4): handlers receive V3-parsed data, which can carry
-// legacy template table calcs the advertised V4 contract no longer accepts.
-export type ToolRunQueryArgs = ToolRunQueryArgsV2 | ToolRunQueryArgsV3;
+// Handlers can receive the current V4 model input or the wide V2/V3 persisted
+// shapes, whose legacy template table calcs remain valid for replay.
+export type ToolRunQueryArgs =
+    | ToolRunQueryArgsV2
+    | ToolRunQueryArgsV2FormulaOnly
+    | ToolRunQueryArgsV3
+    | ToolRunQueryArgsV4;
 
 // Converts the raw V2 args into the internal domain shape: customMetrics and
 // filters become Lightdash domain types. Piped (not transformed inline) so a
@@ -444,6 +495,22 @@ const runQueryInternalSchemaV3 = runQueryInternalSchemaV2.extend({
 });
 
 export const toolRunQueryArgsSchemaV2Transformed =
+    toolRunQueryArgsSchemaV2RuntimeWide.pipe(
+        runQueryInternalSchemaV2 as z.ZodType<
+            z.output<typeof runQueryInternalSchemaV2>,
+            z.output<typeof toolRunQueryArgsSchemaV2RuntimeWide>
+        >,
+    );
+
+export const toolRunQueryArgsSchemaTransformed =
+    toolRunQueryArgsSchemaV3RuntimeWide.pipe(
+        runQueryInternalSchemaV3 as z.ZodType<
+            z.output<typeof runQueryInternalSchemaV3>,
+            z.output<typeof toolRunQueryArgsSchemaV3RuntimeWide>
+        >,
+    );
+
+const toolRunQueryArgsSchemaV2PersistedTransformed =
     toolRunQueryArgsSchemaV2.pipe(
         runQueryInternalSchemaV2 as z.ZodType<
             z.output<typeof runQueryInternalSchemaV2>,
@@ -451,12 +518,13 @@ export const toolRunQueryArgsSchemaV2Transformed =
         >,
     );
 
-export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchemaV3.pipe(
-    runQueryInternalSchemaV3 as z.ZodType<
-        z.output<typeof runQueryInternalSchemaV3>,
-        z.output<typeof toolRunQueryArgsSchemaV3>
-    >,
-);
+const toolRunQueryArgsSchemaV3PersistedTransformed =
+    toolRunQueryArgsSchemaV3.pipe(
+        runQueryInternalSchemaV3 as z.ZodType<
+            z.output<typeof runQueryInternalSchemaV3>,
+            z.output<typeof toolRunQueryArgsSchemaV3>
+        >,
+    );
 
 export type ToolRunQueryArgsTransformed = z.infer<
     typeof toolRunQueryArgsSchemaTransformed
@@ -510,12 +578,18 @@ export const parsePersistedRunQueryArgs = (
     // A merge payload must never fall back to V2: Zod strips unknown keys,
     // which would otherwise replay only the primary query and show wrong data.
     if (raw !== null && typeof raw === 'object' && 'mergeConfig' in raw) {
-        const v3 = toolRunQueryArgsSchemaTransformed.safeParse(raw);
-        return v3.success ? v3.data : null;
+        const v3 = toolRunQueryArgsSchemaV3PersistedTransformed.safeParse(raw);
+        if (v3.success) return v3.data;
+
+        const currentV3 = toolRunQueryArgsSchemaTransformed.safeParse(raw);
+        return currentV3.success ? currentV3.data : null;
     }
 
-    const v2 = toolRunQueryArgsSchemaV2Transformed.safeParse(raw);
+    const v2 = toolRunQueryArgsSchemaV2PersistedTransformed.safeParse(raw);
     if (v2.success) return { ...v2.data, mergeConfig: null };
+
+    const currentV2 = toolRunQueryArgsSchemaV2Transformed.safeParse(raw);
+    if (currentV2.success) return { ...currentV2.data, mergeConfig: null };
 
     const v1 = toolRunQueryArgsSchemaV1.safeParse(raw);
     return v1.success

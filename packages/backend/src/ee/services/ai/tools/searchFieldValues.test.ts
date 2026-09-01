@@ -46,8 +46,6 @@ describe('getSearchFieldValues', () => {
                         values: ['Alice'],
                     },
                 ],
-                metrics: null,
-                tableCalculations: null,
             },
         });
 

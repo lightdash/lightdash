@@ -477,7 +477,6 @@ describe('McpSchemaCompatLayer', () => {
                 },
                 filters: {
                     type: 'and',
-                    metrics: null,
                     dimensions: [
                         {
                             values: ['2023-01-01'],
@@ -487,7 +486,6 @@ describe('McpSchemaCompatLayer', () => {
                             fieldFilterType: 'date',
                         },
                     ],
-                    tableCalculations: null,
                 },
                 tableCalculations: null,
             });
@@ -553,7 +551,6 @@ describe('McpSchemaCompatLayer', () => {
                         {
                             fieldId: 'test',
                             descending: true,
-                            nullsFirst: null,
                         },
                     ],
                 },

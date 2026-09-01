@@ -10,7 +10,10 @@ import {
     type TransformedCustomMetric,
 } from '../customMetrics';
 import { getFieldIdSchema } from '../fieldId';
-import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
+import {
+    filtersSchemaTransformed,
+    filtersSchemaV2ModelInput,
+} from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import sortFieldSchema from '../sortField';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
@@ -94,7 +97,7 @@ export const toolRunMetricQueryArgsSchema = createToolSchema()
         vizConfig: tableVizConfigSchema,
         customMetrics: customMetricsSchema,
         tableCalculations: tableCalcsSchema,
-        filters: filtersSchemaV2
+        filters: filtersSchemaV2ModelInput
             .nullable()
             .describe(
                 'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',

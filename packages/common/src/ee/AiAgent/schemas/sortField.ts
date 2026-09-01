@@ -9,11 +9,13 @@ const sortFieldSchema = z.object({
             'If true sorts in descending order, if false sorts in ascending order',
         ),
     nullsFirst: z
-        .boolean()
+        .preprocess(
+            (value) => (value === null ? undefined : value),
+            z.boolean().optional(),
+        )
         .describe(
             'If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default',
-        )
-        .nullable(),
+        ),
 });
 
 export type ToolSortField = z.infer<typeof sortFieldSchema>;

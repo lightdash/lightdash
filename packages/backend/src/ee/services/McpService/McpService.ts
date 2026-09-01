@@ -1031,7 +1031,7 @@ export class McpService extends BaseService {
                 metrics: metricQuery.metrics,
                 sorts: metricQuery.sorts.map((sort) => ({
                     ...sort,
-                    nullsFirst: sort.nullsFirst ?? null,
+                    nullsFirst: sort.nullsFirst ?? undefined,
                 })),
                 limit: metricQuery.limit,
                 parameters: null,
