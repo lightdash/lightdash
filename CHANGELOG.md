@@ -1,3 +1,10 @@
+## [2.71.2](https://github.com/lightdash/lightdash/compare/2.71.1...2.71.2) (2026-09-01)
+
+
+### Bug Fixes
+
+* **content-as-code:** adopt the open pull request already on a write-back branch ([#28379](https://github.com/lightdash/lightdash/issues/28379)) ([3905424](https://github.com/lightdash/lightdash/commit/39054247ab5f79e25cd2a854678f56f1e7e5341a))
+
 ## [2.71.1](https://github.com/lightdash/lightdash/compare/2.71.0...2.71.1) (2026-09-01)
 
 
