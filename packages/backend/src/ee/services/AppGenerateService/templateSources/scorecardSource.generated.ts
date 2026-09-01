@@ -9,7 +9,7 @@ import { type TemplateSourceFile } from './forecasterSource.generated';
 
 export const SCORECARD_SOURCE_FILES: TemplateSourceFile[] = [
     {
-        filename: 'template.json',
+        filename: 'src/template.json',
         contents: `{
     "templateVersion": 1,
     "template": {
@@ -90,6 +90,13 @@ export const SCORECARD_SOURCE_FILES: TemplateSourceFile[] = [
         },
         "sparklines": {
             "enabled": true
+        },
+        "anchor": {
+            "default": "latest",
+            "options": [
+                "today",
+                "latest"
+            ]
         }
     },
     "labels": {
@@ -293,7 +300,7 @@ input[type='range'].lever {
 // exposes accessors so no component hardcodes an explore, field ID, label, or
 // brand color. Instantiating this template is a template.json edit — add,
 // remove, or retarget tiles; components stay as authored.
-import manifest from '../template.json';
+import manifest from './template.json';
 
 function fail(message) {
     throw new Error(\`[kpi-scorecard template] \${message} — check template.json\`);
@@ -438,6 +445,12 @@ export function ScorecardProvider({ children }) {
             periodEnabled: p.period?.enabled !== false,
             comparisonEnabled: p.comparison?.enabled !== false,
             sparklinesEnabled: p.sparklines?.enabled !== false,
+            // 'today' anchors period windows on the current date (live data);
+            // 'latest' anchors them on the newest date in each tile's explore,
+            // so seeded or lagging datasets still fill every tile.
+            anchor: (p.anchor?.options ?? ['today']).includes(p.anchor?.default)
+                ? p.anchor.default
+                : 'today',
             setPeriod: (v) => setPeriod(String(v)),
             setComparison,
         };
@@ -455,6 +468,7 @@ export function useScorecard() {
         filename: 'src/components/ScorecardTile.jsx',
         contents: `import { useMemo } from 'react';
 import { query, useLightdash } from '@lightdash/query-sdk';
+import { format as formatDateFns, parseISO, subDays } from 'date-fns';
 import { Area, AreaChart, ResponsiveContainer } from 'recharts';
 import { Loader2 } from 'lucide-react';
 import { CHART_COLORS } from '@/lib/theme';
@@ -466,16 +480,51 @@ import { formatUnit } from '../template';
 // sparkline. Aggregates are queried without a time dimension so averages,
 // rates, and distinct counts are computed by the warehouse over the window
 // rather than mis-summed from daily rows.
+const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
+const iso = (d) => formatDateFns(d, 'yyyy-MM-dd');
+
+// Period windows as filters. Anchored on today they use relative operators;
+// anchored on the newest data date they become absolute ranges.
+function windowFilters(field, period, anchorEnd, which) {
+    if (!anchorEnd) {
+        return which === 'current'
+            ? [{ field, operator: 'inThePast', value: period, unit: 'days' }]
+            : [
+                  { field, operator: 'inThePast', value: period * 2, unit: 'days' },
+                  { field, operator: 'notInThePast', value: period, unit: 'days' },
+              ];
+    }
+    const end = which === 'current' ? anchorEnd : subDays(anchorEnd, period);
+    const start = subDays(end, period - 1);
+    return [{ field, operator: 'inBetween', value: [iso(start), iso(end)] }];
+}
+
 export default function ScorecardTile({ tile }) {
-    const { period, comparison, sparklinesEnabled } = useScorecard();
+    const { period, comparison, sparklinesEnabled, anchor } = useScorecard();
+    const dayField = \`\${tile.timeDimension}_day\`;
+
+    // Newest date with data for this tile — only consulted in 'latest' mode.
+    const latestQuery = useMemo(
+        () =>
+            query(tile.explore)
+                .label(\`\${tile.label} · latest date\`)
+                .dimensions([dayField])
+                .metrics([tile.metric])
+                .sorts([{ field: dayField, direction: 'desc' }])
+                .limit(1),
+        [tile, dayField],
+    );
+    const latest = useLightdash(latestQuery);
+    const latestIso = anchor === 'latest' ? latest.data[0]?.[dayField] ?? null : null;
+    // Memoised on the ISO string so the query objects below keep a stable
+    // identity between renders (a fresh Date each render would refetch forever).
+    const anchorEnd = useMemo(() => (latestIso ? parseISO(latestIso) : null), [latestIso]);
 
     const { currentQuery, previousQuery, seriesQuery } = useMemo(() => {
         const current = query(tile.explore)
             .label(\`\${tile.label} · current period\`)
             .metrics([tile.metric])
-            .filters([
-                { field: tile.timeDimension, operator: 'inThePast', value: period, unit: 'days' },
-            ])
+            .filters(windowFilters(tile.timeDimension, period, anchorEnd, 'current'))
             .limit(1);
         const previous =
             comparison === 'none'
@@ -483,34 +532,30 @@ export default function ScorecardTile({ tile }) {
                 : query(tile.explore)
                       .label(\`\${tile.label} · previous period\`)
                       .metrics([tile.metric])
-                      .filters([
-                          { field: tile.timeDimension, operator: 'inThePast', value: period * 2, unit: 'days' },
-                          { field: tile.timeDimension, operator: 'notInThePast', value: period, unit: 'days' },
-                      ])
+                      .filters(windowFilters(tile.timeDimension, period, anchorEnd, 'previous'))
                       .limit(1);
         const series = query(tile.explore)
             .label(\`\${tile.label} · daily\`)
-            .dimensions([\`\${tile.timeDimension}_day\`])
+            .dimensions([dayField])
             .metrics([tile.metric])
-            .filters([
-                { field: tile.timeDimension, operator: 'inThePast', value: period, unit: 'days' },
-            ])
-            .sorts([{ field: \`\${tile.timeDimension}_day\`, direction: 'asc' }])
+            .filters(windowFilters(tile.timeDimension, period, anchorEnd, 'current'))
+            .sorts([{ field: dayField, direction: 'asc' }])
             .limit(400);
         return { currentQuery: current, previousQuery: previous, seriesQuery: series };
-    }, [tile, period, comparison]);
+    }, [tile, dayField, period, comparison, anchorEnd]);
 
     const current = useLightdash(currentQuery);
     const previous = useLightdash(previousQuery);
     const series = useLightdash(seriesQuery);
 
-    const loading = current.loading || previous.loading || series.loading;
-    const error = current.error || previous.error || series.error;
-    const value = current.data[0]?.[tile.metric] ?? null;
-    const prior = comparison === 'none' ? null : (previous.data[0]?.[tile.metric] ?? null);
+    const waitingForAnchor = anchor === 'latest' && latest.loading;
+    const loading = waitingForAnchor || current.loading || previous.loading || series.loading;
+    const error = latest.error || current.error || previous.error || series.error;
+    const value = num(current.data[0]?.[tile.metric]);
+    const prior = comparison === 'none' ? null : num(previous.data[0]?.[tile.metric]);
     const delta =
-        value !== null && prior !== null && prior !== 0 ? ((value - prior) / prior) * 100 : null;
-    const points = series.data.map((r) => ({ v: r[tile.metric] ?? 0 }));
+        value !== null && prior !== null && prior > 0 ? ((value - prior) / prior) * 100 : null;
+    const points = series.data.map((r) => ({ v: num(r[tile.metric]) ?? 0 }));
     const targetPct =
         tile.target && value !== null ? Math.max(0, Math.min(100, (value / tile.target) * 100)) : null;
 
@@ -545,7 +590,7 @@ export default function ScorecardTile({ tile }) {
                     <p className="mt-1 text-[11px] text-muted-foreground">
                         {prior !== null
                             ? \`previous \${period}d: \${formatUnit(prior, tile.unit)}\`
-                            : \`last \${period} days\`}
+                            : \`\${period} days\${anchorEnd ? \` to \${iso(anchorEnd)}\` : ''}\`}
                     </p>
                     {targetPct !== null ? (
                         <div className="mt-3">

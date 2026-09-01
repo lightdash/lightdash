@@ -2998,7 +2998,7 @@ export class AppGenerateService extends BaseService {
                 );
                 // The extract runs as the exec user while the coding agent
                 // may run as another; open up the seeded paths so the agent
-                // can edit template.json (its whole job in bind mode).
+                // can edit src/template.json (its whole job in bind mode).
                 const seededRoots = [
                     ...new Set(
                         sourceFiles.map(

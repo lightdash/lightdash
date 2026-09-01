@@ -13,7 +13,7 @@ export type TemplateSourceFile = {
 
 export const FORECASTER_SOURCE_FILES: TemplateSourceFile[] = [
     {
-        filename: 'template.json',
+        filename: 'src/template.json',
         contents: `{
     "templateVersion": 1,
     "template": {
@@ -62,6 +62,9 @@ export const FORECASTER_SOURCE_FILES: TemplateSourceFile[] = [
             "minSize": 5000,
             "maxSize": 100000,
             "sizeStep": 5000
+        },
+        "horizon": {
+            "months": 24
         }
     },
     "labels": {
@@ -252,7 +255,7 @@ input[type='range'].lever {
 // exposes typed-ish accessors so no component ever hardcodes an explore, field
 // ID, label, or brand color. Instantiating this template into another project
 // is a template.json edit plus re-upload — src/ should not need to change.
-import manifest from '../template.json';
+import manifest from './template.json';
 
 function fail(message) {
     throw new Error(\`[metric-forecaster template] \${message} — check template.json\`);
@@ -369,8 +372,10 @@ import { query, useLightdash, useUrlState } from '@lightdash/query-sdk';
 import { addMonths, format as formatDateFns, parseISO } from 'date-fns';
 import { bindings, parameters, mode } from '../template';
 
-const HORIZON = 30; // months projected
-const CHART_HORIZON = 18; // months drawn
+// How far ahead to project and draw, from the manifest (parameters.horizon.months).
+// The 12-month run-rate and totals need at least a year of projection.
+const HORIZON = Math.max(12, Number(parameters.horizon?.months) || 24);
+const CHART_HORIZON = HORIZON;
 const RAMP_MONTHS = 3; // efficiency phases in over a quarter
 
 // The template's one data dependency: a monthly series from the bound explore.

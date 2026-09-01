@@ -11,7 +11,7 @@ describe('template starter sources', () => {
         const source = getTemplateSource('forecaster');
         expect(source).not.toBeNull();
         const filenames = source!.map((f) => f.filename);
-        expect(filenames).toContain('template.json');
+        expect(filenames).toContain('src/template.json');
         expect(filenames).toContain('src/App.jsx');
         expect(filenames).toContain('src/template.js');
         // Scaffold files stay the sandbox image's own.
@@ -24,7 +24,7 @@ describe('template starter sources', () => {
     it('ships a valid manifest with neutral bindings', () => {
         const source = getTemplateSource('forecaster');
         const manifest = JSON.parse(
-            source!.find((f) => f.filename === 'template.json')!.contents,
+            source!.find((f) => f.filename === 'src/template.json')!.contents,
         );
         expect(manifest.templateVersion).toBe(1);
         expect(manifest.bindings.history.explore).toBeTruthy();
@@ -36,7 +36,7 @@ describe('template starter sources', () => {
         const source = getTemplateSource('scorecard');
         expect(source).not.toBeNull();
         const manifest = JSON.parse(
-            source!.find((f) => f.filename === 'template.json')!.contents,
+            source!.find((f) => f.filename === 'src/template.json')!.contents,
         );
         expect(Array.isArray(manifest.bindings.tiles)).toBe(true);
         expect(manifest.bindings.tiles.length).toBeGreaterThan(1);
