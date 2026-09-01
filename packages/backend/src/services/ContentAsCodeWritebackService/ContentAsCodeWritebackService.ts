@@ -608,6 +608,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         const repo =
             await this.gitIntegrationService.getProjectRepo(projectUuid);
 
+        let current = row;
         try {
             await this.gitIntegrationService.createBranchFromSource(
                 user,
@@ -621,6 +622,14 @@ export class ContentAsCodeWritebackService extends BaseService {
             // one PR per slug: later saves append commits to it.
             if (!/already exists|Reference already exists/i.test(message)) {
                 throw error;
+            }
+            if (current.prUrl === null) {
+                current =
+                    (await this.adoptOpenPullRequest(
+                        user,
+                        projectUuid,
+                        current,
+                    )) ?? current;
             }
         }
 
@@ -680,10 +689,9 @@ export class ContentAsCodeWritebackService extends BaseService {
             this.logger.debug(
                 `Content-as-code write-back for ${slug}: branch already has this content`,
             );
-            if (row.prUrl !== null && row.status === 'open') return;
         }
 
-        if (row.prUrl !== null && row.status === 'open') {
+        if (current.prUrl !== null && current.status === 'open') {
             return;
         }
 
@@ -716,8 +724,14 @@ export class ContentAsCodeWritebackService extends BaseService {
             if (!/pull request already exists/i.test(message)) {
                 throw error;
             }
-            // The branch already has an open PR from a row we lost to an
-            // earlier error: adopt it instead of failing forever
+            // The branch already has an open PR we do not track (another
+            // instance, or a row lost to an earlier error): adopt it
+            const adopted = await this.adoptOpenPullRequest(
+                user,
+                projectUuid,
+                current,
+            );
+            if (adopted !== null) return;
             const previous =
                 await this.contentAsCodeWritebackModel.findLatestForBranch(
                     projectUuid,
@@ -740,6 +754,38 @@ export class ContentAsCodeWritebackService extends BaseService {
             prUrl: pullRequest.prUrl,
             status: 'open',
         });
+    }
+
+    private async adoptOpenPullRequest(
+        user: SessionUser,
+        projectUuid: string,
+        row: ContentAsCodeWriteback,
+    ): Promise<ContentAsCodeWriteback | null> {
+        let found: { prNumber: number; prUrl: string } | null;
+        try {
+            found =
+                await this.gitIntegrationService.findOpenPullRequestForBranch(
+                    user,
+                    projectUuid,
+                    row.branch,
+                );
+        } catch (error) {
+            this.logger.warn(
+                `Could not look up an open PR for branch ${row.branch} on project ${projectUuid}`,
+                error,
+            );
+            return null;
+        }
+        if (found === null) return null;
+        await this.contentAsCodeWritebackModel.update(row.uuid, {
+            prNumber: found.prNumber,
+            prUrl: found.prUrl,
+            status: 'open',
+        });
+        this.logger.info(
+            `Content-as-code write-back for ${row.slug} adopted open PR #${found.prNumber} on branch ${row.branch}`,
+        );
+        return { ...row, ...found, status: 'open' };
     }
 
     private async collectDashboardOwnedCharts(

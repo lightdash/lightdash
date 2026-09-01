@@ -1195,6 +1195,39 @@ export const getPullRequest = async ({
     }
 };
 
+export const findOpenPullRequestByHead = async ({
+    owner,
+    repo,
+    head,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    head: string;
+    installationId?: string;
+    token?: string;
+}): Promise<{ number: number; url: string } | null> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const response = await octokit.rest.pulls.list({
+            owner,
+            repo,
+            state: 'open',
+            head: `${owner}:${head}`,
+            per_page: 1,
+            headers,
+        });
+        const pullRequest = response.data[0];
+        return pullRequest
+            ? { number: pullRequest.number, url: pullRequest.html_url }
+            : null;
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
 export const mergePullRequest = async ({
     owner,
     repo,
