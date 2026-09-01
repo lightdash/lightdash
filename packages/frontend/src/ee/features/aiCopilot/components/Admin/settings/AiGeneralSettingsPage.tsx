@@ -64,9 +64,6 @@ export const AiGeneralSettingsPage = () => {
     const { mutate: updateSettings, isLoading: isUpdatingSettings } =
         useUpdateAiOrganizationSettings();
 
-    const orgAiProviderKeysFlag = useServerFeatureFlag(
-        FeatureFlags.OrgAiProviderApiKeys,
-    );
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const threadRetentionFlag = useServerFeatureFlag(
         FeatureFlags.AiThreadRetention,
@@ -321,49 +318,45 @@ export const AiGeneralSettingsPage = () => {
                         </SettingsCard>
                     </Section>
 
-                    {orgAiProviderKeysFlag.data?.enabled &&
-                        settings.isCopilotEnabled && (
-                            <Section
-                                label="Providers & keys"
-                                description="Your own keys take precedence over the instance keys."
-                            >
-                                <AiProvidersCard
-                                    providerApiKeysSet={
-                                        settings.providerApiKeysSet
-                                    }
-                                    providerApiKeyHints={
-                                        settings.providerApiKeyHints
-                                    }
-                                    modelVisibility={
-                                        settings.modelVisibility ?? null
-                                    }
-                                    configurableModelOptions={
-                                        settings.configurableModelOptions ??
-                                        null
-                                    }
-                                    dataAppModelVisibility={
-                                        settings.dataAppModelVisibility ?? null
-                                    }
-                                    showDataAppModels={
-                                        dataAppsFlag.data?.enabled === true
-                                    }
-                                    disabled={isUpdatingSettings}
-                                    onUpdateKeys={(providerApiKeys) =>
-                                        updateSettings({ providerApiKeys })
-                                    }
-                                    onUpdateVisibility={(modelVisibility) =>
-                                        updateSettings({ modelVisibility })
-                                    }
-                                    onUpdateDataAppVisibility={(
+                    {settings.isCopilotEnabled && (
+                        <Section
+                            label="Providers & keys"
+                            description="Your own keys take precedence over the instance keys."
+                        >
+                            <AiProvidersCard
+                                providerApiKeysSet={settings.providerApiKeysSet}
+                                providerApiKeyHints={
+                                    settings.providerApiKeyHints
+                                }
+                                modelVisibility={
+                                    settings.modelVisibility ?? null
+                                }
+                                configurableModelOptions={
+                                    settings.configurableModelOptions ?? null
+                                }
+                                dataAppModelVisibility={
+                                    settings.dataAppModelVisibility ?? null
+                                }
+                                showDataAppModels={
+                                    dataAppsFlag.data?.enabled === true
+                                }
+                                disabled={isUpdatingSettings}
+                                onUpdateKeys={(providerApiKeys) =>
+                                    updateSettings({ providerApiKeys })
+                                }
+                                onUpdateVisibility={(modelVisibility) =>
+                                    updateSettings({ modelVisibility })
+                                }
+                                onUpdateDataAppVisibility={(
+                                    dataAppModelVisibility,
+                                ) =>
+                                    updateSettings({
                                         dataAppModelVisibility,
-                                    ) =>
-                                        updateSettings({
-                                            dataAppModelVisibility,
-                                        })
-                                    }
-                                />
-                            </Section>
-                        )}
+                                    })
+                                }
+                            />
+                        </Section>
+                    )}
 
                     <Section label="Quality & review">
                         <SettingsCard>
