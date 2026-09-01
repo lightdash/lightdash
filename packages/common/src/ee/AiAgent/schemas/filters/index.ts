@@ -49,12 +49,6 @@ export const filterRuleSchemaTransformed = filterRuleSchema.transform(
     }),
 );
 
-const optionalNullableArray = <T extends z.ZodType>(itemSchema: T) =>
-    z.preprocess(
-        (value) => (value === null ? undefined : value),
-        z.array(itemSchema).optional(),
-    );
-
 export const filtersSchemaV2 = z.object({
     type: filterAndOrSchema,
     dimensions: z.array(filterRuleSchema).nullable(),
@@ -62,18 +56,12 @@ export const filtersSchemaV2 = z.object({
     tableCalculations: z.array(numberFilterSchema).nullable(),
 });
 
-export const filtersSchemaV2ModelInput = filtersSchemaV2.extend({
-    dimensions: optionalNullableArray(filterRuleSchema),
-    metrics: optionalNullableArray(filterRuleSchema),
-    tableCalculations: optionalNullableArray(numberFilterSchema),
-});
-
 const filtersSchemaAndFilterRulesTransformed = z
     .object({
         type: filterAndOrSchema,
-        dimensions: z.array(filterRuleSchemaTransformed).nullish(),
-        metrics: z.array(filterRuleSchemaTransformed).nullish(),
-        tableCalculations: z.array(filterRuleSchemaTransformed).nullish(),
+        dimensions: z.array(filterRuleSchemaTransformed).nullable(),
+        metrics: z.array(filterRuleSchemaTransformed).nullable(),
+        tableCalculations: z.array(filterRuleSchemaTransformed).nullable(),
     })
     .nullable();
 

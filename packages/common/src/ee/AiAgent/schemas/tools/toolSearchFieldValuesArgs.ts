@@ -5,10 +5,7 @@ import {
     FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION,
     filterExpressionInputSchema,
 } from '../filterExpressions/expressionSchemas';
-import {
-    filtersSchemaTransformed,
-    filtersSchemaV2ModelInput,
-} from '../filters';
+import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
@@ -36,7 +33,7 @@ Usage Tips:
 - ${boundedQueryInstructionByRuntime[runtime]}. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan
 - If the user or field metadata already provides the exact value, use it directly instead of searching
 - ${emptyFiltersInstructionByRuntime[runtime]}
-- When a filters object is provided, include type and any non-empty filter categories; omitted categories mean no filters
+- When a filters object is provided, include type, dimensions, metrics, and tableCalculations. Use null or [] for every unused category; never omit a category
 `;
 
 export const TOOL_SEARCH_FIELD_VALUES_FILTER_EXPRESSION_DESCRIPTION = ({
@@ -72,10 +69,10 @@ export const toolSearchFieldValuesArgsSchema = createToolSchema()
                 'Candidate text to match within field values. Prefer a non-empty value. Without candidate text, only curated field metadata values can be returned reliably; an empty warehouse-backed search may be rejected.',
             )
             .nullable(),
-        filters: filtersSchemaV2ModelInput
+        filters: filtersSchemaV2
             .nullable()
             .describe(
-                'Optional filters to scope the value search. Include type and any non-empty filter categories; omitted categories default to no filters. Filtered fields must exist in the selected explore or be referenced from custom metrics.',
+                'Optional filters to scope the value search. If supplied, always include type, dimensions, metrics, and tableCalculations; use null or [] for every unused category. Never construct a partial filter group. Filtered fields must exist in the selected explore or be referenced from custom metrics.',
             ),
     })
     .build();

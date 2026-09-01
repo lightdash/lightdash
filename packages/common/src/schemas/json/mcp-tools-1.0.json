@@ -7380,7 +7380,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Tool: search_field_values\n\nPurpose:\nValidate or discover concrete values for a specific dimension before building a filter. Returns up to 100 unique values matching the query.\n\nUsage Tips:\n- Specify the table and field ID whose values you want to search\n- Prefer a non-empty query containing candidate text, such as \"complete\" for a status\n- Do not omit query or use an empty query to enumerate a warehouse column. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan\n- If the user or field metadata already provides the exact value, use it directly instead of searching\n- Omit filters when the search does not need additional filters\n- When a filters object is provided, include type and any non-empty filter categories; omitted categories mean no filters\n",
+            "description": "Tool: search_field_values\n\nPurpose:\nValidate or discover concrete values for a specific dimension before building a filter. Returns up to 100 unique values matching the query.\n\nUsage Tips:\n- Specify the table and field ID whose values you want to search\n- Prefer a non-empty query containing candidate text, such as \"complete\" for a status\n- Do not omit query or use an empty query to enumerate a warehouse column. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan\n- If the user or field metadata already provides the exact value, use it directly instead of searching\n- Omit filters when the search does not need additional filters\n- When a filters object is provided, include type, dimensions, metrics, and tableCalculations. Use null or [] for every unused category; never omit a category\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -7391,7 +7391,7 @@
                     },
                     "filters": {
                         "additionalProperties": false,
-                        "description": "Optional filters to scope the value search. Include type and any non-empty filter categories; omitted categories default to no filters. Filtered fields must exist in the selected explore or be referenced from custom metrics.",
+                        "description": "Optional filters to scope the value search. If supplied, always include type, dimensions, metrics, and tableCalculations; use null or [] for every unused category. Never construct a partial filter group. Filtered fields must exist in the selected explore or be referenced from custom metrics.",
                         "properties": {
                             "dimensions": {
                                 "items": {

@@ -109,72 +109,6 @@ const getDimensionFilterFieldIds = (filters: Filters) =>
     getTotalFilterRules(filters).map((rule) => rule.target.fieldId);
 
 describe('toolRunQueryArgsSchemaTransformed (V3)', () => {
-    it('accepts omitted empty filter categories', () => {
-        const parsed = toolRunQueryArgsSchemaTransformed.parse(
-            buildV2Args({
-                filters: {
-                    type: 'and',
-                    dimensions: buildStringFilters('orders_status').dimensions,
-                },
-            }),
-        );
-
-        expect(getDimensionFilterFieldIds(parsed.queryConfig.filters)).toEqual([
-            'orders_status',
-        ]);
-    });
-
-    it('accepts omitted empty filter categories in a merge source', () => {
-        const args = buildV3MergeArgs();
-        const sourceQuery = args.mergeConfig.additionalSources[0]
-            .queryConfig as Record<string, unknown>;
-        sourceQuery.filters = {
-            type: 'and',
-            dimensions: buildStringFilters('targets_region').dimensions,
-        };
-
-        const parsed = toolRunQueryArgsSchemaTransformed.parse(args);
-
-        expect(
-            getDimensionFilterFieldIds(
-                parsed.mergeConfig!.additionalSources[0].queryConfig.filters,
-            ),
-        ).toEqual(['targets_region']);
-    });
-
-    it('accepts an omitted sort null-order as the warehouse default', () => {
-        const parsed = toolRunQueryArgsSchema.parse(
-            buildV2Args({
-                sorts: [
-                    {
-                        fieldId: 'orders_revenue',
-                        descending: true,
-                    },
-                ],
-            }),
-        );
-
-        expect(parsed.queryConfig.sorts).toEqual([
-            {
-                fieldId: 'orders_revenue',
-                descending: true,
-            },
-        ]);
-    });
-
-    it('rejects a wrapped filter/table shape before query execution', () => {
-        expect(
-            toolRunQueryArgsSchema.safeParse(
-                buildV2Args({
-                    filters: {
-                        filter: buildStringFilters('orders_status'),
-                        table: 'orders',
-                    },
-                }),
-            ).success,
-        ).toBe(false);
-    });
-
     it('parses V2 args into the nested internal shape', () => {
         const parsed = toolRunQueryArgsSchemaTransformed.parse(buildV2Args());
 
@@ -243,21 +177,6 @@ describe('parsePersistedRunQueryArgs', () => {
     it('passes V2 artifacts through unchanged', () => {
         const parsed = parsePersistedRunQueryArgs(buildV2Args());
         expect(parsed?.queryConfig.exploreName).toBe('orders');
-    });
-
-    it('replays current calls with omitted empty filter categories', () => {
-        const parsed = parsePersistedRunQueryArgs(
-            buildV2Args({
-                filters: {
-                    type: 'and',
-                    dimensions: buildStringFilters('orders_status').dimensions,
-                },
-            }),
-        );
-
-        expect(getDimensionFilterFieldIds(parsed!.queryConfig.filters)).toEqual(
-            ['orders_status'],
-        );
     });
 
     it('migrates V1 artifacts to the V2 internal shape', () => {
