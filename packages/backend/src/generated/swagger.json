@@ -37305,6 +37305,91 @@
                 "required": ["slackChannelId", "enabled"],
                 "type": "object"
             },
+            "AiReviewLinearRouting": {
+                "properties": {
+                    "linearProjectId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "linearTeamId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "projectUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "applyToAllProjects": {
+                        "type": "boolean"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "linearProjectId",
+                    "linearTeamId",
+                    "enabled",
+                    "projectUuids",
+                    "applyToAllProjects",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiReviewLinearRouting_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiReviewLinearRouting"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiReviewLinearRoutingResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiReviewLinearRouting_"
+            },
+            "UpdateAiReviewLinearRouting": {
+                "properties": {
+                    "linearProjectId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "linearTeamId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "projectUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "applyToAllProjects": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "linearProjectId",
+                    "linearTeamId",
+                    "enabled",
+                    "projectUuids",
+                    "applyToAllProjects"
+                ],
+                "type": "object"
+            },
             "AiReviewLinearDestination": {
                 "properties": {
                     "linearProjectId": {
@@ -57795,7 +57880,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.69.0",
+        "version": "2.70.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -72850,6 +72935,76 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/UpdateAiReviewNotificationSettings"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/aiAgents/admin/review-linear-routing": {
+            "get": {
+                "operationId": "getAiReviewLinearRouting",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiReviewLinearRoutingResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get Linear routing for AI review issues",
+                "summary": "Get AI review Linear routing",
+                "security": [],
+                "parameters": []
+            },
+            "put": {
+                "operationId": "updateAiReviewLinearRouting",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiReviewLinearRoutingResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update Linear routing for AI review issues",
+                "summary": "Update AI review Linear routing",
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAiReviewLinearRouting"
                             }
                         }
                     }

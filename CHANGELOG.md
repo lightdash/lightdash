@@ -1,3 +1,10 @@
+# [2.70.0](https://github.com/lightdash/lightdash/compare/2.69.0...2.70.0) (2026-09-01)
+
+
+### Features
+
+* **ai-reviews:** persist Linear export across all or selected projects ([#28372](https://github.com/lightdash/lightdash/issues/28372)) ([7a35ad2](https://github.com/lightdash/lightdash/commit/7a35ad2c4d50cc59dd5ec77da4c34c41c6e15e8d))
+
 # [2.69.0](https://github.com/lightdash/lightdash/compare/2.68.1...2.69.0) (2026-09-01)
 
 
