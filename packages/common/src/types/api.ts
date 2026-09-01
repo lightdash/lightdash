@@ -170,6 +170,12 @@ import {
     type ApiContentResponse,
 } from './content';
 import {
+    type ContentReviewRequest,
+    type ContentReviewRequestDetail,
+    type ContentReviewRequestListItem,
+    type ContentReviewSettings,
+} from './contentReviewRequests';
+import {
     type ApiContentVerificationDeleteResponse,
     type ApiContentVerificationResponse,
     type ApiVerifiedContentListResponse,
@@ -222,6 +228,7 @@ import type {
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
+import { type KnexPaginatedData } from './knex-paginate';
 import type { LinearInstallation, LinearProject, LinearTeam } from './linear';
 import {
     type ApiCompiledMergeQueryResults,
@@ -1225,6 +1232,10 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | ContentReviewRequest
+    | ContentReviewRequestDetail
+    | ContentReviewSettings
+    | KnexPaginatedData<ContentReviewRequestListItem[]>
     | BigqueryProjectRecommendation
     | EnsurePlaygroundProjectResults
     | ApiWarehouseConnectCodeResponse['results']
