@@ -47,6 +47,7 @@ import type { LightdashConfig } from '../../config/parseConfig';
 import type { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import type { ContentDraftModel } from '../../models/ContentDraftModel';
 import type { ContentModel } from '../../models/ContentModel/ContentModel';
 import type { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import type { DownloadAuditModel } from '../../models/DownloadAuditModel';
@@ -257,6 +258,9 @@ const getMockedAsyncQueryService = (
     new AsyncQueryService({
         lightdashConfig,
         analytics: analyticsMock,
+        contentDraftModel: {
+            findOpenDraft: vi.fn().mockResolvedValue(undefined),
+        } as unknown as ContentDraftModel,
         projectModel: projectModel as unknown as ProjectModel,
         projectDbtSourcesModel: {} as unknown as ProjectDbtSourcesModel,
         preAggregateModel: {} as PreAggregateModel,

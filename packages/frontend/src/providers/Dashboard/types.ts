@@ -41,6 +41,7 @@ export type TilePreAggregateStatus = {
 
 export type DashboardContextType = {
     projectUuid?: string;
+    includeUnpublishedDraft: boolean;
     isDashboardLoading: boolean;
     dashboard: Dashboard | undefined;
     setEmbedDashboard: Dispatch<SetStateAction<Dashboard | undefined>>;

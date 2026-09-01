@@ -1797,6 +1797,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 
     const value = {
         projectUuid,
+        includeUnpublishedDraft,
         isDashboardLoading,
         dashboard: dashboard || embedDashboard,
         setEmbedDashboard,

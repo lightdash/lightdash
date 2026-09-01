@@ -100,6 +100,11 @@ import type {
 } from '../SoftDeletableService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
+import {
+    assertChartDraftOverlay,
+    mergeDraftIntoChart,
+    type ChartDraftOverlay,
+} from './chartDraftOverlay';
 
 type SavedChartServiceArguments = {
     analytics: LightdashAnalytics;
@@ -128,56 +133,6 @@ type SavedChartServiceArguments = {
 
 type ContentAsCodeDeleteOptions = SoftDeleteOptions & {
     contentAsCodePolicyChecked?: boolean;
-};
-
-type ChartDraftOverlay = Partial<
-    Pick<
-        SavedChartDAO,
-        | 'name'
-        | 'description'
-        | 'tableName'
-        | 'metricQuery'
-        | 'chartConfig'
-        | 'tableConfig'
-        | 'pivotConfig'
-        | 'parameters'
-        | 'merge'
-        | 'spaceUuid'
-    >
-> & { verified?: boolean };
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-    typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const assertChartDraftOverlay: (
-    draft: unknown,
-) => asserts draft is ChartDraftOverlay = (draft) => {
-    if (!isRecord(draft)) throw new Error('Chart draft must be an object');
-    const validators: Record<
-        keyof ChartDraftOverlay,
-        (value: unknown) => boolean
-    > = {
-        name: (value) => typeof value === 'string',
-        description: (value) => typeof value === 'string',
-        tableName: (value) => typeof value === 'string',
-        metricQuery: isRecord,
-        chartConfig: isRecord,
-        tableConfig: isRecord,
-        pivotConfig: isRecord,
-        parameters: isRecord,
-        merge: (value) => value === null || isRecord(value),
-        spaceUuid: (value) => typeof value === 'string',
-        verified: (value) => typeof value === 'boolean',
-    };
-    for (const [field, validate] of Object.entries(validators)) {
-        if (
-            Object.prototype.hasOwnProperty.call(draft, field) &&
-            draft[field] !== undefined &&
-            !validate(draft[field])
-        ) {
-            throw new Error(`Invalid chart draft field: ${field}`);
-        }
-    }
 };
 
 type GoogleSheetValidationOptions = {
@@ -764,42 +719,6 @@ export class SavedChartService
         );
     }
 
-    private static mergeDraftIntoChart<T extends SavedChartDAO>(
-        chart: T,
-        draft: unknown,
-    ): T {
-        assertChartDraftOverlay(draft);
-        return {
-            ...chart,
-            ...(draft.name !== undefined && { name: draft.name }),
-            ...(draft.description !== undefined && {
-                description: draft.description,
-            }),
-            ...(draft.tableName !== undefined && {
-                tableName: draft.tableName,
-            }),
-            ...(draft.metricQuery !== undefined && {
-                metricQuery: draft.metricQuery,
-            }),
-            ...(draft.chartConfig !== undefined && {
-                chartConfig: draft.chartConfig,
-            }),
-            ...(draft.tableConfig !== undefined && {
-                tableConfig: draft.tableConfig,
-            }),
-            ...(draft.pivotConfig !== undefined && {
-                pivotConfig: draft.pivotConfig,
-            }),
-            ...(draft.parameters !== undefined && {
-                parameters: draft.parameters,
-            }),
-            ...(draft.merge !== undefined && { merge: draft.merge }),
-            ...(draft.spaceUuid !== undefined && {
-                spaceUuid: draft.spaceUuid,
-            }),
-        };
-    }
-
     private async maybeStoreDraft(
         user: SessionUser,
         existingChart: SavedChartDAO | ChartSummary,
@@ -869,10 +788,7 @@ export class SavedChartService
                 ? existingChart
                 : await this.savedChartModel.get(existingChart.uuid);
         return {
-            ...SavedChartService.mergeDraftIntoChart(
-                chartForOverlay,
-                stored.draft,
-            ),
+            ...mergeDraftIntoChart(chartForOverlay, stored.draft),
             verification: verificationAfterUpdate,
             ...spaceContext,
             hasUnpublishedChanges: true,
@@ -898,10 +814,7 @@ export class SavedChartService
                 try {
                     assertChartDraftOverlay(draft.draft);
                     return {
-                        ...SavedChartService.mergeDraftIntoChart(
-                            chart,
-                            draft.draft,
-                        ),
+                        ...mergeDraftIntoChart(chart, draft.draft),
                         verification:
                             draft.draft.verified === false
                                 ? null
