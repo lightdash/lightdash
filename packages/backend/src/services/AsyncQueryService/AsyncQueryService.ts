@@ -145,6 +145,7 @@ import {
     type ReadyQueryResultsPage,
     type ResultColumns,
     type RunQueryTags,
+    type SavedChartDAO,
     type SessionUser,
     type SpaceSummaryBase,
     type UserAttributeValueMap,
@@ -175,6 +176,7 @@ import {
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { getAppContext, getSchedulerContext } from '../../logging/winston';
+import { ContentDraftModel } from '../../models/ContentDraftModel';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import {
     mapQueryHistoryRowToListItem,
@@ -239,6 +241,7 @@ import {
     getNextAndPreviousPage,
     validatePagination,
 } from '../ProjectService/resultsPagination';
+import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
@@ -383,6 +386,7 @@ type AsyncQueryExecutionPlan =
       };
 
 type AsyncQueryServiceArguments = ProjectServiceArguments & {
+    contentDraftModel: ContentDraftModel;
     queryHistoryModel: QueryHistoryModel;
     downloadAuditModel: DownloadAuditModel;
     cacheService?: ICacheService;
@@ -501,6 +505,8 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    contentDraftModel: ContentDraftModel;
+
     queryHistoryModel: QueryHistoryModel;
 
     downloadAuditModel: DownloadAuditModel;
@@ -531,6 +537,7 @@ export class AsyncQueryService extends ProjectService {
 
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
+        this.contentDraftModel = args.contentDraftModel;
         this.queryHistoryModel = args.queryHistoryModel;
         this.downloadAuditModel = args.downloadAuditModel;
         this.cacheService = args.cacheService;
@@ -6151,6 +6158,31 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    // Only the draft's author sees it; a corrupt draft falls back to the
+    // published chart, as the chart read path does
+    private async applyOpenChartDraft(
+        account: Account,
+        chart: SavedChartDAO,
+    ): Promise<SavedChartDAO> {
+        if (isJwtUser(account)) return chart;
+        const draft = await this.contentDraftModel.findOpenDraft(
+            chart.projectUuid,
+            'chart',
+            chart.uuid,
+            account.user.userUuid,
+        );
+        if (!draft) return chart;
+        try {
+            return mergeDraftIntoChart(chart, draft.draft);
+        } catch (error) {
+            this.logger.warn(
+                `Ignoring invalid chart draft ${draft.uuid} while running dashboard tile`,
+                error,
+            );
+            return chart;
+        }
+    }
+
     async executeAsyncDashboardChartQuery({
         account,
         projectUuid,
@@ -6165,17 +6197,21 @@ export class AsyncQueryService extends ProjectService {
         limit,
         parameters,
         pivotResults,
+        includeUnpublishedDraft,
         sessionTimezone,
         preloadedSavedChart,
         preloadedProjectParameters,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const savedChart =
+        const publishedChart =
             preloadedSavedChart ??
             (await this.savedChartModel.get(chartUuid, undefined, {
                 projectUuid,
             }));
+        const savedChart = includeUnpublishedDraft
+            ? await this.applyOpenChartDraft(account, publishedChart)
+            : publishedChart;
         const { organizationUuid, projectUuid: savedChartProjectUuid } =
             savedChart;
 

@@ -60,6 +60,9 @@ export type ExecuteAsyncDashboardChartRequestParams =
         dateZoom?: DateZoom;
         limit?: number | null | undefined;
         pivotResults?: boolean;
+        // Run the caller's own unpublished chart draft instead of the
+        // published chart, so a tile matches what the author sees
+        includeUnpublishedDraft?: boolean;
     };
 
 /** A merge run: the spec that produced it, recorded verbatim. */

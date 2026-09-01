@@ -126,6 +126,7 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     dateZoom?: DateZoom;
     limit?: number | null | undefined;
     pivotResults?: boolean;
+    includeUnpublishedDraft?: boolean;
     sessionTimezone?: string | null;
     preloadedSavedChart?: SavedChartDAO;
     preloadedProjectParameters?: DbProjectParameter[];
