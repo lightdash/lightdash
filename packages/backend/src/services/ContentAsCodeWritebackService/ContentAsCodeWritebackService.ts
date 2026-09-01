@@ -26,6 +26,7 @@ import {
     type ContentDraft,
 } from '../../models/ContentDraftModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 import { CoderService } from '../CoderService/CoderService';
 import { GitIntegrationService } from '../GitIntegrationService/GitIntegrationService';
@@ -39,9 +40,23 @@ type ContentAsCodeWritebackServiceArguments = {
     contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
     contentAsCodeWritebackModel: ContentAsCodeWritebackModel;
     contentDraftModel: ContentDraftModel;
+    userModel: UserModel;
 };
 
 type WritebackContentType = 'chart' | 'dashboard';
+
+type CommitAuthor = { name: string; email: string | null };
+
+const commitAuthorFromUser = (user: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+}): CommitAuthor => ({
+    name:
+        [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+        'Lightdash user',
+    email: user.email ?? null,
+});
 
 // Matches the CLI's writeContent (packages/cli/src/handlers/download.ts):
 // updatedAt/downloadedAt are transport metadata and verification is runtime
@@ -57,11 +72,11 @@ const parsePullRequestNumber = (prUrl: string): number | null => {
 };
 
 // Fleet template repos receive commits from many people on many instances:
-// every commit names both. Co-authored-by makes the acting user visible on
-// the commit itself even though the GitHub App is the committer.
+// every commit names both. Co-authored-by credits the person who made the
+// change (the draft author, or the acting user when proposing directly).
 const buildCommitMessage = (
     slug: string | undefined,
-    user: SessionUser,
+    author: CommitAuthor,
     projectUrl: string,
 ): string => {
     const lines = [
@@ -69,15 +84,14 @@ const buildCommitMessage = (
         '',
         `Project: ${projectUrl}`,
     ];
-    const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ');
-    if (user.email) {
-        lines.push(
-            '',
-            `Co-authored-by: ${fullName || 'Lightdash user'} <${user.email}>`,
-        );
+    if (author.email) {
+        lines.push('', `Co-authored-by: ${author.name} <${author.email}>`);
     }
     return lines.join('\n');
 };
+
+const describeAuthor = (author: CommitAuthor): string =>
+    author.email ? `${author.name} (${author.email})` : author.name;
 
 export class ContentAsCodeWritebackService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -96,6 +110,8 @@ export class ContentAsCodeWritebackService extends BaseService {
 
     private readonly contentDraftModel: ContentDraftModel;
 
+    private readonly userModel: UserModel;
+
     constructor(args: ContentAsCodeWritebackServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
@@ -107,6 +123,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         this.contentAsCodeSnapshotModel = args.contentAsCodeSnapshotModel;
         this.contentAsCodeWritebackModel = args.contentAsCodeWritebackModel;
         this.contentDraftModel = args.contentDraftModel;
+        this.userModel = args.userModel;
     }
 
     // Identifies this instance in branch names so two instances editing the
@@ -176,6 +193,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             contentUuid,
             slug,
             contentDraftUuid: null,
+            author: commitAuthorFromUser(user),
         });
     }
 
@@ -370,6 +388,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             slug: draft.slug,
             contentDraftUuid: draft.uuid,
             documentOverride: draftDoc,
+            author: await this.resolveDraftAuthor(draft, user),
         });
         await this.contentDraftModel.update(draft.uuid, {
             status: 'written_back',
@@ -492,6 +511,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             slug: string;
             contentDraftUuid: string | null;
             documentOverride?: ChartAsCode | DashboardAsCode;
+            author: CommitAuthor;
         },
     ): Promise<ContentAsCodeWriteback> {
         const { projectUuid, contentType, slug } = target;
@@ -601,6 +621,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             slug: string;
             contentDraftUuid: string | null;
             documentOverride?: ChartAsCode | DashboardAsCode;
+            author: CommitAuthor;
         },
         row: ContentAsCodeWriteback,
     ): Promise<void> {
@@ -682,6 +703,7 @@ export class ContentAsCodeWritebackService extends BaseService {
                 projectUuid,
                 row.branch,
                 file,
+                target.author,
             );
             if (didCommit) committed += 1;
         }
@@ -715,6 +737,7 @@ export class ContentAsCodeWritebackService extends BaseService {
                         ``,
                         `- Instance: ${this.lightdashConfig.siteUrl}`,
                         `- Content: ${contentUrl}`,
+                        `- Change by: ${describeAuthor(target.author)}`,
                         ...(notes.length > 0 ? ['', ...notes] : []),
                     ].join('\n'),
                     PullRequestSource.CONTENT_AS_CODE,
@@ -754,6 +777,26 @@ export class ContentAsCodeWritebackService extends BaseService {
             prUrl: pullRequest.prUrl,
             status: 'open',
         });
+    }
+
+    // The reviewer pushes the commit, but the credit belongs to whoever made
+    // the change; fall back to the reviewer if the author cannot be resolved.
+    private async resolveDraftAuthor(
+        draft: ContentDraft,
+        actingUser: SessionUser,
+    ): Promise<CommitAuthor> {
+        try {
+            const author = await this.userModel.getUserDetailsByUuid(
+                draft.authorUserUuid,
+            );
+            return commitAuthorFromUser(author);
+        } catch (error) {
+            this.logger.warn(
+                `Could not resolve the author of draft ${draft.uuid}; crediting the reviewer instead`,
+                error,
+            );
+            return commitAuthorFromUser(actingUser);
+        }
     }
 
     private async adoptOpenPullRequest(
@@ -873,6 +916,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         projectUuid: string,
         branch: string,
         file: { path: string; content: string },
+        author: CommitAuthor,
     ): Promise<boolean> {
         let existingSha: string | undefined;
         try {
@@ -906,7 +950,7 @@ export class ContentAsCodeWritebackService extends BaseService {
                 existingSha,
                 buildCommitMessage(
                     slug,
-                    user,
+                    author,
                     new URL(
                         `/projects/${projectUuid}`,
                         this.lightdashConfig.siteUrl,
@@ -938,7 +982,7 @@ export class ContentAsCodeWritebackService extends BaseService {
                 fresh.type === 'file' ? fresh.sha : undefined,
                 buildCommitMessage(
                     slug,
-                    user,
+                    author,
                     new URL(
                         `/projects/${projectUuid}`,
                         this.lightdashConfig.siteUrl,

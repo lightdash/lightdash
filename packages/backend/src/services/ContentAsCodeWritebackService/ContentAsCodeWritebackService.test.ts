@@ -162,6 +162,14 @@ const buildService = (overrides: Overrides = {}) => {
         findOpenDraft: vi.fn().mockResolvedValue(undefined),
         update: vi.fn(),
     };
+    const userModel = {
+        getUserDetailsByUuid: vi.fn().mockResolvedValue({
+            userUuid: 'author-uuid',
+            firstName: 'Draft',
+            lastName: 'Author',
+            email: 'author@lightdash.com',
+        }),
+    };
     const service = new ContentAsCodeWritebackService({
         lightdashConfig: { siteUrl: 'https://app.lightdash.dev' } as never,
         projectModel: {
@@ -180,6 +188,7 @@ const buildService = (overrides: Overrides = {}) => {
         contentAsCodeSnapshotModel: contentAsCodeSnapshotModel as never,
         contentAsCodeWritebackModel: contentAsCodeWritebackModel as never,
         contentDraftModel: contentDraftModel as never,
+        userModel: userModel as never,
     });
     return {
         service,
@@ -187,6 +196,7 @@ const buildService = (overrides: Overrides = {}) => {
         coderService,
         contentAsCodeWritebackModel,
         contentDraftModel,
+        userModel,
     };
 };
 
@@ -378,6 +388,40 @@ describe('ContentAsCodeWritebackService', () => {
             gitIntegrationService.createPullRequestFromBranch.mock.calls[0][5];
         expect(prSource).toBe(PullRequestSource.CONTENT_AS_CODE);
         expect(gitIntegrationService.recordPullRequest).not.toHaveBeenCalled();
+    });
+
+    it('credits the draft author on the commit and in the PR body', async () => {
+        const { service, gitIntegrationService, userModel } = buildService();
+
+        await service.writeBackDraft(user, 'project-uuid', 'draft-uuid');
+
+        expect(userModel.getUserDetailsByUuid).toHaveBeenCalledWith(
+            'author-uuid',
+        );
+        const message = gitIntegrationService.saveFile.mock.calls[0][6];
+        expect(message).toContain(
+            'Co-authored-by: Draft Author <author@lightdash.com>',
+        );
+        expect(message).not.toContain('demo@lightdash.com');
+        const prBody =
+            gitIntegrationService.createPullRequestFromBranch.mock.calls[0][4];
+        expect(prBody).toContain(
+            'Change by: Draft Author (author@lightdash.com)',
+        );
+    });
+
+    it('credits the reviewer when the draft author cannot be resolved', async () => {
+        const { service, gitIntegrationService, userModel } = buildService();
+        userModel.getUserDetailsByUuid.mockRejectedValueOnce(
+            new Error('user gone'),
+        );
+
+        await service.writeBackDraft(user, 'project-uuid', 'draft-uuid');
+
+        const message = gitIntegrationService.saveFile.mock.calls[0][6];
+        expect(message).toContain(
+            'Co-authored-by: Demo User <demo@lightdash.com>',
+        );
     });
 
     it('adopts the open PR found on the provider when the branch already exists', async () => {
