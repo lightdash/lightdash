@@ -2554,10 +2554,11 @@ export class AiAgentReviewClassifierModel {
             return [];
         }
 
-        const rows = await this.database<AiAgentReviewItemTable>(
-            AiAgentReviewItemTableName,
-        )
-            .select('fingerprint', 'project_uuid')
+        const rows = await this.database(AiAgentReviewItemTableName)
+            .select<Pick<DbAiAgentReviewItem, 'fingerprint' | 'project_uuid'>[]>(
+                'fingerprint',
+                'project_uuid',
+            )
             .where('organization_uuid', args.organizationUuid)
             .whereNull('linked_issue_url')
             .whereNotNull('project_uuid')
