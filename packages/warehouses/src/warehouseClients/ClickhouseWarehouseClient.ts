@@ -253,9 +253,8 @@ export class ClickhouseSqlBuilder extends WarehouseBaseSqlBuilder {
 
 const DEFAULT_MAX_OPEN_CONNECTIONS = 10;
 
-// The client is cached per project and shared by all concurrent query jobs,
-// so the socket pool must be at least as large as the async query worker
-// concurrency — otherwise jobs queue on sockets and report inflated exec times.
+// The client is cached per project and shared by all concurrent query jobs;
+// when jobs outnumber sockets they queue and report inflated exec times.
 export const getMaxOpenConnections = (): number => {
     const workerConcurrency = Number(process.env.NATS_WORKER_CONCURRENCY);
     return Number.isInteger(workerConcurrency)
