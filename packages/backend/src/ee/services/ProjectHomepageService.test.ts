@@ -123,6 +123,7 @@ const makeViewerUser = (): SessionUser => ({
 });
 
 const makeService = ({
+    flagEnabled = true,
     projectHomepageModel = {},
     groupsModel = {},
     projectModel = {},
@@ -133,6 +134,7 @@ const makeService = ({
     slackInstalled = true,
     schedulerClient = {},
 }: {
+    flagEnabled?: boolean;
     projectHomepageModel?: Partial<
         ProjectHomepageServiceArguments['projectHomepageModel']
     >;
@@ -153,6 +155,12 @@ const makeService = ({
 } = {}) =>
     new ProjectHomepageService({
         analytics: { track: vi.fn() },
+        featureFlagService: {
+            get: vi.fn().mockResolvedValue({
+                id: 'homepage-builder',
+                enabled: flagEnabled,
+            }),
+        },
         projectHomepageModel: {
             getDefault: vi.fn().mockResolvedValue(undefined),
             getByUuid: vi.fn().mockResolvedValue(makeHomepage()),
@@ -176,11 +184,7 @@ const makeService = ({
             deleteAnnouncement: vi.fn().mockResolvedValue(undefined),
             publishProjectDraftAnnouncements: vi.fn().mockResolvedValue([]),
             publishPendingAnnouncements: vi.fn().mockResolvedValue([]),
-            findOrgHomepageSettings: vi.fn().mockResolvedValue({
-                organizationUuid: ORGANIZATION_UUID,
-                enabled: true,
-                opening: null,
-            }),
+            findOrgHomepageSettings: vi.fn().mockResolvedValue(null),
             upsertOrgHomepageSettings: vi.fn(),
             swapHeroBlocks: vi.fn().mockResolvedValue(undefined),
             ...projectHomepageModel,
@@ -243,24 +247,17 @@ describe('ProjectHomepageService', () => {
         expect(() => makeService()).not.toThrow();
     });
 
-    it('getPublishedHomepage throws ForbiddenError when the org opted out', async () => {
-        const service = makeService({
-            projectHomepageModel: {
-                findOrgHomepageSettings: vi.fn().mockResolvedValue({
-                    organizationUuid: ORGANIZATION_UUID,
-                    enabled: false,
-                    opening: null,
-                }),
-            },
-        });
+    it('getPublishedHomepage throws ForbiddenError when flag is disabled', async () => {
+        const service = makeService({ flagEnabled: false });
 
         await expect(
             service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
         ).rejects.toThrow(ForbiddenError);
     });
 
-    it('org settings opt-in enables the homepage', async () => {
+    it('org settings opt-in enables the homepage even when the flag is off', async () => {
         const service = makeService({
+            flagEnabled: false,
             projectHomepageModel: {
                 findOrgHomepageSettings: vi.fn().mockResolvedValue({
                     organizationUuid: ORGANIZATION_UUID,
@@ -276,11 +273,7 @@ describe('ProjectHomepageService', () => {
     });
 
     it('getOrgHomepageSettings returns defaults when the org never opted in', async () => {
-        const service = makeService({
-            projectHomepageModel: {
-                findOrgHomepageSettings: vi.fn().mockResolvedValue(null),
-            },
-        });
+        const service = makeService();
 
         await expect(
             service.getOrgHomepageSettings(makeViewerUser()),

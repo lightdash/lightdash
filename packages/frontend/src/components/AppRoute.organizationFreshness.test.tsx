@@ -1,5 +1,5 @@
 import { Ability } from '@casl/ability';
-import { FeatureFlags } from '@lightdash/common';
+import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
@@ -86,11 +86,10 @@ const setup = ({
                 enabled: true,
             });
         }
-        if (url === '/org/homepage-settings') {
+        if (url === `/feature-flag/${CommercialFeatureFlags.HomepageBuilder}`) {
             return Promise.resolve({
-                organizationUuid: 'org-1',
-                enabled: true,
-                opening: null,
+                id: CommercialFeatureFlags.HomepageBuilder,
+                enabled: false,
             });
         }
         return Promise.resolve(null);
@@ -103,6 +102,10 @@ const setup = ({
         { updatedAt: Date.now() - cacheAgeMs },
     );
     if (primeFlagCache) {
+        queryClient.setQueryData(
+            ['feature-flag', CommercialFeatureFlags.HomepageBuilder],
+            { id: CommercialFeatureFlags.HomepageBuilder, enabled: false },
+        );
         queryClient.setQueryData(['feature-flag', FeatureFlags.NewOnboarding], {
             id: FeatureFlags.NewOnboarding,
             enabled: true,
@@ -173,7 +176,7 @@ describe('AppRoute onboarding gate freshness', () => {
 
         await navigateToProject();
 
-        expect(await screen.findByText('GET STARTED PAGE')).toBeInTheDocument();
+        expect(await screen.findByText('ONBOARDING PAGE')).toBeInTheDocument();
     });
 
     it('does not strand the user on onboarding when a fresh cached needsProject is already false on the server', async () => {

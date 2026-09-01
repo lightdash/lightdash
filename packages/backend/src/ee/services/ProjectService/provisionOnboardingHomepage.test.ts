@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     buildOnboardingHomepageConfig,
+    CommercialFeatureFlags,
     FeatureFlags,
     OrganizationMemberRole,
     ProjectType,
@@ -154,6 +155,74 @@ const buildArguments = () => {
 };
 
 describe('provisionOnboardingHomepage', () => {
+    it('skips provisioning when the organization kept the homepage builder flag disabled', async () => {
+        const mocks = buildArguments();
+        mocks.ensureOrganizationOverrideEnabled.mockResolvedValue(
+            'kept_disabled',
+        );
+        mocks.getFeatureFlag.mockImplementation(async ({ featureFlagId }) => ({
+            id: featureFlagId,
+            enabled: featureFlagId !== CommercialFeatureFlags.HomepageBuilder,
+        }));
+
+        await provisionOnboardingHomepage(mocks.args);
+
+        expect(mocks.ensureOrganizationOverrideEnabled).toHaveBeenCalledTimes(
+            2,
+        );
+        expect(mocks.ensureOrganizationOverrideEnabled).toHaveBeenCalledWith({
+            user,
+            featureFlagId: CommercialFeatureFlags.HomepageBuilder,
+        });
+        expect(mocks.ensureOrganizationOverrideEnabled).toHaveBeenCalledWith({
+            user,
+            featureFlagId: FeatureFlags.CodingAgentOnboarding,
+        });
+        expect(mocks.listHomepages).not.toHaveBeenCalled();
+        expect(mocks.createHomepage).not.toHaveBeenCalled();
+        expect(mocks.publishHomepage).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'onboarding_homepage.skipped',
+            userId: USER_UUID,
+            properties: {
+                organizationId: ORGANIZATION_UUID,
+                projectId: PROJECT_UUID,
+                onboardingFlow: 'new',
+                homepageBuilderEnablement: 'kept_disabled',
+                codingAgentOnboardingEnablement: 'kept_disabled',
+                reason: 'homepage_builder_flag_disabled',
+            },
+        });
+    });
+
+    it('skips provisioning when enabling the homepage builder flag fails and the flag stays disabled', async () => {
+        const mocks = buildArguments();
+        mocks.ensureOrganizationOverrideEnabled.mockRejectedValue(
+            new Error('Enable failed'),
+        );
+        mocks.getFeatureFlag.mockImplementation(async ({ featureFlagId }) => ({
+            id: featureFlagId,
+            enabled: featureFlagId !== CommercialFeatureFlags.HomepageBuilder,
+        }));
+
+        await provisionOnboardingHomepage(mocks.args);
+
+        expect(mocks.createHomepage).not.toHaveBeenCalled();
+        expect(mocks.publishHomepage).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'onboarding_homepage.skipped',
+            userId: USER_UUID,
+            properties: {
+                organizationId: ORGANIZATION_UUID,
+                projectId: PROJECT_UUID,
+                onboardingFlow: 'new',
+                homepageBuilderEnablement: 'failed',
+                codingAgentOnboardingEnablement: 'failed',
+                reason: 'homepage_builder_flag_disabled',
+            },
+        });
+    });
+
     it('skips provisioning when the organization setup page flag is disabled', async () => {
         const mocks = buildArguments();
         mocks.getFeatureFlag.mockImplementation(async ({ featureFlagId }) => ({
@@ -326,7 +395,7 @@ describe('provisionOnboardingHomepage', () => {
         });
     });
 
-    it('provisions the homepage for the first project', async () => {
+    it('enables the homepage builder flag and provisions the homepage for the first project', async () => {
         const mocks = buildArguments();
 
         await provisionOnboardingHomepage(mocks.args);
@@ -336,11 +405,19 @@ describe('provisionOnboardingHomepage', () => {
             featureFlagId: FeatureFlags.NewOnboarding,
         });
         expect(mocks.ensureOrganizationOverrideEnabled).toHaveBeenCalledTimes(
-            1,
+            2,
         );
         expect(mocks.ensureOrganizationOverrideEnabled).toHaveBeenCalledWith({
             user,
+            featureFlagId: CommercialFeatureFlags.HomepageBuilder,
+        });
+        expect(mocks.ensureOrganizationOverrideEnabled).toHaveBeenCalledWith({
+            user,
             featureFlagId: FeatureFlags.CodingAgentOnboarding,
+        });
+        expect(mocks.getFeatureFlag).toHaveBeenCalledWith({
+            user,
+            featureFlagId: CommercialFeatureFlags.HomepageBuilder,
         });
         expect(mocks.getAllByOrganizationUuid).toHaveBeenCalledWith(
             ORGANIZATION_UUID,
@@ -387,7 +464,7 @@ describe('provisionOnboardingHomepage', () => {
         });
     });
 
-    it('provisions when coding agent onboarding was already enabled', async () => {
+    it('provisions when the flag was already enabled for the organization', async () => {
         const mocks = buildArguments();
         mocks.ensureOrganizationOverrideEnabled.mockResolvedValue(
             'already_enabled',
@@ -405,7 +482,7 @@ describe('provisionOnboardingHomepage', () => {
                 projectId: PROJECT_UUID,
                 homepageUuid: HOMEPAGE_UUID,
                 onboardingFlow: 'new',
-                homepageBuilderEnablement: 'enabled',
+                homepageBuilderEnablement: 'already_enabled',
                 codingAgentOnboardingEnablement: 'already_enabled',
             },
         });
