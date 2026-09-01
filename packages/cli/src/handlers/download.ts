@@ -2887,38 +2887,19 @@ export const downloadHandler = async (
 
 const storeUploadChanges = (
     changes: Record<string, number>,
+    type: 'charts' | 'dashboards',
     promoteChanges: PromotionChanges,
 ): Record<string, number> => {
-    const getPromoteChanges = (
-        resource: 'spaces' | 'charts' | 'dashboards',
-    ) => {
-        const promotions: { action: PromotionAction }[] =
-            promoteChanges[resource];
-        return promotions.reduce<Record<string, number>>(
-            (acc, promoteChange) => {
-                const action = getPromoteAction(promoteChange.action);
-                const key = `${resource} ${action}`;
-                acc[key] = (acc[key] ?? 0) + 1;
-                return acc;
-            },
-            {},
-        );
-    };
-
-    const updatedChanges: Record<string, number> = {
-        ...changes,
-    };
-
-    ['spaces', 'charts', 'dashboards'].forEach((resource) => {
-        const resourceChanges = getPromoteChanges(
-            resource as 'spaces' | 'charts' | 'dashboards',
-        );
-        Object.entries(resourceChanges).forEach(([key, value]) => {
-            updatedChanges[key] = (updatedChanges[key] ?? 0) + value;
-        });
-    });
-
-    return updatedChanges;
+    // The API also echoes untouched spaces and chart tiles; only count the uploaded type
+    const promotions: { action: PromotionAction }[] = promoteChanges[type];
+    return promotions.reduce<Record<string, number>>(
+        (acc, promoteChange) => {
+            const key = `${type} ${getPromoteAction(promoteChange.action)}`;
+            acc[key] = (acc[key] ?? 0) + 1;
+            return acc;
+        },
+        { ...changes },
+    );
 };
 
 const UPLOAD_CHANGE_SUFFIXES = [
@@ -3047,7 +3028,7 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
         );
 
         // Merge storeUploadChanges result into changes in-place
-        const updatedChanges = storeUploadChanges(changes, upsertData);
+        const updatedChanges = storeUploadChanges(changes, type, upsertData);
         Object.keys(updatedChanges).forEach((key) => {
             changes[key] = updatedChanges[key];
         });
@@ -4753,6 +4734,7 @@ export const testHelpers = {
     summarizeUploadChanges,
     upsertAiAgents,
     upsertExternalConnections,
+    upsertResources,
     upsertSpaces,
     upsertVirtualViews,
     validateSpaceIdentity,
