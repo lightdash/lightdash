@@ -28,7 +28,6 @@ import {
     type OnMount,
 } from '../../../MonacoEditor';
 import { Config } from '../../common/Config';
-import compactStyles from '../../mantineTheme.module.css';
 import styles from './TooltipConfig.module.css';
 import '../../../../styles/monaco.css';
 
@@ -284,9 +283,6 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                 </Tooltip>
                 <Switch
                     size="xs"
-                    classNames={{
-                        label: compactStyles.compactCheckboxLabel,
-                    }}
                     checked={show}
                     onChange={() => setShow(!show)}
                 />

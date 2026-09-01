@@ -18,7 +18,6 @@ import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { LabelEditor } from '../common/LabelEditor';
-import compactStyles from '../mantineTheme.module.css';
 import GaugeSections from './GaugeSections';
 import { GaugeValueMode } from './types';
 
@@ -148,9 +147,6 @@ export const GaugeDisplayConfig: FC = memo(() => {
 
                     <Checkbox
                         size="xs"
-                        classNames={{
-                            label: compactStyles.compactCheckboxLabel,
-                        }}
                         label="Show axis labels"
                         description="Display axis labels and tick marks"
                         checked={showAxisLabels}
@@ -161,9 +157,6 @@ export const GaugeDisplayConfig: FC = memo(() => {
 
                     <Checkbox
                         size="xs"
-                        classNames={{
-                            label: compactStyles.compactCheckboxLabel,
-                        }}
                         label="Show as percentage"
                         description="Display the value as a percentage of the scale"
                         checked={showPercentage}
