@@ -228,7 +228,8 @@ describe('IssueDetailModal', () => {
 
     it('links to the Linear issue when one has been exported', () => {
         mockReviewItem.current = makeReviewItem({
-            linkedIssueUrl: 'https://linear.app/acme/issue/PRD-12/broken-metric',
+            linkedIssueUrl:
+                'https://linear.app/acme/issue/PRD-12/broken-metric',
         });
 
         renderModal();
