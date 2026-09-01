@@ -1,3 +1,10 @@
+# [2.78.0](https://github.com/lightdash/lightdash/compare/2.77.0...2.78.0) (2026-09-01)
+
+
+### Features
+
+* **ai-reviews:** show Linear identifiers and attach review links ([#28431](https://github.com/lightdash/lightdash/issues/28431)) ([3987fa9](https://github.com/lightdash/lightdash/commit/3987fa9a2b967ad20a2062bbf6293ae8a20dbb93))
+
 # [2.77.0](https://github.com/lightdash/lightdash/compare/2.76.0...2.77.0) (2026-09-01)
 
 
