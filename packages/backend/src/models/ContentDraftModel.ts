@@ -23,9 +23,30 @@ export type ContentDraft = {
     writebackStatus: ContentAsCodeWritebackStatus | null;
     writtenBackPublished: ChartAsCode | DashboardAsCode | null;
     writtenBackDraft: ChartAsCode | DashboardAsCode | null;
+    // The upload snapshot the draft started from, and the slug's current one
+    baseSnapshot: object | null;
+    baseSnapshotHash: string | null;
+    currentSnapshotHash: string | null;
     createdAt: Date;
     updatedAt: Date;
 };
+
+export type ContentDraftBase = { snapshot: object; hash: string };
+
+// Save payloads carry every field of their form, changed or not; a draft
+// should only claim the fields the author actually changed
+export const pruneUnchangedDraftFields = <T extends object>(
+    published: object,
+    fields: T,
+): T =>
+    Object.fromEntries(
+        Object.entries(fields).filter(
+            ([key, value]) =>
+                !(key in published) ||
+                JSON.stringify(value) !==
+                    JSON.stringify((published as Record<string, unknown>)[key]),
+        ),
+    ) as T;
 
 type ContentDraftModelArguments = {
     database: Knex;
@@ -35,6 +56,7 @@ const parseRow = (
     row: DbContentDraft & {
         author_name?: string | null;
         writeback_status?: string | null;
+        current_snapshot_hash?: string | null;
     },
 ): ContentDraft => ({
     uuid: row.content_draft_uuid,
@@ -55,9 +77,18 @@ const parseRow = (
     writtenBackDraft:
         (row.written_back_draft as ChartAsCode | DashboardAsCode | null) ??
         null,
+    baseSnapshot: row.base_snapshot,
+    baseSnapshotHash: row.base_snapshot_hash,
+    currentSnapshotHash: row.current_snapshot_hash ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
 });
+
+// The slug's last-applied upload snapshot, to tell stale drafts apart
+const currentSnapshotHashSubquery = (knex: Knex) =>
+    knex.raw(
+        `(select s.snapshot_hash from content_as_code_snapshots s where s.project_uuid = ${ContentDraftsTableName}.project_uuid and s.content_type = ${ContentDraftsTableName}.content_type and s.slug = ${ContentDraftsTableName}.slug) as current_snapshot_hash`,
+    );
 
 // The latest write-back row for a draft carries the PR state
 const writebackStatusSubquery = (knex: Knex) =>
@@ -93,6 +124,7 @@ export class ContentDraftModel {
         slug: string;
         authorUserUuid: string;
         draft: object;
+        base: ContentDraftBase | null;
     }): Promise<ContentDraft> {
         const existing = await this.database(ContentDraftsTableName)
             .where({
@@ -109,12 +141,20 @@ export class ContentDraftModel {
             // would silently discard tiles or filters the author drafted
             // earlier. `||` merges shallowly in a single statement, so
             // concurrent saves cannot lose a field between read and write.
+            // Drafts from before bases were recorded adopt one on their
+            // next save; a recorded base is never moved by a save
+            const adoptedBase =
+                existing.base_snapshot_hash === null ? args.base : null;
             const [row] = await this.database(ContentDraftsTableName)
                 .where({ content_draft_uuid: existing.content_draft_uuid })
                 .update({
                     draft: this.database.raw('draft || ?::jsonb', [
                         JSON.stringify(args.draft),
                     ]),
+                    ...(adoptedBase !== null && {
+                        base_snapshot: adoptedBase.snapshot,
+                        base_snapshot_hash: adoptedBase.hash,
+                    }),
                     updated_at: new Date(),
                 })
                 .returning('*');
@@ -129,12 +169,34 @@ export class ContentDraftModel {
                 slug: args.slug,
                 author_user_uuid: args.authorUserUuid,
                 draft: args.draft,
+                base_snapshot: args.base?.snapshot ?? null,
+                base_snapshot_hash: args.base?.hash ?? null,
                 // Same clock as updates, so relative times stay consistent
                 created_at: now,
                 updated_at: now,
             })
             .returning('*');
         return parseRow(row);
+    }
+
+    // Moves the draft onto a newer upload snapshot, dropping the overlay keys
+    // the author chose to take from the repo
+    async rebase(
+        uuid: string,
+        args: { base: ContentDraftBase; removeKeys: string[] },
+    ): Promise<void> {
+        await this.database(ContentDraftsTableName)
+            .where({ content_draft_uuid: uuid })
+            .update({
+                ...(args.removeKeys.length > 0 && {
+                    draft: this.database.raw('draft - ?::text[]', [
+                        args.removeKeys,
+                    ]),
+                }),
+                base_snapshot: args.base.snapshot,
+                base_snapshot_hash: args.base.hash,
+                updated_at: new Date(),
+            });
     }
 
     async findOpenDraft(
@@ -230,6 +292,7 @@ export class ContentDraftModel {
                 DbContentDraft & {
                     author_name: string | null;
                     writeback_status: string | null;
+                    current_snapshot_hash: string | null;
                 }
             >(
                 `${ContentDraftsTableName}.*`,
@@ -237,6 +300,7 @@ export class ContentDraftModel {
                     "users.first_name || ' ' || users.last_name as author_name",
                 ),
                 writebackStatusSubquery(this.database),
+                currentSnapshotHashSubquery(this.database),
             )
             .first();
         return row ? parseRow(row) : undefined;
@@ -254,6 +318,7 @@ export class ContentDraftModel {
                 (DbContentDraft & {
                     author_name: string | null;
                     writeback_status: string | null;
+                    current_snapshot_hash: string | null;
                 })[]
             >(
                 `${ContentDraftsTableName}.*`,
@@ -261,6 +326,7 @@ export class ContentDraftModel {
                     "users.first_name || ' ' || users.last_name as author_name",
                 ),
                 writebackStatusSubquery(this.database),
+                currentSnapshotHashSubquery(this.database),
             )
             .orderBy(`${ContentDraftsTableName}.updated_at`, 'desc');
         return rows.map(parseRow);

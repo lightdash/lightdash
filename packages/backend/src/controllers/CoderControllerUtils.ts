@@ -50,6 +50,13 @@ export const toDraftSummary = (draft: ContentDraft): ContentDraftSummary => ({
     status: draft.status as ContentDraftSummary['status'],
     prUrl: draft.prUrl,
     writebackStatus: draft.writebackStatus,
+    stale:
+        draft.status === 'open' &&
+        Boolean(
+            draft.baseSnapshotHash &&
+            draft.currentSnapshotHash &&
+            draft.baseSnapshotHash !== draft.currentSnapshotHash,
+        ),
     createdAt: draft.createdAt,
     updatedAt: draft.updatedAt,
 });

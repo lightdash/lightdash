@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     Anchor,
+    Badge,
     Avatar,
     Box,
     Button,
@@ -40,11 +41,14 @@ import {
 } from '../../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
 import {
     useContentDraftReview,
+    useDraftStaleness,
     useContentDrafts,
     useDismissDraftMutation,
     useWriteBackDraftMutation,
 } from '../hooks/useContentDrafts';
+import { draftFieldLabel } from '../utils/draftFieldLabel';
 import classes from './ContentReviewPage.module.css';
+import staleClasses from './DraftStalePanel.module.css';
 
 const timeAgo = (date: Date | string): string => {
     const seconds = Math.max(
@@ -156,9 +160,16 @@ const DraftRow: FC<{
                 </Text>
             </Avatar>
             <Stack gap={1} style={{ flex: 1, minWidth: 0 }}>
-                <Text size="sm" fw={isActive ? 600 : 500} truncate>
-                    {draft.slug}
-                </Text>
+                <Group gap={6} wrap="nowrap">
+                    <Text size="sm" fw={isActive ? 600 : 500} truncate>
+                        {draft.slug}
+                    </Text>
+                    {draft.stale ? (
+                        <Badge size="xs" color="yellow" variant="light">
+                            Behind repo
+                        </Badge>
+                    ) : null}
+                </Group>
                 <Text size="xs" c="dimmed" truncate>
                     {rowMeta(draft)}
                 </Text>
@@ -228,6 +239,10 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
     const { data: review, error: reviewError } = useContentDraftReview(
         projectUuid,
         activeUuid,
+    );
+    const { data: stalenessDetails } = useDraftStaleness(
+        projectUuid,
+        review?.staleness ? activeUuid : undefined,
     );
     const { mutate: writeBack, isLoading: isWritingBack } =
         useWriteBackDraftMutation(projectUuid);
@@ -426,11 +441,20 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                             </Popover.Dropdown>
                                         </Popover>
                                         <Tooltip
-                                            label={`Opens this ${active.contentType}'s pull request with the draft's content`}
+                                            label={
+                                                review.staleness
+                                                    ? `The repo changed ${review.staleness.changedFields.join(', ')} since this draft started. The author has to update it first.`
+                                                    : `Opens this ${active.contentType}'s pull request with the draft's content`
+                                            }
                                             withinPortal
+                                            multiline
+                                            w={300}
                                         >
                                             <Button
                                                 loading={isWritingBack}
+                                                disabled={
+                                                    review.staleness !== null
+                                                }
                                                 leftSection={
                                                     <MantineIcon
                                                         icon={
@@ -449,6 +473,38 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                 ) : null}
                             </Group>
                         </Group>
+                        {review.staleness ? (
+                            <Box className={staleClasses.panel}>
+                                <Stack gap={4}>
+                                    <Group gap={8} wrap="nowrap">
+                                        <span className={staleClasses.dot} />
+                                        <Text size="sm" fw={600}>
+                                            Behind the repo
+                                        </Text>
+                                    </Group>
+                                    <Text size="sm" c="dimmed">
+                                        The repo published past the version this
+                                        draft started from. The author has to
+                                        update it before it can be written back.
+                                    </Text>
+                                    {(stalenessDetails?.changes ?? []).map(
+                                        (change) => (
+                                            <Text size="sm" key={change.field}>
+                                                <Text span fw={500}>
+                                                    {draftFieldLabel(
+                                                        change.field,
+                                                    )}
+                                                </Text>
+                                                : repo {change.repo}
+                                                {change.mine
+                                                    ? `; this draft ${change.mine}`
+                                                    : ''}
+                                            </Text>
+                                        ),
+                                    )}
+                                </Stack>
+                            </Box>
+                        ) : null}
                         <WorkerPoolContextProvider
                             poolOptions={PIERRE_POOL_OPTIONS}
                             highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}

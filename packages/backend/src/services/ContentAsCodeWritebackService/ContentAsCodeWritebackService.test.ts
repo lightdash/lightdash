@@ -181,6 +181,7 @@ const buildService = (overrides: Overrides = {}) => {
                   },
         ),
         listByProject: vi.fn(),
+        rebase: vi.fn().mockResolvedValue(undefined),
         countOpenByProject: vi
             .fn()
             .mockResolvedValue(overrides.openDraftCount ?? 0),
@@ -1153,6 +1154,201 @@ describe('ContentAsCodeWritebackService', () => {
             gitIntegrationService.createPullRequestFromBranch,
         ).toHaveBeenCalledTimes(1);
         expect(contentDraftModel.update).toHaveBeenCalledTimes(1);
+    });
+
+    describe('stale drafts', () => {
+        const staleDraft = {
+            uuid: 'draft-uuid',
+            projectUuid: 'project-uuid',
+            contentType: 'dashboard',
+            contentUuid: 'dashboard-uuid',
+            slug: 'weekly-kpis',
+            authorUserUuid: 'author-uuid',
+            draft: { name: 'Weekly KPIs draft', tiles: [] },
+            status: 'open',
+            prUrl: null,
+            baseSnapshot: {
+                name: 'Weekly KPIs',
+                description: 'Old',
+                tiles: [],
+            },
+            baseSnapshotHash: 'old-hash',
+        };
+        const movedSnapshot = {
+            snapshotHash: 'new-hash',
+            snapshot: {
+                name: 'Weekly KPIs',
+                description: 'New',
+                tiles: [{ properties: { chartSlug: 'admin-tile' } }],
+            },
+        };
+
+        it('reports what the repo changed and where the draft collides', async () => {
+            const { service } = buildService({
+                draft: staleDraft,
+                snapshot: movedSnapshot,
+            });
+
+            const review = await service.getDraftReview(
+                user,
+                'project-uuid',
+                'draft-uuid',
+            );
+
+            expect(review.staleness).toEqual({
+                draftUuid: 'draft-uuid',
+                changedFields: ['description', 'tiles'],
+                conflictingFields: ['tiles'],
+            });
+        });
+
+        it('describes what the repo and the draft each did to the moved fields', async () => {
+            const { service, coderService } = buildService({
+                draft: staleDraft,
+                snapshot: movedSnapshot,
+            });
+            coderService.getDashboardAsCodeWithOverlay.mockResolvedValueOnce({
+                name: 'Weekly KPIs draft',
+                slug: 'weekly-kpis',
+                description: 'Old',
+                tiles: [
+                    { type: 'markdown', properties: { title: 'Editor note' } },
+                ],
+            });
+            const draftAuthor = { ...user, userUuid: 'author-uuid' };
+
+            const details = await service.getDraftStalenessDetails(
+                draftAuthor,
+                'project-uuid',
+                'draft-uuid',
+            );
+
+            expect(details?.changes).toEqual([
+                { field: 'description', repo: '"Old" → "New"', mine: null },
+                {
+                    field: 'tiles',
+                    repo: 'added 1 tile (admin-tile)',
+                    mine: 'added 1 tile (Editor note)',
+                },
+            ]);
+        });
+
+        it('refuses to write a stale draft back over newer repo content', async () => {
+            const { service, gitIntegrationService } = buildService({
+                draft: staleDraft,
+                snapshot: movedSnapshot,
+            });
+
+            await expect(
+                service.writeBackDraft(user, 'project-uuid', 'draft-uuid'),
+            ).rejects.toThrow('behind the repo');
+            expect(gitIntegrationService.saveFile).not.toHaveBeenCalled();
+        });
+
+        it('is not stale when the repo has not moved', async () => {
+            const { service } = buildService({
+                draft: staleDraft,
+                snapshot: {
+                    snapshotHash: 'old-hash',
+                    snapshot: staleDraft.baseSnapshot,
+                },
+            });
+
+            const review = await service.getDraftReview(
+                user,
+                'project-uuid',
+                'draft-uuid',
+            );
+
+            expect(review.staleness).toBeNull();
+        });
+
+        it('rebases onto the latest snapshot, dropping the fields the author gives up', async () => {
+            const { service, contentDraftModel } = buildService({
+                draft: staleDraft,
+                snapshot: movedSnapshot,
+            });
+            const draftAuthor = { ...user, userUuid: 'author-uuid' };
+
+            await service.rebaseDraft(
+                draftAuthor,
+                'project-uuid',
+                'draft-uuid',
+                {
+                    tiles: 'latest',
+                },
+            );
+
+            expect(contentDraftModel.rebase).toHaveBeenCalledWith(
+                'draft-uuid',
+                {
+                    base: {
+                        snapshot: movedSnapshot.snapshot,
+                        hash: 'new-hash',
+                    },
+                    removeKeys: ['tiles'],
+                },
+            );
+        });
+
+        it("keeps the author's field when they choose mine", async () => {
+            const { service, contentDraftModel } = buildService({
+                draft: staleDraft,
+                snapshot: movedSnapshot,
+            });
+            const draftAuthor = { ...user, userUuid: 'author-uuid' };
+
+            await service.rebaseDraft(
+                draftAuthor,
+                'project-uuid',
+                'draft-uuid',
+                {
+                    tiles: 'mine',
+                },
+            );
+
+            expect(contentDraftModel.rebase).toHaveBeenCalledWith(
+                'draft-uuid',
+                {
+                    base: {
+                        snapshot: movedSnapshot.snapshot,
+                        hash: 'new-hash',
+                    },
+                    removeKeys: [],
+                },
+            );
+        });
+
+        it('asks for a decision on every conflicting field', async () => {
+            const { service, contentDraftModel } = buildService({
+                draft: staleDraft,
+                snapshot: movedSnapshot,
+            });
+            const draftAuthor = { ...user, userUuid: 'author-uuid' };
+
+            await expect(
+                service.rebaseDraft(
+                    draftAuthor,
+                    'project-uuid',
+                    'draft-uuid',
+                    {},
+                ),
+            ).rejects.toThrow('tiles');
+            expect(contentDraftModel.rebase).not.toHaveBeenCalled();
+        });
+
+        it('only lets the author rebase their draft', async () => {
+            const { service } = buildService({
+                draft: staleDraft,
+                snapshot: movedSnapshot,
+            });
+
+            await expect(
+                service.rebaseDraft(user, 'project-uuid', 'draft-uuid', {
+                    tiles: 'mine',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
     });
 
     describe('pullFromGit', () => {

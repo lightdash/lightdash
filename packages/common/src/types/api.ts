@@ -148,9 +148,11 @@ import {
     type ApiContentAsCodeSettingsResponse,
     type ApiContentAsCodeUploadAdvisoryResponse,
     type ApiContentAsCodeWritebacksResponse,
+    type ApiContentDraftRebaseResponse,
     type ApiContentDraftReopenResponse,
     type ApiContentDraftReviewResponse,
     type ApiContentDraftsResponse,
+    type ApiContentDraftStalenessResponse,
     type ApiContentDraftWriteBackResponse,
     type ApiDashboardAsCodeListResponse,
     type ApiGoogleSheetsSyncAsCodeListResponse,
@@ -1399,6 +1401,8 @@ type ApiResults =
     | ApiContentAsCodeWritebacksResponse['results']
     | ApiContentDraftsResponse['results']
     | ApiContentDraftReviewResponse['results']
+    | ApiContentDraftRebaseResponse['results']
+    | ApiContentDraftStalenessResponse['results']
     | ApiContentDraftReopenResponse['results']
     | ApiContentDraftWriteBackResponse['results']
     | ApiContentAsCodeProposeResponse['results']

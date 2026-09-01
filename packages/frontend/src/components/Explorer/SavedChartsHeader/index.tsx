@@ -63,7 +63,12 @@ import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/As
 import ChartAsCodeModal from '../../../features/contentAsCode/components/ChartAsCodeModal';
 import DismissedDraftAlert from '../../../features/contentAsCode/components/DismissedDraftAlert';
 import DraftOverlayFailureAlert from '../../../features/contentAsCode/components/DraftOverlayFailureAlert';
-import { useReopenDraftMutation } from '../../../features/contentAsCode/hooks/useContentDrafts';
+import DraftStaleAlert from '../../../features/contentAsCode/components/DraftStaleAlert';
+import {
+    useDraftStaleness,
+    useRebaseDraftMutation,
+    useReopenDraftMutation,
+} from '../../../features/contentAsCode/hooks/useContentDrafts';
 import {
     DirectAccessModal,
     useCanManageDirectAccess,
@@ -186,6 +191,12 @@ const SavedChartsHeader: FC = () => {
     const savedChart = useExplorerSelector(selectSavedChart);
     const { mutate: reopenDraft, isLoading: isReopeningDraft } =
         useReopenDraftMutation(projectUuid);
+    const { mutate: rebaseDraft, isLoading: isRebasingDraft } =
+        useRebaseDraftMutation(projectUuid);
+    const { data: draftStalenessDetails } = useDraftStaleness(
+        projectUuid,
+        savedChart?.draftStaleness?.draftUuid,
+    );
     const dashboardIdentifier = savedChart?.dashboardSlug ?? dashboardUuid;
 
     const hasUnsavedChanges = useExplorerSelector(selectHasUnsavedChanges);
@@ -1197,6 +1208,21 @@ const SavedChartsHeader: FC = () => {
                 <DismissedDraftAlert
                     isReopening={isReopeningDraft}
                     onReopen={() => reopenDraft(savedChart.dismissedDraftUuid!)}
+                />
+            ) : null}
+
+            {savedChart?.draftStaleness ? (
+                <DraftStaleAlert
+                    contentLabel="chart"
+                    staleness={savedChart.draftStaleness}
+                    details={draftStalenessDetails}
+                    isUpdating={isRebasingDraft}
+                    onUpdate={(resolutions) =>
+                        rebaseDraft({
+                            draftUuid: savedChart.draftStaleness!.draftUuid,
+                            resolutions,
+                        })
+                    }
                 />
             ) : null}
 

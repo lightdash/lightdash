@@ -2,10 +2,12 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     classifyContentAsCodeFilePath,
+    computeContentDraftStaleness,
     ConflictError,
     ContentAsCodeType,
     DbtProjectType,
     DEFAULT_CONTENT_AS_CODE_PATH,
+    describeContentDraftStaleness,
     ForbiddenError,
     getContentAsCodeFilePath,
     getErrorMessage,
@@ -14,12 +16,16 @@ import {
     loadLightdashProjectConfig,
     normalizeContentAsCodePath,
     NotFoundError,
+    overlayKeysForAsCodeField,
     ParameterError,
     PullRequestSource,
     type ChartAsCode,
     type ContentAsCodeFileClassification,
     type ContentAsCodePullSummary,
     type ContentAsCodeUploadAdvisory,
+    type ContentDraftFieldResolution,
+    type ContentDraftStaleness,
+    type ContentDraftStalenessDetails,
     type DashboardAsCode,
     type LightdashProjectConfig,
     type SessionUser,
@@ -44,6 +50,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 import { CoderService } from '../CoderService/CoderService';
+import { buildContentAsCodeSnapshot } from '../CoderService/contentAsCodeSnapshot';
 import { GitIntegrationService } from '../GitIntegrationService/GitIntegrationService';
 
 type ContentAsCodeWritebackServiceArguments = {
@@ -700,6 +707,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         filePath: string;
         publishedYaml: string;
         draftYaml: string;
+        staleness: ContentDraftStaleness | null;
     }> {
         await this.assertCanManageContentAsCode(user, projectUuid);
         const draft = await this.contentDraftModel.get(draftUuid);
@@ -717,6 +725,10 @@ export class ContentAsCodeWritebackService extends BaseService {
             draft.contentType,
             draft.slug,
         );
+        const staleness =
+            draft.status === 'open'
+                ? await this.getDraftStaleness(draft)
+                : null;
         // A written-back draft shows what actually went to the repo, not a
         // live diff that drifts as published content moves on; a draft handed
         // back to its author is live again
@@ -730,6 +742,7 @@ export class ContentAsCodeWritebackService extends BaseService {
                 filePath,
                 publishedYaml: dumpContentAsCode(draft.writtenBackPublished),
                 draftYaml: dumpContentAsCode(draft.writtenBackDraft),
+                staleness,
             };
         }
         const { published, draftDoc } = await this.renderDraftDocuments(
@@ -741,6 +754,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             filePath,
             publishedYaml: dumpContentAsCode(published),
             draftYaml: dumpContentAsCode(draftDoc),
+            staleness,
         };
     }
 
@@ -764,6 +778,14 @@ export class ContentAsCodeWritebackService extends BaseService {
         }
         const contentType =
             draft.contentType === 'chart' ? 'chart' : 'dashboard';
+        // Writing a stale draft back would carry the base it started from
+        // over whatever the repo published since
+        const staleness = await this.getDraftStaleness(draft);
+        if (staleness !== null) {
+            throw new ConflictError(
+                `This draft is behind the repo (changed since: ${staleness.changedFields.join(', ')}). Ask the author to update it to the latest version first.`,
+            );
+        }
         const { published, draftDoc } = await this.renderDraftDocuments(
             projectUuid,
             draft,
@@ -830,6 +852,136 @@ export class ContentAsCodeWritebackService extends BaseService {
         await this.contentDraftModel.update(draft.uuid, {
             status: 'dismissed',
         });
+    }
+
+    // Null when the draft has no recorded base or the repo has not moved
+    private async getDraftStaleness(
+        draft: ContentDraft,
+    ): Promise<ContentDraftStaleness | null> {
+        if (!draft.baseSnapshotHash) return null;
+        if (
+            draft.contentType !== 'chart' &&
+            draft.contentType !== 'dashboard'
+        ) {
+            return null;
+        }
+        const current = await this.contentAsCodeSnapshotModel.get(
+            draft.projectUuid,
+            draft.contentType === 'chart'
+                ? ContentAsCodeType.CHART
+                : ContentAsCodeType.DASHBOARD,
+            draft.slug,
+        );
+        if (!current || current.snapshotHash === draft.baseSnapshotHash) {
+            return null;
+        }
+        return computeContentDraftStaleness({
+            draftUuid: draft.uuid,
+            contentType: draft.contentType,
+            base: draft.baseSnapshot,
+            current: current.snapshot,
+            overlay: draft.draft,
+        });
+    }
+
+    // What the repo and the draft each did to the fields that moved, for the
+    // author's banner and the reviewer's stale state
+    async getDraftStalenessDetails(
+        user: SessionUser,
+        projectUuid: string,
+        draftUuid: string,
+    ): Promise<ContentDraftStalenessDetails | null> {
+        await this.assertCanViewContentAsCode(user, projectUuid);
+        const draft = await this.contentDraftModel.get(draftUuid);
+        if (!draft || draft.projectUuid !== projectUuid) {
+            throw new ParameterError('Draft not found');
+        }
+        if (draft.authorUserUuid !== user.userUuid) {
+            await this.assertCanManageContentAsCode(user, projectUuid);
+        }
+        const staleness = await this.getDraftStaleness(draft);
+        if (staleness === null) return null;
+        const current = await this.contentAsCodeSnapshotModel.get(
+            projectUuid,
+            draft.contentType === 'chart'
+                ? ContentAsCodeType.CHART
+                : ContentAsCodeType.DASHBOARD,
+            draft.slug,
+        );
+        const { draftDoc } = await this.renderDraftDocuments(
+            projectUuid,
+            draft,
+        );
+        return describeContentDraftStaleness({
+            staleness,
+            base: draft.baseSnapshot,
+            current: current?.snapshot,
+            draft: buildContentAsCodeSnapshot(draftDoc).snapshot,
+        });
+    }
+
+    // The author's gesture: move the draft onto the repo's latest snapshot,
+    // keeping their edits where the repo did not touch the same field and
+    // taking their call on the fields both sides changed
+    async rebaseDraft(
+        user: SessionUser,
+        projectUuid: string,
+        draftUuid: string,
+        resolutions: Record<string, ContentDraftFieldResolution>,
+    ): Promise<ContentDraft> {
+        await this.assertCanViewContentAsCode(user, projectUuid);
+        const draft = await this.contentDraftModel.get(draftUuid);
+        if (!draft || draft.projectUuid !== projectUuid) {
+            throw new ParameterError('Draft not found');
+        }
+        if (draft.authorUserUuid !== user.userUuid) {
+            throw new ForbiddenError();
+        }
+        if (draft.status !== 'open') {
+            throw new ConflictError('Only open drafts can be updated');
+        }
+        if (
+            draft.contentType !== 'chart' &&
+            draft.contentType !== 'dashboard'
+        ) {
+            throw new ParameterError('Unsupported draft content type');
+        }
+        const current = await this.contentAsCodeSnapshotModel.get(
+            projectUuid,
+            draft.contentType === 'chart'
+                ? ContentAsCodeType.CHART
+                : ContentAsCodeType.DASHBOARD,
+            draft.slug,
+        );
+        if (!current) {
+            throw new ConflictError(
+                'This content has no upload snapshot to update to',
+            );
+        }
+        const staleness = await this.getDraftStaleness(draft);
+        const unresolved = (staleness?.conflictingFields ?? []).filter(
+            (field) => resolutions[field] === undefined,
+        );
+        if (unresolved.length > 0) {
+            throw new ParameterError(
+                `Choose what to keep for: ${unresolved.join(', ')}`,
+            );
+        }
+        const removeKeys = (staleness?.conflictingFields ?? [])
+            .filter((field) => resolutions[field] === 'latest')
+            .flatMap((field) =>
+                overlayKeysForAsCodeField(
+                    draft.contentType === 'chart' ? 'chart' : 'dashboard',
+                    field,
+                ),
+            );
+        await this.contentDraftModel.rebase(draft.uuid, {
+            base: { snapshot: current.snapshot, hash: current.snapshotHash },
+            removeKeys,
+        });
+        const updated = await this.contentDraftModel.get(draft.uuid);
+        if (!updated) throw new ParameterError('Draft not found');
+        return updated;
     }
 
     async reopenDraft(

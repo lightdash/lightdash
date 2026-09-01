@@ -2,6 +2,7 @@ export * from './base';
 export * from './charts';
 export * from './core';
 export * from './dashboards';
+export * from './draftRebase';
 export * from './fileDiscovery';
 export * from './parsers';
 export * from './scheduledContent';
