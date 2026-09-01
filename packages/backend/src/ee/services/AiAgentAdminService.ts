@@ -25,7 +25,9 @@ import {
     AiAgentSummary,
     AiAgentThreadDump,
     AiReviewLinearDestination,
+    AiReviewLinearRouting,
     AiReviewNotificationSettings,
+    UpdateAiReviewLinearRouting,
     AiThreadRetentionPreview,
     AlreadyExistsError,
     assertUnreachable,
@@ -1126,6 +1128,65 @@ export class AiAgentAdminService extends BaseService {
             organizationUuid,
             projectUuid,
             ...destination,
+        });
+    }
+
+    async getReviewLinearRouting(
+        user: SessionUser,
+    ): Promise<AiReviewLinearRouting> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkReviewAccess(user, organizationUuid);
+
+        return this.aiAgentReviewNotificationModel.getLinearRouting(
+            organizationUuid,
+        );
+    }
+
+    async updateReviewLinearRouting(
+        user: SessionUser,
+        routing: UpdateAiReviewLinearRouting,
+    ): Promise<AiReviewLinearRouting> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+        if (routing.enabled && !routing.linearTeamId) {
+            throw new ParameterError(
+                'A Linear team is required to create review issues',
+            );
+        }
+        if (
+            routing.enabled &&
+            !routing.applyToAllProjects &&
+            routing.projectUuids.length === 0
+        ) {
+            throw new ParameterError(
+                'Select at least one project or apply Linear issues to all projects',
+            );
+        }
+        if (!routing.applyToAllProjects && routing.projectUuids.length > 0) {
+            const projects =
+                await this.projectModel.getAllByOrganizationUuid(
+                    organizationUuid,
+                );
+            const organizationProjectUuids = new Set(
+                projects.map((project) => project.projectUuid),
+            );
+            const unknownProjectUuid = routing.projectUuids.find(
+                (projectUuid) => !organizationProjectUuids.has(projectUuid),
+            );
+            if (unknownProjectUuid) {
+                throw new NotFoundError('Project not found');
+            }
+        }
+
+        return this.aiAgentReviewNotificationModel.upsertLinearRouting({
+            organizationUuid,
+            ...routing,
         });
     }
 

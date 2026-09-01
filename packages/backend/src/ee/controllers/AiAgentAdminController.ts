@@ -21,6 +21,7 @@ import {
     ApiAiAgentThreadDumpResponse,
     ApiAiOrganizationSettingsResponse,
     ApiAiReviewLinearDestinationResponse,
+    ApiAiReviewLinearRoutingResponse,
     ApiAiReviewNotificationSettingsResponse,
     ApiAiThreadRetentionPreviewResponse,
     ApiErrorPayload,
@@ -41,6 +42,7 @@ import {
     UpdateAiAgentReviewItemStatus,
     UpdateAiOrganizationSettings,
     UpdateAiReviewLinearDestination,
+    UpdateAiReviewLinearRouting,
     UpdateAiReviewNotificationSettings,
     type ApiAiAgentReviewItemWritebackPreviewResponse,
     type UUID,
@@ -976,6 +978,55 @@ export class AiAgentAdminController extends BaseController {
             status: 'ok',
             results:
                 await this.getAiAgentAdminService().updateReviewNotificationSettings(
+                    toSessionUser(req.account),
+                    body,
+                ),
+        };
+    }
+
+    /**
+     * Get Linear routing for AI review issues
+     * @summary Get AI review Linear routing
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/review-linear-routing')
+    @OperationId('getAiReviewLinearRouting')
+    async getReviewLinearRouting(
+        @Request() req: express.Request,
+    ): Promise<ApiAiReviewLinearRoutingResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentAdminService().getReviewLinearRouting(
+                toSessionUser(req.account),
+            ),
+        };
+    }
+
+    /**
+     * Update Linear routing for AI review issues
+     * @summary Update AI review Linear routing
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('/review-linear-routing')
+    @OperationId('updateAiReviewLinearRouting')
+    async updateReviewLinearRouting(
+        @Request() req: express.Request,
+        @Body() body: UpdateAiReviewLinearRouting,
+    ): Promise<ApiAiReviewLinearRoutingResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().updateReviewLinearRouting(
                     toSessionUser(req.account),
                     body,
                 ),
