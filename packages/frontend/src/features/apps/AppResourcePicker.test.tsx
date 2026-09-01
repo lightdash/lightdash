@@ -198,7 +198,7 @@ it('counts linked and newly selected connections together, without double counti
     expect(screen.getByText('3')).toBeInTheDocument();
 });
 
-it('shows linked connections as checked, and unlinks them on click', () => {
+it('confirms before unlinking a checked connection', () => {
     unlink.mockClear();
     const onSelect = vi.fn();
     const onDeselect = vi.fn();
@@ -222,6 +222,15 @@ it('shows linked connections as checked, and unlinks them on click', () => {
     ).not.toBeChecked();
 
     fireEvent.click(linkedRow);
+    expect(unlink).not.toHaveBeenCalled();
+    expect(
+        screen.getByText(
+            'You may not be able to link it again without help from a project admin.',
+            { exact: false },
+        ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unlink connection' }));
     expect(unlink).toHaveBeenCalledWith({
         projectUuid: 'project-1',
         appUuid: 'app-1',
@@ -237,7 +246,7 @@ it('shows linked connections as checked, and unlinks them on click', () => {
     );
 });
 
-it('lets an app unlink a connection that is no longer available for linking', () => {
+it('lets an app keep a connection that is no longer available for linking', () => {
     unlink.mockClear();
     const onDeselectConnection = vi.fn();
     render(
@@ -271,13 +280,12 @@ it('lets an app unlink a connection that is no longer available for linking', ()
     expect(linkedRow).toBeChecked();
 
     fireEvent.click(linkedRow);
-    expect(unlink).toHaveBeenCalledWith({
-        projectUuid: 'project-1',
-        appUuid: 'app-with-admin-only-link',
-        alias: 'admin_only_api',
-        name: 'Admin-only API',
-    });
-    expect(onDeselectConnection).toHaveBeenCalledWith('c-admin-only');
+    expect(unlink).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Keep connection' }));
+    expect(unlink).not.toHaveBeenCalled();
+    expect(onDeselectConnection).not.toHaveBeenCalled();
+    expect(linkedRow).toBeChecked();
 });
 
 it('never unlinks before a first build exists', () => {

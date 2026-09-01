@@ -54,6 +54,7 @@ import {
     type FC,
 } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import MantineModal from '../../components/common/MantineModal';
 import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
 import { ChartIcon, IconBox } from '../../components/common/ResourceIcon';
 import { getChartIcon } from '../../components/common/ResourceIcon/utils';
@@ -958,6 +959,10 @@ export const ConnectionPickerView: FC<{
 }) => {
     const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState('');
+    const [pendingUnlink, setPendingUnlink] = useState<{
+        connection: ExternalConnection;
+        alias: string;
+    } | null>(null);
     const { data: connections, isInitialLoading } = useExternalConnections(
         enabled ? projectUuid : undefined,
     );
@@ -1038,13 +1043,7 @@ export const ConnectionPickerView: FC<{
                 connection.externalConnectionUuid,
             );
             if (linkedAlias !== undefined && projectUuid && linkedAppUuid) {
-                unlink({
-                    projectUuid,
-                    appUuid: linkedAppUuid,
-                    alias: linkedAlias,
-                    name: connection.name,
-                });
-                onDeselect(connection.externalConnectionUuid);
+                setPendingUnlink({ connection, alias: linkedAlias });
             } else if (selectedUuids.has(connection.externalConnectionUuid)) {
                 onDeselect(connection.externalConnectionUuid);
             } else {
@@ -1066,9 +1065,21 @@ export const ConnectionPickerView: FC<{
             projectUuid,
             selectedConnections,
             selectedUuids,
-            unlink,
         ],
     );
+
+    const handleConfirmUnlink = useCallback(() => {
+        if (!pendingUnlink || !projectUuid || !linkedAppUuid) return;
+
+        unlink({
+            projectUuid,
+            appUuid: linkedAppUuid,
+            alias: pendingUnlink.alias,
+            name: pendingUnlink.connection.name,
+        });
+        onDeselect(pendingUnlink.connection.externalConnectionUuid);
+        setPendingUnlink(null);
+    }, [linkedAppUuid, onDeselect, pendingUnlink, projectUuid, unlink]);
 
     return (
         <>
@@ -1164,6 +1175,17 @@ export const ConnectionPickerView: FC<{
                     Done
                 </Button>
             </Box>
+            <MantineModal
+                opened={pendingUnlink !== null}
+                onClose={() => setPendingUnlink(null)}
+                title={`Unlink ${pendingUnlink?.connection.name ?? 'connection'}?`}
+                variant="delete"
+                size="md"
+                description="Unlinking removes access to this connection. You may not be able to link it again without help from a project admin."
+                confirmLabel="Unlink connection"
+                cancelLabel="Keep connection"
+                onConfirm={handleConfirmUnlink}
+            />
         </>
     );
 };
