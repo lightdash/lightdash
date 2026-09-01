@@ -8,7 +8,12 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
+import { getPullRequest } from '../../clients/github/Github';
 import { ContentAsCodeWritebackService } from './ContentAsCodeWritebackService';
+
+vi.mock('../../clients/github/Github', () => ({
+    getPullRequest: vi.fn(),
+}));
 
 const user = {
     userUuid: 'user-uuid',
@@ -39,6 +44,7 @@ type Overrides = {
     branchExists?: boolean;
     providerPullRequest?: { prNumber: number; prUrl: string } | null;
     pullRequestCreateError?: Error;
+    writebackRows?: object[];
 };
 
 const buildService = (overrides: Overrides = {}) => {
@@ -68,6 +74,12 @@ const buildService = (overrides: Overrides = {}) => {
                   prUrl: 'https://github.com/acme/analytics/pull/42',
               }),
         recordPullRequest: vi.fn().mockResolvedValue(undefined),
+        getGitCredentials: vi.fn().mockResolvedValue({
+            owner: 'acme',
+            repo: 'analytics',
+            token: 'token',
+            type: DbtProjectType.GITHUB,
+        }),
     };
     const coderService = {
         getPortableChartAsCode: vi.fn().mockResolvedValue(chartAsCode),
@@ -127,6 +139,7 @@ const buildService = (overrides: Overrides = {}) => {
                       'liveRow' in overrides ? overrides.liveRow : undefined,
         ),
         findLatestForBranch: vi.fn().mockResolvedValue(undefined),
+        listByProject: vi.fn().mockResolvedValue(overrides.writebackRows ?? []),
         create: vi.fn().mockImplementation(async (args) => {
             if (overrides.createError) throw overrides.createError;
             return {
@@ -388,6 +401,100 @@ describe('ContentAsCodeWritebackService', () => {
             gitIntegrationService.createPullRequestFromBranch.mock.calls[0][5];
         expect(prSource).toBe(PullRequestSource.CONTENT_AS_CODE);
         expect(gitIntegrationService.recordPullRequest).not.toHaveBeenCalled();
+    });
+
+    it('hands a draft back as dismissed when its PR is closed without merging', async () => {
+        const openRow = {
+            uuid: 'row-uuid',
+            contentType: 'dashboard',
+            slug: 'weekly-kpis',
+            contentDraftUuid: 'draft-uuid',
+            branch: 'lightdash/write-back/app.lightdash.dev/weekly-kpis/draft-draft-uuid',
+            prNumber: 5,
+            prUrl: 'https://github.com/acme/analytics/pull/5',
+            status: 'open',
+        };
+        const { service, contentAsCodeWritebackModel, contentDraftModel } =
+            buildService({
+                writebackRows: [openRow],
+                draft: {
+                    ...dismissedDraft,
+                    status: 'written_back',
+                    prUrl: openRow.prUrl,
+                },
+            });
+        vi.mocked(getPullRequest).mockResolvedValueOnce({
+            state: 'closed',
+            merged: false,
+        } as never);
+
+        await service.listDrafts(user, 'project-uuid', { refresh: true });
+
+        expect(contentAsCodeWritebackModel.update).toHaveBeenCalledWith(
+            'row-uuid',
+            { status: 'closed' },
+        );
+        expect(contentDraftModel.update).toHaveBeenCalledWith('draft-uuid', {
+            status: 'dismissed',
+            prUrl: null,
+        });
+        expect(contentDraftModel.listByProject).toHaveBeenCalledWith(
+            'project-uuid',
+        );
+    });
+
+    it('leaves a written-back draft alone when its PR merged', async () => {
+        const { service, contentAsCodeWritebackModel, contentDraftModel } =
+            buildService({
+                writebackRows: [
+                    {
+                        uuid: 'row-uuid',
+                        contentType: 'dashboard',
+                        slug: 'weekly-kpis',
+                        contentDraftUuid: 'draft-uuid',
+                        branch: 'b',
+                        prNumber: 5,
+                        prUrl: 'https://github.com/acme/analytics/pull/5',
+                        status: 'open',
+                    },
+                ],
+            });
+        vi.mocked(getPullRequest).mockResolvedValueOnce({
+            state: 'closed',
+            merged: true,
+        } as never);
+
+        await service.listDrafts(user, 'project-uuid', { refresh: true });
+
+        expect(contentAsCodeWritebackModel.update).toHaveBeenCalledWith(
+            'row-uuid',
+            { status: 'merged' },
+        );
+        expect(contentDraftModel.update).not.toHaveBeenCalled();
+    });
+
+    it('reconciles with the provider at most once per minute per project', async () => {
+        const { service, contentAsCodeWritebackModel } = buildService();
+
+        await service.listDrafts(user, 'project-uuid', { refresh: true });
+        await service.listDrafts(user, 'project-uuid', { refresh: true });
+        await service.listDrafts(user, 'other-project', { refresh: true });
+
+        expect(contentAsCodeWritebackModel.listByProject).toHaveBeenCalledTimes(
+            2,
+        );
+    });
+
+    it('does not touch the provider when listing drafts without refresh', async () => {
+        const { service, contentAsCodeWritebackModel } = buildService();
+        vi.mocked(getPullRequest).mockClear();
+
+        await service.listDrafts(user, 'project-uuid');
+
+        expect(
+            contentAsCodeWritebackModel.listByProject,
+        ).not.toHaveBeenCalled();
+        expect(getPullRequest).not.toHaveBeenCalled();
     });
 
     it('credits the draft author on the commit and in the PR body', async () => {
