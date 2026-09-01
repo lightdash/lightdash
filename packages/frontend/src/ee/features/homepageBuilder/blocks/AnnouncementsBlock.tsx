@@ -407,7 +407,6 @@ const AnnouncementItemActions: FC<{
             {!announcement.published && (
                 <Tooltip label="Publish now">
                     <ActionIcon
-                        color="ldGray.6"
                         size="sm"
                         aria-label="Publish announcement now"
                         onClick={() => setConfirmingPublish(true)}
@@ -451,7 +450,6 @@ const AnnouncementItemActions: FC<{
             )}
             <Tooltip label={announcement.pinned ? 'Unpin' : 'Pin to top'}>
                 <ActionIcon
-                    color="ldGray.6"
                     size="sm"
                     aria-label={announcement.pinned ? 'Unpin' : 'Pin'}
                     onClick={() =>
@@ -468,7 +466,6 @@ const AnnouncementItemActions: FC<{
             </Tooltip>
             <Tooltip label="Edit">
                 <ActionIcon
-                    color="ldGray.6"
                     size="sm"
                     aria-label="Edit announcement"
                     onClick={() => onEdit(announcement)}

@@ -77,7 +77,7 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                     }}
                 >
                     <Popover.Target>
-                        <ActionIcon size="md" color="ldGray.6">
+                        <ActionIcon size="md">
                             <MantineIcon icon={IconInfoCircle} />
                         </ActionIcon>
                     </Popover.Target>

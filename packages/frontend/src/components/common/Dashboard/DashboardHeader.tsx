@@ -433,7 +433,7 @@ const DashboardHeader = memo(
                         }}
                     >
                         <Popover.Target>
-                            <ActionIcon size="md" color="ldGray.6">
+                            <ActionIcon size="md">
                                 <MantineIcon icon={IconInfoCircle} />
                             </ActionIcon>
                         </Popover.Target>
@@ -480,7 +480,6 @@ const DashboardHeader = memo(
                     {isEditMode && userCanManageDashboard && (
                         <ActionIcon
                             size="md"
-                            color="ldGray.6"
                             disabled={isSaving}
                             onClick={handleEditClick}
                         >

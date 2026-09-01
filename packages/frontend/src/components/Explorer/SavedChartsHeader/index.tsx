@@ -672,7 +672,6 @@ const SavedChartsHeader: FC = () => {
                                 {isEditMode && userCanManageChart && (
                                     <ActionIcon
                                         size="xs"
-                                        color="ldGray.6"
                                         disabled={updateSavedChart.isLoading}
                                         onClick={() => setIsRenamingChart(true)}
                                     >

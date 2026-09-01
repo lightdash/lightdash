@@ -257,11 +257,7 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                                 comboboxProps={{ withinPortal: false }}
                             />
                             <Tooltip label="Cancel">
-                                <ActionIcon
-                                    size="xs"
-                                    color="ldGray.6"
-                                    onClick={resetAddState}
-                                >
+                                <ActionIcon size="xs" onClick={resetAddState}>
                                     <MantineIcon icon={IconMinus} />
                                 </ActionIcon>
                             </Tooltip>

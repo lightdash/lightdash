@@ -122,7 +122,6 @@ export const HomepageContentPanel: FC<Props> = ({
                           title: 'Charts and Dashboards',
                           action: (
                               <MantineLinkButton
-                                  color="ldGray.6"
                                   size="compact-sm"
                                   variant="subtle"
                                   target="_blank"

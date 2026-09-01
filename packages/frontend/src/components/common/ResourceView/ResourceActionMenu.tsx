@@ -389,7 +389,6 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             disabled={disabled}
                             aria-label="Menu"
                             data-testid={`ResourceViewActionMenu/${item.data.name}`}
-                            color="ldGray.6"
                         >
                             <IconDots size={16} />
                         </ActionIcon>

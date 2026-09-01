@@ -208,7 +208,6 @@ const RoadmapDetailsModal: FC<{
                                     <CopyActionIcon
                                         value={item.ticketId}
                                         copyLabel="Copy ticket ID"
-                                        color="ldGray.6"
                                         size="xs"
                                         variant="transparent"
                                     />

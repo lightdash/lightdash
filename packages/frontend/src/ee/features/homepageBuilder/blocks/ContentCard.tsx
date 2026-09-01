@@ -95,7 +95,6 @@ const CardActions: FC<Pick<Props, 'content' | 'onRemove' | 'star'>> = ({
         )}
         {onRemove && (
             <ActionIcon
-                color="ldGray.6"
                 size="sm"
                 aria-label={`Remove ${content.name} from collection`}
                 onClick={(e) => {

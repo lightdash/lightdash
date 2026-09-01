@@ -460,26 +460,18 @@ const BlockCard: FC<BlockCardProps> = ({
                 </div>
                 <Group gap={2} className={classes.blockActions} wrap="nowrap">
                     <Tooltip label="Move up">
-                        <ActionIcon
-                            color="ldGray.6"
-                            disabled={!canUp}
-                            onClick={onUp}
-                        >
+                        <ActionIcon disabled={!canUp} onClick={onUp}>
                             <MantineIcon icon={IconArrowUp} />
                         </ActionIcon>
                     </Tooltip>
                     <Tooltip label="Move down">
-                        <ActionIcon
-                            color="ldGray.6"
-                            disabled={!canDown}
-                            onClick={onDown}
-                        >
+                        <ActionIcon disabled={!canDown} onClick={onDown}>
                             <MantineIcon icon={IconArrowDown} />
                         </ActionIcon>
                     </Tooltip>
                     {!definition.singleton && (
                         <Tooltip label="Duplicate">
-                            <ActionIcon color="ldGray.6" onClick={onDuplicate}>
+                            <ActionIcon onClick={onDuplicate}>
                                 <MantineIcon icon={IconCopy} />
                             </ActionIcon>
                         </Tooltip>

@@ -143,7 +143,6 @@ const ConnectionRow: FC<
                     <ActionIcon
                         variant="transparent"
                         size="sm"
-                        color="ldGray.6"
                         aria-label={`Actions for ${connection.name}`}
                     >
                         <MantineIcon icon={IconDots} />

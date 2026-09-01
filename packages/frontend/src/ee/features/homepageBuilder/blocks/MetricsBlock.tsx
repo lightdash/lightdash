@@ -363,7 +363,6 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
                                     </Text>
                                 </Box>
                                 <ActionIcon
-                                    color="ldGray.6"
                                     size="sm"
                                     aria-label={`Remove metric ${metricRef.label}`}
                                     onClick={() =>

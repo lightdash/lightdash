@@ -271,11 +271,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                     return (
                         <Menu position="bottom-end">
                             <Menu.Target>
-                                <ActionIcon
-                                    variant="transparent"
-                                    color="ldGray.6"
-                                    size="sm"
-                                >
+                                <ActionIcon variant="transparent" size="sm">
                                     <MantineIcon icon={IconDots} size={16} />
                                 </ActionIcon>
                             </Menu.Target>

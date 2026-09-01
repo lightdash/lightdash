@@ -12,7 +12,6 @@ const FormCollapseButton: FC<
     return (
         <Button
             variant="subtle"
-            color="ldGray.6"
             size="compact-sm"
             style={{
                 alignSelf: 'end',

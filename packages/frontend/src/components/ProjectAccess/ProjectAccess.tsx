@@ -733,7 +733,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                         <Menu position="bottom-end">
                             <Menu.Target>
                                 <Tooltip label="View options">
-                                    <ActionIcon color="ldGray.6" size="sm">
+                                    <ActionIcon size="sm">
                                         <MantineIcon icon={IconDotsVertical} />
                                     </ActionIcon>
                                 </Tooltip>
