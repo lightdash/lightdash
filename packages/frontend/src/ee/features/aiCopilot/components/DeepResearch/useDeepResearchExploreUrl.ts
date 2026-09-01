@@ -18,9 +18,9 @@ export const buildDeepResearchVizConfig = (
             exploreName: metricQuery.exploreName,
             dimensions: metricQuery.dimensions,
             metrics: metricQuery.metrics,
-            sorts: metricQuery.sorts.map((sort) => ({
+            sorts: metricQuery.sorts.map(({ nullsFirst, ...sort }) => ({
                 ...sort,
-                nullsFirst: sort.nullsFirst ?? null,
+                ...(nullsFirst == null ? {} : { nullsFirst }),
             })),
             limit: metricQuery.limit,
             parameters: null,
