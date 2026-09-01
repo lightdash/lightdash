@@ -28,7 +28,7 @@ import {
     IconSwitchHorizontal,
     type Icon,
 } from '@tabler/icons-react';
-import { forwardRef, type FC } from 'react';
+import { type FC } from 'react';
 import { getAxisTypeFromField } from '../../../../hooks/echarts/useEchartsCartesianConfig';
 import MantineIcon from '../../../common/MantineIcon';
 import { NumberInput } from '../../../common/NumberInput';
@@ -39,18 +39,19 @@ import { LabelEditor } from '../../common/LabelEditor';
 import { AxisMinInterval } from './AxisMinInterval';
 import { AxisMinMax } from './AxisMinMax';
 
-const XAxisSortSelectItem = forwardRef<
-    HTMLDivElement,
-    { icon: Icon; label: string; mirrorIcon?: boolean }
->(({ icon, label, mirrorIcon = false, ...others }, ref) => (
-    <Group ref={ref} gap="xs" {...others} wrap="nowrap">
+const XAxisSortSelectItem: FC<{
+    icon: Icon;
+    label: string;
+    mirrorIcon?: boolean;
+}> = ({ icon, label, mirrorIcon = false }) => (
+    <Group gap="xs" wrap="nowrap">
         <MantineIcon
             style={mirrorIcon ? { transform: 'rotateY(180deg)' } : undefined}
             icon={icon}
         />
         <Text fz="xs">{label}</Text>
     </Group>
-));
+);
 
 type Props = {
     itemsMap: ItemsMap | undefined;
