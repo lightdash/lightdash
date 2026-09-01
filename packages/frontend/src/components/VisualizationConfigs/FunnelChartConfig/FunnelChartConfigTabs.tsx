@@ -26,7 +26,6 @@ import { useVisualizationContext } from '../../LightdashVisualization/useVisuali
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { Config } from '../common/Config';
 import { VisualizationConfigTabs } from '../common/VisualizationConfigTabs';
-import compactStyles from '../mantineTheme.module.css';
 import { StepConfig } from './StepConfig';
 
 export const ConfigTabs: FC = memo(() => {
@@ -209,9 +208,6 @@ export const ConfigTabs: FC = memo(() => {
                                     <Group gap="xs">
                                         <Checkbox
                                             size="xs"
-                                            classNames={{
-                                                label: compactStyles.compactCheckboxLabel,
-                                            }}
                                             checked={labels?.showValue}
                                             onChange={(newValue) =>
                                                 onLabelsChange({
@@ -225,9 +221,6 @@ export const ConfigTabs: FC = memo(() => {
 
                                         <Checkbox
                                             size="xs"
-                                            classNames={{
-                                                label: compactStyles.compactCheckboxLabel,
-                                            }}
                                             checked={labels?.showPercentage}
                                             onChange={(newValue) =>
                                                 onLabelsChange({
@@ -283,9 +276,6 @@ export const ConfigTabs: FC = memo(() => {
                                     <Config.Heading>Show legend</Config.Heading>
                                     <Switch
                                         size="xs"
-                                        classNames={{
-                                            label: compactStyles.compactCheckboxLabel,
-                                        }}
                                         checked={showLegend}
                                         onChange={toggleShowLegend}
                                     />

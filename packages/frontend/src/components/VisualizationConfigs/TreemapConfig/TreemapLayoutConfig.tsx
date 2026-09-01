@@ -18,7 +18,6 @@ import { useVisualizationContext } from '../../LightdashVisualization/useVisuali
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
 import { GrabIcon } from '../common/GrabIcon';
-import compactStyles from '../mantineTheme.module.css';
 import classes from './DndList.module.css';
 import { DraggablePortalHandler } from './DraggablePortalHandler';
 
@@ -196,9 +195,6 @@ export const Layout: React.FC = () => {
                         </Tooltip>
                         <Switch
                             size="xs"
-                            classNames={{
-                                label: compactStyles.compactCheckboxLabel,
-                            }}
                             checked={useDynamicColors}
                             onChange={toggleDynamicColors}
                         />

@@ -29,7 +29,6 @@ import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../../common/ColorPaletteSection';
 import { Config } from '../../common/Config';
-import compactStyles from '../../mantineTheme.module.css';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
 import { CustomColors } from './CustomColors';
 import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';
@@ -377,9 +376,6 @@ export const Series: FC<Props> = ({ items }) => {
                         <Stack gap="xs">
                             <Switch
                                 size="xs"
-                                classNames={{
-                                    label: compactStyles.compactCheckboxLabel,
-                                }}
                                 label="Apply custom colors"
                                 checked={customColorsEnabled}
                                 onChange={(e) => {
@@ -446,9 +442,6 @@ export const Series: FC<Props> = ({ items }) => {
             {hasStackedBars && (
                 <Checkbox
                     size="xs"
-                    classNames={{
-                        label: compactStyles.compactCheckboxLabel,
-                    }}
                     checked={showOverlappingLabelsEnabled}
                     label="Show overlapping labels"
                     onChange={handleOverlappingLabelsToggle}

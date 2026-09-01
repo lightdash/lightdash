@@ -19,6 +19,14 @@
     font-size: var(--mantine-font-size-sm);
 }
 
+/* Compact controls carry a secondary-style label. */
+.root[data-size='xs'] .label {
+    padding-inline-start: rem(4px);
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+}
+
 .description {
     color: var(--mantine-color-dimmed);
 }

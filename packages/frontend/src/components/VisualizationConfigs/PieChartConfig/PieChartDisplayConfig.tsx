@@ -15,7 +15,6 @@ import React from 'react';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
-import compactStyles from '../mantineTheme.module.css';
 
 export const Display: React.FC = () => {
     const { visualizationConfig } = useVisualizationContext();
@@ -38,9 +37,6 @@ export const Display: React.FC = () => {
                     <Config.Heading>Show legend</Config.Heading>
                     <Switch
                         size="xs"
-                        classNames={{
-                            label: compactStyles.compactCheckboxLabel,
-                        }}
                         checked={showLegend}
                         onChange={toggleShowLegend}
                     />

@@ -47,7 +47,6 @@ import { useVisualizationContext } from '../../../LightdashVisualization/useVisu
 import ColorSelector from '../../ColorSelector';
 import { AccordionControl } from '../../common/AccordionControl';
 import { Config } from '../../common/Config';
-import compactStyles from '../../mantineTheme.module.css';
 import classes from './ReferenceLine.module.css';
 
 type UpdateReferenceLineProps = {
@@ -418,9 +417,6 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                         <Checkbox
                             flex="1"
                             size="xs"
-                            classNames={{
-                                label: compactStyles.compactCheckboxLabel,
-                            }}
                             label={
                                 <Config.Label>Use series average</Config.Label>
                             }
