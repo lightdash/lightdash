@@ -432,7 +432,6 @@ export const ReviewRemediationWorkspace = () => {
                     )}
                     {reviewItem.status !== 'resolved' && (
                         <Button
-                            color="dark"
                             size="xs"
                             variant={isVerified ? 'filled' : 'default'}
                             leftSection={

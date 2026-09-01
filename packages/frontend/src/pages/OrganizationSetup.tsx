@@ -414,7 +414,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                 <Group>
                                     <Button
                                         type="submit"
-                                        color="dark"
                                         size="md"
                                         disabled={
                                             !form.values.organizationName.trim()
@@ -506,7 +505,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     )}
                                     <Button
                                         type="submit"
-                                        color="dark"
                                         size="md"
                                         loading={completeMutation.isLoading}
                                         disabled={!form.values.jobTitle}

@@ -37,12 +37,7 @@ const InvalidFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
                 }
                 rightSection={
                     isEditMode && (
-                        <ActionIcon
-                            onClick={onRemove}
-                            size="xs"
-                            color="dark"
-                            radius="xl"
-                        >
+                        <ActionIcon onClick={onRemove} size="xs" radius="xl">
                             <MantineIcon size="sm" icon={IconX} />
                         </ActionIcon>
                     )

@@ -318,7 +318,6 @@ const SetupSection: FC<{
                         <ActionIcon
                             aria-label="Run Autopilot now"
                             variant="default"
-                            color="dark"
                             size="md"
                             onClick={onRunNow}
                             disabled={!enabled || isRunNowLoading || isRunning}
@@ -329,7 +328,6 @@ const SetupSection: FC<{
                     </Tooltip>
                     <Button
                         variant={settingsOpen ? 'light' : 'default'}
-                        color="dark"
                         size="xs"
                         leftSection={<IconSettings size={14} />}
                         onClick={onOpenSettings}

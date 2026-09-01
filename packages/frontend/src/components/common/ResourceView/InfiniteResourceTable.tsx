@@ -828,7 +828,6 @@ const InfiniteResourceTable = ({
                             <Button
                                 ml="auto"
                                 size="xs"
-                                color="blue"
                                 leftSection={
                                     <MantineIcon icon={IconFolderSymlink} />
                                 }

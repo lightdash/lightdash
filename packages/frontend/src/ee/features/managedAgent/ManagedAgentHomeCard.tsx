@@ -262,7 +262,6 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
 
                     <Box ml={52}>
                         <Button
-                            color="dark"
                             size="sm"
                             rightSection={<IconArrowRight size={14} />}
                         >

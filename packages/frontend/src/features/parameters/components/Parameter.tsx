@@ -170,7 +170,6 @@ const Parameter: FC<Props> = ({
                                     <ActionIcon
                                         onClick={handleClear}
                                         size="xs"
-                                        color="dark"
                                         radius="xl"
                                     >
                                         <MantineIcon size="sm" icon={IconX} />

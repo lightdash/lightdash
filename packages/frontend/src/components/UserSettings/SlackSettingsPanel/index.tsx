@@ -637,7 +637,6 @@ const SlackSettingsPanel: FC = () => {
                             size="xs"
                             component="a"
                             target="_blank"
-                            color="blue"
                             href={SLACK_INSTALL_URL}
                         >
                             Add to Slack
