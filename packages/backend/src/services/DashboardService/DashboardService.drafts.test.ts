@@ -136,7 +136,10 @@ const buildService = (overrides: Overrides = {}) => {
         schedulerClient: {} as AnyType,
         contentAsCodeProjectSettingsModel: { get: settingsGet } as AnyType,
         contentAsCodeSnapshotModel: { get: snapshotGet } as AnyType,
-        contentDraftModel: { upsertOpenDraft, listOpenForContent } as AnyType,
+        contentDraftModel: {
+            upsertOpenDraft,
+            listOpenForContent,
+        } as AnyType,
         catalogModel: {} as AnyType,
         organizationModel: {} as AnyType,
         organizationMemberProfileModel: {} as AnyType,
