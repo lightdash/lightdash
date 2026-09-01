@@ -28,12 +28,20 @@
     box-shadow: var(--mantine-shadow-xs);
 }
 
-.root[data-variant='default']:hover:not([data-disabled]) {
-    --button-bd: 1px solid var(--mantine-color-gray-3);
+/* Mantine sets --button-bd inline, so the border colour is overridden here
+   directly: a step darker than surfaces so controls read as controls. */
+.root[data-variant='default']:not([data-disabled], :disabled) {
+    border-color: light-dark(
+        var(--mantine-color-gray-3),
+        var(--mantine-color-dark-4)
+    );
+}
 
-    @mixin dark {
-        --button-bd: 1px solid var(--mantine-color-dark-3);
-    }
+.root[data-variant='default']:hover:not([data-disabled], :disabled) {
+    border-color: light-dark(
+        var(--mantine-color-gray-4),
+        var(--mantine-color-dark-3)
+    );
 }
 
 .root[data-disabled],
