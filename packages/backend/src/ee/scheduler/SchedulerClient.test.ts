@@ -248,3 +248,33 @@ describe('CommercialSchedulerClient.mobilePushLiveActivity', () => {
         );
     });
 });
+
+describe('CommercialSchedulerClient.mobilePushLiveActivityStart', () => {
+    it('uses a stable attempt key and a bounded retry policy', async () => {
+        const addJob = vi.fn().mockResolvedValue({ id: 'job-1' });
+        const client = Object.create(
+            CommercialSchedulerClient.prototype,
+        ) as CommercialSchedulerClient;
+        client.graphileUtils = Promise.resolve({ addJob } as AnyType);
+        const payload = {
+            liveActivityStartAttemptUuid: 'attempt-1',
+            organizationUuid: 'organization-1',
+            projectUuid: 'project-1',
+            userUuid: 'user-1',
+        };
+        const runAt = new Date('2026-08-31T12:00:00.000Z');
+
+        await client.mobilePushLiveActivityStart(payload, runAt);
+
+        expect(addJob).toHaveBeenCalledWith(
+            EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY_START,
+            payload,
+            {
+                runAt,
+                maxAttempts: 5,
+                jobKey: 'mobile-push-live-activity-start:attempt-1',
+                priority: JobPriority.MEDIUM,
+            },
+        );
+    });
+});

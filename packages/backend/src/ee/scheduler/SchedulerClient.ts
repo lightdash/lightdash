@@ -18,7 +18,9 @@ import {
     GenerateArtifactQuestionJobPayload,
     IngestExternalSourceJobPayload,
     JobPriority,
+    MOBILE_PUSH_LIVE_ACTIVITY_START_MAX_ATTEMPTS,
     MobilePushLiveActivityJobPayload,
+    MobilePushLiveActivityStartJobPayload,
     PublishAnnouncementPayload,
     SlackPromptJobPayload,
 } from '@lightdash/common';
@@ -58,6 +60,24 @@ export const aiAgentMemoryDistillEventRunAt = (now: Date): Date =>
     new Date(now.getTime() + MEMORY_DISTILL_EVENT_DEBOUNCE_MS);
 
 export class CommercialSchedulerClient extends SchedulerClient {
+    async mobilePushLiveActivityStart(
+        payload: MobilePushLiveActivityStartJobPayload,
+        runAt: Date = new Date(),
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY_START,
+            payload,
+            {
+                runAt,
+                maxAttempts: MOBILE_PUSH_LIVE_ACTIVITY_START_MAX_ATTEMPTS,
+                jobKey: `mobile-push-live-activity-start:${payload.liveActivityStartAttemptUuid}`,
+                priority: JobPriority.MEDIUM,
+            },
+        );
+        return { jobId };
+    }
+
     async mobilePushLiveActivity(
         payload: MobilePushLiveActivityJobPayload,
         runAt: Date = new Date(),

@@ -629,7 +629,7 @@ type AiAgentServiceDependencies = {
     prometheusMetrics?: PrometheusMetrics;
     mobilePushNotificationService?: Pick<
         MobilePushNotificationService,
-        'enqueueThreadReconciliation'
+        'enqueueThreadReconciliation' | 'startLiveActivitiesForPrompt'
     >;
 };
 
@@ -1460,6 +1460,26 @@ export class AiAgentService extends BaseService {
                     error,
                 );
             });
+    }
+
+    private async startMobilePushLiveActivitiesForPrompt(args: {
+        user: SessionUser;
+        projectUuid: string;
+        agentUuid: string;
+        threadUuid: string;
+        promptUuid: string;
+        originatingInstallationUuid: string | undefined;
+    }): Promise<void> {
+        try {
+            await this.mobilePushNotificationService?.startLiveActivitiesForPrompt(
+                args,
+            );
+        } catch (error) {
+            Logger.error(
+                'Failed to enqueue mobile push Live Activity starts',
+                error,
+            );
+        }
     }
 
     /**
@@ -3497,7 +3517,7 @@ export class AiAgentService extends BaseService {
             undefined;
 
         if (body.prompt) {
-            await this.aiAgentModel.createWebAppPrompt({
+            const promptUuid = await this.aiAgentModel.createWebAppPrompt({
                 threadUuid,
                 createdByUserUuid: user.userUuid,
                 prompt: body.prompt,
@@ -3505,6 +3525,17 @@ export class AiAgentService extends BaseService {
                 modelConfig,
             });
             this.enqueueMobilePushThreadReconciliation(threadUuid);
+            if (createdFrom === 'web_app') {
+                await this.startMobilePushLiveActivitiesForPrompt({
+                    user,
+                    projectUuid: agent.projectUuid,
+                    agentUuid,
+                    threadUuid,
+                    promptUuid,
+                    originatingInstallationUuid:
+                        body.originatingInstallationUuid,
+                });
+            }
 
             this.analytics.track<AiAgentPromptCreatedEvent>({
                 event: 'ai_agent_prompt.created',
@@ -3645,6 +3676,14 @@ export class AiAgentService extends BaseService {
             hidden: body.hidden,
         });
         this.enqueueMobilePushThreadReconciliation(threadUuid);
+        await this.startMobilePushLiveActivitiesForPrompt({
+            user,
+            projectUuid: agent.projectUuid,
+            agentUuid,
+            threadUuid,
+            promptUuid: messageUuid,
+            originatingInstallationUuid: body.originatingInstallationUuid,
+        });
 
         this.analytics.track<AiAgentPromptCreatedEvent>({
             event: 'ai_agent_prompt.created',
