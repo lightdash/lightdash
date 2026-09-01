@@ -67,6 +67,7 @@ import {
     isTableChartConfig,
     isTileInSelectedTabs,
     isVizTableConfig,
+    JobStepType,
     LightdashPage,
     MAX_DELIVERY_QUERIES,
     MAX_SAFE_INTEGER,
@@ -180,6 +181,7 @@ import { WarehouseConnectCodeModel } from '../models/WarehouseConnectCodeModel';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../services/AsyncQueryService/types';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
+import { ContentAsCodeWritebackService } from '../services/ContentAsCodeWritebackService/ContentAsCodeWritebackService';
 import {
     CsvService,
     getSchedulerCsvLimit,
@@ -234,6 +236,7 @@ export type SchedulerTaskArguments = {
     dashboardService: DashboardService;
     deployService: DeployService;
     projectService: ProjectService;
+    contentAsCodeWritebackService: ContentAsCodeWritebackService;
     schedulerService: SchedulerService;
     unfurlService: UnfurlService;
     userService: UserService;
@@ -507,6 +510,8 @@ export default class SchedulerTask {
 
     protected readonly projectService: ProjectService;
 
+    protected readonly contentAsCodeWritebackService: ContentAsCodeWritebackService;
+
     protected readonly schedulerService: SchedulerService;
 
     protected readonly unfurlService: UnfurlService;
@@ -563,6 +568,7 @@ export default class SchedulerTask {
         this.unfurlService = args.unfurlService;
         this.userService = args.userService;
         this.validationService = args.validationService;
+        this.contentAsCodeWritebackService = args.contentAsCodeWritebackService;
         this.emailClient = args.emailClient;
         this.googleDriveClient = args.googleDriveClient;
         this.fileStorageClient = args.fileStorageClient;
@@ -2786,6 +2792,16 @@ export default class SchedulerTask {
                 payload.projectUuid,
                 getRequestMethod(payload.requestMethod),
                 payload.jobUuid,
+                payload.syncContentAfterCompile
+                    ? {
+                          stepType: JobStepType.SYNCING_CONTENT,
+                          run: () =>
+                              this.syncContentFromRepo(
+                                  user,
+                                  payload.projectUuid,
+                              ),
+                      }
+                    : undefined,
             );
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
@@ -2833,6 +2849,24 @@ export default class SchedulerTask {
                 },
             });
             throw e;
+        }
+    }
+
+    // Files that could not be applied fail the step so the job details say why
+    private async syncContentFromRepo(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const summary = await this.contentAsCodeWritebackService.pullFromGit(
+            user,
+            projectUuid,
+        );
+        if (summary.failures.length > 0) {
+            throw new Error(
+                `Applied ${summary.charts} charts and ${summary.dashboards} dashboards from the repo; ${summary.failures.length} file(s) could not be applied: ${summary.failures
+                    .map((failure) => `${failure.file}: ${failure.message}`)
+                    .join('; ')}`,
+            );
         }
     }
 

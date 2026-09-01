@@ -831,6 +831,8 @@ export type CompileProjectPayload = TraceTaskBase & {
     jobUuid: string;
     isPreview: boolean;
     validateAfterCompile?: boolean;
+    // Apply charts and dashboards as code from the repo once compiled
+    syncContentAfterCompile?: boolean;
     compilationSource?: CompilationSource;
 };
 

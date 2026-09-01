@@ -327,7 +327,7 @@ const SourceCodeEditorContent: FC = () => {
                 : null;
 
         if (projectBranch && currentBranch === projectBranch) {
-            refreshServer.mutate();
+            refreshServer.mutate({ syncContent: false });
         }
     }, [
         currentBranch,

@@ -1,21 +1,34 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
+    classifyContentAsCodeFilePath,
     ConflictError,
     ContentAsCodeType,
     DbtProjectType,
     DEFAULT_CONTENT_AS_CODE_PATH,
     ForbiddenError,
     getContentAsCodeFilePath,
+    getErrorMessage,
+    isSqlChartContent,
+    joinContentAsCodePath,
+    loadLightdashProjectConfig,
+    normalizeContentAsCodePath,
     NotFoundError,
     ParameterError,
     PullRequestSource,
     type ChartAsCode,
+    type ContentAsCodeFileClassification,
+    type ContentAsCodePullSummary,
     type ContentAsCodeUploadAdvisory,
     type DashboardAsCode,
+    type LightdashProjectConfig,
     type SessionUser,
+    type SqlChartAsCode,
 } from '@lightdash/common';
 import * as yaml from 'js-yaml';
+import pLimit from 'p-limit';
 import * as GithubClient from '../../clients/github/Github';
+import * as GitlabClient from '../../clients/gitlab/Gitlab';
 import { LightdashConfig } from '../../config/parseConfig';
 import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
 import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
@@ -46,6 +59,16 @@ type ContentAsCodeWritebackServiceArguments = {
 };
 
 type WritebackContentType = 'chart' | 'dashboard';
+
+type RepoReadCredentials = Awaited<
+    ReturnType<GitIntegrationService['getGitCredentials']>
+> & { branch: string };
+
+type RepoContentFile = {
+    path: string;
+    classification: ContentAsCodeFileClassification;
+    content: string;
+};
 
 const WRITEBACK_BRANCH_PREFIX = 'lightdash/write-back';
 
@@ -187,9 +210,10 @@ export class ContentAsCodeWritebackService extends BaseService {
         contentType: WritebackContentType,
         slug: string,
     ): string {
-        const prefix = repoPath.replace(/^\/+|\/+$/g, '');
-        const base = getContentAsCodeFilePath(contentPath, contentType, slug);
-        return prefix === '' ? base : `${prefix}/${base}`;
+        return joinContentAsCodePath(
+            repoPath,
+            getContentAsCodeFilePath(contentPath, contentType, slug),
+        );
     }
 
     private async getContentPath(projectUuid: string): Promise<string> {
@@ -342,6 +366,298 @@ export class ContentAsCodeWritebackService extends BaseService {
             return this.contentAsCodeWritebackModel.listByProject(projectUuid);
         }
         return rows;
+    }
+
+    // The in-app `lightdash upload`: stamps the repo's content_as_code
+    // settings, then applies the content files the CLI would
+    async pullFromGit(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ContentAsCodePullSummary> {
+        await this.assertCanManageContentAsCode(user, projectUuid);
+        const repo =
+            await this.gitIntegrationService.getProjectRepo(projectUuid);
+        const creds = {
+            ...(await this.gitIntegrationService.getGitCredentials(
+                user,
+                projectUuid,
+            )),
+            branch: repo.branch,
+        };
+        const prefix = joinContentAsCodePath(repo.path);
+
+        const config =
+            await ContentAsCodeWritebackService.readRepoProjectConfig(
+                creds,
+                joinContentAsCodePath(prefix, 'lightdash.config.yml'),
+            );
+        const configuredPath =
+            config.content_as_code?.path ?? DEFAULT_CONTENT_AS_CODE_PATH;
+        await this.coderService.stampContentAsCodeSettings(user, projectUuid, {
+            sync: config.content_as_code?.sync === true,
+            path: configuredPath,
+        });
+        if (config.content_as_code?.sync !== true) {
+            throw new ParameterError(
+                'Pulling content from the repo requires content_as_code.sync: true in lightdash.config.yml',
+            );
+        }
+
+        const files = await ContentAsCodeWritebackService.readContentFiles(
+            creds,
+            joinContentAsCodePath(
+                prefix,
+                normalizeContentAsCodePath(configuredPath),
+            ),
+        );
+        return this.applyContentFiles(user, projectUuid, files);
+    }
+
+    private static async readRepoProjectConfig(
+        creds: RepoReadCredentials,
+        filePath: string,
+    ): Promise<LightdashProjectConfig> {
+        try {
+            return await loadLightdashProjectConfig(
+                await ContentAsCodeWritebackService.readRepoFile(
+                    creds,
+                    filePath,
+                ),
+            );
+        } catch (error) {
+            if (error instanceof NotFoundError) {
+                throw new ParameterError(
+                    `lightdash.config.yml not found at ${filePath} on ${creds.branch}`,
+                );
+            }
+            throw error;
+        }
+    }
+
+    // One tree listing plus bounded parallel reads with the same credentials
+    private static async readContentFiles(
+        creds: RepoReadCredentials,
+        contentRoot: string,
+    ): Promise<RepoContentFile[]> {
+        const tree =
+            creds.type === DbtProjectType.GITHUB
+                ? await GithubClient.getRepoTree({
+                      owner: creds.owner,
+                      repo: creds.repo,
+                      branch: creds.branch,
+                      installationId: creds.installationId,
+                      token: creds.token,
+                  })
+                : await GitlabClient.getGitlabRepoTree({
+                      owner: creds.owner,
+                      repo: creds.repo,
+                      branch: creds.branch,
+                      token: creds.token,
+                      hostDomain: creds.hostDomain,
+                  });
+        if (tree.truncated) {
+            throw new ParameterError(
+                'The repo is too large to list in one request; run lightdash upload instead',
+            );
+        }
+        const candidates = tree.files.flatMap(({ path }) => {
+            if (contentRoot !== '' && !path.startsWith(`${contentRoot}/`)) {
+                return [];
+            }
+            const classification = classifyContentAsCodeFilePath(path);
+            return classification?.supportedExtension
+                ? [{ path, classification }]
+                : [];
+        });
+        const limit = pLimit(8);
+        return Promise.all(
+            candidates.map((candidate) =>
+                limit(async () => ({
+                    ...candidate,
+                    content: await ContentAsCodeWritebackService.readRepoFile(
+                        creds,
+                        candidate.path,
+                    ),
+                })),
+            ),
+        );
+    }
+
+    private static async readRepoFile(
+        creds: RepoReadCredentials,
+        filePath: string,
+    ): Promise<string> {
+        const getFileContent =
+            creds.type === DbtProjectType.GITHUB
+                ? GithubClient.getFileContent
+                : GitlabClient.getFileContent;
+        const { content } = await getFileContent({
+            fileName: filePath,
+            owner: creds.owner,
+            repo: creds.repo,
+            branch: creds.branch,
+            installationId: creds.installationId,
+            token: creds.token,
+            hostDomain: creds.hostDomain,
+        });
+        return content;
+    }
+
+    // Charts before dashboards (tiles reference chart slugs), one at a time
+    // so slug and space creation never race; a failed chart holds back the
+    // dashboards that use it, as `lightdash upload` does
+    private async applyContentFiles(
+        user: SessionUser,
+        projectUuid: string,
+        files: RepoContentFile[],
+    ): Promise<ContentAsCodePullSummary> {
+        const summary: ContentAsCodePullSummary = {
+            charts: 0,
+            dashboards: 0,
+            failures: [],
+        };
+        const charts: {
+            file: string;
+            document: ChartAsCode | SqlChartAsCode;
+        }[] = [];
+        const dashboards: { file: string; document: DashboardAsCode }[] = [];
+        for (const file of files) {
+            try {
+                const sorted =
+                    ContentAsCodeWritebackService.sortContentFile(file);
+                if (sorted?.kind === 'chart') {
+                    charts.push({ file: file.path, document: sorted.document });
+                } else if (sorted?.kind === 'dashboard') {
+                    dashboards.push({
+                        file: file.path,
+                        document: sorted.document,
+                    });
+                }
+            } catch (error) {
+                summary.failures.push({
+                    file: file.path,
+                    message: getErrorMessage(error),
+                });
+            }
+        }
+
+        const failedChartSlugs = new Set<string>();
+        /* eslint-disable no-await-in-loop */
+        for (const { file, document } of charts) {
+            try {
+                if (isSqlChartContent(document)) {
+                    await this.coderService.upsertSqlChart(
+                        user,
+                        projectUuid,
+                        document.slug,
+                        document as SqlChartAsCode,
+                    );
+                } else {
+                    await this.coderService.upsertChart(
+                        user,
+                        projectUuid,
+                        document.slug,
+                        document as ChartAsCode,
+                        { syncEnabled: true },
+                    );
+                }
+                summary.charts += 1;
+            } catch (error) {
+                failedChartSlugs.add(document.slug);
+                summary.failures.push({
+                    file,
+                    message: getErrorMessage(error),
+                });
+            }
+        }
+        for (const { file, document } of dashboards) {
+            const blockedBy = document.tiles.flatMap((tile) =>
+                'chartSlug' in tile.properties &&
+                typeof tile.properties.chartSlug === 'string' &&
+                failedChartSlugs.has(tile.properties.chartSlug)
+                    ? [tile.properties.chartSlug]
+                    : [],
+            );
+            if (blockedBy.length > 0) {
+                summary.failures.push({
+                    file,
+                    message: `Skipped: depends on charts that failed to apply (${blockedBy.join(', ')})`,
+                });
+            } else {
+                try {
+                    await this.coderService.upsertDashboard(
+                        user,
+                        projectUuid,
+                        document.slug,
+                        document,
+                        { syncEnabled: true },
+                    );
+                    summary.dashboards += 1;
+                } catch (error) {
+                    summary.failures.push({
+                        file,
+                        message: getErrorMessage(error),
+                    });
+                }
+            }
+        }
+        /* eslint-enable no-await-in-loop */
+        return summary;
+    }
+
+    // Same trust as `lightdash upload`: a document with a slug is the as-code
+    // type of its folder, loose files declare theirs with contentType
+    private static sortContentFile(
+        file: RepoContentFile,
+    ):
+        | { kind: 'chart'; document: ChartAsCode | SqlChartAsCode }
+        | { kind: 'dashboard'; document: DashboardAsCode }
+        | null {
+        let parsed: unknown;
+        try {
+            parsed = yaml.load(file.content);
+        } catch {
+            throw new ParameterError(`Could not parse ${file.path} as YAML`);
+        }
+        if (
+            parsed === null ||
+            typeof parsed !== 'object' ||
+            !('slug' in parsed) ||
+            typeof parsed.slug !== 'string'
+        ) {
+            throw new ParameterError(`${file.path} has no slug`);
+        }
+        const kind =
+            file.classification.kind === 'content'
+                ? file.classification.contentType
+                : ContentAsCodeWritebackService.looseContentKind(parsed);
+        switch (kind) {
+            case 'chart':
+                return {
+                    kind,
+                    document: parsed as ChartAsCode | SqlChartAsCode,
+                };
+            case 'dashboard':
+                return { kind, document: parsed as DashboardAsCode };
+            case null:
+                return null;
+            default:
+                return assertUnreachable(kind, 'Unknown content kind');
+        }
+    }
+
+    private static looseContentKind(
+        parsed: object,
+    ): 'chart' | 'dashboard' | null {
+        const contentType =
+            'contentType' in parsed ? parsed.contentType : undefined;
+        if (
+            contentType === ContentAsCodeType.CHART ||
+            contentType === ContentAsCodeType.SQL_CHART
+        ) {
+            return 'chart';
+        }
+        return contentType === ContentAsCodeType.DASHBOARD ? 'dashboard' : null;
     }
 
     async listDrafts(

@@ -142,6 +142,23 @@ export type ContentAsCodeSettingsStamp = {
     path?: string;
 };
 
+export type ContentAsCodePullFailure = {
+    file: string;
+    message: string;
+};
+
+// Outcome of pulling content-as-code from the project's repo in the app
+export type ContentAsCodePullSummary = {
+    charts: number;
+    dashboards: number;
+    failures: ContentAsCodePullFailure[];
+};
+
+export type ApiContentAsCodePullResponse = {
+    status: 'ok';
+    results: ContentAsCodePullSummary;
+};
+
 export type ApiContentAsCodeSettingsResponse = {
     status: 'ok';
     results: ContentAsCodeProjectSettings | null;

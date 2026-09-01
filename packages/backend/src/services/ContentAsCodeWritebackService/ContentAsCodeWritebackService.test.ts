@@ -3,16 +3,23 @@ import {
     ConflictError,
     DbtProjectType,
     ForbiddenError,
+    NotFoundError,
     PossibleAbilities,
     PullRequestSource,
     type SessionUser,
 } from '@lightdash/common';
-import { describe, expect, it, vi } from 'vitest';
-import { getPullRequest } from '../../clients/github/Github';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    getFileContent,
+    getPullRequest,
+    getRepoTree,
+} from '../../clients/github/Github';
 import { ContentAsCodeWritebackService } from './ContentAsCodeWritebackService';
 
 vi.mock('../../clients/github/Github', () => ({
     getPullRequest: vi.fn(),
+    getRepoTree: vi.fn(),
+    getFileContent: vi.fn(),
 }));
 
 const user = {
@@ -112,6 +119,10 @@ const buildService = (overrides: Overrides = {}) => {
             slug: 'weekly-kpis',
             tiles: [],
         }),
+        upsertChart: vi.fn().mockResolvedValue({ action: 'update' }),
+        upsertSqlChart: vi.fn().mockResolvedValue({ action: 'update' }),
+        upsertDashboard: vi.fn().mockResolvedValue({ action: 'update' }),
+        stampContentAsCodeSettings: vi.fn().mockResolvedValue(undefined),
     };
     const contentAsCodeProjectSettingsModel = {
         get: vi
@@ -121,6 +132,7 @@ const buildService = (overrides: Overrides = {}) => {
                     ? overrides.settings
                     : { syncEnabled: true },
             ),
+        upsert: vi.fn().mockResolvedValue(undefined),
     };
     const contentAsCodeSnapshotModel = {
         get: vi
@@ -207,6 +219,7 @@ const buildService = (overrides: Overrides = {}) => {
         service,
         gitIntegrationService,
         coderService,
+        contentAsCodeProjectSettingsModel,
         contentAsCodeWritebackModel,
         contentDraftModel,
         userModel,
@@ -1140,5 +1153,178 @@ describe('ContentAsCodeWritebackService', () => {
             gitIntegrationService.createPullRequestFromBranch,
         ).toHaveBeenCalledTimes(1);
         expect(contentDraftModel.update).toHaveBeenCalledTimes(1);
+    });
+
+    describe('pullFromGit', () => {
+        beforeEach(() => {
+            vi.mocked(getRepoTree).mockReset();
+            vi.mocked(getFileContent).mockReset();
+        });
+
+        const chart = (slug: string, extra = '') =>
+            `slug: ${slug}\nname: ${slug}\n${extra}`;
+        const dashboard = (slug: string, chartSlugs: string[]) =>
+            `slug: ${slug}\nname: ${slug}\ntiles:\n${chartSlugs
+                .map(
+                    (chartSlug) =>
+                        `  - type: saved_chart\n    properties:\n      chartSlug: ${chartSlug}\n`,
+                )
+                .join('')}`;
+        const syncConfig =
+            'content_as_code:\n  sync: true\n  path: analytics/content\n';
+
+        const stubRepo = (files: Record<string, string>) => {
+            vi.mocked(getRepoTree).mockResolvedValue({
+                files: Object.keys(files).map((path) => ({ path, size: 1 })),
+                truncated: false,
+            });
+            vi.mocked(getFileContent).mockImplementation(
+                async ({ fileName }) => {
+                    if (fileName in files) {
+                        return { content: files[fileName], sha: 'sha' };
+                    }
+                    throw new NotFoundError(`${fileName} not found`);
+                },
+            );
+        };
+
+        it('stamps the repo settings and applies charts before dashboards from the configured path', async () => {
+            const { service, coderService } = buildService();
+            stubRepo({
+                'lightdash.config.yml': syncConfig,
+                'analytics/content/charts/monthly-revenue.yml':
+                    chart('monthly-revenue'),
+                'analytics/content/sales/charts/nested.yml': chart('nested'),
+                'analytics/content/charts/raw.sql.yml': chart(
+                    'raw',
+                    'sql: select 1\n',
+                ),
+                'analytics/content/kpis.yml': `${dashboard('kpis', [
+                    'nested',
+                ])}contentType: dashboard\n`,
+                'analytics/content/dashboards/weekly-kpis.yml': dashboard(
+                    'weekly-kpis',
+                    ['monthly-revenue'],
+                ),
+                'analytics/content/sales.space.yml': 'slug: sales\n',
+                'analytics/content/charts/README.md': 'ignored',
+                'lightdash/charts/elsewhere.yml': chart('elsewhere'),
+            });
+
+            const summary = await service.pullFromGit(user, 'project-uuid');
+
+            expect(summary).toEqual({ charts: 3, dashboards: 2, failures: [] });
+            expect(
+                coderService.stampContentAsCodeSettings,
+            ).toHaveBeenCalledWith(user, 'project-uuid', {
+                sync: true,
+                path: 'analytics/content',
+            });
+            expect(
+                coderService.upsertChart.mock.calls.map((call) => call[2]),
+            ).toEqual(['monthly-revenue', 'nested']);
+            expect(coderService.upsertSqlChart).toHaveBeenCalledWith(
+                user,
+                'project-uuid',
+                'raw',
+                expect.objectContaining({ sql: 'select 1' }),
+            );
+            expect(
+                coderService.upsertDashboard.mock.calls.map((call) => call[2]),
+            ).toEqual(['kpis', 'weekly-kpis']);
+            expect(
+                Math.max(...coderService.upsertChart.mock.invocationCallOrder),
+            ).toBeLessThan(
+                Math.min(
+                    ...coderService.upsertDashboard.mock.invocationCallOrder,
+                ),
+            );
+            expect(getRepoTree).toHaveBeenCalledTimes(1);
+        });
+
+        it('holds back dashboards that use a chart which failed to apply', async () => {
+            const { service, coderService } = buildService();
+            coderService.upsertChart.mockRejectedValueOnce(
+                new Error('metric not found'),
+            );
+            stubRepo({
+                'lightdash.config.yml': 'content_as_code:\n  sync: true\n',
+                'lightdash/charts/broken.yml': chart('broken'),
+                'lightdash/charts/fine.yml': chart('fine'),
+                'lightdash/dashboards/uses-broken.yml': dashboard(
+                    'uses-broken',
+                    ['broken'],
+                ),
+                'lightdash/dashboards/uses-fine.yml': dashboard('uses-fine', [
+                    'fine',
+                ]),
+            });
+
+            const summary = await service.pullFromGit(user, 'project-uuid');
+
+            expect(summary.charts).toBe(1);
+            expect(summary.dashboards).toBe(1);
+            expect(summary.failures).toEqual([
+                {
+                    file: 'lightdash/charts/broken.yml',
+                    message: 'metric not found',
+                },
+                {
+                    file: 'lightdash/dashboards/uses-broken.yml',
+                    message:
+                        'Skipped: depends on charts that failed to apply (broken)',
+                },
+            ]);
+            expect(
+                coderService.upsertDashboard.mock.calls.map((call) => call[2]),
+            ).toEqual(['uses-fine']);
+        });
+
+        it('stamps sync off and refuses to apply when the repo has not opted in', async () => {
+            const { service, coderService } = buildService();
+            stubRepo({
+                'lightdash.config.yml':
+                    'spotlight:\n  default_visibility: show\n',
+                'lightdash/charts/a.yml': chart('a'),
+            });
+
+            await expect(
+                service.pullFromGit(user, 'project-uuid'),
+            ).rejects.toThrow('content_as_code.sync');
+
+            expect(
+                coderService.stampContentAsCodeSettings,
+            ).toHaveBeenCalledWith(user, 'project-uuid', {
+                sync: false,
+                path: 'lightdash',
+            });
+            expect(getRepoTree).not.toHaveBeenCalled();
+            expect(coderService.upsertChart).not.toHaveBeenCalled();
+        });
+
+        it('fails clearly when the repo has no lightdash.config.yml', async () => {
+            const { service } = buildService();
+            stubRepo({ 'lightdash/charts/a.yml': chart('a') });
+
+            await expect(
+                service.pullFromGit(user, 'project-uuid'),
+            ).rejects.toThrow('lightdash.config.yml not found');
+        });
+
+        it('refuses a truncated tree instead of applying a partial repo', async () => {
+            const { service, coderService } = buildService();
+            stubRepo({
+                'lightdash.config.yml': 'content_as_code:\n  sync: true\n',
+            });
+            vi.mocked(getRepoTree).mockResolvedValue({
+                files: [],
+                truncated: true,
+            });
+
+            await expect(
+                service.pullFromGit(user, 'project-uuid'),
+            ).rejects.toThrow('too large');
+            expect(coderService.upsertChart).not.toHaveBeenCalled();
+        });
     });
 });

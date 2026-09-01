@@ -1345,6 +1345,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getSchedulerService(),
                 validationService:
                     context.serviceRepository.getValidationService(),
+                contentAsCodeWritebackService:
+                    context.serviceRepository.getContentAsCodeWritebackService(),
                 userService: context.serviceRepository.getUserService(),
                 emailClient: context.clients.getEmailClient(),
                 googleDriveClient: context.clients.getGoogleDriveClient(),
