@@ -260,8 +260,27 @@ describe('MCP tool contracts', () => {
         expect(registeredNames).not.toContain(McpToolName.GET_METADATA);
         expect(registeredNames).not.toContain(McpToolName.SEARCH_FIELD_VALUES);
         expect(registeredNames).not.toContain(McpToolName.RUN_METRIC_QUERY);
+        expect(registeredNames).not.toContain(McpToolName.RENDER_CHART);
+        expect(registeredNames).not.toContain(McpToolName.GET_QUERY_RESULT);
         expect(registeredNames).toContain(McpToolName.FIND_CONTENT);
         expect(registeredNames).toContain(McpToolName.LIST_CONTENT);
+    });
+
+    it('registers only SQL execution tools when metric queries are disabled', async () => {
+        const mcpService = makeMcpService();
+
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer({
+            aiWritebackEnabled: true,
+            runSqlEnabled: true,
+            runMetricQueryEnabled: false,
+        });
+
+        const registeredNames = mockRegisteredMcpTools.map(({ name }) => name);
+        expect(registeredNames).toContain(McpToolName.RUN_SQL);
+        expect(registeredNames).toContain(McpToolName.GET_QUERY_RESULT);
+        expect(registeredNames).not.toContain(McpToolName.RENDER_CHART);
+        expect(registeredNames).not.toContain(McpToolName.RUN_METRIC_QUERY);
     });
 
     it('matches the filter-expression run_metric_query tools/list snapshot', async () => {
