@@ -270,7 +270,7 @@ const AiAgentNewThreadPage: FC = () => {
                             {agent.instruction && (
                                 <Popover withArrow>
                                     <Popover.Target>
-                                        <ActionIcon color="ldGray.6">
+                                        <ActionIcon>
                                             <MantineIcon
                                                 icon={IconInfoCircle}
                                             />

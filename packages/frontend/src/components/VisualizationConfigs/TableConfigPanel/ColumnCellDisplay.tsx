@@ -170,7 +170,6 @@ export const ColumnCellDisplay: FC = () => {
                                             },
                                         );
                                     }}
-                                    color="ldGray.6"
                                     variant="light"
                                 >
                                     <MantineIcon

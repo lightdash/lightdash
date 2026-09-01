@@ -56,7 +56,7 @@ const FilterSummaryLabel: FC<
     if (isDisabled) {
         return (
             <Text fw={400} span>
-                <Text span color="ldGray.6">
+                <Text span c="dimmed">
                     is any value
                 </Text>
             </Text>
@@ -183,7 +183,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                             fz="xs"
                             w={200}
                         >
-                            <Text fz="xs" color="ldGray.6" span>
+                            <Text fz="xs" c="dimmed" span>
                                 {`Applies to ${tilesWithFilter.length} tiles`}
                             </Text>
                         </Tooltip>
@@ -520,12 +520,12 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
             0 ? (
                 <Stack mb="sm">
                     {hasUnmetSingles && (
-                        <Text fz="xs" color="ldGray.6">
+                        <Text fz="xs" c="dimmed">
                             All required filters must have values
                         </Text>
                     )}
                     {hasUnmetGroups && (
-                        <Text fz="xs" color="ldGray.6">
+                        <Text fz="xs" c="dimmed">
                             Set a value for at least one filter in each
                             requirement group
                         </Text>
@@ -589,7 +589,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                         },
                     )}
                     {savedFiltersNotInDashboard.length > 0 && (
-                        <Text fz="xs" color="ldGray.6" mt="xs">
+                        <Text fz="xs" c="dimmed" mt="xs">
                             The following filters are applied to this scheduled
                             delivery but no longer exist in the dashboard
                         </Text>

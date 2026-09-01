@@ -107,11 +107,7 @@ const TokenItem: FC<{
             <Table.Td w="1%">
                 <Menu position="bottom-end">
                     <Menu.Target>
-                        <ActionIcon
-                            variant="transparent"
-                            size="sm"
-                            color="ldGray.6"
-                        >
+                        <ActionIcon variant="transparent" size="sm">
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>
                     </Menu.Target>

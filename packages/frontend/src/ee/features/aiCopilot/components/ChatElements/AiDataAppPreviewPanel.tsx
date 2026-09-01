@@ -68,7 +68,6 @@ export const AiDataAppPreviewPanel: FC<Props> = ({ dataAppPreview }) => {
     const closeButton = (
         <ActionIcon
             size="sm"
-            color="ldGray.6"
             onClick={() => dispatch(clearPreview())}
             aria-label="Close"
         >
@@ -169,7 +168,6 @@ export const AiDataAppPreviewPanel: FC<Props> = ({ dataAppPreview }) => {
                                 <Tooltip label="More options">
                                     <ActionIcon
                                         size="sm"
-                                        color="ldGray.6"
                                         aria-label="More options"
                                     >
                                         <MantineIcon icon={IconDots} />

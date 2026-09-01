@@ -174,11 +174,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
 
                     {isEditMode && (
                         <Tooltip label="Remove sort">
-                            <ActionIcon
-                                onClick={onRemoveSortField}
-                                size="xs"
-                                color="ldGray.6"
-                            >
+                            <ActionIcon onClick={onRemoveSortField} size="xs">
                                 <MantineIcon icon={IconMinus} />
                             </ActionIcon>
                         </Tooltip>

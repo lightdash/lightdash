@@ -204,7 +204,6 @@ const ChangesReviewModal: FC<
                                 <Button
                                     size="compact-xs"
                                     variant="subtle"
-                                    color="ldGray.6"
                                     onClick={() =>
                                         setShowAllDiffs(!showAllDiffs)
                                     }

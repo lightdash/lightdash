@@ -103,7 +103,6 @@ const RuleCard: FC<RuleCardProps> = ({
             <Button
                 size="compact-xs"
                 variant="subtle"
-                color="ldGray.6"
                 ml="auto"
                 leftSection={<MantineIcon icon={IconTrash} />}
                 onClick={onDeleteRule}

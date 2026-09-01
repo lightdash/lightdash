@@ -86,7 +86,6 @@ export const EditableText: FC<Props> = ({
                                     <ActionIcon
                                         className={styles.action}
                                         size="xs"
-                                        color="ldGray.6"
                                     >
                                         <MantineIcon icon={IconVariable} />
                                     </ActionIcon>

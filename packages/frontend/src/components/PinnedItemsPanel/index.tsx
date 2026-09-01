@@ -62,7 +62,6 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
                     target="_blank"
                     variant="subtle"
                     size="compact-sm"
-                    color="ldGray.6"
                 >
                     View docs
                 </MantineLinkButton>

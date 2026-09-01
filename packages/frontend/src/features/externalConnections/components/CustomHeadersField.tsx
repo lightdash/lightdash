@@ -71,7 +71,6 @@ export const CustomHeadersField: FC<Props> = ({
                     />
                     <ActionIcon
                         aria-label="Remove header"
-                        color="ldGray.6"
                         mt={4}
                         disabled={disabled}
                         onClick={() =>

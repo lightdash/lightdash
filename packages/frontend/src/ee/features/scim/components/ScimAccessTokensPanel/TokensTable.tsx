@@ -84,7 +84,6 @@ const TokenItem: FC<{
                         tooltipPosition="right"
                         size="xs"
                         variant="transparent"
-                        color="ldGray.6"
                     />
                 </Group>
             </Table.Td>

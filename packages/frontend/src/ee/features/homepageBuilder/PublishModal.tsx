@@ -424,7 +424,6 @@ const PublishModalBody: FC<BodyProps> = ({
                                                     </Text>
                                                 </Box>
                                                 <ActionIcon
-                                                    color="ldGray.6"
                                                     size="sm"
                                                     disabled={index === 0}
                                                     aria-label={`Move ${assignment.groupName} up`}
@@ -441,7 +440,6 @@ const PublishModalBody: FC<BodyProps> = ({
                                                     />
                                                 </ActionIcon>
                                                 <ActionIcon
-                                                    color="ldGray.6"
                                                     size="sm"
                                                     disabled={
                                                         index ===

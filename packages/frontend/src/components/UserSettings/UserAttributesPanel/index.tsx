@@ -132,11 +132,7 @@ const UserAttributesPanel: FC = () => {
                         >
                             <Menu position="bottom-end">
                                 <Menu.Target>
-                                    <ActionIcon
-                                        variant="transparent"
-                                        size="sm"
-                                        color="ldGray.6"
-                                    >
+                                    <ActionIcon variant="transparent" size="sm">
                                         <MantineIcon icon={IconDots} />
                                     </ActionIcon>
                                 </Menu.Target>

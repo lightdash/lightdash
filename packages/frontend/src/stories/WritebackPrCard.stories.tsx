@@ -79,7 +79,7 @@ const CardShell: FC<{
                         <Text size="xs" fw={500}>
                             Edited semantic layer
                         </Text>
-                        <Text size="xs" c="ldGray.6">
+                        <Text size="xs" c="dimmed">
                             charliedowler/jaffle · 4c2a4e9
                         </Text>
                     </Stack>

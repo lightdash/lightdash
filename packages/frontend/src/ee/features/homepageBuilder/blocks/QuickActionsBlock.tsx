@@ -432,7 +432,6 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                         </ActionIcon>
                                     </Tooltip>
                                     <ActionIcon
-                                        color="ldGray.6"
                                         size="sm"
                                         disabled={index === 0}
                                         aria-label={`Move ${presentation.title} earlier`}
@@ -441,7 +440,6 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                         <MantineIcon icon={IconArrowLeft} />
                                     </ActionIcon>
                                     <ActionIcon
-                                        color="ldGray.6"
                                         size="sm"
                                         disabled={
                                             index ===
@@ -453,7 +451,6 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                         <MantineIcon icon={IconArrowRight} />
                                     </ActionIcon>
                                     <ActionIcon
-                                        color="ldGray.6"
                                         size="sm"
                                         aria-label={`Remove ${presentation.title}`}
                                         onClick={() =>

@@ -839,7 +839,6 @@ export const AgentChatInput = ({
             <Menu position="bottom-start" width={220}>
                 <Menu.Target>
                     <ActionIcon
-                        color="ldGray.6"
                         size={30}
                         radius="xl"
                         aria-label="Composer options"

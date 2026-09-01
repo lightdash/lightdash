@@ -80,7 +80,6 @@ const DesignRow: FC<{
                     <ActionIcon
                         variant="transparent"
                         size="sm"
-                        color="ldGray.6"
                         aria-label="More actions"
                     >
                         <MantineIcon icon={IconDots} />

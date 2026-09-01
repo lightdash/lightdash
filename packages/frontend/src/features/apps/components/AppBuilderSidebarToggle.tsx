@@ -16,12 +16,7 @@ const AppBuilderSidebarToggle: FC<Props> = ({ collapsed, onToggle }) => {
 
     return (
         <Tooltip label={label} position="right">
-            <ActionIcon
-                size="sm"
-                color="ldGray.6"
-                onClick={onToggle}
-                aria-label={label}
-            >
+            <ActionIcon size="sm" onClick={onToggle} aria-label={label}>
                 <MantineIcon
                     icon={
                         collapsed
