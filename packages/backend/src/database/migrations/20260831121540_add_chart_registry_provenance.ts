@@ -1,5 +1,10 @@
 import { Knex } from 'knex';
 
+export const classification = {
+    kind: 'safe',
+    reason: 'Adds five nullable provenance columns and indexes to apps/app_versions without reading or rewriting existing rows',
+} as const;
+
 const AppsTableName = 'apps';
 const AppVersionsTableName = 'app_versions';
 const LOCK_TIMEOUT = '5s';
