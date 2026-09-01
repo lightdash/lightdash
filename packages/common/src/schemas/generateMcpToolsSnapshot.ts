@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { type z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import { mcpToolDefinitions } from '../ee/AiAgent/schemas/tools/toolDefinitions';
+import { toDraft7JsonSchema } from '../utils/zodJsonSchema';
 
 /**
  * Generates the committed stable/default MCP tool surface used for
@@ -42,7 +42,7 @@ export const getOutputPath = (): string =>
 
 const schemaToJson = (schema: z.ZodTypeAny | undefined | null): JsonValue => {
     if (!schema) return null;
-    return zodToJsonSchema(schema, { target: 'jsonSchema7' }) as JsonValue;
+    return toDraft7JsonSchema(schema);
 };
 
 /**

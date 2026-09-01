@@ -109,7 +109,7 @@ const legacyToolCallSchema = z
         params: z
             .object({
                 name: z.string(),
-                arguments: z.record(z.unknown()).optional(),
+                arguments: z.record(z.string(), z.unknown()).optional(),
             })
             .passthrough(),
     })

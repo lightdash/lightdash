@@ -14,7 +14,7 @@ type AllowedAsCode =
 
 export abstract class AsCodeInternalization<
     T extends AllowedAsCode,
-    Z extends z.AnyZodObject,
+    Z extends z.ZodObject<z.ZodRawShape>,
     // Language map entry: mirrors the content shape by default, but an
     // implementation may substitute its own shape for parts that are not
     // positionally addressable (e.g. dashboard filter labels)

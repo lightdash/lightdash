@@ -1,14 +1,14 @@
 import { jsonSchema, type Schema } from 'ai';
-import { type z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { z } from 'zod';
 
-export const createAgentInputSchema = <TOutput, TInput>(
-    inputSchema: z.ZodType<TOutput, z.ZodTypeDef, TInput>,
-): Schema<TOutput> =>
-    jsonSchema<TOutput>(
-        zodToJsonSchema(inputSchema, {
-            $refStrategy: 'root',
-            target: 'jsonSchema7',
+export const createAgentInputSchema = <T extends z.ZodType>(
+    inputSchema: T,
+): Schema<z.output<T>> =>
+    jsonSchema<z.output<T>>(
+        z.toJSONSchema(inputSchema, {
+            target: 'draft-07',
+            reused: 'ref',
+            unrepresentable: 'any',
         }),
         {
             validate: (value) => {

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import { type ReadyQueryResultsPage } from '../../types/api';
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
 import {
@@ -808,6 +807,18 @@ export type DataAppVizSchema = {
 const uniqueNames = <T extends { name: string }>(arr: T[]): boolean =>
     new Set(arr.map((a) => a.name)).size === arr.length;
 
+// Zod 4: `.optional().transform()` is a pipe whose output key is required
+// (`T | undefined`). Preprocess null so the inferred key stays optional.
+const optionalStringFromNull = z.preprocess(
+    (value) => (value == null ? undefined : value),
+    z.string().optional(),
+);
+
+const optionalNumberFromNull = z.preprocess(
+    (value) => (value == null ? undefined : value),
+    z.number().optional(),
+);
+
 const optionBase = {
     name: z
         .string()
@@ -818,14 +829,9 @@ const optionBase = {
     label: z
         .string()
         .describe('Human label shown next to the control in the config panel.'),
-    group: z
-        .string()
-        .nullable()
-        .optional()
-        .transform((value) => value ?? undefined)
-        .describe(
-            'Optional tab name. Options sharing a group are rendered in the same config tab; ungrouped options share a default tab.',
-        ),
+    group: optionalStringFromNull.describe(
+        'Optional tab name. Options sharing a group are rendered in the same config tab; ungrouped options share a default tab.',
+    ),
 };
 
 const vizFields = z
@@ -889,18 +895,8 @@ const vizConfigOptions = z.array(
             default: z
                 .number()
                 .describe('Value used until the viewer changes it.'),
-            min: z
-                .number()
-                .nullable()
-                .optional()
-                .transform((value) => value ?? undefined)
-                .describe('Optional lower bound.'),
-            max: z
-                .number()
-                .nullable()
-                .optional()
-                .transform((value) => value ?? undefined)
-                .describe('Optional upper bound.'),
+            min: optionalNumberFromNull.describe('Optional lower bound.'),
+            max: optionalNumberFromNull.describe('Optional upper bound.'),
         }),
         z.object({
             ...optionBase,
@@ -921,14 +917,9 @@ const vizConfigOptions = z.array(
 
 const vizColorPalette = z
     .object({
-        group: z
-            .string()
-            .nullable()
-            .optional()
-            .transform((value) => value ?? undefined)
-            .describe(
-                'Optional tab name, matching a config option `group`. The picker gets its own tab when no option shares it.',
-            ),
+        group: optionalStringFromNull.describe(
+            'Optional tab name, matching a config option `group`. The picker gets its own tab when no option shares it.',
+        ),
     })
     .nullable()
     .describe(
@@ -961,17 +952,14 @@ export const dataAppVizGenerationSchema = z.object({
 
 // Compile-time guard: the zod schema's output type must match the explicit
 // type exposed through the API. If either side drifts, this line fails to type.
-type AssertMutuallyAssignable<A, B> = [A] extends [B]
-    ? [B] extends [A]
-        ? true
-        : never
-    : never;
 type AssertAssignable<A, B> = [A] extends [B] ? true : never;
-const dataAppVizSchemaMatchesApiType: AssertMutuallyAssignable<
-    z.infer<typeof dataAppVizSchema>,
-    DataAppVizSchema
-> = true;
+const dataAppVizSchemaMatchesApiType: DataAppVizSchema = {} as z.infer<
+    typeof dataAppVizSchema
+>;
+const dataAppVizApiTypeMatchesSchema: z.infer<typeof dataAppVizSchema> =
+    {} as DataAppVizSchema;
 void dataAppVizSchemaMatchesApiType;
+void dataAppVizApiTypeMatchesSchema;
 
 // Whatever the generator emits must be persistable without a second shape.
 const dataAppVizGenerationSchemaIsPersistable: AssertAssignable<
@@ -988,9 +976,10 @@ void dataAppVizGenerationSchemaIsPersistable;
 // and retain draft-07 because the Claude CLI does not support the OpenAI
 // target's 2019-09 meta-schema.
 export const dataAppVizJsonSchema = {
-    ...zodToJsonSchema(dataAppVizGenerationSchema, {
-        $refStrategy: 'none',
-        target: 'openAi',
+    ...z.toJSONSchema(dataAppVizGenerationSchema, {
+        target: 'draft-07',
+        reused: 'inline',
+        unrepresentable: 'any',
     }),
     $schema: 'http://json-schema.org/draft-07/schema#',
 };

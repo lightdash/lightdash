@@ -17,7 +17,7 @@ import {
     Select,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { z } from 'zod';
@@ -26,6 +26,7 @@ import {
     useUpdateAllowedEmailDomains,
 } from '../../../hooks/organization/useAllowedDomains';
 import { useProjects } from '../../../hooks/useProjects';
+import { zodResolver } from '../../../utils/zodResolver';
 import MantineIcon from '../../common/MantineIcon';
 import { MultiSelectCombobox } from '../../common/MultiSelectCombobox/MultiSelectCombobox';
 import styles from './AllowedDomainsPanel.module.css';

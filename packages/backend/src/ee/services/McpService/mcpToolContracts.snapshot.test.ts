@@ -5,12 +5,12 @@ import {
     mcpToolDefinitions,
     OrganizationMemberRole,
     ProjectMemberRole,
+    toDraft7JsonSchema,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
 import type { ZodRawShape, ZodTypeAny } from 'zod';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import {
     getMcpAnalystPrompt,
@@ -89,11 +89,8 @@ const schemaToJson = (
         return null;
     }
 
-    return zodToJsonSchema(
+    return toDraft7JsonSchema(
         schema instanceof z.ZodType ? schema : z.object(schema),
-        {
-            target: 'jsonSchema7',
-        },
     );
 };
 

@@ -4,7 +4,7 @@ import {
     type Space,
 } from '@lightdash/common';
 import { Button, Group, type DefaultMantineColor } from '@mantine/core';
-import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 import { type Icon } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -17,6 +17,7 @@ import {
     useSpaceDeleteMutation,
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
+import { zodResolver } from '../../../utils/zodResolver';
 import MantineModal from '../MantineModal';
 import { InheritanceType } from '../ShareSpaceModal/ShareSpaceModalUtils';
 import CreateSpaceModalContent from './CreateSpaceModalContent';

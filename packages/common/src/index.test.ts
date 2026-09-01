@@ -121,7 +121,7 @@ describe('Password Validation', () => {
             const result = getPasswordSchema().safeParse(password);
             expect(result.success).toBe(false);
             if (!result.success) {
-                expect(result.error.errors[0].message).toBe(
+                expect(result.error.issues[0].message).toBe(
                     'must contain a letter',
                 );
             }
@@ -134,7 +134,7 @@ describe('Password Validation', () => {
             const result = getPasswordSchema().safeParse(password);
             expect(result.success).toBe(false);
             if (!result.success) {
-                expect(result.error.errors[0].message).toBe(
+                expect(result.error.issues[0].message).toBe(
                     'must contain a number or symbol',
                 );
             }
@@ -147,7 +147,7 @@ describe('Password Validation', () => {
             const result = getPasswordSchema().safeParse(password);
             expect(result.success).toBe(false);
             if (!result.success) {
-                expect(result.error.errors[0].message).toBe(
+                expect(result.error.issues[0].message).toBe(
                     'must be at least 8 characters long',
                 );
             }
@@ -177,7 +177,7 @@ describe('User name validation', () => {
         const result = getUserNameSchema().safeParse('<b>José</b>');
         expect(result.success).toBe(false);
         if (!result.success) {
-            expect(result.error.errors[0].message).toBe(
+            expect(result.error.issues[0].message).toBe(
                 'Name cannot contain < or >',
             );
         }

@@ -203,12 +203,10 @@ const runQueryResolvedInternalSchema = z.object({
 
 // Same internal output shape as toolRunQueryArgsSchemaTransformed, with
 // per-category connectors preserved in the domain Filters.
-export const toolRunQueryExpressionResolvedArgsSchemaTransformed: z.ZodPipeline<
-    typeof toolRunQueryExpressionResolvedArgsSchema,
-    typeof runQueryResolvedInternalSchema
-> = toolRunQueryExpressionResolvedArgsSchema.pipe(
-    runQueryResolvedInternalSchema,
-);
+export const toolRunQueryExpressionResolvedArgsSchemaTransformed =
+    toolRunQueryExpressionResolvedArgsSchema.pipe(
+        runQueryResolvedInternalSchema as never,
+    ) as z.ZodType<z.output<typeof runQueryResolvedInternalSchema>>;
 
 export type ToolRunQueryExpressionResolvedArgsTransformed = z.infer<
     typeof toolRunQueryExpressionResolvedArgsSchemaTransformed

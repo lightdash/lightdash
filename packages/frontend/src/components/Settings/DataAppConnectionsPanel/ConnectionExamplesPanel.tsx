@@ -20,7 +20,7 @@ import {
     Textarea,
     TextInput,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { type ClipboardEvent, type FC, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -30,6 +30,7 @@ import { useConnectionSamples } from '../../../features/externalConnections/hook
 import { useDeleteConnectionSample } from '../../../features/externalConnections/hooks/useDeleteConnectionSample';
 import { useSaveConnectionSample } from '../../../features/externalConnections/hooks/useSaveConnectionSample';
 import { useTestConnection } from '../../../features/externalConnections/hooks/useTestConnection';
+import { zodResolver } from '../../../utils/zodResolver';
 import MantineIcon from '../../common/MantineIcon';
 
 const MAX_SAMPLE_PREVIEW_CHARS = 200;

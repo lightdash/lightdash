@@ -10,12 +10,12 @@ import { Button, Checkbox, Select, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconConfetti } from '@tabler/icons-react';
 import { useIsMutating } from '@tanstack/react-query';
-import { zodResolver } from 'mantine-form-zod-resolver';
 import { type FC, useEffect, useMemo, useState } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
+import { zodResolver } from '../../utils/zodResolver';
 import MantineModal from '../common/MantineModal';
 import { jobTitles } from './jobTitles';
 

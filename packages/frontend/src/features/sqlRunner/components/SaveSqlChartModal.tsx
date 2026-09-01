@@ -5,7 +5,7 @@ import {
     type ApiCreateSqlChart,
 } from '@lightdash/common';
 import { Button, Stack, Textarea, TextInput } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
@@ -20,6 +20,7 @@ import { useModalSteps } from '../../../hooks/useModalSteps';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
+import { zodResolver } from '../../../utils/zodResolver';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';

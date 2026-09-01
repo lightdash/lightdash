@@ -21,7 +21,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import {
     IconAlertCircle,
     IconDeviceFloppy,
@@ -44,6 +44,7 @@ import {
 } from '../../../hooks/slack/useSlack';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import slackSvg from '../../../svgs/slack.svg';
+import { zodResolver } from '../../../utils/zodResolver';
 import Callout from '../../common/Callout';
 import { default as MantineIcon } from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';

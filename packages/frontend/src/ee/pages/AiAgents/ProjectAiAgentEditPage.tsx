@@ -16,7 +16,7 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import {
     IconAdjustmentsAlt,
     IconArrowLeft,
@@ -43,6 +43,7 @@ import {
 import { useProjects } from '../../../hooks/useProjects';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
+import { zodResolver } from '../../../utils/zodResolver';
 import { VerifiedArtifactDetail } from '../../features/aiCopilot/components/Admin/VerifiedArtifactDetail';
 import { VerifiedArtifactsLayout } from '../../features/aiCopilot/components/Admin/VerifiedArtifactsLayout';
 import { AgentSettingsActionBar } from '../../features/aiCopilot/components/AgentSettingsActionBar';

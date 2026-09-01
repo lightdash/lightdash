@@ -544,24 +544,17 @@ describe('McpSchemaCompatLayer', () => {
     });
 
     describe('JSON Schema $ref generation', () => {
-        // Regression test: zodToJsonSchema must not produce $ref pointers in
+        // Regression test: JSON Schema must not produce $ref pointers in
         // the run_metric_query schema. The MCP Gateway cannot resolve them and
         // returns 500 ERR_INVALID_URL when filters are present.
         test('toolRunMetricQueryArgsSchema should not produce $ref pointers', () => {
-            // Use the same zodToJsonSchema that the MCP SDK uses internally
-            // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
-            const { zodToJsonSchema } = require('zod-to-json-schema') as {
-                zodToJsonSchema: (
-                    schema: z.ZodSchema,
-                    opts?: Record<string, unknown>,
-                ) => Record<string, unknown>;
-            };
             const processed = mcpSchemaCompatLayer.processZodType(
                 toolRunMetricQueryArgsSchema,
             );
-            const jsonSchema = zodToJsonSchema(processed, {
-                strictUnions: true,
-                pipeStrategy: 'input',
+            const jsonSchema = z.toJSONSchema(processed, {
+                target: 'draft-07',
+                reused: 'inline',
+                unrepresentable: 'any',
             });
             const serialized = JSON.stringify(jsonSchema);
             expect(serialized).not.toContain('"$ref"');

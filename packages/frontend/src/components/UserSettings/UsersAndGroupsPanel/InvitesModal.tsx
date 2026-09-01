@@ -4,7 +4,7 @@ import {
     type CreateInviteLink,
 } from '@lightdash/common';
 import { Button, Group, Select, TextInput } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconUser } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { z } from 'zod';
@@ -18,6 +18,7 @@ import {
     PageName,
     PageType,
 } from '../../../types/Events';
+import { zodResolver } from '../../../utils/zodResolver';
 import MantineModal from '../../common/MantineModal';
 import InviteSuccess from './InviteSuccess';
 

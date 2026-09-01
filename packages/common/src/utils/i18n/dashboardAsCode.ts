@@ -128,7 +128,10 @@ export class DashboardAsCodeInternalization extends AsCodeInternalization<
         return {
             dashboard: {
                 [dashboardAsCode.slug]: {
-                    ...this.schema.deepPartial().strip().parse(dashboardAsCode),
+                    ...(z
+                        .deepPartial(this.schema)
+                        .strip()
+                        .parse(dashboardAsCode) as DashboardLanguageMapEntry),
                     filters: filterLabels
                         ? { labels: filterLabels }
                         : undefined,

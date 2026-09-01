@@ -682,9 +682,6 @@ importers:
       typescript:
         specifier: 7.0.2
         version: 7.0.2
-      zod-to-json-schema:
-        specifier: 3.25.1
-        version: 3.25.1(zod@4.5.0)
 
   packages/backend/src/ee/services/McpService/mcp-chart-app:
     dependencies:
@@ -933,9 +930,6 @@ importers:
       zod:
         specifier: 4.5.0
         version: 4.5.0
-      zod-to-json-schema:
-        specifier: 3.25.1
-        version: 3.25.1(zod@4.5.0)
     devDependencies:
       '@babel/types':
         specifier: 7.29.0

@@ -1,6 +1,6 @@
 import { getPasswordSchema } from '@lightdash/common';
 import { Button, Flex, PasswordInput, Stack } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -8,6 +8,7 @@ import {
     useUserHasPassword,
     useUserUpdatePasswordMutation,
 } from '../../../hooks/user/usePassword';
+import { zodResolver } from '../../../utils/zodResolver';
 import PasswordTextInput from '../../PasswordTextInput';
 
 const passwordSchema = getPasswordSchema();

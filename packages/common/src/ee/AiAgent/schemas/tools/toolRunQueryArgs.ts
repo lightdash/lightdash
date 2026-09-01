@@ -444,12 +444,13 @@ const runQueryInternalSchemaV3 = runQueryInternalSchemaV2.extend({
 });
 
 export const toolRunQueryArgsSchemaV2Transformed =
-    toolRunQueryArgsSchemaV2.pipe(runQueryInternalSchemaV2);
+    toolRunQueryArgsSchemaV2.pipe(
+        runQueryInternalSchemaV2 as never,
+    ) as z.ZodType<z.output<typeof runQueryInternalSchemaV2>>;
 
-export const toolRunQueryArgsSchemaTransformed: z.ZodPipeline<
-    typeof toolRunQueryArgsSchemaV3,
-    typeof runQueryInternalSchemaV3
-> = toolRunQueryArgsSchemaV3.pipe(runQueryInternalSchemaV3);
+export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchemaV3.pipe(
+    runQueryInternalSchemaV3 as never,
+) as z.ZodType<z.output<typeof runQueryInternalSchemaV3>>;
 
 export type ToolRunQueryArgsTransformed = z.infer<
     typeof toolRunQueryArgsSchemaTransformed

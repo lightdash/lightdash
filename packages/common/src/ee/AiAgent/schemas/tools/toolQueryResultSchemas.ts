@@ -29,7 +29,7 @@ export const mcpRunningQueryResultSchema = z.object({
 
 export const mcpSqlQueryRowsColumnsSchema = z.object({
     rows: z
-        .array(z.record(z.unknown()))
+        .array(z.record(z.string(), z.unknown()))
         .describe(
             'Result rows. Each row is an object keyed by column name. Values come from the warehouse as JSON-serializable primitives (numbers, strings, booleans, ISO date strings, or null).',
         ),
@@ -54,8 +54,8 @@ export const mcpSqlQueryCompletedResultSchema =
     });
 
 export const mcpMetricQueryResultRowsFieldsSchema = z.object({
-    rows: z.array(z.record(z.unknown())),
-    fields: z.record(z.unknown()),
+    rows: z.array(z.record(z.string(), z.unknown())),
+    fields: z.record(z.string(), z.unknown()),
 });
 
 export const mcpMetricQueryCompletedResultSchema =

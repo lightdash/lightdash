@@ -1,6 +1,6 @@
 import { DbtProjectType, snakeCaseName } from '@lightdash/common';
 import { Button, Stack, TextInput, Tooltip } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconInfoCircle, IconTableAlias } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { z } from 'zod';
@@ -11,6 +11,7 @@ import MantineModal, {
 import { useGitIntegration } from '../../../hooks/gitIntegration/useGitIntegration';
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
+import { zodResolver } from '../../../utils/zodResolver';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useCreateVirtualView } from '../hooks/useVirtualView';
 

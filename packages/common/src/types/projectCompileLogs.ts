@@ -7,7 +7,7 @@ export type CompilationSource =
     | 'create_project'
     | 'project_connection_form';
 
-export const CompilationSourceSchema = z.enum([
+export const CompilationSourceSchema: z.ZodType<CompilationSource> = z.enum([
     'cli_deploy',
     'refresh_dbt',
     'create_project',

@@ -5,11 +5,12 @@ import {
     TextInput,
     type ModalProps,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconAppWindow, type Icon as IconType } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { z } from 'zod';
 import { useUpdateApp } from '../../../features/apps/hooks/useUpdateApp';
+import { zodResolver } from '../../../utils/zodResolver';
 import MantineModal from '../MantineModal';
 
 interface AppUpdateModalProps {

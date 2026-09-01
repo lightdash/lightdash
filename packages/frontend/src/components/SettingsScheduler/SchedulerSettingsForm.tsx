@@ -8,11 +8,12 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { useDebouncedCallback } from '@mantine/hooks';
 import { IconHelp } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { type z } from 'zod';
+import { zodResolver } from '../../utils/zodResolver';
 import MantineIcon from '../common/MantineIcon';
 import TimeZonePicker from '../common/TimeZonePicker';
 import { schedulerSettingsSchema } from './types';

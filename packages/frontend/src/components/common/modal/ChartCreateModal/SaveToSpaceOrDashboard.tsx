@@ -23,7 +23,7 @@ import {
     Textarea,
     TextInput,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -47,6 +47,7 @@ import {
     useSpaceSummaries,
 } from '../../../../hooks/useSpaces';
 import useApp from '../../../../providers/App/useApp';
+import { zodResolver } from '../../../../utils/zodResolver';
 import Callout from '../../Callout';
 import MantineIcon from '../../MantineIcon';
 import classes from './ChartCreateModal.module.css';

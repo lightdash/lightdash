@@ -1,6 +1,6 @@
 import { getEncoding } from 'js-tiktoken';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { toDraft7JsonSchema } from '../../../utils/zodJsonSchema';
 import { defineTool } from './defineTool';
 import { FILTER_EXPRESSION_GRAMMAR_DESCRIPTION } from './filterExpressions';
 import {
@@ -63,7 +63,7 @@ describe('defineTool', () => {
         const serializeMcp = (view: typeof mcpLegacy | typeof mcpExpression) =>
             JSON.stringify({
                 description: view.description,
-                inputSchema: zodToJsonSchema(view.inputSchema),
+                inputSchema: toDraft7JsonSchema(view.inputSchema),
             });
         const contracts = {
             agentLegacy: serializeAgent(agentLegacy),
@@ -211,9 +211,10 @@ describe('defineTool', () => {
         const agentInputSchema = tool.for('agent').inputSchema;
         const { jsonSchema, validate } = agentInputSchema;
         expect(jsonSchema).toEqual(
-            zodToJsonSchema(inputSchema, {
-                $refStrategy: 'root',
-                target: 'jsonSchema7',
+            z.toJSONSchema(inputSchema, {
+                target: 'draft-07',
+                reused: 'ref',
+                unrepresentable: 'any',
             }),
         );
         expect(validate?.(input)).toEqual({
@@ -229,9 +230,9 @@ describe('defineTool', () => {
 
         const mcpInputSchema = tool.for('mcp').inputSchema;
         expect(mcpInputSchema).not.toBe(inputSchema);
-        expect(JSON.stringify(zodToJsonSchema(mcpInputSchema))).not.toContain(
-            '"$ref"',
-        );
+        expect(
+            JSON.stringify(toDraft7JsonSchema(mcpInputSchema)),
+        ).not.toContain('"$ref"');
         expect(mcpInputSchema.parse(input)).toEqual(input);
     });
 

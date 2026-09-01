@@ -13,7 +13,7 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { useCallback, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -22,6 +22,7 @@ import {
     useProjectUpdateQueryTimezoneSettings,
 } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import { zodResolver } from '../../utils/zodResolver';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import TimeZonePicker from '../common/TimeZonePicker';
 

@@ -237,7 +237,6 @@
         "nodemon": "3.1.9",
         "oxlint": "1.75.0",
         "oxlint-tsgolint": "7.0.2001",
-        "typescript": "7.0.2",
-        "zod-to-json-schema": "3.25.1"
+        "typescript": "7.0.2"
     }
 }

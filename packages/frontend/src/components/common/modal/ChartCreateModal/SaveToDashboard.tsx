@@ -7,7 +7,7 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import { Button, Group, Stack, Text, Textarea, TextInput } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
@@ -20,6 +20,7 @@ import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { useCreateMutation } from '../../../../hooks/useSavedQuery';
+import { zodResolver } from '../../../../utils/zodResolver';
 import classes from './ChartCreateModal.module.css';
 import { DEFAULT_CHART_METADATA, type ChartMetadata } from './types';
 

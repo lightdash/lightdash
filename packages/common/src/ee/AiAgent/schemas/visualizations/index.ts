@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // define tool names
-export const ToolNameSchema = z.enum([
+export const TOOL_NAMES = [
     'generateDashboard',
     'generateHashes',
     'generateUuids',
@@ -55,9 +55,11 @@ export const ToolNameSchema = z.enum([
     'submitResearchReport',
     'delegateResearchTask',
     'submitWorkerFindings',
-]);
+] as const;
 
-export type ToolName = z.infer<typeof ToolNameSchema>;
+export const ToolNameSchema = z.enum(TOOL_NAMES);
+
+export type ToolName = (typeof TOOL_NAMES)[number];
 
 export const isToolName = (toolName: string): toolName is ToolName =>
     ToolNameSchema.safeParse(toolName).success;

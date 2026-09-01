@@ -1,6 +1,6 @@
 import type { Space, SpaceSummary, SqlChart } from '@lightdash/common';
 import { Button, Stack, Textarea, TextInput } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
@@ -13,6 +13,7 @@ import { saveToSpaceSchema } from '../../../components/common/modal/ChartCreateM
 import { useModalSteps } from '../../../hooks/useModalSteps';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
+import { zodResolver } from '../../../utils/zodResolver';
 import {
     useSavedSqlChart,
     useUpdateSqlChartMutation,

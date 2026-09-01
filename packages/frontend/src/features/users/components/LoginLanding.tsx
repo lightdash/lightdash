@@ -20,7 +20,7 @@ import {
     Anchor,
     PasswordInput,
 } from '@mantine/core';
-import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 import { useTimeout } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
 import {
@@ -44,6 +44,7 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { sanitizeRedirectUrl } from '../../../utils/redirectUrl';
 import { resolveInternalPath } from '../../../utils/url';
+import { zodResolver } from '../../../utils/zodResolver';
 import {
     useFetchLoginOptions,
     useLoginWithEmailMutation,

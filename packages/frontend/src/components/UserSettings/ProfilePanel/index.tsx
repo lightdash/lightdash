@@ -14,7 +14,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { z } from 'zod';
@@ -27,6 +27,7 @@ import { useUserUpdateMutation } from '../../../hooks/user/useUserUpdateMutation
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { VerifyEmailModal } from '../../../pages/VerifyEmail';
 import useApp from '../../../providers/App/useApp';
+import { zodResolver } from '../../../utils/zodResolver';
 import MantineIcon from '../../common/MantineIcon';
 import TimeZonePicker from '../../common/TimeZonePicker';
 import AvatarSettings from './AvatarSettings';

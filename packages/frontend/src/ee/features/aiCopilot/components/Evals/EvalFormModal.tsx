@@ -16,12 +16,13 @@ import {
     Textarea,
     TextInput,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconPlus, IconSettings, IconTrash } from '@tabler/icons-react';
 import { useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
+import { zodResolver } from '../../../../../utils/zodResolver';
 import { EvalPromptThreadReference } from './EvalPromptThreadReference';
 
 const evaluationFormSchema = z.object({

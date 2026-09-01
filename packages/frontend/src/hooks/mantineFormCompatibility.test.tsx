@@ -1,7 +1,8 @@
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import { z } from 'zod';
+import { zodResolver } from '../utils/zodResolver';
 
 describe('Mantine form compatibility', () => {
     test('nested field updates preserve Zod validation behavior', () => {

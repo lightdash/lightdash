@@ -18,7 +18,7 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
-import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 import { captureException } from '@sentry/react';
 import {
     IconArrowLeft,
@@ -54,6 +54,7 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
+import { zodResolver } from '../utils/zodResolver';
 import classes from './OnboardingInviteExpert.module.css';
 
 type SetupInviteFormValues = {

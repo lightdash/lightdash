@@ -13,10 +13,11 @@ import {
     Text,
     TextInput,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';
+import { zodResolver } from '../../utils/zodResolver';
 import PasswordTextInput from '../PasswordTextInput';
 
 type Props = {
