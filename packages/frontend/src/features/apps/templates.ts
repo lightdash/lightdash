@@ -1,4 +1,8 @@
-import { type DataAppTemplate } from '@lightdash/common';
+import {
+    DATA_APP_TEMPLATE_DEFINITIONS,
+    type DataAppTemplate,
+    type FeatureFlags,
+} from '@lightdash/common';
 import {
     IconFileText,
     IconLayoutDashboard,
@@ -12,56 +16,49 @@ export type TemplateDefinition = {
     id: DataAppTemplate;
     title: string;
     description: string;
+    category: string;
     icon: TablerIcon;
 };
 
-const TEMPLATES: TemplateDefinition[] = [
-    {
-        id: 'dashboard',
-        title: 'Dashboard',
-        description: 'A grid of KPIs and charts for at-a-glance reporting.',
-        icon: IconLayoutDashboard,
-    },
-    {
-        id: 'slideshow',
-        title: 'Slide Show',
-        description:
-            'A guided narrative - one chart per slide, navigated linearly.',
-        icon: IconPresentation,
-    },
-    {
-        id: 'pdf',
-        title: 'PDF Report',
-        description:
-            'A print-friendly document with sections and supporting charts.',
-        icon: IconFileText,
-    },
-    {
-        id: 'custom',
-        title: 'From scratch',
-        description: 'Start from scratch and describe whatever you want.',
-        icon: IconPencil,
-    },
-    {
-        id: 'data_app_viz',
-        title: 'Data app visualization',
-        description:
-            'A reusable single-tile chart you can apply to any query like a chart type.',
-        icon: IconPuzzle,
-    },
-];
+// Icons are React components so they stay on the frontend; everything else
+// about a template comes from the shared registry in @lightdash/common.
+const TEMPLATE_ICONS: Record<DataAppTemplate, TablerIcon> = {
+    dashboard: IconLayoutDashboard,
+    slideshow: IconPresentation,
+    pdf: IconFileText,
+    custom: IconPencil,
+    data_app_viz: IconPuzzle,
+};
 
-// Offered when creating a data app. Vizs (custom chart types) are created from
-// Explorer's chart type picker instead, but existing viz apps still resolve
-// their definition via `getTemplate`, so the entry stays in TEMPLATES.
-export const PICKER_TEMPLATES: TemplateDefinition[] = TEMPLATES.filter(
-    (t) => t.id !== 'data_app_viz',
-);
-
-export const getTemplate = (id: DataAppTemplate): TemplateDefinition => {
-    const t = TEMPLATES.find((x) => x.id === id);
-    if (!t) {
+const toDefinition = (id: DataAppTemplate): TemplateDefinition => {
+    const def = DATA_APP_TEMPLATE_DEFINITIONS[id];
+    if (!def) {
         throw new Error(`Unknown data app template: ${id}`);
     }
-    return t;
+    return {
+        id: def.id,
+        title: def.title,
+        description: def.description,
+        category: def.category,
+        icon: TEMPLATE_ICONS[id],
+    };
 };
+
+/**
+ * Templates offered when creating a data app, honoring each definition's
+ * picker eligibility and feature-flag gate.
+ */
+export const getPickerTemplates = (
+    enabledFlags: Set<FeatureFlags>,
+): TemplateDefinition[] =>
+    Object.values(DATA_APP_TEMPLATE_DEFINITIONS)
+        .filter(
+            (def) =>
+                def.inPicker &&
+                (def.requiredFlag === undefined ||
+                    enabledFlags.has(def.requiredFlag)),
+        )
+        .map((def) => toDefinition(def.id));
+
+export const getTemplate = (id: DataAppTemplate): TemplateDefinition =>
+    toDefinition(id);
