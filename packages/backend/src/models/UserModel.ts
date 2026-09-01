@@ -1067,16 +1067,25 @@ export class UserModel {
                 ...(role.extraRoleUuids ?? []),
             ]),
         ].filter((roleUuid): roleUuid is string => Boolean(roleUuid));
-        const [customRoleScopes, customRolesFlag] = await Promise.all([
-            this.customRoleScopes(customRoleUuids, trx),
-            this.featureFlagModel.get(
-                {
-                    user: lightdashUser,
-                    featureFlagId: CommercialFeatureFlags.CustomRoles,
-                },
-                { trx },
-            ),
-        ]);
+        const [customRoleScopes, customRolesFlag, patScopeAuthoritativeFlag] =
+            await Promise.all([
+                this.customRoleScopes(customRoleUuids, trx),
+                this.featureFlagModel.get(
+                    {
+                        user: lightdashUser,
+                        featureFlagId: CommercialFeatureFlags.CustomRoles,
+                    },
+                    { trx },
+                ),
+                this.featureFlagModel.get(
+                    {
+                        user: lightdashUser,
+                        featureFlagId:
+                            CommercialFeatureFlags.PatScopeAuthoritative,
+                    },
+                    { trx },
+                ),
+            ]);
         const { builder: abilityBuilder, invalidScopes } =
             getUserAbilityBuilder({
                 user: lightdashUser,
@@ -1091,6 +1100,7 @@ export class UserModel {
                     customRolesFlag.enabled,
                 isEnterprise:
                     this.lightdashConfig.license.licenseKey !== undefined,
+                patScopeAuthoritative: patScopeAuthoritativeFlag.enabled,
             });
 
         if (invalidScopes.length > 0) {
