@@ -3168,7 +3168,7 @@ describe('AiAgentToolsService iterateDataApp', () => {
             ...args,
         });
 
-    it('starts an ai_agent iteration on the resolved app linked to the tool call', async () => {
+    it('starts an ai_agent build on the resolved app linked to the tool call', async () => {
         const appGenerateService = makeAppGenerateService();
         const appModel = makeAppModel();
         const service = makeService({ appGenerateService, appModel });

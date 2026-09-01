@@ -41,8 +41,8 @@ export const toolIterateDataAppArgsSchema = z.object({
         ),
 });
 
-// Iterations share the create tool's outcome contract: same pending, success,
-// and error shapes, patched by the same build outcome recording.
+// The iterate tool shares the create tool's outcome contract: same pending,
+// success, and error shapes, patched by the same build outcome recording.
 export const toolIterateDataAppOutputSchema = toolGenerateDataAppOutputSchema;
 
 export type ToolIterateDataAppArgs = z.infer<

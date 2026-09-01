@@ -43,7 +43,7 @@ describe('getGenerateDataAppBuildOutcome', () => {
         ).toContain('The data app "Revenue app" is ready.');
     });
 
-    it('words a later ready version as an iteration outcome', () => {
+    it('names the version in the ready copy after the first version', () => {
         expect(
             getGenerateDataAppBuildOutcome({ ...base, status: 'ready' })
                 ?.result,

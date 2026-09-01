@@ -140,7 +140,6 @@ export const getGenerateDataAppBuildOutcome = ({
     if (status === 'ready') {
         // Canonical URL: the thread renders it as a link and the agent shares it.
         const href = `${siteUrl}${getDataAppBuilderPath(projectUuid, appUuid)}`;
-        // Version 1 is a creation; anything later is an iteration outcome.
         const readyPhrase =
             version === 1
                 ? `The data app "${name}" is ready.`

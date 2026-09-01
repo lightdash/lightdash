@@ -139,7 +139,7 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
         );
     });
 
-    it('announces an iteration outcome by its version in the Slack thread', async () => {
+    it('announces a later version by number in the Slack thread', async () => {
         const { service, postMessage } = buildService(
             { status: 'ready' },
             { isSlack: true },

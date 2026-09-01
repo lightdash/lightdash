@@ -9559,15 +9559,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 prompt,
                 metadata,
             );
-            // Version 1 is a creation; anything later is an iteration outcome.
-            const readyPhrase =
-                metadata.version === 1
-                    ? `Your data app **${metadata.name}** is ready.`
-                    : `Version ${metadata.version} of **${metadata.name}** is ready.`;
-            const readyText =
-                metadata.version === 1
-                    ? `Your data app "${metadata.name}" is ready: ${metadata.href}`
-                    : `Version ${metadata.version} of "${metadata.name}" is ready: ${metadata.href}`;
+            const isFirstVersion = metadata.version === 1;
+            const readyPhrase = isFirstVersion
+                ? `Your data app **${metadata.name}** is ready.`
+                : `Version ${metadata.version} of **${metadata.name}** is ready.`;
+            const readyText = isFirstVersion
+                ? `Your data app "${metadata.name}" is ready: ${metadata.href}`
+                : `Version ${metadata.version} of "${metadata.name}" is ready: ${metadata.href}`;
             await this.postOutcomeToSlack(
                 prompt,
                 [
