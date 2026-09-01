@@ -112,6 +112,13 @@ traffic. Registry construction is cold setup work and remains about 14ms in
 absolute terms. Frontend build timings have changed direction across repeated
 runs, so no build-speed claim is made.
 
+After the review fixes (`dcc0b3d4`), re-measured against the earlier PR commit
+`e058a5b6` in the same worktree: converting all 53 agent tool schemas in one
+process takes 27ms (median of 20 passes) against 46ms before, because the
+`isOptional()`-based `required` override ran a parse per property; native
+conversion alone is 17ms. The initial frontend payload is unchanged (identical
+raw size, +2 gzip bytes), and the normalizer runs only on the backend.
+
 Before locale pruning, the initial payload was 3,085,818 gzip bytes: +31,308
 bytes against the merge base. The Vite guard recovers 90.9% of that regression
 and fails future builds if unused non-English Zod locales return.
