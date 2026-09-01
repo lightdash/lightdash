@@ -26,6 +26,7 @@ import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useProjects } from '../../../../../../hooks/useProjects';
 import useApp from '../../../../../../providers/App/useApp';
 import {
+    useBackfillReviewLinearIssues,
     useReviewLinearRouting,
     useUpdateReviewLinearRouting,
 } from '../../../hooks/useReviewNotificationSettings';
@@ -70,9 +71,11 @@ export const LinearReviewSettings = () => {
         });
     const { mutate: updateRouting, isLoading: routingUpdating } =
         useUpdateReviewLinearRouting();
+    const { mutate: backfillLinear, isLoading: linearBackfilling } =
+        useBackfillReviewLinearIssues();
     const { mutate: deleteLinear, isLoading: linearDeleting } =
         useDeleteLinearInstallationMutation();
-    const isUpdating = routingUpdating || linearDeleting;
+    const isUpdating = routingUpdating || linearDeleting || linearBackfilling;
 
     const submitLinearOAuth = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -214,8 +217,10 @@ export const LinearReviewSettings = () => {
                     </Group>
                     <Text c="dimmed" fz="xs">
                         Create one Linear issue for each new review finding.
-                        This is a one-way export; status changes are not synced
-                        back to Lightdash.
+                        Existing open findings can be exported with the button
+                        below. Each issue links back here, and the review
+                        issue shows the Linear URL. This is a one-way export;
+                        status changes are not synced back.
                     </Text>
                     {hasLinear && (
                         <Text c="dimmed" fz="xs" mt={4}>
@@ -380,6 +385,17 @@ export const LinearReviewSettings = () => {
                             saveRouting({ linearProjectId });
                         }}
                     />
+                    {routing.enabled && (
+                        <Button
+                            size="xs"
+                            variant="default"
+                            disabled={!canEdit || isUpdating}
+                            loading={linearBackfilling}
+                            onClick={() => backfillLinear()}
+                        >
+                            Create issues for existing findings
+                        </Button>
+                    )}
                 </Stack>
             )}
         </>

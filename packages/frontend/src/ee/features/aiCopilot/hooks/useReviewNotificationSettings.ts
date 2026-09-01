@@ -1,5 +1,7 @@
 import {
+    type AiReviewLinearBackfillResult,
     type AiReviewLinearRouting,
+    type ApiAiReviewLinearBackfillResponse,
     type ApiAiReviewLinearRoutingResponse,
     type ApiAiReviewNotificationSettingsResponse,
     type ApiError,
@@ -120,6 +122,35 @@ export const useUpdateReviewLinearRouting = () => {
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to update Linear destination',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const backfillReviewLinearIssues = async () =>
+    reviewApi<ApiAiReviewLinearBackfillResponse['results']>({
+        url: `/aiAgents/admin/review-linear-issues/backfill`,
+        method: 'POST',
+        body: undefined,
+    });
+
+export const useBackfillReviewLinearIssues = () => {
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<AiReviewLinearBackfillResult, ApiError, void>({
+        mutationFn: backfillReviewLinearIssues,
+        onSuccess: (result) => {
+            showToastSuccess({
+                title:
+                    result.queuedCount === 0
+                        ? 'No existing findings needed a Linear issue'
+                        : `Creating Linear issues for ${result.queuedCount} existing findings`,
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to export existing findings to Linear',
                 apiError: error,
             });
         },
