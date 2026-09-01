@@ -5,18 +5,31 @@ import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
+const boundedQueryInstructionByRuntime = {
+    agent: 'Do not use a null or empty query to enumerate a warehouse column',
+    mcp: 'Do not omit query or use an empty query to enumerate a warehouse column',
+} satisfies Record<ToolDescriptionContext['runtime'], string>;
+
+const emptyFiltersInstructionByRuntime = {
+    agent: 'Set filters to null when the search does not need additional filters',
+    mcp: 'Omit filters when the search does not need additional filters',
+} satisfies Record<ToolDescriptionContext['runtime'], string>;
+
 export const TOOL_SEARCH_FIELD_VALUES_DESCRIPTION = ({
+    runtime,
     toolName,
 }: ToolDescriptionContext): string => `Tool: ${toolName}
 
 Purpose:
-Search for unique values of a specific field in a table. Returns all unique values by default, or use the query parameter to narrow down results. This is useful for finding suggestions for field values when building filters or exploring data.
+Validate or discover concrete values for a specific dimension before building a filter. Returns up to 100 unique values matching the query.
 
 Usage Tips:
-- Specify the table and field you want to search values for
-- Query parameter: use it to narrow down the search to matching values
-- Optionally add filters to further restrict the results
-- Results are returned as a list of unique field values (limited to 100)
+- Specify the table and field ID whose values you want to search
+- Prefer a non-empty query containing candidate text, such as "complete" for a status
+- ${boundedQueryInstructionByRuntime[runtime]}. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan
+- If the user or field metadata already provides the exact value, use it directly instead of searching
+- ${emptyFiltersInstructionByRuntime[runtime]}
+- When a filters object is provided, include type, dimensions, metrics, and tableCalculations. Use null or [] for every unused category; never omit a category
 `;
 
 export const toolSearchFieldValuesArgsSchema = createToolSchema()
@@ -27,12 +40,14 @@ export const toolSearchFieldValuesArgsSchema = createToolSchema()
         }),
         query: z
             .string()
-            .describe('Query string to filter field values')
+            .describe(
+                'Candidate text to match within field values. Prefer a non-empty value. Without candidate text, only curated field metadata values can be returned reliably; an empty warehouse-backed search may be rejected.',
+            )
             .nullable(),
         filters: filtersSchemaV2
             .nullable()
             .describe(
-                'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
+                'Optional filters to scope the value search. If supplied, always include type, dimensions, metrics, and tableCalculations; use null or [] for every unused category. Never construct a partial filter group. Filtered fields must exist in the selected explore or be referenced from custom metrics.',
             ),
     })
     .build();

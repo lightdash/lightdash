@@ -5743,13 +5743,15 @@ Response shape (MCP CallToolResult):
       "description": "Tool: search_field_values
 
 Purpose:
-Search for unique values of a specific field in a table. Returns all unique values by default, or use the query parameter to narrow down results. This is useful for finding suggestions for field values when building filters or exploring data.
+Validate or discover concrete values for a specific dimension before building a filter. Returns up to 100 unique values matching the query.
 
 Usage Tips:
-- Specify the table and field you want to search values for
-- Query parameter: use it to narrow down the search to matching values
-- Optionally add filters to further restrict the results
-- Results are returned as a list of unique field values (limited to 100)
+- Specify the table and field ID whose values you want to search
+- Prefer a non-empty query containing candidate text, such as "complete" for a status
+- Do not omit query or use an empty query to enumerate a warehouse column. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan
+- If the user or field metadata already provides the exact value, use it directly instead of searching
+- Omit filters when the search does not need additional filters
+- When a filters object is provided, include type, dimensions, metrics, and tableCalculations. Use null or [] for every unused category; never omit a category
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -5766,7 +5768,7 @@ Usage Tips:
           },
           "filters": {
             "additionalProperties": false,
-            "description": "Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics., ",
+            "description": "Optional filters to scope the value search. If supplied, always include type, dimensions, metrics, and tableCalculations; use null or [] for every unused category. Never construct a partial filter group. Filtered fields must exist in the selected explore or be referenced from custom metrics., ",
             "properties": {
               "dimensions": {
                 "description": ", ",
@@ -7699,7 +7701,7 @@ Usage Tips:
             "type": "string",
           },
           "query": {
-            "description": "Query string to filter field values, Query string to filter field values",
+            "description": "Candidate text to match within field values. Prefer a non-empty value. Without candidate text, only curated field metadata values can be returned reliably; an empty warehouse-backed search may be rejected., Candidate text to match within field values. Prefer a non-empty value. Without candidate text, only curated field metadata values can be returned reliably; an empty warehouse-backed search may be rejected.",
             "type": "string",
           },
           "table": {
