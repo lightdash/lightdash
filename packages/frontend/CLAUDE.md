@@ -25,11 +25,13 @@ The theme lives in `src/theme/`: `colors.ts` (neutral ramps, `primary` is the in
 -   **Defaults you get for free**: Paper/Card are bordered, flat (no shadow), 12px radius; Menu/Popover carry the `md` shadow and pop open from their anchor; ActionIcon is `subtle`; Badge is `light` gray; Button sizes are 28/32/36/40px. Do not restate these at call sites.
 -   **Add a variant, not a one-off**: repeated overrides belong in `src/theme/components/<Component>.module.css`. Reach for the theme's `vars` callback only when Mantine writes the value inline (button/badge colors, NavLink fill, input font size).
 -   **Check both schemes** in the running app before shipping a theme change; the colour-scheme toggle is in the user menu.
+-   **Design principles** (one ink accent, hierarchy by variant, flat surfaces, tokens over hand-picked greys, the type scale, the self-review list) live in the `frontend-style-guide` skill (`.claude/skills/frontend-style-guide/SKILL.md`). Read them before building or reviewing a screen.
 
 ## 🧩 Reusable Components
 
 -   **Modals**: Always use `MantineModal` from `components/common/MantineModal`. See `stories/Modal.stories.tsx` for examples.
 -   **Callouts**: Use `Callout` from `components/common/Callout` with variants: `danger`, `warning`, `info`
+-   **Shared controls**: `CopyActionIcon`, `FavoriteActionIcon`, `ConfirmDeleteButton` and `FilterFacet` in `components/common` replace the hand-rolled copy, star, two-click delete and faceted-filter patterns.
 -   **Number inputs**: Always use `NumberInput` from `components/common/NumberInput`. Prefer `onNumberChange` (fires `number`, or `undefined` on clear; never transient strings). Integer-only by default; decimal fields opt in via `decimalScale={n}` or `decimalScale="unlimited"`. Raw `onChange` only for `form.getInputProps()` spreads.
 
 ## ⚛️ State Management
