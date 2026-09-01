@@ -1,22 +1,11 @@
 import { isSummaryExploreError, type SummaryExplore } from '@lightdash/common';
-import {
-    ActionIcon,
-    Button,
-    Checkbox,
-    Group,
-    Popover,
-    Stack,
-    Text,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
-import { IconSearch, IconTable, IconX } from '@tabler/icons-react';
-import { clsx } from 'clsx';
+import { IconTable } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
-import MantineIcon from '../../../../components/common/MantineIcon';
+import FilterFacet, {
+    type FilterFacetOption,
+} from '../../../../components/common/FilterFacet';
 import { useExplores } from '../../../../hooks/useExplores';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
-import styles from './TableFilter.module.css';
 
 type TableFilterProps = {
     selectedTables: string[];
@@ -34,183 +23,47 @@ const TableFilter: FC<TableFilterProps> = ({
 
     const { data: explores, isLoading } = useExplores(projectUuid, true);
 
-    // Filter out explores with errors and get table options
-    const tableOptions = useMemo(() => {
+    const tables = useMemo(() => {
         if (!explores) return [];
         return explores
             .filter(
                 (explore): explore is SummaryExplore =>
                     !isSummaryExploreError(explore),
             )
-            .map((explore) => ({
-                name: explore.name,
-                label: explore.label,
-            }))
             .sort((a, b) => a.label.localeCompare(b.label));
     }, [explores]);
 
-    // Filter tables by search
-    const filteredTables = useMemo(() => {
-        if (!searchValue) return tableOptions;
-        const searchLower = searchValue.toLowerCase();
-        return tableOptions.filter(
-            (table) =>
-                table.name.toLowerCase().includes(searchLower) ||
-                table.label.toLowerCase().includes(searchLower),
-        );
-    }, [tableOptions, searchValue]);
-
-    const hasSelectedTables = selectedTables.length > 0;
-
-    const tableNames = useMemo(() => {
-        return tableOptions
-            .filter((table) => selectedTables.includes(table.name))
-            .map((table) => table.label)
-            .join(', ');
-    }, [tableOptions, selectedTables]);
-
-    const buttonLabel = hasSelectedTables ? tableNames : 'All tables';
+    const options = useMemo<FilterFacetOption[]>(() => {
+        const search = searchValue.trim().toLowerCase();
+        return tables
+            .filter(
+                (table) =>
+                    !search ||
+                    table.name.toLowerCase().includes(search) ||
+                    table.label.toLowerCase().includes(search),
+            )
+            .map((table) => ({ value: table.name, label: table.label }));
+    }, [tables, searchValue]);
 
     return (
-        <Group gap={2}>
-            <Popover width={300} position="bottom-start">
-                <Popover.Target>
-                    <Tooltip
-                        label="Filter metrics by table"
-                        openDelay={200}
-                        maw={250}
-                        fz="xs"
-                    >
-                        <Button
-                            h={32}
-                            c="ldGray.7"
-                            fz="sm"
-                            variant="default"
-                            py="xs"
-                            px="sm"
-                            leftSection={
-                                <MantineIcon
-                                    icon={IconTable}
-                                    size="md"
-                                    color={
-                                        hasSelectedTables
-                                            ? 'indigo.5'
-                                            : 'ldGray.5'
-                                    }
-                                />
-                            }
-                            loading={isLoading}
-                            className={clsx(
-                                styles.filterButton,
-                                hasSelectedTables &&
-                                    styles.filterButtonSelected,
-                            )}
-                            classNames={{
-                                label: styles.filterButtonLabel,
-                            }}
-                        >
-                            {buttonLabel}
-                        </Button>
-                    </Tooltip>
-                </Popover.Target>
-                <Popover.Dropdown p="sm">
-                    <Stack gap={4}>
-                        <Text fz="xs" c="dimmed" fw={600}>
-                            Filter by tables:
-                        </Text>
-
-                        {tableOptions.length > 5 && (
-                            <TextInput
-                                size="xs"
-                                placeholder="Search tables..."
-                                value={searchValue}
-                                onChange={(e) =>
-                                    setSearchValue(e.currentTarget.value)
-                                }
-                                rightSection={
-                                    searchValue ? (
-                                        <ActionIcon
-                                            size="xs"
-                                            onClick={() => setSearchValue('')}
-                                        >
-                                            <MantineIcon icon={IconX} />
-                                        </ActionIcon>
-                                    ) : (
-                                        <MantineIcon
-                                            icon={IconSearch}
-                                            color="ldGray.5"
-                                        />
-                                    )
-                                }
-                            />
-                        )}
-
-                        {tableOptions.length === 0 && (
-                            <Text fz="xs" fw={500} c="dimmed">
-                                No tables available.
-                            </Text>
-                        )}
-
-                        <Stack
-                            gap="xs"
-                            mah={300}
-                            mt="xxs"
-                            className={styles.scrollableList}
-                        >
-                            {filteredTables.map((table) => (
-                                <Checkbox
-                                    key={table.name}
-                                    label={table.label}
-                                    checked={selectedTables.includes(
-                                        table.name,
-                                    )}
-                                    size="xs"
-                                    classNames={{
-                                        body: styles.checkbox,
-                                        input: styles.checkboxInput,
-                                    }}
-                                    onChange={() => {
-                                        if (
-                                            selectedTables.includes(table.name)
-                                        ) {
-                                            setSelectedTables(
-                                                selectedTables.filter(
-                                                    (t) => t !== table.name,
-                                                ),
-                                            );
-                                        } else {
-                                            setSelectedTables([
-                                                ...selectedTables,
-                                                table.name,
-                                            ]);
-                                        }
-                                    }}
-                                />
-                            ))}
-                            {filteredTables.length === 0 &&
-                                tableOptions.length > 0 && (
-                                    <Text fz="xs" c="ldGray.5">
-                                        No tables match your search.
-                                    </Text>
-                                )}
-                        </Stack>
-                    </Stack>
-                </Popover.Dropdown>
-            </Popover>
-            {hasSelectedTables && (
-                <Tooltip label="Clear all table filters">
-                    <ActionIcon
-                        size="xs"
-                        color="ldGray.5"
-                        onClick={() => {
-                            setSelectedTables([]);
-                        }}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Tooltip>
-            )}
-        </Group>
+        <FilterFacet
+            label="Tables"
+            icon={IconTable}
+            options={options}
+            selected={selectedTables}
+            onChange={setSelectedTables}
+            tooltipLabel="Filter metrics by table"
+            loading={isLoading}
+            clearable
+            emptyLabel={
+                searchValue
+                    ? 'No tables match your search.'
+                    : 'No tables available.'
+            }
+            searchValue={searchValue}
+            onSearchChange={tables.length > 5 ? setSearchValue : undefined}
+            searchPlaceholder="Search tables..."
+        />
     );
 };
 

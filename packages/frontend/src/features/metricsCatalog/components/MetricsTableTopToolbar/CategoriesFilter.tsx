@@ -3,26 +3,15 @@ import {
     UNCATEGORIZED_TAG_UUID,
     type CatalogField,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Button,
-    Checkbox,
-    Group,
-    Popover,
-    SegmentedControl,
-    Stack,
-    Text,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
-import { IconSearch, IconTag, IconX } from '@tabler/icons-react';
-import { clsx } from 'clsx';
+import { Group, SegmentedControl, Text } from '@mantine/core';
+import { IconTag } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
-import MantineIcon from '../../../../components/common/MantineIcon';
+import FilterFacet, {
+    type FilterFacetOption,
+} from '../../../../components/common/FilterFacet';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useProjectTags } from '../../hooks/useProjectTags';
 import { CatalogCategory } from '../CatalogCategory';
-import styles from './CategoriesFilter.module.css';
 
 type CategoriesFilterProps = {
     selectedCategories: CatalogField['categories'][number]['tagUuid'][];
@@ -31,6 +20,15 @@ type CategoriesFilterProps = {
     ) => void;
     categoryFilterMode: CatalogCategoryFilterMode;
     setCategoryFilterMode: (mode: CatalogCategoryFilterMode) => void;
+};
+
+const UNCATEGORIZED_OPTION: FilterFacetOption = {
+    value: UNCATEGORIZED_TAG_UUID,
+    label: (
+        <Text fz="xs" fw={500}>
+            Uncategorized
+        </Text>
+    ),
 };
 
 const CategoriesFilter: FC<CategoriesFilterProps> = ({
@@ -44,245 +42,79 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
     );
     const [searchValue, setSearchValue] = useState('');
 
-    // Categories are just tags
     const { data: categories, isLoading } = useProjectTags(projectUuid);
 
-    // Filter categories by search
-    const filteredCategories = useMemo(() => {
-        if (!categories) return [];
-        if (!searchValue) return categories;
-        const searchLower = searchValue.toLowerCase();
-        return categories.filter((category) =>
-            category.name.toLowerCase().includes(searchLower),
-        );
+    const options = useMemo<FilterFacetOption[]>(() => {
+        if (!categories || categories.length === 0) return [];
+        const search = searchValue.trim().toLowerCase();
+        const categoryOptions = categories
+            .filter(
+                (category) =>
+                    !search || category.name.toLowerCase().includes(search),
+            )
+            .map((category) => ({
+                value: category.tagUuid,
+                label: <CatalogCategory category={category} />,
+                searchLabel: category.name,
+            }));
+        return search
+            ? categoryOptions
+            : [...categoryOptions, UNCATEGORIZED_OPTION];
     }, [categories, searchValue]);
 
-    const hasSelectedCategories = selectedCategories.length > 0;
-
-    const categoryNames = useMemo(() => {
-        const uncategorized = selectedCategories.includes(
-            UNCATEGORIZED_TAG_UUID,
-        );
-
-        return categories
-            ?.filter((category) =>
-                selectedCategories.includes(category.tagUuid),
-            )
-            .map((category) => category.name)
-            .concat(uncategorized ? ['Uncategorized'] : [])
-            .join(', ');
-    }, [categories, selectedCategories]);
-
-    const buttonLabel = hasSelectedCategories
-        ? categoryNames
-        : 'All categories';
+    const showFilterMode =
+        selectedCategories.length > 1 &&
+        !selectedCategories.includes(UNCATEGORIZED_TAG_UUID);
 
     return (
-        <Group gap={2}>
-            <Popover width={300} position="bottom-start">
-                <Popover.Target>
-                    <Tooltip
-                        label="Filter metrics by category"
-                        openDelay={200}
-                        maw={250}
-                        fz="xs"
-                    >
-                        <Button
-                            h={32}
-                            c="ldGray.7"
-                            fz="sm"
-                            variant="default"
-                            py="xs"
-                            px="sm"
-                            leftSection={
-                                <MantineIcon
-                                    icon={IconTag}
-                                    size="md"
-                                    color={
-                                        hasSelectedCategories
-                                            ? 'indigo.5'
-                                            : 'ldGray.5'
-                                    }
-                                />
+        <FilterFacet
+            label="Categories"
+            icon={IconTag}
+            options={options}
+            selected={selectedCategories}
+            onChange={setSelectedCategories}
+            tooltipLabel="Filter metrics by category"
+            loading={isLoading}
+            clearable
+            emptyLabel={
+                searchValue
+                    ? 'No categories match your search.'
+                    : 'No categories added yet. Click on the category cells to assign categories to your metrics.'
+            }
+            searchValue={searchValue}
+            onSearchChange={
+                (categories?.length ?? 0) > 5 ? setSearchValue : undefined
+            }
+            searchPlaceholder="Search categories..."
+            headerSection={
+                showFilterMode ? (
+                    <Group justify="space-between" wrap="nowrap">
+                        <Text fz="xs" c="dimmed">
+                            Match
+                        </Text>
+                        <SegmentedControl
+                            size="xs"
+                            value={categoryFilterMode}
+                            onChange={(value) =>
+                                setCategoryFilterMode(
+                                    value as CatalogCategoryFilterMode,
+                                )
                             }
-                            loading={isLoading}
-                            className={clsx(
-                                styles.filterButton,
-                                hasSelectedCategories &&
-                                    styles.filterButtonSelected,
-                            )}
-                            classNames={{
-                                label: styles.filterButtonLabel,
-                            }}
-                        >
-                            {buttonLabel}
-                        </Button>
-                    </Tooltip>
-                </Popover.Target>
-                <Popover.Dropdown p="sm">
-                    <Stack gap="sm">
-                        <Group justify="space-between">
-                            <Text fz="xs" c="dimmed" fw={600} span>
-                                Filter by categories:
-                            </Text>
-
-                            {selectedCategories.length > 1 &&
-                                !selectedCategories.includes(
-                                    UNCATEGORIZED_TAG_UUID,
-                                ) && (
-                                    <SegmentedControl
-                                        size="xs"
-                                        value={categoryFilterMode}
-                                        onChange={(value) =>
-                                            setCategoryFilterMode(
-                                                value as CatalogCategoryFilterMode,
-                                            )
-                                        }
-                                        data={[
-                                            {
-                                                label: 'Any',
-                                                value: CatalogCategoryFilterMode.OR,
-                                            },
-                                            {
-                                                label: 'All',
-                                                value: CatalogCategoryFilterMode.AND,
-                                            },
-                                        ]}
-                                    />
-                                )}
-                        </Group>
-
-                        {(categories?.length ?? 0) > 5 && (
-                            <TextInput
-                                size="xs"
-                                placeholder="Search categories..."
-                                value={searchValue}
-                                onChange={(e) =>
-                                    setSearchValue(e.currentTarget.value)
-                                }
-                                rightSection={
-                                    searchValue ? (
-                                        <ActionIcon
-                                            size="xs"
-                                            onClick={() => setSearchValue('')}
-                                        >
-                                            <MantineIcon icon={IconX} />
-                                        </ActionIcon>
-                                    ) : (
-                                        <MantineIcon
-                                            icon={IconSearch}
-                                            color="ldGray.5"
-                                        />
-                                    )
-                                }
-                            />
-                        )}
-
-                        {categories?.length === 0 && (
-                            <Text fz="xs" fw={500} c="dimmed">
-                                No categories added yet. Click on the category
-                                cells to assign categories to your metrics.
-                            </Text>
-                        )}
-
-                        <Stack
-                            gap="xs"
-                            mah={300}
-                            className={styles.scrollableList}
-                        >
-                            {filteredCategories.map((category) => (
-                                <Checkbox
-                                    key={category.tagUuid}
-                                    label={
-                                        <CatalogCategory category={category} />
-                                    }
-                                    checked={selectedCategories.includes(
-                                        category.tagUuid,
-                                    )}
-                                    size="xs"
-                                    classNames={{
-                                        body: styles.checkbox,
-                                        input: styles.checkboxInput,
-                                    }}
-                                    onChange={() => {
-                                        if (
-                                            selectedCategories.includes(
-                                                category.tagUuid,
-                                            )
-                                        ) {
-                                            setSelectedCategories(
-                                                selectedCategories.filter(
-                                                    (c) =>
-                                                        c !== category.tagUuid,
-                                                ),
-                                            );
-                                        } else {
-                                            setSelectedCategories([
-                                                ...selectedCategories,
-                                                category.tagUuid,
-                                            ]);
-                                        }
-                                    }}
-                                />
-                            ))}
-                            {!searchValue && (categories?.length ?? 0) > 0 && (
-                                <Checkbox
-                                    label="Uncategorized"
-                                    checked={selectedCategories.includes(
-                                        UNCATEGORIZED_TAG_UUID,
-                                    )}
-                                    fw={500}
-                                    size="xs"
-                                    classNames={{
-                                        body: styles.checkbox,
-                                        input: styles.checkboxInput,
-                                    }}
-                                    onChange={() => {
-                                        if (
-                                            selectedCategories.includes(
-                                                UNCATEGORIZED_TAG_UUID,
-                                            )
-                                        ) {
-                                            setSelectedCategories(
-                                                selectedCategories.filter(
-                                                    (c) =>
-                                                        c !==
-                                                        UNCATEGORIZED_TAG_UUID,
-                                                ),
-                                            );
-                                        } else {
-                                            setSelectedCategories([
-                                                ...selectedCategories,
-                                                UNCATEGORIZED_TAG_UUID,
-                                            ]);
-                                        }
-                                    }}
-                                />
-                            )}
-                            {filteredCategories.length === 0 &&
-                                (categories?.length ?? 0) > 0 && (
-                                    <Text fz="xs" c="ldGray.5">
-                                        No categories match your search.
-                                    </Text>
-                                )}
-                        </Stack>
-                    </Stack>
-                </Popover.Dropdown>
-            </Popover>
-            {hasSelectedCategories && (
-                <Tooltip label="Clear all category filters">
-                    <ActionIcon
-                        size="xs"
-                        color="ldGray.5"
-                        onClick={() => {
-                            setSelectedCategories([]);
-                        }}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Tooltip>
-            )}
-        </Group>
+                            data={[
+                                {
+                                    label: 'Any',
+                                    value: CatalogCategoryFilterMode.OR,
+                                },
+                                {
+                                    label: 'All',
+                                    value: CatalogCategoryFilterMode.AND,
+                                },
+                            ]}
+                        />
+                    </Group>
+                ) : undefined
+            }
+        />
     );
 };
 
