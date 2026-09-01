@@ -4581,22 +4581,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_63__58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_63__58__name_63_-string-or-undefined_-Array-or-undefined_-or-undefined_-Array-or-undefined_-or-undefined_-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63__58___91_k-string_93__58__name_63_-string-or-undefined__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_58__eChartsConfig_63__58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_63__58__name_63_-string-or-undefined_-Array-or-undefined_-or-undefined_-Array-or-undefined_-or-undefined_-or-undefined_-or-_type-ChartType.PIE--config_58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_58__columns_63__58___91_k-string_93__58__name_63_-string-or-undefined__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_63__58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_63__58__name_63_-string-or-undefined_-Array-or-undefined_-or-undefined_-Array-or-undefined_-or-undefined_-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63__58___91_k-string_93__58__name_63_-string-or-undefined__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_58__eChartsConfig_63__58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_63__58__name_63_-string-or-undefined_-Array-or-undefined_-or-undefined_-Array-or-undefined_-or-undefined_-or-undefined_-or-_type-ChartType.PIE--config_58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_58__columns_63__58___91_k-string_93__58__name_63_-string-or-undefined__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_63__58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_63__58__name_63_-string-or-undefined_-Array-or-undefined_-or-undefined_-Array-or-undefined_-or-undefined_-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63__58___91_k-string_93__58__name_63_-string-or-undefined__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_58__eChartsConfig_63__58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_63__58__name_63_-string-or-undefined_-Array-or-undefined_-or-undefined_-Array-or-undefined_-or-undefined_-or-undefined_-or-_type-ChartType.PIE--config_58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_58__columns_63__58___91_k-string_93__58__name_63_-string-or-undefined__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_63__58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_63__58__name_63_-string-or-undefined_-Array-or-undefined_-or-undefined_-Array-or-undefined_-or-undefined_-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63__58___91_k-string_93__58__name_63_-string-or-undefined__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_58__eChartsConfig_63__58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_63__58__name_63_-string-or-undefined_-Array-or-undefined_-or-undefined_-Array-or-undefined_-or-undefined_-or-undefined_-or-_type-ChartType.PIE--config_58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_58__columns_63__58___91_k-string_93__58__name_63_-string-or-undefined__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -22127,6 +22127,22 @@
                         },
                         "type": "array"
                     },
+                    "imageUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "imageUrlSource": {
+                        "type": "string",
+                        "enum": ["upload", "url", null],
+                        "nullable": true
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
                     "integrations": {
                         "items": {
                             "properties": {
@@ -22144,24 +22160,8 @@
                         },
                         "type": "array"
                     },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
                     "instruction": {
                         "type": "string",
-                        "nullable": true
-                    },
-                    "imageUrl": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "imageUrlSource": {
-                        "type": "string",
-                        "enum": ["upload", "url", null],
                         "nullable": true
                     },
                     "groupAccess": {
@@ -22218,11 +22218,11 @@
                     "projectUuid",
                     "createdAt",
                     "userAccess",
-                    "integrations",
-                    "tags",
-                    "instruction",
                     "imageUrl",
                     "imageUrlSource",
+                    "tags",
+                    "integrations",
+                    "instruction",
                     "groupAccess",
                     "spaceAccess",
                     "enableDataAccess",
@@ -22862,6 +22862,22 @@
                         },
                         "type": "array"
                     },
+                    "imageUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "imageUrlSource": {
+                        "type": "string",
+                        "enum": ["upload", "url", null],
+                        "nullable": true
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
                     "integrations": {
                         "items": {
                             "properties": {
@@ -22879,24 +22895,8 @@
                         },
                         "type": "array"
                     },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
                     "instruction": {
                         "type": "string",
-                        "nullable": true
-                    },
-                    "imageUrl": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "imageUrlSource": {
-                        "type": "string",
-                        "enum": ["upload", "url", null],
                         "nullable": true
                     },
                     "groupAccess": {
@@ -22953,11 +22953,11 @@
                     "projectUuid",
                     "createdAt",
                     "userAccess",
-                    "integrations",
-                    "tags",
-                    "instruction",
                     "imageUrl",
                     "imageUrlSource",
+                    "tags",
+                    "integrations",
+                    "instruction",
                     "groupAccess",
                     "spaceAccess",
                     "enableDataAccess",
@@ -23705,6 +23705,17 @@
                         },
                         "type": "array"
                     },
+                    "imageUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
                     "integrations": {
                         "items": {
                             "properties": {
@@ -23722,18 +23733,7 @@
                         },
                         "type": "array"
                     },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
                     "instruction": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "imageUrl": {
                         "type": "string",
                         "nullable": true
                     },
@@ -23762,10 +23762,10 @@
                     "version",
                     "projectUuid",
                     "userAccess",
-                    "integrations",
-                    "tags",
-                    "instruction",
                     "imageUrl",
+                    "tags",
+                    "integrations",
+                    "instruction",
                     "groupAccess",
                     "spaceAccess",
                     "enableDataAccess",
@@ -23839,6 +23839,17 @@
                         },
                         "type": "array"
                     },
+                    "imageUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
                     "integrations": {
                         "items": {
                             "properties": {
@@ -23856,18 +23867,7 @@
                         },
                         "type": "array"
                     },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
                     "instruction": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "imageUrl": {
                         "type": "string",
                         "nullable": true
                     },
@@ -25171,55 +25171,55 @@
                     "generateVisualization",
                     "runSql",
                     "findContent",
-                    "generateHashes",
-                    "generateUuids",
-                    "listContent",
-                    "findExplores",
-                    "findCustomChartTypes",
-                    "findFields",
-                    "searchSemanticLayer",
                     "analyzeFieldImpact",
-                    "discoverFields",
-                    "grepFields",
-                    "getMetadata",
-                    "searchFieldValues",
-                    "findDashboards",
-                    "findCharts",
-                    "getDashboardCharts",
-                    "readContent",
-                    "resolveUrl",
-                    "editContent",
+                    "closePullRequest",
                     "createContent",
                     "createScheduledDelivery",
-                    "updateUserName",
-                    "runContentQuery",
-                    "listProjects",
-                    "getProjectInfo",
-                    "loadSkill",
-                    "loadProjectContext",
-                    "loadMcpTools",
-                    "generateDataApp",
+                    "delegateResearchTask",
+                    "describeWarehouseTable",
+                    "discoverFields",
+                    "discoverRepos",
+                    "editContent",
                     "editDbtProject",
                     "editProjectContext",
                     "editRepo",
-                    "syncDbtProject",
                     "exploreRepo",
-                    "discoverRepos",
-                    "listWorkstreams",
-                    "closePullRequest",
+                    "findCharts",
+                    "findCustomChartTypes",
+                    "findDashboards",
+                    "findExplores",
+                    "findFields",
+                    "generateDataApp",
+                    "generateHashes",
+                    "generateUuids",
+                    "getDashboardCharts",
+                    "getKnowledgeDocumentContent",
+                    "getMetadata",
+                    "getProjectInfo",
                     "getPullRequestDiff",
-                    "setupPreviewDeploy",
+                    "grepFields",
+                    "listContent",
+                    "listKnowledgeDocuments",
+                    "listProjects",
+                    "listWarehouseTables",
+                    "listWorkstreams",
+                    "loadMcpTools",
+                    "loadProjectContext",
+                    "loadSkill",
+                    "readContent",
+                    "readPinnedThread",
+                    "resolveUrl",
+                    "runComposerQueries",
+                    "runContentQuery",
                     "runQuery",
                     "runSavedChart",
-                    "runComposerQueries",
-                    "listWarehouseTables",
-                    "describeWarehouseTable",
-                    "listKnowledgeDocuments",
-                    "getKnowledgeDocumentContent",
-                    "readPinnedThread",
+                    "searchFieldValues",
+                    "searchSemanticLayer",
+                    "setupPreviewDeploy",
                     "submitResearchReport",
-                    "delegateResearchTask",
-                    "submitWorkerFindings"
+                    "submitWorkerFindings",
+                    "syncDbtProject",
+                    "updateUserName"
                 ],
                 "description": "Exclude from T those types that are assignable to U"
             },
@@ -25298,13 +25298,13 @@
                                                                         "requiredFilters": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "required": {
-                                                                                        "type": "boolean"
-                                                                                    },
                                                                                     "settings": {},
                                                                                     "values": {
                                                                                         "items": {},
                                                                                         "type": "array"
+                                                                                    },
+                                                                                    "required": {
+                                                                                        "type": "boolean"
                                                                                     },
                                                                                     "operator": {
                                                                                         "type": "string"
@@ -25411,6 +25411,16 @@
                                                                             ],
                                                                             "type": "object"
                                                                         },
+                                                                        "error": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "status": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                                "error",
+                                                                                "success"
+                                                                            ]
+                                                                        },
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
@@ -25452,18 +25462,8 @@
                                                                             },
                                                                             "type": "array"
                                                                         },
-                                                                        "error": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "label": {
                                                                             "type": "string"
-                                                                        },
-                                                                        "status": {
-                                                                            "type": "string",
-                                                                            "enum": [
-                                                                                "error",
-                                                                                "success"
-                                                                            ]
                                                                         }
                                                                     },
                                                                     "required": [
@@ -25530,8 +25530,8 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "error",
-                                                            "not_found",
-                                                            "success"
+                                                            "success",
+                                                            "not_found"
                                                         ]
                                                     }
                                                 },
@@ -25626,13 +25626,13 @@
                                                                             "requiredFilters": {
                                                                                 "items": {
                                                                                     "properties": {
-                                                                                        "required": {
-                                                                                            "type": "boolean"
-                                                                                        },
                                                                                         "settings": {},
                                                                                         "values": {
                                                                                             "items": {},
                                                                                             "type": "array"
+                                                                                        },
+                                                                                        "required": {
+                                                                                            "type": "boolean"
                                                                                         },
                                                                                         "operator": {
                                                                                             "type": "string"
@@ -25897,11 +25897,11 @@
                                                                 "kind": {
                                                                     "type": "string",
                                                                     "enum": [
+                                                                        "stage",
                                                                         "compile",
                                                                         "edit",
                                                                         "read",
-                                                                        "search",
-                                                                        "stage"
+                                                                        "search"
                                                                     ]
                                                                 }
                                                             },
@@ -25959,11 +25959,11 @@
                                                     "errorCode": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "unknown",
                                                             "git_write_permission",
                                                             "github_not_installed",
                                                             "gitlab_not_installed",
                                                             "pull_request_not_open",
-                                                            "unknown",
                                                             "unsupported_source_control",
                                                             null
                                                         ],
@@ -26038,8 +26038,8 @@
                                                     "reason": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "cancelled",
-                                                            "failed"
+                                                            "failed",
+                                                            "cancelled"
                                                         ]
                                                     },
                                                     "appUuid": {
@@ -26108,8 +26108,8 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "error",
-                                                            "rejected",
                                                             "success",
+                                                            "rejected",
                                                             "timeout"
                                                         ]
                                                     }
@@ -34358,14 +34358,14 @@
                     "uuid": {
                         "type": "string"
                     },
-                    "fingerprint": {
-                        "type": "string"
-                    },
                     "status": {
                         "$ref": "#/components/schemas/AiAgentReviewItemStatus"
+                    },
+                    "fingerprint": {
+                        "type": "string"
                     }
                 },
-                "required": ["uuid", "fingerprint", "status"],
+                "required": ["uuid", "status", "fingerprint"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -34648,6 +34648,13 @@
                     "uuid": {
                         "type": "string"
                     },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
                     "integrations": {
                         "items": {
                             "properties": {
@@ -34664,13 +34671,6 @@
                             "type": "object"
                         },
                         "type": "array"
-                    },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
                     },
                     "instruction": {
                         "type": "string",
@@ -34707,8 +34707,8 @@
                     "name",
                     "version",
                     "uuid",
-                    "integrations",
                     "tags",
+                    "integrations",
                     "instruction",
                     "enableDataAccess",
                     "enableSelfImprovement",
@@ -41445,21 +41445,21 @@
                     "enabled": {
                         "type": "boolean"
                     },
-                    "plainTextEmail": {
-                        "type": "boolean"
+                    "appUuid": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "message": {
                         "type": "string"
+                    },
+                    "plainTextEmail": {
+                        "type": "boolean"
                     },
                     "format": {
                         "$ref": "#/components/schemas/SchedulerFormat"
                     },
                     "projectSchedulerTimezone": {
                         "type": "string"
-                    },
-                    "appUuid": {
-                        "type": "string",
-                        "nullable": true
                     },
                     "appName": {
                         "type": "string",
@@ -41506,8 +41506,8 @@
                     "name",
                     "cron",
                     "enabled",
-                    "format",
                     "appUuid",
+                    "format",
                     "appName",
                     "options",
                     "includeLinks",
@@ -51180,6 +51180,13 @@
                         },
                         "type": "array"
                     },
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array",
+                        "description": "Non-fatal compilation or validation warnings (e.g. fields that failed to\ncompile, warehouse-rejected column references). The explore is still usable."
+                    },
                     "groupLabel": {
                         "type": "string",
                         "deprecated": true
@@ -51210,13 +51217,6 @@
                     "externalSource": {
                         "$ref": "#/components/schemas/ExternalSourceRef",
                         "description": "Present ⇒ generated from an external source table (CSV upload, Google Sheet)."
-                    },
-                    "warnings": {
-                        "items": {
-                            "$ref": "#/components/schemas/InlineError"
-                        },
-                        "type": "array",
-                        "description": "Non-fatal compilation or validation warnings (e.g. fields that failed to\ncompile, warehouse-rejected column references). The explore is still usable."
                     }
                 },
                 "required": ["name", "label", "tags"],
@@ -51377,6 +51377,22 @@
                         },
                         "type": "array"
                     },
+                    "joinedTables": {
+                        "items": {
+                            "$ref": "#/components/schemas/CompiledExploreJoin"
+                        },
+                        "type": "array"
+                    },
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array",
+                        "description": "Non-fatal compilation or validation warnings (e.g. fields that failed to\ncompile, warehouse-rejected column references). The explore is still usable."
+                    },
+                    "baseTable": {
+                        "type": "string"
+                    },
                     "warehouse": {
                         "type": "string"
                     },
@@ -51390,15 +51406,6 @@
                         },
                         "type": "array",
                         "description": "Nested groups for the sidebar (max 5 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
-                    },
-                    "baseTable": {
-                        "type": "string"
-                    },
-                    "joinedTables": {
-                        "items": {
-                            "$ref": "#/components/schemas/CompiledExploreJoin"
-                        },
-                        "type": "array"
                     },
                     "tables": {
                         "properties": {},
@@ -51451,21 +51458,14 @@
                     "externalSource": {
                         "$ref": "#/components/schemas/ExternalSourceRef",
                         "description": "Present ⇒ generated from an external source table (CSV upload, Google Sheet)."
-                    },
-                    "warnings": {
-                        "items": {
-                            "$ref": "#/components/schemas/InlineError"
-                        },
-                        "type": "array",
-                        "description": "Non-fatal compilation or validation warnings (e.g. fields that failed to\ncompile, warehouse-rejected column references). The explore is still usable."
                     }
                 },
                 "required": [
                     "name",
                     "label",
                     "tags",
-                    "baseTable",
                     "joinedTables",
+                    "baseTable",
                     "tables",
                     "targetDatabase"
                 ],
@@ -58135,7 +58135,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.80.0",
+        "version": "2.81.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

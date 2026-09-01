@@ -1,3 +1,10 @@
+# [2.81.0](https://github.com/lightdash/lightdash/compare/2.80.0...2.81.0) (2026-09-01)
+
+
+### Features
+
+* **deps:** migrate to Zod 4 ([#28410](https://github.com/lightdash/lightdash/issues/28410)) ([c490262](https://github.com/lightdash/lightdash/commit/c490262114f75d531f0d0ffa2c8d10ab45d91ea6))
+
 # [2.80.0](https://github.com/lightdash/lightdash/compare/2.79.0...2.80.0) (2026-09-01)
 
 

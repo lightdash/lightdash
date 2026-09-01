@@ -4138,7 +4138,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_63__58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_63__58__name_63_-string-or-undefined_-Array-or-undefined_-or-undefined_-Array-or-undefined_-or-undefined_-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63__58___91_k-string_93__58__name_63_-string-or-undefined__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_58__eChartsConfig_63__58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_63__58__name_63_-string-or-undefined_-Array-or-undefined_-or-undefined_-Array-or-undefined_-or-undefined_-or-undefined_-or-_type-ChartType.PIE--config_58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_58__columns_63__58___91_k-string_93__58__name_63_-string-or-undefined__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -4148,7 +4148,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_63__58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_63__58__name_63_-string-or-undefined_-Array-or-undefined_-or-undefined_-Array-or-undefined_-or-undefined_-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63__58___91_k-string_93__58__name_63_-string-or-undefined__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_58__eChartsConfig_63__58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_63__58__name_63_-string-or-undefined_-Array-or-undefined_-or-undefined_-Array-or-undefined_-or-undefined_-or-undefined_-or-_type-ChartType.PIE--config_58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_58__columns_63__58___91_k-string_93__58__name_63_-string-or-undefined__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -4158,7 +4158,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_63__58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_63__58__name_63_-string-or-undefined_-Array-or-undefined_-or-undefined_-Array-or-undefined_-or-undefined_-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63__58___91_k-string_93__58__name_63_-string-or-undefined__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_58__eChartsConfig_63__58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_63__58__name_63_-string-or-undefined_-Array-or-undefined_-or-undefined_-Array-or-undefined_-or-undefined_-or-undefined_-or-_type-ChartType.PIE--config_58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_58__columns_63__58___91_k-string_93__58__name_63_-string-or-undefined__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -4171,7 +4171,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_63__58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_63__58__name_63_-string-or-undefined_-Array-or-undefined_-or-undefined_-Array-or-undefined_-or-undefined_-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63__58___91_k-string_93__58__name_63_-string-or-undefined__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_58__eChartsConfig_63__58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_63__58__name_63_-string-or-undefined_-Array-or-undefined_-or-undefined_-Array-or-undefined_-or-undefined_-or-undefined_-or-_type-ChartType.PIE--config_58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_58__columns_63__58___91_k-string_93__58__name_63_-string-or-undefined__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
@@ -20395,6 +20395,34 @@ const models: TsoaRoute.Models = {
                         array: { dataType: 'string' },
                         required: true,
                     },
+                    imageUrl: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    imageUrlSource: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'enum', enums: ['upload'] },
+                            { dataType: 'enum', enums: ['url'] },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    tags: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
                     integrations: {
                         dataType: 'array',
                         array: {
@@ -20413,38 +20441,10 @@ const models: TsoaRoute.Models = {
                         },
                         required: true,
                     },
-                    tags: {
-                        dataType: 'union',
-                        subSchemas: [
-                            {
-                                dataType: 'array',
-                                array: { dataType: 'string' },
-                            },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
                     instruction: {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
-                    imageUrl: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
-                    imageUrlSource: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'enum', enums: ['upload'] },
-                            { dataType: 'enum', enums: ['url'] },
                             { dataType: 'enum', enums: [null] },
                         ],
                         required: true,
@@ -21167,6 +21167,34 @@ const models: TsoaRoute.Models = {
                         array: { dataType: 'string' },
                         required: true,
                     },
+                    imageUrl: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    imageUrlSource: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'enum', enums: ['upload'] },
+                            { dataType: 'enum', enums: ['url'] },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    tags: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
                     integrations: {
                         dataType: 'array',
                         array: {
@@ -21185,38 +21213,10 @@ const models: TsoaRoute.Models = {
                         },
                         required: true,
                     },
-                    tags: {
-                        dataType: 'union',
-                        subSchemas: [
-                            {
-                                dataType: 'array',
-                                array: { dataType: 'string' },
-                            },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
                     instruction: {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
-                    imageUrl: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
-                    imageUrlSource: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'enum', enums: ['upload'] },
-                            { dataType: 'enum', enums: ['url'] },
                             { dataType: 'enum', enums: [null] },
                         ],
                         required: true,
@@ -21993,6 +21993,25 @@ const models: TsoaRoute.Models = {
                         array: { dataType: 'string' },
                         required: true,
                     },
+                    imageUrl: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    tags: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
                     integrations: {
                         dataType: 'array',
                         array: {
@@ -22011,26 +22030,7 @@ const models: TsoaRoute.Models = {
                         },
                         required: true,
                     },
-                    tags: {
-                        dataType: 'union',
-                        subSchemas: [
-                            {
-                                dataType: 'array',
-                                array: { dataType: 'string' },
-                            },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
                     instruction: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
-                    imageUrl: {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
@@ -22143,6 +22143,25 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    imageUrl: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    tags: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
+                            { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     integrations: {
                         dataType: 'union',
                         subSchemas: [
@@ -22166,26 +22185,7 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
-                    tags: {
-                        dataType: 'union',
-                        subSchemas: [
-                            {
-                                dataType: 'array',
-                                array: { dataType: 'string' },
-                            },
-                            { dataType: 'enum', enums: [null] },
-                            { dataType: 'undefined' },
-                        ],
-                    },
                     instruction: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'enum', enums: [null] },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    imageUrl: {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
@@ -23492,55 +23492,55 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['generateVisualization'] },
                 { dataType: 'enum', enums: ['runSql'] },
                 { dataType: 'enum', enums: ['findContent'] },
-                { dataType: 'enum', enums: ['generateHashes'] },
-                { dataType: 'enum', enums: ['generateUuids'] },
-                { dataType: 'enum', enums: ['listContent'] },
-                { dataType: 'enum', enums: ['findExplores'] },
-                { dataType: 'enum', enums: ['findCustomChartTypes'] },
-                { dataType: 'enum', enums: ['findFields'] },
-                { dataType: 'enum', enums: ['searchSemanticLayer'] },
                 { dataType: 'enum', enums: ['analyzeFieldImpact'] },
-                { dataType: 'enum', enums: ['discoverFields'] },
-                { dataType: 'enum', enums: ['grepFields'] },
-                { dataType: 'enum', enums: ['getMetadata'] },
-                { dataType: 'enum', enums: ['searchFieldValues'] },
-                { dataType: 'enum', enums: ['findDashboards'] },
-                { dataType: 'enum', enums: ['findCharts'] },
-                { dataType: 'enum', enums: ['getDashboardCharts'] },
-                { dataType: 'enum', enums: ['readContent'] },
-                { dataType: 'enum', enums: ['resolveUrl'] },
-                { dataType: 'enum', enums: ['editContent'] },
+                { dataType: 'enum', enums: ['closePullRequest'] },
                 { dataType: 'enum', enums: ['createContent'] },
                 { dataType: 'enum', enums: ['createScheduledDelivery'] },
-                { dataType: 'enum', enums: ['updateUserName'] },
-                { dataType: 'enum', enums: ['runContentQuery'] },
-                { dataType: 'enum', enums: ['listProjects'] },
-                { dataType: 'enum', enums: ['getProjectInfo'] },
-                { dataType: 'enum', enums: ['loadSkill'] },
-                { dataType: 'enum', enums: ['loadProjectContext'] },
-                { dataType: 'enum', enums: ['loadMcpTools'] },
-                { dataType: 'enum', enums: ['generateDataApp'] },
+                { dataType: 'enum', enums: ['delegateResearchTask'] },
+                { dataType: 'enum', enums: ['describeWarehouseTable'] },
+                { dataType: 'enum', enums: ['discoverFields'] },
+                { dataType: 'enum', enums: ['discoverRepos'] },
+                { dataType: 'enum', enums: ['editContent'] },
                 { dataType: 'enum', enums: ['editDbtProject'] },
                 { dataType: 'enum', enums: ['editProjectContext'] },
                 { dataType: 'enum', enums: ['editRepo'] },
-                { dataType: 'enum', enums: ['syncDbtProject'] },
                 { dataType: 'enum', enums: ['exploreRepo'] },
-                { dataType: 'enum', enums: ['discoverRepos'] },
-                { dataType: 'enum', enums: ['listWorkstreams'] },
-                { dataType: 'enum', enums: ['closePullRequest'] },
+                { dataType: 'enum', enums: ['findCharts'] },
+                { dataType: 'enum', enums: ['findCustomChartTypes'] },
+                { dataType: 'enum', enums: ['findDashboards'] },
+                { dataType: 'enum', enums: ['findExplores'] },
+                { dataType: 'enum', enums: ['findFields'] },
+                { dataType: 'enum', enums: ['generateDataApp'] },
+                { dataType: 'enum', enums: ['generateHashes'] },
+                { dataType: 'enum', enums: ['generateUuids'] },
+                { dataType: 'enum', enums: ['getDashboardCharts'] },
+                { dataType: 'enum', enums: ['getKnowledgeDocumentContent'] },
+                { dataType: 'enum', enums: ['getMetadata'] },
+                { dataType: 'enum', enums: ['getProjectInfo'] },
                 { dataType: 'enum', enums: ['getPullRequestDiff'] },
-                { dataType: 'enum', enums: ['setupPreviewDeploy'] },
+                { dataType: 'enum', enums: ['grepFields'] },
+                { dataType: 'enum', enums: ['listContent'] },
+                { dataType: 'enum', enums: ['listKnowledgeDocuments'] },
+                { dataType: 'enum', enums: ['listProjects'] },
+                { dataType: 'enum', enums: ['listWarehouseTables'] },
+                { dataType: 'enum', enums: ['listWorkstreams'] },
+                { dataType: 'enum', enums: ['loadMcpTools'] },
+                { dataType: 'enum', enums: ['loadProjectContext'] },
+                { dataType: 'enum', enums: ['loadSkill'] },
+                { dataType: 'enum', enums: ['readContent'] },
+                { dataType: 'enum', enums: ['readPinnedThread'] },
+                { dataType: 'enum', enums: ['resolveUrl'] },
+                { dataType: 'enum', enums: ['runComposerQueries'] },
+                { dataType: 'enum', enums: ['runContentQuery'] },
                 { dataType: 'enum', enums: ['runQuery'] },
                 { dataType: 'enum', enums: ['runSavedChart'] },
-                { dataType: 'enum', enums: ['runComposerQueries'] },
-                { dataType: 'enum', enums: ['listWarehouseTables'] },
-                { dataType: 'enum', enums: ['describeWarehouseTable'] },
-                { dataType: 'enum', enums: ['listKnowledgeDocuments'] },
-                { dataType: 'enum', enums: ['getKnowledgeDocumentContent'] },
-                { dataType: 'enum', enums: ['readPinnedThread'] },
+                { dataType: 'enum', enums: ['searchFieldValues'] },
+                { dataType: 'enum', enums: ['searchSemanticLayer'] },
+                { dataType: 'enum', enums: ['setupPreviewDeploy'] },
                 { dataType: 'enum', enums: ['submitResearchReport'] },
-                { dataType: 'enum', enums: ['delegateResearchTask'] },
                 { dataType: 'enum', enums: ['submitWorkerFindings'] },
+                { dataType: 'enum', enums: ['syncDbtProject'] },
+                { dataType: 'enum', enums: ['updateUserName'] },
             ],
             validators: {},
         },
@@ -23789,12 +23789,6 @@ const models: TsoaRoute.Models = {
                                                                                                                             'nestedObjectLiteral',
                                                                                                                         nestedProperties:
                                                                                                                             {
-                                                                                                                                required:
-                                                                                                                                    {
-                                                                                                                                        dataType:
-                                                                                                                                            'boolean',
-                                                                                                                                        required: true,
-                                                                                                                                    },
                                                                                                                                 settings:
                                                                                                                                     {
                                                                                                                                         dataType:
@@ -23819,6 +23813,12 @@ const models: TsoaRoute.Models = {
                                                                                                                                             },
                                                                                                                                         ],
                                                                                                                                 },
+                                                                                                                                required:
+                                                                                                                                    {
+                                                                                                                                        dataType:
+                                                                                                                                            'boolean',
+                                                                                                                                        required: true,
+                                                                                                                                    },
                                                                                                                                 operator:
                                                                                                                                     {
                                                                                                                                         dataType:
@@ -24010,6 +24010,46 @@ const models: TsoaRoute.Models = {
                                                                                                 },
                                                                                             ],
                                                                                     },
+                                                                                error: {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'string',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'undefined',
+                                                                                            },
+                                                                                        ],
+                                                                                },
+                                                                                status: {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'enum',
+                                                                                                enums: [
+                                                                                                    'error',
+                                                                                                ],
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'enum',
+                                                                                                enums: [
+                                                                                                    'success',
+                                                                                                ],
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'undefined',
+                                                                                            },
+                                                                                        ],
+                                                                                },
                                                                                 results:
                                                                                     {
                                                                                         dataType:
@@ -24114,50 +24154,10 @@ const models: TsoaRoute.Models = {
                                                                                         },
                                                                                         required: true,
                                                                                     },
-                                                                                error: {
-                                                                                    dataType:
-                                                                                        'union',
-                                                                                    subSchemas:
-                                                                                        [
-                                                                                            {
-                                                                                                dataType:
-                                                                                                    'string',
-                                                                                            },
-                                                                                            {
-                                                                                                dataType:
-                                                                                                    'undefined',
-                                                                                            },
-                                                                                        ],
-                                                                                },
                                                                                 label: {
                                                                                     dataType:
                                                                                         'string',
                                                                                     required: true,
-                                                                                },
-                                                                                status: {
-                                                                                    dataType:
-                                                                                        'union',
-                                                                                    subSchemas:
-                                                                                        [
-                                                                                            {
-                                                                                                dataType:
-                                                                                                    'enum',
-                                                                                                enums: [
-                                                                                                    'error',
-                                                                                                ],
-                                                                                            },
-                                                                                            {
-                                                                                                dataType:
-                                                                                                    'enum',
-                                                                                                enums: [
-                                                                                                    'success',
-                                                                                                ],
-                                                                                            },
-                                                                                            {
-                                                                                                dataType:
-                                                                                                    'undefined',
-                                                                                            },
-                                                                                        ],
                                                                                 },
                                                                             },
                                                                     },
@@ -24265,13 +24265,13 @@ const models: TsoaRoute.Models = {
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: [
-                                                                'not_found',
-                                                            ],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: [
+                                                                'not_found',
+                                                            ],
                                                         },
                                                     ],
                                                     required: true,
@@ -24466,12 +24466,6 @@ const models: TsoaRoute.Models = {
                                                                                                         'nestedObjectLiteral',
                                                                                                     nestedProperties:
                                                                                                         {
-                                                                                                            required:
-                                                                                                                {
-                                                                                                                    dataType:
-                                                                                                                        'boolean',
-                                                                                                                    required: true,
-                                                                                                                },
                                                                                                             settings:
                                                                                                                 {
                                                                                                                     dataType:
@@ -24496,6 +24490,12 @@ const models: TsoaRoute.Models = {
                                                                                                                         },
                                                                                                                     ],
                                                                                                             },
+                                                                                                            required:
+                                                                                                                {
+                                                                                                                    dataType:
+                                                                                                                        'boolean',
+                                                                                                                    required: true,
+                                                                                                                },
                                                                                                             operator:
                                                                                                                 {
                                                                                                                     dataType:
@@ -24951,6 +24951,13 @@ const models: TsoaRoute.Models = {
                                                                                         dataType:
                                                                                             'enum',
                                                                                         enums: [
+                                                                                            'stage',
+                                                                                        ],
+                                                                                    },
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'enum',
+                                                                                        enums: [
                                                                                             'compile',
                                                                                         ],
                                                                                     },
@@ -24973,13 +24980,6 @@ const models: TsoaRoute.Models = {
                                                                                             'enum',
                                                                                         enums: [
                                                                                             'search',
-                                                                                        ],
-                                                                                    },
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'enum',
-                                                                                        enums: [
-                                                                                            'stage',
                                                                                         ],
                                                                                     },
                                                                                 ],
@@ -25101,6 +25101,10 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
+                                                            enums: ['unknown'],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
                                                             enums: [
                                                                 'git_write_permission',
                                                             ],
@@ -25122,10 +25126,6 @@ const models: TsoaRoute.Models = {
                                                             enums: [
                                                                 'pull_request_not_open',
                                                             ],
-                                                        },
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['unknown'],
                                                         },
                                                         {
                                                             dataType: 'enum',
@@ -25206,13 +25206,13 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: [
-                                                                'cancelled',
-                                                            ],
+                                                            enums: ['failed'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['failed'],
+                                                            enums: [
+                                                                'cancelled',
+                                                            ],
                                                         },
                                                     ],
                                                     required: true,
@@ -25350,11 +25350,11 @@ const models: TsoaRoute.Models = {
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['rejected'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['rejected'],
                                                         },
                                                         {
                                                             dataType: 'enum',
@@ -25377,11 +25377,11 @@ const models: TsoaRoute.Models = {
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['rejected'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['rejected'],
                                                         },
                                                         {
                                                             dataType: 'enum',
@@ -33919,8 +33919,8 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 uuid: { dataType: 'string', required: true },
-                fingerprint: { dataType: 'string', required: true },
                 status: { ref: 'AiAgentReviewItemStatus', required: true },
+                fingerprint: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -34255,6 +34255,17 @@ const models: TsoaRoute.Models = {
                     name: { dataType: 'string', required: true },
                     version: { dataType: 'double', required: true },
                     uuid: { dataType: 'string', required: true },
+                    tags: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
                     integrations: {
                         dataType: 'array',
                         array: {
@@ -34271,17 +34282,6 @@ const models: TsoaRoute.Models = {
                                 },
                             },
                         },
-                        required: true,
-                    },
-                    tags: {
-                        dataType: 'union',
-                        subSchemas: [
-                            {
-                                dataType: 'array',
-                                array: { dataType: 'string' },
-                            },
-                            { dataType: 'enum', enums: [null] },
-                        ],
                         required: true,
                     },
                     instruction: {
@@ -41368,17 +41368,25 @@ const models: TsoaRoute.Models = {
                     },
                     cron: { dataType: 'string', required: true },
                     enabled: { dataType: 'boolean', required: true },
-                    plainTextEmail: {
+                    appUuid: {
                         dataType: 'union',
                         subSchemas: [
-                            { dataType: 'boolean' },
-                            { dataType: 'undefined' },
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
                         ],
+                        required: true,
                     },
                     message: {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    plainTextEmail: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -41389,14 +41397,6 @@ const models: TsoaRoute.Models = {
                             { dataType: 'string' },
                             { dataType: 'undefined' },
                         ],
-                    },
-                    appUuid: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
                     },
                     appName: {
                         dataType: 'union',
@@ -50866,6 +50866,16 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'string' },
                     required: true,
                 },
+                warnings: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'InlineError' },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 groupLabel: {
                     dataType: 'union',
                     subSchemas: [
@@ -50899,16 +50909,6 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { ref: 'ExternalSourceRef' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                warnings: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'array',
-                            array: { dataType: 'refAlias', ref: 'InlineError' },
-                        },
                         { dataType: 'undefined' },
                     ],
                 },
@@ -51116,6 +51116,22 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'string' },
                     required: true,
                 },
+                joinedTables: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'CompiledExploreJoin' },
+                    required: true,
+                },
+                warnings: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'InlineError' },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                baseTable: { dataType: 'string', required: true },
                 warehouse: {
                     dataType: 'union',
                     subSchemas: [
@@ -51136,12 +51152,6 @@ const models: TsoaRoute.Models = {
                         { dataType: 'array', array: { dataType: 'string' } },
                         { dataType: 'undefined' },
                     ],
-                },
-                baseTable: { dataType: 'string', required: true },
-                joinedTables: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'CompiledExploreJoin' },
-                    required: true,
                 },
                 tables: {
                     dataType: 'nestedObjectLiteral',
@@ -51217,16 +51227,6 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { ref: 'ExternalSourceRef' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                warnings: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'array',
-                            array: { dataType: 'refAlias', ref: 'InlineError' },
-                        },
                         { dataType: 'undefined' },
                     ],
                 },
