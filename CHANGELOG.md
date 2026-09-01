@@ -1,3 +1,10 @@
+## [2.72.3](https://github.com/lightdash/lightdash/compare/2.72.2...2.72.3) (2026-09-01)
+
+
+### Bug Fixes
+
+* **data-apps:** preserve example inputs across tabs ([#28408](https://github.com/lightdash/lightdash/issues/28408)) ([c4442fb](https://github.com/lightdash/lightdash/commit/c4442fbb77770dbe1a892aceb4d9eb404e931771))
+
 ## [2.72.2](https://github.com/lightdash/lightdash/compare/2.72.1...2.72.2) (2026-09-01)
 
 
