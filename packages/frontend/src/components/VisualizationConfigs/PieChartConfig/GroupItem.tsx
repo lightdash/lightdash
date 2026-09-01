@@ -99,7 +99,7 @@ export const GroupItem = forwardRef<
                             onColorChange(defaultLabel, newColor)
                         }
                     />
-                    <Box style={{ flexGrow: 1 }}>
+                    <Box className="ld-grow">
                         <EditableText
                             placeholder={defaultLabel}
                             value={label}

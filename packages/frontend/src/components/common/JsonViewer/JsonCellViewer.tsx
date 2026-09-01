@@ -160,7 +160,7 @@ export const JsonCellModal: FC<ModalProps> = ({ value, opened, onClose }) => {
                                 component="pre"
                                 fz="xs"
                                 m={0}
-                                style={{ whiteSpace: 'pre-wrap' }}
+                                className="ld-pre-wrap"
                             >
                                 {formattedJson}
                             </Box>

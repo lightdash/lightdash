@@ -145,7 +145,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                         orientation="vertical"
                         w={1}
                         h={20}
-                        style={{ alignSelf: 'center' }}
+                        className="ld-self-center"
                     />
                     <FilterFacet
                         label="Users"
@@ -162,7 +162,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                         orientation="vertical"
                         w={1}
                         h={20}
-                        style={{ alignSelf: 'center' }}
+                        className="ld-self-center"
                     />
                     <FilterFacet
                         label="Models"
@@ -176,7 +176,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                         orientation="vertical"
                         w={1}
                         h={20}
-                        style={{ alignSelf: 'center' }}
+                        className="ld-self-center"
                     />
                     <SegmentedControl
                         size="xs"
@@ -195,7 +195,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                         orientation="vertical"
                         w={1}
                         h={20}
-                        style={{ alignSelf: 'center' }}
+                        className="ld-self-center"
                     />
                     <SegmentedControl
                         size="xs"
@@ -214,7 +214,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                                 orientation="vertical"
                                 w={1}
                                 h={20}
-                                style={{ alignSelf: 'center' }}
+                                className="ld-self-center"
                             />
                             <Button
                                 variant="subtle"

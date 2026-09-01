@@ -43,7 +43,7 @@ export const ProjectContextDiffPreview: FC<ProjectContextDiffPreviewProps> = ({
             poolOptions={PIERRE_POOL_OPTIONS}
             highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
         >
-            <Paper shadow="sm" radius="md" style={{ overflow: 'hidden' }}>
+            <Paper shadow="sm" radius="md" className="ld-overflow-hidden">
                 <Virtualizer style={viewportStyle}>
                     <MultiFileDiff
                         oldFile={{ name: fileName, contents: before }}

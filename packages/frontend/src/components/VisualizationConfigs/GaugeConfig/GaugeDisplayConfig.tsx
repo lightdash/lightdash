@@ -100,7 +100,7 @@ export const GaugeDisplayConfig: FC = memo(() => {
                                     );
                                 }}
                                 hasGrouping
-                                style={{ flex: 1 }}
+                                flex={1}
                             />
                         )}
                         <SegmentedControl

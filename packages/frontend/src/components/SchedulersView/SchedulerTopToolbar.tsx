@@ -86,9 +86,7 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                         orientation="vertical"
                         w={1}
                         h={20}
-                        style={{
-                            alignSelf: 'center',
-                        }}
+                        className="ld-self-center"
                     />
 
                     <ResourceTypeFilter
@@ -100,9 +98,7 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                         orientation="vertical"
                         w={1}
                         h={20}
-                        style={{
-                            alignSelf: 'center',
-                        }}
+                        className="ld-self-center"
                     />
 
                     <FormatFilter
@@ -130,7 +126,7 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                     />
                 </Group>
 
-                <Group gap="sm" wrap="nowrap" style={{ flexShrink: 0 }}>
+                <Group gap="sm" wrap="nowrap" className="ld-shrink-0">
                     {hasSelection && onBulkReassign && !hideBulkReassign && (
                         <>
                             <Text size="sm" c="dimmed">

@@ -312,7 +312,7 @@ const UserAttributeModal: FC<{
                             <Button
                                 size="xs"
                                 variant="default"
-                                style={{ alignSelf: 'flex-start' }}
+                                className="ld-self-start"
                                 leftSection={
                                     <MantineIcon icon={IconUserPlus} />
                                 }
@@ -402,7 +402,7 @@ const UserAttributeModal: FC<{
                                 <Button
                                     size="xs"
                                     variant="default"
-                                    style={{ alignSelf: 'flex-start' }}
+                                    className="ld-self-start"
                                     leftSection={
                                         <MantineIcon icon={IconUsersPlus} />
                                     }

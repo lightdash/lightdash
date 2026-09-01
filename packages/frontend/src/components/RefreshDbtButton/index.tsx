@@ -138,11 +138,7 @@ const RefreshDbtButton: FC<{
         return (
             <Popover withArrow width={300}>
                 <Popover.Target>
-                    <Box
-                        style={{
-                            cursor: 'pointer',
-                        }}
-                    >
+                    <Box className="ld-pointer">
                         <Button
                             size="xs"
                             variant="outline"

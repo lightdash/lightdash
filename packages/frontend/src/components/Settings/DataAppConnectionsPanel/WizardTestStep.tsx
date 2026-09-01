@@ -134,7 +134,7 @@ export const WizardTestStep: FC<Props> = ({
                     label="Path"
                     description="Relative to the base URL"
                     placeholder="/v1/endpoint"
-                    style={{ flexGrow: 1 }}
+                    className="ld-grow"
                     value={path}
                     onChange={(e) => setPath(e.currentTarget.value)}
                 />

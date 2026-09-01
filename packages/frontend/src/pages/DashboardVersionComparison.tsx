@@ -447,7 +447,7 @@ const ChartsTable = ({
                                 size="xs"
                                 c="blue"
                                 td="none"
-                                style={{ cursor: 'pointer' }}
+                                className="ld-pointer"
                             >
                                 {chartName}
                             </Text>

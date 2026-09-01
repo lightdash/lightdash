@@ -15,7 +15,7 @@ export const PolymorphicPaperButton = createPolymorphicComponent<
 >(
     forwardRef<HTMLDivElement, PaperProps>(
         (props: PaperProps, ref: Ref<HTMLDivElement>) => (
-            <Paper ref={ref} {...props} style={{ cursor: 'pointer' }} />
+            <Paper ref={ref} {...props} className="ld-pointer" />
         ),
     ),
 );

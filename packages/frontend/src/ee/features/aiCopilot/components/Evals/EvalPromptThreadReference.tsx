@@ -78,13 +78,7 @@ export const EvalPromptThreadReference: FC<Props> = ({
     );
 
     return (
-        <Card
-            p="sm"
-            style={{
-                cursor: 'pointer',
-            }}
-            onClick={handleOpenThread}
-        >
+        <Card p="sm" className="ld-pointer" onClick={handleOpenThread}>
             <Stack gap="xs">
                 <Group justify="space-between" align="flex-start">
                     <Group gap="xs" flex={1} align="flex-start">

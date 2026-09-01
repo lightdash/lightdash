@@ -651,7 +651,7 @@ const ProjectManagementPanel: FC = () => {
                         orientation="vertical"
                         w={1}
                         h={20}
-                        style={{ alignSelf: 'center' }}
+                        className="ld-self-center"
                     />
 
                     <SegmentedControl
@@ -707,7 +707,7 @@ const ProjectManagementPanel: FC = () => {
                         orientation="vertical"
                         w={1}
                         h={20}
-                        style={{ alignSelf: 'center' }}
+                        className="ld-self-center"
                     />
 
                     {/* Warehouse filter */}
@@ -905,7 +905,7 @@ const ProjectManagementPanel: FC = () => {
                     )}
                 </Group>
 
-                <Group gap="sm" wrap="nowrap" style={{ flexShrink: 0 }}>
+                <Group gap="sm" wrap="nowrap" className="ld-shrink-0">
                     {hasActiveFilters && (
                         <Tooltip label="Clear all filters">
                             <ActionIcon size="sm" onClick={resetAllFilters}>

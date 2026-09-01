@@ -485,9 +485,7 @@ export const AiAgentKnowledgeFilesSection = ({
                                                                     IconFileText
                                                                 }
                                                                 color="dimmed"
-                                                                style={{
-                                                                    flexShrink: 0,
-                                                                }}
+                                                                className="ld-shrink-0"
                                                             />
                                                             <Stack
                                                                 gap={2}

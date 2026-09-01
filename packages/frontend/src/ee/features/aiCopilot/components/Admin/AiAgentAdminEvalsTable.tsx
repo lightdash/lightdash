@@ -366,7 +366,7 @@ const AiAgentAdminEvalsTable = ({
                             orientation="vertical"
                             w={1}
                             h={20}
-                            style={{ alignSelf: 'center' }}
+                            className="ld-self-center"
                         />
                         <ProjectsFilter
                             selectedProjectUuids={selectedProjectUuids}
@@ -377,7 +377,7 @@ const AiAgentAdminEvalsTable = ({
                             orientation="vertical"
                             w={1}
                             h={20}
-                            style={{ alignSelf: 'center' }}
+                            className="ld-self-center"
                         />
                         <AgentsFilter
                             selectedAgentUuids={selectedAgentUuids}
@@ -389,7 +389,7 @@ const AiAgentAdminEvalsTable = ({
                             orientation="vertical"
                             w={1}
                             h={20}
-                            style={{ alignSelf: 'center' }}
+                            className="ld-self-center"
                         />
                         <Switch
                             size="xs"
@@ -407,7 +407,7 @@ const AiAgentAdminEvalsTable = ({
                                     orientation="vertical"
                                     w={1}
                                     h={20}
-                                    style={{ alignSelf: 'center' }}
+                                    className="ld-self-center"
                                 />
                                 <Button
                                     variant="subtle"

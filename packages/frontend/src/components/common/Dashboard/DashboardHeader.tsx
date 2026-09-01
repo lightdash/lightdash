@@ -415,7 +415,7 @@ const DashboardHeader = memo(
                                 color="blue"
                                 variant="dot"
                                 size="sm"
-                                style={{ cursor: 'pointer' }}
+                                className="ld-pointer"
                             >
                                 {dashboard.draftsAwaitingReview} draft
                                 {dashboard.draftsAwaitingReview === 1

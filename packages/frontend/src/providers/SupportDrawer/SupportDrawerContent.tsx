@@ -166,11 +166,7 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                 We will also share your Lightdash logs and your recent network
                 requests to help us investigate this issue.
             </Text>
-            <Button
-                mt="xs"
-                style={{ alignSelf: 'flex-end' }}
-                onClick={handleShare}
-            >
+            <Button mt="xs" className="ld-self-end" onClick={handleShare}>
                 Share
             </Button>
         </Stack>

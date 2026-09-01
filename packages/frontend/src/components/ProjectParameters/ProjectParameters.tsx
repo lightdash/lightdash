@@ -204,7 +204,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                     <Table.Thead>
                         <Table.Tr>
                             <Table.Th
-                                style={{ cursor: 'pointer' }}
+                                className="ld-pointer"
                                 onClick={() => handleSort('name')}
                             >
                                 <Group gap="xs">

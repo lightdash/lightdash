@@ -151,11 +151,7 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                     item.lastSeenAt,
                                 )}`}
                             >
-                                <Text
-                                    fz="xs"
-                                    c="dimmed"
-                                    style={{ whiteSpace: 'nowrap' }}
-                                >
+                                <Text fz="xs" c="dimmed" className="ld-nowrap">
                                     {formatRelativeReviewDate(item.lastSeenAt)}
                                 </Text>
                             </Tooltip>

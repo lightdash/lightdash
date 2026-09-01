@@ -115,7 +115,7 @@ export const OAuthClientsTable: FC<{
     clients: OAuthClientSummary[];
 }> = ({ clients }) => {
     return (
-        <Paper style={{ overflow: 'hidden' }}>
+        <Paper className="ld-overflow-hidden">
             <Table
                 className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
             >

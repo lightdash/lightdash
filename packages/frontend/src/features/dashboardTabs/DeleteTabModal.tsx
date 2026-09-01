@@ -256,7 +256,7 @@ export const TabDeleteModal: FC<DeleteProps> = ({
                             <Box
                                 ref={scrollContainerRef}
                                 mah={150}
-                                style={{ overflowY: 'auto' }}
+                                className="ld-scroll-y"
                                 onScroll={onScroll}
                             >
                                 <List size="sm">

@@ -186,9 +186,9 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                     px={ChatElementsUtils.centeredElementProps.px}
                     pb="md"
                     gap="xl"
-                    style={{ flexGrow: 1 }}
+                    className="ld-grow"
                 >
-                    <Stack flex={1} style={{ flexGrow: 1 }}>
+                    <Stack flex={1} className="ld-grow">
                         {visibleMessages.map((message, i, xs) => (
                             <Fragment key={`${message.role}-${message.uuid}`}>
                                 {message.role === 'user' &&

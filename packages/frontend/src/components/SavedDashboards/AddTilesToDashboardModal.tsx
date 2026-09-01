@@ -367,7 +367,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                             placeholder="A few words to give your team some context"
                             autosize
                             maxRows={3}
-                            style={{ overflowY: 'auto' }}
+                            className="ld-scroll-y"
                             {...form.getInputProps('dashboardDescription')}
                         />
                         {!isLoadingSpaces && !showNewSpaceInput ? (

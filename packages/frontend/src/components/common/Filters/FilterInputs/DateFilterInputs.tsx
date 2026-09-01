@@ -146,11 +146,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                 if (coarseTimeFrame) {
                     return coarseTimeFrame === TimeFrames.WEEK ? (
                         <Flex align="center" gap="xs" w="100%">
-                            <Text
-                                c="dimmed"
-                                style={{ whiteSpace: 'nowrap' }}
-                                size="xs"
-                            >
+                            <Text c="dimmed" className="ld-nowrap" size="xs">
                                 week commencing
                             </Text>
 
@@ -181,7 +177,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                             <Flex align="center" gap="xs" w="100%">
                                 <Text
                                     c="dimmed"
-                                    style={{ whiteSpace: 'nowrap' }}
+                                    className="ld-nowrap"
                                     size="xs"
                                 >
                                     week commencing

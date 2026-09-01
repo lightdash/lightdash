@@ -233,7 +233,7 @@ export const SqlForm: FC<Props> = ({
                 />
             </ScrollArea>
 
-            <Box style={{ flexShrink: 0 }}>
+            <Box className="ld-shrink-0">
                 {readOnly && !conversionState ? null : !isAmbientAiEnabled ? (
                     <Alert
                         radius={0}

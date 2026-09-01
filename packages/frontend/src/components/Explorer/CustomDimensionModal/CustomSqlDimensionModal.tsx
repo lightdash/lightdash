@@ -241,9 +241,7 @@ export const CustomSqlDimensionModal: FC<{
                             data-testid="CustomSqlDimensionModal/LabelInput"
                         />
                         <Select
-                            style={{
-                                alignSelf: 'flex-start',
-                            }}
+                            className="ld-self-start"
                             label="Dimension Type"
                             data={Object.values(DimensionType).map((type) => ({
                                 value: type,

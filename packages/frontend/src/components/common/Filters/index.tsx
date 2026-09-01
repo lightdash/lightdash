@@ -288,7 +288,7 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
     }, [andRootFilterGroupItems, orRootFilterGroups]);
 
     return (
-        <Stack gap="xs" pos="relative" m="sm" style={{ flexGrow: 1 }}>
+        <Stack gap="xs" pos="relative" m="sm" className="ld-grow">
             {totalFilterRules.length >= 1 &&
                 (showSimplifiedForm ? (
                     <SimplifiedFilterGroupForm

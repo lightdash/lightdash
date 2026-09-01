@@ -92,9 +92,7 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                                 orientation="vertical"
                                 w={1}
                                 h={20}
-                                style={{
-                                    alignSelf: 'center',
-                                }}
+                                className="ld-self-center"
                             />
                         </>
                     )}
@@ -114,9 +112,7 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                                 orientation="vertical"
                                 w={1}
                                 h={20}
-                                style={{
-                                    alignSelf: 'center',
-                                }}
+                                className="ld-self-center"
                             />
                         </>
                     )}
@@ -149,7 +145,7 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                         <ActionIcon
                             size="sm"
                             onClick={resetFilters}
-                            style={{ flexShrink: 0 }}
+                            className="ld-shrink-0"
                         >
                             <MantineIcon icon={IconTrash} />
                         </ActionIcon>

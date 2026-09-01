@@ -16,7 +16,7 @@ const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
             <Card
                 component={Link}
                 shadow="sm"
-                style={{ cursor: 'pointer' }}
+                className="ld-pointer"
                 to={`/projects/${projectUuid}/user-activity`}
             >
                 <Group>

@@ -65,7 +65,7 @@ export const ReviewPrDiffContent: FC<Props> = ({
                     <Paper
                         key={file.path}
                         radius="md"
-                        style={{ overflow: 'hidden' }}
+                        className="ld-overflow-hidden"
                     >
                         <Virtualizer style={viewportStyle}>
                             <MultiFileDiff

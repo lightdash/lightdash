@@ -157,7 +157,7 @@ const TokenAddedCard: FC<{
                     fz="sm"
                     fw={500}
                     onClick={onReplace}
-                    style={{ flexShrink: 0 }}
+                    className="ld-shrink-0"
                 >
                     Replace
                 </Anchor>
