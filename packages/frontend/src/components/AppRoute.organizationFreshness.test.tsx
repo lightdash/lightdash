@@ -107,11 +107,6 @@ const setup = ({
             id: FeatureFlags.NewOnboarding,
             enabled: true,
         });
-        queryClient.setQueryData(['org_homepage_settings'], {
-            organizationUuid: 'org-1',
-            enabled: true,
-            opening: null,
-        });
     }
 
     render(
