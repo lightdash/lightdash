@@ -8,12 +8,8 @@
     padding: 0.375rem 0.875rem;
     transition: all 150ms ease;
     border-radius: var(--mantine-radius-md);
-    border: 1px solid
-        light-dark(var(--mantine-color-ldGray-3), var(--mantine-color-ldDark-4));
-    color: light-dark(
-        var(--mantine-color-ldGray-7),
-        var(--mantine-color-ldDark-1)
-    );
+    border: 1px solid var(--mantine-color-ldGray-3);
+    color: var(--mantine-color-ldGray-7);
     background-color: light-dark(
         var(--mantine-color-white),
         var(--mantine-color-ldDark-7)
@@ -58,14 +54,8 @@
     height: 1.25rem;
     padding-inline: 0.4375rem;
     font-size: 0.75rem;
-    color: light-dark(
-        var(--mantine-color-ldGray-7),
-        var(--mantine-color-ldDark-1)
-    );
-    background-color: light-dark(
-        var(--mantine-color-ldGray-1),
-        var(--mantine-color-ldDark-5)
-    );
+    color: var(--mantine-color-ldGray-7);
+    background-color: var(--mantine-color-default-hover);
 }
 
 .tab[data-active='true'] .tabBadge {

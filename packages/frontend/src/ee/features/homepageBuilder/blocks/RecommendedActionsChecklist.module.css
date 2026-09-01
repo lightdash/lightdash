@@ -21,7 +21,7 @@
     padding: 12px 14px;
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: 10px;
-    background: light-dark(#fff, var(--mantine-color-dark-6));
+    background: var(--mantine-color-body);
     box-shadow: var(--mantine-shadow-subtle);
 }
 
@@ -34,7 +34,7 @@
 /* Stacked cards must stay opaque or the cards behind bleed through */
 .stackCard.actionRowDone {
     border-color: var(--mantine-color-ldGray-2);
-    background: light-dark(#fff, var(--mantine-color-dark-6));
+    background: var(--mantine-color-body);
     box-shadow: var(--mantine-shadow-subtle);
 }
 
@@ -92,7 +92,7 @@
 .cardBehind {
     pointer-events: none;
     border-color: var(--mantine-color-ldGray-2);
-    background: light-dark(#fff, var(--mantine-color-dark-6));
+    background: var(--mantine-color-body);
     box-shadow: var(--mantine-shadow-subtle);
 }
 

@@ -22,7 +22,6 @@
 
     @mixin dark {
         border-color: var(--mantine-color-ldDark-5);
-        background: var(--mantine-color-ldDark-6);
     }
 }
 
@@ -38,10 +37,6 @@
     font-size: var(--mantine-font-size-xs);
     color: var(--mantine-color-ldGray-7);
     padding-left: var(--mantine-spacing-xs);
-
-    @mixin dark {
-        color: var(--mantine-color-ldGray-3);
-    }
 }
 
 .filterButton {
@@ -60,26 +55,20 @@
 
     @mixin dark {
         border-color: var(--mantine-color-ldDark-5);
-        background: var(--mantine-color-ldDark-6);
     }
 }
 
 .filterButtonSelected {
     border: 1px solid var(--mantine-color-indigo-2);
-    background: var(--mantine-color-indigo-0);
+    background: var(--mantine-color-indigo-light);
     box-shadow: var(--mantine-shadow-subtle);
 
     @mixin dark {
-        background: var(--mantine-color-indigo-8);
         border-color: var(--mantine-color-indigo-4);
     }
 }
 
 .filterButtonSelected:hover {
     border: 1px solid var(--mantine-color-indigo-3);
-    background: var(--mantine-color-indigo-1);
-
-    @mixin dark {
-        background: var(--mantine-color-indigo-9);
-    }
+    background: var(--mantine-color-indigo-light);
 }

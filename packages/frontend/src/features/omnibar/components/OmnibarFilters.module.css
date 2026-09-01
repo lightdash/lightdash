@@ -10,10 +10,7 @@
 
 .filterButton[data-expanded],
 .filterButton.filterButtonActive {
-    background-color: light-dark(
-        var(--mantine-color-ldGray-1),
-        var(--mantine-color-ldDark-5)
-    );
+    background-color: var(--mantine-color-default-hover);
     color: light-dark(
         var(--mantine-color-ldGray-9),
         var(--mantine-color-ldGray-9)
