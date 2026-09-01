@@ -1,5 +1,5 @@
-import { type Editor } from '@tiptap/react';
 import { fireEvent, screen } from '@testing-library/react';
+import { type Editor } from '@tiptap/react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
