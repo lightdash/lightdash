@@ -24,6 +24,7 @@ const makeDeps = (overrides: Record<string, unknown> = {}) => {
         url: 'https://linear.app/acme/issue/PRD-12',
         title: 'Broken metric',
     });
+    const linkIssueUrlForOrganization = vi.fn().mockResolvedValue(undefined);
     const updateReviewItemLinkedIssueUrl = vi.fn().mockResolvedValue(undefined);
 
     return {
@@ -70,6 +71,7 @@ const makeDeps = (overrides: Record<string, unknown> = {}) => {
         },
         linearAppService: {
             createIssueForOrganization,
+            linkIssueUrlForOrganization,
         },
         analytics: {
             track: vi.fn(),
@@ -133,6 +135,13 @@ describe('createReviewLinearIssue', () => {
             fingerprint: FINGERPRINT,
             linkedIssueUrl: 'https://linear.app/acme/issue/PRD-12',
         });
+        expect(
+            deps.linearAppService.linkIssueUrlForOrganization,
+        ).toHaveBeenCalledWith(ORGANIZATION_UUID, {
+            issueId: 'issue-1',
+            url: expect.stringContaining('/generalSettings/ai/reviews'),
+            title: 'Open in Lightdash', // pragma: allowlist secret
+        });
     });
 
     it('fails the job when Linear rejects an item so it is retried', async () => {
@@ -171,6 +180,30 @@ describe('createReviewLinearIssue', () => {
         await createReviewLinearIssue(deps)(payload);
 
         expect(deps.createIssueForOrganization).not.toHaveBeenCalled();
+    });
+
+    it('still stores the Linear URL when attaching the review link fails', async () => {
+        const deps = makeDeps({
+            linearAppService: {
+                createIssueForOrganization: vi.fn().mockResolvedValue({
+                    id: 'issue-1',
+                    identifier: 'PRD-12',
+                    url: 'https://linear.app/acme/issue/PRD-12',
+                    title: 'Broken metric',
+                }),
+                linkIssueUrlForOrganization: vi
+                    .fn()
+                    .mockRejectedValue(new Error('missing write scope')),
+            },
+        });
+
+        await createReviewLinearIssue(deps)(payload);
+
+        expect(deps.updateReviewItemLinkedIssueUrl).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            fingerprint: FINGERPRINT,
+            linkedIssueUrl: 'https://linear.app/acme/issue/PRD-12',
+        });
     });
 });
 

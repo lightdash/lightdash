@@ -24,6 +24,7 @@ import {
     getLinearOrganization,
     getLinearProjects,
     getLinearTeams,
+    linkLinearIssueUrl,
     refreshLinearToken,
 } from '../../clients/linear/Linear';
 import { LightdashConfig } from '../../config/parseConfig'; // pragma: allowlist secret
@@ -296,6 +297,23 @@ export class LinearAppService extends BaseService {
     ): Promise<LinearCreatedIssue> {
         return this.withValidToken(organizationUuid, (token) =>
             createLinearIssue(token, input),
+        );
+    }
+
+    /**
+     * Trusted internal caller (scheduler). Attaches a URL to a Linear issue
+     * so both sides can jump to the other without syncing status.
+     */
+    async linkIssueUrlForOrganization(
+        organizationUuid: string,
+        input: {
+            issueId: string;
+            url: string;
+            title: string;
+        },
+    ): Promise<void> {
+        return this.withValidToken(organizationUuid, (token) =>
+            linkLinearIssueUrl(token, input),
         );
     }
 

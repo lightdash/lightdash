@@ -131,6 +131,23 @@ export const createReviewLinearIssue =
                         },
                     );
 
+                    try {
+                        await deps.linearAppService.linkIssueUrlForOrganization(
+                            payload.organizationUuid,
+                            {
+                                issueId: created.id,
+                                url: reviewUrl,
+                                title: 'Open in Lightdash', // pragma: allowlist secret
+                            },
+                        );
+                    } catch (error) {
+                        Logger.warn(
+                            `Failed to attach review URL to Linear issue ${created.identifier}: ${getErrorMessage(
+                                error,
+                            )}`,
+                        );
+                    }
+
                     deps.analytics.track({
                         event: 'ai_review_linear_issue.created',
                         anonymousId: payload.organizationUuid,

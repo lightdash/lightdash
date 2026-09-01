@@ -22,6 +22,7 @@ vi.mock('../../clients/linear/Linear', () => ({
     getLinearOrganization: vi.fn(),
     getLinearProjects: vi.fn(),
     getLinearTeams: vi.fn(),
+    linkLinearIssueUrl: vi.fn(),
     refreshLinearToken: vi.fn(),
 }));
 
