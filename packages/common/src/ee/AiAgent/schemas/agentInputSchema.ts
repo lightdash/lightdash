@@ -1,12 +1,12 @@
 import { jsonSchema, type Schema } from 'ai';
 import { type z } from 'zod';
-import { toJsonSchema } from '../../../utils/zodJsonSchema';
+import { toLlmJsonSchema } from '../../../utils/zodJsonSchema';
 
 export const createAgentInputSchema = <TSchema extends z.ZodType>(
     inputSchema: TSchema,
 ): Schema<z.output<TSchema>> =>
     jsonSchema<z.output<TSchema>>(
-        toJsonSchema(inputSchema, { io: 'input', reused: 'ref' }),
+        toLlmJsonSchema(inputSchema, { reused: 'ref' }),
         {
             validate: (value) => {
                 const result = inputSchema.safeParse(value);

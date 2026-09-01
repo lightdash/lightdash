@@ -47,8 +47,18 @@ failure. Before dependency installation, all commands failed before collection.
 
 - Use `.issues`, explicit `z.record(z.string(), value)`, `error`, and Zod 4
   output/input generics everywhere.
-- Centralize native draft-07 input-schema conversion with `reused: "inline"`
-  and `cycles: "throw"` for first-party MCP/agent JSON Schema generation.
+- `toJsonSchema` is the native draft-07 conversion with the MCP SDK's own
+  settings, so the committed MCP snapshot equals a live `tools/list`. The SDK
+  rebuilds registered schemas from their shape, so the snapshot generator does
+  the same.
+- `toLlmJsonSchema` is what agent tools send to model providers: closed
+  objects, `type: [X, "null"]` and `enum` instead of `anyOf` branches, lone
+  branch descriptions hoisted onto the property, record key schemas and
+  safe-integer bounds dropped, and small shared definitions inlined so refs
+  only remain for large shared schemas.
+- `.pipe()` into an internal schema needs an input-type assertion because Zod 4
+  types every `z.coerce` input as `unknown`; the assertion keeps the output
+  type honest and is commented at the call sites.
 - Rewrite the MCP compatibility layer around Zod 4 helpers/definitions; do not
   clone Zod internals merely to defeat Zod 3 reference detection.
 - Expose password requirement messages as a public common contract; the
@@ -67,11 +77,14 @@ failure. Before dependency installation, all commands failed before collection.
 - all release-safety checks passed
 - MCP and agent contract snapshots pass without update mode; the stable MCP
   snapshot check passes and contains no `$ref`
-- semantic differential testing covered all 33 MCP tools, recursively comparing
-  Zod 3 and Zod 4 input/output JSON Schemas with generated boundary values; the
-  shared converter preserves closed input objects and required coerced fields
-- agent-tool contract snapshots were audited separately: only closed object
-  boundaries and one runtime-optional unknown field changed
+- the committed MCP snapshot was compared against a live `tools/list` from an
+  in-memory `McpServer` for all 33 tools: input and output schemas are equal.
+  Served MCP objects are open, as the SDK's native conversion emits them
+- agent-tool contract snapshots: `required` sets are unchanged except
+  `runContentQuery.source.parameters`, which Zod 4 treats as a required key
+  (`z.unknown()` keys are no longer optional); serialized agent tool schemas
+  total 177,009 bytes against 181,173 on main, with `$ref` count down from 787
+  to 245 after inlining small definitions
 - no contract widenings remain; the only sampled narrowings are Zod 4's RFC UUID
   validation and rejection of integers outside JavaScript's safe range
 - frozen lockfile installation and supply-chain policy verification pass
@@ -79,7 +92,7 @@ failure. Before dependency installation, all commands failed before collection.
 ## Performance measurements
 
 Measured on the same machine in clean worktrees at the exact merge base
-(`fbe9632c`) and final PR commit (`6f4c5c54`):
+(`fbe9632c`) and the PR commit that closed the migration (`64ad753a`):
 
 | Measurement | Merge base | Zod 4 PR | Change |
 | --- | ---: | ---: | ---: |

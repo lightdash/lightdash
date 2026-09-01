@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { type z } from 'zod';
+import { z } from 'zod';
 import { mcpToolDefinitions } from '../ee/AiAgent/schemas/tools/toolDefinitions';
 import { toJsonSchema } from '../utils/zodJsonSchema';
 
@@ -40,12 +40,16 @@ export const getOutputPath = (): string =>
         'packages/common/src/schemas/json/mcp-tools-1.0.json',
     );
 
+// The MCP SDK rebuilds registered object schemas from their shape before
+// converting, so top-level object metadata never reaches `tools/list`.
 const schemaToJson = (
     schema: z.ZodType | undefined | null,
     io: 'input' | 'output',
 ): JsonValue => {
     if (!schema) return null;
-    return toJsonSchema(schema, { io }) as JsonValue;
+    const served =
+        schema instanceof z.ZodObject ? z.object(schema.shape) : schema;
+    return toJsonSchema(served, { io }) as JsonValue;
 };
 
 /**

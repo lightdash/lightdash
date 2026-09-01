@@ -203,6 +203,7 @@ const runQueryResolvedInternalSchema = z.object({
 
 // Same internal output shape as toolRunQueryArgsSchemaTransformed, with
 // per-category connectors preserved in the domain Filters.
+// Input type asserted for the same `z.coerce` reason as toolRunQueryArgs.ts.
 export const toolRunQueryExpressionResolvedArgsSchemaTransformed =
     toolRunQueryExpressionResolvedArgsSchema.pipe(
         runQueryResolvedInternalSchema as z.ZodType<

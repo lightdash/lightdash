@@ -443,6 +443,8 @@ const runQueryInternalSchemaV3 = runQueryInternalSchemaV2.extend({
     mergeConfig: mergeConfigInternalSchema.nullable().default(null),
 });
 
+// Zod 4 types every `z.coerce` input as unknown, so `.pipe` cannot see that the
+// already-parsed output satisfies the internal schema; assert the input type.
 export const toolRunQueryArgsSchemaV2Transformed =
     toolRunQueryArgsSchemaV2.pipe(
         runQueryInternalSchemaV2 as z.ZodType<

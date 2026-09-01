@@ -1,6 +1,6 @@
 import { getEncoding } from 'js-tiktoken';
 import { z } from 'zod';
-import { toJsonSchema } from '../../../utils/zodJsonSchema';
+import { toJsonSchema, toLlmJsonSchema } from '../../../utils/zodJsonSchema';
 import { defineTool } from './defineTool';
 import { FILTER_EXPRESSION_GRAMMAR_DESCRIPTION } from './filterExpressions';
 import {
@@ -119,8 +119,8 @@ describe('defineTool', () => {
         };
         expectWithinBudget(measurements.agentExpression, {
             bytes: 25_000,
-            cl100kTokens: 5_800,
-            o200kTokens: 5_900,
+            cl100kTokens: 5_500,
+            o200kTokens: 5_600,
         });
         expectWithinBudget(measurements.mcpExpression, {
             bytes: 20_000,
@@ -211,7 +211,7 @@ describe('defineTool', () => {
         const agentInputSchema = tool.for('agent').inputSchema;
         const { jsonSchema, validate } = agentInputSchema;
         expect(jsonSchema).toEqual(
-            toJsonSchema(inputSchema, { io: 'input', reused: 'ref' }),
+            toLlmJsonSchema(inputSchema, { reused: 'ref' }),
         );
         expect(validate?.(input)).toEqual({
             success: true,

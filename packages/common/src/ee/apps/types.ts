@@ -16,7 +16,7 @@ import { type DashboardParameters } from '../../types/parameters';
 import { type ResultRow } from '../../types/results';
 import { type ChartConfig, type SavedChart } from '../../types/savedCharts';
 import assertUnreachable from '../../utils/assertUnreachable';
-import { toJsonSchema } from '../../utils/zodJsonSchema';
+import { toLlmJsonSchema } from '../../utils/zodJsonSchema';
 import {
     type DataAppVizConfigOption,
     type DataAppVizOptionValue,
@@ -1030,7 +1030,7 @@ const makeOpenAiStrict = (value: unknown): unknown => {
 };
 
 export const dataAppVizJsonSchema = makeOpenAiStrict(
-    toJsonSchema(dataAppVizGenerationSchema, { io: 'input' }),
+    toLlmJsonSchema(dataAppVizGenerationSchema),
 );
 
 /** Whether a stored value still has the shape the option declares. */
