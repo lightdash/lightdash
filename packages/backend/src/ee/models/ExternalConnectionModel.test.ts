@@ -1,3 +1,4 @@
+import { ConflictError } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -623,6 +624,30 @@ describe('ExternalConnectionModel', () => {
             expect(bindings).toEqual(
                 expect.arrayContaining([APP_ID, CONNECTION_UUID, 'acme']),
             );
+        });
+
+        it('keeps retries of the same app alias and connection idempotent', async () => {
+            tracker.on.insert(AppExternalConnectionsTableName).responseOnce([]);
+            tracker.on
+                .select(AppExternalConnectionsTableName)
+                .responseOnce([{ external_connection_uuid: CONNECTION_UUID }]);
+
+            await expect(
+                model.linkToApp(APP_ID, CONNECTION_UUID, 'acme'),
+            ).resolves.toBeUndefined();
+        });
+
+        it('rejects an app alias already owned by another connection', async () => {
+            tracker.on.insert(AppExternalConnectionsTableName).responseOnce([]);
+            tracker.on
+                .select(AppExternalConnectionsTableName)
+                .responseOnce([
+                    { external_connection_uuid: 'another-connection' },
+                ]);
+
+            await expect(
+                model.linkToApp(APP_ID, CONNECTION_UUID, 'acme'),
+            ).rejects.toThrow(ConflictError);
         });
 
         it('replaceAppLinks deletes stale aliases and upserts with repoint-on-conflict', async () => {
