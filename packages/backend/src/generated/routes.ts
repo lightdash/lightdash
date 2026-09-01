@@ -59768,6 +59768,7 @@ export function RegisterRoutes(app: Router) {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        filePath: { dataType: 'string' },
                         description: {
                             dataType: 'union',
                             subSchemas: [
@@ -59944,6 +59945,7 @@ export function RegisterRoutes(app: Router) {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        filePath: { dataType: 'string' },
                         description: {
                             dataType: 'union',
                             subSchemas: [

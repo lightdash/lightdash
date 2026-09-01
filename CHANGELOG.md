@@ -1,3 +1,10 @@
+# [2.77.0](https://github.com/lightdash/lightdash/compare/2.76.0...2.77.0) (2026-09-01)
+
+
+### Features
+
+* **content-as-code:** write back to the file an item was uploaded from ([#28423](https://github.com/lightdash/lightdash/issues/28423)) ([795925b](https://github.com/lightdash/lightdash/commit/795925b1075ce4fc7ce81de6a704d4bf9ba0f6e3))
+
 # [2.76.0](https://github.com/lightdash/lightdash/compare/2.75.1...2.76.0) (2026-09-01)
 
 

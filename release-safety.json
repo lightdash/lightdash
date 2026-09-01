@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.76.0",
-  "previousVersion": "2.75.1",
-  "releaseDate": "2026-09-01T16:19:43.376Z",
+  "version": "2.77.0",
+  "previousVersion": "2.76.0",
+  "releaseDate": "2026-09-01T16:32:23.700Z",
   "migrations": {
     "present": true,
     "count": 1,
@@ -10,16 +10,15 @@
     "eeCount": 0,
     "files": [
       {
-        "name": "20260831121540_add_chart_registry_provenance.ts",
+        "name": "20260901180000_add_file_path_to_content_as_code_snapshots.ts",
         "edition": "core",
         "tables": [
-          "app_versions",
-          "apps"
+          "content_as_code_snapshots"
         ],
         "heaviness": {
           "locksTable": true,
           "rewritesTable": false,
-          "scansTable": true
+          "scansTable": false
         }
       }
     ]
