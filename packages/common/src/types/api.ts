@@ -176,6 +176,7 @@ import {
     type ContentReviewRequestDetail,
     type ContentReviewRequestListItem,
     type ContentReviewSettings,
+    type ContentReviewSimilarContentItem,
 } from './contentReviewRequests';
 import {
     type ApiContentVerificationDeleteResponse,
@@ -1237,6 +1238,7 @@ type ApiResults =
     | ContentReviewRequest
     | ContentReviewRequestDetail
     | ContentReviewSettings
+    | ContentReviewSimilarContentItem[]
     | KnexPaginatedData<ContentReviewRequestListItem[]>
     | BigqueryProjectRecommendation
     | EnsurePlaygroundProjectResults

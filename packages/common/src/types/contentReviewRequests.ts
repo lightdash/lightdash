@@ -157,3 +157,8 @@ export const getContentReviewRequestPath = (
     projectUuid: string,
     requestUuid: string,
 ): string => `${getContentReviewRequestsPath(projectUuid)}/${requestUuid}`;
+
+export type ApiContentReviewSimilarContentResponse = {
+    status: 'ok';
+    results: ContentReviewSimilarContentItem[];
+};

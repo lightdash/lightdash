@@ -1,5 +1,6 @@
 import {
     ContentReviewRequestStatus,
+    ContentType,
     NotFoundError,
     type ContentReviewContentType,
     type ContentReviewGrantedPrincipal,
@@ -21,6 +22,7 @@ import { SavedSqlTableName } from '../database/entities/savedSql';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
+import { compactContentSearchText } from './ContentModel/ContentSearchUtils';
 
 type ContentReviewRequestModelArguments = {
     database: Knex;
@@ -119,6 +121,19 @@ const parseLocationRow = (
     dashboardUuid: row.dashboard_uuid,
     deleted: row.deleted_at !== null,
 });
+
+export type ContentReviewSimilarCandidate = {
+    uuid: string;
+    name: string;
+    slug: string;
+    spaceUuid: string;
+    spaceName: string;
+    score: number;
+};
+
+const EXACT_NAME_SCORE = 100;
+const CONTAINED_NAME_SCORE = 50;
+const COMPACT_NAME_SQL = "regexp_replace(lower(??), '[^a-z0-9]+', '', 'g')";
 
 export type ListContentReviewRequestsFilters = {
     projectUuid: string;
@@ -499,5 +514,120 @@ export class ContentReviewRequestModel {
                 },
             ]),
         );
+    }
+
+    // Name-based lookalikes in shared spaces: exact compact match first,
+    // containment next, then full-text rank on the name
+    async findSimilarByName({
+        projectUuid,
+        contentType,
+        name,
+        excludeContentUuid,
+        limit,
+    }: {
+        projectUuid: string;
+        contentType: ContentReviewContentType;
+        name: string;
+        excludeContentUuid: string | null;
+        limit: number;
+    }): Promise<ContentReviewSimilarCandidate[]> {
+        const compact = compactContentSearchText(name);
+        const trimmed = name.trim();
+        if (compact.length === 0 && trimmed.length === 0) return [];
+        // Any shared word counts as similar; ts_rank orders the overlap
+        const wordQuery = trimmed
+            .split(/\s+/)
+            .filter((word) => word.length > 0)
+            .join(' OR ');
+        const isChart = contentType === ContentType.CHART;
+        const table = isChart ? SavedChartsTableName : DashboardsTableName;
+        const uuidColumn = isChart ? 'saved_query_uuid' : 'dashboard_uuid';
+        const nameColumn = `${table}.name`;
+
+        const scoreSql = this.database.raw(
+            `CASE
+                WHEN ${COMPACT_NAME_SQL} = ? THEN ${EXACT_NAME_SCORE}
+                WHEN ? <> '' AND (${COMPACT_NAME_SQL} LIKE '%' || ? || '%' OR ? LIKE '%' || ${COMPACT_NAME_SQL} || '%') THEN ${CONTAINED_NAME_SCORE}
+                ELSE 0
+            END + COALESCE(ts_rank_cd(??, websearch_to_tsquery('lightdash_english_config', ?), 32), 0)`,
+            [
+                nameColumn,
+                compact,
+                compact,
+                nameColumn,
+                compact,
+                compact,
+                nameColumn,
+                `${table}.search_vector`,
+                wordQuery,
+            ],
+        );
+
+        const query = this.database(table)
+            .innerJoin(
+                SpaceTableName,
+                `${table}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .where(`${SpaceTableName}.is_default_user_space`, false)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .whereNull(`${table}.deleted_at`)
+            .where((builder) => {
+                void builder.whereRaw(
+                    `?? @@ websearch_to_tsquery('lightdash_english_config', ?)`,
+                    [`${table}.search_vector`, wordQuery],
+                );
+                if (compact.length > 0) {
+                    void builder
+                        .orWhereRaw(`${COMPACT_NAME_SQL} LIKE ?`, [
+                            nameColumn,
+                            `%${compact}%`,
+                        ])
+                        .orWhereRaw(
+                            `? LIKE '%' || ${COMPACT_NAME_SQL} || '%'`,
+                            [compact, nameColumn],
+                        );
+                }
+            })
+            .select<
+                {
+                    uuid: string;
+                    name: string;
+                    slug: string;
+                    space_uuid: string;
+                    space_name: string;
+                    score: number;
+                }[]
+            >(
+                `${table}.${uuidColumn} as uuid`,
+                `${table}.name`,
+                `${table}.slug`,
+                `${SpaceTableName}.space_uuid`,
+                this.database.ref(`${SpaceTableName}.name`).as('space_name'),
+                this.database.raw('(?) as score', [scoreSql]),
+            )
+            .orderBy('score', 'desc')
+            .orderBy(`${table}.name`, 'asc')
+            .limit(limit);
+        if (excludeContentUuid !== null) {
+            void query.whereNot(`${table}.${uuidColumn}`, excludeContentUuid);
+        }
+        const rows = await query;
+        return rows
+            .map((row) => ({
+                uuid: row.uuid,
+                name: row.name,
+                slug: row.slug,
+                spaceUuid: row.space_uuid,
+                spaceName: row.space_name,
+                score: Number(row.score),
+            }))
+            .filter((row) => row.score > 0);
     }
 }

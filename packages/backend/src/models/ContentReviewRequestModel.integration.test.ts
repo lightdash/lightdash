@@ -1,4 +1,5 @@
 import {
+    ChartKind,
     ContentReviewContentType,
     ContentReviewRequestStatus,
     DirectAccessPrincipalType,
@@ -9,6 +10,7 @@ import {
 import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { ProjectTableName } from '../database/entities/projects';
+import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import { getTestContext } from '../vitest.setup.integration';
@@ -257,18 +259,17 @@ describe('ContentReviewRequestModel PostgreSQL integration', () => {
         const bCreated = await model.create(b);
         await model.cancel(bCreated.uuid);
 
-        const found = await model.findPendingByContentUuids(
-            ContentReviewContentType.CHART,
-            [a.contentUuid, b.contentUuid, randomUUID()],
-        );
+        const found = await model.findPendingByContentUuids(ContentReviewContentType.CHART, [
+            a.contentUuid,
+            b.contentUuid,
+            randomUUID(),
+        ]);
         expect([...found.keys()]).toEqual([a.contentUuid]);
     });
 
     test('cancelPendingContentReviewRequests cancels pending rows for deleted content', async () => {
         const a = buildRequest();
-        const b = buildRequest({
-            contentType: ContentReviewContentType.DASHBOARD,
-        });
+        const b = buildRequest({ contentType: ContentReviewContentType.DASHBOARD });
         const aCreated = await model.create(a);
         const bCreated = await model.create(b);
 
@@ -309,6 +310,73 @@ describe('ContentReviewRequestModel PostgreSQL integration', () => {
         expect(
             (await model.getByUuid(created.uuid)).targetSpaceUuid,
         ).toBeNull();
+    });
+
+    describe('findSimilarByName', () => {
+        const createChart = async (name: string, spaceUuid: string) => {
+            const space = await transaction(SpaceTableName)
+                .where('space_uuid', spaceUuid)
+                .first<{ space_id: number }>('space_id');
+            if (!space) throw new Error('space not found');
+            const [chart] = await transaction(SavedChartsTableName)
+                .insert({
+                    name,
+                    description: undefined,
+                    slug: `similar-${randomUUID()}`,
+                    project_uuid: projectUuid,
+                    space_id: space.space_id,
+                    dashboard_uuid: null,
+                    last_version_chart_kind: ChartKind.TABLE,
+                    color_palette_uuid: null,
+                    last_version_updated_by_user_uuid: userUuid,
+                })
+                .returning('saved_query_uuid');
+            return chart.saved_query_uuid;
+        };
+
+        test('ranks exact, contained and word matches in shared spaces only', async () => {
+            const exact = await createChart('Weekly Revenue!', sharedSpaceUuid);
+            const contained = await createChart(
+                'Weekly revenue by region',
+                sharedSpaceUuid,
+            );
+            const wordMatch = await createChart(
+                'Revenue forecast',
+                sharedSpaceUuid,
+            );
+            await createChart('Weekly revenue', personalSpaceUuid);
+            await createChart('Customer churn', sharedSpaceUuid);
+            const self = await createChart('Weekly revenue', sharedSpaceUuid);
+
+            const results = await model.findSimilarByName({
+                projectUuid,
+                contentType: ContentReviewContentType.CHART,
+                name: 'weekly revenue',
+                excludeContentUuid: self,
+                limit: 10,
+            });
+
+            const uuids = results.map((r) => r.uuid);
+            expect(uuids.slice(0, 2)).toEqual([exact, contained]);
+            expect(uuids).toContain(wordMatch);
+            expect(uuids).not.toContain(self);
+            expect(results.some((r) => r.spaceUuid === personalSpaceUuid)).toBe(
+                false,
+            );
+            expect(results[0].score).toBeGreaterThan(results[1].score);
+        });
+
+        test('returns nothing for an empty name', async () => {
+            expect(
+                await model.findSimilarByName({
+                    projectUuid,
+                    contentType: ContentReviewContentType.CHART,
+                    name: '   ',
+                    excludeContentUuid: null,
+                    limit: 5,
+                }),
+            ).toEqual([]);
+        });
     });
 
     describe('ContentReviewSettingsModel', () => {
