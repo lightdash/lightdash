@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     AnyType,
     AuthorizationError,
+    CommercialFeatureFlags,
     DeactivatedAccountError,
     defineUserAbility,
     EmailStatus,
@@ -298,7 +299,12 @@ const createUserService = (
                 get: vi.fn<FeatureFlagModel['get']>(
                     async ({ featureFlagId }) => ({
                         id: featureFlagId,
-                        enabled: featureFlagId !== FeatureFlags.NewOnboarding,
+                        // Default to unflagged (main) behavior for the two
+                        // opt-out-shaped flags; every other flag defaults on.
+                        enabled:
+                            featureFlagId !== FeatureFlags.NewOnboarding &&
+                            featureFlagId !==
+                                CommercialFeatureFlags.PatScopeAuthoritative,
                     }),
                 ),
             } as unknown as FeatureFlagModel),
@@ -4269,7 +4275,10 @@ describe('UserService', () => {
                 }).builder.build(),
             });
 
-            const buildLimitedManagerService = (patEnabled: boolean = false) =>
+            const buildLimitedManagerService = (
+                patEnabled: boolean = false,
+                patScopeAuthoritative: boolean = false,
+            ) =>
                 createUserService(
                     {
                         ...lightdashConfigMock,
@@ -4284,6 +4293,19 @@ describe('UserService', () => {
                                 .fn()
                                 .mockResolvedValue(limitedManagerRole),
                         } as unknown as RolesModel,
+                        featureFlagModel: {
+                            get: vi.fn<FeatureFlagModel['get']>(
+                                async ({ featureFlagId }) => ({
+                                    id: featureFlagId,
+                                    enabled:
+                                        featureFlagId ===
+                                        CommercialFeatureFlags.PatScopeAuthoritative
+                                            ? patScopeAuthoritative
+                                            : featureFlagId !==
+                                              FeatureFlags.NewOnboarding,
+                                }),
+                            ),
+                        },
                     },
                 );
 
@@ -4427,6 +4449,41 @@ describe('UserService', () => {
                 ).not.toHaveBeenCalled();
                 expect(
                     vi.mocked(inviteLinkModel.upsert),
+                ).not.toHaveBeenCalled();
+            });
+
+            // A caller whose own ability denies tokens must still be blocked
+            // from an invite that would carry token access from config. This
+            // ceiling never relaxes: config-derived token access is still
+            // self-escalation via an invited system role (#26771).
+            test('flag off: rejects an invite that would carry token access from config when the caller lacks it', async () => {
+                await expect(
+                    buildLimitedManagerService(
+                        true,
+                    ).createPendingUserAndInviteLink(
+                        limitedManagerUser(false),
+                        { ...inviteUser, role: OrganizationMemberRole.MEMBER },
+                    ),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+
+                expect(
+                    vi.mocked(userModel.createPendingUser),
+                ).not.toHaveBeenCalled();
+            });
+
+            test('flag on: still rejects the same invite — the ceiling does not relax', async () => {
+                await expect(
+                    buildLimitedManagerService(
+                        true,
+                        true,
+                    ).createPendingUserAndInviteLink(
+                        limitedManagerUser(false),
+                        { ...inviteUser, role: OrganizationMemberRole.MEMBER },
+                    ),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+
+                expect(
+                    vi.mocked(userModel.createPendingUser),
                 ).not.toHaveBeenCalled();
             });
         });
