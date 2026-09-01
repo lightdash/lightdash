@@ -2349,9 +2349,6 @@ export class McpService extends BaseService {
             this.registerCreateScheduledDeliveryTool();
         }
 
-        // setupHandlers swaps this.mcpServer per request, so pin the server
-        // whose registrations this get_context handler reports on.
-        const sessionServer = this.mcpServer;
         this.registerTrackedTool(
             mcpGetContextTool.name,
             {
@@ -2384,7 +2381,6 @@ export class McpService extends BaseService {
                           )
                         : undefined;
                 const structuredContent = {
-                    tools: this.getToolInventory(sessionServer),
                     activeProject: activeProject
                         ? {
                               projectUuid: activeProject.projectUuid,
@@ -4421,22 +4417,8 @@ export class McpService extends BaseService {
         );
     };
 
-    /**
-     * Every tool registered on a session's server, plus every known MCP tool
-     * deliberately left out of it. Lets a caller tell a tool its client never
-     * discovered apart from one it was never offered.
-     */
-    public getToolInventory(server: McpServer): {
-        available: string[];
-        omitted: string[];
-    } {
-        const registered = this.registeredToolNames.get(server) ?? new Set();
-        return {
-            available: Array.from(registered).sort(),
-            omitted: Object.values(McpToolName)
-                .filter((name) => !registered.has(name))
-                .sort(),
-        };
+    public getRegisteredToolNames(server: McpServer): string[] {
+        return Array.from(this.registeredToolNames.get(server) ?? []).sort();
     }
 
     /**
@@ -4460,7 +4442,9 @@ export class McpService extends BaseService {
                     durationMs: params.durationMs,
                     status: 'success',
                     errorMessage: null,
-                    resultMetadata: this.getToolInventory(params.server),
+                    resultMetadata: {
+                        tools: this.getRegisteredToolNames(params.server),
+                    },
                     trackAnalytics: false,
                 }),
             )

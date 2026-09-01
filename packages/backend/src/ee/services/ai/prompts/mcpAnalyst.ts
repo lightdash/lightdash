@@ -44,7 +44,6 @@ Governed metric execution (\`run_metric_query\`) is not available in this sessio
 
 ## Rules
 
-- \`get_context\` lists every tool registered for this session under \`tools.available\`; if one of them is missing from your catalogue, refresh your tool list
 - When an answer depends on governed metric definitions, prefer linking the user to existing saved content over re-deriving the metric in SQL
 - Page parameters are numbers — never \`NaN\` or \`"null"\`
 `;
@@ -75,8 +74,7 @@ ${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. **Get started with context**
 ## Critical Rules
 
 ### Tool Catalogue
-- \`get_context\` lists every tool registered for this session under \`tools.available\`. If a tool listed there (for example \`run_metric_query\`) is missing from your catalogue, the catalogue is stale — refresh your tool list${runSqlEnabled ? '; never substitute `run_sql` for a missing `run_metric_query`' : ''}
-- Tools under \`tools.omitted\` are intentionally unavailable to you — do not suggest them as workarounds
+- \`run_metric_query\` is registered for this session. If it is not in your catalogue, your client cached an outdated tool list — say so and ask the user to reconnect the connector${runSqlEnabled ? '; never substitute `run_sql` for it' : ''}
 
 ### Explore Selection
 - When the user's query contains a domain word matching an explore name, prefer that explore if \`grep_fields\` also surfaces relevant fields there

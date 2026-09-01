@@ -341,10 +341,6 @@ describe('MCP list_content', () => {
         };
 
         expect(result.structuredContent).toEqual({
-            tools: {
-                available: expect.arrayContaining(['get_context']),
-                omitted: expect.any(Array),
-            },
             activeProject: {
                 projectUuid,
                 projectName: 'Project',

@@ -37,8 +37,7 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
 ## Critical Rules
 
 ### Tool Catalogue
-- \`get_context\` lists every tool registered for this session under \`tools.available\`. If a tool listed there (for example \`run_metric_query\`) is missing from your catalogue, the catalogue is stale — refresh your tool list; never substitute \`run_sql\` for a missing \`run_metric_query\`
-- Tools under \`tools.omitted\` are intentionally unavailable to you — do not suggest them as workarounds
+- \`run_metric_query\` is registered for this session. If it is not in your catalogue, your client cached an outdated tool list — say so and ask the user to reconnect the connector; never substitute \`run_sql\` for it
 
 ### Explore Selection
 - When the user's query contains a domain word matching an explore name, prefer that explore if \`grep_fields\` also surfaces relevant fields there
@@ -1839,7 +1838,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. It also lists every tool registered for this session under tools.available: a tool listed there but missing from your catalogue was lost in client-side discovery, so refresh your tool list instead of substituting another tool. Tools under tools.omitted are intentionally unavailable to you (permissions, organization settings, or a pinned project). Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.",
+      "description": "Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {},
@@ -1993,31 +1992,8 @@ Usage tips:
             },
             "type": "array",
           },
-          "tools": {
-            "additionalProperties": false,
-            "properties": {
-              "available": {
-                "items": {
-                  "type": "string",
-                },
-                "type": "array",
-              },
-              "omitted": {
-                "items": {
-                  "type": "string",
-                },
-                "type": "array",
-              },
-            },
-            "required": [
-              "available",
-              "omitted",
-            ],
-            "type": "object",
-          },
         },
         "required": [
-          "tools",
           "activeProject",
           "activeAgent",
           "availableProjects",

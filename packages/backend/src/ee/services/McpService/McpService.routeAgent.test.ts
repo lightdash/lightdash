@@ -269,32 +269,19 @@ describe('McpService route_agent', () => {
         mockRegisteredMcpTools.clear();
     });
 
-    it.each([
-        { runMetricQueryEnabled: true, expectedIn: 'available' as const },
-        { runMetricQueryEnabled: false, expectedIn: 'omitted' as const },
-    ])(
-        'get_context lists run_metric_query under $expectedIn when enabled is $runMetricQueryEnabled',
-        async ({ runMetricQueryEnabled, expectedIn }) => {
+    it.each([true, false])(
+        'tracks the registered tool names per server when runMetricQueryEnabled is %s',
+        async (runMetricQueryEnabled) => {
             const { service } = makeMcpService();
-            await service.createServer({ runMetricQueryEnabled });
-            const getContextTool = mockRegisteredMcpTools.get(
-                McpToolName.GET_CONTEXT,
-            );
+            const server = await service.createServer({
+                runMetricQueryEnabled,
+            });
 
-            const result = (await getContextTool!({}, extra)) as {
-                structuredContent: {
-                    tools: { available: string[]; omitted: string[] };
-                };
-            };
-            const { tools } = result.structuredContent;
+            const toolNames = service.getRegisteredToolNames(server);
 
-            expect(tools[expectedIn]).toContain(McpToolName.RUN_METRIC_QUERY);
-            expect(tools.available).toContain(McpToolName.GET_CONTEXT);
-            expect(tools.available).not.toEqual(
-                expect.arrayContaining(tools.omitted),
-            );
-            expect([...tools.available, ...tools.omitted].sort()).toEqual(
-                expect.arrayContaining(Object.values(McpToolName)),
+            expect(toolNames).toContain(McpToolName.GET_CONTEXT);
+            expect(toolNames.includes(McpToolName.RUN_METRIC_QUERY)).toBe(
+                runMetricQueryEnabled,
             );
         },
     );

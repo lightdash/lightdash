@@ -370,10 +370,6 @@ const destructiveExternalWriteAnnotations: McpToolAnnotations = {
 const emptyInputSchema = z.object({});
 
 const mcpGetContextOutputSchema = z.object({
-    tools: z.object({
-        available: z.array(z.string()),
-        omitted: z.array(z.string()),
-    }),
     activeProject: z
         .object({
             projectUuid: z.string(),
@@ -1519,7 +1515,7 @@ export const getContextToolDefinition: ToolDefinitionWithMcpOutput<
     name: 'getContext',
     title: 'Get context',
     description:
-        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. It also lists every tool registered for this session under tools.available: a tool listed there but missing from your catalogue was lost in client-side discovery, so refresh your tool list instead of substituting another tool. Tools under tools.omitted are intentionally unavailable to you (permissions, organization settings, or a pinned project). Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.',
+        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: {
