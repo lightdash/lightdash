@@ -301,6 +301,11 @@ import {
     TEMPLATE_SCRIPTS,
 } from './templateDependencies';
 import { getTemplateInstructions } from './templates';
+import {
+    getTemplateBindInstructions,
+    getTemplateSource,
+    shouldSeedTemplateSource,
+} from './templateSources';
 
 /**
  * Pure helper: builds a ChartReference from a resolved chart object.
@@ -2915,6 +2920,7 @@ export class AppGenerateService extends BaseService {
         dashboardBlueprint: DashboardBlueprint | undefined,
         template: DataAppTemplate | undefined,
         isDataAppViz: boolean,
+        seedTemplateSource: boolean,
     ): Promise<{
         durationMs: number;
         tableCount: number;
@@ -2978,6 +2984,38 @@ export class AppGenerateService extends BaseService {
             );
         }
 
+        // Deterministic starter templates: seed the workspace with the
+        // template's source so the agent binds it (template.json edits
+        // against the real explores) instead of regenerating an app. The tar
+        // overwrites the scaffold's overlapping files and leaves the rest of
+        // the scaffold (src/lib, src/components/ui, css) untouched.
+        if (seedTemplateSource && template) {
+            const sourceFiles = getTemplateSource(template);
+            if (sourceFiles) {
+                await sandbox.files.write(
+                    '/tmp/template-src.tar',
+                    await AppGenerateService.packModelFiles(sourceFiles),
+                );
+                // The extract runs as the exec user while the coding agent
+                // may run as another; open up the seeded paths so the agent
+                // can edit template.json (its whole job in bind mode).
+                const seededRoots = [
+                    ...new Set(
+                        sourceFiles.map(
+                            (file) => `/app/${file.filename.split('/')[0]}`,
+                        ),
+                    ),
+                ].join(' ');
+                await sandbox.commands.run(
+                    `tar -xf /tmp/template-src.tar -C /app && chmod -R a+rwX ${seededRoots} && rm -f /tmp/template-src.tar`,
+                    { timeoutMs: 60_000 },
+                );
+                this.logger.info(
+                    `App ${appUuid}: seeded ${sourceFiles.length} starter-template files (template=${template})`,
+                );
+            }
+        }
+
         // Write chart reference files and prepend summary to prompt
         let finalPrompt = prompt;
         if (chartReferences && chartReferences.length > 0) {
@@ -3026,7 +3064,9 @@ export class AppGenerateService extends BaseService {
             : template;
         if (instructionsTemplate) {
             const templateInstructions =
-                getTemplateInstructions(instructionsTemplate);
+                (seedTemplateSource
+                    ? getTemplateBindInstructions(instructionsTemplate)
+                    : null) ?? getTemplateInstructions(instructionsTemplate);
             if (templateInstructions) {
                 finalPrompt = `${templateInstructions}\n\n${finalPrompt}`;
             }
@@ -5089,6 +5129,10 @@ export class AppGenerateService extends BaseService {
                     payload.dashboardBlueprint,
                     template,
                     isDataAppViz,
+                    shouldSeedTemplateSource(template, {
+                        version,
+                        wasResumed,
+                    }),
                 );
                 durations.catalogMs = catalogResult.durationMs;
                 catalogStats = {
