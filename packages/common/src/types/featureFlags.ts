@@ -56,11 +56,6 @@ export enum FeatureFlags {
     EditYamlInUi = 'edit-yaml-in-ui',
 
     /**
-     * Enable Google Chat as a scheduled delivery destination
-     */
-    GoogleChatEnabled = 'google-chat-enabled',
-
-    /**
      * On multi-org (shared-tenant) instances, route an organization's recurring
      * scheduled deliveries into a per-org graphile-worker named queue
      * (`delivery:<organizationUuid>`) so they run serially and a single org can't
@@ -213,17 +208,6 @@ export enum FeatureFlags {
      * Show the organization roadmap and enable its read-only API proxy.
      */
     OrganizationRoadmap = 'organization-roadmap',
-
-    /**
-     * Guard the agent's `searchFieldValues` tool against pathological warehouse
-     * scans. When on, an empty/whitespace query — which compiles to
-     * `LIKE '%%'`, i.e. "distinct the entire column" — is rejected immediately
-     * with an actionable message instead of running a leading-wildcard full
-     * scan that can take minutes on high-cardinality fields. Default off, so
-     * behaviour is byte-identical to today when disabled; a live toggle lets the
-     * new behaviour be trialled per-org without a redeploy. Experimental.
-     */
-    AiFieldValueSearchGuard = 'ai-field-value-search-guard',
 
     /**
      * Allow a single Lightdash project to connect to multiple dbt sources

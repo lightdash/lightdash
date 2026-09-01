@@ -16,8 +16,6 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
                 this.getAiCopilotFlag.bind(this),
             [CommercialFeatureFlags.DirectAccess]:
                 this.getDirectAccessFlag.bind(this),
-            [CommercialFeatureFlags.HomepageBuilder]:
-                this.getHomepageBuilderFlag.bind(this),
         };
     }
 
@@ -30,18 +28,6 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
         }
         const dbResult = await this.tryGetFromDatabase(args);
         return dbResult ?? { id: args.featureFlagId, enabled: false };
-    }
-
-    // Default-off; enabled per-org via DB-backed overrides.
-    private async getHomepageBuilderFlag({
-        featureFlagId,
-        user,
-    }: FeatureFlagLogicArgs) {
-        if (!user) {
-            return { id: featureFlagId, enabled: false };
-        }
-        const dbResult = await this.tryGetFromDatabase({ user, featureFlagId });
-        return dbResult ?? { id: featureFlagId, enabled: false };
     }
 
     private async getAiCopilotFlag({

@@ -1,6 +1,5 @@
 import {
     buildOnboardingHomepageConfig,
-    CommercialFeatureFlags,
     FeatureFlags,
     ProjectType,
     type SessionUser,
@@ -92,21 +91,7 @@ export const provisionOnboardingHomepage = async ({
             return;
         }
 
-        try {
-            homepageBuilderEnablement =
-                await featureFlagService.ensureOrganizationOverrideEnabled({
-                    user,
-                    featureFlagId: CommercialFeatureFlags.HomepageBuilder,
-                });
-        } catch (error) {
-            Sentry.captureException(error);
-            Logger.error(
-                `Failed to enable homepage builder for organization ${organizationUuid}: ${
-                    error instanceof Error ? error.message : String(error)
-                }`,
-            );
-            homepageBuilderEnablement = 'failed';
-        }
+        homepageBuilderEnablement = 'enabled';
 
         try {
             codingAgentOnboardingEnablement =
@@ -122,15 +107,6 @@ export const provisionOnboardingHomepage = async ({
                 }`,
             );
             codingAgentOnboardingEnablement = 'failed';
-        }
-
-        const homepageBuilderFlag = await featureFlagService.get({
-            user,
-            featureFlagId: CommercialFeatureFlags.HomepageBuilder,
-        });
-        if (!homepageBuilderFlag.enabled) {
-            trackSkipped('homepage_builder_flag_disabled');
-            return;
         }
 
         const existingHomepages = await projectHomepageModel.list(projectUuid);

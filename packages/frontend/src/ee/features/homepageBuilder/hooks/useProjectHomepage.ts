@@ -1,5 +1,4 @@
 import {
-    CommercialFeatureFlags,
     type ApiError,
     type CreateProjectHomepageRequest,
     type HomepageAssignment,
@@ -14,7 +13,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { IS_MOBILE } from '../../../../utils/isMobile';
 import { ANNOUNCEMENTS_QUERY_KEY } from './useAnnouncements';
 import { useOrgHomepageSettings } from './useOrgHomepageSettings';
@@ -126,19 +124,15 @@ const updateGroupPrioritiesApi = async (
     });
 
 export const useHomepageBuilderFlag = () => {
-    const { data: flag, isLoading: isFlagLoading } = useServerFeatureFlag(
-        CommercialFeatureFlags.HomepageBuilder,
-    );
-    // Homepage v2 is on when the org opted in via settings OR the commercial
-    // flag is set — the flag remains as the legacy path/kill-switch while the
-    // opt-in flow rolls out. Must match the backend rule in
+    // Homepage v2 is on by default. Org admins can opt out via
+    // organization homepage settings. Must match
     // ProjectHomepageService.isHomepageEnabled.
     const settings = useOrgHomepageSettings();
     // The homepage builder / new onboarding surfaces are desktop-only for now,
     // so fall back to the classic homepage on mobile.
     return {
-        isEnabled: !IS_MOBILE && (!!flag?.enabled || !!settings.data?.enabled),
-        isLoading: isFlagLoading || settings.isInitialLoading,
+        isEnabled: !IS_MOBILE && (settings.data?.enabled ?? true),
+        isLoading: settings.isInitialLoading,
     };
 };
 

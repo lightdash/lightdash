@@ -2021,7 +2021,6 @@ describe('legacy feature-flag env vars (compat repair for trivial-batch)', () =>
     // set the var.
     test.each([
         ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
-        ['GOOGLE_CHAT_ENABLED', 'google-chat-enabled'],
         ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
         ['GROUPS_ENABLED', 'user-groups-enabled'],
         ['SHOW_EXECUTION_TIME', 'show-execution-time'],

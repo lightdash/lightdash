@@ -977,7 +977,6 @@ type HomepagePublishedEvent = BaseTrack & {
 
 export type OnboardingHomepageSkippedReason =
     | 'new_onboarding_flag_disabled'
-    | 'homepage_builder_flag_disabled'
     | 'not_first_project'
     | 'homepage_already_exists';
 

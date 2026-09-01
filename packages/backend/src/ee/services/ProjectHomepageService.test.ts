@@ -123,7 +123,6 @@ const makeViewerUser = (): SessionUser => ({
 });
 
 const makeService = ({
-    flagEnabled = true,
     projectHomepageModel = {},
     groupsModel = {},
     projectModel = {},
@@ -134,7 +133,6 @@ const makeService = ({
     slackInstalled = true,
     schedulerClient = {},
 }: {
-    flagEnabled?: boolean;
     projectHomepageModel?: Partial<
         ProjectHomepageServiceArguments['projectHomepageModel']
     >;
@@ -155,12 +153,6 @@ const makeService = ({
 } = {}) =>
     new ProjectHomepageService({
         analytics: { track: vi.fn() },
-        featureFlagService: {
-            get: vi.fn().mockResolvedValue({
-                id: 'homepage-builder',
-                enabled: flagEnabled,
-            }),
-        },
         projectHomepageModel: {
             getDefault: vi.fn().mockResolvedValue(undefined),
             getByUuid: vi.fn().mockResolvedValue(makeHomepage()),
@@ -247,17 +239,24 @@ describe('ProjectHomepageService', () => {
         expect(() => makeService()).not.toThrow();
     });
 
-    it('getPublishedHomepage throws ForbiddenError when flag is disabled', async () => {
-        const service = makeService({ flagEnabled: false });
+    it('getPublishedHomepage throws ForbiddenError when the org opted out', async () => {
+        const service = makeService({
+            projectHomepageModel: {
+                findOrgHomepageSettings: vi.fn().mockResolvedValue({
+                    organizationUuid: ORGANIZATION_UUID,
+                    enabled: false,
+                    opening: null,
+                }),
+            },
+        });
 
         await expect(
             service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
         ).rejects.toThrow(ForbiddenError);
     });
 
-    it('org settings opt-in enables the homepage even when the flag is off', async () => {
+    it('org settings opt-in enables the homepage', async () => {
         const service = makeService({
-            flagEnabled: false,
             projectHomepageModel: {
                 findOrgHomepageSettings: vi.fn().mockResolvedValue({
                     organizationUuid: ORGANIZATION_UUID,
@@ -279,7 +278,7 @@ describe('ProjectHomepageService', () => {
             service.getOrgHomepageSettings(makeViewerUser()),
         ).resolves.toEqual({
             organizationUuid: ORGANIZATION_UUID,
-            enabled: false,
+            enabled: true,
             opening: null,
         });
     });

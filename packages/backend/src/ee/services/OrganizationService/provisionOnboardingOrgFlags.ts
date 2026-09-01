@@ -1,8 +1,4 @@
-import {
-    CommercialFeatureFlags,
-    FeatureFlags,
-    type SessionUser,
-} from '@lightdash/common';
+import { FeatureFlags, type SessionUser } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
     type CodingAgentOnboardingEnablement,
@@ -36,22 +32,7 @@ export const provisionOnboardingOrgFlags = async ({
         return;
     }
 
-    let homepageBuilderEnablement: HomepageBuilderEnablement;
-    try {
-        homepageBuilderEnablement =
-            await featureFlagService.ensureOrganizationOverrideEnabled({
-                user,
-                featureFlagId: CommercialFeatureFlags.HomepageBuilder,
-            });
-    } catch (error) {
-        Sentry.captureException(error);
-        Logger.error(
-            `Failed to enable homepage builder for organization ${organizationUuid}: ${
-                error instanceof Error ? error.message : String(error)
-            }`,
-        );
-        homepageBuilderEnablement = 'failed';
-    }
+    const homepageBuilderEnablement: HomepageBuilderEnablement = 'enabled';
 
     let codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement;
     try {
