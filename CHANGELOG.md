@@ -1,3 +1,11 @@
+# [2.82.0](https://github.com/lightdash/lightdash/compare/2.81.0...2.82.0) (2026-09-01)
+
+
+### Features
+
+* **frontend:** rebuild the Mantine theme as a token-driven variant layer ([#28442](https://github.com/lightdash/lightdash/issues/28442)) ([65550a9](https://github.com/lightdash/lightdash/commit/65550a991bc16d11a4158314d5086a5f693be3ee))
+* **sql-runner:** card-based layout with a permanent tables sidebar ([#28444](https://github.com/lightdash/lightdash/issues/28444)) ([6df5989](https://github.com/lightdash/lightdash/commit/6df59897e36df7363e10887c59ff309d4cc40d9e))
+
 # [2.81.0](https://github.com/lightdash/lightdash/compare/2.80.0...2.81.0) (2026-09-01)
 
 
