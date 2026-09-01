@@ -5335,7 +5335,6 @@ Input modes:
                 "type",
                 "tableName",
                 "metricQuery",
-                "parameters",
               ],
               "type": "object",
             },

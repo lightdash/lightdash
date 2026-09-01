@@ -80,9 +80,9 @@ failure. Before dependency installation, all commands failed before collection.
 - the committed MCP snapshot was compared against a live `tools/list` from an
   in-memory `McpServer` for all 33 tools: input and output schemas are equal.
   Served MCP objects are open, as the SDK's native conversion emits them
-- agent-tool contract snapshots: `required` sets are unchanged except
-  `runContentQuery.source.parameters`, which Zod 4 treats as a required key
-  (`z.unknown()` keys are no longer optional); serialized agent tool schemas
+- agent-tool contract snapshots: `required` sets are unchanged from main. Zod
+  4 no longer treats `z.unknown()` keys as optional, so every such key carries
+  an explicit `.optional()` to keep the contract; serialized agent tool schemas
   total 173,368 bytes against 181,173 on main, with `$ref` count down from 787
   to 188 after inlining small definitions
 - an ajv differential test covers every agent tool: generated valid samples
