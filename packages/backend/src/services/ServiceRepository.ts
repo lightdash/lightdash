@@ -1340,6 +1340,7 @@ export class ServiceRepository
                     contentAsCodeWritebackModel:
                         this.models.getContentAsCodeWritebackModel(),
                     contentDraftModel: this.models.getContentDraftModel(),
+                    userModel: this.models.getUserModel(),
                 }),
         );
     }
