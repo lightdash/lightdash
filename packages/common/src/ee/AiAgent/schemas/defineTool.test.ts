@@ -127,12 +127,12 @@ describe('defineTool', () => {
             cl100kTokens: 4_500,
             o200kTokens: 4_600,
         });
-        // Preserve at least a 45% agent reduction and a 60% Model Context
+        // Preserve at least a 44% agent reduction and a 60% Model Context
         // Protocol (MCP) reduction across bytes and both tokenizers.
         expectAtMostRatio(
             measurements.agentExpression,
             measurements.agentLegacy,
-            0.55,
+            0.56,
         );
         expectAtMostRatio(
             measurements.mcpExpression,

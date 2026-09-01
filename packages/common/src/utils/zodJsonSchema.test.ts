@@ -68,6 +68,20 @@ describe('toLlmJsonSchema', () => {
         });
     });
 
+    test('deduplicates literal unions that repeat a value', () => {
+        expect(
+            toLlmJsonSchema(
+                z.object({
+                    kind: z.union([
+                        z.literal('boolean'),
+                        z.literal('boolean'),
+                        z.literal('number'),
+                    ]),
+                }),
+            ).properties?.kind,
+        ).toEqual({ type: 'string', enum: ['boolean', 'number'] });
+    });
+
     test('hoists a lone branch description out of an object union', () => {
         const { properties } = toLlmJsonSchema(
             z.object({
@@ -143,6 +157,25 @@ describe('toLlmJsonSchema', () => {
         expect(schema.properties).toEqual({
             first: { type: 'string', enum: ['and', 'or'] },
             second: { type: ['string', 'null'], enum: ['and', 'or', null] },
+        });
+    });
+
+    test('merges the allOf wrapper Zod uses for described shared schemas', () => {
+        const shared = z.record(z.string(), z.string()).nullable();
+        const schema = toLlmJsonSchema(
+            z.object({
+                first: shared.default(null).describe('First'),
+                second: shared.describe('Second'),
+            }),
+            { reused: 'ref' },
+        );
+
+        expect(schema).not.toHaveProperty('definitions');
+        expect(schema.properties?.first).toEqual({
+            type: ['object', 'null'],
+            additionalProperties: { type: 'string' },
+            default: null,
+            description: 'First',
         });
     });
 

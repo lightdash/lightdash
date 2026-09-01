@@ -31,8 +31,14 @@ export type JsonSchema = {
     not?: JsonSchemaDefinition;
     $ref?: string;
     propertyNames?: JsonSchemaDefinition;
+    required?: string[];
+    format?: string;
+    pattern?: string;
+    minLength?: number;
+    minItems?: number;
     maximum?: number;
     minimum?: number;
+    exclusiveMinimum?: number | boolean;
 };
 
 /**
@@ -130,12 +136,14 @@ const collapseUnion = (
         constBranches.length === branches.length &&
         new Set(constBranches.map((branch) => branch.type)).size === 1
     ) {
+        const values = constBranches.flatMap((branch) =>
+            branch.const === undefined ? [] : [branch.const],
+        );
         return {
             ...schema,
             type: constBranches[0].type,
-            enum: constBranches.flatMap((branch) =>
-                branch.const === undefined ? [] : [branch.const],
-            ),
+            // Enum members must be unique; literal unions may repeat a value.
+            enum: [...new Set(values)],
         };
     }
 
@@ -160,6 +168,29 @@ const collapseUnion = (
     }
 
     return { ...schema, [key]: branches };
+};
+
+const METADATA_KEYWORDS = new Set([
+    'description',
+    'default',
+    'title',
+    'deprecated',
+    'examples',
+]);
+
+/**
+ * Zod attaches metadata to a shared schema as `allOf: [{ $ref }]` plus
+ * siblings. Once the target is inlined the wrapper is noise; merge it.
+ */
+const unwrapSingleAllOf = (schema: JsonSchema): JsonSchema => {
+    const { allOf, ...rest } = schema;
+    if (!allOf || allOf.length !== 1) return schema;
+    const [only] = allOf;
+    if (!isJsonSchema(only) || only.$ref !== undefined) return schema;
+    if (!Object.keys(rest).every((key) => METADATA_KEYWORDS.has(key))) {
+        return schema;
+    }
+    return { ...only, ...rest };
 };
 
 /** Zod 4 emits these for every record and safe integer; they only cost tokens. */
@@ -198,7 +229,7 @@ const INLINE_DEFINITION_MAX_CHARS = 160;
 const DEFINITIONS_PREFIX = '#/definitions/';
 
 /** Replace refs to small self-contained definitions with the definition. */
-const inlineSmallDefinitions = (root: JsonSchema): JsonSchema => {
+const inlineSmallDefinitionsOnce = (root: JsonSchema): JsonSchema => {
     const { definitions } = root;
     if (!definitions) return root;
     const inlineable = new Map(
@@ -249,6 +280,20 @@ const inlineSmallDefinitions = (root: JsonSchema): JsonSchema => {
         : inlined;
 };
 
+// A definition only becomes self-contained once the definitions it refers to
+// are inlined, so repeat until the definition count settles.
+const inlineSmallDefinitions = (root: JsonSchema): JsonSchema => {
+    let current = root;
+    let remaining = Object.keys(current.definitions ?? {}).length;
+    while (remaining > 0) {
+        current = inlineSmallDefinitionsOnce(current);
+        const next = Object.keys(current.definitions ?? {}).length;
+        if (next === remaining) break;
+        remaining = next;
+    }
+    return current;
+};
+
 export const normalizeJsonSchema = (schema: JsonSchema): JsonSchema => {
     const normalizeDefinition = (
         definition: JsonSchemaDefinition,
@@ -296,7 +341,7 @@ export const normalizeJsonSchema = (schema: JsonSchema): JsonSchema => {
     }
 
     return collapseUnion(
-        collapseUnion(dropNoiseKeywords(result), 'anyOf'),
+        collapseUnion(dropNoiseKeywords(unwrapSingleAllOf(result)), 'anyOf'),
         'oneOf',
     );
 };

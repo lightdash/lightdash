@@ -30,20 +30,12 @@ Parameters:
       "additionalProperties": false,
       "properties": {
         "database": {
-          "allOf": [
-            {
-              "type": "string",
-            },
-          ],
           "description": "Database/catalog returned by listWarehouseTables when targeting a non-default database. Omission uses the project's default database.",
+          "type": "string",
         },
         "schema": {
-          "allOf": [
-            {
-              "type": "string",
-            },
-          ],
           "description": "Optional schema name. Omit this property to use the project's default schema.",
+          "type": "string",
         },
         "table": {
           "description": "The unqualified table name (e.g. "raw_parts"). Do not include schema/database here — use the schema parameter instead.",
@@ -1202,15 +1194,11 @@ Usage tips:
           ],
         },
         "verifiedOnly": {
-          "allOf": [
-            {
-              "type": [
-                "boolean",
-                "null",
-              ],
-            },
-          ],
           "description": "Set to true to search only admin-verified charts and dashboards; matching Data Apps remain included because they have no verification state. Null or false searches all content.",
+          "type": [
+            "boolean",
+            "null",
+          ],
         },
       },
       "required": [
@@ -1269,26 +1257,18 @@ Output:
       "additionalProperties": false,
       "properties": {
         "query": {
-          "allOf": [
-            {
-              "type": [
-                "string",
-                "null",
-              ],
-            },
-          ],
           "description": "Keyword terms matched against custom chart type names and descriptions. Set exactly one of query or slug.",
+          "type": [
+            "string",
+            "null",
+          ],
         },
         "slug": {
-          "allOf": [
-            {
-              "type": [
-                "string",
-                "null",
-              ],
-            },
-          ],
           "description": "Exact slug of one custom chart type. Set exactly one of query or slug.",
+          "type": [
+            "string",
+            "null",
+          ],
         },
       },
       "type": "object",
@@ -2407,12 +2387,16 @@ All branches of an IF must return the same type.",
                 "fieldType": {
                   "enum": [
                     "boolean",
-                    "boolean",
                   ],
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema17",
+                  "description": "Use isNull for missing values, notNull for present values.",
+                  "enum": [
+                    "isNull",
+                    "notNull",
+                  ],
+                  "type": "string",
                 },
               },
               "required": [
@@ -2444,15 +2428,25 @@ All branches of an IF must return the same type.",
                 "fieldType": {
                   "enum": [
                     "boolean",
-                    "boolean",
                   ],
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema20",
+                  "description": "Use equals/notEquals to match true or false.",
+                  "enum": [
+                    "equals",
+                    "notEquals",
+                  ],
+                  "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema23",
+                  "description": "Exactly one boolean value, e.g. [true] or [false].",
+                  "items": {
+                    "type": "boolean",
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array",
                 },
               },
               "required": [
@@ -2556,37 +2550,12 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema17": {
-          "description": "Use isNull for missing values, notNull for present values.",
-          "enum": [
-            "isNull",
-            "notNull",
-          ],
-          "type": "string",
-        },
         "__schema2": {
           "description": "The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels.",
           "items": {
             "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
             "type": "string",
           },
-          "type": "array",
-        },
-        "__schema20": {
-          "description": "Use equals/notEquals to match true or false.",
-          "enum": [
-            "equals",
-            "notEquals",
-          ],
-          "type": "string",
-        },
-        "__schema23": {
-          "description": "Exactly one boolean value, e.g. [true] or [false].",
-          "items": {
-            "type": "boolean",
-          },
-          "maxItems": 1,
-          "minItems": 1,
           "type": "array",
         },
         "__schema25": {
@@ -2611,12 +2580,16 @@ All branches of an IF must return the same type.",
                 "fieldType": {
                   "enum": [
                     "string",
-                    "string",
                   ],
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema29",
+                  "description": "Use isNull for missing values, notNull for present values.",
+                  "enum": [
+                    "isNull",
+                    "notNull",
+                  ],
+                  "type": "string",
                 },
               },
               "required": [
@@ -2648,7 +2621,6 @@ All branches of an IF must return the same type.",
                 "fieldType": {
                   "enum": [
                     "string",
-                    "string",
                   ],
                   "type": "string",
                 },
@@ -2656,7 +2628,11 @@ All branches of an IF must return the same type.",
                   "$ref": "#/definitions/__schema32",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema39",
+                  "description": "String values to match. Do not put natural-language date ranges here.",
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
                 },
               },
               "required": [
@@ -2670,14 +2646,6 @@ All branches of an IF must return the same type.",
             },
           ],
         },
-        "__schema29": {
-          "description": "Use isNull for missing values, notNull for present values.",
-          "enum": [
-            "isNull",
-            "notNull",
-          ],
-          "type": "string",
-        },
         "__schema32": {
           "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/endsWith for prefixes/suffixes.",
           "enum": [
@@ -2689,13 +2657,6 @@ All branches of an IF must return the same type.",
             "doesNotInclude",
           ],
           "type": "string",
-        },
-        "__schema39": {
-          "description": "String values to match. Do not put natural-language date ranges here.",
-          "items": {
-            "type": "string",
-          },
-          "type": "array",
         },
         "__schema4": {
           "description": "The field ids of the metrics to be calculated. They will be grouped by the dimensions.",
@@ -2728,7 +2689,12 @@ All branches of an IF must return the same type.",
                   "$ref": "#/definitions/__schema43",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema45",
+                  "description": "Use isNull for missing values, notNull for present values.",
+                  "enum": [
+                    "isNull",
+                    "notNull",
+                  ],
+                  "type": "string",
                 },
               },
               "required": [
@@ -2761,10 +2727,19 @@ All branches of an IF must return the same type.",
                   "$ref": "#/definitions/__schema43",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema48",
+                  "description": "Use equals/notEquals for exact numeric matches.",
+                  "enum": [
+                    "equals",
+                    "notEquals",
+                  ],
+                  "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema51",
+                  "description": "One or more exact numeric values to match.",
+                  "items": {
+                    "type": "number",
+                  },
+                  "type": "array",
                 },
               },
               "required": [
@@ -2801,7 +2776,13 @@ All branches of an IF must return the same type.",
                   "$ref": "#/definitions/__schema53",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema58",
+                  "description": "Exactly one numeric threshold value.",
+                  "items": {
+                    "type": "number",
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array",
                 },
               },
               "required": [
@@ -2835,10 +2816,21 @@ All branches of an IF must return the same type.",
                   "$ref": "#/definitions/__schema43",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema60",
+                  "description": "Use for ranges between two numeric bounds.",
+                  "enum": [
+                    "inBetween",
+                    "notInBetween",
+                  ],
+                  "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema63",
+                  "description": "Exactly two numeric bounds: [lower, upper].",
+                  "items": {
+                    "type": "number",
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array",
                 },
               },
               "required": [
@@ -2855,7 +2847,6 @@ All branches of an IF must return the same type.",
         "__schema43": {
           "enum": [
             "number",
-            "number",
             "percentile",
             "median",
             "average",
@@ -2869,29 +2860,6 @@ All branches of an IF must return the same type.",
           ],
           "type": "string",
         },
-        "__schema45": {
-          "description": "Use isNull for missing values, notNull for present values.",
-          "enum": [
-            "isNull",
-            "notNull",
-          ],
-          "type": "string",
-        },
-        "__schema48": {
-          "description": "Use equals/notEquals for exact numeric matches.",
-          "enum": [
-            "equals",
-            "notEquals",
-          ],
-          "type": "string",
-        },
-        "__schema51": {
-          "description": "One or more exact numeric values to match.",
-          "items": {
-            "type": "number",
-          },
-          "type": "array",
-        },
         "__schema53": {
           "description": "Use for threshold comparisons such as greater than 100.",
           "enum": [
@@ -2902,37 +2870,11 @@ All branches of an IF must return the same type.",
           ],
           "type": "string",
         },
-        "__schema58": {
-          "description": "Exactly one numeric threshold value.",
-          "items": {
-            "type": "number",
-          },
-          "maxItems": 1,
-          "minItems": 1,
-          "type": "array",
-        },
         "__schema6": {
           "description": "Sort configuration for the query, it can use a combination of metrics and dimensions.",
           "items": {
             "$ref": "#/definitions/__schema7",
           },
-          "type": "array",
-        },
-        "__schema60": {
-          "description": "Use for ranges between two numeric bounds.",
-          "enum": [
-            "inBetween",
-            "notInBetween",
-          ],
-          "type": "string",
-        },
-        "__schema63": {
-          "description": "Exactly two numeric bounds: [lower, upper].",
-          "items": {
-            "type": "number",
-          },
-          "maxItems": 2,
-          "minItems": 2,
           "type": "array",
         },
         "__schema65": {
@@ -2958,13 +2900,16 @@ All branches of an IF must return the same type.",
                   "enum": [
                     "date",
                     "timestamp",
-                    "date",
-                    "timestamp",
                   ],
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema69",
+                  "description": "Use isNull for missing dates, notNull for present dates.",
+                  "enum": [
+                    "isNull",
+                    "notNull",
+                  ],
+                  "type": "string",
                 },
               },
               "required": [
@@ -2997,13 +2942,16 @@ All branches of an IF must return the same type.",
                   "enum": [
                     "date",
                     "timestamp",
-                    "date",
-                    "timestamp",
                   ],
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema72",
+                  "description": "Use equals/notEquals for explicit dates or datetimes.",
+                  "enum": [
+                    "equals",
+                    "notEquals",
+                  ],
+                  "type": "string",
                 },
                 "values": {
                   "$ref": "#/definitions/__schema75",
@@ -3042,8 +2990,6 @@ All branches of an IF must return the same type.",
                 },
                 "fieldType": {
                   "enum": [
-                    "date",
-                    "timestamp",
                     "date",
                     "timestamp",
                   ],
@@ -3095,8 +3041,6 @@ All branches of an IF must return the same type.",
                   "enum": [
                     "date",
                     "timestamp",
-                    "date",
-                    "timestamp",
                   ],
                   "type": "string",
                 },
@@ -3107,7 +3051,14 @@ All branches of an IF must return the same type.",
                   "$ref": "#/definitions/__schema98",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema96",
+                  "description": "Always [1] for current-period filters.",
+                  "items": {
+                    "const": 1,
+                    "type": "number",
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array",
                 },
               },
               "required": [
@@ -3140,8 +3091,6 @@ All branches of an IF must return the same type.",
                 },
                 "fieldType": {
                   "enum": [
-                    "date",
-                    "timestamp",
                     "date",
                     "timestamp",
                   ],
@@ -3185,8 +3134,6 @@ All branches of an IF must return the same type.",
                   "enum": [
                     "date",
                     "timestamp",
-                    "date",
-                    "timestamp",
                   ],
                   "type": "string",
                 },
@@ -3209,14 +3156,6 @@ All branches of an IF must return the same type.",
               "type": "object",
             },
           ],
-        },
-        "__schema69": {
-          "description": "Use isNull for missing dates, notNull for present dates.",
-          "enum": [
-            "isNull",
-            "notNull",
-          ],
-          "type": "string",
         },
         "__schema7": {
           "additionalProperties": false,
@@ -3243,14 +3182,6 @@ All branches of an IF must return the same type.",
             "nullsFirst",
           ],
           "type": "object",
-        },
-        "__schema72": {
-          "description": "Use equals/notEquals for explicit dates or datetimes.",
-          "enum": [
-            "equals",
-            "notEquals",
-          ],
-          "type": "string",
         },
         "__schema75": {
           "description": "One or more explicit ISO dates/datetimes.",
@@ -3363,16 +3294,6 @@ All branches of an IF must return the same type.",
             "notInTheCurrent",
           ],
           "type": "string",
-        },
-        "__schema96": {
-          "description": "Always [1] for current-period filters.",
-          "items": {
-            "const": 1,
-            "type": "number",
-          },
-          "maxItems": 1,
-          "minItems": 1,
-          "type": "array",
         },
         "__schema98": {
           "additionalProperties": false,
@@ -3570,12 +3491,8 @@ Usage tips:
       "additionalProperties": false,
       "properties": {
         "dashboardName": {
-          "allOf": [
-            {
-              "type": "string",
-            },
-          ],
           "description": "The name of the dashboard (for display purposes). Obtained from findContent results.",
+          "type": "string",
         },
         "dashboardUuid": {
           "description": "The UUID of the dashboard to get charts for. Obtained from findContent results.",
@@ -3948,31 +3865,19 @@ Parameters:
       "additionalProperties": false,
       "properties": {
         "limit": {
-          "allOf": [
-            {
-              "exclusiveMinimum": 0,
-              "maximum": 500,
-              "type": "integer",
-            },
-          ],
           "default": 100,
           "description": "Maximum number of tables to return (default 100, max 500).",
+          "exclusiveMinimum": 0,
+          "maximum": 500,
+          "type": "integer",
         },
         "schema": {
-          "allOf": [
-            {
-              "type": "string",
-            },
-          ],
           "description": "Optional schema name to filter results.",
+          "type": "string",
         },
         "search": {
-          "allOf": [
-            {
-              "type": "string",
-            },
-          ],
           "description": "Optional case-insensitive substring filter on table name.",
+          "type": "string",
         },
       },
       "type": "object",
@@ -4021,16 +3926,12 @@ Parameters:
           "type": "string",
         },
         "resourceName": {
-          "allOf": [
-            {
-              "minLength": 1,
-              "type": [
-                "string",
-                "null",
-              ],
-            },
-          ],
           "description": "Optional sub-resource file name to load from the skill. You can find names of sub-resources by first loading the skill without this parameter.",
+          "minLength": 1,
+          "type": [
+            "string",
+            "null",
+          ],
         },
       },
       "required": [
@@ -4130,54 +4031,42 @@ Parameters:
       "additionalProperties": false,
       "properties": {
         "chartSlugs": {
-          "allOf": [
-            {
-              "items": {
-                "type": "string",
-              },
-              "type": [
-                "array",
-                "null",
-              ],
-            },
-          ],
           "default": null,
           "description": "Saved charts (slugs from findContent) whose queries the app is built on; the charts themselves stay unchanged. Omit when not building on saved charts.",
+          "items": {
+            "type": "string",
+          },
+          "type": [
+            "array",
+            "null",
+          ],
         },
         "dashboardSlug": {
-          "allOf": [
-            {
-              "type": [
-                "string",
-                "null",
-              ],
-            },
-          ],
           "default": null,
           "description": "Generate from an existing dashboard: its slug (from findContent). The app starts from the dashboard's layout and charts; the dashboard itself stays unchanged. Omit when not generating from a dashboard.",
+          "type": [
+            "string",
+            "null",
+          ],
         },
         "prompt": {
           "description": "A self-contained brief for the coding agent that builds the app: what the app shows, for whom, and how it behaves. Carry this thread's analysis in as a collection of visualizations — for each one, its title, a one-line description, and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\`. The coding agent sees the semantic layer but not this conversation, so include every detail it needs.",
           "type": "string",
         },
         "template": {
-          "allOf": [
-            {
-              "enum": [
-                "dashboard",
-                "slideshow",
-                "pdf",
-                "custom",
-                null,
-              ],
-              "type": [
-                "string",
-                "null",
-              ],
-            },
-          ],
           "default": null,
           "description": "Starter template the builder would use: "dashboard" for a dashboard-style app, "slideshow" for a slide show, "pdf" for a PDF report, "custom" for anything else. Omit when the user did not ask for one.",
+          "enum": [
+            "dashboard",
+            "slideshow",
+            "pdf",
+            "custom",
+            null,
+          ],
+          "type": [
+            "string",
+            "null",
+          ],
         },
       },
       "required": [
@@ -5924,12 +5813,16 @@ All branches of an IF must return the same type.",
                 "fieldType": {
                   "enum": [
                     "boolean",
-                    "boolean",
                   ],
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema16",
+                  "description": "Use isNull for missing values, notNull for present values.",
+                  "enum": [
+                    "isNull",
+                    "notNull",
+                  ],
+                  "type": "string",
                 },
               },
               "required": [
@@ -5961,15 +5854,25 @@ All branches of an IF must return the same type.",
                 "fieldType": {
                   "enum": [
                     "boolean",
-                    "boolean",
                   ],
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema19",
+                  "description": "Use equals/notEquals to match true or false.",
+                  "enum": [
+                    "equals",
+                    "notEquals",
+                  ],
+                  "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema22",
+                  "description": "Exactly one boolean value, e.g. [true] or [false].",
+                  "items": {
+                    "type": "boolean",
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array",
                 },
               },
               "required": [
@@ -6133,31 +6036,6 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema16": {
-          "description": "Use isNull for missing values, notNull for present values.",
-          "enum": [
-            "isNull",
-            "notNull",
-          ],
-          "type": "string",
-        },
-        "__schema19": {
-          "description": "Use equals/notEquals to match true or false.",
-          "enum": [
-            "equals",
-            "notEquals",
-          ],
-          "type": "string",
-        },
-        "__schema22": {
-          "description": "Exactly one boolean value, e.g. [true] or [false].",
-          "items": {
-            "type": "boolean",
-          },
-          "maxItems": 1,
-          "minItems": 1,
-          "type": "array",
-        },
         "__schema24": {
           "anyOf": [
             {
@@ -6180,12 +6058,16 @@ All branches of an IF must return the same type.",
                 "fieldType": {
                   "enum": [
                     "string",
-                    "string",
                   ],
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema28",
+                  "description": "Use isNull for missing values, notNull for present values.",
+                  "enum": [
+                    "isNull",
+                    "notNull",
+                  ],
+                  "type": "string",
                 },
               },
               "required": [
@@ -6217,7 +6099,6 @@ All branches of an IF must return the same type.",
                 "fieldType": {
                   "enum": [
                     "string",
-                    "string",
                   ],
                   "type": "string",
                 },
@@ -6225,7 +6106,11 @@ All branches of an IF must return the same type.",
                   "$ref": "#/definitions/__schema31",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema38",
+                  "description": "String values to match. Do not put natural-language date ranges here.",
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
                 },
               },
               "required": [
@@ -6238,14 +6123,6 @@ All branches of an IF must return the same type.",
               "type": "object",
             },
           ],
-        },
-        "__schema28": {
-          "description": "Use isNull for missing values, notNull for present values.",
-          "enum": [
-            "isNull",
-            "notNull",
-          ],
-          "type": "string",
         },
         "__schema3": {
           "description": "The field ids of the metrics to be calculated. They will be grouped by the dimensions.",
@@ -6266,13 +6143,6 @@ All branches of an IF must return the same type.",
             "doesNotInclude",
           ],
           "type": "string",
-        },
-        "__schema38": {
-          "description": "String values to match. Do not put natural-language date ranges here.",
-          "items": {
-            "type": "string",
-          },
-          "type": "array",
         },
         "__schema40": {
           "anyOf": [
@@ -6297,7 +6167,12 @@ All branches of an IF must return the same type.",
                   "$ref": "#/definitions/__schema42",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema44",
+                  "description": "Use isNull for missing values, notNull for present values.",
+                  "enum": [
+                    "isNull",
+                    "notNull",
+                  ],
+                  "type": "string",
                 },
               },
               "required": [
@@ -6330,10 +6205,19 @@ All branches of an IF must return the same type.",
                   "$ref": "#/definitions/__schema42",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema47",
+                  "description": "Use equals/notEquals for exact numeric matches.",
+                  "enum": [
+                    "equals",
+                    "notEquals",
+                  ],
+                  "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema50",
+                  "description": "One or more exact numeric values to match.",
+                  "items": {
+                    "type": "number",
+                  },
+                  "type": "array",
                 },
               },
               "required": [
@@ -6370,7 +6254,13 @@ All branches of an IF must return the same type.",
                   "$ref": "#/definitions/__schema52",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema57",
+                  "description": "Exactly one numeric threshold value.",
+                  "items": {
+                    "type": "number",
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array",
                 },
               },
               "required": [
@@ -6404,10 +6294,21 @@ All branches of an IF must return the same type.",
                   "$ref": "#/definitions/__schema42",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema59",
+                  "description": "Use for ranges between two numeric bounds.",
+                  "enum": [
+                    "inBetween",
+                    "notInBetween",
+                  ],
+                  "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema62",
+                  "description": "Exactly two numeric bounds: [lower, upper].",
+                  "items": {
+                    "type": "number",
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array",
                 },
               },
               "required": [
@@ -6424,7 +6325,6 @@ All branches of an IF must return the same type.",
         "__schema42": {
           "enum": [
             "number",
-            "number",
             "percentile",
             "median",
             "average",
@@ -6438,33 +6338,10 @@ All branches of an IF must return the same type.",
           ],
           "type": "string",
         },
-        "__schema44": {
-          "description": "Use isNull for missing values, notNull for present values.",
-          "enum": [
-            "isNull",
-            "notNull",
-          ],
-          "type": "string",
-        },
-        "__schema47": {
-          "description": "Use equals/notEquals for exact numeric matches.",
-          "enum": [
-            "equals",
-            "notEquals",
-          ],
-          "type": "string",
-        },
         "__schema5": {
           "description": "Sort configuration for the query, it can use a combination of metrics and dimensions.",
           "items": {
             "$ref": "#/definitions/__schema6",
-          },
-          "type": "array",
-        },
-        "__schema50": {
-          "description": "One or more exact numeric values to match.",
-          "items": {
-            "type": "number",
           },
           "type": "array",
         },
@@ -6475,23 +6352,6 @@ All branches of an IF must return the same type.",
             "lessThanOrEqual",
             "greaterThan",
             "greaterThanOrEqual",
-          ],
-          "type": "string",
-        },
-        "__schema57": {
-          "description": "Exactly one numeric threshold value.",
-          "items": {
-            "type": "number",
-          },
-          "maxItems": 1,
-          "minItems": 1,
-          "type": "array",
-        },
-        "__schema59": {
-          "description": "Use for ranges between two numeric bounds.",
-          "enum": [
-            "inBetween",
-            "notInBetween",
           ],
           "type": "string",
         },
@@ -6521,15 +6381,6 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema62": {
-          "description": "Exactly two numeric bounds: [lower, upper].",
-          "items": {
-            "type": "number",
-          },
-          "maxItems": 2,
-          "minItems": 2,
-          "type": "array",
-        },
         "__schema64": {
           "anyOf": [
             {
@@ -6553,13 +6404,16 @@ All branches of an IF must return the same type.",
                   "enum": [
                     "date",
                     "timestamp",
-                    "date",
-                    "timestamp",
                   ],
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema68",
+                  "description": "Use isNull for missing dates, notNull for present dates.",
+                  "enum": [
+                    "isNull",
+                    "notNull",
+                  ],
+                  "type": "string",
                 },
               },
               "required": [
@@ -6592,13 +6446,16 @@ All branches of an IF must return the same type.",
                   "enum": [
                     "date",
                     "timestamp",
-                    "date",
-                    "timestamp",
                   ],
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema71",
+                  "description": "Use equals/notEquals for explicit dates or datetimes.",
+                  "enum": [
+                    "equals",
+                    "notEquals",
+                  ],
+                  "type": "string",
                 },
                 "values": {
                   "$ref": "#/definitions/__schema74",
@@ -6637,8 +6494,6 @@ All branches of an IF must return the same type.",
                 },
                 "fieldType": {
                   "enum": [
-                    "date",
-                    "timestamp",
                     "date",
                     "timestamp",
                   ],
@@ -6690,8 +6545,6 @@ All branches of an IF must return the same type.",
                   "enum": [
                     "date",
                     "timestamp",
-                    "date",
-                    "timestamp",
                   ],
                   "type": "string",
                 },
@@ -6702,7 +6555,14 @@ All branches of an IF must return the same type.",
                   "$ref": "#/definitions/__schema97",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema95",
+                  "description": "Always [1] for current-period filters.",
+                  "items": {
+                    "const": 1,
+                    "type": "number",
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array",
                 },
               },
               "required": [
@@ -6735,8 +6595,6 @@ All branches of an IF must return the same type.",
                 },
                 "fieldType": {
                   "enum": [
-                    "date",
-                    "timestamp",
                     "date",
                     "timestamp",
                   ],
@@ -6780,8 +6638,6 @@ All branches of an IF must return the same type.",
                   "enum": [
                     "date",
                     "timestamp",
-                    "date",
-                    "timestamp",
                   ],
                   "type": "string",
                 },
@@ -6804,22 +6660,6 @@ All branches of an IF must return the same type.",
               "type": "object",
             },
           ],
-        },
-        "__schema68": {
-          "description": "Use isNull for missing dates, notNull for present dates.",
-          "enum": [
-            "isNull",
-            "notNull",
-          ],
-          "type": "string",
-        },
-        "__schema71": {
-          "description": "Use equals/notEquals for explicit dates or datetimes.",
-          "enum": [
-            "equals",
-            "notEquals",
-          ],
-          "type": "string",
         },
         "__schema74": {
           "description": "One or more explicit ISO dates/datetimes.",
@@ -6976,16 +6816,6 @@ Example B — "Revenue by month with year-over-year comparison"
             "notInTheCurrent",
           ],
           "type": "string",
-        },
-        "__schema95": {
-          "description": "Always [1] for current-period filters.",
-          "items": {
-            "const": 1,
-            "type": "number",
-          },
-          "maxItems": 1,
-          "minItems": 1,
-          "type": "array",
         },
         "__schema97": {
           "additionalProperties": false,
@@ -7873,14 +7703,6 @@ Usage Tips:
           ],
           "type": "object",
         },
-        "__schema10": {
-          "description": "Use equals/notEquals to match true or false.",
-          "enum": [
-            "equals",
-            "notEquals",
-          ],
-          "type": "string",
-        },
         "__schema101": {
           "description": "Exactly two explicit ISO dates/datetimes: [start, end].",
           "items": {
@@ -7889,23 +7711,6 @@ Usage Tips:
           "maxItems": 2,
           "minItems": 2,
           "type": "array",
-        },
-        "__schema13": {
-          "description": "Exactly one boolean value, e.g. [true] or [false].",
-          "items": {
-            "type": "boolean",
-          },
-          "maxItems": 1,
-          "minItems": 1,
-          "type": "array",
-        },
-        "__schema18": {
-          "description": "Use isNull for missing values, notNull for present values.",
-          "enum": [
-            "isNull",
-            "notNull",
-          ],
-          "type": "string",
         },
         "__schema21": {
           "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/endsWith for prefixes/suffixes.",
@@ -7918,13 +7723,6 @@ Usage Tips:
             "doesNotInclude",
           ],
           "type": "string",
-        },
-        "__schema28": {
-          "description": "String values to match. Do not put natural-language date ranges here.",
-          "items": {
-            "type": "string",
-          },
-          "type": "array",
         },
         "__schema3": {
           "anyOf": [
@@ -7948,12 +7746,16 @@ Usage Tips:
                 "fieldType": {
                   "enum": [
                     "boolean",
-                    "boolean",
                   ],
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema7",
+                  "description": "Use isNull for missing values, notNull for present values.",
+                  "enum": [
+                    "isNull",
+                    "notNull",
+                  ],
+                  "type": "string",
                 },
               },
               "required": [
@@ -7985,15 +7787,25 @@ Usage Tips:
                 "fieldType": {
                   "enum": [
                     "boolean",
-                    "boolean",
                   ],
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema10",
+                  "description": "Use equals/notEquals to match true or false.",
+                  "enum": [
+                    "equals",
+                    "notEquals",
+                  ],
+                  "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema13",
+                  "description": "Exactly one boolean value, e.g. [true] or [false].",
+                  "items": {
+                    "type": "boolean",
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array",
                 },
               },
               "required": [
@@ -8025,12 +7837,16 @@ Usage Tips:
                 "fieldType": {
                   "enum": [
                     "string",
-                    "string",
                   ],
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema18",
+                  "description": "Use isNull for missing values, notNull for present values.",
+                  "enum": [
+                    "isNull",
+                    "notNull",
+                  ],
+                  "type": "string",
                 },
               },
               "required": [
@@ -8062,7 +7878,6 @@ Usage Tips:
                 "fieldType": {
                   "enum": [
                     "string",
-                    "string",
                   ],
                   "type": "string",
                 },
@@ -8070,7 +7885,11 @@ Usage Tips:
                   "$ref": "#/definitions/__schema21",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema28",
+                  "description": "String values to match. Do not put natural-language date ranges here.",
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
                 },
               },
               "required": [
@@ -8106,13 +7925,16 @@ Usage Tips:
                   "enum": [
                     "date",
                     "timestamp",
-                    "date",
-                    "timestamp",
                   ],
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema57",
+                  "description": "Use isNull for missing dates, notNull for present dates.",
+                  "enum": [
+                    "isNull",
+                    "notNull",
+                  ],
+                  "type": "string",
                 },
               },
               "required": [
@@ -8145,13 +7967,16 @@ Usage Tips:
                   "enum": [
                     "date",
                     "timestamp",
-                    "date",
-                    "timestamp",
                   ],
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema60",
+                  "description": "Use equals/notEquals for explicit dates or datetimes.",
+                  "enum": [
+                    "equals",
+                    "notEquals",
+                  ],
+                  "type": "string",
                 },
                 "values": {
                   "$ref": "#/definitions/__schema63",
@@ -8190,8 +8015,6 @@ Usage Tips:
                 },
                 "fieldType": {
                   "enum": [
-                    "date",
-                    "timestamp",
                     "date",
                     "timestamp",
                   ],
@@ -8243,8 +8066,6 @@ Usage Tips:
                   "enum": [
                     "date",
                     "timestamp",
-                    "date",
-                    "timestamp",
                   ],
                   "type": "string",
                 },
@@ -8255,7 +8076,14 @@ Usage Tips:
                   "$ref": "#/definitions/__schema86",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema84",
+                  "description": "Always [1] for current-period filters.",
+                  "items": {
+                    "const": 1,
+                    "type": "number",
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array",
                 },
               },
               "required": [
@@ -8288,8 +8116,6 @@ Usage Tips:
                 },
                 "fieldType": {
                   "enum": [
-                    "date",
-                    "timestamp",
                     "date",
                     "timestamp",
                   ],
@@ -8331,8 +8157,6 @@ Usage Tips:
                 },
                 "fieldType": {
                   "enum": [
-                    "date",
-                    "timestamp",
                     "date",
                     "timestamp",
                   ],
@@ -8381,7 +8205,12 @@ Usage Tips:
                   "$ref": "#/definitions/__schema32",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema34",
+                  "description": "Use isNull for missing values, notNull for present values.",
+                  "enum": [
+                    "isNull",
+                    "notNull",
+                  ],
+                  "type": "string",
                 },
               },
               "required": [
@@ -8414,10 +8243,19 @@ Usage Tips:
                   "$ref": "#/definitions/__schema32",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema37",
+                  "description": "Use equals/notEquals for exact numeric matches.",
+                  "enum": [
+                    "equals",
+                    "notEquals",
+                  ],
+                  "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema40",
+                  "description": "One or more exact numeric values to match.",
+                  "items": {
+                    "type": "number",
+                  },
+                  "type": "array",
                 },
               },
               "required": [
@@ -8454,7 +8292,13 @@ Usage Tips:
                   "$ref": "#/definitions/__schema42",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema47",
+                  "description": "Exactly one numeric threshold value.",
+                  "items": {
+                    "type": "number",
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array",
                 },
               },
               "required": [
@@ -8488,10 +8332,21 @@ Usage Tips:
                   "$ref": "#/definitions/__schema32",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema49",
+                  "description": "Use for ranges between two numeric bounds.",
+                  "enum": [
+                    "inBetween",
+                    "notInBetween",
+                  ],
+                  "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema52",
+                  "description": "Exactly two numeric bounds: [lower, upper].",
+                  "items": {
+                    "type": "number",
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array",
                 },
               },
               "required": [
@@ -8508,7 +8363,6 @@ Usage Tips:
         "__schema32": {
           "enum": [
             "number",
-            "number",
             "percentile",
             "median",
             "average",
@@ -8522,29 +8376,6 @@ Usage Tips:
           ],
           "type": "string",
         },
-        "__schema34": {
-          "description": "Use isNull for missing values, notNull for present values.",
-          "enum": [
-            "isNull",
-            "notNull",
-          ],
-          "type": "string",
-        },
-        "__schema37": {
-          "description": "Use equals/notEquals for exact numeric matches.",
-          "enum": [
-            "equals",
-            "notEquals",
-          ],
-          "type": "string",
-        },
-        "__schema40": {
-          "description": "One or more exact numeric values to match.",
-          "items": {
-            "type": "number",
-          },
-          "type": "array",
-        },
         "__schema42": {
           "description": "Use for threshold comparisons such as greater than 100.",
           "enum": [
@@ -8552,48 +8383,6 @@ Usage Tips:
             "lessThanOrEqual",
             "greaterThan",
             "greaterThanOrEqual",
-          ],
-          "type": "string",
-        },
-        "__schema47": {
-          "description": "Exactly one numeric threshold value.",
-          "items": {
-            "type": "number",
-          },
-          "maxItems": 1,
-          "minItems": 1,
-          "type": "array",
-        },
-        "__schema49": {
-          "description": "Use for ranges between two numeric bounds.",
-          "enum": [
-            "inBetween",
-            "notInBetween",
-          ],
-          "type": "string",
-        },
-        "__schema52": {
-          "description": "Exactly two numeric bounds: [lower, upper].",
-          "items": {
-            "type": "number",
-          },
-          "maxItems": 2,
-          "minItems": 2,
-          "type": "array",
-        },
-        "__schema57": {
-          "description": "Use isNull for missing dates, notNull for present dates.",
-          "enum": [
-            "isNull",
-            "notNull",
-          ],
-          "type": "string",
-        },
-        "__schema60": {
-          "description": "Use equals/notEquals for explicit dates or datetimes.",
-          "enum": [
-            "equals",
-            "notEquals",
           ],
           "type": "string",
         },
@@ -8631,14 +8420,6 @@ Usage Tips:
             "inThePast",
             "notInThePast",
             "inTheNext",
-          ],
-          "type": "string",
-        },
-        "__schema7": {
-          "description": "Use isNull for missing values, notNull for present values.",
-          "enum": [
-            "isNull",
-            "notNull",
           ],
           "type": "string",
         },
@@ -8688,16 +8469,6 @@ Usage Tips:
             "notInTheCurrent",
           ],
           "type": "string",
-        },
-        "__schema84": {
-          "description": "Always [1] for current-period filters.",
-          "items": {
-            "const": 1,
-            "type": "number",
-          },
-          "maxItems": 1,
-          "minItems": 1,
-          "type": "array",
         },
         "__schema86": {
           "additionalProperties": false,
@@ -9246,13 +9017,31 @@ All branches of an IF must return the same type.",
         "description": "Separate flat expressions for dimensions, metrics, and table calculations. Each category chooses AND or OR independently. Non-null categories combine implicitly with AND. For example, dimensions "D1 AND D2" and metrics "M1 OR M2" mean "(D1 AND D2) AND (M1 OR M2)", where D1, D2, M1, and M2 are complete filter rules. Use null when a category has no filters.",
         "properties": {
           "dimensions": {
-            "$ref": "#/definitions/__schema16",
+            "description": "Flat filter expression for dimension fields.",
+            "maxLength": 16384,
+            "minLength": 1,
+            "type": [
+              "string",
+              "null",
+            ],
           },
           "metrics": {
-            "$ref": "#/definitions/__schema17",
+            "description": "Flat filter expression for metric fields.",
+            "maxLength": 16384,
+            "minLength": 1,
+            "type": [
+              "string",
+              "null",
+            ],
           },
           "tableCalculations": {
-            "$ref": "#/definitions/__schema18",
+            "description": "Flat filter expression for table calculations.",
+            "maxLength": 16384,
+            "minLength": 1,
+            "type": [
+              "string",
+              "null",
+            ],
           },
         },
         "required": [
@@ -9262,33 +9051,6 @@ All branches of an IF must return the same type.",
         ],
         "type": [
           "object",
-          "null",
-        ],
-      },
-      "__schema16": {
-        "description": "Flat filter expression for dimension fields.",
-        "maxLength": 16384,
-        "minLength": 1,
-        "type": [
-          "string",
-          "null",
-        ],
-      },
-      "__schema17": {
-        "description": "Flat filter expression for metric fields.",
-        "maxLength": 16384,
-        "minLength": 1,
-        "type": [
-          "string",
-          "null",
-        ],
-      },
-      "__schema18": {
-        "description": "Flat filter expression for table calculations.",
-        "maxLength": 16384,
-        "minLength": 1,
-        "type": [
-          "string",
           "null",
         ],
       },

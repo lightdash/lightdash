@@ -83,8 +83,12 @@ failure. Before dependency installation, all commands failed before collection.
 - agent-tool contract snapshots: `required` sets are unchanged except
   `runContentQuery.source.parameters`, which Zod 4 treats as a required key
   (`z.unknown()` keys are no longer optional); serialized agent tool schemas
-  total 177,009 bytes against 181,173 on main, with `$ref` count down from 787
-  to 245 after inlining small definitions
+  total 173,368 bytes against 181,173 on main, with `$ref` count down from 787
+  to 188 after inlining small definitions
+- an ajv differential test covers every agent tool: generated valid samples
+  plus type, null, missing-key and unknown-key mutations at every path must be
+  accepted or rejected identically by the native schema with closed objects
+  and by the model-facing encoding
 - no contract widenings remain; the only sampled narrowings are Zod 4's RFC UUID
   validation and rejection of integers outside JavaScript's safe range
 - frozen lockfile installation and supply-chain policy verification pass
