@@ -218,9 +218,9 @@ export const LinearReviewSettings = () => {
                     <Text c="dimmed" fz="xs">
                         Create one Linear issue for each new review finding.
                         Existing open findings can be exported with the button
-                        below. Each issue links back here, and the review
-                        issue shows the Linear URL. This is a one-way export;
-                        status changes are not synced back.
+                        below. Each issue links back here, and the review issue
+                        shows the Linear URL. This is a one-way export; status
+                        changes are not synced back.
                     </Text>
                     {hasLinear && (
                         <Text c="dimmed" fz="xs" mt={4}>
