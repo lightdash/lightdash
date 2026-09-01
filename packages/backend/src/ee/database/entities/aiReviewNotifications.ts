@@ -18,7 +18,7 @@ export type DbAiReviewNotificationSettings = {
     linear_enabled: boolean;
     linear_team_id: string | null;
     linear_project_id: string | null;
-    linear_apply_to_all_projects: boolean;
+    linear_apply_to_all_projects: boolean | null;
     created_at: Date;
     updated_at: Date;
 };
