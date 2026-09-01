@@ -646,17 +646,11 @@ export class MobilePushNotificationModel {
 
     async deleteInstallation(args: {
         installationUuid: string;
-        organizationUuid: string;
-        userUuid: string;
     }): Promise<void> {
         await this.database<DbMobilePushInstallation>(
             MobilePushInstallationsTableName,
         )
-            .where({
-                installation_uuid: args.installationUuid,
-                organization_uuid: args.organizationUuid,
-                user_uuid: args.userUuid,
-            })
+            .where('installation_uuid', args.installationUuid)
             .delete();
     }
 

@@ -31,6 +31,24 @@ afterEach(() => {
 });
 
 describe('MobilePushNotificationModel', () => {
+    it('deletes only the installation identified by the supplied UUID', async () => {
+        tracker.on.delete(MobilePushInstallationsTableName).responseOnce(0);
+
+        await expect(
+            model.deleteInstallation({
+                installationUuid: '10000000-0000-4000-8000-000000000003',
+            }),
+        ).resolves.toBeUndefined();
+
+        expect(tracker.history.delete).toHaveLength(1);
+        expect(tracker.history.delete[0].sql).toContain(
+            'where "installation_uuid" = $1',
+        );
+        expect(tracker.history.delete[0].bindings).toEqual([
+            '10000000-0000-4000-8000-000000000003',
+        ]);
+    });
+
     it('serializes an absent UUID before storing a rotating device token', async () => {
         tracker.on.any(/pg_advisory_xact_lock/).responseOnce([]);
         tracker.on.select(MobilePushInstallationsTableName).responseOnce([]);

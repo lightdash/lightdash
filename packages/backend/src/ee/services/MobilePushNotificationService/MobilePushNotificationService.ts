@@ -131,11 +131,7 @@ export type MobilePushNotificationStore = {
         limit: number;
         maxAttempts: number;
     }): Promise<SchedulableLiveActivityStartAttempt[]>;
-    deleteInstallation(args: {
-        installationUuid: string;
-        organizationUuid: string;
-        userUuid: string;
-    }): Promise<void>;
+    deleteInstallation(args: { installationUuid: string }): Promise<void>;
     upsertLiveActivity(activity: UpsertLiveActivity): Promise<void>;
     deleteLiveActivity(args: {
         liveActivityUuid: string;
@@ -502,16 +498,14 @@ export class MobilePushNotificationService {
     }
 
     async revokeInstallation(args: {
-        user: MobilePushUser;
         installationUuid: string;
     }): Promise<void> {
-        const { organizationUuid } = args.user;
-        if (organizationUuid == null) return;
+        if (!isValidUuid(args.installationUuid)) {
+            throw new ParameterError('Invalid installation UUID');
+        }
 
         await this.mobilePushNotificationStore.deleteInstallation({
             installationUuid: args.installationUuid,
-            organizationUuid,
-            userUuid: args.user.userUuid,
         });
     }
 

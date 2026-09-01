@@ -1177,23 +1177,37 @@ describe('MobilePushNotificationService installation lifecycle', () => {
         ).not.toHaveBeenCalled();
     });
 
-    it('revokes only the current account installation on sign-out', async () => {
+    it('revokes only the installation identified by the supplied UUID', async () => {
         const dependencies = createDependencies();
         const service = new MobilePushNotificationService(dependencies);
 
         await service.revokeInstallation({
-            user: { userUuid, organizationUuid },
-            installationUuid,
+            installationUuid: validOriginUuid,
         });
 
         expect(
             dependencies.mobilePushNotificationStore.deleteInstallation,
         ).toHaveBeenCalledWith({
-            installationUuid,
-            organizationUuid,
-            userUuid,
+            installationUuid: validOriginUuid,
         });
     });
+
+    it.each(['not-a-uuid', '10000000-0000-4000-7000-000000000003'])(
+        'rejects invalid installation identifier %s',
+        async (invalidInstallationUuid) => {
+            const dependencies = createDependencies();
+            const service = new MobilePushNotificationService(dependencies);
+
+            await expect(
+                service.revokeInstallation({
+                    installationUuid: invalidInstallationUuid,
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(
+                dependencies.mobilePushNotificationStore.deleteInstallation,
+            ).not.toHaveBeenCalled();
+        },
+    );
 
     it('revokes only the current account activity tuple', async () => {
         const dependencies = createDependencies();

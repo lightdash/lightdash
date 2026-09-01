@@ -93,17 +93,14 @@ export class MobilePushNotificationController extends BaseController {
         return { status: 'ok', results: undefined };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Delete('/installations/{installationUuid}')
     @OperationId('revokeMobilePushInstallation')
     async revokeInstallation(
-        @Request() req: express.Request,
+        @Request() _req: express.Request,
         @Path() installationUuid: string,
     ): Promise<ApiMobilePushInstallationResponse> {
-        assertRegisteredAccount(req.account);
         await this.getMobilePushNotificationService().revokeInstallation({
-            user: toSessionUser(req.account),
             installationUuid,
         });
         this.setStatus(200);
