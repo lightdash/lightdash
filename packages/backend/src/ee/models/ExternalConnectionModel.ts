@@ -1,5 +1,6 @@
 import {
     AlreadyExistsError,
+    ConflictError,
     DATA_APP_VIZ_TEMPLATE,
     EXTERNAL_CONNECTION_DEFAULTS,
     generateSlug,
@@ -907,15 +908,34 @@ export class ExternalConnectionModel {
         externalConnectionUuid: string,
         alias: string,
     ): Promise<void> {
-        // Idempotent: re-linking the same alias (e.g. on iteration) is a no-op.
-        await this.database(AppExternalConnectionsTableName)
+        const inserted = await this.database(AppExternalConnectionsTableName)
             .insert({
                 app_id: appId,
                 external_connection_uuid: externalConnectionUuid,
                 alias,
             })
             .onConflict(['app_id', 'alias'])
-            .ignore();
+            .ignore()
+            .returning('external_connection_uuid');
+
+        if (inserted.length > 0) return;
+
+        const existing = await this.database(AppExternalConnectionsTableName)
+            .where('app_id', appId)
+            .where('alias', alias)
+            .first<{ external_connection_uuid: string } | undefined>(
+                'external_connection_uuid',
+            );
+
+        // Preserve idempotency for retries of the same link, but never report
+        // success when this alias points at a different connection.
+        if (existing?.external_connection_uuid === externalConnectionUuid) {
+            return;
+        }
+
+        throw new ConflictError(
+            `Alias "${alias}" is already linked to another external connection for this app`,
+        );
     }
 
     /**

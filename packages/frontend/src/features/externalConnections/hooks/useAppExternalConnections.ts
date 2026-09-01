@@ -5,7 +5,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
-const getAppExternalConnections = async (
+export const getAppExternalConnections = async (
     projectUuid: string,
     appUuid: string,
 ) =>

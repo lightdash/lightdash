@@ -9,9 +9,9 @@ import {
     Group,
     Skeleton,
     Stack,
+    Tabs,
     Text,
     ThemeIcon,
-    Title,
 } from '@mantine/core';
 import {
     IconAppWindow,
@@ -21,13 +21,14 @@ import {
     IconPuzzle,
     IconUser,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useExternalConnectionLinkedApps } from '../../../features/externalConnections/hooks/useExternalConnectionLinkedApps';
 import { useUnlinkAppExternalConnection } from '../../../features/externalConnections/hooks/useUnlinkAppExternalConnection';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import classes from './ConnectionUsageModal.module.css';
+import { LinkAppRow } from './LinkAppRow';
 
 type Props = {
     opened: boolean;
@@ -94,29 +95,22 @@ const UsageRow: FC<{
     );
 };
 
-const UsageSection: FC<{
-    title: string;
+const UsageList: FC<{
     items: ExternalConnectionLinkedApp[];
     projectUuid: string;
     onUnlink: (item: ExternalConnectionLinkedApp) => void;
-}> = ({ title, items, projectUuid, onUnlink }) => (
-    <Stack gap="xs">
-        <Group gap="xs">
-            <Title order={6}>{title}</Title>
-            <Text fz="xs" c="ldGray.6">
-                {items.length}
-            </Text>
-        </Group>
-        <Stack gap={0}>
-            {items.map((item) => (
-                <UsageRow
-                    key={item.appUuid}
-                    projectUuid={projectUuid}
-                    item={item}
-                    onUnlink={onUnlink}
-                />
-            ))}
-        </Stack>
+    children?: ReactNode;
+}> = ({ items, projectUuid, onUnlink, children }) => (
+    <Stack gap={0}>
+        {items.map((item) => (
+            <UsageRow
+                key={item.appUuid}
+                projectUuid={projectUuid}
+                item={item}
+                onUnlink={onUnlink}
+            />
+        ))}
+        {children}
     </Stack>
 );
 
@@ -181,35 +175,58 @@ export const ConnectionUsageModal: FC<Props> = ({
                         Try again
                     </Button>
                 </Stack>
-            ) : (data?.total ?? 0) === 0 ? (
-                <Stack align="center" gap="xs" py="xl">
-                    <Text fz="sm" fw={600}>
-                        No linked apps
-                    </Text>
-                    <Text fz="sm" c="ldGray.6" ta="center">
-                        No data apps or chart types are linked to this
-                        connection yet.
-                    </Text>
-                </Stack>
             ) : (
-                <Stack gap="lg">
-                    {dataApps.length > 0 && (
-                        <UsageSection
-                            title="Data apps"
+                <Tabs
+                    defaultValue={
+                        dataApps.length === 0 && chartTypes.length > 0
+                            ? 'chartTypes'
+                            : 'dataApps'
+                    }
+                    keepMounted={false}
+                >
+                    <Tabs.List grow>
+                        <Tabs.Tab value="dataApps">
+                            Data apps ({dataApps.length})
+                        </Tabs.Tab>
+                        <Tabs.Tab value="chartTypes">
+                            Chart types ({chartTypes.length})
+                        </Tabs.Tab>
+                    </Tabs.List>
+
+                    <Tabs.Panel value="dataApps" pt="md">
+                        <UsageList
                             items={dataApps}
                             projectUuid={projectUuid}
                             onUnlink={setPendingUnlink}
-                        />
-                    )}
-                    {chartTypes.length > 0 && (
-                        <UsageSection
-                            title="Chart types"
+                        >
+                            <LinkAppRow
+                                kind="data_app"
+                                projectUuid={projectUuid}
+                                connection={connection}
+                                linkedAppUuids={dataApps.map(
+                                    (item) => item.appUuid,
+                                )}
+                            />
+                        </UsageList>
+                    </Tabs.Panel>
+
+                    <Tabs.Panel value="chartTypes" pt="md">
+                        <UsageList
                             items={chartTypes}
                             projectUuid={projectUuid}
                             onUnlink={setPendingUnlink}
-                        />
-                    )}
-                </Stack>
+                        >
+                            <LinkAppRow
+                                kind="project_chart_type"
+                                projectUuid={projectUuid}
+                                connection={connection}
+                                linkedAppUuids={chartTypes.map(
+                                    (item) => item.appUuid,
+                                )}
+                            />
+                        </UsageList>
+                    </Tabs.Panel>
+                </Tabs>
             )}
             <MantineModal
                 opened={pendingUnlink !== undefined}
