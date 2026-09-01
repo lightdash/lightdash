@@ -3,7 +3,7 @@ import { SamplingDecision, type Sampler } from '@opentelemetry/sdk-trace-base';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     AlwaysSampleAiRootsSampler,
-    getOtelTraceExportConfig,
+    configureOtelTraceExport,
     LightdashTraceContextPropagator,
     otelTracingEnabled,
     sentryTraceToTraceparent,
@@ -26,49 +26,45 @@ describe('otelTracingEnabled', () => {
     });
 });
 
-describe('getOtelTraceExportConfig', () => {
+describe('configureOtelTraceExport', () => {
     it('reports the default and explicitly disabled exporter selections', () => {
         vi.stubEnv('OTEL_TRACES_EXPORTER', undefined);
         vi.stubEnv('OTEL_EXPORTER_OTLP_TRACES_PROTOCOL', undefined);
         vi.stubEnv('OTEL_EXPORTER_OTLP_PROTOCOL', undefined);
 
-        expect(getOtelTraceExportConfig()).toEqual({
+        expect(configureOtelTraceExport()).toEqual({
             exporters: ['otlp'],
             protocol: 'http/protobuf',
             warnings: [],
         });
 
         vi.stubEnv('OTEL_TRACES_EXPORTER', 'none');
-        expect(getOtelTraceExportConfig()).toEqual({
+        expect(configureOtelTraceExport()).toEqual({
             exporters: ['none'],
             protocol: null,
             warnings: [],
         });
     });
 
-    it('matches NodeSDK handling when none is combined with exporters', () => {
-        vi.stubEnv('OTEL_TRACES_EXPORTER', 'none,otlp');
-        expect(getOtelTraceExportConfig()).toEqual({
-            exporters: ['none'],
-            protocol: null,
-            warnings: [],
-        });
-
-        vi.stubEnv('OTEL_TRACES_EXPORTER', 'otlp,none');
-        expect(getOtelTraceExportConfig()).toEqual({
-            exporters: ['otlp'],
-            protocol: 'http/protobuf',
-            warnings: [
-                'OTEL_TRACES_EXPORTER contains "none" with other exporters; OpenTelemetry will use the default "otlp" exporter',
-            ],
-        });
+    it('uses none when it is combined with exporters in either order', () => {
+        for (const exporters of ['none,otlp', 'otlp,none']) {
+            vi.stubEnv('OTEL_TRACES_EXPORTER', exporters);
+            expect(configureOtelTraceExport()).toEqual({
+                exporters: ['none'],
+                protocol: null,
+                warnings: [
+                    'OTEL_TRACES_EXPORTER contains "none" with other exporters; only "none" will be used',
+                ],
+            });
+            expect(process.env.OTEL_TRACES_EXPORTER).toBe('none');
+        }
     });
 
     it('reports console export without an OTLP protocol', () => {
         vi.stubEnv('OTEL_TRACES_EXPORTER', 'console');
         vi.stubEnv('OTEL_EXPORTER_OTLP_PROTOCOL', 'grpc');
 
-        expect(getOtelTraceExportConfig()).toEqual({
+        expect(configureOtelTraceExport()).toEqual({
             exporters: ['console'],
             protocol: null,
             warnings: [],
@@ -80,7 +76,7 @@ describe('getOtelTraceExportConfig', () => {
         vi.stubEnv('OTEL_EXPORTER_OTLP_PROTOCOL', 'http/protobuf');
         vi.stubEnv('OTEL_EXPORTER_OTLP_TRACES_PROTOCOL', 'grpc');
 
-        expect(getOtelTraceExportConfig()).toEqual({
+        expect(configureOtelTraceExport()).toEqual({
             exporters: ['otlp'],
             protocol: 'grpc',
             warnings: [],
@@ -90,7 +86,7 @@ describe('getOtelTraceExportConfig', () => {
     it('warns when no supported exporter is selected', () => {
         vi.stubEnv('OTEL_TRACES_EXPORTER', 'unsupported');
 
-        expect(getOtelTraceExportConfig()).toEqual({
+        expect(configureOtelTraceExport()).toEqual({
             exporters: [],
             protocol: null,
             warnings: [
@@ -104,7 +100,7 @@ describe('getOtelTraceExportConfig', () => {
         vi.stubEnv('OTEL_TRACES_EXPORTER', 'otlp');
         vi.stubEnv('OTEL_EXPORTER_OTLP_TRACES_PROTOCOL', 'unsupported');
 
-        expect(getOtelTraceExportConfig()).toEqual({
+        expect(configureOtelTraceExport()).toEqual({
             exporters: ['otlp'],
             protocol: 'http/protobuf',
             warnings: [

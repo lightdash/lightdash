@@ -103,27 +103,23 @@ type OtelTraceExportConfig = {
     warnings: string[];
 };
 
-export const getOtelTraceExportConfig = (): OtelTraceExportConfig => {
+export const configureOtelTraceExport = (): OtelTraceExportConfig => {
     let requestedExporters = Array.from(
         new Set(getStringListFromEnv('OTEL_TRACES_EXPORTER') ?? []),
     ).filter((exporter) => exporter !== 'null');
     const warnings: string[] = [];
 
-    // Match NodeSDK: leading "none" configures no exporter; later "none"
-    // values cause the SDK to fall back to its default OTLP exporter.
-    if (requestedExporters[0] === 'none') {
+    if (requestedExporters.includes('none')) {
+        process.env.OTEL_TRACES_EXPORTER = 'none';
+        if (requestedExporters.length > 1) {
+            warnings.push(
+                'OTEL_TRACES_EXPORTER contains "none" with other exporters; only "none" will be used',
+            );
+        }
         return { exporters: ['none'], protocol: null, warnings };
     }
 
     if (requestedExporters.length === 0) {
-        requestedExporters = ['otlp'];
-    } else if (
-        requestedExporters.length > 1 &&
-        requestedExporters.includes('none')
-    ) {
-        warnings.push(
-            'OTEL_TRACES_EXPORTER contains "none" with other exporters; OpenTelemetry will use the default "otlp" exporter',
-        );
         requestedExporters = ['otlp'];
     }
 
@@ -417,7 +413,7 @@ class OtelTracingStrategy implements TracingStrategy {
     initialize() {
         if (!this.isEnabled() || this.sdk) return;
 
-        const exportConfig = getOtelTraceExportConfig();
+        const exportConfig = configureOtelTraceExport();
         exportConfig.warnings.forEach((warning) => Logger.warn(warning));
 
         // Leaving spanProcessors unset delegates exporter and protocol
