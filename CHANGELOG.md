@@ -1,3 +1,10 @@
+## [2.72.5](https://github.com/lightdash/lightdash/compare/2.72.4...2.72.5) (2026-09-01)
+
+
+### Bug Fixes
+
+* **mcp:** match query guidance to the tools available in each session ([#28403](https://github.com/lightdash/lightdash/issues/28403)) ([9549c35](https://github.com/lightdash/lightdash/commit/9549c35f96eef3a4709dbd5947438f35eee53eb7))
+
 ## [2.72.4](https://github.com/lightdash/lightdash/compare/2.72.3...2.72.4) (2026-09-01)
 
 
