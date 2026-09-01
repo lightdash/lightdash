@@ -42,6 +42,13 @@ const threadOwnership = {
     ownerIsServiceAccount: false,
 };
 
+const agent = {
+    uuid: agentUuid,
+    organizationUuid,
+    projectUuid,
+    name: 'Mobile Demo Agent',
+};
+
 const prompt = {
     organizationUuid,
     projectUuid,
@@ -49,6 +56,7 @@ const prompt = {
     threadUuid,
     agentUuid,
     createdByUserUuid: userUuid,
+    prompt: 'How many people used Chrome last month?',
 };
 
 const claimedStartAttempt = {
@@ -103,11 +111,7 @@ const createDependencies = () => {
         >(async () => []),
     } satisfies MobilePushNotificationStore;
     const threadStore = {
-        getAgent: vi.fn<MobilePushThreadStore['getAgent']>(async () => ({
-            uuid: agentUuid,
-            organizationUuid,
-            projectUuid,
-        })),
+        getAgent: vi.fn<MobilePushThreadStore['getAgent']>(async () => agent),
         findThreadOwnership: vi.fn<
             MobilePushThreadStore['findThreadOwnership']
         >(async () => threadOwnership),
@@ -699,6 +703,7 @@ describe('MobilePushNotificationService.startLiveActivitiesForPrompt', () => {
                     uuid: agentUuid,
                     organizationUuid,
                     projectUuid: 'foreign-project',
+                    name: 'Mobile Demo Agent',
                 });
             }
             if (mismatch === 'thread') {
@@ -799,8 +804,8 @@ describe('MobilePushNotificationService.deliverLiveActivityStart', () => {
                         agentUuid,
                         threadUuid,
                         promptUuid,
-                        agentName: 'Agent',
-                        taskSummary: null,
+                        agentName: 'Mobile Demo Agent',
+                        taskSummary: 'How many people used Chrome last month?',
                     },
                     'input-push-token': 1,
                     alert: {

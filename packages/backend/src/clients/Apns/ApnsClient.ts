@@ -43,8 +43,8 @@ export type LiveActivityStartPayload = {
             agentUuid: string;
             threadUuid: string;
             promptUuid: string;
-            agentName: 'Agent';
-            taskSummary: null;
+            agentName: string | null;
+            taskSummary: string | null;
         };
         'input-push-token': 1;
         alert: {
@@ -95,6 +95,10 @@ export type ApnsProviderTokenSource = {
 };
 
 export const APNS_REQUEST_TIMEOUT_MS = 30_000;
+
+const LIVE_ACTIVITY_AGENT_NAME_LIMIT = 28;
+
+const LIVE_ACTIVITY_TASK_SUMMARY_LIMIT = 60;
 
 class ApnsRequestTimeoutError extends Error {
     constructor() {
@@ -169,6 +173,21 @@ export const buildLiveActivityPayload = (args: {
     },
 });
 
+const condenseLiveActivityText = (
+    text: string | null,
+    limit: number,
+): string | null => {
+    const collapsed = text?.trim().split(/\s+/u).join(' ') ?? '';
+    if (collapsed.length === 0) return null;
+
+    const characters = Array.from(collapsed);
+    if (characters.length <= limit) return collapsed;
+
+    const clipped = characters.slice(0, limit).join('');
+    const boundary = clipped.lastIndexOf(' ');
+    return `${boundary < 0 ? clipped : clipped.slice(0, boundary)}…`;
+};
+
 export const buildLiveActivityStartPayload = (args: {
     timestamp: Date;
     staleAt: Date;
@@ -178,6 +197,8 @@ export const buildLiveActivityStartPayload = (args: {
     agentUuid: string;
     threadUuid: string;
     promptUuid: string;
+    agentName: string | null;
+    taskSummary: string | null;
 }): LiveActivityStartPayload => ({
     aps: {
         timestamp: Math.floor(args.timestamp.getTime() / 1000),
@@ -198,8 +219,14 @@ export const buildLiveActivityStartPayload = (args: {
             agentUuid: args.agentUuid,
             threadUuid: args.threadUuid,
             promptUuid: args.promptUuid,
-            agentName: 'Agent',
-            taskSummary: null,
+            agentName: condenseLiveActivityText(
+                args.agentName,
+                LIVE_ACTIVITY_AGENT_NAME_LIMIT,
+            ),
+            taskSummary: condenseLiveActivityText(
+                args.taskSummary,
+                LIVE_ACTIVITY_TASK_SUMMARY_LIMIT,
+            ),
         },
         'input-push-token': 1,
         alert: {
