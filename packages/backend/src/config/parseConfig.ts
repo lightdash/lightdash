@@ -2546,6 +2546,9 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
                 const trimmed = raw.trim();
                 return trimmed === '' ? null : trimmed.replace(/\/$/, '');
             })(process.env.LIGHTDASH_CHART_REGISTRY_URL),
+            // DEV ONLY — never set in production. Disables the registry
+            // client's SSRF defenses (allows http:// and private/loopback
+            // addresses, skips IP pinning) so a local fixture registry works.
             allowInsecure:
                 process.env.LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE === 'true',
         },
