@@ -1,6 +1,6 @@
-/* Shared by Paper and Card. */
+/* Shared by Paper and Card. Mantine's own scheme rule sets the border
+   colour (gray-3 / dark-4) at a higher specificity, so it is left alone. */
 .root {
-    --paper-border-color: var(--mantine-color-default-border);
     background-color: var(--mantine-color-body);
 }
 

@@ -1,4 +1,5 @@
 .dropdown {
+    composes: dropdown from './Dropdown.module.css';
     --popover-border-color: var(--mantine-color-default-border);
     --popover-shadow: var(--mantine-shadow-md);
     padding: rem(4px);

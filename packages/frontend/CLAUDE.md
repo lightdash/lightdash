@@ -21,7 +21,7 @@ The theme lives in `src/theme/`: `colors.ts` (neutral ramps, `primary` is the in
 
 -   **Use semantic tokens, not `light-dark()` pairs**: `--mantine-color-body` (surface), `--ld-color-page` (canvas), `--mantine-color-default-border`, `--mantine-color-default-hover`, `--mantine-color-text`, `--mantine-color-dimmed`, `--mantine-color-placeholder`. They resolve per scheme already.
 -   **`ldGray.N` means the same thing in both schemes**: 0 canvas, 1 muted fill, 2 border, 3 strong border, 4 faint icon, 5 tertiary text, 6 secondary text (same as `dimmed`), 7 label, 9 text.
--   **Defaults you get for free**: Paper/Card are bordered, flat (no shadow), 12px radius; Menu/Popover carry the `md` shadow; ActionIcon is `subtle`; Badge is `light` gray; Button sizes are 28/32/36/40px. Do not restate these at call sites.
+-   **Defaults you get for free**: Paper/Card are bordered, flat (no shadow), 12px radius; Menu/Popover carry the `md` shadow and pop open from their anchor; ActionIcon is `subtle`; Badge is `light` gray; Button sizes are 28/32/36/40px. Do not restate these at call sites.
 -   **Add a variant, not a one-off**: repeated overrides belong in `src/theme/components/<Component>.module.css`. Reach for the theme's `vars` callback only when Mantine writes the value inline (button/badge colors, NavLink fill, input font size).
 -   **Check both schemes** in the `Theme/Gallery` story (`src/stories/ThemeGallery.stories.tsx`) before shipping a theme change.
 

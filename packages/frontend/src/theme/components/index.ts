@@ -29,6 +29,7 @@ import {
     PasswordInput,
     Pill,
     Popover,
+    type PopoverProps,
     Radio,
     ScrollArea,
     SegmentedControl,
@@ -92,6 +93,18 @@ const controlFontSize = (theme: MantineTheme, size: unknown) => {
 };
 
 const isNeutral = (color: unknown) => color === undefined || color === 'gray';
+
+/** Dropdowns pop out of their anchor; Dropdown.module.css sets the origin. */
+const dropdownTransition: NonNullable<PopoverProps['transitionProps']> = {
+    transition: {
+        in: { opacity: 1, transform: 'scale(1)' },
+        out: { opacity: 0, transform: 'scale(0.96)' },
+        transitionProperty: 'transform, opacity',
+    },
+    duration: 160,
+    exitDuration: 100,
+    timingFunction: 'cubic-bezier(0.32, 1.25, 0.6, 1)',
+};
 
 /**
  * Component extensions: the app's variants live here, as CSS modules for the
@@ -240,6 +253,7 @@ export const themeComponents: MantineThemeOverride['components'] = {
         defaultProps: {
             shadow: 'md',
             withinPortal: true,
+            transitionProps: dropdownTransition,
         },
         classNames: popoverClasses,
     }),
