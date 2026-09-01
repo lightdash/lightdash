@@ -129,7 +129,7 @@ export const getOtelTraceExportConfig = (): OtelTraceExportConfig => {
         if (SUPPORTED_TRACE_EXPORTERS.has(exporter)) return true;
 
         warnings.push(
-            `Unsupported OTEL_TRACES_EXPORTER value "${exporter}"; supported values are otlp, console, zipkin, and none`,
+            `Unsupported OTEL_TRACES_EXPORTER value "${exporter}" was ignored; supported values are otlp, console, zipkin, and none`,
         );
         return false;
     });
@@ -418,6 +418,8 @@ class OtelTracingStrategy implements TracingStrategy {
         const exportConfig = getOtelTraceExportConfig();
         exportConfig.warnings.forEach((warning) => Logger.warn(warning));
 
+        // Leaving spanProcessors unset delegates exporter and protocol
+        // selection to the Node SDK's standard OTEL_* environment handling.
         this.sdk = new NodeSDK({
             // Sentry's context manager (an AsyncLocalStorage manager that also
             // forks Sentry scopes per context) is required for per-request

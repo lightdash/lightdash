@@ -76,7 +76,7 @@ describe('getOtelTraceExportConfig', () => {
             exporters: [],
             protocol: null,
             warnings: [
-                'Unsupported OTEL_TRACES_EXPORTER value "unsupported"; supported values are otlp, console, zipkin, and none',
+                'Unsupported OTEL_TRACES_EXPORTER value "unsupported" was ignored; supported values are otlp, console, zipkin, and none',
                 'OpenTelemetry could not configure trace export because no supported exporter was selected',
             ],
         });
