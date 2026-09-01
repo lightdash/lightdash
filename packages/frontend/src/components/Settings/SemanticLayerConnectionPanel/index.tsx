@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import { CommercialFeatureFlags } from '@lightdash/common';
 import {
-    ActionIcon,
     Anchor,
     Box,
     CopyButton,
@@ -12,7 +11,6 @@ import {
     Tabs,
     Text,
     Title,
-    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import {
@@ -30,6 +28,7 @@ import { useProject } from '../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import Callout from '../../common/Callout';
+import { CopyActionIcon } from '../../common/CopyActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { GenerateTokenModal, type GeneratedToken } from './GenerateTokenModal';
@@ -73,18 +72,12 @@ const ConnectionChip: FC<{ label: string; value: string; span?: boolean }> = ({
                 {value}
             </Text>
         </Box>
-        <CopyButton value={value} timeout={2000}>
-            {({ copied, copy }) => (
-                <Tooltip label={copied ? 'Copied' : 'Copy'} position="left">
-                    <ActionIcon variant="default" size="sm" onClick={copy}>
-                        <MantineIcon
-                            icon={copied ? IconCheck : IconCopy}
-                            size="sm"
-                        />
-                    </ActionIcon>
-                </Tooltip>
-            )}
-        </CopyButton>
+        <CopyActionIcon
+            value={value}
+            tooltipPosition="left"
+            variant="default"
+            size="sm"
+        />
     </Box>
 );
 
@@ -126,18 +119,7 @@ const CodeBlock: FC<{ displayValue: ReactNode; copyValue: string }> = ({
     <Box className={`${classes.codeBlock} sentry-block ph-no-capture`}>
         {displayValue}
         <Box className={classes.codeBlockCopy}>
-            <CopyButton value={copyValue} timeout={2000}>
-                {({ copied, copy }) => (
-                    <Tooltip label={copied ? 'Copied' : 'Copy'} position="left">
-                        <ActionIcon
-                            color={copied ? 'teal' : 'gray'}
-                            onClick={copy}
-                        >
-                            <MantineIcon icon={copied ? IconCheck : IconCopy} />
-                        </ActionIcon>
-                    </Tooltip>
-                )}
-            </CopyButton>
+            <CopyActionIcon value={copyValue} tooltipPosition="left" />
         </Box>
     </Box>
 );

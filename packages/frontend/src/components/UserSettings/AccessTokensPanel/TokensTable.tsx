@@ -6,7 +6,6 @@ import {
 import {
     ActionIcon,
     Button,
-    CopyButton,
     Group,
     Menu,
     Paper,
@@ -19,7 +18,6 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
-    IconCheck,
     IconCopy,
     IconDots,
     IconInfoCircle,
@@ -41,6 +39,7 @@ import {
     useRotateAccessToken,
 } from '../../../hooks/useAccessToken';
 import Callout from '../../common/Callout';
+import { CopyActionIcon } from '../../common/CopyActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
@@ -209,23 +208,10 @@ const RotateTokenForm: FC<{
                     className="sentry-block ph-no-capture"
                     value={rotatedTokenData.token}
                     rightSection={
-                        <CopyButton value={rotatedTokenData.token}>
-                            {({ copied, copy }) => (
-                                <Tooltip
-                                    label={copied ? 'Copied' : 'Copy'}
-                                    position="right"
-                                >
-                                    <ActionIcon
-                                        color={copied ? 'teal' : 'gray'}
-                                        onClick={copy}
-                                    >
-                                        <MantineIcon
-                                            icon={copied ? IconCheck : IconCopy}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
-                        </CopyButton>
+                        <CopyActionIcon
+                            value={rotatedTokenData.token}
+                            tooltipPosition="right"
+                        />
                     }
                 />
 
@@ -375,25 +361,14 @@ export const TokensTable = () => {
                                 {tokenToCopy?.uuid}
                             </Text>
                         </Paper>
-                        <CopyButton value={tokenToCopy?.uuid ?? ''}>
-                            {({ copied, copy }) => (
-                                <Tooltip
-                                    label={copied ? 'Copied!' : 'Copy UUID'}
-                                    position="top"
-                                >
-                                    <ActionIcon
-                                        size="sm"
-                                        onClick={copy}
-                                        variant={copied ? 'filled' : 'light'}
-                                        color={copied ? 'teal' : 'blue'}
-                                    >
-                                        <MantineIcon
-                                            icon={copied ? IconCheck : IconCopy}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
-                        </CopyButton>
+                        <CopyActionIcon
+                            value={tokenToCopy?.uuid ?? ''}
+                            copyLabel="Copy UUID"
+                            copiedLabel="Copied!"
+                            tooltipPosition="top"
+                            size="sm"
+                            variant="light"
+                        />
                     </Group>
                 </Stack>
             </MantineModal>

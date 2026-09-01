@@ -1,6 +1,5 @@
 import { LightdashMode, type ApiErrorDetail } from '@lightdash/common';
 import {
-    ActionIcon,
     Anchor,
     Button,
     Code,
@@ -9,13 +8,13 @@ import {
     Modal,
     Stack,
     Text,
-    Tooltip,
     useComputedColorScheme,
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { defaultContext } from '@tanstack/react-query';
 import { useContext, useLayoutEffect, useRef, useState } from 'react';
+import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SnowflakeFormInput } from '../../components/UserSettings/MyWarehouseConnectionsPanel/WarehouseFormInputs';
 import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
@@ -109,24 +108,15 @@ export const CopyErrorButton = ({
     value: string;
     color: string;
 }) => (
-    <CopyButton value={value}>
-        {({ copied, copy }) => (
-            <Tooltip label={copied ? 'Copied' : 'Copy error'} position="right">
-                <ActionIcon
-                    aria-label="Copy error details"
-                    color="ldGray.6"
-                    size="xs"
-                    onClick={copy}
-                    variant="transparent"
-                >
-                    <MantineIcon
-                        color={color}
-                        icon={copied ? IconCheck : IconCopy}
-                    />
-                </ActionIcon>
-            </Tooltip>
-        )}
-    </CopyButton>
+    <CopyActionIcon
+        value={value}
+        copyLabel="Copy error"
+        tooltipPosition="right"
+        aria-label="Copy error details"
+        color={color}
+        size="xs"
+        variant="transparent"
+    />
 );
 
 const CopyErrorIdButton = ({ value }: { value: string }) => (

@@ -31,6 +31,7 @@ import { useConnectionSamples } from '../../../features/externalConnections/hook
 import { useDeleteConnectionSample } from '../../../features/externalConnections/hooks/useDeleteConnectionSample';
 import { useSaveConnectionSample } from '../../../features/externalConnections/hooks/useSaveConnectionSample';
 import { useTestConnection } from '../../../features/externalConnections/hooks/useTestConnection';
+import { ConfirmDeleteButton } from '../../common/ConfirmDeleteButton';
 import MantineIcon from '../../common/MantineIcon';
 
 const MAX_SAMPLE_PREVIEW_CHARS = 200;
@@ -123,7 +124,6 @@ const SampleRow: FC<SampleRowProps> = ({
     connectionUuid,
 }) => {
     const deleteMutation = useDeleteConnectionSample();
-    const [confirming, setConfirming] = useState(false);
 
     const label =
         sample.label ?? `${sample.request.method} ${sample.request.path}`;
@@ -138,18 +138,12 @@ const SampleRow: FC<SampleRowProps> = ({
         MAX_SAMPLE_PREVIEW_CHARS,
     );
 
-    const handleDelete = () => {
-        if (!confirming) {
-            setConfirming(true);
-            return;
-        }
+    const handleDelete = () =>
         deleteMutation.mutate({
             projectUuid,
             connectionUuid,
             sampleUuid: sample.sampleUuid,
         });
-        setConfirming(false);
-    };
 
     return (
         <Box
@@ -171,24 +165,16 @@ const SampleRow: FC<SampleRowProps> = ({
                         {responsePreview}
                     </Text>
                 </Stack>
-                <ActionIcon
-                    color={confirming ? 'red' : undefined}
-                    variant={confirming ? 'filled' : 'subtle'}
+                <ConfirmDeleteButton
                     size="sm"
                     loading={deleteMutation.isLoading}
-                    onClick={handleDelete}
-                    title={
-                        confirming ? 'Click again to confirm' : 'Delete sample'
-                    }
+                    aria-label="Delete sample"
+                    tooltip="Click again to confirm"
+                    onConfirm={handleDelete}
                 >
                     <MantineIcon icon={IconTrash} size="sm" />
-                </ActionIcon>
+                </ConfirmDeleteButton>
             </Group>
-            {confirming && (
-                <Text fz="xs" c="red" mt={4}>
-                    Click the trash icon again to confirm deletion
-                </Text>
-            )}
         </Box>
     );
 };

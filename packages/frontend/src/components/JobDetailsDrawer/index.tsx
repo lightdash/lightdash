@@ -7,13 +7,11 @@ import {
 import {
     Alert,
     Box,
-    CopyButton,
     Group,
     Loader,
     Stack,
     Text,
     Title,
-    ActionIcon,
     Drawer,
     type DefaultMantineColor,
 } from '@mantine/core';
@@ -21,9 +19,7 @@ import { useInterval } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconAlertTriangleFilled,
-    IconCheck,
     IconCircleCheckFilled,
-    IconCopy,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
@@ -35,6 +31,7 @@ import {
     runningStepsInfo,
 } from '../../hooks/useRefreshServer';
 import useActiveJob from '../../providers/ActiveJob/useActiveJob';
+import { CopyActionIcon } from '../common/CopyActionIcon';
 import MantineIcon from '../common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../common/Page/constants';
 import ProjectCompileLog from './ProjectCompileLog';
@@ -205,7 +202,7 @@ const JobDetailsDrawer: FC = () => {
                                     pos="relative"
                                     gap="xs"
                                 >
-                                    <CopyButton
+                                    <CopyActionIcon
                                         value={
                                             step.stepError +
                                                 step.stepDbtLogs
@@ -217,27 +214,11 @@ const JobDetailsDrawer: FC = () => {
                                                     .map((log) => log.info.msg)
                                                     .join('\n') || ''
                                         }
-                                    >
-                                        {({ copied, copy }) => (
-                                            <ActionIcon
-                                                onClick={copy}
-                                                pos="absolute"
-                                                top={6}
-                                                right={4}
-                                                size="xs"
-                                            >
-                                                {copied ? (
-                                                    <MantineIcon
-                                                        icon={IconCheck}
-                                                    />
-                                                ) : (
-                                                    <MantineIcon
-                                                        icon={IconCopy}
-                                                    />
-                                                )}
-                                            </ActionIcon>
-                                        )}
-                                    </CopyButton>
+                                        pos="absolute"
+                                        top={6}
+                                        right={4}
+                                        size="xs"
+                                    />
                                     <Stack
                                         gap="xs"
                                         style={{

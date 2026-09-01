@@ -4,17 +4,9 @@ import {
     isCustomSqlDimension,
     isSqlTableCalculation,
 } from '@lightdash/common';
-import {
-    Box,
-    CopyButton,
-    Group,
-    Skeleton,
-    ActionIcon,
-    SegmentedControl,
-    Tooltip,
-} from '@mantine/core';
+import { Box, Group, Skeleton, SegmentedControl } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
-import { IconCheck, IconClipboard } from '@tabler/icons-react';
+import { IconClipboard } from '@tabler/icons-react';
 import {
     lazy,
     memo,
@@ -41,7 +33,7 @@ import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import Callout from '../../common/Callout';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
-import MantineIcon from '../../common/MantineIcon';
+import { CopyActionIcon } from '../../common/CopyActionIcon';
 import { type SqlViewType } from '../../RenderedSql';
 import OpenInSqlRunnerButton from './OpenInSqlRunnerButton';
 
@@ -117,33 +109,13 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                 (hovered || sqlIsOpen) &&
                 data &&
                 isSuccess ? (
-                    <CopyButton value={formattedSql} timeout={2000}>
-                        {({ copied, copy }) => (
-                            <Tooltip
-                                label={
-                                    copied ? 'Copied to clipboard' : 'Copy SQL'
-                                }
-                                position="right"
-                                color={copied ? 'green' : 'dark'}
-                                fw={500}
-                            >
-                                <ActionIcon
-                                    color={copied ? 'teal' : 'gray'}
-                                    onClick={copy}
-                                >
-                                    {
-                                        <MantineIcon
-                                            icon={
-                                                copied
-                                                    ? IconCheck
-                                                    : IconClipboard
-                                            }
-                                        />
-                                    }
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                    </CopyButton>
+                    <CopyActionIcon
+                        value={formattedSql}
+                        icon={IconClipboard}
+                        copyLabel="Copy SQL"
+                        copiedLabel="Copied to clipboard"
+                        tooltipPosition="right"
+                    />
                 ) : undefined
             }
             rightHeaderElement={

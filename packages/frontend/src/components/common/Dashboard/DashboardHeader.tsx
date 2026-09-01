@@ -42,8 +42,6 @@ import {
     IconPinnedOff,
     IconRefreshDot,
     IconSend,
-    IconStar,
-    IconStarFilled,
     IconTrash,
     IconUpload,
     IconUsers,
@@ -82,6 +80,7 @@ import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types'
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
+import { FavoriteActionIcon } from '../FavoriteActionIcon';
 import MantineIcon from '../MantineIcon';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import PageHeader from '../Page/PageHeader';
@@ -466,25 +465,16 @@ const DashboardHeader = memo(
                     )}
 
                     {dashboardUuid && (
-                        <ActionIcon
+                        <FavoriteActionIcon
                             size="md"
-                            color={isDashboardFavorited ? 'orange' : 'ldGray.6'}
-                            onClick={() => {
+                            isFavorite={isDashboardFavorited}
+                            onToggle={() => {
                                 toggleFavorite({
                                     contentType: ContentType.DASHBOARD,
                                     contentUuid: dashboardUuid,
                                 });
                             }}
-                        >
-                            <MantineIcon
-                                icon={
-                                    isDashboardFavorited
-                                        ? IconStarFilled
-                                        : IconStar
-                                }
-                                size={16}
-                            />
-                        </ActionIcon>
+                        />
                     )}
 
                     {isEditMode && userCanManageDashboard && (

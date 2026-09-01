@@ -16,7 +16,6 @@ import {
     Box,
     Button,
     Code,
-    CopyButton,
     Group,
     Paper,
     Popover,
@@ -28,8 +27,6 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconBug,
-    IconCheck,
-    IconCopy,
     IconExclamationCircle,
     IconMessageX,
     IconRefresh,
@@ -44,6 +41,7 @@ import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { type CustomRendererProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
+import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     useRetryAiAgentThreadMessageMutation,
@@ -1157,19 +1155,11 @@ export const AssistantBubble: FC<Props> = memo(
                 )}
                 {isLoading ? null : (
                     <Group gap={0}>
-                        <CopyButton value={message.message ?? ''}>
-                            {({ copied, copy }) => (
-                                <ActionIcon
-                                    color="ldGray.9"
-                                    aria-label="copy"
-                                    onClick={copy}
-                                >
-                                    <MantineIcon
-                                        icon={copied ? IconCheck : IconCopy}
-                                    />
-                                </ActionIcon>
-                            )}
-                        </CopyButton>
+                        <CopyActionIcon
+                            value={message.message ?? ''}
+                            color="ldGray.9"
+                            aria-label="copy"
+                        />
 
                         {(!hasRating || upVoted) && (
                             <ActionIcon

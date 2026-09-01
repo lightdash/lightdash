@@ -1,6 +1,4 @@
 import {
-    ActionIcon,
-    CopyButton,
     Group,
     Input,
     Paper,
@@ -8,9 +6,8 @@ import {
     Stack,
     Text,
     TextInput,
-    Tooltip,
 } from '@mantine/core';
-import { IconCheck, IconCopy, IconTable } from '@tabler/icons-react';
+import { IconTable } from '@tabler/icons-react';
 import { useCallback, type FC, type PropsWithChildren } from 'react';
 import {
     explorerActions,
@@ -19,6 +16,7 @@ import {
     useExplorerSelector,
 } from '../../../../features/explorer/store';
 import { getFieldColor } from '../../../../utils/fieldColors';
+import { CopyActionIcon } from '../../../common/CopyActionIcon';
 import FieldIcon from '../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../common/MantineIcon';
 import MantineModal from '../../../common/MantineModal';
@@ -35,20 +33,12 @@ const CopyableInput: FC<{ label: string; value: string }> = ({
         size="xs"
         onFocus={(e) => e.currentTarget.select()}
         rightSection={
-            <CopyButton value={value} timeout={1500}>
-                {({ copied, copy }) => (
-                    <Tooltip label={copied ? 'Copied' : 'Copy'} position="left">
-                        <ActionIcon
-                            size="xs"
-                            color={copied ? 'teal' : 'gray'}
-                            onClick={copy}
-                            aria-label={`Copy ${label}`}
-                        >
-                            <MantineIcon icon={copied ? IconCheck : IconCopy} />
-                        </ActionIcon>
-                    </Tooltip>
-                )}
-            </CopyButton>
+            <CopyActionIcon
+                value={value}
+                tooltipPosition="left"
+                size="xs"
+                aria-label={`Copy ${label}`}
+            />
         }
     />
 );

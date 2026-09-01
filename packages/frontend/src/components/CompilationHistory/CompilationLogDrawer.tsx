@@ -1,20 +1,9 @@
-import {
-    ActionIcon,
-    Box,
-    CopyButton,
-    Drawer,
-    Group,
-    ScrollArea,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine/core';
-import { IconCheck, IconCopy } from '@tabler/icons-react';
+import { Box, Drawer, Group, ScrollArea, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import ReactJson from 'react-json-view';
 import { type ProjectCompileLog } from '../../hooks/useProjectCompileLogs';
 import { useRjvTheme } from '../../hooks/useRjvTheme';
-import MantineIcon from '../common/MantineIcon';
+import { CopyActionIcon } from '../common/CopyActionIcon';
 
 type CompilationLogDrawerProps = {
     opened: boolean;
@@ -40,25 +29,10 @@ export const CompilationLogDrawer: FC<CompilationLogDrawerProps> = ({
                         Compilation Log Details
                     </Text>
                     {log && (
-                        <CopyButton
+                        <CopyActionIcon
                             value={JSON.stringify(log, null, 2)}
-                            timeout={2000}
-                        >
-                            {({ copied, copy }) => (
-                                <Tooltip
-                                    label={copied ? 'Copied' : 'Copy JSON'}
-                                >
-                                    <ActionIcon
-                                        color={copied ? 'teal' : 'gray'}
-                                        onClick={copy}
-                                    >
-                                        <MantineIcon
-                                            icon={copied ? IconCheck : IconCopy}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
-                        </CopyButton>
+                            copyLabel="Copy JSON"
+                        />
                     )}
                 </Group>
             }

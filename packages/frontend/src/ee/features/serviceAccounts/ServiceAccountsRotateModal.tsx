@@ -1,18 +1,10 @@
 import { type ServiceAccount } from '@lightdash/common';
-import {
-    ActionIcon,
-    Button,
-    CopyButton,
-    Select,
-    Stack,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+import { Button, Select, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconCheck, IconCopy, IconRefresh } from '@tabler/icons-react';
+import { IconRefresh } from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
-import MantineIcon from '../../../components/common/MantineIcon';
+import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useExpireOptions } from '../../../components/UserSettings/AccessTokensPanel/useExpireOptions';
 import { useServiceAccounts } from './useServiceAccounts';
@@ -71,23 +63,10 @@ const RotateForm: FC<{
                     className="sentry-block ph-no-capture"
                     value={rotatedData.token}
                     rightSection={
-                        <CopyButton value={rotatedData.token}>
-                            {({ copied, copy }) => (
-                                <Tooltip
-                                    label={copied ? 'Copied' : 'Copy'}
-                                    position="right"
-                                >
-                                    <ActionIcon
-                                        color={copied ? 'teal' : 'gray'}
-                                        onClick={copy}
-                                    >
-                                        <MantineIcon
-                                            icon={copied ? IconCheck : IconCopy}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
-                        </CopyButton>
+                        <CopyActionIcon
+                            value={rotatedData.token}
+                            tooltipPosition="right"
+                        />
                     }
                 />
 

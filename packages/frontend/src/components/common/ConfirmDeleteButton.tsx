@@ -65,7 +65,7 @@ export const ConfirmDeleteButton: FC<Props> = ({
                 {...actionIconProps}
                 aria-label={ariaLabel}
                 aria-pressed={armed}
-                color={armed ? 'red' : 'gray'}
+                color={armed ? 'red' : undefined}
                 variant={armed ? 'filled' : 'subtle'}
                 onClick={handleClick}
                 onMouseLeave={disarm}
