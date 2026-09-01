@@ -63,9 +63,7 @@ export type AiReviewNotificationSettingsTable = Knex.CompositeTableType<
         Partial<
             Pick<
                 DbAiReviewNotificationSettings,
-                | 'linear_apply_to_all_projects'
-                | 'created_at'
-                | 'updated_at'
+                'linear_apply_to_all_projects' | 'created_at' | 'updated_at'
             >
         >,
     Partial<

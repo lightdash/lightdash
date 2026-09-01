@@ -1,11 +1,8 @@
 import {
-    type AiReviewLinearDestination,
     type AiReviewLinearRouting,
-    type ApiAiReviewLinearDestinationResponse,
     type ApiAiReviewLinearRoutingResponse,
     type ApiAiReviewNotificationSettingsResponse,
     type ApiError,
-    type UpdateAiReviewLinearDestination,
     type UpdateAiReviewLinearRouting,
     type UpdateAiReviewNotificationSettings,
 } from '@lightdash/common';
@@ -24,7 +21,6 @@ const reviewApi = lightdashApi; // pragma: allowlist secret
 type Settings = ApiAiReviewNotificationSettingsResponse['results'];
 
 const QUERY_KEY = ['ai-review-notification-settings'];
-const LINEAR_DESTINATION_QUERY_KEY = ['ai-review-linear-destination'];
 const LINEAR_ROUTING_QUERY_KEY = ['ai-review-linear-routing'];
 
 const getReviewNotificationSettings = async () =>
@@ -85,57 +81,6 @@ export const useUpdateReviewNotificationSettings = (
     });
 };
 
-const getReviewLinearDestination = async (projectUuid: string) =>
-    lightdashApi<ApiAiReviewLinearDestinationResponse['results']>({
-        url: `/aiAgents/admin/review-linear-destination/${projectUuid}`,
-        method: 'GET',
-        body: undefined,
-    });
-
-export const useReviewLinearDestination = (projectUuid: string | null) =>
-    useQuery<AiReviewLinearDestination, ApiError>({
-        queryKey: [...LINEAR_DESTINATION_QUERY_KEY, projectUuid],
-        queryFn: () => getReviewLinearDestination(projectUuid!),
-        enabled: !!projectUuid,
-        keepPreviousData: false,
-    });
-
-const updateReviewLinearDestination = async (args: {
-    projectUuid: string;
-    data: UpdateAiReviewLinearDestination;
-}) =>
-    lightdashApi<AiReviewLinearDestination>({
-        url: `/aiAgents/admin/review-linear-destination/${args.projectUuid}`,
-        method: 'PUT',
-        body: JSON.stringify(args.data),
-    });
-
-export const useUpdateReviewLinearDestination = () => {
-    const queryClient = useQueryClient();
-    const { showToastApiError, showToastSuccess } = useToaster();
-
-    return useMutation<
-        AiReviewLinearDestination,
-        ApiError,
-        { projectUuid: string; data: UpdateAiReviewLinearDestination }
-    >({
-        mutationFn: updateReviewLinearDestination,
-        onSuccess: async (destination) => {
-            queryClient.setQueryData(
-                [...LINEAR_DESTINATION_QUERY_KEY, destination.projectUuid],
-                destination,
-            );
-            showToastSuccess({ title: 'Linear destination updated' });
-        },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to update Linear destination',
-                apiError: error,
-            });
-        },
-    });
-};
-
 const getReviewLinearRouting = async () =>
     reviewApi<ApiAiReviewLinearRoutingResponse['results']>({
         url: `/aiAgents/admin/review-linear-routing`,
@@ -170,7 +115,6 @@ export const useUpdateReviewLinearRouting = () => {
         mutationFn: updateReviewLinearRouting,
         onSuccess: async (routing) => {
             queryClient.setQueryData(LINEAR_ROUTING_QUERY_KEY, routing);
-            await queryClient.invalidateQueries(LINEAR_DESTINATION_QUERY_KEY);
             showToastSuccess({ title: 'Linear destination updated' });
         },
         onError: ({ error }) => {

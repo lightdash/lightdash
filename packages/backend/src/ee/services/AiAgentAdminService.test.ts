@@ -1629,10 +1629,12 @@ describe('AiAgentAdminService review notification settings', () => {
         const upsertLinearRouting = vi
             .fn()
             .mockImplementation((value) => Promise.resolve(value));
-        const getAllByOrganizationUuid = vi.fn().mockResolvedValue([
-            { projectUuid: PROJECT_UUID },
-            { projectUuid: OTHER_PROJECT_UUID },
-        ]);
+        const getAllByOrganizationUuid = vi
+            .fn()
+            .mockResolvedValue([
+                { projectUuid: PROJECT_UUID },
+                { projectUuid: OTHER_PROJECT_UUID },
+            ]);
         const service = makeService({
             projectModel: { getAllByOrganizationUuid },
             aiAgentReviewNotificationModel: { upsertLinearRouting },
@@ -1646,7 +1648,9 @@ describe('AiAgentAdminService review notification settings', () => {
             linearProjectId: null,
         });
 
-        expect(getAllByOrganizationUuid).toHaveBeenCalledWith(ORGANIZATION_UUID);
+        expect(getAllByOrganizationUuid).toHaveBeenCalledWith(
+            ORGANIZATION_UUID,
+        );
         expect(upsertLinearRouting).toHaveBeenCalledWith({
             organizationUuid: ORGANIZATION_UUID,
             applyToAllProjects: false,

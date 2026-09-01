@@ -14,7 +14,9 @@ export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable(settingsTable, (table) => {
         table.boolean(column).nullable().defaultTo(false);
     });
-    await knex(settingsTable).update({ [column]: false }).whereNull(column);
+    await knex(settingsTable)
+        .update({ [column]: false })
+        .whereNull(column);
 }
 
 export async function down(knex: Knex): Promise<void> {
