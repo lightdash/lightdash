@@ -29,6 +29,7 @@ import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassi
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { type McpToolCallModel } from '../models/McpToolCallModel';
+import { type ScimRequestLogModel } from '../models/ScimRequestLogModel';
 import { AiAgentAdminService } from '../services/AiAgentAdminService';
 import { AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
 import { AiAgentReviewClassifierService } from '../services/AiAgentReviewClassifierService';
@@ -133,6 +134,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     projectModel: ProjectModel;
     openIdIdentityModel: OpenIdIdentityModel;
     mcpToolCallModel: McpToolCallModel;
+    scimRequestLogModel: ScimRequestLogModel;
     projectHomepageService: Pick<
         ProjectHomepageService,
         'publishScheduledAnnouncement' | 'sweepDueAnnouncements'
@@ -193,6 +195,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly mcpToolCallModel: McpToolCallModel;
 
+    protected readonly scimRequestLogModel: ScimRequestLogModel;
+
     protected readonly projectHomepageService: CommercialSchedulerWorkerArguments['projectHomepageService'];
 
     protected readonly externalSourceService: CommercialSchedulerWorkerArguments['externalSourceService'];
@@ -232,6 +236,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.projectModel = args.projectModel;
         this.openIdIdentityModel = args.openIdIdentityModel;
         this.mcpToolCallModel = args.mcpToolCallModel;
+        this.scimRequestLogModel = args.scimRequestLogModel;
         this.projectHomepageService = args.projectHomepageService;
         this.externalSourceService = args.externalSourceService;
         this.mobilePushNotificationService = args.mobilePushNotificationService;
@@ -334,6 +339,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     maxAttempts: 3,
                 },
             },
+            {
+                task: EE_SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS,
+                pattern: '10 2 * * *', // 02:10 UTC daily
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                    maxAttempts: 3,
+                },
+            },
         ];
     }
 
@@ -417,6 +430,27 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         { maxAttempts: 3 },
                     );
                 }
+            },
+            [EE_SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: async () => {
+                const cleanupConfig =
+                    this.lightdashConfig.scheduler.scimRequestLogs.cleanup;
+                if (!cleanupConfig.enabled) {
+                    Logger.info('SCIM request log cleanup job is disabled');
+                    return;
+                }
+                Logger.info('Starting SCIM request log cleanup job');
+                const cutoffDate = new Date(
+                    Date.now() - cleanupConfig.retentionDays * 24 * 3600 * 1000,
+                );
+                const { totalDeleted, batchCount } =
+                    await this.scimRequestLogModel.cleanupBatch(cutoffDate, {
+                        batchSize: cleanupConfig.batchSize,
+                        delayMs: cleanupConfig.delayMs,
+                        maxBatches: cleanupConfig.maxBatches,
+                    });
+                Logger.info(
+                    `SCIM request log cleanup completed. Records deleted: ${totalDeleted} in ${batchCount} batches`,
+                );
             },
             [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: async (
                 payload,

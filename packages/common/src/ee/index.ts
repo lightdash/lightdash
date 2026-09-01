@@ -35,6 +35,7 @@ export * from './preAggregates';
 export * from './preAggregates/types';
 export * as preAggregateUtils from './preAggregates/utils';
 export * from './scim/errors';
+export * from './scim/requestLogs';
 export * from './scim/types';
 export * from './serviceAccounts/types';
 export * from './types/aiReviewNotification';
