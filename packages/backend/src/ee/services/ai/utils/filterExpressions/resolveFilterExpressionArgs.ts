@@ -4,6 +4,7 @@ import {
     convertAiTableCalcsSchemaToTableCalcs,
     customMetricsSchemaTransformed,
     DimensionType,
+    FILTER_EXPRESSION_MAX_RULES,
     filterAggregationCustomMetrics,
     filterExpressionOperatorDefinitions,
     FilterOperator,
@@ -146,6 +147,24 @@ const formatFieldId = (fieldId: string): string => {
     return `\`${fieldId.replaceAll('\\', '\\\\').replaceAll('`', '\\`')}\``;
 };
 
+const illustrativeValue = (filterType: FilterType): string => {
+    switch (filterType) {
+        case FilterType.BOOLEAN:
+            return 'true';
+        case FilterType.STRING:
+            return '"example value"';
+        case FilterType.NUMBER:
+            return '100';
+        case FilterType.DATE:
+            return '2025-01-01';
+        default:
+            return assertUnreachable(
+                filterType,
+                `Unknown filter type: ${filterType}`,
+            );
+    }
+};
+
 const exampleArguments = (
     operator: FilterOperator,
     filterType: FilterType,
@@ -177,22 +196,29 @@ const exampleArguments = (
             : '10,100';
     }
 
-    switch (filterType) {
-        case FilterType.BOOLEAN:
-            return 'true';
-        case FilterType.STRING:
-            return 'example';
-        case FilterType.NUMBER:
-            return '100';
-        case FilterType.DATE:
-            return '2025-01-01';
-        default:
-            return assertUnreachable(
-                filterType,
-                `Unknown filter type: ${filterType}`,
-            );
-    }
+    return illustrativeValue(filterType);
 };
+
+const isOperatorAvailableForFilterType = (
+    operator: FilterOperator,
+    filterType: FilterType,
+): boolean =>
+    filterExpressionOperatorDefinitions.some(
+        ({ operator: candidate, argumentCountByFilterType }) =>
+            candidate === operator &&
+            argumentCountByFilterType[filterType] !== null,
+    );
+
+const supportedOperatorsForFilterType = (filterType: FilterType): string =>
+    filterExpressionOperatorDefinitions
+        .filter(
+            ({ argumentCountByFilterType }) =>
+                argumentCountByFilterType[filterType] !== null,
+        )
+        .map(({ operator }) => operator)
+        .join(', ');
+
+const neutralExample = '`field ID` equals="example value"';
 
 const expressionExample = (
     fieldId: string,
@@ -200,79 +226,10 @@ const expressionExample = (
     filterType: FilterType,
 ): string => {
     const args = exampleArguments(operator, filterType);
-    return `${formatFieldId(fieldId)} ${operator}${args === null ? '' : `=${args}`}`;
-};
-
-const genericExample = (source: FilterExpressionSource): string => {
-    switch (source.kind) {
-        case 'customMetricFilter':
-            return 'orders_status equals=completed';
-        case 'queryFilter': {
-            const { category } = source;
-            switch (category) {
-                case 'dimensions':
-                    return 'orders_status equals=completed';
-                case 'metrics':
-                    return 'orders_total_revenue greaterThan=100';
-                case 'tableCalculations':
-                    return 'profit_margin lessThan=0.2';
-                default:
-                    return assertUnreachable(
-                        category,
-                        'Unknown query filter category',
-                    );
-            }
-        }
-        default:
-            return assertUnreachable(source, 'Unknown expression source');
-    }
-};
-
-const parserError = (
-    source: FilterExpressionSource,
-    error: FilterExpressionParseError,
-): FilterExpressionResolutionError => {
-    switch (error.code) {
-        case 'FILTER_EXPRESSION_SYNTAX':
-        case 'FILTER_EXPRESSION_MIXED_CONNECTORS':
-            return {
-                code: error.code,
-                source,
-                span: error.span,
-                parserMessage: error.message,
-                problem: error.message,
-                guidance:
-                    error.code === 'FILTER_EXPRESSION_MIXED_CONNECTORS'
-                        ? 'Use only AND or only OR within this expression.'
-                        : 'Use the documented field operator=value grammar and remove malformed or trailing input.',
-                example: genericExample(source),
-            };
-        case 'FILTER_EXPRESSION_BOUNDS_EXCEEDED':
-            return {
-                code: error.code,
-                source,
-                span: error.span,
-                limit: error.limit,
-                maximum: error.maximum,
-                actual: error.actual,
-                problem: error.message,
-                guidance:
-                    'Shorten or split the expression so it stays within the documented safety limits.',
-                example: genericExample(source),
-            };
-        default:
-            return assertUnreachable(error, 'Unknown parser error');
-    }
-};
-
-const parseExpression = (
-    expression: string,
-    source: FilterExpressionSource,
-): ResolutionResult<FilterExpressionAst> => {
-    const parsed = parseFilterExpression(expression);
-    return parsed.success
-        ? success(parsed.expression)
-        : failure(parserError(source, parsed.error));
+    const candidate = `${formatFieldId(fieldId)} ${operator}${args === null ? '' : `=${args}`}`;
+    return parseFilterExpression(candidate).success
+        ? candidate
+        : neutralExample;
 };
 
 const makeExploreFields = (
@@ -353,6 +310,61 @@ const isSupportedAiFilterField = (field: ResolvedField): boolean =>
         operator: FilterOperator.NULL,
     }).success;
 
+const compareFieldIds = (left: ResolvedField, right: ResolvedField): number => {
+    if (left.id < right.id) return -1;
+    if (left.id > right.id) return 1;
+    return 0;
+};
+
+const suggestedFieldRepairExample = ({
+    expressionInput,
+    rule,
+    suggestedField,
+}: {
+    expressionInput: string;
+    rule: FilterExpressionRule;
+    suggestedField: ResolvedField;
+}): string | null => {
+    const candidate = `${expressionInput.slice(0, rule.field.span.start.offset)}${formatFieldId(suggestedField.id)}${expressionInput.slice(rule.field.span.end.offset)}`;
+    return parseFilterExpression(candidate).success ? candidate : null;
+};
+
+const scopedExample = (
+    source: FilterExpressionSource,
+    fields: ResolvedField[],
+): string => {
+    const uniqueFields = fields.filter(
+        ({ id }) => getFieldMatches(fields, id).length === 1,
+    );
+    const matchingFields = (() => {
+        switch (source.kind) {
+            case 'customMetricFilter': {
+                const dimensions = uniqueFields
+                    .filter(({ category }) => category === 'dimensions')
+                    .sort(compareFieldIds);
+                return dimensions.length > 0
+                    ? dimensions
+                    : uniqueFields.sort(compareFieldIds);
+            }
+            case 'queryFilter':
+                return uniqueFields
+                    .filter(
+                        ({ category, filterType }) =>
+                            category === source.category &&
+                            (category !== 'tableCalculations' ||
+                                filterType === FilterType.NUMBER),
+                    )
+                    .sort(compareFieldIds);
+            default:
+                return assertUnreachable(source, 'Unknown expression source');
+        }
+    })();
+    const field = matchingFields[0];
+    return field
+        ? expressionExample(field.id, FilterOperator.EQUALS, field.filterType)
+        : neutralExample;
+};
+
 const invalidValueError = ({
     source,
     rule,
@@ -368,7 +380,7 @@ const invalidValueError = ({
     span: FilterExpressionSpan;
     problem: string;
     guidance: string;
-    example?: string;
+    example?: string | null;
 }): FilterExpressionResolutionError => ({
     code: 'FILTER_EXPRESSION_INVALID_VALUE',
     source,
@@ -378,16 +390,16 @@ const invalidValueError = ({
     filterType: field.filterType,
     problem,
     guidance,
-    example:
-        example ??
-        expressionExample(field.id, rule.operator.value, field.filterType),
+    example: example === undefined ? null : example,
 });
 
 const resolveField = ({
+    expressionInput,
     fields,
     rule,
     source,
 }: {
+    expressionInput: string;
     fields: ResolvedField[];
     rule: FilterExpressionRule;
     source: FilterExpressionSource;
@@ -398,24 +410,35 @@ const resolveField = ({
             source.kind === 'queryFilter'
                 ? fields.filter(({ category }) => category === source.category)
                 : fields;
+        const compatibleSuggestionFields = suggestionFields.filter(
+            ({ filterType }) =>
+                isOperatorAvailableForFilterType(
+                    rule.operator.value,
+                    filterType,
+                ),
+        );
         const suggestions =
             matches.length === 0
                 ? suggestClosestFieldIds(
                       rule.field.value,
-                      suggestionFields.map(({ id }) => id),
+                      compatibleSuggestionFields.map(({ id }) => id),
                       1,
                   )
                 : [];
         const suggestedField = suggestions[0]
-            ? suggestionFields.find(({ id }) => id === suggestions[0])
+            ? compatibleSuggestionFields.find(
+                  ({ id }) =>
+                      id === suggestions[0] &&
+                      getFieldMatches(fields, id).length === 1,
+              )
             : undefined;
         const example = suggestedField
-            ? expressionExample(
-                  suggestedField.id,
-                  FilterOperator.EQUALS,
-                  suggestedField.filterType,
-              )
-            : genericExample(source);
+            ? suggestedFieldRepairExample({
+                  expressionInput,
+                  rule,
+                  suggestedField,
+              })
+            : null;
         const reason = matches.length === 0 ? 'notFound' : 'ambiguous';
         const suggestionText = suggestions.length
             ? ` Did you mean: ${suggestions.join(', ')}?`
@@ -441,10 +464,13 @@ const resolveField = ({
 
     const field = matches[0];
     if (source.kind === 'queryFilter' && field.category !== source.category) {
-        const operatorIsAvailable = filterExpressionOperatorDefinitions.some(
-            ({ operator, argumentCountByFilterType }) =>
-                operator === rule.operator.value &&
-                argumentCountByFilterType[field.filterType] !== null,
+        const operatorIsAvailable = isOperatorAvailableForFilterType(
+            rule.operator.value,
+            field.filterType,
+        );
+        const originalRule = expressionInput.slice(
+            rule.span.start.offset,
+            rule.span.end.offset,
         );
         return failure({
             code: 'FILTER_EXPRESSION_WRONG_CATEGORY',
@@ -454,14 +480,14 @@ const resolveField = ({
             expectedCategory: field.category,
             actualCategory: source.category,
             problem: `The field is a ${getCategoryLabel(field.category)}, not a ${getCategoryLabel(source.category)}.`,
-            guidance: `Remove this rule from queryConfig.filters.${source.category} and move this rule to queryConfig.filters.${field.category}.`,
-            example: expressionExample(
-                field.id,
-                operatorIsAvailable
-                    ? rule.operator.value
-                    : FilterOperator.EQUALS,
-                field.filterType,
-            ),
+            guidance: `Move this rule from the ${getCategoryLabel(source.category)} filters to the ${getCategoryLabel(field.category)} filters.`,
+            example: operatorIsAvailable
+                ? originalRule
+                : expressionExample(
+                      field.id,
+                      FilterOperator.EQUALS,
+                      field.filterType,
+                  ),
         });
     }
 
@@ -480,6 +506,50 @@ const strictBoolean = (scalar: FilterExpressionScalar): boolean | null => {
     return null;
 };
 
+const replaceScalarInRuleExample = ({
+    expressionInput,
+    replacementValue,
+    rule,
+    scalar,
+}: {
+    expressionInput: string;
+    replacementValue: string;
+    rule: FilterExpressionRule;
+    scalar: FilterExpressionScalar;
+}): string | null => {
+    const originalScalar = expressionInput.slice(
+        scalar.span.start.offset,
+        scalar.span.end.offset,
+    );
+    const quote = originalScalar.charAt(0);
+    const replacement =
+        scalar.kind === 'quoted' && (quote === "'" || quote === '"')
+            ? `${quote}${replacementValue}${quote}`
+            : replacementValue;
+    const candidate = `${expressionInput.slice(rule.span.start.offset, scalar.span.start.offset)}${replacement}${expressionInput.slice(scalar.span.end.offset, rule.span.end.offset)}`;
+    return parseFilterExpression(candidate).success ? candidate : null;
+};
+
+const getLosslessBooleanRepairExample = ({
+    expressionInput,
+    rule,
+    scalar,
+}: {
+    expressionInput: string;
+    rule: FilterExpressionRule;
+    scalar: FilterExpressionScalar;
+}): string | null => {
+    const normalized = scalar.value.toLowerCase();
+    return normalized === 'true' || normalized === 'false'
+        ? replaceScalarInRuleExample({
+              expressionInput,
+              replacementValue: normalized,
+              rule,
+              scalar,
+          })
+        : null;
+};
+
 const hasExpectedArity = (
     expected: FilterExpressionArgumentCount,
     actual: number,
@@ -490,11 +560,69 @@ const expectedArityText = (expected: FilterExpressionArgumentCount): string =>
         ? 'one or more values'
         : `exactly ${expected} ${expected === 1 ? 'value' : 'values'}`;
 
+const wrongArityGuidance = (
+    expected: FilterExpressionArgumentCount,
+    actual: number,
+): string => {
+    if (expected === 'oneOrMore') {
+        return 'Add at least one intended value after the equals sign.';
+    }
+    const difference = Math.abs(expected - actual);
+    const differenceLabel = `${difference} ${difference === 1 ? 'value' : 'values'}`;
+    return actual > expected
+        ? `Remove ${differenceLabel}, leaving ${expectedArityText(expected)} after the equals sign.`
+        : `Add ${differenceLabel}, supplying ${expectedArityText(expected)} after the equals sign.`;
+};
+
+const getPositionalRelativeDateRepairExample = ({
+    expressionInput,
+    rule,
+}: {
+    expressionInput: string;
+    rule: FilterExpressionRule;
+}): string | null => {
+    if (
+        rule.settings ||
+        !isFilterExpressionRelativeDateOperator(rule.operator.value) ||
+        rule.arguments.length !== 3
+    ) {
+        return null;
+    }
+
+    const countScalar = rule.arguments[0];
+    const unitScalar = rule.arguments[1];
+    const completedScalar = rule.arguments[2];
+    if (!countScalar || !unitScalar || !completedScalar) return null;
+    const count = strictNumber(countScalar);
+    if (
+        count === null ||
+        !Number.isInteger(count) ||
+        count <= 0 ||
+        !isRelativeDateUnit(unitScalar.value) ||
+        strictBoolean(completedScalar) === null
+    ) {
+        return null;
+    }
+
+    const unit = expressionInput.slice(
+        unitScalar.span.start.offset,
+        unitScalar.span.end.offset,
+    );
+    const completed = expressionInput.slice(
+        completedScalar.span.start.offset,
+        completedScalar.span.end.offset,
+    );
+    const candidate = `${expressionInput.slice(rule.span.start.offset, countScalar.span.end.offset)}{unit:${unit},completed:${completed}}`;
+    return parseFilterExpression(candidate).success ? candidate : null;
+};
+
 const convertStandardValues = ({
+    expressionInput,
     rule,
     field,
     source,
 }: {
+    expressionInput: string;
     rule: FilterExpressionRule;
     field: ResolvedField;
     source: FilterExpressionSource;
@@ -516,7 +644,7 @@ const convertStandardValues = ({
                             span: scalar.span,
                             problem: `"${rule.operator.value}" requires finite number values.`,
                             guidance:
-                                'Replace the highlighted value with a decimal or scientific-notation finite number.',
+                                'Replace the value at the reported location with a decimal or scientific-notation finite number.',
                         }),
                     );
                 }
@@ -534,7 +662,12 @@ const convertStandardValues = ({
                             span: scalar.span,
                             problem: `"${rule.operator.value}" requires exactly true or false.`,
                             guidance:
-                                'Replace the highlighted value with the exact text true or false.',
+                                'Replace the value at the reported location with the exact text true or false.',
+                            example: getLosslessBooleanRepairExample({
+                                expressionInput,
+                                rule,
+                                scalar,
+                            }),
                         }),
                     );
                 }
@@ -568,10 +701,12 @@ const convertStandardValues = ({
 };
 
 const resolveRelativeDateRule = ({
+    expressionInput,
     rule,
     field,
     source,
 }: {
+    expressionInput: string;
     rule: FilterExpressionRule;
     field: ResolvedField;
     source: FilterExpressionSource;
@@ -670,6 +805,12 @@ const resolveRelativeDateRule = ({
                 problem: `The date unit must be one of days, weeks, months, quarters, or years.`,
                 guidance:
                     'Replace unit with days, weeks, months, quarters, or years.',
+                example: replaceScalarInRuleExample({
+                    expressionInput,
+                    replacementValue: 'days',
+                    rule,
+                    scalar: unitSetting.value,
+                }),
             }),
         );
     }
@@ -684,6 +825,11 @@ const resolveRelativeDateRule = ({
                 problem: `The completed setting must be exactly true or false.`,
                 guidance:
                     'Set completed to false for a rolling period or true for completed periods only.',
+                example: getLosslessBooleanRepairExample({
+                    expressionInput,
+                    rule,
+                    scalar: completedSetting.value,
+                }),
             }),
         );
     }
@@ -702,10 +848,12 @@ const resolveRelativeDateRule = ({
 };
 
 const resolveCurrentDateRule = ({
+    expressionInput,
     rule,
     field,
     source,
 }: {
+    expressionInput: string;
     rule: FilterExpressionRule;
     field: ResolvedField;
     source: FilterExpressionSource;
@@ -721,6 +869,14 @@ const resolveCurrentDateRule = ({
                 problem: `The current-period unit must be one of days, weeks, months, quarters, or years.`,
                 guidance:
                     'Replace the value with days, weeks, months, quarters, or years.',
+                example: unitScalar
+                    ? replaceScalarInRuleExample({
+                          expressionInput,
+                          replacementValue: 'days',
+                          rule,
+                          scalar: unitScalar,
+                      })
+                    : null,
             }),
         );
     }
@@ -736,15 +892,17 @@ const resolveCurrentDateRule = ({
 };
 
 const resolveRule = ({
+    expressionInput,
     rule,
     fields,
     source,
 }: {
+    expressionInput: string;
     rule: FilterExpressionRule;
     fields: ResolvedField[];
     source: FilterExpressionSource;
 }): ResolutionResult<RawFilterRule> => {
-    const fieldResult = resolveField({ fields, rule, source });
+    const fieldResult = resolveField({ expressionInput, fields, rule, source });
     if (!fieldResult.success) return fieldResult;
     const field = fieldResult.data;
 
@@ -762,7 +920,6 @@ const resolveRule = ({
                     'Only numeric table calculations can be filtered in the current AI query contract.',
                 guidance:
                     'Use a numeric table calculation, or remove this table-calculation filter.',
-                example: 'profit_margin lessThan=0.2',
             }),
         );
     }
@@ -777,7 +934,7 @@ const resolveRule = ({
                 problem: `Metric type "${field.fieldType}" is not supported by AI filters.`,
                 guidance:
                     'Use another metric whose type is supported by AI filters, or remove this filter rule.',
-                example: genericExample(source),
+                example: scopedExample(source, fields),
             }),
         );
     }
@@ -831,7 +988,6 @@ const resolveRule = ({
                     'Bare null is only valid as the sole value of equals or notEquals.',
                 guidance:
                     "Use equals=null or notEquals=null by itself, or quote 'null' for a literal string value.",
-                example: `${formatFieldId(field.id)} equals=null`,
             }),
         );
     }
@@ -854,17 +1010,13 @@ const resolveRule = ({
                 field,
                 span: rule.operator.span,
                 problem: `"${rule.operator.value}" is not available for ${field.filterType} fields.`,
-                guidance:
-                    'Choose an operator documented for this field type, or move the rule to the correct field.',
-                example: expressionExample(
-                    field.id,
-                    FilterOperator.EQUALS,
-                    field.filterType,
-                ),
+                guidance: `Use a supported ${field.filterType} operator (${supportedOperatorsForFilterType(field.filterType)}), or move the rule to a field of a matching type.`,
             }),
         );
     }
     if (!hasExpectedArity(expectedArity, rule.arguments.length)) {
+        const positionalRelativeDateRepair =
+            getPositionalRelativeDateRepairExample({ expressionInput, rule });
         return failure({
             code: 'FILTER_EXPRESSION_WRONG_ARITY',
             source,
@@ -874,12 +1026,11 @@ const resolveRule = ({
             expected: expectedArity,
             actual: rule.arguments.length,
             problem: `"${rule.operator.value}" requires ${expectedArityText(expectedArity)}, but received ${rule.arguments.length}.`,
-            guidance: `Supply ${expectedArityText(expectedArity)} after the equals sign.`,
-            example: expressionExample(
-                field.id,
-                rule.operator.value,
-                field.filterType,
-            ),
+            guidance:
+                positionalRelativeDateRepair === null
+                    ? wrongArityGuidance(expectedArity, rule.arguments.length)
+                    : 'Keep the period count as the only value and move unit and completed into named settings.',
+            example: positionalRelativeDateRepair,
         });
     }
 
@@ -899,10 +1050,20 @@ const resolveRule = ({
         case FilterOperator.IN_THE_PAST:
         case FilterOperator.NOT_IN_THE_PAST:
         case FilterOperator.IN_THE_NEXT:
-            return resolveRelativeDateRule({ rule, field, source });
+            return resolveRelativeDateRule({
+                expressionInput,
+                rule,
+                field,
+                source,
+            });
         case FilterOperator.IN_THE_CURRENT:
         case FilterOperator.NOT_IN_THE_CURRENT:
-            return resolveCurrentDateRule({ rule, field, source });
+            return resolveCurrentDateRule({
+                expressionInput,
+                rule,
+                field,
+                source,
+            });
         case FilterOperator.EQUALS:
         case FilterOperator.NOT_EQUALS:
         case FilterOperator.STARTS_WITH:
@@ -916,6 +1077,7 @@ const resolveRule = ({
         case FilterOperator.IN_BETWEEN:
         case FilterOperator.NOT_IN_BETWEEN: {
             const valuesResult = convertStandardValues({
+                expressionInput,
                 rule,
                 field,
                 source,
@@ -939,6 +1101,541 @@ const resolveRule = ({
                 `Unhandled filter expression operator: ${operator}`,
             );
     }
+};
+
+type ExpressionConnector = NonNullable<FilterExpressionAst['connector']>;
+
+type SyntaxParseError = Extract<
+    FilterExpressionParseError,
+    {
+        code: 'FILTER_EXPRESSION_SYNTAX' | 'FILTER_EXPRESSION_MIXED_CONNECTORS';
+    }
+>;
+
+type SyntaxRepair =
+    | { kind: 'missingValue'; operator: FilterOperator; example: string }
+    | { kind: 'trailingComma'; example: string }
+    | { kind: 'parenthesizedLiteral'; example: string }
+    | { kind: 'invalidEscape'; sequence: string; example: string }
+    | { kind: 'settingSeparator'; example: string }
+    | { kind: 'mixedConnectors'; example: string }
+    | { kind: 'malformed' };
+
+type RepairDetails = {
+    problem: string;
+    guidance: string;
+    example: string;
+};
+
+const isRepairExpressionValid = ({
+    expression,
+    expressionInput,
+    fields,
+    source,
+}: {
+    expression: FilterExpressionAst;
+    expressionInput: string;
+    fields: ResolvedField[];
+    source: FilterExpressionSource;
+}): boolean => {
+    if (source.kind === 'customMetricFilter' && expression.connector === 'or') {
+        return false;
+    }
+
+    return expression.rules.every(
+        (rule) =>
+            resolveRule({ expressionInput, rule, fields, source }).success,
+    );
+};
+
+const validateRepairCandidate = ({
+    candidate,
+    fields,
+    source,
+}: {
+    candidate: string;
+    fields: ResolvedField[];
+    source: FilterExpressionSource;
+}): FilterExpressionAst | null => {
+    const parsed = parseFilterExpression(candidate);
+    if (!parsed.success) return null;
+    return isRepairExpressionValid({
+        expression: parsed.expression,
+        expressionInput: candidate,
+        fields,
+        source,
+    })
+        ? parsed.expression
+        : null;
+};
+
+const getRuleField = ({
+    rule,
+    fields,
+    source,
+}: {
+    rule: FilterExpressionRule;
+    fields: ResolvedField[];
+    source: FilterExpressionSource;
+}): ResolvedField | null => {
+    const matches = getFieldMatches(fields, rule.field.value);
+    if (matches.length !== 1) return null;
+    const field = matches[0];
+    if (!field) return null;
+    if (source.kind === 'queryFilter' && field.category !== source.category) {
+        return null;
+    }
+    if (
+        field.category === 'tableCalculations' &&
+        field.filterType !== FilterType.NUMBER
+    ) {
+        return null;
+    }
+    return field;
+};
+
+const repairTrailingComma = ({
+    expression,
+    fields,
+    source,
+}: {
+    expression: string;
+    fields: ResolvedField[];
+    source: FilterExpressionSource;
+}): SyntaxRepair | null => {
+    const trimmedExpression = expression.trimEnd();
+    if (!trimmedExpression.endsWith(',')) return null;
+    const withoutComma = trimmedExpression.slice(0, -1).trimEnd();
+    const parsed = parseFilterExpression(withoutComma);
+    if (!parsed.success) return null;
+    const rule = parsed.expression.rules.at(-1);
+    if (!rule) return null;
+    const field = getRuleField({ rule, fields, source });
+    if (!field) return null;
+    if (validateRepairCandidate({ candidate: withoutComma, fields, source })) {
+        return { kind: 'trailingComma', example: withoutComma };
+    }
+    const withAnotherValue = `${trimmedExpression}${illustrativeValue(field.filterType)}`;
+    return validateRepairCandidate({
+        candidate: withAnotherValue,
+        fields,
+        source,
+    })
+        ? { kind: 'trailingComma', example: withAnotherValue }
+        : null;
+};
+
+const repairMissingValue = ({
+    expression,
+    error,
+    fields,
+    source,
+}: {
+    expression: string;
+    error: SyntaxParseError;
+    fields: ResolvedField[];
+    source: FilterExpressionSource;
+}): SyntaxRepair | null => {
+    if (
+        error.span.start.offset !== expression.length ||
+        !expression.trimEnd().endsWith('=')
+    ) {
+        return null;
+    }
+
+    const probe = parseFilterExpression(`${expression}"example value"`);
+    if (!probe.success) return null;
+    const rule = probe.expression.rules.at(-1);
+    if (!rule) return null;
+    const field = getRuleField({ rule, fields, source });
+    if (!field) return null;
+    const args = exampleArguments(rule.operator.value, field.filterType);
+    if (args === null) return null;
+    const candidate = `${expression}${args}`;
+    return validateRepairCandidate({ candidate, fields, source })
+        ? {
+              kind: 'missingValue',
+              operator: rule.operator.value,
+              example: candidate,
+          }
+        : null;
+};
+
+const repairParenthesizedLiteral = ({
+    expression,
+    error,
+    fields,
+    source,
+}: {
+    expression: string;
+    error: SyntaxParseError;
+    fields: ResolvedField[];
+    source: FilterExpressionSource;
+}): SyntaxRepair | null => {
+    const start = error.span.start.offset;
+    const end = expression.trimEnd().length;
+    if (expression[start] !== '(' || expression[end - 1] !== ')') return null;
+    const literal = expression.slice(start, end);
+    const candidate = `${expression.slice(0, start)}${JSON.stringify(literal)}${expression.slice(end)}`;
+    return validateRepairCandidate({ candidate, fields, source })
+        ? { kind: 'parenthesizedLiteral', example: candidate }
+        : null;
+};
+
+const repairInvalidEscape = ({
+    expression,
+    error,
+    fields,
+    source,
+}: {
+    expression: string;
+    error: SyntaxParseError;
+    fields: ResolvedField[];
+    source: FilterExpressionSource;
+}): SyntaxRepair | null => {
+    const { span } = error;
+    const { offset } = span.start;
+    if (offset === 0 || expression[offset - 1] !== '\\') return null;
+    const sequence = expression.slice(offset - 1, span.end.offset);
+    const candidate = `${expression.slice(0, offset)}\\${expression.slice(offset)}`;
+    return validateRepairCandidate({ candidate, fields, source })
+        ? { kind: 'invalidEscape', sequence, example: candidate }
+        : null;
+};
+
+const repairSettingSeparator = ({
+    expression,
+    error,
+    fields,
+    source,
+}: {
+    expression: string;
+    error: SyntaxParseError;
+    fields: ResolvedField[];
+    source: FilterExpressionSource;
+}): SyntaxRepair | null => {
+    const { offset } = error.span.start;
+    if (expression[offset] !== '=') return null;
+    const candidate = `${expression.slice(0, offset)}:${expression.slice(offset + 1)}`;
+    const parsed = validateRepairCandidate({ candidate, fields, source });
+    if (!parsed) return null;
+    const separatorIsSetting = parsed.rules.some(
+        ({ settings }) =>
+            settings?.entries.some(
+                ({ name, value }) =>
+                    name.span.end.offset <= offset &&
+                    value.span.start.offset > offset,
+            ) ?? false,
+    );
+    return separatorIsSetting
+        ? { kind: 'settingSeparator', example: candidate }
+        : null;
+};
+
+const parseConnector = (value: string): ExpressionConnector | null => {
+    switch (value.toLowerCase()) {
+        case 'and':
+            return 'and';
+        case 'or':
+            return 'or';
+        default:
+            return null;
+    }
+};
+
+const otherConnector = (
+    connector: ExpressionConnector,
+): ExpressionConnector => {
+    switch (connector) {
+        case 'and':
+            return 'or';
+        case 'or':
+            return 'and';
+        default:
+            return assertUnreachable(connector, 'Unknown expression connector');
+    }
+};
+
+const connectorKeyword = (connector: ExpressionConnector): 'AND' | 'OR' => {
+    switch (connector) {
+        case 'and':
+            return 'AND';
+        case 'or':
+            return 'OR';
+        default:
+            return assertUnreachable(connector, 'Unknown expression connector');
+    }
+};
+
+const repairMixedConnectors = ({
+    expression,
+    error,
+    fields,
+    source,
+}: {
+    expression: string;
+    error: SyntaxParseError;
+    fields: ResolvedField[];
+    source: FilterExpressionSource;
+}): string | null => {
+    let candidate = expression;
+    let currentError: FilterExpressionParseError = error;
+    let targetConnector: ExpressionConnector | null = null;
+
+    for (
+        let attempts = 0;
+        attempts < FILTER_EXPRESSION_MAX_RULES;
+        attempts += 1
+    ) {
+        if (currentError.code !== 'FILTER_EXPRESSION_MIXED_CONNECTORS') {
+            return null;
+        }
+        const conflictingConnector = parseConnector(
+            candidate.slice(
+                currentError.span.start.offset,
+                currentError.span.end.offset,
+            ),
+        );
+        if (!conflictingConnector) return null;
+        targetConnector ??= otherConnector(conflictingConnector);
+        candidate = `${candidate.slice(0, currentError.span.start.offset)}${connectorKeyword(targetConnector)}${candidate.slice(currentError.span.end.offset)}`;
+
+        const parsed = parseFilterExpression(candidate);
+        if (parsed.success) {
+            return isRepairExpressionValid({
+                expression: parsed.expression,
+                expressionInput: candidate,
+                fields,
+                source,
+            })
+                ? candidate
+                : null;
+        }
+        currentError = parsed.error;
+    }
+
+    return null;
+};
+
+const getSyntaxRepair = ({
+    expression,
+    error,
+    fields,
+    source,
+}: {
+    expression: string;
+    error: SyntaxParseError;
+    fields: ResolvedField[];
+    source: FilterExpressionSource;
+}): SyntaxRepair => {
+    switch (error.code) {
+        case 'FILTER_EXPRESSION_MIXED_CONNECTORS':
+            return {
+                kind: 'mixedConnectors',
+                example:
+                    repairMixedConnectors({
+                        expression,
+                        error,
+                        fields,
+                        source,
+                    }) ?? scopedExample(source, fields),
+            };
+        case 'FILTER_EXPRESSION_SYNTAX': {
+            const trailingComma = repairTrailingComma({
+                expression,
+                fields,
+                source,
+            });
+            if (trailingComma) return trailingComma;
+            const missingValue = repairMissingValue({
+                expression,
+                error,
+                fields,
+                source,
+            });
+            if (missingValue) return missingValue;
+            const parenthesizedLiteral = repairParenthesizedLiteral({
+                expression,
+                error,
+                fields,
+                source,
+            });
+            if (parenthesizedLiteral) return parenthesizedLiteral;
+            const invalidEscape = repairInvalidEscape({
+                expression,
+                error,
+                fields,
+                source,
+            });
+            if (invalidEscape) return invalidEscape;
+            const settingSeparator = repairSettingSeparator({
+                expression,
+                error,
+                fields,
+                source,
+            });
+            return settingSeparator ?? { kind: 'malformed' };
+        }
+        default:
+            return assertUnreachable(error.code, 'Unknown syntax error');
+    }
+};
+
+const mixedConnectorGuidance = (source: FilterExpressionSource): string => {
+    switch (source.kind) {
+        case 'queryFilter':
+            return 'Use only one connector throughout: `fieldId operator=value AND fieldId2 operator=value2 AND ...`, or `fieldId operator=value OR fieldId2 operator=value2 OR ...`. The ellipsis represents more rules, not literal syntax.';
+        case 'customMetricFilter':
+            return 'Use only `AND` throughout: `fieldId operator=value AND fieldId2 operator=value2 AND ...`. The ellipsis represents more rules, not literal syntax.';
+        default:
+            return assertUnreachable(source, 'Unknown expression source');
+    }
+};
+
+const getRepairDetails = ({
+    repair,
+    error,
+    source,
+    fields,
+}: {
+    repair: SyntaxRepair;
+    error: SyntaxParseError;
+    source: FilterExpressionSource;
+    fields: ResolvedField[];
+}): RepairDetails => {
+    switch (repair.kind) {
+        case 'missingValue':
+            return {
+                problem: `\`${repair.operator}\` is missing a value after \`=\`.`,
+                guidance: 'Add a value after `=`; quote string values.',
+                example: repair.example,
+            };
+        case 'trailingComma':
+            return {
+                problem: 'The trailing comma is missing another value.',
+                guidance:
+                    'Add another value after the trailing comma, or remove the comma if the list is complete.',
+                example: repair.example,
+            };
+        case 'parenthesizedLiteral':
+            return {
+                problem:
+                    'Parentheses are syntax punctuation in unquoted values.',
+                guidance:
+                    'Quote the whole literal when parentheses are part of the value.',
+                example: repair.example,
+            };
+        case 'invalidEscape':
+            return {
+                problem: `The escape sequence \`${repair.sequence}\` is unsupported.`,
+                guidance:
+                    'Escape a literal backslash as `\\\\`, or remove the backslash.',
+                example: repair.example,
+            };
+        case 'settingSeparator':
+            return {
+                problem:
+                    'Named settings use `:` between each name and value, not `=`.',
+                guidance: 'Replace the setting separator with `:`.',
+                example: repair.example,
+            };
+        case 'mixedConnectors':
+            return {
+                problem: 'This expression mixes AND and OR connectors.',
+                guidance: mixedConnectorGuidance(source),
+                example: repair.example,
+            };
+        case 'malformed':
+            return {
+                problem: `The expression is malformed near line ${error.span.start.line}, column ${error.span.start.column}.`,
+                guidance:
+                    'Use field operator=value rules joined by only AND or only OR; quote values that contain punctuation.',
+                example: scopedExample(source, fields),
+            };
+        default:
+            return assertUnreachable(repair, 'Unknown syntax repair');
+    }
+};
+
+type BoundsParseError = Extract<
+    FilterExpressionParseError,
+    { code: 'FILTER_EXPRESSION_BOUNDS_EXCEEDED' }
+>;
+
+const boundsGuidance = ({ limit, maximum }: BoundsParseError): string => {
+    switch (limit) {
+        case 'expressionLength':
+            return `Shorten the expression to at most ${maximum} characters, using fewer rules or shorter values.`;
+        case 'ruleCount':
+            return `Reduce the expression to at most ${maximum} rules.`;
+        case 'valueCount':
+            return `Reduce this rule to at most ${maximum} values.`;
+        case 'literalLength':
+            return `Shorten this literal to at most ${maximum} characters.`;
+        default:
+            return assertUnreachable(
+                limit,
+                `Unknown filter expression limit: ${limit}`,
+            );
+    }
+};
+
+const parserError = ({
+    expression,
+    source,
+    fields,
+    error,
+}: {
+    expression: string;
+    source: FilterExpressionSource;
+    fields: ResolvedField[];
+    error: FilterExpressionParseError;
+}): FilterExpressionResolutionError => {
+    switch (error.code) {
+        case 'FILTER_EXPRESSION_SYNTAX':
+        case 'FILTER_EXPRESSION_MIXED_CONNECTORS': {
+            const repair = getSyntaxRepair({
+                expression,
+                error,
+                fields,
+                source,
+            });
+            return {
+                code: error.code,
+                source,
+                span: error.span,
+                parserMessage: error.message,
+                ...getRepairDetails({ repair, error, source, fields }),
+            };
+        }
+        case 'FILTER_EXPRESSION_BOUNDS_EXCEEDED':
+            return {
+                code: error.code,
+                source,
+                span: error.span,
+                limit: error.limit,
+                maximum: error.maximum,
+                actual: error.actual,
+                problem: error.message,
+                guidance: boundsGuidance(error),
+                example: null,
+            };
+        default:
+            return assertUnreachable(error, 'Unknown parser error');
+    }
+};
+
+const parseExpression = (
+    expression: string,
+    source: FilterExpressionSource,
+    fields: ResolvedField[],
+): ResolutionResult<FilterExpressionAst> => {
+    const parsed = parseFilterExpression(expression);
+    return parsed.success
+        ? success(parsed.expression)
+        : failure(
+              parserError({ expression, source, fields, error: parsed.error }),
+          );
 };
 
 const resolveCustomMetrics = ({
@@ -968,7 +1665,11 @@ const resolveCustomMetrics = ({
                 category: 'customMetric',
                 customMetricName: customMetric.name,
             };
-            const parsedResult = parseExpression(customMetric.filters, source);
+            const parsedResult = parseExpression(
+                customMetric.filters,
+                source,
+                exploreFields,
+            );
             if (!parsedResult.success) return parsedResult;
             const expression = parsedResult.data;
             if (expression.connector === 'or') {
@@ -979,21 +1680,22 @@ const resolveCustomMetrics = ({
                     problem:
                         'Aggregation custom metric filter rules are always combined with AND and cannot use OR.',
                     guidance:
-                        'Replace OR with AND, or define separate custom metrics.',
-                    example:
-                        'orders_status equals=completed AND orders_region equals=emea',
+                        'Custom metric filters support AND only. Keep only rules that should all apply together, or remove the filters.',
+                    example: null,
                 });
             }
 
             const filters: { table: string; filter: RawFilterRule }[] = [];
             for (const rule of expression.rules) {
                 const ruleResult = resolveRule({
+                    expressionInput: customMetric.filters,
                     rule,
                     fields: exploreFields,
                     source,
                 });
                 if (!ruleResult.success) return ruleResult;
                 const fieldResult = resolveField({
+                    expressionInput: customMetric.filters,
                     fields: exploreFields,
                     rule,
                     source,
@@ -1059,13 +1761,22 @@ const resolveQueryFilters = ({
                 exploreName,
                 category,
             };
-            const parsedResult = parseExpression(expressionInput, source);
+            const parsedResult = parseExpression(
+                expressionInput,
+                source,
+                fields,
+            );
             if (!parsedResult.success) return parsedResult;
             const expression = parsedResult.data;
 
             const categoryRules: RawFilterRule[] = [];
             for (const rule of expression.rules) {
-                const ruleResult = resolveRule({ rule, fields, source });
+                const ruleResult = resolveRule({
+                    expressionInput,
+                    rule,
+                    fields,
+                    source,
+                });
                 if (!ruleResult.success) return ruleResult;
                 categoryRules.push(ruleResult.data);
             }

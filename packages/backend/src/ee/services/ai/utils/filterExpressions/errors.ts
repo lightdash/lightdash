@@ -29,11 +29,14 @@ type FilterExpressionErrorBase = {
     span: FilterExpressionSpan;
     problem: string;
     guidance: string;
+};
+
+type FilterExpressionErrorWithExample = FilterExpressionErrorBase & {
     example: string;
 };
 
 export type FilterExpressionResolutionError =
-    | (FilterExpressionErrorBase & {
+    | (FilterExpressionErrorWithExample & {
           code:
               | 'FILTER_EXPRESSION_SYNTAX'
               | 'FILTER_EXPRESSION_MIXED_CONNECTORS';
@@ -41,6 +44,7 @@ export type FilterExpressionResolutionError =
       })
     | (FilterExpressionErrorBase & {
           code: 'FILTER_EXPRESSION_BOUNDS_EXCEEDED';
+          example: null;
           limit: Extract<
               FilterExpressionParseError,
               { code: 'FILTER_EXPRESSION_BOUNDS_EXCEEDED' }
@@ -50,11 +54,12 @@ export type FilterExpressionResolutionError =
       })
     | (FilterExpressionErrorBase & {
           code: 'FILTER_EXPRESSION_UNKNOWN_FIELD';
+          example: string | null;
           fieldId: string;
           reason: 'notFound' | 'ambiguous';
           suggestions: string[];
       })
-    | (FilterExpressionErrorBase & {
+    | (FilterExpressionErrorWithExample & {
           code: 'FILTER_EXPRESSION_WRONG_CATEGORY';
           fieldId: string;
           expectedCategory: QueryFilterExpressionCategory;
@@ -62,12 +67,14 @@ export type FilterExpressionResolutionError =
       })
     | (FilterExpressionErrorBase & {
           code: 'FILTER_EXPRESSION_INVALID_VALUE';
+          example: string | null;
           fieldId: string;
           operator: FilterOperator;
           filterType: FilterType;
       })
     | (FilterExpressionErrorBase & {
           code: 'FILTER_EXPRESSION_WRONG_ARITY';
+          example: string | null;
           fieldId: string;
           operator: FilterOperator;
           expected: FilterExpressionArgumentCount;
@@ -75,4 +82,5 @@ export type FilterExpressionResolutionError =
       })
     | (FilterExpressionErrorBase & {
           code: 'FILTER_EXPRESSION_CUSTOM_METRIC_OR';
+          example: null;
       });
