@@ -37,6 +37,7 @@ import {
     readDependenciesFromDir,
     writeFilesToDir,
 } from './appCodeFiles';
+import { assertOutDirSafeToClear } from './pathContainment';
 import {
     loadTemplateDependencies,
     loadVendoredBuildScaffold,
@@ -490,6 +491,12 @@ export const validateDataAppBuild = async (args: {
         }
 
         if (args.outDir !== undefined) {
+            // Defense in depth: this deletion site must not trust that a
+            // caller already checked containment (or that outDir hasn't
+            // changed since it did). Re-resolve symlinks and refuse rather
+            // than delete anything we can't prove is safe.
+            await assertOutDirSafeToClear(args.appDir, args.outDir);
+
             // Vite emits content-hashed chunk filenames, so a merge-only copy
             // would leave stale chunks from a previous build behind. Clear
             // outDir immediately before copying a successful build into it —
@@ -502,6 +509,7 @@ export const validateDataAppBuild = async (args: {
 
         return [];
     } catch (error) {
+        if (error instanceof ParameterError) throw error;
         return [
             issue(
                 'build',

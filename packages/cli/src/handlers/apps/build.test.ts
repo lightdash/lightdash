@@ -7,8 +7,11 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { readBundleFromDir, writeBundleToDir } from './appCodeFiles';
-import { appsBuildHandler, assertOutDirDoesNotContainAppDir } from './build';
+import { appsBuildHandler } from './build';
+import { assertOutDirDoesNotContainAppDir } from './pathContainment';
 import { validateDataAppBuild, type RunDataAppBuildCommand } from './validate';
+
+const describePosix = process.platform === 'win32' ? describe.skip : describe;
 
 const defaultManifest: DataAppManifest = {
     codeVersion: 1,
@@ -48,6 +51,22 @@ const makeOutDir = async (): Promise<string> =>
         await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-build-outdir-')),
         'dist',
     );
+
+// Writes an app bundle into an already-existing directory, for symlink
+// bypass tests that need control over exactly where the real files live.
+const writeAppBundleTo = async (dir: string): Promise<void> => {
+    const code: DataAppCode = {
+        manifest: defaultManifest,
+        files: [
+            {
+                path: 'src/App.tsx',
+                contentBase64: Buffer.from(validSource).toString('base64'),
+            },
+        ],
+    };
+    await writeBundleToDir(dir, code);
+    await fs.mkdir(path.join(dir, 'node_modules'));
+};
 
 // Fakes a successful `vite build` by writing dist/index.html into the build
 // dir it receives, without actually running Vite.
@@ -246,5 +265,118 @@ describe('assertOutDirDoesNotContainAppDir', () => {
                 '/repo/apps/orders/dist',
             ),
         ).not.toThrow();
+    });
+});
+
+describePosix('out-dir containment guard: symlink bypasses', () => {
+    it('refuses when appDir is a symlink whose real location is inside outDir', async () => {
+        // outDir already exists as a real directory, and the "app" the CLI
+        // is asked to build actually lives inside it — reached only via a
+        // symlink from elsewhere, so the lexical check alone would miss it.
+        const outDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'ld-symlink-outdir-'),
+        );
+        const realAppDir = path.join(outDir, 'app-real');
+        await fs.mkdir(realAppDir);
+        await writeAppBundleTo(realAppDir);
+
+        const linkParent = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'ld-symlink-applink-'),
+        );
+        const appLink = path.join(linkParent, 'app-link');
+        await fs.symlink(realAppDir, appLink);
+
+        await expect(
+            appsBuildHandler(appLink, { outDir, verbose: false }),
+        ).rejects.toThrow(ParameterError);
+        await expect(
+            fs.stat(path.join(realAppDir, 'src', 'App.tsx')),
+        ).resolves.toBeDefined();
+    });
+
+    it('refuses when outDir is reached via a symlinked ancestor whose target contains appDir', async () => {
+        const parentDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'ld-symlink-parent-'),
+        );
+        const appDir = path.join(parentDir, 'app');
+        await fs.mkdir(appDir);
+        await writeAppBundleTo(appDir);
+
+        const linkParent = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'ld-symlink-outlink-'),
+        );
+        const outDirViaSymlink = path.join(linkParent, 'link-to-parent');
+        await fs.symlink(parentDir, outDirViaSymlink);
+
+        await expect(
+            appsBuildHandler(appDir, {
+                outDir: outDirViaSymlink,
+                verbose: false,
+            }),
+        ).rejects.toThrow(ParameterError);
+        await expect(
+            fs.stat(path.join(appDir, 'src', 'App.tsx')),
+        ).resolves.toBeDefined();
+    });
+
+    it('allows a legitimate sibling outDir reached via a symlinked ancestor', async () => {
+        const rootDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'ld-symlink-root-'),
+        );
+        const appDir = path.join(rootDir, 'app-real');
+        await fs.mkdir(appDir);
+        await writeAppBundleTo(appDir);
+        const realOutDir = path.join(rootDir, 'out-real');
+
+        const linkParent = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'ld-symlink-rootlink-'),
+        );
+        const linkToRoot = path.join(linkParent, 'link-to-root');
+        await fs.symlink(rootDir, linkToRoot);
+        const outDirViaSymlink = path.join(linkToRoot, 'out-real');
+
+        const bundle = await readBundleFromDir(appDir);
+        const issues = await validateDataAppBuild({
+            appDir,
+            bundle,
+            outDir: outDirViaSymlink,
+            runCommand: fakeSuccessfulViteBuild,
+        });
+
+        expect(issues).toEqual([]);
+        await expect(
+            fs.readFile(path.join(realOutDir, 'index.html'), 'utf-8'),
+        ).resolves.toBe('<html>built</html>');
+    });
+
+    it('validateDataAppBuild rechecks containment itself when called directly with a dangerous pair', async () => {
+        // Bypasses appsBuildHandler's guard entirely, simulating any future
+        // caller of validateDataAppBuild that doesn't run the check itself.
+        const parentDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'ld-symlink-direct-parent-'),
+        );
+        const appDir = path.join(parentDir, 'app');
+        await fs.mkdir(appDir);
+        await writeAppBundleTo(appDir);
+
+        const linkParent = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'ld-symlink-direct-link-'),
+        );
+        const outDirViaSymlink = path.join(linkParent, 'link-to-parent');
+        await fs.symlink(parentDir, outDirViaSymlink);
+
+        const bundle = await readBundleFromDir(appDir);
+
+        await expect(
+            validateDataAppBuild({
+                appDir,
+                bundle,
+                outDir: outDirViaSymlink,
+                runCommand: fakeSuccessfulViteBuild,
+            }),
+        ).rejects.toThrow(ParameterError);
+        await expect(
+            fs.stat(path.join(appDir, 'src', 'App.tsx')),
+        ).resolves.toBeDefined();
     });
 });

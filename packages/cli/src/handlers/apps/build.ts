@@ -3,32 +3,15 @@ import * as path from 'path';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 import { readBundleFromDir } from './appCodeFiles';
+import {
+    assertOutDirDoesNotContainAppDir,
+    canonicalizeForContainment,
+} from './pathContainment';
 import { formatIssue, validateDataAppBuild } from './validate';
 
 export type AppsBuildOptions = {
     outDir?: string;
     verbose: boolean;
-};
-
-/**
- * The build wipes outDir before copying the new output in. If outDir is (or
- * contains) appDir, that wipe deletes the app source being built. Both
- * arguments must already be resolved to absolute paths.
- */
-export const assertOutDirDoesNotContainAppDir = (
-    appDir: string,
-    outDir: string,
-): void => {
-    const relativeAppDirFromOutDir = path.relative(outDir, appDir);
-    const appDirIsInsideOutDir =
-        relativeAppDirFromOutDir !== '' &&
-        !relativeAppDirFromOutDir.startsWith('..') &&
-        !path.isAbsolute(relativeAppDirFromOutDir);
-    if (outDir === appDir || appDirIsInsideOutDir) {
-        throw new ParameterError(
-            '--out-dir must not contain the app directory (would delete the app source on build)',
-        );
-    }
 };
 
 export const appsBuildHandler = async (
@@ -42,6 +25,16 @@ export const appsBuildHandler = async (
         options.outDir ?? path.join(appDir, 'dist'),
     );
     assertOutDirDoesNotContainAppDir(appDir, outDir);
+
+    // The lexical check above can be bypassed by symlinks (an appDir that is
+    // itself a symlink into outDir's real tree, or an outDir reached through
+    // a symlinked ancestor whose target contains appDir), so re-run the same
+    // check on the canonicalized paths before doing anything destructive.
+    const [canonicalAppDir, canonicalOutDir] = await Promise.all([
+        canonicalizeForContainment(appDir),
+        canonicalizeForContainment(outDir),
+    ]);
+    assertOutDirDoesNotContainAppDir(canonicalAppDir, canonicalOutDir);
 
     let bundle: Awaited<ReturnType<typeof readBundleFromDir>>;
     try {
