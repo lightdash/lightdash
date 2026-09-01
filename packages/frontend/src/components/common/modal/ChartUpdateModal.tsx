@@ -8,7 +8,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
-import { useEffect, type FC } from 'react';
+import { type FC } from 'react';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useSavedQuery, useUpdateMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
@@ -21,18 +21,18 @@ interface ChartUpdateModalProps extends Pick<ModalProps, 'opened' | 'onClose'> {
 
 type FormState = Pick<SavedChart, 'name' | 'description'>;
 
-const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
+type ChartUpdateFormProps = ChartUpdateModalProps & {
+    chart: SavedChart;
+};
+
+const ChartUpdateForm: FC<ChartUpdateFormProps> = ({
     opened,
     onClose,
     uuid,
     onConfirm,
+    chart,
 }) => {
-    const projectUuid = useProjectUuid();
     const dashboardUuid = useSearchParams('fromDashboard');
-    const { data: chart, isInitialLoading } = useSavedQuery({
-        uuidOrSlug: uuid,
-        projectUuid,
-    });
     const { mutateAsync, isLoading: isUpdating } = useUpdateMutation(
         dashboardUuid ? dashboardUuid : undefined,
         uuid,
@@ -40,24 +40,10 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
 
     const form = useForm<FormState>({
         initialValues: {
-            name: '',
-            description: '',
-        },
-    });
-
-    const { setValues } = form;
-
-    useEffect(() => {
-        if (!chart) return;
-        setValues({
             name: chart.name,
             description: chart.description,
-        });
-    }, [chart, setValues]);
-
-    if (isInitialLoading || !chart) {
-        return null;
-    }
+        },
+    });
 
     const handleConfirm = form.onSubmit(async (data) => {
         await mutateAsync({
@@ -109,6 +95,34 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
                 </Stack>
             </form>
         </MantineModal>
+    );
+};
+
+const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
+    opened,
+    onClose,
+    uuid,
+    onConfirm,
+}) => {
+    const projectUuid = useProjectUuid();
+    const { data: chart, isInitialLoading } = useSavedQuery({
+        uuidOrSlug: uuid,
+        projectUuid,
+    });
+
+    if (isInitialLoading || !chart) {
+        return null;
+    }
+
+    return (
+        <ChartUpdateForm
+            key={chart.uuid}
+            chart={chart}
+            opened={opened}
+            onClose={onClose}
+            uuid={uuid}
+            onConfirm={onConfirm}
+        />
     );
 };
 

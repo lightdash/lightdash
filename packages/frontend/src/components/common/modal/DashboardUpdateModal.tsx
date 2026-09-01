@@ -8,7 +8,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconLayoutDashboard } from '@tabler/icons-react';
-import { useEffect, type FC } from 'react';
+import { type ComponentProps, type FC } from 'react';
 import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
 import {
     useDashboardQuery,
@@ -33,21 +33,21 @@ type FormState = Pick<Dashboard, 'name' | 'description'> & {
     ownerUserUuid: string | null;
 };
 
-const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
+type DashboardUpdateFormProps = DashboardUpdateModalProps & {
+    dashboard: Dashboard;
+    palettes: ComponentProps<typeof PalettePicker>['palettes'];
+    overrideActive: boolean;
+};
+
+const DashboardUpdateForm: FC<DashboardUpdateFormProps> = ({
     uuid,
     onConfirm,
+    dashboard,
+    palettes,
+    overrideActive,
     ...modalProps
 }) => {
     const projectUuid = useProjectUuid();
-    const { data: dashboard, isInitialLoading } = useDashboardQuery({
-        uuidOrSlug: uuid,
-        projectUuid,
-        // Prefill from the author's own draft, so saving the form doesn't
-        // revert a drafted name back to the published one.
-        includeUnpublishedDraft: true,
-    });
-    const { data: palettes = [] } = useColorPalettes();
-    const { data: health } = useHealth();
     const { mutateAsync, isLoading: isUpdating } = useUpdateDashboard(
         uuid,
         projectUuid,
@@ -55,33 +55,12 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
 
     const form = useForm<FormState>({
         initialValues: {
-            name: '',
-            description: '',
-            colorPaletteUuid: null,
-            ownerUserUuid: null,
-        },
-    });
-
-    const { setValues } = form;
-
-    useEffect(() => {
-        if (!dashboard) return;
-
-        setValues({
             name: dashboard.name,
             description: dashboard.description ?? '',
             colorPaletteUuid: dashboard.colorPaletteUuid ?? null,
             ownerUserUuid: dashboard.owner?.userUuid ?? null,
-        });
-    }, [dashboard, setValues]);
-
-    if (isInitialLoading || !dashboard) {
-        return null;
-    }
-
-    const overrideActive =
-        !!health?.appearance.overrideColorPalette &&
-        health.appearance.overrideColorPalette.length > 0;
+        },
+    });
 
     const handleConfirm = form.onSubmit(async (data) => {
         await mutateAsync({
@@ -165,6 +144,42 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
                 </Stack>
             </form>
         </MantineModal>
+    );
+};
+
+const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
+    uuid,
+    onConfirm,
+    ...modalProps
+}) => {
+    const projectUuid = useProjectUuid();
+    const { data: dashboard, isInitialLoading } = useDashboardQuery({
+        uuidOrSlug: uuid,
+        projectUuid,
+        // Prefill from the author's own draft, so saving the form doesn't
+        // revert a drafted name back to the published one.
+        includeUnpublishedDraft: true,
+    });
+    const { data: palettes = [] } = useColorPalettes();
+    const { data: health } = useHealth();
+    const overrideActive =
+        !!health?.appearance.overrideColorPalette &&
+        health.appearance.overrideColorPalette.length > 0;
+
+    if (isInitialLoading || !dashboard) {
+        return null;
+    }
+
+    return (
+        <DashboardUpdateForm
+            key={dashboard.uuid}
+            dashboard={dashboard}
+            palettes={palettes}
+            overrideActive={overrideActive}
+            uuid={uuid}
+            onConfirm={onConfirm}
+            {...modalProps}
+        />
     );
 };
 
