@@ -2312,7 +2312,9 @@ export type PostmarkConfig = {
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
 
-const DEFAULT_CHART_REGISTRY_URL: string | null = null; // flip to the official registry URL at bootstrap (see charts-repo plan)
+// The official chart type registry (lightdash/lightdash-gallery, GitHub Pages).
+const DEFAULT_CHART_REGISTRY_URL: string | null =
+    'https://lightdash.github.io/lightdash-gallery';
 
 const parseSandboxProvider = (
     value: string | undefined,
