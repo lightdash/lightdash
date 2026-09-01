@@ -1,3 +1,10 @@
+# [2.80.0](https://github.com/lightdash/lightdash/compare/2.79.0...2.80.0) (2026-09-01)
+
+
+### Features
+
+* **ai-reviews:** redesign Linear setup empty state ([#28429](https://github.com/lightdash/lightdash/issues/28429)) ([010c889](https://github.com/lightdash/lightdash/commit/010c88962324d4bd0483ffadeeb21199337488df))
+
 # [2.79.0](https://github.com/lightdash/lightdash/compare/2.78.0...2.79.0) (2026-09-01)
 
 
