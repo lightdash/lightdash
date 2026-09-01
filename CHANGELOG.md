@@ -1,3 +1,17 @@
+# [2.69.0](https://github.com/lightdash/lightdash/compare/2.68.1...2.69.0) (2026-09-01)
+
+
+### Bug Fixes
+
+* **permissions:** flag-scope the ceiling relief and resolve empty custom roles ([#28359](https://github.com/lightdash/lightdash/issues/28359)) ([e35203e](https://github.com/lightdash/lightdash/commit/e35203ef45bdeb12fcf8f55b732946b76c76da50)), closes [#28353](https://github.com/lightdash/lightdash/issues/28353) [#28355](https://github.com/lightdash/lightdash/issues/28355) [#28356](https://github.com/lightdash/lightdash/issues/28356) [#28356](https://github.com/lightdash/lightdash/issues/28356) [#26771](https://github.com/lightdash/lightdash/issues/26771) [#28356](https://github.com/lightdash/lightdash/issues/28356)
+
+
+### Features
+
+* **permissions:** resolve the PAT scope opt-in at ability build ([#28356](https://github.com/lightdash/lightdash/issues/28356)) ([fd03768](https://github.com/lightdash/lightdash/commit/fd037681cddfd01da9fa142d28aca37eabfcf074)), closes [#26771](https://github.com/lightdash/lightdash/issues/26771) [#28200](https://github.com/lightdash/lightdash/issues/28200) [#28359](https://github.com/lightdash/lightdash/issues/28359) [#25543](https://github.com/lightdash/lightdash/issues/25543)
+* show apps linked to external connections ([#28378](https://github.com/lightdash/lightdash/issues/28378)) ([7614f13](https://github.com/lightdash/lightdash/commit/7614f133f615f9a7084a78ce5883a0364ecf817c))
+* start Live Activities for web agent runs (SPK-1707) ([#28369](https://github.com/lightdash/lightdash/issues/28369)) ([d9c1f34](https://github.com/lightdash/lightdash/commit/d9c1f3407a748f86a536d03cad9ec8811cd3117a))
+
 ## [2.68.1](https://github.com/lightdash/lightdash/compare/2.68.0...2.68.1) (2026-09-01)
 
 

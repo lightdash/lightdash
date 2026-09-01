@@ -12269,6 +12269,18 @@
                 "required": ["deviceToken", "environment"],
                 "type": "object"
             },
+            "ApiMobilePushLiveActivityPushToStartTokenResponse": {
+                "$ref": "#/components/schemas/ApiSuccessEmpty"
+            },
+            "ApiMobilePushLiveActivityPushToStartTokenRequest": {
+                "properties": {
+                    "pushToken": {
+                        "type": "string"
+                    }
+                },
+                "required": ["pushToken"],
+                "type": "object"
+            },
             "ManagedAgentScheduleOption": {
                 "enum": [
                     "every_6_hours",
@@ -13326,6 +13338,78 @@
                             "$ref": "#/components/schemas/ExternalConnectionListItem"
                         },
                         "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ExternalConnectionLinkedApp": {
+                "properties": {
+                    "aliases": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "spaceName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "spaceUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["data_app", "project_chart_type"]
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "appUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "aliases",
+                    "spaceName",
+                    "spaceUuid",
+                    "kind",
+                    "slug",
+                    "name",
+                    "appUuid"
+                ],
+                "type": "object"
+            },
+            "ExternalConnectionLinkedApps": {
+                "properties": {
+                    "total": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "items": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionLinkedApp"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["total", "items"],
+                "type": "object",
+                "description": "Kept as an object so pagination can be added later without changing the\nendpoint's top-level response shape."
+            },
+            "ApiListExternalConnectionLinkedAppsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalConnectionLinkedApps"
                     },
                     "status": {
                         "type": "string",
@@ -26538,6 +26622,9 @@
             },
             "ApiAiAgentThreadCreateRequest": {
                 "properties": {
+                    "originatingInstallationUuid": {
+                        "type": "string"
+                    },
                     "modelConfig": {
                         "$ref": "#/components/schemas/AiAgentModelConfig"
                     },
@@ -26572,6 +26659,9 @@
                     "hidden": {
                         "type": "boolean",
                         "description": "Inject the prompt as a hidden turn — the agent responds to it, but the UI\ndoes not render the user bubble. Used by the post-merge content-migration\nprompt sent from the writeback PR card."
+                    },
+                    "originatingInstallationUuid": {
+                        "type": "string"
                     },
                     "modelConfig": {
                         "$ref": "#/components/schemas/AiAgentModelConfig"
@@ -42279,6 +42369,7 @@
                     "ingestExternalSource",
                     "ingestExternalSourceAttachment",
                     "maintainExternalSources",
+                    "mobilePushLiveActivityStart",
                     "mobilePushLiveActivity",
                     "sweepMobilePushLiveActivities",
                     "handleScheduledDelivery",
@@ -57704,7 +57795,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.68.1",
+        "version": "2.69.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -63349,6 +63440,55 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/mobile/push-notifications/installations/{installationUuid}/live-activity-push-to-start-token": {
+            "put": {
+                "operationId": "registerMobilePushLiveActivityPushToStartToken",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMobilePushLiveActivityPushToStartTokenResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Mobile push notifications"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "installationUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiMobilePushLiveActivityPushToStartTokenRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/databricks/sso/is-authenticated": {

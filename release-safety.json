@@ -1,14 +1,29 @@
 {
   "schemaVersion": "2",
-  "version": "2.68.1",
-  "previousVersion": "2.68.0",
-  "releaseDate": "2026-09-01T09:06:08.993Z",
+  "version": "2.69.0",
+  "previousVersion": "2.68.1",
+  "releaseDate": "2026-09-01T10:16:30.382Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20260831120000_add_live_activity_push_to_start.ts",
+        "edition": "ee",
+        "tables": [
+          "ai_agent_live_activity_start_attempts",
+          "ai_prompt",
+          "mobile_push_installations"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -20,8 +35,11 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/schedulers/runs/{runId}/logs — added the new `mobilePushLiveActivityStart` enum value to the `results/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`",
+        "GET /api/v1/schedulers/{projectUuid}/logs — added the new `mobilePushLiveActivityStart` enum value to the `results/data/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`"
+      ],
+      "advisoryCount": 2
     },
     "mcp": {
       "checked": true,
