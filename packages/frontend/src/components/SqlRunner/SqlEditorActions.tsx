@@ -1,12 +1,12 @@
-import { ActionIcon, CopyButton, Group, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, Tooltip } from '@mantine/core';
 import {
-    IconCheck,
     IconClipboard,
     IconCode,
     IconTextWrap,
     IconTextWrapDisabled,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { CopyActionIcon } from '../common/CopyActionIcon';
 import MantineIcon from '../common/MantineIcon';
 
 export const SqlEditorActions: FC<{
@@ -48,27 +48,13 @@ export const SqlEditorActions: FC<{
                     )}
                 </ActionIcon>
             </Tooltip>
-            <CopyButton value={clipboardContent ?? ''} timeout={2000}>
-                {({ copied, copy }) => (
-                    <Tooltip
-                        label={copied ? 'Copied to clipboard!' : 'Copy'}
-                        position="right"
-                        color={copied ? 'green' : 'dark'}
-                    >
-                        <ActionIcon
-                            color={copied ? 'teal' : 'ldLight'}
-                            onClick={copy}
-                            variant="outline"
-                        >
-                            {copied ? (
-                                <IconCheck size="1rem" />
-                            ) : (
-                                <IconClipboard size="1rem" />
-                            )}
-                        </ActionIcon>
-                    </Tooltip>
-                )}
-            </CopyButton>
+            <CopyActionIcon
+                value={clipboardContent ?? ''}
+                icon={IconClipboard}
+                copiedLabel="Copied to clipboard!"
+                tooltipPosition="right"
+                variant="outline"
+            />
         </Group>
     );
 };

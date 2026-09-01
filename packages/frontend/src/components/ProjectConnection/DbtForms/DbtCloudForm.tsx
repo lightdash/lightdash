@@ -1,24 +1,17 @@
 import { DbtProjectType } from '@lightdash/common';
 import {
     TextInput,
-    ActionIcon,
     Alert,
     Anchor,
-    CopyButton,
     Group,
     Stack,
     PasswordInput,
     Text,
-    Tooltip,
 } from '@mantine/core';
-import {
-    IconCheck,
-    IconCopy,
-    IconInfoCircle,
-    IconPlus,
-} from '@tabler/icons-react';
+import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import useApp from '../../../providers/App/useApp';
+import { CopyActionIcon } from '../../common/CopyActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import { MultiSelectCombobox } from '../../common/MultiSelectCombobox/MultiSelectCombobox';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
@@ -105,27 +98,12 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     readOnly
                     rightSectionPointerEvents="all"
                     rightSection={
-                        <CopyButton value={webhookUrl}>
-                            {({ copied, copy }) => (
-                                <Tooltip
-                                    label={copied ? 'Copied' : 'Copy'}
-                                    position="left"
-                                >
-                                    <ActionIcon
-                                        aria-label="Copy webhook URL"
-                                        onMouseDown={(event) =>
-                                            event.preventDefault()
-                                        }
-                                        color={copied ? 'teal' : 'gray'}
-                                        onClick={copy}
-                                    >
-                                        <MantineIcon
-                                            icon={copied ? IconCheck : IconCopy}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
-                        </CopyButton>
+                        <CopyActionIcon
+                            value={webhookUrl}
+                            tooltipPosition="left"
+                            aria-label="Copy webhook URL"
+                            onMouseDown={(event) => event.preventDefault()}
+                        />
                     }
                 />
             )}

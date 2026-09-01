@@ -1,24 +1,10 @@
 import { type OAuthClientSummary } from '@lightdash/common';
-import {
-    ActionIcon,
-    CopyButton,
-    Group,
-    Menu,
-    Paper,
-    Table,
-    Text,
-    Tooltip,
-} from '@mantine/core';
-import {
-    IconCheck,
-    IconCopy,
-    IconDots,
-    IconPencil,
-    IconTrash,
-} from '@tabler/icons-react';
+import { ActionIcon, Group, Menu, Paper, Table, Text } from '@mantine/core';
+import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import { useDeleteOAuthClient } from '../../../hooks/useOAuthClients';
+import { CopyActionIcon } from '../../common/CopyActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import { EditOAuthClientModal } from './EditOAuthClientModal';
@@ -49,25 +35,13 @@ const OAuthClientRow: FC<{
                         >
                             {client.clientId}
                         </Text>
-                        <CopyButton value={client.clientId}>
-                            {({ copied, copy }) => (
-                                <Tooltip
-                                    label={copied ? 'Copied' : 'Copy'}
-                                    position="right"
-                                >
-                                    <ActionIcon
-                                        size="xs"
-                                        onClick={copy}
-                                        variant="transparent"
-                                        color="ldGray.6"
-                                    >
-                                        <MantineIcon
-                                            icon={copied ? IconCheck : IconCopy}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
-                        </CopyButton>
+                        <CopyActionIcon
+                            value={client.clientId}
+                            tooltipPosition="right"
+                            size="xs"
+                            variant="transparent"
+                            color="ldGray.6"
+                        />
                     </Group>
                 </Table.Td>
                 <Table.Td>

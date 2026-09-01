@@ -44,8 +44,6 @@ import {
     IconPin,
     IconPinnedOff,
     IconSend,
-    IconStar,
-    IconStarFilled,
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
@@ -124,6 +122,7 @@ import { ExplorerSection } from '../../../providers/Explorer/types';
 import useNativeFullscreenToggle from '../../../providers/Fullscreen/useNativeFullscreenToggle';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import { FavoriteActionIcon } from '../../common/FavoriteActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 const ChangeChartExploreModal = lazy(
@@ -658,25 +657,17 @@ const SavedChartsHeader: FC = () => {
                                     </Tooltip>
                                 )}
 
-                                <ActionIcon
+                                <FavoriteActionIcon
                                     size="xs"
                                     variant="transparent"
-                                    color={
-                                        isChartFavorited ? 'orange' : 'ldGray.6'
-                                    }
-                                    onClick={() => {
+                                    isFavorite={isChartFavorited}
+                                    onToggle={() => {
                                         toggleFavorite({
                                             contentType: ContentType.CHART,
                                             contentUuid: savedChart.uuid,
                                         });
                                     }}
-                                >
-                                    {isChartFavorited ? (
-                                        <IconStarFilled size={16} />
-                                    ) : (
-                                        <IconStar size={16} />
-                                    )}
-                                </ActionIcon>
+                                />
 
                                 {isEditMode && userCanManageChart && (
                                     <ActionIcon

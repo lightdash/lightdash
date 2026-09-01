@@ -4,9 +4,10 @@ import {
     type AppVersionStatus,
 } from '@lightdash/common';
 import { ActionIcon, Group, Popover, Title } from '@mantine/core';
-import { IconInfoCircle, IconStar, IconStarFilled } from '@tabler/icons-react';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import { DASHBOARD_HEADER_HEIGHT } from '../../../components/common/Dashboard/dashboard.constants';
+import { FavoriteActionIcon } from '../../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import PageHeader from '../../../components/common/Page/PageHeader';
 import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
@@ -95,16 +96,11 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                     </Popover.Dropdown>
                 </Popover>
 
-                <ActionIcon
+                <FavoriteActionIcon
                     size="md"
-                    color={isFavorited ? 'orange' : 'ldGray.6'}
+                    isFavorite={isFavorited}
                     disabled={favoriteMutation.isLoading}
-                    aria-label={
-                        isFavorited
-                            ? 'Remove from favorites'
-                            : 'Add to favorites'
-                    }
-                    onClick={() => {
+                    onToggle={() => {
                         // Personal apps must be filed in a space before they
                         // can be favorited.
                         if (!isFavorited && !app.spaceUuid) {
@@ -116,12 +112,7 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                             contentUuid: app.uuid,
                         });
                     }}
-                >
-                    <MantineIcon
-                        icon={isFavorited ? IconStarFilled : IconStar}
-                        size={16}
-                    />
-                </ActionIcon>
+                />
             </Group>
 
             <Group gap="sm" wrap="nowrap">

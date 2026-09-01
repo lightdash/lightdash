@@ -1,7 +1,6 @@
-import { ActionIcon, CopyButton, Tooltip } from '@mantine/core';
-import { IconCheck, IconLink } from '@tabler/icons-react';
+import { IconLink } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from './MantineIcon';
+import { CopyActionIcon } from './CopyActionIcon';
 
 type ShareLinkButtonProps = {
     url: string;
@@ -13,27 +12,14 @@ export const ShareLinkButton: FC<ShareLinkButtonProps> = ({
     label = 'Copy link',
 }) => {
     return (
-        <CopyButton value={url} timeout={2000}>
-            {({ copied, copy }) => (
-                <Tooltip
-                    label={copied ? 'Link copied!' : label}
-                    position="bottom"
-                    openDelay={200}
-                    transitionProps={{ transition: 'fade', duration: 150 }}
-                >
-                    <ActionIcon
-                        variant="default"
-                        onClick={copy}
-                        size="md"
-                        aria-label={copied ? 'Link copied' : label}
-                    >
-                        <MantineIcon
-                            icon={copied ? IconCheck : IconLink}
-                            color={copied ? 'green' : undefined}
-                        />
-                    </ActionIcon>
-                </Tooltip>
-            )}
-        </CopyButton>
+        <CopyActionIcon
+            value={url}
+            icon={IconLink}
+            copyLabel={label}
+            copiedLabel="Link copied!"
+            tooltipPosition="bottom"
+            variant="default"
+            size="md"
+        />
     );
 };

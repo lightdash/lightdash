@@ -3,7 +3,6 @@ import {
     TextInput,
     Box,
     Center,
-    CopyButton,
     Group,
     Loader,
     Stack,
@@ -19,7 +18,6 @@ import { useDebouncedValue, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronRight,
-    IconCopy,
     IconSearch,
     IconTable,
     IconX,
@@ -28,6 +26,7 @@ import dayjs from 'dayjs';
 import Fuse from 'fuse.js';
 import isEmpty from 'lodash/isEmpty';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
+import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
@@ -139,21 +138,13 @@ const TableItem: FC<TableItemProps> = memo(
                     className={styles.copyButton}
                     display={hovered ? 'block' : 'none'}
                 >
-                    <CopyButton value={`${quotedTable}`}>
-                        {({ copied, copy }) => (
-                            <Tooltip
-                                label={copied ? 'Copied to clipboard' : 'Copy'}
-                                position="right"
-                            >
-                                <ActionIcon size="xs" onClick={copy} bg="body">
-                                    <MantineIcon
-                                        icon={IconCopy}
-                                        color={copied ? 'green' : undefined}
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                    </CopyButton>
+                    <CopyActionIcon
+                        value={quotedTable}
+                        copiedLabel="Copied to clipboard"
+                        tooltipPosition="right"
+                        size="xs"
+                        bg="body"
+                    />
                 </Box>
             </Box>
         );

@@ -2,7 +2,6 @@ import {
     TextInput,
     Box,
     Center,
-    CopyButton,
     Group,
     Loader,
     Stack,
@@ -13,8 +12,9 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
-import { IconCopy, IconSearch, IconX } from '@tabler/icons-react';
+import { IconSearch, IconX } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
+import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TableFieldIcon } from '../../../components/DataViz/Icons';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
@@ -36,26 +36,13 @@ const TableField: FC<{
         <Group gap={'xs'} wrap="nowrap" ref={hoverRef}>
             {hovered ? (
                 <Box display={hovered ? 'block' : 'none'}>
-                    <CopyButton value={`${activeTable}.${field.name}`}>
-                        {({ copied, copy }) => (
-                            <Tooltip
-                                label={copied ? 'Copied to clipboard' : 'Copy'}
-                                position="right"
-                            >
-                                <ActionIcon
-                                    size={16}
-                                    onClick={copy}
-                                    bg="ldGray.1"
-                                >
-                                    <MantineIcon
-                                        icon={IconCopy}
-                                        color={copied ? 'green' : 'blue'}
-                                        onClick={copy}
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                    </CopyButton>
+                    <CopyActionIcon
+                        value={`${activeTable}.${field.name}`}
+                        copiedLabel="Copied to clipboard"
+                        tooltipPosition="right"
+                        size={16}
+                        bg="ldGray.1"
+                    />
                 </Box>
             ) : (
                 <TableFieldIcon fieldType={field.type} />

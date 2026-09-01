@@ -3,21 +3,8 @@ import {
     formatTimestamp,
     type ServiceAccount,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    CopyButton,
-    Group,
-    Paper,
-    Table,
-    Text,
-    Tooltip,
-} from '@mantine/core';
-import {
-    IconCheck,
-    IconCopy,
-    IconInfoCircle,
-    IconTrash,
-} from '@tabler/icons-react';
+import { ActionIcon, Group, Paper, Table, Text, Tooltip } from '@mantine/core';
+import { IconInfoCircle, IconTrash } from '@tabler/icons-react';
 import {
     useEffect,
     useState,
@@ -25,6 +12,7 @@ import {
     type FC,
     type SetStateAction,
 } from 'react';
+import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import tableStyles from '../../../../../hooks/styles/tableStyles.module.css';
@@ -91,25 +79,13 @@ const TokenItem: FC<{
                             ...{uuid.slice(-8)}
                         </Text>
                     </Tooltip>
-                    <CopyButton value={uuid}>
-                        {({ copied, copy }) => (
-                            <Tooltip
-                                label={copied ? 'Copied' : 'Copy'}
-                                position="right"
-                            >
-                                <ActionIcon
-                                    size="xs"
-                                    onClick={copy}
-                                    variant="transparent"
-                                    color="ldGray.6"
-                                >
-                                    <MantineIcon
-                                        icon={copied ? IconCheck : IconCopy}
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                    </CopyButton>
+                    <CopyActionIcon
+                        value={uuid}
+                        tooltipPosition="right"
+                        size="xs"
+                        variant="transparent"
+                        color="ldGray.6"
+                    />
                 </Group>
             </Table.Td>
             <Table.Td w="1%">

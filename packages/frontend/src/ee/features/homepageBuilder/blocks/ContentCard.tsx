@@ -4,15 +4,10 @@ import {
     type SummaryContent,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Text, Tooltip } from '@mantine/core';
-import {
-    IconCircleCheckFilled,
-    IconEye,
-    IconStar,
-    IconStarFilled,
-    IconX,
-} from '@tabler/icons-react';
+import { IconCircleCheckFilled, IconEye, IconX } from '@tabler/icons-react';
 import { type FC, type PropsWithChildren } from 'react';
 import { Link } from 'react-router';
+import { FavoriteActionIcon } from '../../../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
 import { getResourceUrl } from '../../../../components/common/ResourceView/resourceUtils';
@@ -88,23 +83,15 @@ const CardActions: FC<Pick<Props, 'content' | 'onRemove' | 'star'>> = ({
 }) => (
     <>
         {star && (
-            <ActionIcon
-                color={star.isFavorite ? 'yellow' : 'ldGray.6'}
+            <FavoriteActionIcon
                 size="sm"
-                aria-label={
-                    star.isFavorite
-                        ? `Remove ${content.name} from favorites`
-                        : `Add ${content.name} to favorites`
-                }
-                onClick={(e) => {
+                isFavorite={star.isFavorite}
+                name={content.name}
+                onToggle={(e) => {
                     e.preventDefault();
                     star.onToggle();
                 }}
-            >
-                <MantineIcon
-                    icon={star.isFavorite ? IconStarFilled : IconStar}
-                />
-            </ActionIcon>
+            />
         )}
         {onRemove && (
             <ActionIcon

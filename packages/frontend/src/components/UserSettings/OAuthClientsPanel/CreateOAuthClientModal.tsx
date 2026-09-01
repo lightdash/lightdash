@@ -1,18 +1,10 @@
-import {
-    ActionIcon,
-    Button,
-    CopyButton,
-    Stack,
-    Textarea,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+import { Button, Stack, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconCheck, IconCopy, IconPlug } from '@tabler/icons-react';
+import { IconPlug } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useCreateOAuthClient } from '../../../hooks/useOAuthClients';
 import Callout from '../../common/Callout';
-import MantineIcon from '../../common/MantineIcon';
+import { CopyActionIcon } from '../../common/CopyActionIcon';
 import MantineModal from '../../common/MantineModal';
 
 export const CreateOAuthClientModal: FC<{
@@ -111,27 +103,10 @@ export const CreateOAuthClientModal: FC<{
                         readOnly
                         value={data?.clientId}
                         rightSection={
-                            <CopyButton value={data?.clientId ?? ''}>
-                                {({ copied, copy }) => (
-                                    <Tooltip
-                                        label={copied ? 'Copied' : 'Copy'}
-                                        position="right"
-                                    >
-                                        <ActionIcon
-                                            color={copied ? 'teal' : 'gray'}
-                                            onClick={copy}
-                                        >
-                                            <MantineIcon
-                                                icon={
-                                                    copied
-                                                        ? IconCheck
-                                                        : IconCopy
-                                                }
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                )}
-                            </CopyButton>
+                            <CopyActionIcon
+                                value={data?.clientId ?? ''}
+                                tooltipPosition="right"
+                            />
                         }
                     />
                     <TextInput
@@ -140,27 +115,10 @@ export const CreateOAuthClientModal: FC<{
                         className="sentry-block ph-no-capture"
                         value={data?.clientSecret}
                         rightSection={
-                            <CopyButton value={data?.clientSecret ?? ''}>
-                                {({ copied, copy }) => (
-                                    <Tooltip
-                                        label={copied ? 'Copied' : 'Copy'}
-                                        position="right"
-                                    >
-                                        <ActionIcon
-                                            color={copied ? 'teal' : 'gray'}
-                                            onClick={copy}
-                                        >
-                                            <MantineIcon
-                                                icon={
-                                                    copied
-                                                        ? IconCheck
-                                                        : IconCopy
-                                                }
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                )}
-                            </CopyButton>
+                            <CopyActionIcon
+                                value={data?.clientSecret ?? ''}
+                                tooltipPosition="right"
+                            />
                         }
                     />
                     <Callout variant="warning">

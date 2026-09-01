@@ -3,10 +3,8 @@ import {
     type OrganizationEmailWhitelabel,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Badge,
     Button,
-    CopyButton,
     Group,
     Stack,
     Switch,
@@ -16,12 +14,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import {
-    IconCheck,
-    IconCopy,
-    IconInfoCircle,
-    IconTrash,
-} from '@tabler/icons-react';
+import { IconInfoCircle, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
     useDeleteEmailWhitelabel,
@@ -30,6 +23,7 @@ import {
     useUpdateEmailWhitelabel,
     useVerifyEmailWhitelabel,
 } from '../../../hooks/organization/useEmailWhitelabel';
+import { CopyActionIcon } from '../../common/CopyActionIcon';
 import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
@@ -67,21 +61,7 @@ const CopyValue: FC<{ value: string }> = ({ value }) => (
         >
             {value}
         </Text>
-        <CopyButton value={value}>
-            {({ copied, copy }) => (
-                <Tooltip label={copied ? 'Copied' : 'Copy'}>
-                    <ActionIcon
-                        color={copied ? 'green' : 'gray'}
-                        onClick={copy}
-                    >
-                        <MantineIcon
-                            icon={copied ? IconCheck : IconCopy}
-                            size="sm"
-                        />
-                    </ActionIcon>
-                </Tooltip>
-            )}
-        </CopyButton>
+        <CopyActionIcon value={value} />
     </Group>
 );
 

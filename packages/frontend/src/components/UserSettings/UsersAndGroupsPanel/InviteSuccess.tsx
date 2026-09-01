@@ -1,18 +1,10 @@
 import { type InviteLink } from '@lightdash/common';
-import {
-    ActionIcon,
-    Alert,
-    CopyButton,
-    Stack,
-    Text,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
-import { IconCheck, IconCopy } from '@tabler/icons-react';
+import { Alert, Stack, Text, TextInput } from '@mantine/core';
+import { IconCheck } from '@tabler/icons-react';
 import React, { useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import useApp from '../../../providers/App/useApp';
-import MantineIcon from '../../common/MantineIcon';
+import { CopyActionIcon } from '../../common/CopyActionIcon';
 
 const InviteSuccess: FC<{
     invite: InviteLink;
@@ -69,23 +61,10 @@ const InviteSuccess: FC<{
                     className="sentry-block ph-no-capture"
                     value={invite.inviteUrl}
                     rightSection={
-                        <CopyButton value={invite.inviteUrl}>
-                            {({ copied, copy }) => (
-                                <Tooltip
-                                    label={copied ? 'Copied' : 'Copy'}
-                                    position="right"
-                                >
-                                    <ActionIcon
-                                        color={copied ? 'teal' : 'gray'}
-                                        onClick={copy}
-                                    >
-                                        <MantineIcon
-                                            icon={copied ? IconCheck : IconCopy}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
-                        </CopyButton>
+                        <CopyActionIcon
+                            value={invite.inviteUrl}
+                            tooltipPosition="right"
+                        />
                     }
                 />
             </Stack>

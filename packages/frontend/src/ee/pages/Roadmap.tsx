@@ -11,7 +11,6 @@ import {
     Badge,
     Box,
     Button,
-    CopyButton,
     Group,
     SegmentedControl,
     Stack,
@@ -25,8 +24,6 @@ import {
     IconAlertCircle,
     IconArrowUpRight,
     IconBrandGithub,
-    IconCheck,
-    IconCopy,
     IconFlag,
     IconGitPullRequest,
     IconLayoutKanban,
@@ -45,6 +42,7 @@ import {
     type ContentTableColumnDef,
     type ContentTableSortingState,
 } from '../../components/common/ContentTable';
+import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import FilterFacet from '../../components/common/FilterFacet';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -207,38 +205,13 @@ const RoadmapDetailsModal: FC<{
                                     <Text className={styles.detailTicketId}>
                                         {item.ticketId}
                                     </Text>
-                                    <CopyButton value={item.ticketId}>
-                                        {({ copied, copy }) => (
-                                            <Tooltip
-                                                label={
-                                                    copied
-                                                        ? 'Copied'
-                                                        : 'Copy ticket ID'
-                                                }
-                                            >
-                                                <ActionIcon
-                                                    aria-label={
-                                                        copied
-                                                            ? 'Copied'
-                                                            : 'Copy ticket ID'
-                                                    }
-                                                    color="ldGray.6"
-                                                    onClick={copy}
-                                                    size="xs"
-                                                    variant="transparent"
-                                                >
-                                                    <MantineIcon
-                                                        icon={
-                                                            copied
-                                                                ? IconCheck
-                                                                : IconCopy
-                                                        }
-                                                        size={13}
-                                                    />
-                                                </ActionIcon>
-                                            </Tooltip>
-                                        )}
-                                    </CopyButton>
+                                    <CopyActionIcon
+                                        value={item.ticketId}
+                                        copyLabel="Copy ticket ID"
+                                        color="ldGray.6"
+                                        size="xs"
+                                        variant="transparent"
+                                    />
                                 </Group>
                             </RoadmapRailRow>
                             <RoadmapRailRow label="Created">
