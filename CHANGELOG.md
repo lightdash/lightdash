@@ -1,3 +1,10 @@
+## [2.72.4](https://github.com/lightdash/lightdash/compare/2.72.3...2.72.4) (2026-09-01)
+
+
+### Bug Fixes
+
+* **frontend:** keep metric explore comparison selection ([#28400](https://github.com/lightdash/lightdash/issues/28400)) ([de2a6d5](https://github.com/lightdash/lightdash/commit/de2a6d5ae53a4dfde7f164ff628912dcc15b45f3))
+
 ## [2.72.3](https://github.com/lightdash/lightdash/compare/2.72.2...2.72.3) (2026-09-01)
 
 
