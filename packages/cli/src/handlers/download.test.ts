@@ -4,6 +4,7 @@ import {
     ContentAsCodeType,
     DashboardAsCode,
     LightdashError,
+    PromotionAction,
     SpaceAsCodeAction,
     SpaceMemberRole,
     type AnyType,
@@ -35,6 +36,7 @@ import {
     uploadHandler,
     type DownloadHandlerOptions,
 } from './download';
+import { logUploadChanges } from './spacesAsCode';
 
 vi.mock('../analytics/analytics', () => ({
     LightdashAnalytics: {
@@ -93,6 +95,7 @@ const {
     summarizeUploadChanges,
     upsertAiAgents,
     upsertExternalConnections,
+    upsertResources,
     upsertSpaces,
     upsertVirtualViews,
     validateSpaceIdentity,
@@ -428,6 +431,92 @@ const makeChart = (series: Series[]): ChartAsCode =>
         },
         dashboardSlug: undefined,
     }) as ChartAsCode;
+
+const writeFolderChart = async (baseDir: string, slug: string) => {
+    const yaml = `contentType: chart\nname: ${slug}\nslug: ${slug}\nspaceSlug: test-space\ntableName: orders\nversion: 1\n`;
+    await fs.writeFile(path.join(baseDir, 'charts', `${slug}.yml`), yaml);
+};
+
+describe('upload summary counts', () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+        vi.mocked(lightdashApi).mockReset();
+        vi.spyOn(GlobalState, 'log').mockImplementation(() => undefined);
+        vi.spyOn(GlobalState, 'debug').mockImplementation(() => undefined);
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'download-test-'));
+        await fs.mkdir(path.join(tmpDir, 'charts'));
+        await fs.mkdir(path.join(tmpDir, 'dashboards'));
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('counts only the uploaded type, not the spaces and tiles echoed by the API', async () => {
+        await writeFolderChart(tmpDir, 'chart-a');
+        await writeFolderChart(tmpDir, 'chart-b');
+        await writeFolderDashboard(tmpDir, 'dash', ['chart-a', 'chart-b']);
+        const noChanges = { action: PromotionAction.NO_CHANGES };
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) =>
+            url.includes('/code/charts/')
+                ? ({
+                      charts: [{ action: PromotionAction.UPDATE }],
+                      spaces: [noChanges],
+                      dashboards: [],
+                  } as never)
+                : ({
+                      dashboards: [{ action: PromotionAction.UPDATE }],
+                      charts: [noChanges, noChanges],
+                      spaces: [noChanges],
+                  } as never),
+        );
+        const summarySpy = vi
+            .spyOn(console, 'info')
+            .mockImplementation(() => undefined);
+
+        const changes: Record<string, number> = {};
+        const chartsResult = await upsertResources<ChartAsCode>(
+            'charts',
+            'project-uuid',
+            changes,
+            false,
+            [],
+            true,
+            tmpDir,
+        );
+        const afterCharts = { ...chartsResult.changes };
+        expect(summarizeUploadChanges({}, afterCharts).detail).toBe(
+            '2 updated',
+        );
+
+        const dashboardsResult = await upsertResources<DashboardAsCode>(
+            'dashboards',
+            'project-uuid',
+            changes,
+            false,
+            [],
+            true,
+            tmpDir,
+        );
+        expect(
+            summarizeUploadChanges(afterCharts, dashboardsResult.changes)
+                .detail,
+        ).toBe('1 updated');
+        expect(lightdashApi).toHaveBeenCalledTimes(3);
+        expect(dashboardsResult.changes).toEqual({
+            'charts updated': 2,
+            'dashboards updated': 1,
+        });
+
+        logUploadChanges(dashboardsResult.changes);
+        expect(summarySpy.mock.calls.map(([message]) => message)).toEqual([
+            'Total charts updated: 2 ',
+            'Total dashboards updated: 1 ',
+        ]);
+    });
+});
 
 describe('getDashboardChartSlugs', () => {
     let tmpDir: string;
