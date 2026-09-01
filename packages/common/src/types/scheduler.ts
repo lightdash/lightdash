@@ -159,8 +159,8 @@ export type ChartScheduler = SchedulerBase & {
 };
 
 export const isDashboardScheduler = (
-    scheduler: Scheduler | CreateSchedulerAndTargets,
-): scheduler is DashboardScheduler =>
+    scheduler: Scheduler | CreateSchedulerAndTargets | SendNowScheduler,
+): scheduler is DashboardScheduler | InlineDashboardScheduler =>
     'dashboardUuid' in scheduler && !!scheduler.dashboardUuid;
 
 export type DashboardScheduler = SchedulerBase & {
@@ -212,12 +212,13 @@ export type AppScheduler = SchedulerBase & {
 };
 
 export const isAppScheduler = (
-    data: Scheduler | CreateSchedulerAndTargets,
-): data is AppScheduler => 'appUuid' in data && !!data.appUuid;
+    data: Scheduler | CreateSchedulerAndTargets | SendNowScheduler,
+): data is AppScheduler | InlineAppScheduler =>
+    'appUuid' in data && !!data.appUuid;
 
 export const isSqlChartScheduler = (
-    scheduler: Scheduler | CreateSchedulerAndTargets,
-): scheduler is SqlChartScheduler =>
+    scheduler: Scheduler | CreateSchedulerAndTargets | SendNowScheduler,
+): scheduler is SqlChartScheduler | InlineSqlChartScheduler =>
     'savedSqlUuid' in scheduler && !!scheduler.savedSqlUuid;
 
 export type Scheduler =
@@ -362,6 +363,61 @@ export type CreateSchedulerAndTargets = Omit<
     sourceSchedulerUuid?: string;
 };
 
+type InlineSchedulerBase = Omit<
+    CreateSchedulerAndTargets,
+    'cron' | 'savedChartUuid' | 'dashboardUuid' | 'savedSqlUuid' | 'appUuid'
+> & {
+    // Inline deliveries do not need a recurring schedule.
+    cron?: string;
+};
+
+type InlineChartScheduler = InlineSchedulerBase &
+    Pick<
+        ChartScheduler,
+        | 'savedChartUuid'
+        | 'dashboardUuid'
+        | 'savedSqlUuid'
+        | 'appUuid'
+        | 'filters'
+        | 'parameters'
+    >;
+
+type InlineDashboardScheduler = InlineSchedulerBase &
+    Pick<
+        DashboardScheduler,
+        | 'savedChartUuid'
+        | 'dashboardUuid'
+        | 'savedSqlUuid'
+        | 'appUuid'
+        | 'filters'
+        | 'parameters'
+        | 'customViewportWidth'
+    > & {
+        selectedTabs?: string[] | null;
+    };
+
+type InlineSqlChartScheduler = InlineSchedulerBase &
+    Pick<
+        SqlChartScheduler,
+        'savedChartUuid' | 'dashboardUuid' | 'savedSqlUuid' | 'appUuid'
+    >;
+
+type InlineAppScheduler = InlineSchedulerBase &
+    Pick<
+        AppScheduler,
+        | 'savedChartUuid'
+        | 'dashboardUuid'
+        | 'savedSqlUuid'
+        | 'appUuid'
+        | 'appState'
+    >;
+
+export type SendNowScheduler =
+    | InlineChartScheduler
+    | InlineDashboardScheduler
+    | InlineSqlChartScheduler
+    | InlineAppScheduler;
+
 export type CreateSchedulerAndTargetsWithoutIds = Omit<
     CreateSchedulerAndTargets,
     'savedChartUuid' | 'dashboardUuid' | 'savedSqlUuid' | 'createdBy'
@@ -425,11 +481,12 @@ export const isUpdateSchedulerEmailTarget = (
     'schedulerEmailTargetUuid' in data && !!data.schedulerEmailTargetUuid;
 
 export const isChartScheduler = (
-    data: Scheduler | CreateSchedulerAndTargets,
-): data is ChartScheduler => 'savedChartUuid' in data && !!data.savedChartUuid;
+    data: Scheduler | CreateSchedulerAndTargets | SendNowScheduler,
+): data is ChartScheduler | InlineChartScheduler =>
+    'savedChartUuid' in data && !!data.savedChartUuid;
 
 export const getSchedulerResourceTypeAndId = (
-    scheduler: Scheduler | CreateSchedulerAndTargets,
+    scheduler: Scheduler | CreateSchedulerAndTargets | SendNowScheduler,
 ): { resourceType: SchedulerResourceType; resourceId: string } => {
     if (isChartScheduler(scheduler)) {
         return {
@@ -459,19 +516,23 @@ export const getSchedulerResourceTypeAndId = (
 };
 
 export const isChartCreateScheduler = (
-    data: CreateSchedulerAndTargets,
-): data is ChartScheduler & { targets: CreateSchedulerTarget[] } =>
-    'savedChartUuid' in data && !!data.savedChartUuid;
+    data: CreateSchedulerAndTargets | SendNowScheduler,
+): data is
+    | (ChartScheduler & { targets: CreateSchedulerTarget[] })
+    | InlineChartScheduler => 'savedChartUuid' in data && !!data.savedChartUuid;
 
 export const isDashboardCreateScheduler = (
-    data: CreateSchedulerAndTargets,
-): data is DashboardScheduler & { targets: CreateSchedulerTarget[] } =>
+    data: CreateSchedulerAndTargets | SendNowScheduler,
+): data is
+    | (DashboardScheduler & { targets: CreateSchedulerTarget[] })
+    | InlineDashboardScheduler =>
     'dashboardUuid' in data && !!data.dashboardUuid;
 
 export const isAppCreateScheduler = (
-    data: CreateSchedulerAndTargets,
-): data is AppScheduler & { targets: CreateSchedulerTarget[] } =>
-    'appUuid' in data && !!data.appUuid;
+    data: CreateSchedulerAndTargets | SendNowScheduler,
+): data is
+    | (AppScheduler & { targets: CreateSchedulerTarget[] })
+    | InlineAppScheduler => 'appUuid' in data && !!data.appUuid;
 
 export const isSlackTarget = (
     target:
@@ -651,7 +712,7 @@ export type QueueTraceProperties = {
 // Scheduler task types
 export type ScheduledDeliveryPayload = TraceTaskBase &
     (
-        | CreateSchedulerAndTargets
+        | SendNowScheduler
         | (Pick<Scheduler, 'schedulerUuid'> & {
               executionUserUuid?: string;
           })
@@ -659,18 +720,24 @@ export type ScheduledDeliveryPayload = TraceTaskBase &
 
 export const isCreateScheduler = (
     data: ScheduledDeliveryPayload,
-): data is CreateSchedulerAndTargets & TraceTaskBase => 'targets' in data;
+): data is SendNowScheduler & TraceTaskBase => 'targets' in data;
 export const hasSchedulerUuid = (
-    data: SchedulerAndTargets | CreateSchedulerAndTargets,
+    data: SchedulerAndTargets | CreateSchedulerAndTargets | SendNowScheduler,
 ): data is SchedulerAndTargets => 'schedulerUuid' in data;
 
 export const getSchedulerUuid = (
-    data: CreateSchedulerAndTargets | Pick<Scheduler, 'schedulerUuid'>,
+    data:
+        | CreateSchedulerAndTargets
+        | SendNowScheduler
+        | Pick<Scheduler, 'schedulerUuid'>,
 ): string | undefined =>
     'schedulerUuid' in data ? data.schedulerUuid : undefined;
 
 export const getSourceSchedulerUuid = (
-    data: CreateSchedulerAndTargets | Pick<Scheduler, 'schedulerUuid'>,
+    data:
+        | CreateSchedulerAndTargets
+        | SendNowScheduler
+        | Pick<Scheduler, 'schedulerUuid'>,
 ): string | undefined =>
     'sourceSchedulerUuid' in data ? data.sourceSchedulerUuid : undefined;
 
@@ -725,7 +792,7 @@ export type NotificationPayloadBase = {
         failures?: PartialFailure[];
         notices?: DeliveryNotice[];
     };
-    scheduler: CreateSchedulerAndTargets;
+    scheduler: SchedulerAndTargets | SendNowScheduler;
 };
 
 export type SlackNotificationPayload = TraceTaskBase &
