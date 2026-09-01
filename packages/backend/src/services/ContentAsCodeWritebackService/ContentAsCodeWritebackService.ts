@@ -112,6 +112,12 @@ export class ContentAsCodeWritebackService extends BaseService {
 
     private readonly userModel: UserModel;
 
+    // The review page polls with refresh; one provider round per project per
+    // minute is enough to notice merged or closed PRs
+    private static readonly PULL_REQUEST_REFRESH_INTERVAL_MS = 60_000;
+
+    private readonly pullRequestsRefreshedAt = new Map<string, number>();
+
     constructor(args: ContentAsCodeWritebackServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
@@ -296,9 +302,30 @@ export class ContentAsCodeWritebackService extends BaseService {
     async listDrafts(
         user: SessionUser,
         projectUuid: string,
+        options: { refresh?: boolean } = {},
     ): Promise<ContentDraft[]> {
         await this.assertCanManageContentAsCode(user, projectUuid);
+        if (options.refresh && this.claimPullRequestRefresh(projectUuid)) {
+            const rows =
+                await this.contentAsCodeWritebackModel.listByProject(
+                    projectUuid,
+                );
+            await this.refreshOpenPullRequestStates(user, projectUuid, rows);
+        }
         return this.contentDraftModel.listByProject(projectUuid);
+    }
+
+    private claimPullRequestRefresh(projectUuid: string): boolean {
+        const now = Date.now();
+        const last = this.pullRequestsRefreshedAt.get(projectUuid) ?? 0;
+        if (
+            now - last <
+            ContentAsCodeWritebackService.PULL_REQUEST_REFRESH_INTERVAL_MS
+        ) {
+            return false;
+        }
+        this.pullRequestsRefreshedAt.set(projectUuid, now);
+        return true;
     }
 
     // The review payload: published vs draft, both rendered as the exact
@@ -491,6 +518,7 @@ export class ContentAsCodeWritebackService extends BaseService {
                             row.uuid,
                             { status: 'closed' },
                         );
+                        await this.releaseDraftOfClosedPullRequest(row);
                     }
                 } catch (error) {
                     this.logger.warn(
@@ -499,6 +527,23 @@ export class ContentAsCodeWritebackService extends BaseService {
                     );
                 }
             }),
+        );
+    }
+
+    // A PR closed without merging hands the change back to its author as a
+    // dismissed draft, so the existing reopen path applies.
+    private async releaseDraftOfClosedPullRequest(
+        row: ContentAsCodeWriteback,
+    ): Promise<void> {
+        if (row.contentDraftUuid === null) return;
+        const draft = await this.contentDraftModel.get(row.contentDraftUuid);
+        if (draft === undefined || draft.status !== 'written_back') return;
+        await this.contentDraftModel.update(draft.uuid, {
+            status: 'dismissed',
+            prUrl: null,
+        });
+        this.logger.info(
+            `Draft ${draft.uuid} for ${row.slug} released after PR #${row.prNumber} was closed without merging`,
         );
     }
 

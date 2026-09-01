@@ -9,17 +9,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
+// refresh asks the server to reconcile open write-back PRs with the git
+// provider; the server throttles that to once a minute per project
 export const useContentDrafts = (projectUuid: string | undefined) =>
     useQuery<ApiContentDraftsResponse['results'], ApiError>({
         queryKey: ['content-drafts', projectUuid],
         queryFn: () =>
             lightdashApi<ApiContentDraftsResponse['results']>({
-                url: `/projects/${projectUuid}/code/drafts`,
+                url: `/projects/${projectUuid}/code/drafts?refresh=true`,
                 method: 'GET',
                 body: undefined,
             }),
         enabled: projectUuid !== undefined,
-        refetchInterval: 15000,
+        refetchInterval: 30000,
     });
 
 export const useContentDraftReview = (

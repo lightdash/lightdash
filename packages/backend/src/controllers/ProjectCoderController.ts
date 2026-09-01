@@ -271,12 +271,15 @@ export class ProjectCoderController extends BaseController {
     async listContentDrafts(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() refresh?: boolean,
     ): Promise<ApiContentDraftsResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         const drafts = await this.services
             .getContentAsCodeWritebackService()
-            .listDrafts(toSessionUser(req.account), projectUuid);
+            .listDrafts(toSessionUser(req.account), projectUuid, {
+                refresh,
+            });
         return codeSuccess(drafts.map(toDraftSummary));
     }
 
