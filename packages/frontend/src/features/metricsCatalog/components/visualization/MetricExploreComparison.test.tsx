@@ -55,7 +55,10 @@ describe('MetricExploreComparison', () => {
     it('keeps the metric selected when choosing a comparison metric', async () => {
         renderWithProviders(<ControlledComparison />);
 
-        await userEvent.click(screen.getByPlaceholderText('Select a metric'));
+        const metricSelect = screen.getByPlaceholderText('Select a metric');
+        expect(metricSelect).not.toHaveAttribute('data-disabled');
+
+        await userEvent.click(metricSelect);
         await userEvent.click(
             await screen.findByRole('option', { name: 'Total sales' }),
         );

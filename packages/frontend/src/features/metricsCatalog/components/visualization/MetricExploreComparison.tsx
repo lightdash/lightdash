@@ -221,7 +221,8 @@ export const MetricExploreComparison: FC<Props> = ({
                                                     />
                                                 )}
                                                 data-disabled={
-                                                    !metricsWithTimeDimensionsQuery.isSuccess
+                                                    !metricsWithTimeDimensionsQuery.isSuccess ||
+                                                    undefined
                                                 }
                                                 rightSection={
                                                     metricsWithTimeDimensionsQuery.isLoading ? (
