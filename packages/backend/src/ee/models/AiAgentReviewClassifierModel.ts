@@ -2554,20 +2554,17 @@ export class AiAgentReviewClassifierModel {
             return [];
         }
 
-        const rows = await this.database(AiAgentReviewItemTableName)
-            .select<Pick<DbAiAgentReviewItem, 'fingerprint' | 'project_uuid'>[]>(
-                'fingerprint',
-                'project_uuid',
-            )
+        const query = this.database<AiAgentReviewItemTable>(
+            AiAgentReviewItemTableName,
+        )
+            .select('fingerprint', 'project_uuid')
             .where('organization_uuid', args.organizationUuid)
             .whereNull('linked_issue_url')
             .whereNotNull('project_uuid')
-            .whereIn('status', ['triage', 'open', 'in_progress'])
-            .modify((query) => {
-                if (args.projectUuids) {
-                    void query.whereIn('project_uuid', args.projectUuids);
-                }
-            });
+            .whereIn('status', ['triage', 'open', 'in_progress']);
+        const rows = await (args.projectUuids
+            ? query.whereIn('project_uuid', args.projectUuids)
+            : query);
 
         return rows.flatMap((row) =>
             row.project_uuid
@@ -2581,18 +2578,40 @@ export class AiAgentReviewClassifierModel {
         );
     }
 
-    async updateReviewItemLinkedIssueUrl(args: {
-        fingerprint: string;
-        organizationUuid: string;
-        linkedIssueUrl: string;
-    }): Promise<void> {
-        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
-            .where('fingerprint', args.fingerprint)
-            .where('organization_uuid', args.organizationUuid)
-            .update({
-                linked_issue_url: args.linkedIssueUrl,
-                updated_at: this.database.fn.now() as never,
-            });
+    // Holds a row lock while the external issue is created so concurrent jobs
+    // for the same item cannot each create one.
+    async withReviewItemLinkedIssueLock<T>(
+        args: { fingerprint: string; organizationUuid: string },
+        run: (
+            linkedIssueUrl: string | null,
+            setLinkedIssueUrl: (linkedIssueUrl: string) => Promise<void>,
+        ) => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(async (trx) => {
+            const row = await trx<AiAgentReviewItemTable>(
+                AiAgentReviewItemTableName,
+            )
+                .select('linked_issue_url')
+                .where('fingerprint', args.fingerprint)
+                .where('organization_uuid', args.organizationUuid)
+                .forUpdate()
+                .first();
+
+            return run(
+                row?.linked_issue_url ?? null,
+                async (linkedIssueUrl) => {
+                    await trx<AiAgentReviewItemTable>(
+                        AiAgentReviewItemTableName,
+                    )
+                        .where('fingerprint', args.fingerprint)
+                        .where('organization_uuid', args.organizationUuid)
+                        .update({
+                            linked_issue_url: linkedIssueUrl,
+                            updated_at: trx.fn.now() as never,
+                        });
+                },
+            );
+        });
     }
 
     async updateReviewItemAssignee(args: {

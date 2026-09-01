@@ -1185,26 +1185,10 @@ export class AiAgentAdminService extends BaseService {
             }
         }
 
-        const current =
-            await this.aiAgentReviewNotificationModel.getLinearRouting(
-                organizationUuid,
-            );
-        const updated =
-            await this.aiAgentReviewNotificationModel.upsertLinearRouting({
-                organizationUuid,
-                ...routing,
-            });
-
-        if (updated.enabled && !current.enabled) {
-            await this.enqueueUnlinkedLinearIssues({
-                organizationUuid,
-                applyToAllProjects: updated.applyToAllProjects,
-                projectUuids: updated.projectUuids,
-                userUuid: user.userUuid,
-            });
-        }
-
-        return updated;
+        return this.aiAgentReviewNotificationModel.upsertLinearRouting({
+            organizationUuid,
+            ...routing,
+        });
     }
 
     async backfillReviewLinearIssues(

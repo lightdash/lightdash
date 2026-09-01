@@ -145,7 +145,9 @@ export const useBackfillReviewLinearIssues = () => {
                 title:
                     result.queuedCount === 0
                         ? 'No existing findings needed a Linear issue'
-                        : `Creating Linear issues for ${result.queuedCount} existing findings`,
+                        : `Creating Linear issues for ${result.queuedCount} existing ${
+                              result.queuedCount === 1 ? 'finding' : 'findings'
+                          }`,
             });
         },
         onError: ({ error }) => {
