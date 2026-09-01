@@ -3,7 +3,9 @@ import {
     ConflictError,
     ContentAsCodeType,
     DbtProjectType,
+    DEFAULT_CONTENT_AS_CODE_PATH,
     ForbiddenError,
+    getContentAsCodeFilePath,
     NotFoundError,
     ParameterError,
     PullRequestSource,
@@ -181,13 +183,19 @@ export class ContentAsCodeWritebackService extends BaseService {
 
     private static getContentFilePath(
         repoPath: string,
+        contentPath: string,
         contentType: WritebackContentType,
         slug: string,
     ): string {
         const prefix = repoPath.replace(/^\/+|\/+$/g, '');
-        const folder = contentType === 'chart' ? 'charts' : 'dashboards';
-        const base = `lightdash/${folder}/${slug}.yml`;
+        const base = getContentAsCodeFilePath(contentPath, contentType, slug);
         return prefix === '' ? base : `${prefix}/${base}`;
+    }
+
+    private async getContentPath(projectUuid: string): Promise<string> {
+        const settings =
+            await this.contentAsCodeProjectSettingsModel.get(projectUuid);
+        return settings?.path ?? DEFAULT_CONTENT_AS_CODE_PATH;
     }
 
     // The migration path: instances are already ahead today, so drifted
@@ -373,6 +381,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         draftUuid: string,
     ): Promise<{
         draft: ContentDraft;
+        filePath: string;
         publishedYaml: string;
         draftYaml: string;
     }> {
@@ -387,6 +396,11 @@ export class ContentAsCodeWritebackService extends BaseService {
         ) {
             throw new ParameterError('Unsupported draft content type');
         }
+        const filePath = getContentAsCodeFilePath(
+            await this.getContentPath(projectUuid),
+            draft.contentType,
+            draft.slug,
+        );
         // A written-back draft shows what actually went to the repo, not a
         // live diff that drifts as published content moves on; a draft handed
         // back to its author is live again
@@ -397,6 +411,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         ) {
             return {
                 draft,
+                filePath,
                 publishedYaml: dumpContentAsCode(draft.writtenBackPublished),
                 draftYaml: dumpContentAsCode(draft.writtenBackDraft),
             };
@@ -407,6 +422,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         );
         return {
             draft,
+            filePath,
             publishedYaml: dumpContentAsCode(published),
             draftYaml: dumpContentAsCode(draftDoc),
         };
@@ -736,6 +752,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         const { projectUuid, contentType, contentUuid, slug } = target;
         const repo =
             await this.gitIntegrationService.getProjectRepo(projectUuid);
+        const contentDir = await this.getContentPath(projectUuid);
 
         let current = row;
         try {
@@ -774,6 +791,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             files.push({
                 path: ContentAsCodeWritebackService.getContentFilePath(
                     repo.path,
+                    contentDir,
                     'chart',
                     slug,
                 ),
@@ -788,6 +806,7 @@ export class ContentAsCodeWritebackService extends BaseService {
             files.push({
                 path: ContentAsCodeWritebackService.getContentFilePath(
                     repo.path,
+                    contentDir,
                     'dashboard',
                     slug,
                 ),
@@ -798,6 +817,7 @@ export class ContentAsCodeWritebackService extends BaseService {
                 projectUuid,
                 dashboardAsCode,
                 repo.path,
+                contentDir,
                 notes,
             );
             files.push(...ownedChartFiles);
@@ -944,6 +964,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         projectUuid: string,
         dashboardAsCode: DashboardAsCode,
         repoPath: string,
+        contentPath: string,
         notes: string[],
     ): Promise<{ path: string; content: string }[]> {
         const chartSlugs = Array.from(
@@ -997,6 +1018,7 @@ export class ContentAsCodeWritebackService extends BaseService {
                         return {
                             path: ContentAsCodeWritebackService.getContentFilePath(
                                 repoPath,
+                                contentPath,
                                 'chart',
                                 chartSlug,
                             ),

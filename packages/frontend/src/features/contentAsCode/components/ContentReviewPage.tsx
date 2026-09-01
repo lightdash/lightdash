@@ -464,19 +464,11 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                 >
                                     <MultiFileDiff
                                         oldFile={{
-                                            name: `lightdash/${
-                                                active.contentType === 'chart'
-                                                    ? 'charts'
-                                                    : 'dashboards'
-                                            }/${active.slug}.yml`,
+                                            name: review.filePath,
                                             contents: review.publishedYaml,
                                         }}
                                         newFile={{
-                                            name: `lightdash/${
-                                                active.contentType === 'chart'
-                                                    ? 'charts'
-                                                    : 'dashboards'
-                                            }/${active.slug}.yml`,
+                                            name: review.filePath,
                                             contents: review.draftYaml,
                                         }}
                                         style={{ colorScheme }}

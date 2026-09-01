@@ -1,10 +1,6 @@
+import { type ContentAsCodeProjectSettings } from '@lightdash/common';
 import { Knex } from 'knex';
 import { ContentAsCodeProjectSettingsTableName } from '../database/entities/contentAsCodeWritebacks';
-
-export type ContentAsCodeProjectSettings = {
-    syncEnabled: boolean;
-    stampedAt: Date;
-};
 
 type ContentAsCodeProjectSettingsModelArguments = {
     database: Knex;
@@ -26,23 +22,30 @@ export class ContentAsCodeProjectSettingsModel {
         if (row === undefined) return undefined;
         return {
             syncEnabled: row.sync_enabled,
+            path: row.content_path,
             stampedAt: row.stamped_at,
         };
     }
 
+    // path null: the stamping client predates the setting, keep what is stored
     async upsert(args: {
         projectUuid: string;
         syncEnabled: boolean;
+        path: string | null;
     }): Promise<void> {
+        const pathColumn =
+            args.path === null ? {} : { content_path: args.path };
         await this.database(ContentAsCodeProjectSettingsTableName)
             .insert({
                 project_uuid: args.projectUuid,
                 sync_enabled: args.syncEnabled,
+                ...pathColumn,
             })
             .onConflict('project_uuid')
             .merge({
                 sync_enabled: args.syncEnabled,
                 stamped_at: this.database.fn.now(),
+                ...pathColumn,
             });
     }
 }

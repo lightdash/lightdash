@@ -104,6 +104,8 @@ export type CustomGranularity = {
 export type ContentAsCodeConfig = {
     /** Track uploaded content as Git-backed for review/write-back workflows. */
     sync?: boolean;
+    /** Directory holding charts/ and dashboards/, relative to the project dir. Defaults to `lightdash`. */
+    path?: string;
 };
 
 export type LightdashProjectConfig = {
