@@ -485,6 +485,19 @@ const isLooseContentFile = (entry: Dirent) => {
     );
 };
 
+// The file's path relative to the project dir, posix; undefined outside it
+const sourceFilePath = (filePath: string): string | undefined => {
+    const relative = path.relative(process.cwd(), filePath);
+    if (
+        path.isAbsolute(relative) ||
+        relative === '..' ||
+        relative.startsWith(`..${path.sep}`)
+    ) {
+        return undefined;
+    }
+    return relative.split(path.sep).join('/');
+};
+
 const processYamlItem = <
     T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
 >(
@@ -493,6 +506,7 @@ const processYamlItem = <
     stats: Stats,
     folder: 'charts' | 'dashboards',
     metadata: LightdashMetadata,
+    filePath: string,
 ) => {
     if (hasUnsortedKeys(item)) {
         GlobalState.log(
@@ -520,6 +534,8 @@ const processYamlItem = <
         ...item,
         updatedAt: needsUpdating ? stats.mtime : item.updatedAt,
         needsUpdating: needsUpdating ?? true,
+        // Sent with the upsert so write-back returns to this file
+        filePath: sourceFilePath(filePath),
     };
 };
 
@@ -537,7 +553,7 @@ const loadYamlFile = async <
     ]);
 
     const item = yaml.load(fileContent) as T;
-    return processYamlItem(item, file.name, stats, folder, metadata);
+    return processYamlItem(item, file.name, stats, folder, metadata, filePath);
 };
 
 const readCodeFiles = async <
@@ -646,6 +662,7 @@ const readLooseCodeFiles = async (
                                 stats,
                                 'charts',
                                 metadata,
+                                filePath,
                             ),
                         );
                     } else if (
@@ -658,6 +675,7 @@ const readLooseCodeFiles = async (
                                 stats,
                                 'dashboards',
                                 metadata,
+                                filePath,
                             ),
                         );
                     } else if (contentType === ContentAsCodeTypeEnum.SPACE) {
