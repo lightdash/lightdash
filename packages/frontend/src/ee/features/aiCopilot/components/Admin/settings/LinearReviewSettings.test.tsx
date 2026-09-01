@@ -124,10 +124,33 @@ describe('LinearReviewSettings', () => {
         expect(connect).toBeEnabled();
     });
 
-    it('discloses that issue creation is one-way', () => {
+    it('shows a two-step Linear setup with the Linear logo', () => {
         renderSettings();
 
-        expect(screen.getByText(/This is a one-way export/)).toBeVisible();
+        expect(screen.getByRole('img', { name: 'Linear' })).toBeVisible();
+        expect(screen.getByText('Create a Linear app')).toBeVisible();
+        expect(
+            screen.getByText('Paste the client ID and connect'),
+        ).toBeVisible();
+        expect(screen.getByText(/Status is not synced/)).toBeVisible();
+        expect(
+            screen.queryByRole('switch', {
+                name: 'Create Linear issues for AI review findings',
+            }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows the Linear logo and export toggle when connected', () => {
+        mocks.hasLinear = true;
+        renderSettings();
+
+        expect(screen.getByRole('img', { name: 'Linear' })).toBeVisible();
+        expect(
+            screen.getByRole('switch', {
+                name: 'Create Linear issues for AI review findings',
+            }),
+        ).toBeChecked();
+        expect(screen.getByText(/Connected to Example/)).toBeVisible();
     });
 
     it('exports existing findings when Linear is already connected', async () => {
