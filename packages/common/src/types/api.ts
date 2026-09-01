@@ -144,6 +144,7 @@ import {
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
     type ApiContentAsCodeProposeResponse,
+    type ApiContentAsCodePullResponse,
     type ApiContentAsCodeSettingsResponse,
     type ApiContentAsCodeUploadAdvisoryResponse,
     type ApiContentAsCodeWritebacksResponse,
@@ -460,6 +461,11 @@ export type ApiStatusResults = 'loading' | 'ready' | 'error';
 
 export type ApiRefreshResults = {
     jobUuid: string;
+};
+
+export type ApiRefreshBody = {
+    // Run the content-as-code pull as a job step after compiling
+    syncContent: boolean;
 };
 
 export type ApiCreatePreviewResults = {
@@ -1395,6 +1401,7 @@ type ApiResults =
     | ApiContentDraftReopenResponse['results']
     | ApiContentDraftWriteBackResponse['results']
     | ApiContentAsCodeProposeResponse['results']
+    | ApiContentAsCodePullResponse['results']
     | ApiContentAsCodeSettingsResponse['results']
     | ApiContentAsCodeUploadAdvisoryResponse['results']
     | ApiGetMetricsTree['results']

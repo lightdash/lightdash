@@ -8727,6 +8727,7 @@ export class ProjectService extends BaseService {
         requestMethod: RequestMethod,
         skipPermissionCheck: boolean = false,
         validateAfterCompile: boolean = false,
+        syncContentAfterCompile: boolean = false,
     ): Promise<{ jobUuid: string }> {
         const { organizationUuid, type } =
             await this.projectModel.getSummary(projectUuid);
@@ -8758,7 +8759,12 @@ export class ProjectService extends BaseService {
             jobStatus: JobStatusType.STARTED,
             userUuid: user.userUuid,
             projectUuid,
-            steps: [{ stepType: JobStepType.COMPILING }],
+            steps: [
+                { stepType: JobStepType.COMPILING },
+                ...(syncContentAfterCompile
+                    ? [{ stepType: JobStepType.SYNCING_CONTENT }]
+                    : []),
+            ],
         };
 
         await this.jobModel.create(job, type === ProjectType.PREVIEW);
@@ -8771,17 +8777,21 @@ export class ProjectService extends BaseService {
             jobUuid: job.jobUuid,
             isPreview: type === ProjectType.PREVIEW,
             validateAfterCompile,
+            syncContentAfterCompile,
             userUuid: user.userUuid,
         });
 
         return { jobUuid: job.jobUuid };
     }
 
+    // afterCompile runs as its own job step inside the project lock, before
+    // the job is marked done, so callers polling the job see the whole run
     async compileProject(
         user: SessionUser,
         projectUuid: string,
         requestMethod: RequestMethod,
         jobUuid: string,
+        afterCompile?: { stepType: JobStepType; run: () => Promise<void> },
     ) {
         const totalStartTime = performance.now();
 
@@ -8920,6 +8930,14 @@ export class ProjectService extends BaseService {
                         };
                     },
                 );
+
+                if (afterCompile) {
+                    await this.jobModel.tryJobStep(
+                        job.jobUuid,
+                        afterCompile.stepType,
+                        afterCompile.run,
+                    );
+                }
 
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,

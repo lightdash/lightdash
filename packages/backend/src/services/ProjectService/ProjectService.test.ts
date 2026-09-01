@@ -3537,6 +3537,91 @@ describe('ProjectService', () => {
             });
         });
 
+        const compileUser: SessionUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Job', action: ['create'] },
+                { subject: 'CompileProject', action: ['manage'] },
+                { subject: 'Project', action: ['update', 'view'] },
+                { subject: 'Tags', action: ['manage'] },
+            ]),
+        };
+
+        const stubCompile = () =>
+            vi
+                .spyOn(
+                    service as unknown as {
+                        refreshTablesAndProjectConfig: () => Promise<unknown>;
+                    },
+                    'refreshTablesAndProjectConfig',
+                )
+                .mockResolvedValueOnce({
+                    explores: [validExplore],
+                    lightdashProjectConfig: {
+                        spotlight: { categories: {} },
+                        parameters: {},
+                        table_groups: {},
+                    },
+                    projectContext: undefined,
+                });
+
+        test('runs the afterCompile step after compiling and before the job is done', async () => {
+            const compileJobUuid = 'compile-job-uuid';
+            stubCompile();
+            const run = vi.fn(async () => undefined);
+
+            await service.compileProject(
+                compileUser,
+                projectUuid,
+                RequestMethod.WEB_APP,
+                compileJobUuid,
+                { stepType: JobStepType.SYNCING_CONTENT, run },
+            );
+
+            expect(jobModel.tryJobStep).toHaveBeenCalledWith(
+                compileJobUuid,
+                JobStepType.SYNCING_CONTENT,
+                run,
+            );
+            expect(run).toHaveBeenCalledTimes(1);
+            const doneCall = (
+                jobModel.update as import('vitest').Mock
+            ).mock.calls.findIndex(
+                ([uuid, update]) =>
+                    uuid === compileJobUuid &&
+                    update.jobStatus === JobStatusType.DONE,
+            );
+            expect(doneCall).toBeGreaterThan(-1);
+            expect(run.mock.invocationCallOrder[0]).toBeLessThan(
+                (jobModel.update as import('vitest').Mock).mock
+                    .invocationCallOrder[doneCall],
+            );
+        });
+
+        test('a failing afterCompile step leaves the job in error instead of done', async () => {
+            const compileJobUuid = 'compile-job-uuid';
+            stubCompile();
+            const run = vi.fn(async () => {
+                throw new Error('2 files could not be applied');
+            });
+
+            await service.compileProject(
+                compileUser,
+                projectUuid,
+                RequestMethod.WEB_APP,
+                compileJobUuid,
+                { stepType: JobStepType.SYNCING_CONTENT, run },
+            );
+
+            expect(jobModel.update).toHaveBeenCalledWith(compileJobUuid, {
+                jobStatus: JobStatusType.ERROR,
+            });
+            expect(jobModel.update).not.toHaveBeenCalledWith(
+                compileJobUuid,
+                expect.objectContaining({ jobStatus: JobStatusType.DONE }),
+            );
+        });
+
         test('requires manage tag permissions for direct YAML tag sync', async () => {
             const noTagUser: SessionUser = {
                 ...user,

@@ -98,6 +98,8 @@ const schedulerWorkerFactory = (context: {
         dashboardService: context.serviceRepository.getDashboardService(),
         deployService: context.serviceRepository.getDeployService(),
         projectService: context.serviceRepository.getProjectService(),
+        contentAsCodeWritebackService:
+            context.serviceRepository.getContentAsCodeWritebackService(),
         schedulerService: context.serviceRepository.getSchedulerService(),
         validationService: context.serviceRepository.getValidationService(),
         userService: context.serviceRepository.getUserService(),

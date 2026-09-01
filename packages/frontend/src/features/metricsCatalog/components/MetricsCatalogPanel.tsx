@@ -504,6 +504,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                         </Button>
                     ) : (
                         <RefreshDbtButton
+                            allowContentSync={false}
                             leftIcon={
                                 <MantineIcon
                                     size="sm"

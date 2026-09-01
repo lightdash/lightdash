@@ -11,6 +11,7 @@ import {
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
     type ApiContentAsCodeProposeResponse,
+    type ApiContentAsCodePullResponse,
     type ApiContentAsCodeSettingsResponse,
     type ApiContentAsCodeUploadAdvisoryResponse,
     type ApiContentAsCodeWritebacksResponse,
@@ -235,6 +236,29 @@ export class ProjectCoderController extends BaseController {
                     toSessionUser(req.account),
                     projectUuid,
                 ),
+        );
+    }
+
+    /**
+     * Apply charts and dashboards as code from the project's repo, the in-app
+     * equivalent of `lightdash upload`
+     * @summary Pull content from git
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/pull')
+    @OperationId('pullContentAsCodeFromGit')
+    async pullContentAsCodeFromGit(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentAsCodePullResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getContentAsCodeWritebackService()
+                .pullFromGit(toSessionUser(req.account), projectUuid),
         );
     }
 

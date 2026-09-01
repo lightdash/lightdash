@@ -67,6 +67,7 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetDashboardsResponse,
     type ApiGetTagsResponse,
+    type ApiRefreshBody,
     type ApiRefreshResults,
     type ApiSuccess,
     type ApiTableGroupsResults,
@@ -1794,6 +1795,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     async refresh(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Body() body?: ApiRefreshBody,
     ): Promise<ApiSuccess<ApiRefreshResults>> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -1806,6 +1808,9 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 toSessionUser(req.account),
                 projectUuid,
                 context,
+                false,
+                false,
+                body?.syncContent === true,
             );
         return {
             status: 'ok',
