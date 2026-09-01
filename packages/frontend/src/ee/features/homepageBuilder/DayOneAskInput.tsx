@@ -1,4 +1,3 @@
-import { subject } from '@casl/ability';
 import {
     type AgentSuggestion,
     type AiPromptContextInput,
@@ -8,7 +7,14 @@ import {
 import { Anchor, Skeleton, Text } from '@mantine/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+    type ComponentProps,
+    type FC,
+} from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useApp from '../../../providers/App/useApp';
@@ -33,6 +39,7 @@ import {
 import { useGetUserAgentPreferences } from '../aiCopilot/hooks/useUserAgentPreferences';
 import blockClasses from './blocks/blockStyles.module.css';
 import classes from './DayOneAskInput.module.css';
+import { useCanManageProject } from './hooks/useHomepageAbilities';
 
 const AI_ROUTER_QUERY_KEY = 'ai-router';
 
@@ -41,6 +48,16 @@ type Props = {
     preview?: boolean;
     hideSuggestions?: boolean;
 };
+
+type ProjectAgent = NonNullable<
+    ReturnType<typeof useProjectAiAgents>['data']
+>[number];
+
+type ComposerSelection = ProjectAgent | 'auto' | undefined;
+
+type CreateAgentThread = ReturnType<
+    typeof useCreateAgentThreadMutation
+>['mutateAsync'];
 
 // AgentSelector (rendered inside AgentChatInput below) already calls
 // useAiRouterConfig() to build its own dropdown. Calling that same hook a
@@ -70,8 +87,206 @@ const useAiRouterEnabledFromCache = (): boolean | undefined => {
     return enabled;
 };
 
+// Auto is the default whenever it's available — Auto mode can't have its
+// own suggestions, so the chip row always sources from a concrete reference
+// agent regardless of what the composer is currently set to.
+const useComposerAgents = (projectUuid: string | null) => {
+    const { data: agents, isInitialLoading: isLoadingAgents } =
+        useProjectAiAgents({
+            projectUuid,
+            redirectOnUnauthorized: false,
+            options: { enabled: !!projectUuid },
+        });
+    const {
+        data: userAgentPreferences,
+        isInitialLoading: isLoadingPreferences,
+    } = useGetUserAgentPreferences(projectUuid);
+    const routerEnabled = useAiRouterEnabledFromCache();
+
+    const agentCount = agents?.length ?? 0;
+    const firstAgent = agents?.[0];
+    const showAutoOption = agentCount > 1 && routerEnabled === true;
+    const validDefaultAgent = agents?.find(
+        (agent) => agent.uuid === userAgentPreferences?.defaultAgentUuid,
+    );
+    const activeSelection: ComposerSelection =
+        validDefaultAgent ?? (showAutoOption ? 'auto' : firstAgent);
+    const referenceAgent = validDefaultAgent ?? firstAgent;
+    const selectedAgent =
+        activeSelection === 'auto' ? undefined : activeSelection;
+    const isComposerLoading = isLoadingAgents || isLoadingPreferences;
+    const hasNoAgents = !isComposerLoading && !!projectUuid && agentCount === 0;
+
+    return {
+        agents,
+        activeSelection,
+        composerSelection: activeSelection ?? firstAgent,
+        referenceAgent,
+        selectedAgent,
+        isComposerLoading,
+        hasNoAgents,
+    };
+};
+
+type ComposerSqlModeProps = Pick<
+    ComponentProps<typeof AgentChatInput>,
+    'sqlMode' | 'onSqlModeChange'
+>;
+
+// The SQL toggle only exists for a concrete agent, never for Auto.
+const useComposerSqlMode = (
+    projectUuid: string | null,
+    selectedAgent: ProjectAgent | undefined,
+    referenceAgent: ProjectAgent | undefined,
+) => {
+    const sqlModeAvailable = useAiAgentSqlModeAvailable(
+        projectUuid ?? undefined,
+    );
+    const [sqlModeOverride, setSqlModeOverride] = useState<{
+        agentUuid: string;
+        value: boolean;
+    }>();
+    const sqlMode =
+        sqlModeOverride && sqlModeOverride.agentUuid === selectedAgent?.uuid
+            ? sqlModeOverride.value
+            : (selectedAgent?.enableSqlMode ?? true);
+    const suggestionsSqlMode =
+        sqlModeAvailable && (referenceAgent?.enableSqlMode ?? true);
+    const composerSqlModeProps: ComposerSqlModeProps =
+        sqlModeAvailable && selectedAgent
+            ? {
+                  sqlMode,
+                  onSqlModeChange: (value: boolean) =>
+                      setSqlModeOverride({
+                          agentUuid: selectedAgent.uuid,
+                          value,
+                      }),
+              }
+            : { sqlMode: undefined, onSqlModeChange: undefined };
+
+    return {
+        enableSqlMode: sqlModeAvailable && sqlMode,
+        suggestionsSqlMode,
+        composerSqlModeProps,
+    };
+};
+
+const useHomepageDeepResearch = ({
+    projectUuid,
+    selectedAgent,
+    createAgentThread,
+}: {
+    projectUuid: string | null;
+    selectedAgent: ProjectAgent | undefined;
+    createAgentThread: CreateAgentThread;
+}) => {
+    const { mutateAsync: startDeepResearch } =
+        useStartDeepResearchForThreadMutation(projectUuid ?? '', 'homepage');
+    const canStartDeepResearch = useDeepResearchAccess(
+        projectUuid ?? undefined,
+    );
+
+    const handleStartDeepResearch = useCallback(
+        async ({ question }: StartDeepResearchArgs) => {
+            if (!projectUuid || !selectedAgent || !canStartDeepResearch) {
+                return;
+            }
+            const thread = await createAgentThread({
+                agentUuid: selectedAgent.uuid,
+                prompt: question,
+                skipAgentResponse: true,
+            });
+            await startDeepResearch({
+                question,
+                agentUuid: selectedAgent.uuid,
+                threadUuid: thread.uuid,
+                promptUuid: thread.firstMessage.uuid,
+            });
+        },
+        [
+            canStartDeepResearch,
+            createAgentThread,
+            projectUuid,
+            selectedAgent,
+            startDeepResearch,
+        ],
+    );
+
+    return selectedAgent && canStartDeepResearch
+        ? handleStartDeepResearch
+        : undefined;
+};
+
+// Two chips, not the full generated set. On the homepage the composer is the
+// opening view and the chips are a hint at what it can do — five of them read
+// as a menu to work through, and they cost more vertical space than the
+// composer itself, pushing curated content under the fold. The thread page
+// still shows the full set, where there's nothing below to protect.
+const HOMEPAGE_SUGGESTION_LIMIT = 2;
+
+const useHomepageSuggestionChips = ({
+    projectUuid,
+    referenceAgent,
+    enableSqlMode,
+    hideSuggestions,
+}: {
+    projectUuid: string | null;
+    referenceAgent: ProjectAgent | undefined;
+    enableSqlMode: boolean;
+    hideSuggestions: boolean | undefined;
+}) => {
+    const { track, data: trackingData } = useTracking();
+    const isTrackingReady = !!trackingData.rudder;
+    const referenceAgentUuid = referenceAgent?.uuid;
+    const suggestionsQuery = useAgentSuggestions({
+        projectUuid: projectUuid ?? '',
+        agentUuid: referenceAgentUuid,
+        enableSqlMode,
+        enabled: !!projectUuid && !!referenceAgentUuid && !hideSuggestions,
+    });
+
+    // Sliced at the source so the impression/click analytics count what the
+    // viewer actually saw.
+    const chips = (suggestionsQuery.data?.chips ?? []).slice(
+        0,
+        HOMEPAGE_SUGGESTION_LIMIT,
+    );
+    const impressionFiredRef = useRef(false);
+    useEffect(() => {
+        if (impressionFiredRef.current) return;
+        if (!isTrackingReady) return;
+        if (hideSuggestions) return;
+        if (!projectUuid || !referenceAgentUuid) return;
+        if (chips.length === 0) return;
+        impressionFiredRef.current = true;
+        track({
+            name: EventName.AI_AGENT_SUGGESTION_IMPRESSION,
+            properties: {
+                projectId: projectUuid,
+                agentId: referenceAgentUuid,
+                chipCount: chips.length,
+                placement: 'homepage_hero',
+            },
+        });
+    }, [
+        isTrackingReady,
+        chips.length,
+        projectUuid,
+        referenceAgentUuid,
+        hideSuggestions,
+        track,
+    ]);
+
+    return { chips, isLoading: suggestionsQuery.isLoading };
+};
+
 const inputHoldClass = (projectUuid: string | null) =>
     projectUuid ? classes.inputHold : classes.inputHoldMinimal;
+
+const composerPlaceholder = (selection: ComposerSelection): string =>
+    selection && selection !== 'auto'
+        ? `Ask ${selection.name}…`
+        : 'Ask anything about your data…';
 
 // The composer's footprint on a surface that is still deciding whether it can
 // show a composer at all. Lives here so the reserved height is stated once,
@@ -85,13 +300,6 @@ export const DayOneAskInputPlaceholder: FC<
         {!hideSuggestions && <div className={classes.pillRow} />}
     </div>
 );
-
-// Two chips, not the full generated set. On the homepage the composer is the
-// opening view and the chips are a hint at what it can do — five of them read
-// as a menu to work through, and they cost more vertical space than the
-// composer itself, pushing curated content under the fold. The thread page
-// still shows the full set, where there's nothing below to protect.
-const HOMEPAGE_SUGGESTION_LIMIT = 2;
 
 // The chips come from an LLM generation, so on a cold view they land a second
 // or two after the composer. The row reserves one chip-line of height while
@@ -140,71 +348,34 @@ const DayOneAskInputInner: FC<Props> = ({
     hideSuggestions,
 }) => {
     const navigate = useNavigate();
-    const { track, data: trackingData } = useTracking();
-    const isTrackingReady = !!trackingData.rudder;
+    const { track } = useTracking();
     const { user } = useApp();
     const { setPendingPrompt } = usePendingPrompt();
-    const { data: agents, isInitialLoading: isLoadingAgents } =
-        useProjectAiAgents({
-            projectUuid,
-            redirectOnUnauthorized: false,
-            options: { enabled: !!projectUuid },
-        });
-    const {
-        data: userAgentPreferences,
-        isInitialLoading: isLoadingPreferences,
-    } = useGetUserAgentPreferences(projectUuid);
     const canCreateThread = useCanCreateAiAgentThread(projectUuid ?? undefined);
-    const canManageProject =
-        user.data?.ability?.can(
-            'manage',
-            subject('Project', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid: projectUuid ?? undefined,
-            }),
-        ) ?? false;
-    const routerEnabled = useAiRouterEnabledFromCache();
+    const canManageProject = useCanManageProject(projectUuid);
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
         useCreateAgentThreadMutation(projectUuid ?? '');
-    const { mutateAsync: startDeepResearch } =
-        useStartDeepResearchForThreadMutation(projectUuid ?? '', 'homepage');
-    const canStartDeepResearch = useDeepResearchAccess(
-        projectUuid ?? undefined,
-    );
-
-    const showAutoOption = (agents?.length ?? 0) > 1 && routerEnabled === true;
-    const validDefaultAgent = agents?.find(
-        (agent) => agent.uuid === userAgentPreferences?.defaultAgentUuid,
-    );
-    // Auto is the default whenever it's available — Auto mode can't have its
-    // own suggestions, so the chip row below always sources from a concrete
-    // reference agent regardless of what the composer is currently set to.
-    const activeSelection =
-        validDefaultAgent ?? (showAutoOption ? 'auto' : agents?.[0]);
-    const referenceAgent = validDefaultAgent ?? agents?.[0];
-    const selectedAgent =
-        activeSelection === 'auto' ? undefined : activeSelection;
-
-    const sqlModeAvailable = useAiAgentSqlModeAvailable(
-        projectUuid ?? undefined,
-    );
-    const [sqlModeOverride, setSqlModeOverride] = useState<{
-        agentUuid: string;
-        value: boolean;
-    }>();
-    const sqlMode =
-        sqlModeOverride && sqlModeOverride.agentUuid === selectedAgent?.uuid
-            ? sqlModeOverride.value
-            : (selectedAgent?.enableSqlMode ?? true);
-    const enableSqlMode = sqlModeAvailable && sqlMode;
-    const suggestionsSqlMode =
-        sqlModeAvailable && (referenceAgent?.enableSqlMode ?? true);
-
-    const suggestionsQuery = useAgentSuggestions({
-        projectUuid: projectUuid ?? '',
-        agentUuid: referenceAgent?.uuid,
+    const {
+        agents,
+        activeSelection,
+        composerSelection,
+        referenceAgent,
+        selectedAgent,
+        isComposerLoading,
+        hasNoAgents,
+    } = useComposerAgents(projectUuid);
+    const { enableSqlMode, suggestionsSqlMode, composerSqlModeProps } =
+        useComposerSqlMode(projectUuid, selectedAgent, referenceAgent);
+    const onStartDeepResearch = useHomepageDeepResearch({
+        projectUuid,
+        selectedAgent,
+        createAgentThread,
+    });
+    const suggestions = useHomepageSuggestionChips({
+        projectUuid,
+        referenceAgent,
         enableSqlMode: suggestionsSqlMode,
-        enabled: !!projectUuid && !!referenceAgent && !hideSuggestions,
+        hideSuggestions,
     });
 
     const submitPrompt = (
@@ -264,32 +435,6 @@ const DayOneAskInputInner: FC<Props> = ({
         submitPrompt(prompt, toolHints, context, optimisticContext);
     };
 
-    const handleStartDeepResearch = useCallback(
-        async ({ question }: StartDeepResearchArgs) => {
-            if (!projectUuid || !selectedAgent || !canStartDeepResearch) {
-                return;
-            }
-            const thread = await createAgentThread({
-                agentUuid: selectedAgent.uuid,
-                prompt: question,
-                skipAgentResponse: true,
-            });
-            await startDeepResearch({
-                question,
-                agentUuid: selectedAgent.uuid,
-                threadUuid: thread.uuid,
-                promptUuid: thread.firstMessage.uuid,
-            });
-        },
-        [
-            canStartDeepResearch,
-            createAgentThread,
-            projectUuid,
-            selectedAgent,
-            startDeepResearch,
-        ],
-    );
-
     const handleChipPick = (chip: AgentSuggestion, index: number) => {
         const organizationId = user.data?.organizationUuid;
         if (organizationId && projectUuid && referenceAgent?.uuid) {
@@ -315,41 +460,7 @@ const DayOneAskInputInner: FC<Props> = ({
         submitPrompt(chip.label, [chip.tool]);
     };
 
-    // Sliced at the source so the impression/click analytics count what the
-    // viewer actually saw.
-    const chips = (suggestionsQuery.data?.chips ?? []).slice(
-        0,
-        HOMEPAGE_SUGGESTION_LIMIT,
-    );
-    const impressionFiredRef = useRef(false);
-    useEffect(() => {
-        if (impressionFiredRef.current) return;
-        if (!isTrackingReady) return;
-        if (hideSuggestions) return;
-        if (!projectUuid || !referenceAgent?.uuid) return;
-        if (chips.length === 0) return;
-        impressionFiredRef.current = true;
-        track({
-            name: EventName.AI_AGENT_SUGGESTION_IMPRESSION,
-            properties: {
-                projectId: projectUuid,
-                agentId: referenceAgent.uuid,
-                chipCount: chips.length,
-                placement: 'homepage_hero',
-            },
-        });
-    }, [
-        isTrackingReady,
-        chips.length,
-        projectUuid,
-        referenceAgent?.uuid,
-        hideSuggestions,
-        track,
-    ]);
-
-    const isComposerLoading = isLoadingAgents || isLoadingPreferences;
-
-    if (!isComposerLoading && projectUuid && (!agents || agents.length === 0)) {
+    if (hasNoAgents) {
         return (
             <div className={blockClasses.dashedEmpty}>
                 Set up an AI agent to enable Ask AI here —{' '}
@@ -376,32 +487,11 @@ const DayOneAskInputInner: FC<Props> = ({
                     projectUuid={projectUuid ?? undefined}
                     agentUuid={selectedAgent?.uuid}
                     agents={agents}
-                    selectedAgent={activeSelection ?? agents?.[0]}
-                    placeholder={
-                        activeSelection === 'auto'
-                            ? 'Ask anything about your data…'
-                            : activeSelection
-                              ? `Ask ${activeSelection.name}…`
-                              : 'Ask anything about your data…'
-                    }
+                    selectedAgent={composerSelection}
+                    placeholder={composerPlaceholder(activeSelection)}
                     onSubmit={handleSubmit}
-                    onStartDeepResearch={
-                        selectedAgent && canStartDeepResearch
-                            ? handleStartDeepResearch
-                            : undefined
-                    }
-                    sqlMode={
-                        sqlModeAvailable && selectedAgent ? sqlMode : undefined
-                    }
-                    onSqlModeChange={
-                        sqlModeAvailable && selectedAgent
-                            ? (value) =>
-                                  setSqlModeOverride({
-                                      agentUuid: selectedAgent.uuid,
-                                      value,
-                                  })
-                            : undefined
-                    }
+                    onStartDeepResearch={onStartDeepResearch}
+                    {...composerSqlModeProps}
                     loading={isCreatingThread}
                     showSuggestions={false}
                     fullWidth
@@ -424,8 +514,8 @@ const DayOneAskInputInner: FC<Props> = ({
             )}
             {!hideSuggestions && (canCreateThread || preview) && (
                 <SuggestionPills
-                    chips={chips}
-                    loading={suggestionsQuery.isLoading}
+                    chips={suggestions.chips}
+                    loading={suggestions.isLoading}
                     onPick={handleChipPick}
                 />
             )}

@@ -222,6 +222,23 @@
         "vitest-js/valid-expect-in-promise": "error",
         "vitest-js/valid-title": ["error", { "allowArguments": true }]
       }
+    },
+    {
+      "files": ["**/ee/features/homepageBuilder/**/*.ts", "**/ee/features/homepageBuilder/**/*.tsx"],
+      "rules": {
+        "complexity": ["warn", { "max": 20 }],
+        "max-lines-per-function": ["warn", { "max": 200, "skipBlankLines": true, "skipComments": true }],
+        "max-statements": ["warn", { "max": 30 }],
+        "no-nested-ternary": "warn"
+      }
+    },
+    {
+      "files": ["**/ee/features/homepageBuilder/**/*.test.ts", "**/ee/features/homepageBuilder/**/*.test.tsx"],
+      "rules": {
+        "complexity": "off",
+        "max-lines-per-function": "off",
+        "max-statements": "off"
+      }
     }
   ]
 }
