@@ -243,7 +243,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
-                        featureFlagService: repository.getFeatureFlagService(),
                         aiModelCatalog,
                     }),
                     lightdashConfig: context.lightdashConfig,
@@ -477,7 +476,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
-                        featureFlagService: repository.getFeatureFlagService(),
                         aiModelCatalog,
                     }),
                     sandboxManager: null,
@@ -526,7 +524,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
-                        featureFlagService: repository.getFeatureFlagService(),
                         aiModelCatalog,
                     }),
                 }),
@@ -635,7 +632,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
-                        featureFlagService: repository.getFeatureFlagService(),
                         aiModelCatalog,
                     }),
                     shareService: repository.getShareService(),
@@ -727,7 +723,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
-                        featureFlagService: repository.getFeatureFlagService(),
                         aiModelCatalog,
                     }),
                 }),
@@ -743,7 +738,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
-                        featureFlagService: repository.getFeatureFlagService(),
                         aiModelCatalog,
                     }),
                 }),
@@ -760,7 +754,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
-                        featureFlagService: repository.getFeatureFlagService(),
                         aiModelCatalog,
                     }),
                     catalogModel: models.getCatalogModel(),
@@ -771,7 +764,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentReviewNotificationService:
                         repository.getAiAgentReviewNotificationService<AiAgentReviewNotificationService>(),
                 }),
-            aiOrganizationSettingsService: ({ models, context, repository }) =>
+            aiOrganizationSettingsService: ({ models, context }) =>
                 new AiOrganizationSettingsService({
                     aiOrganizationSettingsModel:
                         models.getAiOrganizationSettingsModel(),
@@ -783,7 +776,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
-                        featureFlagService: repository.getFeatureFlagService(),
                         aiModelCatalog,
                     }),
                 }),
@@ -840,7 +832,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
-                        featureFlagService: repository.getFeatureFlagService(),
                         aiModelCatalog,
                     }),
                 }),

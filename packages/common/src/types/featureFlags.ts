@@ -240,11 +240,6 @@ export enum FeatureFlags {
     CodingAgentOnboarding = 'coding-agent-onboarding',
 
     /**
-     * Let org admins set their own Anthropic/OpenAI API keys for AI agents.
-     */
-    OrgAiProviderApiKeys = 'org-ai-provider-api-keys',
-
-    /**
      * Allow storing long-lived GitHub personal access tokens as GitHub MCP
      * credentials (guided connect flow and generic bearer endpoints targeting
      * the hosted GitHub MCP URL). Off by default — orgs should authenticate
