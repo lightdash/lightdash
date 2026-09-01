@@ -1,4 +1,8 @@
-import { assertUnreachable, type ContentDraftSummary } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type ApiError,
+    type ContentDraftSummary,
+} from '@lightdash/common';
 import {
     Anchor,
     Avatar,
@@ -163,6 +167,46 @@ const DraftRow: FC<{
     </UnstyledButton>
 );
 
+const ReviewPlaceholder: FC<{
+    active: ContentDraftSummary | undefined;
+    error: ApiError | null;
+    onDismiss: (draftUuid: string) => void;
+}> = ({ active, error, onDismiss }) => {
+    if (!active || !error) {
+        return (
+            <Box mt="xl">
+                <Text c="dimmed" ta="center">
+                    Select a draft to review
+                </Text>
+            </Box>
+        );
+    }
+    const title =
+        error.error.statusCode === 404
+            ? `This draft's ${active.contentType} no longer exists.`
+            : "This draft couldn't be loaded.";
+    return (
+        <Stack mt="xl" gap={4} align="center">
+            <Text ta="center">{title}</Text>
+            {error.error.message ? (
+                <Text size="sm" c="dimmed" ta="center">
+                    {error.error.message}
+                </Text>
+            ) : null}
+            {active.status === 'open' ? (
+                <Button
+                    mt="xs"
+                    size="xs"
+                    variant="default"
+                    onClick={() => onDismiss(active.uuid)}
+                >
+                    Dismiss draft
+                </Button>
+            ) : null}
+        </Stack>
+    );
+};
+
 type ContentReviewPageProps = {
     projectUuid: string | undefined;
 };
@@ -181,7 +225,10 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
     );
     const activeUuid =
         selectedUuid ?? openDrafts[0]?.uuid ?? historyDrafts[0]?.uuid;
-    const { data: review } = useContentDraftReview(projectUuid, activeUuid);
+    const { data: review, error: reviewError } = useContentDraftReview(
+        projectUuid,
+        activeUuid,
+    );
     const { mutate: writeBack, isLoading: isWritingBack } =
         useWriteBackDraftMutation(projectUuid);
     const { mutate: dismiss } = useDismissDraftMutation(projectUuid);
@@ -439,11 +486,11 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                         </WorkerPoolContextProvider>
                     </>
                 ) : (
-                    <Box mt="xl">
-                        <Text c="dimmed" ta="center">
-                            Select a draft to review
-                        </Text>
-                    </Box>
+                    <ReviewPlaceholder
+                        active={active}
+                        error={reviewError}
+                        onDismiss={dismiss}
+                    />
                 )}
             </Stack>
         </Group>

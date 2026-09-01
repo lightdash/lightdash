@@ -8,6 +8,7 @@ import {
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
+import { ContentDraftsTableName } from '../../database/entities/contentDrafts';
 import {
     DashboardsTableName,
     DashboardTabsTableName,
@@ -615,9 +616,21 @@ describe('DashboardModel', () => {
         tracker.on
             .delete(queryMatcher(DashboardsTableName, [dashboardUuid]))
             .response([]);
+        tracker.on
+            .select(queryMatcher(SavedChartsTableName, [dashboardUuid]))
+            .responseOnce([{ saved_query_uuid: 'owned-chart-uuid' }]);
+        tracker.on.update(ContentDraftsTableName).response(1);
 
         await model.permanentDelete(dashboardUuid);
         expect(tracker.history.delete).toHaveLength(1);
+        // The dashboard's open drafts and its dashboard-scoped charts' drafts are dismissed
+        expect(tracker.history.update).toHaveLength(2);
+        expect(tracker.history.update[0].bindings).toEqual(
+            expect.arrayContaining(['dismissed', 'dashboard', dashboardUuid]),
+        );
+        expect(tracker.history.update[1].bindings).toEqual(
+            expect.arrayContaining(['dismissed', 'chart', 'owned-chart-uuid']),
+        );
     });
 
     test("should error on create dashboard version if dashboard isn't found", async () => {

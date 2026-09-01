@@ -65,6 +65,20 @@ const writebackStatusSubquery = (knex: Knex) =>
         `(select status from content_as_code_writebacks w where w.content_draft_uuid = ${ContentDraftsTableName}.content_draft_uuid order by w.created_at desc limit 1) as writeback_status`,
     );
 
+// Called from the chart and dashboard model delete paths so every delete,
+// including cascades, releases the drafts that pointed at the content
+export const dismissOpenContentDrafts = async (
+    database: Knex,
+    contentType: 'chart' | 'dashboard',
+    contentUuids: string[],
+): Promise<number> => {
+    if (contentUuids.length === 0) return 0;
+    return database(ContentDraftsTableName)
+        .where({ content_type: contentType, status: 'open' })
+        .whereIn('content_uuid', contentUuids)
+        .update({ status: 'dismissed', updated_at: new Date() });
+};
+
 export class ContentDraftModel {
     private readonly database: Knex;
 
