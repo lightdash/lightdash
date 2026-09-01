@@ -1,3 +1,10 @@
+## [2.71.1](https://github.com/lightdash/lightdash/compare/2.71.0...2.71.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* show context for web-started Live Activities ([#28396](https://github.com/lightdash/lightdash/issues/28396)) ([b3c0235](https://github.com/lightdash/lightdash/commit/b3c0235a1b720768fd4787786f83efdbc7e20803))
+
 # [2.71.0](https://github.com/lightdash/lightdash/compare/2.70.0...2.71.0) (2026-09-01)
 
 
