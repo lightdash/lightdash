@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.70.0",
-  "previousVersion": "2.69.0",
-  "releaseDate": "2026-09-01T10:22:05.354Z",
+  "version": "2.71.0",
+  "previousVersion": "2.70.0",
+  "releaseDate": "2026-09-01T10:53:23.616Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20260901120000_add_linear_apply_to_all_projects_to_review_settings.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_agent_review_notification_settings"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": true,
-          "scansTable": true
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

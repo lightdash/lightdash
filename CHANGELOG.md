@@ -1,3 +1,28 @@
+# [2.71.0](https://github.com/lightdash/lightdash/compare/2.70.0...2.71.0) (2026-09-01)
+
+
+### Bug Fixes
+
+* **ai:** advertise AND-only field search ([#28321](https://github.com/lightdash/lightdash/issues/28321)) ([bb5a330](https://github.com/lightdash/lightdash/commit/bb5a33060ea85cf926c274acad741b73f338cda4))
+* **ai:** clarify field value searches ([#28197](https://github.com/lightdash/lightdash/issues/28197)) ([4e43dbc](https://github.com/lightdash/lightdash/commit/4e43dbc1ee97a915bdc63f698973726ba8539631))
+* **ai:** clarify filter expression guidance ([#28253](https://github.com/lightdash/lightdash/issues/28253)) ([cc74b23](https://github.com/lightdash/lightdash/commit/cc74b23b321e3a5a10309d6bcbe128214227f3ce))
+* **ai:** group filter expression grammar ([#28360](https://github.com/lightdash/lightdash/issues/28360)) ([748e461](https://github.com/lightdash/lightdash/commit/748e461fb4e1f8a49cfad3dd21bbe53cb7d03813))
+* **ai:** make filter repairs contextual ([#28094](https://github.com/lightdash/lightdash/issues/28094)) ([177c95a](https://github.com/lightdash/lightdash/commit/177c95a7b1b4d9a5460c70adbe373572f689449a))
+* **ai:** remove unused filter arity ([#28318](https://github.com/lightdash/lightdash/issues/28318)) ([33865c1](https://github.com/lightdash/lightdash/commit/33865c1eef4cdf68000b72c13294ca091389a31c))
+* **ai:** respect OpenAI reasoning flag ([#28243](https://github.com/lightdash/lightdash/issues/28243)) ([ff901ff](https://github.com/lightdash/lightdash/commit/ff901ffa9fb7ab8d4dd4869505bd686671b1e795))
+* **ai:** scope filter field suggestions ([#28166](https://github.com/lightdash/lightdash/issues/28166)) ([00f6e67](https://github.com/lightdash/lightdash/commit/00f6e67f4c2e95eb7ba74a683b68b77e2ccac60b))
+* **mcp:** clarify rollout contract snapshot ([#28275](https://github.com/lightdash/lightdash/issues/28275)) ([4a3a081](https://github.com/lightdash/lightdash/commit/4a3a081bd54d1d1273542351107248b39f9e79c7))
+
+
+### Features
+
+* **ai:** add filter expression error tests ([#28081](https://github.com/lightdash/lightdash/issues/28081)) ([e3f2062](https://github.com/lightdash/lightdash/commit/e3f20625df10b6b02f377e01a973e00ae3a6dff6))
+* **ai:** add filter expression guidance ([#28251](https://github.com/lightdash/lightdash/issues/28251)) ([d549795](https://github.com/lightdash/lightdash/commit/d54979588e1adb245326fafed51c05dd38dc6f65))
+* **ai:** add filter expression language ([#27836](https://github.com/lightdash/lightdash/issues/27836)) ([8ec1943](https://github.com/lightdash/lightdash/commit/8ec1943b218103aa65c86f8827f9ded07bbc475a))
+* **ai:** enable filter expressions for agents ([#27837](https://github.com/lightdash/lightdash/issues/27837)) ([7acec92](https://github.com/lightdash/lightdash/commit/7acec92b5bfd9724f06ee8f4441e81c47a138019))
+* **ai:** support field value filter expressions ([#28250](https://github.com/lightdash/lightdash/issues/28250)) ([ceb05b5](https://github.com/lightdash/lightdash/commit/ceb05b596d2bba68a1c582ef8695e126814de6b9))
+* **mcp:** enable metric query expressions ([#27838](https://github.com/lightdash/lightdash/issues/27838)) ([6a77746](https://github.com/lightdash/lightdash/commit/6a777463e0e436982c4dbae417616cc103e272e5))
+
 # [2.70.0](https://github.com/lightdash/lightdash/compare/2.69.0...2.70.0) (2026-09-01)
 
 
