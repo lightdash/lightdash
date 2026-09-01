@@ -332,9 +332,10 @@ export const themeComponents: MantineThemeOverride['components'] = {
                             'light-dark(rgb(24 24 27 / 0.1), rgb(236 236 238 / 0.13))',
                         '--nl-color': 'var(--mantine-color-text)',
                     },
+                    children: {},
                 };
             }
-            return { root: {} };
+            return { root: {}, children: {} };
         },
     }),
 

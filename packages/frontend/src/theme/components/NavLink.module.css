@@ -5,7 +5,7 @@
     padding: rem(6px) rem(8px);
     margin-bottom: rem(2px);
     font-weight: 500;
-    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
+    color: var(--mantine-color-text);
     transition:
         background-color 120ms ease,
         color 120ms ease;
@@ -13,7 +13,6 @@
 
 .root:hover:not([data-active]) {
     background-color: var(--mantine-color-default-hover);
-    color: var(--mantine-color-text);
 }
 
 .root[data-active] {
