@@ -1,3 +1,4 @@
+import { getLinearIssueIdentifier } from '@lightdash/common'; // pragma: allowlist secret
 import {
     ActionIcon,
     Badge,
@@ -695,6 +696,35 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                     >
                                                         View issue
                                                     </Button>
+
+                                                    {reviewItem.linkedIssueUrl && (
+                                                        <Button
+                                                            component="a"
+                                                            href={
+                                                                reviewItem.linkedIssueUrl
+                                                            }
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            size="compact-xs"
+                                                            variant="subtle"
+                                                            color="gray"
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconExternalLink
+                                                                    }
+                                                                    size="xs"
+                                                                />
+                                                            }
+                                                            onClick={(event) =>
+                                                                event.stopPropagation()
+                                                            }
+                                                        >
+                                                            {getLinearIssueIdentifier(
+                                                                reviewItem.linkedIssueUrl,
+                                                            ) ?? 'Linear'}
+                                                        </Button>
+                                                    )}
 
                                                     {reviewItem.linkedPrUrl && (
                                                         <Button

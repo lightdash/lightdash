@@ -6,6 +6,7 @@ import {
     getLinearOrganization,
     getLinearProjects,
     getLinearTeams,
+    linkLinearIssueUrl,
 } from './Linear';
 
 describe('Linear client', () => {
@@ -253,5 +254,33 @@ describe('Linear client', () => {
             url: 'https://linear.app/acme/issue/PRD-12',
             title: 'Broken metric',
         });
+    });
+
+    it('attaches a URL to an existing Linear issue', async () => {
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                data: {
+                    attachmentLinkURL: {
+                        success: true,
+                    },
+                },
+            }),
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(
+            linkLinearIssueUrl('token', {
+                issueId: 'issue-1',
+                url: 'https://app.example.com/reviews',
+                title: 'Open in app',
+            }),
+        ).resolves.toBeUndefined();
+        expect(fetchMock).toHaveBeenCalledWith(
+            'https://api.linear.app/graphql',
+            expect.objectContaining({
+                body: expect.stringContaining('LinearAttachmentLinkURL'),
+            }),
+        );
     });
 });

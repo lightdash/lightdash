@@ -28,3 +28,17 @@ export type LinearCreatedIssue = {
 export type ApiLinearInstallationResponse = ApiSuccess<LinearInstallation>;
 export type ApiLinearTeamsResponse = ApiSuccess<LinearTeam[]>;
 export type ApiLinearProjectsResponse = ApiSuccess<LinearProject[]>;
+
+const LINEAR_ISSUE_IDENTIFIER_IN_URL = /\/issue\/([A-Za-z0-9]+-\d+)/;
+
+export const getLinearIssueIdentifier = (url: string): string | null => {
+    try {
+        const { hostname, pathname } = new URL(url);
+        if (hostname !== 'linear.app') {
+            return null;
+        }
+        return pathname.match(LINEAR_ISSUE_IDENTIFIER_IN_URL)?.[1] ?? null;
+    } catch {
+        return null;
+    }
+};
