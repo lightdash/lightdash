@@ -130,9 +130,11 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         attachmentDownloadName: chartName
                             ? `${chartName}_${formatDate(new Date())}`
                             : undefined,
-                        conditionalFormattings: exportPivotedData
-                            ? undefined
-                            : conditionalFormattings,
+                        conditionalFormattings:
+                            fileType === DownloadFileType.XLSX &&
+                            (!pivotConfig || !exportPivotedData)
+                                ? conditionalFormattings
+                                : undefined,
                         // Pivoted exports get their totals from `pivotConfig`
                         showColumnTotals:
                             exportPivotedData && pivotConfig

@@ -5,6 +5,7 @@ import {
     createDashboardFilterRuleFromField,
     DashboardTileTypes,
     getChartKind,
+    getConditionalFormattingsFromChartConfig,
     getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
@@ -1863,6 +1864,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     customLabels={getCustomLabelsFromTableConfig(
                         chart.chartConfig.config,
                     )}
+                    conditionalFormattings={getConditionalFormattingsFromChartConfig(
+                        chart.chartConfig.config,
+                    )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
                     pivotConfig={downloadPivotConfig}
                     showColumnTotals={getShowColumnTotalsFromChartConfig(
@@ -2217,6 +2221,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                     chartName={title || chart.name}
                     columnOrder={chart.tableConfig.columnOrder}
                     customLabels={getCustomLabelsFromTableConfig(
+                        chart.chartConfig.config,
+                    )}
+                    conditionalFormattings={getConditionalFormattingsFromChartConfig(
                         chart.chartConfig.config,
                     )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
