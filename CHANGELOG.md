@@ -1,3 +1,15 @@
+# [2.73.0](https://github.com/lightdash/lightdash/compare/2.72.5...2.73.0) (2026-09-01)
+
+
+### Bug Fixes
+
+* **frontend:** preserve xlsx conditional formatting ([#28159](https://github.com/lightdash/lightdash/issues/28159)) ([179fa36](https://github.com/lightdash/lightdash/commit/179fa36cbaa1fdf73e81ef60a3cd5e0b867bfe0a))
+
+
+### Features
+
+* **content-as-code:** configurable repo path for content-as-code files ([#28402](https://github.com/lightdash/lightdash/issues/28402)) ([2952846](https://github.com/lightdash/lightdash/commit/2952846e5de8112ec2d6bede9ae85a1d9b34d1ef))
+
 ## [2.72.5](https://github.com/lightdash/lightdash/compare/2.72.4...2.72.5) (2026-09-01)
 
 

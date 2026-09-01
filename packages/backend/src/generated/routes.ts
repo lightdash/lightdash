@@ -378,6 +378,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 stampedAt: { dataType: 'datetime', required: true },
+                path: { dataType: 'string', required: true },
                 syncEnabled: { dataType: 'boolean', required: true },
             },
             validators: {},
@@ -499,6 +500,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 draftYaml: { dataType: 'string', required: true },
                 publishedYaml: { dataType: 'string', required: true },
+                filePath: { dataType: 'string', required: true },
                 summary: { ref: 'ContentDraftSummary', required: true },
             },
             validators: {},
@@ -536,6 +538,18 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 results: { ref: 'ContentDraftSummary', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ContentAsCodeSettingsStamp: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                path: { dataType: 'string' },
+                sync: { dataType: 'boolean', required: true },
             },
             validators: {},
         },
@@ -58242,8 +58256,7 @@ export function RegisterRoutes(app: Router) {
             in: 'body',
             name: 'body',
             required: true,
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: { sync: { dataType: 'boolean', required: true } },
+            ref: 'ContentAsCodeSettingsStamp',
         },
     };
     app.post(

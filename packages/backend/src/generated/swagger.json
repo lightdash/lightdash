@@ -166,11 +166,14 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "path": {
+                        "type": "string"
+                    },
                     "syncEnabled": {
                         "type": "boolean"
                     }
                 },
-                "required": ["stampedAt", "syncEnabled"],
+                "required": ["stampedAt", "path", "syncEnabled"],
                 "type": "object"
             },
             "ApiContentAsCodeSettingsResponse": {
@@ -302,11 +305,19 @@
                     "publishedYaml": {
                         "type": "string"
                     },
+                    "filePath": {
+                        "type": "string"
+                    },
                     "summary": {
                         "$ref": "#/components/schemas/ContentDraftSummary"
                     }
                 },
-                "required": ["draftYaml", "publishedYaml", "summary"],
+                "required": [
+                    "draftYaml",
+                    "publishedYaml",
+                    "filePath",
+                    "summary"
+                ],
                 "type": "object"
             },
             "ApiContentDraftReviewResponse": {
@@ -349,6 +360,18 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "ContentAsCodeSettingsStamp": {
+                "properties": {
+                    "path": {
+                        "type": "string"
+                    },
+                    "sync": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["sync"],
                 "type": "object"
             },
             "FieldId": {
@@ -57892,7 +57915,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.72.5",
+        "version": "2.73.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -58215,13 +58238,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "properties": {
-                                    "sync": {
-                                        "type": "boolean"
-                                    }
-                                },
-                                "required": ["sync"],
-                                "type": "object"
+                                "$ref": "#/components/schemas/ContentAsCodeSettingsStamp"
                             }
                         }
                     }
