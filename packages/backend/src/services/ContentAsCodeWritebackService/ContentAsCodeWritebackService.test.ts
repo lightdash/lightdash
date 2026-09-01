@@ -366,7 +366,7 @@ describe('ContentAsCodeWritebackService', () => {
         ).toHaveBeenCalledWith(
             user,
             'project-uuid',
-            'lightdash/write-back/app.lightdash.dev/monthly-revenue',
+            'lightdash/write-back/app.lightdash.dev/charts/monthly-revenue',
             'main',
         );
         const [, , , filePath, content, sha] =
@@ -409,7 +409,7 @@ describe('ContentAsCodeWritebackService', () => {
             contentType: 'dashboard',
             slug: 'weekly-kpis',
             contentDraftUuid: 'draft-uuid',
-            branch: 'lightdash/write-back/app.lightdash.dev/weekly-kpis/draft-draft-uuid',
+            branch: 'lightdash/write-back/app.lightdash.dev/dashboards/weekly-kpis--draft-draft-uuid',
             prNumber: 5,
             prUrl: 'https://github.com/acme/analytics/pull/5',
             status: 'open',
@@ -595,6 +595,47 @@ describe('ContentAsCodeWritebackService', () => {
         );
     });
 
+    it('builds branch names that are safe git refs per content type', () => {
+        expect(
+            ContentAsCodeWritebackService.getWritebackBranch(
+                'app.lightdash.dev',
+                'chart',
+                'monthly-revenue',
+                null,
+            ),
+        ).toBe('lightdash/write-back/app.lightdash.dev/charts/monthly-revenue');
+        expect(
+            ContentAsCodeWritebackService.getWritebackBranch(
+                'app.lightdash.dev',
+                'dashboard',
+                'monthly-revenue',
+                'draft-uuid',
+            ),
+        ).toBe(
+            'lightdash/write-back/app.lightdash.dev/dashboards/monthly-revenue--draft-draft-uuid',
+        );
+        const odd = ContentAsCodeWritebackService.getWritebackBranch(
+            'app.lightdash.dev',
+            'chart',
+            `weird slug/with..dots~^:?*[\\${'x'.repeat(300)}.lock`,
+            null,
+        );
+        expect(odd).toMatch(
+            /^lightdash\/write-back\/app\.lightdash\.dev\/charts\/[A-Za-z0-9._-]+$/,
+        );
+        expect(odd.length).toBeLessThanOrEqual(255);
+        const longDraft = ContentAsCodeWritebackService.getWritebackBranch(
+            'analytics.some-very-long-customer-hostname.lightdash.cloud',
+            'dashboard',
+            'd'.repeat(300),
+            '296ed5f6-4f11-4124-aa19-e0da4906cc57',
+        );
+        expect(longDraft.length).toBeLessThanOrEqual(255);
+        expect(longDraft).toMatch(
+            /--draft-296ed5f6-4f11-4124-aa19-e0da4906cc57$/,
+        );
+    });
+
     it('adopts the open PR found on the provider when the branch already exists', async () => {
         const { service, gitIntegrationService, contentAsCodeWritebackModel } =
             buildService({
@@ -612,7 +653,7 @@ describe('ContentAsCodeWritebackService', () => {
         ).toHaveBeenCalledWith(
             user,
             'project-uuid',
-            'lightdash/write-back/app.lightdash.dev/monthly-revenue',
+            'lightdash/write-back/app.lightdash.dev/charts/monthly-revenue',
         );
         expect(gitIntegrationService.saveFile).toHaveBeenCalledTimes(1);
         expect(
@@ -743,7 +784,7 @@ describe('ContentAsCodeWritebackService', () => {
             liveRow: {
                 uuid: 'row-uuid',
                 contentDraftUuid: null,
-                branch: 'lightdash/write-back/app.lightdash.dev/monthly-revenue',
+                branch: 'lightdash/write-back/app.lightdash.dev/charts/monthly-revenue',
                 prUrl: 'https://github.com/acme/analytics/pull/42',
                 status: 'open',
             },
@@ -776,7 +817,7 @@ describe('ContentAsCodeWritebackService', () => {
             liveRow: {
                 uuid: 'row-uuid',
                 contentDraftUuid: null,
-                branch: 'lightdash/write-back/app.lightdash.dev/monthly-revenue',
+                branch: 'lightdash/write-back/app.lightdash.dev/charts/monthly-revenue',
                 prUrl: 'https://github.com/acme/analytics/pull/42',
                 status: 'open',
             },
@@ -831,7 +872,7 @@ describe('ContentAsCodeWritebackService', () => {
         expect(contentAsCodeWritebackModel.create).toHaveBeenCalledWith(
             expect.objectContaining({
                 contentDraftUuid: 'draft-uuid',
-                branch: 'lightdash/write-back/app.lightdash.dev/weekly-kpis/draft-draft-uuid',
+                branch: 'lightdash/write-back/app.lightdash.dev/dashboards/weekly-kpis--draft-draft-uuid',
             }),
         );
         expect(
@@ -839,7 +880,7 @@ describe('ContentAsCodeWritebackService', () => {
         ).toHaveBeenCalledWith(
             user,
             'project-uuid',
-            'lightdash/write-back/app.lightdash.dev/weekly-kpis/draft-draft-uuid',
+            'lightdash/write-back/app.lightdash.dev/dashboards/weekly-kpis--draft-draft-uuid',
             'main',
         );
     });
@@ -875,7 +916,7 @@ describe('ContentAsCodeWritebackService', () => {
         expect(gitIntegrationService.saveFile).toHaveBeenCalledWith(
             user,
             'project-uuid',
-            expect.stringContaining('/draft-chart-draft-uuid'),
+            'lightdash/write-back/app.lightdash.dev/charts/monthly-revenue--draft-chart-draft-uuid',
             'lightdash/charts/monthly-revenue.yml',
             expect.stringContaining('Monthly revenue draft'),
             undefined,
@@ -883,7 +924,7 @@ describe('ContentAsCodeWritebackService', () => {
         );
     });
 
-    it('reuses the branch and PR owned by the same draft', async () => {
+    it('reuses the branch stored on the row, including a pre-rename branch name', async () => {
         const { service, gitIntegrationService, contentAsCodeWritebackModel } =
             buildService({
                 liveRow: {
@@ -891,6 +932,7 @@ describe('ContentAsCodeWritebackService', () => {
                     contentType: 'dashboard',
                     slug: 'weekly-kpis',
                     contentDraftUuid: 'draft-uuid',
+                    // Rows from before the branch rename keep their stored branch
                     branch: 'lightdash/write-back/app.lightdash.dev/weekly-kpis/draft-draft-uuid',
                     prNumber: 42,
                     prUrl: 'https://github.com/acme/analytics/pull/42',
@@ -937,7 +979,7 @@ describe('ContentAsCodeWritebackService', () => {
                 contentType: 'dashboard',
                 slug: 'weekly-kpis',
                 contentDraftUuid: 'draft-uuid',
-                branch: 'lightdash/write-back/app.lightdash.dev/weekly-kpis/draft-draft-uuid',
+                branch: 'lightdash/write-back/app.lightdash.dev/dashboards/weekly-kpis--draft-draft-uuid',
                 prNumber: null,
                 prUrl: null,
                 status: 'pending',
@@ -966,7 +1008,7 @@ describe('ContentAsCodeWritebackService', () => {
                     contentType: 'dashboard',
                     slug: 'weekly-kpis',
                     contentDraftUuid: 'other-draft-uuid',
-                    branch: 'lightdash/write-back/app.lightdash.dev/weekly-kpis/draft-other-draft-uuid',
+                    branch: 'lightdash/write-back/app.lightdash.dev/dashboards/weekly-kpis--draft-other-draft-uuid',
                     prNumber: null,
                     prUrl: null,
                     status: 'pending',
@@ -991,7 +1033,7 @@ describe('ContentAsCodeWritebackService', () => {
             contentType: 'dashboard',
             slug: 'weekly-kpis',
             contentDraftUuid: 'other-draft-uuid',
-            branch: 'lightdash/write-back/app.lightdash.dev/weekly-kpis/draft-other-draft-uuid',
+            branch: 'lightdash/write-back/app.lightdash.dev/dashboards/weekly-kpis--draft-other-draft-uuid',
             prNumber: null,
             prUrl: null,
             status: 'pending',
