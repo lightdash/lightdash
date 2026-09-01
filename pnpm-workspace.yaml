@@ -3,9 +3,6 @@ packages:
   - 'packages/frontend/sdk'
   - 'packages/backend/src/ee/services/McpService/mcp-chart-app'
 
-# Exact versions on pnpm add. The npm CLI equivalent (save-exact) stays in .npmrc.
-savePrefix: ''
-
 overrides:
   react-is: 19.2.0
   '@types/react': 19.2.2
