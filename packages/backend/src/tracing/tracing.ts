@@ -548,8 +548,6 @@ export const traceSpan = <T>(
 
 export const getOtelTraceHeaders = getTraceHeaders;
 
-export const continueOtelTrace = continueTrace;
-
 export const runWithOtelSpanContext = <T>(
     options: TraceSpanOptions,
     callback: (span: TraceSpan) => T,
