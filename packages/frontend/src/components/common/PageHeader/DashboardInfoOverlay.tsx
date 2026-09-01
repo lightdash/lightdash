@@ -74,7 +74,7 @@ const DashboardInfoOverlay: FC<DashboardInfoOverlayProps> = ({
                         <Anchor
                             component={Link}
                             to={`/projects/${projectUrlIdentifier}/spaces/${dashboard.spaceUuid}`}
-                            fz={12}
+                            fz="xs"
                             fw={500}
                         >
                             {dashboard.spaceName}
@@ -90,7 +90,7 @@ const DashboardInfoOverlay: FC<DashboardInfoOverlayProps> = ({
                             <UnstyledButton onClick={copy}>
                                 <Group gap={6} wrap="nowrap">
                                     <Text
-                                        fz={11}
+                                        fz="xs"
                                         fw={500}
                                         c="ldGray.9"
                                         ff="monospace"

@@ -87,28 +87,28 @@ const PreAggregateAudit: FC<PreAggregateAuditProps> = ({ projectUuid }) => {
             >
                 <SimpleGrid cols={3}>
                     <Card withBorder p="md">
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
                             Cache Rate (3 days)
                         </Text>
-                        <Text size="xl" fw={700}>
+                        <Text size="xl" fw={600}>
                             {summary.totalQueries > 0
                                 ? `${summary.hitRate}%`
                                 : 'No data'}
                         </Text>
                     </Card>
                     <Card withBorder p="md">
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
                             Total Queries
                         </Text>
-                        <Text size="xl" fw={700}>
+                        <Text size="xl" fw={600}>
                             {summary.totalQueries}
                         </Text>
                     </Card>
                     <Card withBorder p="md">
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
                             Explores with Pre-Aggregates
                         </Text>
-                        <Text size="xl" fw={700}>
+                        <Text size="xl" fw={600}>
                             {summary.exploreCount}
                         </Text>
                     </Card>

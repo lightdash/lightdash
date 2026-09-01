@@ -98,7 +98,7 @@ const MapLegend: FC<MapLegendProps> = ({
                                                     1,
                                             }}
                                         />
-                                        <Text fz={10} c="ldGray.6" truncate>
+                                        <Text fz="xs" c="ldGray.6" truncate>
                                             {entry.value}
                                         </Text>
                                     </Group>

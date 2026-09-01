@@ -314,7 +314,7 @@ const QueryRow: FC<{
                             </Group>
                             <Collapse in={jsonExpanded}>
                                 <ScrollArea.Autosize mah={200}>
-                                    <Code block fz={10}>
+                                    <Code block fz="xs">
                                         {JSON.stringify(
                                             query.rawMetricQuery,
                                             null,

@@ -51,7 +51,7 @@ export const AgentSettingsSection: FC<Props> = ({
                                 id={`${id}-title`}
                                 order={5}
                                 c="ldGray.9"
-                                fw={700}
+                                fw={600}
                             >
                                 {title}
                             </Title>

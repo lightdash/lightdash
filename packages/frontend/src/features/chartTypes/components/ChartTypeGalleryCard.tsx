@@ -45,7 +45,7 @@ const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
                 />
             </Box>
             <Stack gap="xs" p="sm">
-                <Text fz={13} fw={600} truncate="end">
+                <Text fz="sm" fw={600} truncate="end">
                     {displayName}
                 </Text>
                 <Text fz="xs" c="dimmed" lh={1.35} lineClamp={2}>

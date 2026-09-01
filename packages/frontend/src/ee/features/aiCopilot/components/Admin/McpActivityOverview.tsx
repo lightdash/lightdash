@@ -251,7 +251,7 @@ const RecentErrorsCard: FC<{
                                 label={formatToolCallTimeFull(item.createdAt)}
                             >
                                 <Text
-                                    fz={11}
+                                    fz="xs"
                                     c="ldGray.5"
                                     className={styles.noShrink}
                                 >

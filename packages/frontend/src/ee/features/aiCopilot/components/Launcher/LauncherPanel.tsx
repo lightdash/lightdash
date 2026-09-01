@@ -337,7 +337,7 @@ const NewThreadPanel: FC<{
                 >
                     {isAuto ? (
                         <Avatar size="lg" color="ldGray" radius="xl">
-                            <Text size="sm" fw={700} c="ldGray.6">
+                            <Text size="sm" fw={600} c="ldGray.6">
                                 AI
                             </Text>
                         </Avatar>

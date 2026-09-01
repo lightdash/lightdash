@@ -557,7 +557,7 @@ export const ReviewRemediationWorkspace = () => {
                             </ThemeIcon>
                             <Box miw={0}>
                                 <Group gap="xs" wrap="nowrap" miw={0}>
-                                    <Text fw={700} fz="md">
+                                    <Text fw={600} fz="md">
                                         Test the fix
                                     </Text>
                                     {testBadge && renderBadge(testBadge)}

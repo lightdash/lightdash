@@ -61,7 +61,7 @@ const FilterRuleDisplay: FC<{
                 {ruleLabels.value && (
                     <>
                         {' '}
-                        <Text fw={700} span fz="xs">
+                        <Text fw={600} span fz="xs">
                             {ruleLabels.value}
                         </Text>
                     </>

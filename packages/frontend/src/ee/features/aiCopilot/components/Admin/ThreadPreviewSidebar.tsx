@@ -82,7 +82,7 @@ const ReviewMetadataField = ({
     tooltip?: string;
 }) => (
     <Stack gap={2} className={styles.metaField}>
-        <Text fz={10} fw={700} c="dimmed" tt="uppercase" lts={0.4}>
+        <Text fz="xs" fw={600} c="dimmed" tt="uppercase" lts={0.4}>
             {label}
         </Text>
         <Tooltip
@@ -461,7 +461,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                         <Stack gap="xs" pt="xs">
                                             <Text
                                                 fz="xs"
-                                                fw={700}
+                                                fw={600}
                                                 tt="uppercase"
                                                 lts={0.4}
                                                 c="ldGray.7"
@@ -491,7 +491,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                     <Stack gap={6} pt="xs">
                                         <Text
                                             size="10px"
-                                            fw={700}
+                                            fw={600}
                                             tt="uppercase"
                                             lts={0.4}
                                             c="ldGray.7"
@@ -780,7 +780,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                         >
                             <Text
                                 size="10px"
-                                fw={700}
+                                fw={600}
                                 tt="uppercase"
                                 lts={0.4}
                                 c="ldGray.7"

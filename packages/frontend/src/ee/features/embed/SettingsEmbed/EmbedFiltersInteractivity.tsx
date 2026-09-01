@@ -304,7 +304,7 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                                                             }{' '}
                                                         </Text>
                                                         <Text
-                                                            fw={700}
+                                                            fw={600}
                                                             span
                                                             fz="xs"
                                                         >

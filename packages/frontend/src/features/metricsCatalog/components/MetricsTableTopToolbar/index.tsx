@@ -130,7 +130,7 @@ const SortableColumn: FC<{
                         </ActionIcon>
                     </Box>
                 </Tooltip>
-                <Text fz={13} fw={500} c="ldDark.9">
+                <Text fz="sm" fw={500} c="ldDark.9">
                     {column.name}
                 </Text>
             </Group>

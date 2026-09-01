@@ -144,7 +144,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                                 style={{ margin: '14px 27px' }}
                             >
                                 <Group gap="xs">
-                                    <Text fz={14} fw={500} c="ldGray.6">
+                                    <Text fz="sm" fw={500} c="ldGray.6">
                                         Canvas mode:
                                     </Text>
                                     <CanvasTimeFramePicker

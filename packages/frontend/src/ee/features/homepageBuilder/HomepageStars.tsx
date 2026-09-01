@@ -444,7 +444,7 @@ const STAR_DEFS: StarDef[] = [
                     <Text size="xs" c="dimmed" lineClamp={1}>
                         {kpi.label}
                     </Text>
-                    <Text fw={700} size="xl" mb={4}>
+                    <Text fw={600} size="xl" mb={4}>
                         {kpi.value}
                     </Text>
                     <StarSparkline

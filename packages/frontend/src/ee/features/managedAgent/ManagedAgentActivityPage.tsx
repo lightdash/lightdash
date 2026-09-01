@@ -284,7 +284,7 @@ const SetupSection: FC<{
                         <Box className={classes.setupOrb}>
                             <IconTarget size={16} />
                         </Box>
-                        <Title order={4} fw={700}>
+                        <Title order={4} fw={600}>
                             Autopilot
                         </Title>
                         <Box className={classes.activeBadge}>
@@ -421,7 +421,7 @@ const formatAbsoluteTimestamp = (dateStr: string) =>
 // --- Detail Sidebar ---
 
 const MetadataLabel: FC<{ label: string }> = ({ label }) => (
-    <Text fz={10} fw={600} c="dimmed" tt="uppercase" lts={0.5}>
+    <Text fz="xs" fw={600} c="dimmed" tt="uppercase" lts={0.5}>
         {label}
     </Text>
 );
@@ -437,7 +437,7 @@ const MetadataFieldList: FC<{ label: string; fields: string[] }> = ({
                 {fields.map((f) => (
                     <Text
                         key={f}
-                        fz={11}
+                        fz="xs"
                         ff="monospace"
                         className={classes.fieldPill}
                     >
@@ -473,7 +473,7 @@ const ChartDetails: FC<{ metadata: Record<string, unknown> }> = ({
             <Group gap="lg">
                 {chartType && (
                     <Stack gap={2}>
-                        <Text fz={10} c="dimmed">
+                        <Text fz="xs" c="dimmed">
                             Type
                         </Text>
                         <Text fz="xs" fw={500}>
@@ -483,7 +483,7 @@ const ChartDetails: FC<{ metadata: Record<string, unknown> }> = ({
                 )}
                 {exploreName && (
                     <Stack gap={2}>
-                        <Text fz={10} c="dimmed">
+                        <Text fz="xs" c="dimmed">
                             Explore
                         </Text>
                         <Text fz="xs" fw={500}>
@@ -587,7 +587,7 @@ const FieldDiffRow: FC<{ diff: FieldDiff }> = ({ diff }) => {
                 {diff.removed.map((f) => (
                     <Text
                         key={`removed-${f}`}
-                        fz={11}
+                        fz="xs"
                         ff="monospace"
                         className={classes.fieldPillRemoved}
                     >
@@ -597,7 +597,7 @@ const FieldDiffRow: FC<{ diff: FieldDiff }> = ({ diff }) => {
                 {diff.added.map((f) => (
                     <Text
                         key={`added-${f}`}
-                        fz={11}
+                        fz="xs"
                         ff="monospace"
                         className={classes.fieldPillAdded}
                     >
@@ -1561,7 +1561,7 @@ const SettingsSidebar: FC<{
                                             <Text fz="xs" fw={500}>
                                                 {capability.label}
                                             </Text>
-                                            <Text fz={11} c="dimmed">
+                                            <Text fz="xs" c="dimmed">
                                                 {capability.description}
                                             </Text>
                                         </Stack>
@@ -1673,7 +1673,7 @@ const SettingsSidebar: FC<{
                                             </Button>
                                         </Group>
                                     )}
-                                    <Text fz={11} c="dimmed">
+                                    <Text fz="xs" c="dimmed">
                                         {spaceScopeSummary}{' '}
                                         {policy.spaceScopeMode === 'only'
                                             ? 'New spaces are not monitored until added here. Selections include child spaces.'
@@ -1841,7 +1841,7 @@ const SettingsSidebar: FC<{
                                     <Text fz="xs" fw={500}>
                                         Protect verified content
                                     </Text>
-                                    <Text fz={11} c="dimmed">
+                                    <Text fz="xs" c="dimmed">
                                         Autopilot can report on verified charts
                                         and dashboards but never changes or
                                         deletes them.
@@ -2007,7 +2007,7 @@ const RunHeaderRow: FC<{
                             </Box>
                         </Tooltip>
                     )}
-                    <Text fz={11} fw={700} tt="uppercase" c="bright" lts={0.4}>
+                    <Text fz="xs" fw={600} tt="uppercase" c="bright" lts={0.4}>
                         Run
                     </Text>
                     {variant !== 'live' && (
@@ -2040,7 +2040,7 @@ const RunHeaderRow: FC<{
                 </Group>
                 <Group gap={6} wrap="nowrap">
                     {variant === 'completed-empty' ? (
-                        <Text fz={11} c="dimmed">
+                        <Text fz="xs" c="dimmed">
                             No actions
                         </Text>
                     ) : run.actionCount > 0 ? (
@@ -2074,7 +2074,7 @@ const RunHeaderRow: FC<{
                                     );
                                 },
                             )}
-                            <Text fz={11} c="dimmed">
+                            <Text fz="xs" c="dimmed">
                                 {run.actionCount}{' '}
                                 {run.actionCount === 1 ? 'action' : 'actions'}
                             </Text>
@@ -2219,7 +2219,7 @@ const QuietRunsGroup: FC<{
                                 />
                                 <Group gap={4} wrap="nowrap">
                                     <Text
-                                        fz={10}
+                                        fz="xs"
                                         fw={600}
                                         tt="uppercase"
                                         c="dimmed"
@@ -2227,7 +2227,7 @@ const QuietRunsGroup: FC<{
                                     >
                                         Run
                                     </Text>
-                                    <Text fz={10} c="dimmed">
+                                    <Text fz="xs" c="dimmed">
                                         ·{' '}
                                         {formatTimestamp(
                                             run.startedAt.toString(),
@@ -2235,7 +2235,7 @@ const QuietRunsGroup: FC<{
                                     </Text>
                                 </Group>
                             </Group>
-                            <Text fz={10} c="dimmed">
+                            <Text fz="xs" c="dimmed">
                                 No actions
                             </Text>
                         </Group>
@@ -2605,8 +2605,8 @@ const FilteredActionsView: FC<{
                             <Table.Tr className={classes.dayHeaderRow}>
                                 <Table.Td colSpan={3}>
                                     <Text
-                                        fz={11}
-                                        fw={700}
+                                        fz="xs"
+                                        fw={600}
                                         tt="uppercase"
                                         c="dimmed"
                                         lts={0.4}

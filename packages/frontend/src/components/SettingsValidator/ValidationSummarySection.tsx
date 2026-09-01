@@ -126,7 +126,7 @@ export const ValidationSummarySection: FC<Props> = ({
                                                 >
                                                     {getGroupTitle(group)}
                                                 </Text>
-                                                <Text fz={10} c="ldGray.6">
+                                                <Text fz="xs" c="ldGray.6">
                                                     {getAffectedLabel(group)}
                                                 </Text>
                                             </Stack>

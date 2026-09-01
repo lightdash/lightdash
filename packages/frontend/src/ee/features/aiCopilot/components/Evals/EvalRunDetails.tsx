@@ -322,7 +322,7 @@ export const EvalRunDetails: FC<Props> = ({
                         <Paper p="xxs" withBorder radius="sm">
                             <MantineIcon icon={IconTarget} size="md" />
                         </Paper>
-                        <Title order={5} c="ldGray.9" fw={700}>
+                        <Title order={5} c="ldGray.9" fw={600}>
                             Run Overview
                         </Title>
                     </Group>

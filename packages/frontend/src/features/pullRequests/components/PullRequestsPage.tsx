@@ -211,7 +211,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                         {pr.author ? (
                                             <>
                                                 {' by '}
-                                                <Text span fw={700} fz="xs">
+                                                <Text span fw={600} fz="xs">
                                                     {pr.author.name}
                                                 </Text>
                                             </>

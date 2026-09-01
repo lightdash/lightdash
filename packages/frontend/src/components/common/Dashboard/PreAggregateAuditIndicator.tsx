@@ -50,7 +50,7 @@ type TabGroup = {
 function TileDetail({ tile }: { tile: TilePreAggregateStatus }) {
     if (tile.hit && tile.preAggregateName) {
         return (
-            <Text fz={10} className={classes.tileDetail}>
+            <Text fz="xs" className={classes.tileDetail}>
                 {tile.preAggregateName}
             </Text>
         );
@@ -65,7 +65,7 @@ function TileDetail({ tile }: { tile: TilePreAggregateStatus }) {
                 : null;
         if (!fieldId) {
             return (
-                <Text fz={10} className={classes.tileDetail}>
+                <Text fz="xs" className={classes.tileDetail}>
                     {reasonLabel}
                 </Text>
             );
@@ -74,7 +74,7 @@ function TileDetail({ tile }: { tile: TilePreAggregateStatus }) {
         const showTooltip =
             tile.reasonFieldLabel !== null && tile.reasonFieldLabel !== fieldId;
         return (
-            <Text fz={10} className={classes.tileDetail}>
+            <Text fz="xs" className={classes.tileDetail}>
                 {reasonLabel}:{' '}
                 {showTooltip ? (
                     <Tooltip
@@ -84,7 +84,7 @@ function TileDetail({ tile }: { tile: TilePreAggregateStatus }) {
                         openDelay={150}
                         classNames={{ tooltip: classes.fieldIdTooltip }}
                     >
-                        <Text span fz={10} className={classes.fieldLabelHover}>
+                        <Text span fz="xs" className={classes.fieldLabelHover}>
                             {fieldDisplay}
                         </Text>
                     </Tooltip>
@@ -95,7 +95,7 @@ function TileDetail({ tile }: { tile: TilePreAggregateStatus }) {
         );
     }
     return (
-        <Text fz={10} className={classes.tileDetail}>
+        <Text fz="xs" className={classes.tileDetail}>
             —
         </Text>
     );
@@ -155,7 +155,7 @@ function IneligibleSection({ tiles }: { tiles: TilePreAggregateStatus[] }) {
                     size="xs"
                     color="ldGray.5"
                 />
-                <Text fz={11} className={classes.tileDetail}>
+                <Text fz="xs" className={classes.tileDetail}>
                     {tiles.length} without pre-aggregates
                 </Text>
             </PolymorphicGroupButton>

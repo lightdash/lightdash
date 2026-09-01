@@ -367,7 +367,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 }Options loaded at ${refreshedAt.toLocaleTimeString()} - ↻ Click to refresh`;
 
                 return (
-                    <Box fz={11} className={styles.refreshItem}>
+                    <Box fz="xs" className={styles.refreshItem}>
                         {refreshLabel}
                     </Box>
                 );

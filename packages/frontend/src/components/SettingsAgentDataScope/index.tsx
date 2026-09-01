@@ -256,7 +256,7 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
                         <MantineIcon icon={IconLock} size="md" />
                     </Paper>
                     <Stack gap={2}>
-                        <Title order={5} c="ldGray.9" fw={700}>
+                        <Title order={5} c="ldGray.9" fw={600}>
                             Warehouse access
                         </Title>
                         <Text size="xs" c="dimmed">

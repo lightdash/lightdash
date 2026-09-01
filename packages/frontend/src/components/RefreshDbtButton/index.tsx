@@ -297,7 +297,7 @@ const RefreshDbtButton: FC<{
                                             >
                                                 {MODE_COPY[option].label}
                                             </Text>
-                                            <Text fz={10} c="ldGray.6">
+                                            <Text fz="xs" c="ldGray.6">
                                                 {MODE_COPY[option].description}
                                             </Text>
                                         </Stack>

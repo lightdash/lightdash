@@ -118,7 +118,7 @@ export const SuggestionsSpaceAccess: FC<{
                             </Badge>
                         )}
                     </Group>
-                    <Text fz={11} c="dimmed">
+                    <Text fz="xs" c="dimmed">
                         {description}
                     </Text>
                 </Stack>

@@ -409,7 +409,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                     </HoverCard.Target>
                                     <HoverCard.Dropdown>
                                         <Stack>
-                                            <Text fw={700}>Permissions</Text>
+                                            <Text fw={600}>Permissions</Text>
                                             {scopes.map((scope) => (
                                                 <Badge
                                                     key={scope}

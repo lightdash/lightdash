@@ -26,7 +26,7 @@ const MetaField: FC<{ label: string; children: React.ReactNode }> = ({
     children,
 }) => (
     <Stack gap={2}>
-        <Text fz={10} fw={700} c="dimmed" tt="uppercase" lts={0.4}>
+        <Text fz="xs" fw={600} c="dimmed" tt="uppercase" lts={0.4}>
             {label}
         </Text>
         {children}
@@ -122,7 +122,7 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
             <Divider color="ldGray.2" />
 
             <Box p="lg" flex={1} style={{ overflowY: 'auto', minHeight: 0 }}>
-                <Text fz={10} fw={700} c="dimmed" tt="uppercase" lts={0.4}>
+                <Text fz="xs" fw={600} c="dimmed" tt="uppercase" lts={0.4}>
                     Prompts ({evalSummary.promptCount})
                 </Text>
                 {isInitialLoading ? (

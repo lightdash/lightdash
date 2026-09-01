@@ -713,7 +713,7 @@ const DashboardHeader = memo(
                                             color="ldGray.6"
                                         />
 
-                                        <Text fz={11} c="dimmed">
+                                        <Text fz="xs" c="dimmed">
                                             {dayjs(oldestCacheTime).format(
                                                 'MMM D, h:mm A',
                                             )}

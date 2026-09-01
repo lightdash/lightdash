@@ -144,7 +144,7 @@ const DataSourcePicker: FC = () => {
     return (
         <Box className={classes.column}>
             <Stack align="center" gap="xs">
-                <Title order={1} ta="center" fw={700}>
+                <Title order={1} ta="center" fw={600}>
                     Add a data source
                 </Title>
                 <Text size="md" c="dimmed" ta="center">

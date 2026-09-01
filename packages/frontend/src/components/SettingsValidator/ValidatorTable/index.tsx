@@ -219,7 +219,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                                             validationError,
                                         )) &&
                                         !isDeleted(validationError) && (
-                                            <Text fz={10} c="ldGray.6">
+                                            <Text fz="xs" c="ldGray.6">
                                                 {getViews(validationError)} view
                                                 {getViews(validationError) === 1
                                                     ? ''
@@ -233,7 +233,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                                                         <Text
                                                             span
                                                             fw={500}
-                                                            fz={10}
+                                                            fz="xs"
                                                         >
                                                             {
                                                                 validationError.lastUpdatedBy

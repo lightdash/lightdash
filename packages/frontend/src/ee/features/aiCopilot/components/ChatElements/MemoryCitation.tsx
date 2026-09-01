@@ -81,7 +81,7 @@ export const MemoryCitation = ({
                                 align="flex-start"
                                 wrap="nowrap"
                             >
-                                <Text fw={650} size="sm" lh={1.3}>
+                                <Text fw={600} size="sm" lh={1.3}>
                                     {memoryQuery.data.title}
                                 </Text>
                                 {memoryQuery.data.status !== 'active' ? (

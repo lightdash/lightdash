@@ -105,7 +105,7 @@ export const CanvasTimeFramePicker: FC<Props> = ({
                     {dateRanges.currentRange}
                 </Text>
             </Group>
-            <Text c="ldGray.6" fz={14} fw={500}>
+            <Text c="ldGray.6" fz="sm" fw={500}>
                 compared to
             </Text>
             <Text

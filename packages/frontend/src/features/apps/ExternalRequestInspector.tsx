@@ -124,7 +124,7 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
                                 <Text size="xs" fw={600} c="dimmed">
                                     Request body
                                 </Text>
-                                <Code block fz={10}>
+                                <Code block fz="xs">
                                     {toJson(request.requestBody)}
                                 </Code>
                             </Box>
@@ -225,7 +225,7 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
                             </Group>
                             <Collapse in={jsonExpanded}>
                                 <ScrollArea.Autosize mah={200}>
-                                    <Code block fz={10}>
+                                    <Code block fz="xs">
                                         {toJson(request.responseBody)}
                                     </Code>
                                 </ScrollArea.Autosize>

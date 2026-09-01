@@ -87,7 +87,7 @@ const AppInfoOverlay: FC<Props> = ({
                     <Anchor
                         component={Link}
                         to={`/projects/${projectUuid}/spaces/${spaceUuid}`}
-                        fz={12}
+                        fz="xs"
                         fw={500}
                     >
                         {spaceName ?? 'Space'}
@@ -109,7 +109,7 @@ const AppInfoOverlay: FC<Props> = ({
                                 <UnstyledButton onClick={copy}>
                                     <Group gap={6} wrap="nowrap">
                                         <Text
-                                            fz={11}
+                                            fz="xs"
                                             fw={500}
                                             c="ldGray.9"
                                             ff="monospace"

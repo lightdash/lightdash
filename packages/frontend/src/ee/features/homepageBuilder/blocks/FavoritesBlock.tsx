@@ -82,7 +82,7 @@ const FavoritePills: FC<{
                     <TruncatedText
                         maxWidth={160}
                         inline
-                        fz={13}
+                        fz="sm"
                         fw={500}
                         c="inherit"
                     >

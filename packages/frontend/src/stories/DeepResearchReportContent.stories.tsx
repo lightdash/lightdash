@@ -39,7 +39,7 @@ const SimulatedChart = () => {
 
     return (
         <Stack h="100%" gap="lg">
-            <Text fw={650}>Renewal rate by incident exposure</Text>
+            <Text fw={600}>Renewal rate by incident exposure</Text>
             <Box
                 role="img"
                 aria-label="Simulated renewal rate chart"

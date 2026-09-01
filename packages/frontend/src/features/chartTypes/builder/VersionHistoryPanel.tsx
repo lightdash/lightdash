@@ -55,14 +55,14 @@ type Props = {
 const RelativeTime: FC<{ at: Date }> = ({ at }) => {
     const timeAgo = useTimeAgo(at);
     return (
-        <Text fz={11} c="dimmed">
+        <Text fz="xs" c="dimmed">
             {timeAgo}
         </Text>
     );
 };
 
 const AbsoluteTime: FC<{ at: Date }> = ({ at }) => (
-    <Text fz={11} c="dimmed">
+    <Text fz="xs" c="dimmed">
         {format(at, 'MMM d, HH:mm')}
     </Text>
 );
@@ -77,7 +77,7 @@ const AuthorLine: FC<{ version: ApiAppVersionSummary }> = ({ version }) => {
                 name={name}
                 userUuid={version.createdByUser?.userUuid}
             />
-            <Text fz={11} c="dimmed" truncate="end">
+            <Text fz="xs" c="dimmed" truncate="end">
                 {name}
             </Text>
         </>
@@ -106,7 +106,7 @@ const VersionBuildDetails: FC<{ version: ApiAppVersionSummary }> = ({
                     className={classes.buildDetailsChevron}
                     data-open={open || undefined}
                 />
-                <Text fz={11} fw={600}>
+                <Text fz="xs" fw={600}>
                     Build details
                 </Text>
             </UnstyledButton>
@@ -142,10 +142,10 @@ const VersionChanges: FC<{
                     className={classes.buildDetailsChevron}
                     data-open={open || undefined}
                 />
-                <Text fz={11} fw={600} flex="0 0 auto">
+                <Text fz="xs" fw={600} flex="0 0 auto">
                     What changed
                 </Text>
-                <Text fz={11} c="dimmed" truncate="end" ml={2} miw={0}>
+                <Text fz="xs" c="dimmed" truncate="end" ml={2} miw={0}>
                     {summary}
                 </Text>
             </UnstyledButton>
@@ -286,14 +286,14 @@ const VersionHistoryPanel: FC<Props> = ({
                             )}
                         </Box>
                     </Box>
-                    <Text fz={13} lh={1.45} c="ldGray.8">
+                    <Text fz="sm" lh={1.45} c="ldGray.8">
                         {version.prompt || 'Uploaded from source'}
                     </Text>
                 </UnstyledButton>
 
                 {isFailed && (
                     <Box className={classes.failure}>
-                        <Text fz={11} lh={1.4} c="red.7">
+                        <Text fz="xs" lh={1.4} c="red.7">
                             {getAppVersionFailureMessage(version)}
                         </Text>
                     </Box>
@@ -310,7 +310,7 @@ const VersionHistoryPanel: FC<Props> = ({
 
                 {isReady && isUpgrade && version.statusMessage && (
                     <Box className={classes.upgradeSummary}>
-                        <Text fz={11} fw={600} c="blue.8" mb={4}>
+                        <Text fz="xs" fw={600} c="blue.8" mb={4}>
                             Upgrade summary
                         </Text>
                         <AiMarkdown className={classes.upgradeSummaryMarkdown}>
@@ -380,7 +380,7 @@ const VersionHistoryPanel: FC<Props> = ({
                             )}
                         </Box>
                         {build.pendingPrompt && (
-                            <Text fz={13} lh={1.45} c="ldGray.8">
+                            <Text fz="sm" lh={1.45} c="ldGray.8">
                                 {build.pendingPrompt}
                             </Text>
                         )}

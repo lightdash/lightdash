@@ -151,7 +151,7 @@ const TreeListSidebar: FC = () => {
                                             </Group>
                                             {tree.description && (
                                                 <Text
-                                                    fz={10}
+                                                    fz="xs"
                                                     c="dimmed"
                                                     truncate
                                                     mt={2}

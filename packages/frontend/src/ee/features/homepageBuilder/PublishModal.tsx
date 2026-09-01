@@ -383,7 +383,7 @@ const PublishModalBody: FC<BodyProps> = ({
                         {groupAssignments.length > 1 && (
                             <Box p="sm" className={classes.borderedPanel}>
                                 <Text
-                                    fz={11}
+                                    fz="xs"
                                     fw={600}
                                     tt="uppercase"
                                     lts="0.05em"
@@ -413,7 +413,7 @@ const PublishModalBody: FC<BodyProps> = ({
                                                     {index + 1}
                                                 </span>
                                                 <Box flex={1}>
-                                                    <Text fz={13} fw={500}>
+                                                    <Text fz="sm" fw={500}>
                                                         {assignment.groupName}
                                                     </Text>
                                                     <Text fz={11.5} c="dimmed">
@@ -502,7 +502,7 @@ const PublishModalBody: FC<BodyProps> = ({
                                         <Text fz={13.5} fw={500}>
                                             {ProjectMemberRoleLabels[role]}
                                         </Text>
-                                        <Text fz={12} c="dimmed">
+                                        <Text fz="xs" c="dimmed">
                                             {ROLE_DESCRIPTIONS[role]}
                                         </Text>
                                     </Box>
@@ -510,7 +510,7 @@ const PublishModalBody: FC<BodyProps> = ({
                                 </label>
                             ))}
                         </div>
-                        <Text fz={12} c="dimmed" lh={1.45}>
+                        <Text fz="xs" c="dimmed" lh={1.45}>
                             A group assignment always wins over a role.
                         </Text>
                     </>
