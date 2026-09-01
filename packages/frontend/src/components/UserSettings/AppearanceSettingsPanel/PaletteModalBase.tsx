@@ -152,7 +152,6 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
 
                 <Button
                     variant="subtle"
-                    color="blue"
                     size="compact-xs"
                     onClick={() => setShowAllColors(!showAllColors)}
                     rightSection={

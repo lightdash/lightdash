@@ -442,7 +442,6 @@ const FilterRequirementsButton: FC = () => {
                     <Button
                         size="xs"
                         variant="subtle"
-                        color="blue"
                         fullWidth
                         leftSection={<MantineIcon icon={IconPlus} />}
                         onClick={handleAddRule}

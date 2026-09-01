@@ -4,14 +4,7 @@ import {
     type CompiledDimension,
     type FilterRule,
 } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Select,
-    Stack,
-    Text,
-    useMantineColorScheme,
-} from '@mantine/core';
+import { Button, Group, Select, Stack, Text } from '@mantine/core';
 import { IconFilter, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -51,8 +44,6 @@ export const MetricExploreFilter: FC<Props> = ({
     onFilterApply,
     initialFilterRule,
 }) => {
-    const { colorScheme } = useMantineColorScheme();
-
     // Seed from the metric's default filter on mount. The parent remounts this
     // component (via key) per metric, so this initializer re-runs on switch.
     const [filterState, setFilterState] = useState<FilterState>(() =>
@@ -204,7 +195,6 @@ export const MetricExploreFilter: FC<Props> = ({
                     <Button
                         variant="subtle"
                         size="compact-xs"
-                        color="dark"
                         rightSection={
                             <MantineIcon
                                 icon={IconX}
@@ -311,7 +301,6 @@ export const MetricExploreFilter: FC<Props> = ({
             </Stack>
             {filterState.fieldId && dimensionMetadata?.requiresValues && (
                 <Button
-                    color={colorScheme === 'dark' ? 'ldGray.2' : 'dark'}
                     size="compact-xs"
                     disabled={!canApplyFilter}
                     className={filterStyles.applyButton}

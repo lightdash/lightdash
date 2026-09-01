@@ -311,7 +311,6 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     </Button>
                                     <Button
                                         size="xs"
-                                        color="dark"
                                         onClick={() => {
                                             handleApply();
 

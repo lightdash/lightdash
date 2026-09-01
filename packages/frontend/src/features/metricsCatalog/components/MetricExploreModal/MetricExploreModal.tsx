@@ -603,7 +603,6 @@ export const MetricExploreModal: FC<Props> = (props) => {
                                         </Text>
                                         <Button
                                             variant="subtle"
-                                            color="dark"
                                             size="compact-xs"
                                             className={styles.clearButton}
                                             data-visible={

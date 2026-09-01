@@ -180,7 +180,6 @@ const GithubSettingsPanel: FC = () => {
                                 size="xs"
                                 component="a"
                                 target="_blank"
-                                color="blue"
                                 href={GITHUB_INSTALL_URL}
                             >
                                 Install

@@ -63,7 +63,6 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                 <Button
                     variant="subtle"
                     size="compact-xs"
-                    color="dark"
                     rightSection={
                         <MantineIcon icon={IconX} color="ldGray.5" size={12} />
                     }

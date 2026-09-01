@@ -428,7 +428,6 @@ const CreatePreviewModal: FC<Props> = ({
             title={modalTitle}
             actions={
                 <Button
-                    color="dark"
                     disabled={
                         isPreviewCreating ||
                         !selectedProjectUuid ||

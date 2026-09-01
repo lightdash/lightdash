@@ -143,7 +143,6 @@ const RequiredFilterCard: FC<Props> = ({
                             <Button
                                 size="compact-xs"
                                 variant="light"
-                                color="blue"
                                 radius="xl"
                                 w="max-content"
                                 leftSection={<MantineIcon icon={IconPlus} />}

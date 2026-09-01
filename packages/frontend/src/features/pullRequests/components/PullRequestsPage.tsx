@@ -365,7 +365,6 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                             href={pr.prUrl}
                             target="_blank"
                             rel="noreferrer"
-                            color="dark"
                             aria-label={`View pull request on ${getProviderLabel(
                                 pr.provider,
                             )}`}

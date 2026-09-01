@@ -371,7 +371,6 @@ const Filter: FC<Props> = ({
                                                             handleLockToggle
                                                         }
                                                         size="xs"
-                                                        color="dark"
                                                         radius="xl"
                                                         aria-label={
                                                             isLocked
@@ -415,7 +414,6 @@ const Filter: FC<Props> = ({
                                         <ActionIcon
                                             onClick={onRemove}
                                             size="xs"
-                                            color="dark"
                                             radius="xl"
                                         >
                                             <MantineIcon
