@@ -107,6 +107,7 @@ export const DATA_APP_TEMPLATES = [
     'pdf',
     'custom',
     DATA_APP_VIZ_TEMPLATE,
+    'forecaster',
 ] as const;
 export type DataAppTemplate = (typeof DATA_APP_TEMPLATES)[number];
 

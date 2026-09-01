@@ -3,6 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { getTemplateInstructions } from './templates';
 
 describe('getTemplateInstructions', () => {
+    it('returns instructions for the forecaster template', () => {
+        const instructions = getTemplateInstructions('forecaster');
+        expect(instructions).toContain('[Starter template: Forecaster]');
+        expect(instructions).toContain('baseline');
+        expect(instructions).toContain('useUrlState');
+    });
+
     it('keeps the existing templates behaving identically', () => {
         expect(getTemplateInstructions('dashboard')).toContain(
             'single-page dashboard',

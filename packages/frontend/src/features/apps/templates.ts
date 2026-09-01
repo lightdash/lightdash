@@ -4,6 +4,7 @@ import {
     type FeatureFlags,
 } from '@lightdash/common';
 import {
+    IconChartLine,
     IconFileText,
     IconLayoutDashboard,
     IconPencil,
@@ -28,6 +29,7 @@ const TEMPLATE_ICONS: Record<DataAppTemplate, TablerIcon> = {
     pdf: IconFileText,
     custom: IconPencil,
     data_app_viz: IconPuzzle,
+    forecaster: IconChartLine,
 };
 
 const toDefinition = (id: DataAppTemplate): TemplateDefinition => {
@@ -55,6 +57,22 @@ export const getPickerTemplates = (
         .filter(
             (def) =>
                 def.inPicker &&
+                (def.requiredFlag === undefined ||
+                    enabledFlags.has(def.requiredFlag)),
+        )
+        .map((def) => toDefinition(def.id));
+
+/**
+ * Templates listed in the gallery behind the picker's "From Template" card,
+ * honoring each definition's feature-flag gate.
+ */
+export const getGalleryTemplates = (
+    enabledFlags: Set<FeatureFlags>,
+): TemplateDefinition[] =>
+    Object.values(DATA_APP_TEMPLATE_DEFINITIONS)
+        .filter(
+            (def) =>
+                def.inGallery &&
                 (def.requiredFlag === undefined ||
                     enabledFlags.has(def.requiredFlag)),
         )

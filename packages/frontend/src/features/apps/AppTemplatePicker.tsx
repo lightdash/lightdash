@@ -1,7 +1,8 @@
-import { type DataAppTemplate } from '@lightdash/common';
+import { FeatureFlags, type DataAppTemplate } from '@lightdash/common';
 import { Stack, Text, ThemeIcon } from '@mantine/core';
 import { type CSSProperties, type FC } from 'react';
 import { PolymorphicPaperButton } from '../../components/common/PolymorphicPaperButton';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import classes from './AppTemplatePicker.module.css';
 import { getPickerTemplates } from './templates';
 
@@ -34,7 +35,22 @@ const fanStyle = (index: number, count: number): CSSProperties => {
 };
 
 const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => {
-    const pickerTemplates = getPickerTemplates(new Set());
+    const templatesFlag = useServerFeatureFlag(
+        FeatureFlags.EnableDataAppTemplates,
+    );
+    if (templatesFlag.isLoading) {
+        // Hold the fan until the flag is known: painting the ungated cards
+        // and then re-fanning when the flag resolves reads as the last card
+        // popping in late. The empty fan keeps the layout height reserved.
+        return <div className={classes.fan} />;
+    }
+    const pickerTemplates = getPickerTemplates(
+        new Set(
+            templatesFlag.data?.enabled
+                ? [FeatureFlags.EnableDataAppTemplates]
+                : [],
+        ),
+    );
     return (
         <div className={classes.fan}>
             {pickerTemplates.map((template, index) => {

@@ -1,4 +1,4 @@
-import { type FeatureFlags } from '../../types/featureFlags';
+import { FeatureFlags } from '../../types/featureFlags';
 import { type DataAppTemplate } from './types';
 
 /**
@@ -74,5 +74,15 @@ export const DATA_APP_TEMPLATE_DEFINITIONS: Record<
         category: 'Building blocks',
         inPicker: false,
         inGallery: false,
+    },
+    forecaster: {
+        id: 'forecaster',
+        title: 'Forecaster',
+        description:
+            'A live what-if forecast: scenario levers, a baseline, and a copyable plan.',
+        category: 'Forecasting',
+        inPicker: false,
+        inGallery: true,
+        requiredFlag: FeatureFlags.EnableDataAppTemplates,
     },
 };
