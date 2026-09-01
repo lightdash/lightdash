@@ -949,6 +949,7 @@ export const ConnectionPickerView: FC<{
     /** App whose existing links show as checked rows that unlink on click;
      *  omit before a first build, when nothing can be linked yet. */
     linkedAppUuid?: string;
+    onUnlinkConfirmationChange?: (opened: boolean) => void;
 }> = ({
     selectedConnections,
     onSelect,
@@ -956,6 +957,7 @@ export const ConnectionPickerView: FC<{
     onDone,
     enabled,
     linkedAppUuid,
+    onUnlinkConfirmationChange,
 }) => {
     const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState('');
@@ -1044,6 +1046,7 @@ export const ConnectionPickerView: FC<{
             );
             if (linkedAlias !== undefined && projectUuid && linkedAppUuid) {
                 setPendingUnlink({ connection, alias: linkedAlias });
+                onUnlinkConfirmationChange?.(true);
             } else if (selectedUuids.has(connection.externalConnectionUuid)) {
                 onDeselect(connection.externalConnectionUuid);
             } else {
@@ -1062,6 +1065,7 @@ export const ConnectionPickerView: FC<{
             linkedAppUuid,
             onDeselect,
             onSelect,
+            onUnlinkConfirmationChange,
             projectUuid,
             selectedConnections,
             selectedUuids,
@@ -1079,7 +1083,20 @@ export const ConnectionPickerView: FC<{
         });
         onDeselect(pendingUnlink.connection.externalConnectionUuid);
         setPendingUnlink(null);
-    }, [linkedAppUuid, onDeselect, pendingUnlink, projectUuid, unlink]);
+        onUnlinkConfirmationChange?.(false);
+    }, [
+        linkedAppUuid,
+        onDeselect,
+        onUnlinkConfirmationChange,
+        pendingUnlink,
+        projectUuid,
+        unlink,
+    ]);
+
+    const handleCancelUnlink = useCallback(() => {
+        setPendingUnlink(null);
+        onUnlinkConfirmationChange?.(false);
+    }, [onUnlinkConfirmationChange]);
 
     return (
         <>
@@ -1177,7 +1194,7 @@ export const ConnectionPickerView: FC<{
             </Box>
             <MantineModal
                 opened={pendingUnlink !== null}
-                onClose={() => setPendingUnlink(null)}
+                onClose={handleCancelUnlink}
                 title={`Unlink ${pendingUnlink?.connection.name ?? 'connection'}?`}
                 variant="delete"
                 size="md"
@@ -1231,6 +1248,7 @@ export const AttachButton: FC<{
     const projectUuid = useProjectUuid();
     const [opened, setOpened] = useState(false);
     const [view, setView] = useState<AttachView>('menu');
+    const [unlinkConfirmationOpen, setUnlinkConfirmationOpen] = useState(false);
 
     const handleChange = useCallback((isOpen: boolean) => {
         setOpened(isOpen);
@@ -1272,6 +1290,8 @@ export const AttachButton: FC<{
             offset={8}
             shadow="md"
             trapFocus
+            closeOnClickOutside={!unlinkConfirmationOpen}
+            closeOnEscape={!unlinkConfirmationOpen}
         >
             <Popover.Target>
                 <Tooltip
@@ -1415,6 +1435,9 @@ export const AttachButton: FC<{
                                 }}
                                 enabled={opened}
                                 linkedAppUuid={linkedAppUuid}
+                                onUnlinkConfirmationChange={
+                                    setUnlinkConfirmationOpen
+                                }
                             />
                         ) : (
                             <DashboardPickerView
@@ -1460,6 +1483,7 @@ export const ConnectionAttachButton: FC<{
 }) => {
     const projectUuid = useProjectUuid();
     const [opened, setOpened] = useState(false);
+    const [unlinkConfirmationOpen, setUnlinkConfirmationOpen] = useState(false);
     const { data: existingLinks } = useAppExternalConnections(
         projectUuid,
         linkedAppUuid ?? undefined,
@@ -1499,6 +1523,8 @@ export const ConnectionAttachButton: FC<{
             offset={8}
             shadow="md"
             trapFocus
+            closeOnClickOutside={!unlinkConfirmationOpen}
+            closeOnEscape={!unlinkConfirmationOpen}
         >
             <Popover.Target>
                 <Tooltip
@@ -1551,6 +1577,7 @@ export const ConnectionAttachButton: FC<{
                     onDone={() => setOpened(false)}
                     enabled={opened}
                     linkedAppUuid={linkedAppUuid ?? undefined}
+                    onUnlinkConfirmationChange={setUnlinkConfirmationOpen}
                 />
             </Popover.Dropdown>
         </Popover>

@@ -204,15 +204,21 @@ it('confirms before unlinking a checked connection', () => {
     const onDeselect = vi.fn();
     render(
         <MantineProvider env="test">
-            <ConnectionPickerView
+            <ConnectionAttachButton
                 selectedConnections={[]}
                 onSelect={onSelect}
                 onDeselect={onDeselect}
-                onDone={() => undefined}
-                enabled
+                disabled={false}
+                description="Choose connections"
                 linkedAppUuid="app-1"
             />
         </MantineProvider>,
+    );
+
+    fireEvent.click(
+        screen.getByRole('button', {
+            name: '2 external connections attached',
+        }),
     );
 
     const linkedRow = screen.getByRole('checkbox', { name: /Linked API/ });
@@ -230,7 +236,11 @@ it('confirms before unlinking a checked connection', () => {
         ),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Unlink connection' }));
+    const confirmButton = screen.getByRole('button', {
+        name: 'Unlink connection',
+    });
+    fireEvent.mouseDown(confirmButton);
+    fireEvent.click(confirmButton);
     expect(unlink).toHaveBeenCalledWith({
         projectUuid: 'project-1',
         appUuid: 'app-1',
@@ -246,7 +256,7 @@ it('confirms before unlinking a checked connection', () => {
     );
 });
 
-it('lets an app keep a connection that is no longer available for linking', () => {
+it('keeps the app picker mounted until an unlink confirmation completes', () => {
     unlink.mockClear();
     const onDeselectConnection = vi.fn();
     render(
@@ -282,10 +292,29 @@ it('lets an app keep a connection that is no longer available for linking', () =
     fireEvent.click(linkedRow);
     expect(unlink).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Keep connection' }));
+    const keepButton = screen.getByRole('button', { name: 'Keep connection' });
+    fireEvent.mouseDown(keepButton);
+    fireEvent.click(keepButton);
     expect(unlink).not.toHaveBeenCalled();
     expect(onDeselectConnection).not.toHaveBeenCalled();
-    expect(linkedRow).toBeChecked();
+    expect(
+        screen.getByRole('checkbox', { name: /Admin-only API/ }),
+    ).toBeChecked();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Admin-only API/ }));
+    const confirmButton = screen.getByRole('button', {
+        name: 'Unlink connection',
+    });
+    fireEvent.mouseDown(confirmButton);
+    fireEvent.click(confirmButton);
+
+    expect(unlink).toHaveBeenCalledWith({
+        projectUuid: 'project-1',
+        appUuid: 'app-with-admin-only-link',
+        alias: 'admin_only_api',
+        name: 'Admin-only API',
+    });
+    expect(onDeselectConnection).toHaveBeenCalledWith('c-admin-only');
 });
 
 it('never unlinks before a first build exists', () => {
