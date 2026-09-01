@@ -463,9 +463,10 @@ export type ApiRefreshResults = {
     jobUuid: string;
 };
 
+// Optional so callers that send no body (the CLI, API clients) keep working
 export type ApiRefreshBody = {
     // Run the content-as-code pull as a job step after compiling
-    syncContent: boolean;
+    syncContent?: boolean;
 };
 
 export type ApiCreatePreviewResults = {
