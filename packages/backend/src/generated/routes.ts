@@ -433,6 +433,14 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 updatedAt: { dataType: 'datetime', required: true },
                 createdAt: { dataType: 'datetime', required: true },
+                writebackStatus: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ContentAsCodeWritebackStatus' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 prUrl: {
                     dataType: 'union',
                     subSchemas: [
@@ -57899,6 +57907,7 @@ export function RegisterRoutes(app: Router) {
             dataType: 'string',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        refresh: { in: 'query', name: 'refresh', dataType: 'boolean' },
     };
     app.get(
         '/api/v1/projects/:projectUuid/code/drafts',

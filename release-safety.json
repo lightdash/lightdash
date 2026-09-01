@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.71.2",
-  "previousVersion": "2.71.1",
-  "releaseDate": "2026-09-01T11:52:08.971Z",
+  "version": "2.71.3",
+  "previousVersion": "2.71.2",
+  "releaseDate": "2026-09-01T12:10:32.769Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260901120000_add_written_back_documents_to_content_drafts.ts",
+        "edition": "core",
+        "tables": [
+          "content_drafts"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

@@ -226,6 +226,14 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "writebackStatus": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentAsCodeWritebackStatus"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "prUrl": {
                         "type": "string",
                         "nullable": true
@@ -257,6 +265,7 @@
                 "required": [
                     "updatedAt",
                     "createdAt",
+                    "writebackStatus",
                     "prUrl",
                     "status",
                     "authorName",
@@ -57880,7 +57889,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.71.2",
+        "version": "2.71.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -58293,6 +58302,14 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "refresh",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
                         }
                     }
                 ]

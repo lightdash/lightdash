@@ -1,3 +1,14 @@
+## [2.71.3](https://github.com/lightdash/lightdash/compare/2.71.2...2.71.3) (2026-09-01)
+
+
+### Bug Fixes
+
+* **content-as-code:** credit the draft author in write-back commits and PRs ([#28380](https://github.com/lightdash/lightdash/issues/28380)) ([33bef50](https://github.com/lightdash/lightdash/commit/33bef5058033d9bad43bd2f445d34c7d83e3cf49))
+* **content-as-code:** freeze written-back reviews and show the real PR state ([#28382](https://github.com/lightdash/lightdash/issues/28382)) ([0909fd4](https://github.com/lightdash/lightdash/commit/0909fd4f80479c096a4841b5f61ac168af50a56c))
+* **content-as-code:** hand a draft back to its author when its PR is closed unmerged ([#28381](https://github.com/lightdash/lightdash/issues/28381)) ([eb65d83](https://github.com/lightdash/lightdash/commit/eb65d833cae082c80ed8c368f75de95be5b41c47))
+* size ClickHouse client connection pool from NATS worker concurrency ([#28394](https://github.com/lightdash/lightdash/issues/28394)) ([12ab1be](https://github.com/lightdash/lightdash/commit/12ab1be99a3b0c51b6cbcad0a0fc5e5dca2375c0)), closes [#28393](https://github.com/lightdash/lightdash/issues/28393)
+* **warehouses:** queue playground queries by capacity ([#28391](https://github.com/lightdash/lightdash/issues/28391)) ([137545a](https://github.com/lightdash/lightdash/commit/137545aacbcd23fbc94ce0e9f065eac1e1fbeaa4))
+
 ## [2.71.2](https://github.com/lightdash/lightdash/compare/2.71.1...2.71.2) (2026-09-01)
 
 
