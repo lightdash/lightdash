@@ -58,12 +58,26 @@ const buildArguments = () => {
         >();
     const track =
         vi.fn<ProvisionOnboardingOrgFlagsArguments['analytics']['track']>();
+    const findOrgHomepageSettings =
+        vi.fn<
+            ProvisionOnboardingOrgFlagsArguments['projectHomepageModel']['findOrgHomepageSettings']
+        >();
+    const upsertOrgHomepageSettings =
+        vi.fn<
+            ProvisionOnboardingOrgFlagsArguments['projectHomepageModel']['upsertOrgHomepageSettings']
+        >();
 
     vi.mocked(get).mockImplementation(async ({ featureFlagId }) => ({
         id: featureFlagId,
         enabled: true,
     }));
     vi.mocked(ensureOrganizationOverrideEnabled).mockResolvedValue('enabled');
+    vi.mocked(findOrgHomepageSettings).mockResolvedValue(null);
+    vi.mocked(upsertOrgHomepageSettings).mockResolvedValue({
+        organizationUuid: ORGANIZATION_UUID,
+        enabled: true,
+        opening: null,
+    });
 
     return {
         args: {
@@ -73,12 +87,18 @@ const buildArguments = () => {
                 get,
                 ensureOrganizationOverrideEnabled,
             },
+            projectHomepageModel: {
+                findOrgHomepageSettings,
+                upsertOrgHomepageSettings,
+            },
             analytics: { track },
         } satisfies ProvisionOnboardingOrgFlagsArguments,
         get: vi.mocked(get),
         ensureOrganizationOverrideEnabled: vi.mocked(
             ensureOrganizationOverrideEnabled,
         ),
+        findOrgHomepageSettings: vi.mocked(findOrgHomepageSettings),
+        upsertOrgHomepageSettings: vi.mocked(upsertOrgHomepageSettings),
         track: vi.mocked(track),
     };
 };
@@ -108,6 +128,10 @@ describe('provisionOnboardingOrgFlags', () => {
             user,
             featureFlagId: FeatureFlags.CodingAgentOnboarding,
         });
+        expect(mocks.upsertOrgHomepageSettings).toHaveBeenCalledExactlyOnceWith(
+            ORGANIZATION_UUID,
+            { enabled: true, opening: null },
+        );
         expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
             event: 'onboarding_org_flags.provisioned',
             userId: USER_UUID,
@@ -116,6 +140,29 @@ describe('provisionOnboardingOrgFlags', () => {
                 onboardingFlow: 'new',
                 homepageBuilderEnablement: 'enabled',
                 codingAgentOnboardingEnablement: 'kept_disabled',
+            },
+        });
+    });
+
+    it('does not overwrite an org that already opted out of the homepage', async () => {
+        const mocks = buildArguments();
+        mocks.findOrgHomepageSettings.mockResolvedValue({
+            organizationUuid: ORGANIZATION_UUID,
+            enabled: false,
+            opening: null,
+        });
+
+        await provisionOnboardingOrgFlags(mocks.args);
+
+        expect(mocks.upsertOrgHomepageSettings).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'onboarding_org_flags.provisioned',
+            userId: USER_UUID,
+            properties: {
+                organizationId: ORGANIZATION_UUID,
+                onboardingFlow: 'new',
+                homepageBuilderEnablement: 'kept_disabled',
+                codingAgentOnboardingEnablement: 'enabled',
             },
         });
     });
@@ -130,6 +177,7 @@ describe('provisionOnboardingOrgFlags', () => {
         await provisionOnboardingOrgFlags(mocks.args);
 
         expect(mocks.ensureOrganizationOverrideEnabled).not.toHaveBeenCalled();
+        expect(mocks.upsertOrgHomepageSettings).not.toHaveBeenCalled();
         expect(mocks.track).not.toHaveBeenCalled();
     });
 

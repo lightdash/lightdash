@@ -176,7 +176,11 @@ const makeService = ({
             deleteAnnouncement: vi.fn().mockResolvedValue(undefined),
             publishProjectDraftAnnouncements: vi.fn().mockResolvedValue([]),
             publishPendingAnnouncements: vi.fn().mockResolvedValue([]),
-            findOrgHomepageSettings: vi.fn().mockResolvedValue(null),
+            findOrgHomepageSettings: vi.fn().mockResolvedValue({
+                organizationUuid: ORGANIZATION_UUID,
+                enabled: true,
+                opening: null,
+            }),
             upsertOrgHomepageSettings: vi.fn(),
             swapHeroBlocks: vi.fn().mockResolvedValue(undefined),
             ...projectHomepageModel,
@@ -272,13 +276,17 @@ describe('ProjectHomepageService', () => {
     });
 
     it('getOrgHomepageSettings returns defaults when the org never opted in', async () => {
-        const service = makeService();
+        const service = makeService({
+            projectHomepageModel: {
+                findOrgHomepageSettings: vi.fn().mockResolvedValue(null),
+            },
+        });
 
         await expect(
             service.getOrgHomepageSettings(makeViewerUser()),
         ).resolves.toEqual({
             organizationUuid: ORGANIZATION_UUID,
-            enabled: true,
+            enabled: false,
             opening: null,
         });
     });

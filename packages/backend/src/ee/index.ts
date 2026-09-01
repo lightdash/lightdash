@@ -893,6 +893,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             organizationUuid,
                             featureFlagService:
                                 repository.getFeatureFlagService(),
+                            projectHomepageModel:
+                                models.getProjectHomepageModel<ProjectHomepageModel>(),
                             analytics: context.lightdashAnalytics,
                         }),
                 }),

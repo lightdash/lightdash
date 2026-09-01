@@ -56,8 +56,8 @@ const Home: FC = () => {
 
     const { user } = useApp();
     const isAiAgentsEnabled = useAiAgentButtonVisibility();
-    // Homepage v2 is on by default. AI-less orgs get the day-0/builder
-    // experience with the non-AI hero variant.
+    // Homepage v2 is opt-in via org settings. AI-less orgs that opted in
+    // get the day-0/builder experience with the non-AI hero variant.
     const {
         isEnabled: isHomepageBuilderEnabled,
         isLoading: isHomepageBuilderFlagLoading,

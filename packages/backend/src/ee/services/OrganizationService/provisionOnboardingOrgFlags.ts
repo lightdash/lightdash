@@ -7,6 +7,7 @@ import {
 } from '../../../analytics/LightdashAnalytics';
 import Logger from '../../../logging/logger';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
+import { type ProjectHomepageModel } from '../../models/ProjectHomepageModel';
 
 export type ProvisionOnboardingOrgFlagsArguments = {
     user: SessionUser;
@@ -15,6 +16,10 @@ export type ProvisionOnboardingOrgFlagsArguments = {
         FeatureFlagService,
         'get' | 'ensureOrganizationOverrideEnabled'
     >;
+    projectHomepageModel: Pick<
+        ProjectHomepageModel,
+        'findOrgHomepageSettings' | 'upsertOrgHomepageSettings'
+    >;
     analytics: Pick<LightdashAnalytics, 'track'>;
 };
 
@@ -22,6 +27,7 @@ export const provisionOnboardingOrgFlags = async ({
     user,
     organizationUuid,
     featureFlagService,
+    projectHomepageModel,
     analytics,
 }: ProvisionOnboardingOrgFlagsArguments): Promise<void> => {
     const newOnboardingFlag = await featureFlagService.get({
@@ -32,7 +38,32 @@ export const provisionOnboardingOrgFlags = async ({
         return;
     }
 
-    const homepageBuilderEnablement: HomepageBuilderEnablement = 'enabled';
+    let homepageBuilderEnablement: HomepageBuilderEnablement;
+    try {
+        const existing =
+            await projectHomepageModel.findOrgHomepageSettings(
+                organizationUuid,
+            );
+        if (existing?.enabled) {
+            homepageBuilderEnablement = 'already_enabled';
+        } else if (existing) {
+            homepageBuilderEnablement = 'kept_disabled';
+        } else {
+            await projectHomepageModel.upsertOrgHomepageSettings(
+                organizationUuid,
+                { enabled: true, opening: null },
+            );
+            homepageBuilderEnablement = 'enabled';
+        }
+    } catch (error) {
+        Sentry.captureException(error);
+        Logger.error(
+            `Failed to enable homepage settings for organization ${organizationUuid}: ${
+                error instanceof Error ? error.message : String(error)
+            }`,
+        );
+        homepageBuilderEnablement = 'failed';
+    }
 
     let codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement;
     try {

@@ -254,17 +254,18 @@ export class ProjectHomepageService extends BaseService {
         this.schedulerClient = args.schedulerClient;
     }
 
-    // Homepage v2 is on by default. Org admins can opt out via
-    // organization_homepage_settings.enabled.
+    // Homepage v2 is opt-in via organization_homepage_settings. Orgs that
+    // already turned it on (or were backfilled from the old flag) stay on;
+    // everyone else stays on the classic homepage until an admin opts in.
     private async isHomepageEnabled(user: SessionUser): Promise<boolean> {
         if (!user.organizationUuid) {
-            return true;
+            return false;
         }
         const settings =
             await this.projectHomepageModel.findOrgHomepageSettings(
                 user.organizationUuid,
             );
-        return settings?.enabled ?? true;
+        return settings?.enabled === true;
     }
 
     private async assertFlagEnabled(user: SessionUser): Promise<void> {
@@ -286,7 +287,7 @@ export class ProjectHomepageService extends BaseService {
         return (
             settings ?? {
                 organizationUuid: user.organizationUuid,
-                enabled: true,
+                enabled: false,
                 opening: null,
             }
         );
@@ -337,7 +338,7 @@ export class ProjectHomepageService extends BaseService {
                 organizationId: user.organizationUuid,
                 enabled: settings.enabled,
                 opening: settings.opening,
-                previouslyEnabled: previous?.enabled ?? true,
+                previouslyEnabled: previous?.enabled ?? false,
             },
         });
         return settings;

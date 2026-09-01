@@ -68,7 +68,7 @@
             "flags": [
                 "new-onboarding"
             ],
-            "notes": "Only `new-onboarding` is added here: the homepage builder is always on, and the `ai-copilot` flag does not need listing because `ee` sets AI_COPILOT_ENABLED=true, which resolves that flag on when AI_COPILOT_REQUIRES_FEATURE_FLAG is unset (see CommercialFeatureFlagModel.getAiCopilotFlag). The register page evaluates `new-onboarding` anonymously, so enabling it instance-wide via LIGHTDASH_ENABLE_FEATURE_FLAGS (what the profile does) is required for signup to switch."
+            "notes": "Only `new-onboarding` is added here: homepage v2 is org-settings opt-in (no feature flag), and the `ai-copilot` flag does not need listing because `ee` sets AI_COPILOT_ENABLED=true, which resolves that flag on when AI_COPILOT_REQUIRES_FEATURE_FLAG is unset (see CommercialFeatureFlagModel.getAiCopilotFlag). The register page evaluates `new-onboarding` anonymously, so enabling it instance-wide via LIGHTDASH_ENABLE_FEATURE_FLAGS (what the profile does) is required for signup to switch."
         }
     },
     "snapshots": {

@@ -124,14 +124,13 @@ const updateGroupPrioritiesApi = async (
     });
 
 export const useHomepageBuilderFlag = () => {
-    // Homepage v2 is on by default. Org admins can opt out via
-    // organization homepage settings. Must match
+    // Homepage v2 is opt-in via organization homepage settings. Must match
     // ProjectHomepageService.isHomepageEnabled.
     const settings = useOrgHomepageSettings();
     // The homepage builder / new onboarding surfaces are desktop-only for now,
     // so fall back to the classic homepage on mobile.
     return {
-        isEnabled: !IS_MOBILE && (settings.data?.enabled ?? true),
+        isEnabled: !IS_MOBILE && settings.data?.enabled === true,
         isLoading: settings.isInitialLoading,
     };
 };
