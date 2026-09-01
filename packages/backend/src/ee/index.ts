@@ -479,7 +479,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getAiOrganizationSettingsModel(),
                         aiModelCatalog,
                     }),
-sandboxManager: null,
+                    sandboxManager: null,
                     appRuntimeS3: null,
                     chartRegistryClient: new ChartRegistryClient({
                         lightdashConfig: context.lightdashConfig,

@@ -368,7 +368,7 @@ type AppGenerateServiceDeps = {
     externalConnectionModel: ExternalConnectionModel;
     sandboxRegistryModel: SandboxRegistryModel;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
-/** Test seams: null in production, where both are built from config. */
+    /** Test seams: null in production, where both are built from config. */
     sandboxManager: SandboxManagerPort | null;
     appRuntimeS3: AppRuntimeS3 | null;
     chartRegistryClient: ChartRegistryClient;
@@ -593,7 +593,7 @@ export class AppGenerateService extends BaseService {
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
-private readonly appRuntimeS3: AppRuntimeS3 | null;
+    private readonly appRuntimeS3: AppRuntimeS3 | null;
 
     private readonly chartRegistryClient: ChartRegistryClient;
 
@@ -628,7 +628,7 @@ private readonly appRuntimeS3: AppRuntimeS3 | null;
         externalConnectionModel,
         sandboxRegistryModel,
         orgAiCopilotConfigResolver,
-sandboxManager,
+        sandboxManager,
         appRuntimeS3,
         chartRegistryClient,
     }: AppGenerateServiceDeps) {
@@ -656,7 +656,7 @@ sandboxManager,
         this.externalConnectionModel = externalConnectionModel;
         this.sandboxRegistryModel = sandboxRegistryModel;
         this.orgAiCopilotConfigResolver = orgAiCopilotConfigResolver;
-this.sandboxManager = sandboxManager ?? undefined;
+        this.sandboxManager = sandboxManager ?? undefined;
         this.appRuntimeS3 = appRuntimeS3;
         this.chartRegistryClient = chartRegistryClient;
     }
