@@ -18,6 +18,12 @@ const threadUuid = '00000000-0000-0000-0000-000000000006';
 const promptUuid = '00000000-0000-0000-0000-000000000007';
 const liveActivityUuid = '00000000-0000-0000-0000-000000000008';
 const liveActivityStartAttemptUuid = '00000000-0000-0000-0000-000000000009';
+const liveActivityPushToken =
+    '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+const pushToStartToken =
+    'ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789';
+const validDeviceToken =
+    'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210';
 
 const installation = {
     mobilePushInstallationUuid: installationUuid,
@@ -164,7 +170,7 @@ const register = (
         liveActivityUuid,
         installationUuid,
         promptUuid,
-        pushToken: 'activity-token',
+        pushToken: liveActivityPushToken,
         ...overrides,
     });
 
@@ -186,7 +192,7 @@ describe('MobilePushNotificationService.registerLiveActivity', () => {
             agentUuid,
             threadUuid,
             promptUuid,
-            pushToken: 'activity-token',
+            pushToken: liveActivityPushToken,
         });
         expect(
             dependencies.scheduler.mobilePushLiveActivity,
@@ -212,7 +218,7 @@ describe('MobilePushNotificationService.registerLiveActivity', () => {
         });
         expect(
             JSON.stringify(dependencies.analytics.track.mock.calls),
-        ).not.toContain('activity-token');
+        ).not.toContain(liveActivityPushToken);
     });
 
     it('denies an installation registered to another user', async () => {
@@ -332,7 +338,7 @@ describe('MobilePushNotificationService.registerLiveActivity', () => {
         ).not.toHaveBeenCalled();
     });
 
-    it.each(['', 'x'.repeat(4097)])(
+    it.each(['', 'aa/bb', 'a'.repeat(513)])(
         'rejects an invalid Live Activity token before ownership lookup',
         async (pushToken) => {
             const dependencies = createDependencies();
@@ -359,7 +365,7 @@ describe('MobilePushNotificationService.registerPushToStartToken', () => {
         await service.registerPushToStartToken({
             user: { userUuid, organizationUuid },
             installationUuid,
-            pushToken: 'push-to-start-token',
+            pushToken: pushToStartToken,
         });
 
         expect(
@@ -369,11 +375,11 @@ describe('MobilePushNotificationService.registerPushToStartToken', () => {
             organizationUuid,
             userUuid,
             environment: 'sandbox',
-            pushToken: 'push-to-start-token',
+            pushToken: pushToStartToken,
         });
         expect(
             JSON.stringify(dependencies.analytics.track.mock.calls),
-        ).not.toContain('push-to-start-token');
+        ).not.toContain(pushToStartToken);
     });
 
     it.each([
@@ -391,7 +397,7 @@ describe('MobilePushNotificationService.registerPushToStartToken', () => {
             service.registerPushToStartToken({
                 user: { userUuid, organizationUuid },
                 installationUuid,
-                pushToken: 'push-to-start-token',
+                pushToken: pushToStartToken,
             }),
         ).rejects.toBeInstanceOf(NotFoundError);
         expect(
@@ -408,7 +414,7 @@ describe('MobilePushNotificationService.registerPushToStartToken', () => {
             service.registerPushToStartToken({
                 user: { userUuid, organizationUuid },
                 installationUuid,
-                pushToken: 'push-to-start-token',
+                pushToken: pushToStartToken,
             }),
         ).rejects.toBeInstanceOf(NotFoundError);
 
@@ -416,6 +422,29 @@ describe('MobilePushNotificationService.registerPushToStartToken', () => {
             dependencies.mobilePushNotificationStore.registerPushToStartToken,
         ).not.toHaveBeenCalled();
     });
+
+    it.each(['', 'aa/bb', 'a'.repeat(513)])(
+        'rejects an invalid token before installation lookup or storage',
+        async (pushToken) => {
+            const dependencies = createDependencies();
+            const service = new MobilePushNotificationService(dependencies);
+
+            await expect(
+                service.registerPushToStartToken({
+                    user: { userUuid, organizationUuid },
+                    installationUuid,
+                    pushToken,
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(
+                dependencies.mobilePushNotificationStore.findInstallation,
+            ).not.toHaveBeenCalled();
+            expect(
+                dependencies.mobilePushNotificationStore
+                    .registerPushToStartToken,
+            ).not.toHaveBeenCalled();
+        },
+    );
 
     it('returns unavailable when mobile push is disabled', async () => {
         const dependencies = createDependencies();
@@ -449,7 +478,7 @@ describe('MobilePushNotificationService.registerPushToStartToken', () => {
             service.registerPushToStartToken({
                 user: { userUuid, organizationUuid },
                 installationUuid,
-                pushToken: 'push-to-start-token',
+                pushToken: pushToStartToken,
             }),
         ).rejects.toBeInstanceOf(NotFoundError);
     });
@@ -1080,7 +1109,7 @@ describe('MobilePushNotificationService installation lifecycle', () => {
             user: { userUuid, organizationUuid },
             installationUuid,
             environment: 'sandbox',
-            deviceToken: 'device-token',
+            deviceToken: validDeviceToken,
         });
 
         expect(
@@ -1090,7 +1119,7 @@ describe('MobilePushNotificationService installation lifecycle', () => {
             organizationUuid,
             userUuid,
             environment: 'sandbox',
-            deviceToken: 'device-token',
+            deviceToken: validDeviceToken,
         });
         expect(dependencies.analytics.track).toHaveBeenCalledWith({
             event: 'mobile_push.installation_registered',
@@ -1103,10 +1132,10 @@ describe('MobilePushNotificationService installation lifecycle', () => {
         });
         expect(
             JSON.stringify(dependencies.analytics.track.mock.calls),
-        ).not.toContain('device-token');
+        ).not.toContain(validDeviceToken);
     });
 
-    it.each(['', 'x'.repeat(4097)])(
+    it.each(['', 'aa/bb', 'a'.repeat(513)])(
         'rejects an invalid device token before storage',
         async (deviceToken) => {
             const dependencies = createDependencies();

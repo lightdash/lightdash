@@ -224,7 +224,11 @@ type RegisterLiveActivity = {
 };
 
 const validatePushToken = (pushToken: string): void => {
-    if (pushToken.trim().length === 0 || pushToken.length > 4096) {
+    if (
+        pushToken.length === 0 ||
+        pushToken.length > 512 ||
+        !/^[0-9a-f]+$/i.test(pushToken)
+    ) {
         throw new ParameterError('Push token is invalid');
     }
 };
