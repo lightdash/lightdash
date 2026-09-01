@@ -147,9 +147,11 @@ export const MetricExploreComparison: FC<Props> = ({
                                     query.comparison === comparison.type ||
                                     undefined
                                 }
-                                onClick={() =>
-                                    handleComparisonChange(comparison.type)
-                                }
+                                onClick={() => {
+                                    if (query.comparison !== comparison.type) {
+                                        handleComparisonChange(comparison.type);
+                                    }
+                                }}
                             >
                                 <Stack>
                                     <Group
@@ -219,7 +221,8 @@ export const MetricExploreComparison: FC<Props> = ({
                                                     />
                                                 )}
                                                 data-disabled={
-                                                    !metricsWithTimeDimensionsQuery.isSuccess
+                                                    !metricsWithTimeDimensionsQuery.isSuccess ||
+                                                    undefined
                                                 }
                                                 rightSection={
                                                     metricsWithTimeDimensionsQuery.isLoading ? (
