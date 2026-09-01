@@ -50,6 +50,7 @@ type MobilePushPrompt = {
     threadUuid: string;
     agentUuid: string | null;
     createdByUserUuid: string;
+    prompt: string;
 };
 
 type UpsertLiveActivity = {
@@ -163,6 +164,7 @@ export type MobilePushThreadStore = {
         uuid: string;
         organizationUuid: string;
         projectUuid: string;
+        name: string;
     }>;
     findThreadOwnership(args: {
         organizationUuid: string;
@@ -627,6 +629,12 @@ export class MobilePushNotificationService {
             return;
         }
 
+        const agent = await this.threadStore.getAgent({
+            organizationUuid: attempt.organizationUuid,
+            projectUuid: prompt.projectUuid,
+            agentUuid: prompt.agentUuid,
+        });
+
         const payload = buildLiveActivityStartPayload({
             timestamp: attemptedAt,
             staleAt: new Date(
@@ -638,6 +646,8 @@ export class MobilePushNotificationService {
             agentUuid: prompt.agentUuid,
             threadUuid: prompt.threadUuid,
             promptUuid: prompt.promptUuid,
+            agentName: agent.name,
+            taskSummary: prompt.prompt,
         });
         const result = await this.apnsClient.sendLiveActivityStart({
             environment: attempt.environment,
