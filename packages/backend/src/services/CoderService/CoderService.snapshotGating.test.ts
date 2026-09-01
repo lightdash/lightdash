@@ -102,6 +102,7 @@ describe('CoderService snapshot recording gated on content_as_code.sync', () => 
                 PROJECT_UUID,
                 chartDao.uuid,
                 true,
+                undefined,
             );
             expect(snapshotUpsert).toHaveBeenCalledTimes(1);
             expect(snapshotUpsert).toHaveBeenCalledWith(
@@ -113,6 +114,36 @@ describe('CoderService snapshot recording gated on content_as_code.sync', () => 
             );
         });
 
+        it('records where the chart was applied from', async () => {
+            const { service, snapshotUpsert } = buildService();
+            await service['stampAppliedChartSnapshot'](
+                user,
+                PROJECT_UUID,
+                chartDao.uuid,
+                true,
+                './packages/team_a/lightdash/charts/revenue.yml',
+            );
+            expect(snapshotUpsert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    filePath: 'packages/team_a/lightdash/charts/revenue.yml',
+                }),
+            );
+        });
+
+        it('keeps the stored path when the client sends none', async () => {
+            const { service, snapshotUpsert } = buildService();
+            await service['stampAppliedChartSnapshot'](
+                user,
+                PROJECT_UUID,
+                chartDao.uuid,
+                true,
+                undefined,
+            );
+            expect(snapshotUpsert).toHaveBeenCalledWith(
+                expect.objectContaining({ filePath: null }),
+            );
+        });
+
         it('does not record or fetch anything when sync is disabled', async () => {
             const { service, snapshotUpsert, savedChartGet } = buildService();
             await service['stampAppliedChartSnapshot'](
@@ -120,6 +151,7 @@ describe('CoderService snapshot recording gated on content_as_code.sync', () => 
                 PROJECT_UUID,
                 chartDao.uuid,
                 false,
+                undefined,
             );
             expect(savedChartGet).not.toHaveBeenCalled();
             expect(snapshotUpsert).not.toHaveBeenCalled();
@@ -134,6 +166,7 @@ describe('CoderService snapshot recording gated on content_as_code.sync', () => 
                 PROJECT_UUID,
                 dashboardDao.uuid,
                 true,
+                undefined,
             );
             expect(snapshotUpsert).toHaveBeenCalledTimes(1);
             expect(snapshotUpsert).toHaveBeenCalledWith(
@@ -151,6 +184,7 @@ describe('CoderService snapshot recording gated on content_as_code.sync', () => 
                 PROJECT_UUID,
                 dashboardDao.uuid,
                 false,
+                undefined,
             );
             expect(dashboardGet).not.toHaveBeenCalled();
             expect(snapshotUpsert).not.toHaveBeenCalled();

@@ -15,6 +15,8 @@ export type ContentAsCodeSnapshot = {
     snapshot: object;
     snapshotHash: string;
     appliedAt: Date;
+    // Where the item lives in the repo, when the applying client said
+    filePath: string | null;
 };
 
 export class ContentAsCodeSnapshotModel {
@@ -41,6 +43,7 @@ export class ContentAsCodeSnapshotModel {
             snapshot: row.snapshot,
             snapshotHash: row.snapshot_hash,
             appliedAt: row.applied_at,
+            filePath: row.file_path,
         };
     }
 
@@ -51,6 +54,7 @@ export class ContentAsCodeSnapshotModel {
         snapshot,
         snapshotHash,
         appliedByUserUuid,
+        filePath,
     }: {
         projectUuid: string;
         contentType: ContentAsCodeSnapshotType;
@@ -58,7 +62,10 @@ export class ContentAsCodeSnapshotModel {
         snapshot: object;
         snapshotHash: string;
         appliedByUserUuid: string | null;
+        // null: the client did not say, keep whatever is stored
+        filePath: string | null;
     }): Promise<void> {
+        const filePathColumn = filePath === null ? {} : { file_path: filePath };
         await this.database(ContentAsCodeSnapshotsTableName)
             .insert({
                 project_uuid: projectUuid,
@@ -67,6 +74,7 @@ export class ContentAsCodeSnapshotModel {
                 snapshot,
                 snapshot_hash: snapshotHash,
                 applied_by_user_uuid: appliedByUserUuid,
+                ...filePathColumn,
             })
             .onConflict(['project_uuid', 'content_type', 'slug'])
             .merge({
@@ -74,6 +82,7 @@ export class ContentAsCodeSnapshotModel {
                 snapshot_hash: snapshotHash,
                 applied_at: this.database.fn.now(),
                 applied_by_user_uuid: appliedByUserUuid,
+                ...filePathColumn,
             });
     }
 }

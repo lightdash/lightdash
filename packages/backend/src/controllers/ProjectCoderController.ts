@@ -926,6 +926,7 @@ export class ProjectCoderController extends BaseController {
             spaceNames?: Record<string, string>;
             chartConfig: AnyType;
             description?: string | null;
+            filePath?: string;
         },
         @Request() req: express.Request,
     ): Promise<ApiChartAsCodeUpsertResponse> {
@@ -942,6 +943,7 @@ export class ProjectCoderController extends BaseController {
                     publicSpaceCreate: chart.publicSpaceCreate,
                     force: chart.force,
                     spaceNames: chart.spaceNames,
+                    filePath: chart.filePath,
                 },
             ),
         );
@@ -1008,6 +1010,7 @@ export class ProjectCoderController extends BaseController {
             spaceNames?: Record<string, string>;
             tiles: AnyType;
             description?: string | null;
+            filePath?: string;
         },
         @Request() req: express.Request,
     ): Promise<ApiDashboardAsCodeUpsertResponse> {
@@ -1027,6 +1030,7 @@ export class ProjectCoderController extends BaseController {
                     publicSpaceCreate: dashboard.publicSpaceCreate,
                     force: dashboard.force,
                     spaceNames: dashboard.spaceNames,
+                    filePath: dashboard.filePath,
                 },
             ),
         );

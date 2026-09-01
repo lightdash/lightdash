@@ -530,6 +530,43 @@ describe('ContentAsCodeWritebackService', () => {
         );
     });
 
+    it('writes back to the file the item was last applied from', async () => {
+        const { service, gitIntegrationService } = buildService({
+            settings: { syncEnabled: true, path: 'packages' },
+            snapshot: {
+                snapshotHash: 'abc',
+                filePath:
+                    'packages/team_a/lightdash/charts/monthly-revenue.yml',
+            },
+        });
+        await service.propose(user, 'project-uuid', 'chart', 'monthly-revenue');
+
+        const [, , , filePath] = gitIntegrationService.saveFile.mock.calls[0];
+        expect(filePath).toBe(
+            'packages/team_a/lightdash/charts/monthly-revenue.yml',
+        );
+    });
+
+    it('names the reviewed file by the recorded source path', async () => {
+        const { service } = buildService({
+            snapshot: {
+                snapshotHash: 'abc',
+                filePath:
+                    'packages/team_b/lightdash/dashboards/weekly-kpis.yml',
+            },
+        });
+
+        const review = await service.getDraftReview(
+            user,
+            'project-uuid',
+            'draft-uuid',
+        );
+
+        expect(review.filePath).toBe(
+            'packages/team_b/lightdash/dashboards/weekly-kpis.yml',
+        );
+    });
+
     it('writes files under the stamped content path', async () => {
         const { service, gitIntegrationService } = buildService({
             settings: { syncEnabled: true, path: 'analytics/content' },
@@ -1403,6 +1440,9 @@ describe('ContentAsCodeWritebackService', () => {
                     ['monthly-revenue'],
                 ),
                 'analytics/content/sales.space.yml': 'slug: sales\n',
+                'analytics/content/models/orders.yml':
+                    'version: 2\nmodels:\n  - name: orders\n',
+                'analytics/content/dbt_project.yml': 'name: jaffle\n',
                 'analytics/content/charts/README.md': 'ignored',
                 'lightdash/charts/elsewhere.yml': chart('elsewhere'),
             });
@@ -1419,6 +1459,10 @@ describe('ContentAsCodeWritebackService', () => {
             expect(
                 coderService.upsertChart.mock.calls.map((call) => call[2]),
             ).toEqual(['monthly-revenue', 'nested']);
+            expect(coderService.upsertChart.mock.calls[0][4]).toEqual({
+                syncEnabled: true,
+                filePath: 'analytics/content/charts/monthly-revenue.yml',
+            });
             expect(coderService.upsertSqlChart).toHaveBeenCalledWith(
                 user,
                 'project-uuid',
@@ -1476,6 +1520,32 @@ describe('ContentAsCodeWritebackService', () => {
             ).toEqual(['uses-fine']);
         });
 
+        it("keeps the instance's stamped root when the repo config names no path", async () => {
+            const { service, coderService } = buildService({
+                settings: {
+                    syncEnabled: true,
+                    path: 'packages/package_a/lightdash',
+                },
+            });
+            stubRepo({
+                'lightdash.config.yml': 'content_as_code:\n  sync: true\n',
+                'packages/package_a/lightdash/charts/mine.yml': chart('mine'),
+                'packages/package_b/lightdash/charts/theirs.yml':
+                    chart('theirs'),
+                'lightdash/charts/root.yml': chart('root'),
+            });
+
+            const summary = await service.pullFromGit(user, 'project-uuid');
+
+            expect(summary.charts).toBe(1);
+            expect(
+                coderService.upsertChart.mock.calls.map((call) => call[2]),
+            ).toEqual(['mine']);
+            expect(
+                coderService.stampContentAsCodeSettings,
+            ).toHaveBeenCalledWith(user, 'project-uuid', { sync: true });
+        });
+
         it('stamps sync off and refuses to apply when the repo has not opted in', async () => {
             const { service, coderService } = buildService();
             stubRepo({
@@ -1490,10 +1560,7 @@ describe('ContentAsCodeWritebackService', () => {
 
             expect(
                 coderService.stampContentAsCodeSettings,
-            ).toHaveBeenCalledWith(user, 'project-uuid', {
-                sync: false,
-                path: 'lightdash',
-            });
+            ).toHaveBeenCalledWith(user, 'project-uuid', { sync: false });
             expect(getRepoTree).not.toHaveBeenCalled();
             expect(coderService.upsertChart).not.toHaveBeenCalled();
         });

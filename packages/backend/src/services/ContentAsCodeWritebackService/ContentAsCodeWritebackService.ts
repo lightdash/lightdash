@@ -71,6 +71,9 @@ type RepoReadCredentials = Awaited<
     ReturnType<GitIntegrationService['getGitCredentials']>
 > & { branch: string };
 
+const isYamlDocument = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
 type RepoContentFile = {
     path: string;
     classification: ContentAsCodeFileClassification;
@@ -211,15 +214,42 @@ export class ContentAsCodeWritebackService extends BaseService {
         return `${prefix}${safeSlug}${suffix}`;
     }
 
-    private static getContentFilePath(
-        repoPath: string,
-        contentPath: string,
+    // The file an item was last applied from wins; content that never came
+    // from the repo gets the conventional place under the content path
+    private async resolveContentFilePath(
+        projectUuid: string,
         contentType: WritebackContentType,
         slug: string,
-    ): string {
+        contentPath: string,
+    ): Promise<string> {
+        const snapshot = await this.contentAsCodeSnapshotModel.get(
+            projectUuid,
+            contentType === 'chart'
+                ? ContentAsCodeType.CHART
+                : ContentAsCodeType.DASHBOARD,
+            slug,
+        );
+        return (
+            snapshot?.filePath ??
+            getContentAsCodeFilePath(contentPath, contentType, slug)
+        );
+    }
+
+    private async resolveRepoFilePath(
+        projectUuid: string,
+        contentType: WritebackContentType,
+        slug: string,
+        repoPath: string,
+        contentPath: string,
+    ): Promise<string> {
         return joinContentAsCodePath(
             repoPath,
-            getContentAsCodeFilePath(contentPath, contentType, slug),
+            await this.resolveContentFilePath(
+                projectUuid,
+                contentType,
+                slug,
+                contentPath,
+            ),
         );
     }
 
@@ -398,26 +428,29 @@ export class ContentAsCodeWritebackService extends BaseService {
                 creds,
                 joinContentAsCodePath(prefix, 'lightdash.config.yml'),
             );
-        const configuredPath =
-            config.content_as_code?.path ?? DEFAULT_CONTENT_AS_CODE_PATH;
+        // The repo config wins when it names a path. When it is silent the
+        // instance keeps the root its own upload stamped, so one repo can
+        // serve several instances that each own a folder
+        const configuredPath = config.content_as_code?.path;
         await this.coderService.stampContentAsCodeSettings(user, projectUuid, {
             sync: config.content_as_code?.sync === true,
-            path: configuredPath,
+            ...(configuredPath !== undefined && { path: configuredPath }),
         });
         if (config.content_as_code?.sync !== true) {
             throw new ParameterError(
                 'Pulling content from the repo requires content_as_code.sync: true in lightdash.config.yml',
             );
         }
+        const contentPath =
+            configuredPath !== undefined
+                ? normalizeContentAsCodePath(configuredPath)
+                : await this.getContentPath(projectUuid);
 
         const files = await ContentAsCodeWritebackService.readContentFiles(
             creds,
-            joinContentAsCodePath(
-                prefix,
-                normalizeContentAsCodePath(configuredPath),
-            ),
+            joinContentAsCodePath(prefix, contentPath),
         );
-        return this.applyContentFiles(user, projectUuid, files);
+        return this.applyContentFiles(user, projectUuid, files, prefix);
     }
 
     private static async readRepoProjectConfig(
@@ -517,7 +550,13 @@ export class ContentAsCodeWritebackService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         files: RepoContentFile[],
+        projectPrefix: string,
     ): Promise<ContentAsCodePullSummary> {
+        // Snapshots record paths relative to the project dir, as the CLI does
+        const projectRelative = (repoFilePath: string) =>
+            projectPrefix !== '' && repoFilePath.startsWith(`${projectPrefix}/`)
+                ? repoFilePath.slice(projectPrefix.length + 1)
+                : repoFilePath;
         const summary: ContentAsCodePullSummary = {
             charts: 0,
             dashboards: 0,
@@ -565,7 +604,7 @@ export class ContentAsCodeWritebackService extends BaseService {
                         projectUuid,
                         document.slug,
                         document as ChartAsCode,
-                        { syncEnabled: true },
+                        { syncEnabled: true, filePath: projectRelative(file) },
                     );
                 }
                 summary.charts += 1;
@@ -597,7 +636,7 @@ export class ContentAsCodeWritebackService extends BaseService {
                         projectUuid,
                         document.slug,
                         document,
-                        { syncEnabled: true },
+                        { syncEnabled: true, filePath: projectRelative(file) },
                     );
                     summary.dashboards += 1;
                 } catch (error) {
@@ -612,8 +651,9 @@ export class ContentAsCodeWritebackService extends BaseService {
         return summary;
     }
 
-    // Same trust as `lightdash upload`: a document with a slug is the as-code
-    // type of its folder, loose files declare theirs with contentType
+    // Same trust as `lightdash upload`: a file under charts/ or dashboards/
+    // is that type; any other YAML counts only when it declares a
+    // contentType, so dbt model files and the like are skipped, not failed
     private static sortContentFile(
         file: RepoContentFile,
     ):
@@ -626,28 +666,25 @@ export class ContentAsCodeWritebackService extends BaseService {
         } catch {
             throw new ParameterError(`Could not parse ${file.path} as YAML`);
         }
-        if (
-            parsed === null ||
-            typeof parsed !== 'object' ||
-            !('slug' in parsed) ||
-            typeof parsed.slug !== 'string'
-        ) {
+        const document = isYamlDocument(parsed) ? parsed : null;
+        let kind: 'chart' | 'dashboard' | null = null;
+        if (file.classification.kind === 'content') {
+            kind = file.classification.contentType;
+        } else if (document !== null) {
+            kind = ContentAsCodeWritebackService.looseContentKind(document);
+        }
+        if (kind === null) return null;
+        if (document === null || typeof document.slug !== 'string') {
             throw new ParameterError(`${file.path} has no slug`);
         }
-        const kind =
-            file.classification.kind === 'content'
-                ? file.classification.contentType
-                : ContentAsCodeWritebackService.looseContentKind(parsed);
         switch (kind) {
             case 'chart':
                 return {
                     kind,
-                    document: parsed as ChartAsCode | SqlChartAsCode,
+                    document: document as ChartAsCode | SqlChartAsCode,
                 };
             case 'dashboard':
-                return { kind, document: parsed as DashboardAsCode };
-            case null:
-                return null;
+                return { kind, document: document as DashboardAsCode };
             default:
                 return assertUnreachable(kind, 'Unknown content kind');
         }
@@ -720,10 +757,11 @@ export class ContentAsCodeWritebackService extends BaseService {
         ) {
             throw new ParameterError('Unsupported draft content type');
         }
-        const filePath = getContentAsCodeFilePath(
-            await this.getContentPath(projectUuid),
+        const filePath = await this.resolveContentFilePath(
+            projectUuid,
             draft.contentType,
             draft.slug,
+            await this.getContentPath(projectUuid),
         );
         const staleness =
             draft.status === 'open'
@@ -1257,11 +1295,12 @@ export class ContentAsCodeWritebackService extends BaseService {
                     contentUuid,
                 ));
             files.push({
-                path: ContentAsCodeWritebackService.getContentFilePath(
-                    repo.path,
-                    contentDir,
+                path: await this.resolveRepoFilePath(
+                    projectUuid,
                     'chart',
                     slug,
+                    repo.path,
+                    contentDir,
                 ),
                 content: dumpContentAsCode(chartAsCode),
             });
@@ -1272,11 +1311,12 @@ export class ContentAsCodeWritebackService extends BaseService {
                     contentUuid,
                 ));
             files.push({
-                path: ContentAsCodeWritebackService.getContentFilePath(
-                    repo.path,
-                    contentDir,
+                path: await this.resolveRepoFilePath(
+                    projectUuid,
                     'dashboard',
                     slug,
+                    repo.path,
+                    contentDir,
                 ),
                 content: dumpContentAsCode(dashboardAsCode),
             });
@@ -1484,11 +1524,12 @@ export class ContentAsCodeWritebackService extends BaseService {
                             return null;
                         }
                         return {
-                            path: ContentAsCodeWritebackService.getContentFilePath(
-                                repoPath,
-                                contentPath,
+                            path: await this.resolveRepoFilePath(
+                                projectUuid,
                                 'chart',
                                 chartSlug,
+                                repoPath,
+                                contentPath,
                             ),
                             content: dumpContentAsCode(chartAsCode),
                         };
