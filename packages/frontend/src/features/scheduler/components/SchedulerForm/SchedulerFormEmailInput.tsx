@@ -30,12 +30,10 @@ export const SchedulerFormEmailInput: FC<Props> = ({
                 disabled={!isDisabled}
                 width={300}
                 position="bottom-start"
-                shadow="md"
             >
                 <HoverCard.Target>
                     <Box w="100%">
                         <TagsInput
-                            radius="md"
                             clearable
                             error={validationError || null}
                             placeholder="Enter email addresses"

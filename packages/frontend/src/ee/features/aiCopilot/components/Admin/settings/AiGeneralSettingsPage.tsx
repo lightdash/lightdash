@@ -49,7 +49,7 @@ const Section: FC<
         <Box>
             <Title order={6}>{label}</Title>
             {description ? (
-                <Text c="ldGray.6" fz="xs">
+                <Text c="dimmed" fz="xs">
                     {description}
                 </Text>
             ) : null}
@@ -171,7 +171,7 @@ export const AiGeneralSettingsPage = () => {
                                         <Title order={5} mb={4}>
                                             AI Router
                                         </Title>
-                                        <Text c="ldGray.6" fz="xs">
+                                        <Text c="dimmed" fz="xs">
                                             Route user questions to the best
                                             agent automatically.
                                         </Text>
@@ -214,7 +214,7 @@ export const AiGeneralSettingsPage = () => {
                                         <Title order={5} mb={4}>
                                             Default AI model
                                         </Title>
-                                        <Text c="ldGray.6" fz="xs">
+                                        <Text c="dimmed" fz="xs">
                                             Choose the model and reasoning
                                             default for new AI agent chats.
                                             Users can still change it in each
@@ -267,7 +267,7 @@ export const AiGeneralSettingsPage = () => {
                                                 <Title order={6} mb={4}>
                                                     High reasoning by default
                                                 </Title>
-                                                <Text c="ldGray.6" fz="xs">
+                                                <Text c="dimmed" fz="xs">
                                                     Start new chats with high
                                                     reasoning enabled for the
                                                     selected model.
@@ -374,7 +374,7 @@ export const AiGeneralSettingsPage = () => {
                                             </Title>
                                             <BetaBadge />
                                         </Group>
-                                        <Text c="ldGray.6" fz="xs">
+                                        <Text c="dimmed" fz="xs">
                                             Process every agent turn to surface
                                             semantic layer gaps, project context
                                             improvements, and admin
@@ -397,7 +397,7 @@ export const AiGeneralSettingsPage = () => {
                                             )}
                                         </Text>
                                         {reviewsPausedByByok && (
-                                            <Text c="ldGray.6" fz="xs" mt={4}>
+                                            <Text c="dimmed" fz="xs" mt={4}>
                                                 Paused — your AI provider key
                                                 can&apos;t run the review model
                                                 (Claude Haiku). Reviews run on
@@ -442,7 +442,7 @@ export const AiGeneralSettingsPage = () => {
                                         </Title>
                                         <BetaBadge />
                                     </Group>
-                                    <Text c="ldGray.6" fz="xs">
+                                    <Text c="dimmed" fz="xs">
                                         Let Ask AI learn from each user&apos;s
                                         agent conversations and reuse those
                                         memories in future answers. Disable to
@@ -490,7 +490,7 @@ export const AiGeneralSettingsPage = () => {
                                     <Title order={5} mb={4}>
                                         Allow content changes via MCP
                                     </Title>
-                                    <Text c="ldGray.6" fz="xs">
+                                    <Text c="dimmed" fz="xs">
                                         Let MCP clients create and edit charts
                                         and dashboards in this organization.
                                         Disable to prevent unintended changes to

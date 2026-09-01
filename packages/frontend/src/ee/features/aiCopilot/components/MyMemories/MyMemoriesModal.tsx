@@ -158,7 +158,6 @@ export const MyMemoriesModal: FC<MyMemoriesModalProps> = ({
                     <Box className={styles.search}>
                         <TextInput
                             size="xs"
-                            radius="md"
                             placeholder="Search memories"
                             value={search}
                             onChange={(event) =>

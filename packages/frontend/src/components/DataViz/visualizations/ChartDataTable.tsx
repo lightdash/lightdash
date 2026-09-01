@@ -104,13 +104,11 @@ export const ChartDataTable = ({
                                                 label="You cannot sort by a group column"
                                                 disabled={!!onClick}
                                                 position="top"
-                                                withinPortal
                                             >
                                                 <Group gap="two" fz="sm">
                                                     {columnsConfig?.[header.id]
                                                         ?.aggregation && (
                                                         <Badge
-                                                            variant="light"
                                                             size="sm"
                                                             color="indigo"
                                                             radius="xs"

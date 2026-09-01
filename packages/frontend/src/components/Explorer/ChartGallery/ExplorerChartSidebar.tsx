@@ -130,8 +130,6 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                             position="right"
                         >
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 size="sm"
                                 aria-label="Close visualization config"
                                 onClick={handleClose}
@@ -147,8 +145,6 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                         <>
                             <Group gap="xs" wrap="nowrap">
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
                                     size="sm"
                                     aria-label="Back to configuration"
                                     onClick={showConfigure}
@@ -180,8 +176,6 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                         position="bottom"
                                     >
                                         <ActionIcon
-                                            variant="subtle"
-                                            color="gray"
                                             size="sm"
                                             aria-label="Edit chart type"
                                             onClick={() =>

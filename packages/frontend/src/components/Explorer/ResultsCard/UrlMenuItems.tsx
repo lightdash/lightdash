@@ -79,14 +79,7 @@ const UrlMenuItem: FC<{
         return null;
     }
     return (
-        <Tooltip
-            withinPortal
-            maw={300}
-            multiline
-            disabled={!error}
-            label={error}
-            position="bottom"
-        >
+        <Tooltip maw={300} disabled={!error} label={error} position="bottom">
             <Box>
                 <Menu.Item
                     leftSection={<MantineIcon icon={IconLink} />}

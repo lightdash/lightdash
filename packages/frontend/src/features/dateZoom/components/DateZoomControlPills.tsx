@@ -159,7 +159,6 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                             <Popover.Target>
                                 <Box>
                                     <Menu
-                                        withinPortal
                                         withArrow
                                         position="bottom-end"
                                         offset={1}
@@ -328,7 +327,6 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                             ? 'Hidden from viewers. Click to show.'
                                             : 'Visible to viewers. Click to hide.'
                                     }
-                                    withinPortal
                                 >
                                     <Button
                                         aria-label="Toggle zoom control visibility for viewers"

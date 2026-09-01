@@ -129,7 +129,7 @@ export const AgentSelector = ({
                         <MantineIcon
                             icon={IconChevronDown}
                             size="sm"
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                     </Group>
                 </UnstyledButton>
@@ -141,7 +141,7 @@ export const AgentSelector = ({
                         <Combobox.Option value={AUTO_VALUE} p={2}>
                             <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
                                 <Avatar size={22} color="ldGray" radius="xl">
-                                    <Text size="10px" fw={600} c="ldGray.6">
+                                    <Text size="10px" fw={600} c="dimmed">
                                         AI
                                     </Text>
                                 </Avatar>

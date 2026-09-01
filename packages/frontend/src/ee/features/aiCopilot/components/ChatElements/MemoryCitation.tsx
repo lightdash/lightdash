@@ -45,12 +45,9 @@ export const MemoryCitation = ({
         <>
             <HoverCard
                 width={360}
-                shadow="md"
-                radius="md"
                 openDelay={180}
                 closeDelay={120}
                 withArrow
-                withinPortal
                 onOpen={() => setHasOpened(true)}
             >
                 <HoverCard.Target>
@@ -85,11 +82,7 @@ export const MemoryCitation = ({
                                     {memoryQuery.data.title}
                                 </Text>
                                 {memoryQuery.data.status !== 'active' ? (
-                                    <Badge
-                                        color="gray"
-                                        variant="light"
-                                        size="xs"
-                                    >
+                                    <Badge size="xs">
                                         {memoryQuery.data.status}
                                     </Badge>
                                 ) : null}

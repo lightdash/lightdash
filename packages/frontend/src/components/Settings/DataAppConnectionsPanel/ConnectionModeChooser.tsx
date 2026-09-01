@@ -16,7 +16,7 @@ export const ConnectionModeChooser: FC<Props> = ({
     aiUnavailable,
 }) => (
     <Stack gap="sm" mt="xl">
-        <Text c="ldGray.6" fz="sm">
+        <Text c="dimmed" fz="sm">
             How would you like to set up the connection?
         </Text>
         <SimpleGrid cols={2} spacing="sm">
@@ -30,7 +30,7 @@ export const ConnectionModeChooser: FC<Props> = ({
                     <MantineIcon icon={IconSparkles} />
                     <Text fw={500}>Describe it</Text>
                 </Group>
-                <Text c="ldGray.6" fz="sm">
+                <Text c="dimmed" fz="sm">
                     {aiUnavailable
                         ? 'AI is not configured for your organization.'
                         : 'Tell us what you want to connect to and AI drafts the connection for you.'}
@@ -45,7 +45,7 @@ export const ConnectionModeChooser: FC<Props> = ({
                     <MantineIcon icon={IconAdjustments} />
                     <Text fw={500}>Set up manually</Text>
                 </Group>
-                <Text c="ldGray.6" fz="sm">
+                <Text c="dimmed" fz="sm">
                     Enter the base URL, authentication, and access rules
                     yourself.
                 </Text>

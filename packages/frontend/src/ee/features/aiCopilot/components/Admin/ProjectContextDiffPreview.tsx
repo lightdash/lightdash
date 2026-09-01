@@ -43,12 +43,7 @@ export const ProjectContextDiffPreview: FC<ProjectContextDiffPreviewProps> = ({
             poolOptions={PIERRE_POOL_OPTIONS}
             highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
         >
-            <Paper
-                withBorder
-                shadow="sm"
-                radius="md"
-                style={{ overflow: 'hidden' }}
-            >
+            <Paper shadow="sm" radius="md" style={{ overflow: 'hidden' }}>
                 <Virtualizer style={viewportStyle}>
                     <MultiFileDiff
                         oldFile={{ name: fileName, contents: before }}
@@ -60,7 +55,7 @@ export const ProjectContextDiffPreview: FC<ProjectContextDiffPreviewProps> = ({
                         // Surface the create/update intent in Pierre's own file
                         // header so the modal doesn't need a separate description.
                         renderHeaderMetadata={() => (
-                            <Text fz="xs" c="ldGray.6">
+                            <Text fz="xs" c="dimmed">
                                 {op === 'update'
                                     ? 'Updates entry'
                                     : 'Adds entry'}

@@ -355,7 +355,7 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
                         <Group justify="space-between" gap="sm" pb="xs">
                             <Checkbox
                                 label={
-                                    <Text size="sm" fw={600} c="ldGray.9">
+                                    <Text size="sm" fw={600}>
                                         Enable all
                                     </Text>
                                 }
@@ -374,9 +374,7 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
                             />
                             <Tooltip
                                 label="Approximate input tokens for each tool definition. Actual usage varies by model and provider."
-                                multiline
                                 w={280}
-                                withinPortal
                             >
                                 <Text className={styles.tokenColumnHeader}>
                                     Tokens
@@ -443,8 +441,6 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
                                                     </TruncatedText>
                                                 </Box>
                                                 <ActionIcon
-                                                    variant="subtle"
-                                                    color="gray"
                                                     size="sm"
                                                     aria-label={`View description for ${tool.title || tool.toolName}`}
                                                     onClick={() =>

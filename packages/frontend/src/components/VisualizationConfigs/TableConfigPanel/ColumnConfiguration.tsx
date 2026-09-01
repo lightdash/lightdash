@@ -147,7 +147,6 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
             <Tooltip
                 position="top"
                 opened={isShowTooltipVisible}
-                withinPortal
                 label={
                     isSubtotalGroupingLevel
                         ? "Cannot hide while it's a subtotal grouping level"
@@ -191,7 +190,6 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
             {shouldShowFreezeToggle ? (
                 <Tooltip
                     position="top"
-                    withinPortal
                     opened={isFreezeTooltipVisible}
                     label={
                         isFrozenForDisplay ? 'Unfreeze column' : 'Freeze column'
@@ -220,11 +218,7 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
             ) : null}
 
             {columnWidth !== undefined ? (
-                <Tooltip
-                    position="top"
-                    withinPortal
-                    label="Reset column width to auto"
-                >
+                <Tooltip position="top" label="Reset column width to auto">
                     <Group
                         gap={2}
                         wrap="nowrap"

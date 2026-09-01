@@ -80,7 +80,7 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                 p={`${theme.spacing.sm} ${theme.spacing.md}`}
                 wrap="nowrap"
             >
-                <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
                     {!hideSearchFilter && (
                         <>
                             <SearchFilter
@@ -147,9 +147,7 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                 {hasActiveFilters && (
                     <Tooltip label="Clear all filters">
                         <ActionIcon
-                            variant="subtle"
                             size="sm"
-                            color="gray"
                             onClick={resetFilters}
                             style={{ flexShrink: 0 }}
                         >

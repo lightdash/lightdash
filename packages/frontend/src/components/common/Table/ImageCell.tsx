@@ -13,9 +13,7 @@ export const BrokenImageCell = ({
 }) => {
     return (
         <Tooltip
-            withinPortal
             w="400px"
-            multiline
             label={`Could not load image "${imageUrl}" ${
                 error ? `: ${error}` : ''
             }`}
@@ -66,7 +64,6 @@ export const ImageCell = ({
 
     return (
         <Tooltip
-            withinPortal
             label={
                 // Full image in tooltip
                 <img

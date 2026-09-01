@@ -110,12 +110,7 @@ const NavItemIcon = ({
     }
     if (tzAffordance) {
         return (
-            <Tooltip
-                withinPortal
-                maw={300}
-                multiline
-                label={tzAffordance.tooltip}
-            >
+            <Tooltip maw={300} label={tzAffordance.tooltip}>
                 {tzAffordance.pinIcon ? (
                     <MantineIcon
                         icon={tzAffordance.pinIcon}
@@ -378,9 +373,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
             return (
                 <Tooltip
                     key={type}
-                    withinPortal
                     maw={300}
-                    multiline
                     label={messages.map((m) => m.message).join('\n')}
                 >
                     <MantineIcon
@@ -438,12 +431,9 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                     <HoverCard
                         openDelay={300}
                         keepMounted={false}
-                        shadow="subtle"
-                        withinPortal
                         withArrow
                         disabled={isHoverCardDisabled}
                         position="right"
-                        radius="md"
                         /**
                          * Regular fields show a filter ActionIcon on hover and
                          * custom metrics a delete ActionIcon, each eating ~28px
@@ -492,32 +482,25 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                     {renderAlerts}
                     {isTruncated && (
                         <Tooltip
-                            withinPortal
                             maw={300}
-                            multiline
                             label={`Located ${truncatedActualDepth} levels deep`}
                         >
                             <MantineIcon
                                 icon={IconHierarchyOff}
-                                color="ldGray.6"
+                                color="dimmed"
                                 style={{ flexShrink: 0 }}
                             />
                         </Tooltip>
                     )}
                     {showFilterAction && (
                         <Tooltip
-                            withinPortal
                             label={
                                 isFiltered
                                     ? 'This field is filtered'
                                     : 'Click here to add filter'
                             }
                         >
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                onClick={handleFilterClick}
-                            >
+                            <ActionIcon onClick={handleFilterClick}>
                                 <MantineIcon
                                     icon={IconFilter}
                                     style={{ flexShrink: 0 }}
@@ -526,12 +509,8 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         </Tooltip>
                     )}
                     {showDeleteAction && (
-                        <Tooltip withinPortal label="Delete custom metric">
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                onClick={handleDeleteClick}
-                            >
+                        <Tooltip label="Delete custom metric">
+                            <ActionIcon onClick={handleDeleteClick}>
                                 <MantineIcon
                                     icon={IconTrash}
                                     style={{ flexShrink: 0 }}
@@ -540,10 +519,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         </Tooltip>
                     )}
                     {isField(item) && item.hidden ? (
-                        <Tooltip
-                            withinPortal
-                            label="This field has been hidden in the dbt project. It's recommend to remove it from the query"
-                        >
+                        <Tooltip label="This field has been hidden in the dbt project. It's recommend to remove it from the query">
                             <MantineIcon
                                 icon={IconAlertTriangle}
                                 color="yellow.9"

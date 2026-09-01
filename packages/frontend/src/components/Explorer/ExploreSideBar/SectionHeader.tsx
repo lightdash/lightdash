@@ -24,12 +24,12 @@ const SectionHeader: FC<SectionHeaderProps> = ({
                 <MantineIcon
                     icon={isExpanded ? IconChevronDown : IconChevronRight}
                     size={12}
-                    color="ldGray.6"
+                    color="dimmed"
                 />
             }
             label={
                 <Group>
-                    <Text fw={500} fz="xs" c="ldGray.6">
+                    <Text fw={500} fz="xs" c="dimmed">
                         {label}
                     </Text>
                 </Group>

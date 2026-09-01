@@ -74,7 +74,7 @@ const KindAndViews: FC<{ content: SummaryContent }> = ({ content }) => (
         <Text size="xs" c="dimmed" span>
             ·
         </Text>
-        <MantineIcon icon={IconEye} size={12} color="ldGray.6" />
+        <MantineIcon icon={IconEye} size={12} color="dimmed" />
         <Text size="xs" c="dimmed" span>
             {content.views}
         </Text>
@@ -89,7 +89,6 @@ const CardActions: FC<Pick<Props, 'content' | 'onRemove' | 'star'>> = ({
     <>
         {star && (
             <ActionIcon
-                variant="subtle"
                 color={star.isFavorite ? 'yellow' : 'ldGray.6'}
                 size="sm"
                 aria-label={
@@ -109,7 +108,6 @@ const CardActions: FC<Pick<Props, 'content' | 'onRemove' | 'star'>> = ({
         )}
         {onRemove && (
             <ActionIcon
-                variant="subtle"
                 color="ldGray.6"
                 size="sm"
                 aria-label={`Remove ${content.name} from collection`}
@@ -167,7 +165,7 @@ export const ContentCard: FC<Props> = ({
                     <VerifiedBadge content={content} />
                 </Group>
                 <Group gap={4} wrap="nowrap">
-                    <MantineIcon icon={IconEye} size={12} color="ldGray.6" />
+                    <MantineIcon icon={IconEye} size={12} color="dimmed" />
                     <Text size="xs" c="dimmed" span>
                         {content.views}
                     </Text>

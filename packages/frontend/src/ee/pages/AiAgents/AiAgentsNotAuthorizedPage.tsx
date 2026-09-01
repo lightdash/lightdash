@@ -55,7 +55,7 @@ const AiAgentsNotAuthorizedPage: FC = () => {
                     <Title order={3} ta="center">
                         You're not authorized to interact with this AI agent
                     </Title>
-                    <Paper p="md" shadow="subtle" w="100%">
+                    <Paper p="md" w="100%">
                         <Stack align="center" gap="xs">
                             <Text size="xs" c="dimmed" ta="center">
                                 To gain access, please contact your organization

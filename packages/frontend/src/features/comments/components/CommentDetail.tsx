@@ -84,13 +84,11 @@ export const CommentDetail: FC<Props> = ({
                             {canReply && onReply && (
                                 <Tooltip
                                     label="Reply"
-                                    withinPortal
                                     zIndex={getDefaultZIndex('popover') + 1}
                                 >
                                     <ActionIcon
                                         size="xs"
                                         onClick={() => onReply()}
-                                        variant="subtle"
                                         color="blue"
                                     >
                                         <MantineIcon icon={IconMessage} />
@@ -103,15 +101,10 @@ export const CommentDetail: FC<Props> = ({
                                 <Menu
                                     position="right"
                                     withArrow
-                                    withinPortal
                                     zIndex={getDefaultZIndex('popover') + 1}
                                 >
                                     <Menu.Target>
-                                        <ActionIcon
-                                            size="xs"
-                                            variant="subtle"
-                                            color="gray"
-                                        >
+                                        <ActionIcon size="xs">
                                             <MantineIcon
                                                 icon={IconDotsVertical}
                                             />

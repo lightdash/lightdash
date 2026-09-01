@@ -54,12 +54,12 @@ const ProjectAppearance: FC<Props> = ({ projectUuid }) => {
             <SettingsGridCard>
                 <Stack gap="xs">
                     <Title order={5}>Color palette</Title>
-                    <Text c="ldGray.6" fz="sm">
+                    <Text c="dimmed" fz="sm">
                         Choose which organization color palette charts in this
                         project should use, or inherit the organization's active
                         palette.
                     </Text>
-                    <Text c="ldGray.6" fz="xs">
+                    <Text c="dimmed" fz="xs">
                         Palettes are managed at the{' '}
                         <Anchor
                             component={Link}

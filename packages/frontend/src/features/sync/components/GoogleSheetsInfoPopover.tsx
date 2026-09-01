@@ -4,7 +4,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 
 export const GoogleSheetsInfoPopover = () => {
     return (
-        <HoverCard withinPortal width={300} withArrow>
+        <HoverCard width={300} withArrow>
             <HoverCard.Target>
                 <Button
                     size="xs"

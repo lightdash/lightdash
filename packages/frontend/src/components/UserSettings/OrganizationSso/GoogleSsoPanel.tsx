@@ -172,7 +172,7 @@ const GoogleSsoPanel: FC = () => {
                                 }
                             />
                         ) : (
-                            <Badge color="gray" variant="outline" size="lg">
+                            <Badge variant="outline" size="lg">
                                 Using defaults
                             </Badge>
                         )}

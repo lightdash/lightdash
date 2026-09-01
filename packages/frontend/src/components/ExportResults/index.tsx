@@ -260,9 +260,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             Layout
                         </Text>
                         <Tooltip
-                            withinPortal
                             maw={300}
-                            multiline
                             label="Grouped keeps the chart's pivoted columns. Flat exports the raw rows behind the chart."
                             position="top"
                         >
@@ -321,7 +319,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     </Stack>
                 )}
 
-                <Paper withBorder p="md">
+                <Paper p="md">
                     <Stack gap="lg">
                         <Stack gap="sm">
                             <Stack gap={4}>
@@ -427,7 +425,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                 <MantineIcon
                                     icon={IconInfoCircle}
                                     size="sm"
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                                 <Text size="xs" c="dimmed">
                                     <Text span fw={500} c="foreground">
@@ -451,7 +449,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                     <MantineIcon
                                         icon={IconInfoCircle}
                                         size="sm"
-                                        color="ldGray.6"
+                                        color="dimmed"
                                     />
                                     <Text size="xs" c="dimmed">
                                         <Text span fw={500} c="foreground">

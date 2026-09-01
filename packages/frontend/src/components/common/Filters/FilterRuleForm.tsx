@@ -161,8 +161,6 @@ const FilterRuleForm: FC<Props> = memo(
                 <Tooltip
                     label={fieldSelectDisabledReason}
                     disabled={!fieldSelectDisabledReason}
-                    withinPortal
-                    multiline
                 >
                     <Box>
                         <FieldSelect
@@ -216,9 +214,7 @@ const FilterRuleForm: FC<Props> = memo(
                                 <Tooltip
                                     label={description}
                                     position="right"
-                                    multiline
                                     maw={300}
-                                    withinPortal
                                 >
                                     <Box w="100%">{dropdownLabel}</Box>
                                 </Tooltip>
@@ -275,16 +271,9 @@ const FilterRuleForm: FC<Props> = memo(
 
                 {isEditMode &&
                     (!onConvertToGroup ? (
-                        <Tooltip
-                            label={isRequiredLabel}
-                            disabled={!isRequired}
-                            withinPortal
-                            multiline
-                        >
+                        <Tooltip label={isRequiredLabel} disabled={!isRequired}>
                             <span>
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
                                     onClick={onDelete}
                                     disabled={isRequired}
                                     data-testid="delete-filter-rule-button"
@@ -294,9 +283,9 @@ const FilterRuleForm: FC<Props> = memo(
                             </span>
                         </Tooltip>
                     ) : isRequired ? (
-                        <Tooltip label={isRequiredLabel} withinPortal multiline>
+                        <Tooltip label={isRequiredLabel}>
                             <span>
-                                <ActionIcon variant="subtle" disabled>
+                                <ActionIcon disabled>
                                     <IconDots size="20" />
                                 </ActionIcon>
                             </span>
@@ -304,15 +293,13 @@ const FilterRuleForm: FC<Props> = memo(
                     ) : (
                         <Menu
                             position="bottom-end"
-                            shadow="md"
                             closeOnItemClick
                             withArrow
                             arrowPosition="center"
-                            withinPortal
                         >
                             <Menu.Target>
                                 <Box>
-                                    <ActionIcon variant="subtle" color="gray">
+                                    <ActionIcon>
                                         <IconDots size="20" />
                                     </ActionIcon>
                                 </Box>

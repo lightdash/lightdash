@@ -74,7 +74,6 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
                     label={tooltipLabel}
                     disabled={!tooltipLabel}
                     position="top-start"
-                    withinPortal
                 >
                     <Group gap="xs">
                         <ChartIcon

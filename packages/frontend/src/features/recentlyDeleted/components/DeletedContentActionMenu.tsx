@@ -22,13 +22,9 @@ const DeletedContentActionMenu: FC<Props> = ({
 
     return (
         <>
-            <Menu position="bottom-end" withArrow withinPortal shadow="md">
+            <Menu position="bottom-end" withArrow>
                 <Menu.Target>
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        loading={isLoading}
-                    >
+                    <ActionIcon loading={isLoading}>
                         <MantineIcon icon={IconDotsVertical} />
                     </ActionIcon>
                 </Menu.Target>

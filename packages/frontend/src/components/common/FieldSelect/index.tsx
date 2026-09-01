@@ -239,7 +239,6 @@ const FieldSelectComponent = <T extends Item = Item>({
                         </Text>
                     }
                     position="top"
-                    multiline
                     maw={400}
                     offset={-2}
                     openDelay={500}

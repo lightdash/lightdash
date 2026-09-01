@@ -121,8 +121,6 @@ const MapContextMenu: FC<MapContextMenuProps> = ({
         <Menu
             opened={opened}
             onClose={onClose}
-            withinPortal
-            shadow="md"
             closeOnItemClick
             closeOnEscape
             radius={0}

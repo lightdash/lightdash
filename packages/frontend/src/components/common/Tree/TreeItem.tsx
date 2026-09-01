@@ -74,7 +74,6 @@ const TreeItem: React.FC<Props> = ({
             pr={withPadding ? 'xs' : undefined}
             radius="sm"
             withBorder={false}
-            shadow="none"
             wrap="nowrap"
             onClick={restricted ? undefined : onClick}
         >
@@ -92,7 +91,7 @@ const TreeItem: React.FC<Props> = ({
                     <MantineIcon
                         icon={expanded ? IconChevronDown : IconChevronRight}
                         size="lg"
-                        color="ldGray.6"
+                        color="dimmed"
                     />
                 </ActionIcon>
             )}
@@ -135,7 +134,6 @@ const TreeItem: React.FC<Props> = ({
             <Tooltip
                 label="You do not have access to this space"
                 position="top-start"
-                withArrow
             >
                 {content}
             </Tooltip>

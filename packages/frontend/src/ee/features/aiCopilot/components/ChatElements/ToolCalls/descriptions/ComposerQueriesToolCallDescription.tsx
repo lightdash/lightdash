@@ -43,7 +43,7 @@ const NodeStatusIndicator: FC<{ nodeStatus: ComposerQueryNodeStatus }> = ({
             ? `Failed: ${nodeStatus.errorMessage}`
             : NODE_STATUS_LABELS[nodeStatus.status];
     return (
-        <Tooltip label={label} position="top" withArrow>
+        <Tooltip label={label} position="top">
             <Box
                 className={styles.statusIndicator}
                 data-status={nodeStatus.status}
@@ -139,7 +139,6 @@ const ComposerQueryNode: FC<{
                 <Badge
                     color={presentation.color}
                     size="xs"
-                    variant="light"
                     className={styles.badge}
                 >
                     {presentation.badge}

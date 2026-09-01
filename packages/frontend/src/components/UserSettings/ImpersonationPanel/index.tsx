@@ -18,7 +18,7 @@ const ImpersonationPanel: FC = () => {
                     <Text fw={500} fz="sm">
                         Enable user impersonation
                     </Text>
-                    <Text fz="xs" c="ldGray.6">
+                    <Text fz="xs" c="dimmed">
                         Allow organization admins to impersonate other users to
                         see Lightdash from their perspective.
                     </Text>

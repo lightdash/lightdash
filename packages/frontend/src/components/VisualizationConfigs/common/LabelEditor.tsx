@@ -217,7 +217,6 @@ export const LabelEditor: FC<LabelEditorProps> = ({
             <Paper
                 className={`${styles.editorWrapper} ${readOnly ? styles.editorWrapperReadOnly : ''}`}
                 radius="sm"
-                withBorder
                 pos="relative"
             >
                 {localValue.length === 0 && placeholder ? (

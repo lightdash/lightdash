@@ -66,10 +66,9 @@ const FileRow: FC<{
     const downloadUrl = `/api/v1/org/designs/${designUuid}/files/${file.fileUuid}`;
     return (
         <Group justify="space-between" wrap="nowrap" gap="sm">
-            <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+            <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
                 <Badge
                     color={KIND_COLORS[file.kind] ?? 'gray'}
-                    variant="light"
                     size="sm"
                     style={{ flexShrink: 0 }}
                 >
@@ -78,7 +77,7 @@ const FileRow: FC<{
                 <Text size="sm" truncate>
                     {file.filename}
                 </Text>
-                <Text size="xs" c="ldGray.6" style={{ flexShrink: 0 }}>
+                <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
                     {formatBytes(file.sizeBytes)}
                 </Text>
             </Group>
@@ -89,8 +88,6 @@ const FileRow: FC<{
                         href={downloadUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        variant="subtle"
-                        color="gray"
                         aria-label={`Download ${file.filename}`}
                     >
                         <MantineIcon icon={IconDownload} />
@@ -98,7 +95,6 @@ const FileRow: FC<{
                 </Tooltip>
                 <Tooltip label="Delete" position="top">
                     <ActionIcon
-                        variant="subtle"
                         color="red"
                         onClick={onDelete}
                         loading={deleting}
@@ -226,7 +222,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
             return (
                 <>
                     <Loader size={12} />
-                    <Text size="xs" c="ldGray.6">
+                    <Text size="xs" c="dimmed">
                         Saving…
                     </Text>
                 </>
@@ -234,7 +230,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
         }
         if (hasUnsavedChanges) {
             return (
-                <Text size="xs" c="ldGray.6">
+                <Text size="xs" c="dimmed">
                     Unsaved changes
                 </Text>
             );
@@ -243,7 +239,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
             return (
                 <>
                     <MantineIcon icon={IconCheck} size={14} color="green.6" />
-                    <Text size="xs" c="ldGray.6">
+                    <Text size="xs" c="dimmed">
                         Saved
                     </Text>
                 </>
@@ -287,7 +283,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
 
                 <Box>
                     <Title order={6}>Default</Title>
-                    <Text size="sm" c="ldGray.6" mt={4}>
+                    <Text size="sm" c="dimmed" mt={4}>
                         The default theme is automatically applied to new
                         content. Individual items can override it.
                     </Text>
@@ -343,7 +339,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                             )}
                         </Group>
                     </Group>
-                    <Text size="sm" c="ldGray.6" mt={4}>
+                    <Text size="sm" c="dimmed" mt={4}>
                         Drag &amp; drop CSS, font, image, or markdown
                         instruction files. They&apos;ll be picked up
                         automatically wherever this theme is applied.
@@ -373,7 +369,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                 />
 
                 {design.files.length === 0 ? (
-                    <Text size="sm" c="ldGray.6" ta="center" py="md">
+                    <Text size="sm" c="dimmed" ta="center" py="md">
                         No files yet.
                     </Text>
                 ) : (
@@ -442,7 +438,7 @@ export const DesignDetailPanel: FC<Props> = ({ designUuid }) => {
     }
 
     if (!design) {
-        return <Text c="ldGray.6">Theme not found.</Text>;
+        return <Text c="dimmed">Theme not found.</Text>;
     }
 
     return <DesignForm key={design.designUuid} design={design} />;

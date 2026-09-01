@@ -63,13 +63,7 @@ export const ModelSelector: FC<Props> = ({
     }
 
     return (
-        <Menu
-            shadow="md"
-            width={280}
-            position="top-end"
-            offset={8}
-            withinPortal
-        >
+        <Menu width={280} position="top-end" offset={8}>
             <Menu.Target>
                 <Button
                     px="xs"
@@ -78,7 +72,7 @@ export const ModelSelector: FC<Props> = ({
                         <MantineIcon
                             icon={IconChevronDown}
                             size="sm"
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                     }
                 >
@@ -87,7 +81,7 @@ export const ModelSelector: FC<Props> = ({
                             {selectedModel?.displayName ?? 'Select model'}
                         </Text>
                         {showReasoning && reasoningLabel && (
-                            <Text size="xs" fw={500} c="ldGray.6" span>
+                            <Text size="xs" fw={500} c="dimmed" span>
                                 {reasoningLabel}
                             </Text>
                         )}

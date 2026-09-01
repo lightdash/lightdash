@@ -60,10 +60,9 @@ export const ColumnCellDisplay: FC = () => {
                     <Config.Heading>Bars in cells</Config.Heading>
                     <Tooltip
                         label="Display numeric values as bars in cells"
-                        withinPortal
                         position="right"
                     >
-                        <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
+                        <MantineIcon icon={IconInfoCircle} color="dimmed" />
                     </Tooltip>
                 </Group>
                 <Stack gap="xs">
@@ -106,7 +105,6 @@ export const ColumnCellDisplay: FC = () => {
                                             <Tooltip
                                                 label="Positive values"
                                                 variant="xs"
-                                                withinPortal
                                                 position="top"
                                             >
                                                 <Box>
@@ -116,7 +114,6 @@ export const ColumnCellDisplay: FC = () => {
                                             <Tooltip
                                                 label="Negative values"
                                                 variant="xs"
-                                                withinPortal
                                                 position="top"
                                             >
                                                 <Box>

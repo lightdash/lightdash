@@ -466,7 +466,7 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
                                           <Title order={5}>
                                               Allowed origins
                                           </Title>
-                                          <Text c="ldGray.6" fz="xs">
+                                          <Text c="dimmed" fz="xs">
                                               CORS controls which external
                                               browser origins can call the
                                               Lightdash API. Add exact origins

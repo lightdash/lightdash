@@ -16,7 +16,6 @@ const InvalidFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
     return (
         <Tooltip
             position="top-start"
-            withinPortal
             offset={0}
             arrowOffset={16}
             label={
@@ -43,7 +42,6 @@ const InvalidFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
                             size="xs"
                             color="dark"
                             radius="xl"
-                            variant="subtle"
                         >
                             <MantineIcon size="sm" icon={IconX} />
                         </ActionIcon>

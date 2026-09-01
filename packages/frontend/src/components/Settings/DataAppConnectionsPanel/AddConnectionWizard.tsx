@@ -118,7 +118,7 @@ const ConnectStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({
     form,
 }) => (
     <Stack gap="sm" mt="xl">
-        <Text c="ldGray.6" fz="sm">
+        <Text c="dimmed" fz="sm">
             Give your connection a name and the base URL of the API your data
             apps should be able to call.
         </Text>

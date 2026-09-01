@@ -80,22 +80,13 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                             <Title
                                 className={classes.name}
                                 order={6}
-                                c="ldDark.9"
-                                fw={600}
                                 lineClamp={1}
                             >
                                 {getAppDisplayName(app.name, app.appUuid)}
                             </Title>
                             {app.description && (
-                                <Tooltip
-                                    withArrow
-                                    multiline
-                                    w={280}
-                                    label={app.description}
-                                >
+                                <Tooltip w={280} label={app.description}>
                                     <ActionIcon
-                                        variant="subtle"
-                                        color="gray"
                                         size="sm"
                                         aria-label="Chart type description"
                                     >
@@ -103,10 +94,8 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                                     </ActionIcon>
                                 </Tooltip>
                             )}
-                            <Tooltip withArrow label="Edit details">
+                            <Tooltip label="Edit details">
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
                                     size="sm"
                                     aria-label="Edit chart type details"
                                     onClick={() => setIsEditingDetails(true)}

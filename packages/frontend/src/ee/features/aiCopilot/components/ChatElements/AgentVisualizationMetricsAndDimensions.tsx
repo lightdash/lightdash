@@ -127,12 +127,9 @@ const MetricDimensionItem: FC<{
         <HoverCard
             openDelay={300}
             keepMounted={false}
-            shadow="subtle"
-            withinPortal
             withArrow
             disabled={isHoverCardDisabled}
             position="top"
-            radius="md"
             offset={10}
         >
             <HoverCard.Target>
@@ -140,7 +137,7 @@ const MetricDimensionItem: FC<{
                     size="xs"
                     variant="default"
                     className={classes.itemButton}
-                    style={{ backgroundColor: itemColors.bg }}
+                    bg={itemColors.bg}
                     styles={{
                         inner: {
                             color: 'var(--mantine-color-ldDark-9)',
@@ -157,7 +154,6 @@ const MetricDimensionItem: FC<{
                                 openDelay={200}
                                 position="top"
                                 label="Write back to dbt"
-                                withArrow
                                 offset={5}
                             >
                                 <ActionIcon

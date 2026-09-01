@@ -131,16 +131,9 @@ export const FormulaReferencePanel: FC<PanelProps> = ({
                     autoFocus={opened}
                     flex={1}
                 />
-                <Tooltip
-                    label="Close (Esc)"
-                    withArrow
-                    position="top"
-                    openDelay={300}
-                >
+                <Tooltip label="Close (Esc)" position="top" openDelay={300}>
                     <ActionIcon
-                        variant="subtle"
                         size="sm"
-                        color="gray"
                         onClick={() => onToggle(false)}
                         aria-label="Close function reference"
                     >
@@ -257,10 +250,8 @@ const AvailableFieldsHint: FC<AvailableFieldsHintProps> = ({
         <HoverCard
             width={280}
             position="top-start"
-            shadow="md"
             openDelay={100}
             closeDelay={200}
-            withinPortal
         >
             <HoverCard.Target>
                 <UnstyledButton

@@ -34,8 +34,8 @@ export const ThreadRetentionNotice: FC<Props> = ({
 
     return (
         <Group gap={4} wrap="nowrap">
-            <MantineIcon icon={IconHourglass} size={14} color="ldGray.6" />
-            <Text size="xs" c="ldGray.6">
+            <MantineIcon icon={IconHourglass} size={14} color="dimmed" />
+            <Text size="xs" c="dimmed">
                 Threads are deleted after {formatRetentionHours(effectiveHours)}{' '}
                 of inactivity
             </Text>

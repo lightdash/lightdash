@@ -19,10 +19,8 @@ const TotalCellMenu: FC<React.PropsWithChildren<TotalCellMenuProps>> = ({
             opened={opened}
             onOpen={onOpen}
             onClose={onClose}
-            withinPortal
             closeOnItemClick
             closeOnEscape
-            shadow="md"
             radius={0}
             position="bottom-end"
             offset={{

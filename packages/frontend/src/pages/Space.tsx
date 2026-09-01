@@ -254,7 +254,6 @@ const Space: FC = () => {
                                     userCanManageSpace) && (
                                     <Menu
                                         position="bottom-end"
-                                        shadow="md"
                                         closeOnItemClick
                                         withArrow
                                         arrowPosition="center"

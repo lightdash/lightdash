@@ -108,8 +108,6 @@ const ThirdPartySignInButtonBase: FC<
                 className={classes.lastUsedBadge}
                 size="sm"
                 variant="default"
-                radius="sm"
-                tt="none"
             >
                 Last used
             </Badge>

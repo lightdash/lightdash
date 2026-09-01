@@ -44,13 +44,13 @@ const Subheading: FC<PropsWithChildren> = ({ children }) => (
 const Label: FC<LabelProps> = ({ children, icon, ...props }) =>
     icon ? (
         <MantineGroup gap={4} wrap="nowrap">
-            <MantineIcon icon={icon} size={14} color="ldGray.6" />
-            <Text fw={500} fz="xs" c="ldGray.6" {...props}>
+            <MantineIcon icon={icon} size={14} color="dimmed" />
+            <Text fw={500} fz="xs" c="dimmed" {...props}>
                 {children}
             </Text>
         </MantineGroup>
     ) : (
-        <Text fw={500} fz="xs" c="ldGray.6" {...props}>
+        <Text fw={500} fz="xs" c="dimmed" {...props}>
             {children}
         </Text>
     );

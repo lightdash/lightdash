@@ -122,7 +122,6 @@ const CorsSettingsForm: FC<{ settings: OrganizationSettings }> = ({
                                     rightSectionWidth={44}
                                     rightSection={
                                         <Tooltip
-                                            withinPortal
                                             label={
                                                 isRegex
                                                     ? 'Switch to origin mode'
@@ -169,7 +168,6 @@ const CorsSettingsForm: FC<{ settings: OrganizationSettings }> = ({
                                 />
                                 <ActionIcon
                                     type="button"
-                                    variant="subtle"
                                     color="red"
                                     mb={form.errors[fieldPath] ? 'xl' : 0}
                                     aria-label="Remove CORS origin"
@@ -186,7 +184,7 @@ const CorsSettingsForm: FC<{ settings: OrganizationSettings }> = ({
                         );
                     })}
                     {form.values.corsAllowedDomains.length === 0 && (
-                        <Text c="ldGray.6" fz="sm">
+                        <Text c="dimmed" fz="sm">
                             No CORS origins configured.
                         </Text>
                     )}

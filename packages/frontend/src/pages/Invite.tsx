@@ -71,14 +71,14 @@ const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
             {isNewLayout ? (
                 <Box data-cy="welcome-user">{content}</Box>
             ) : (
-                <Card p="xl" withBorder shadow="subtle" data-cy="welcome-user">
+                <Card p="xl" data-cy="welcome-user">
                     {content}
                 </Card>
             )}
             <Text c="ldGray.7" ta={textAlign} fz="sm" fw={500}>
                 {`Not ${email ? email : 'for you'}?`}
                 <br />
-                <Text c="ldGray.6" ta={textAlign} fz="xs" fw={500}>
+                <Text c="dimmed" ta={textAlign} fz="xs" fw={500}>
                     Ignore this invite link and contact your workspace admin.
                 </Text>
             </Text>
@@ -102,14 +102,14 @@ const ErrorCard: FC<{ title: string }> = ({ title }) => {
     return isNewLayout ? (
         <Box data-cy="welcome-user">{content}</Box>
     ) : (
-        <Card p="xl" withBorder shadow="subtle" data-cy="welcome-user">
+        <Card p="xl" data-cy="welcome-user">
             {content}
         </Card>
     );
 };
 
 const PrivacyTermsFootnote: FC = () => (
-    <Text c="ldGray.6" ta="center" fz="sm" fw={500}>
+    <Text c="dimmed" ta="center" fz="sm" fw={500}>
         By creating an account, you agree to
         <br />
         our{' '}
@@ -156,7 +156,7 @@ const OneClickCard: FC<OneClickCardProps> = ({
                     ? 'You’ve been asked to help with setup'
                     : 'You’ve been invited to Lightdash'}
             </Title>
-            <Text c="ldGray.6" ta={textAlign}>
+            <Text c="dimmed" ta={textAlign}>
                 {isSetupInvite
                     ? 'One click and we’ll take you straight to connecting the data warehouse.'
                     : 'One click to join your team.'}
@@ -170,7 +170,7 @@ const OneClickCard: FC<OneClickCardProps> = ({
     return isNewLayout ? (
         <Box data-cy="one-click-invite">{content}</Box>
     ) : (
-        <Card p="xl" withBorder shadow="subtle" data-cy="one-click-invite">
+        <Card p="xl" data-cy="one-click-invite">
             {content}
         </Card>
     );
@@ -322,7 +322,7 @@ const Invite: FC = () => {
                     : 'Sign up'}
             </Title>
             {isSetupInvite && (
-                <Text c="ldGray.6" ta={isNewLayout ? 'left' : 'center'} mb="md">
+                <Text c="dimmed" ta={isNewLayout ? 'left' : 'center'} mb="md">
                     Create your account and we’ll take you straight to warehouse
                     setup.
                 </Text>
@@ -372,9 +372,7 @@ const Invite: FC = () => {
                     {isNewLayout ? (
                         signupContent
                     ) : (
-                        <Card p="xl" withBorder shadow="subtle">
-                            {signupContent}
-                        </Card>
+                        <Card p="xl">{signupContent}</Card>
                     )}
                     <PrivacyTermsFootnote />
                 </>

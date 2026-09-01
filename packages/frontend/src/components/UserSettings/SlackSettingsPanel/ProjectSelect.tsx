@@ -83,11 +83,7 @@ export const ProjectSelect: FC<ProjectSelectProps> = ({
 
         if (deleted) {
             return (
-                <Tooltip
-                    key={uuid}
-                    label="This project has been deleted"
-                    withArrow
-                >
+                <Tooltip key={uuid} label="This project has been deleted">
                     {pill}
                 </Tooltip>
             );

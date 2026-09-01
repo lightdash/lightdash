@@ -88,7 +88,7 @@ const ViewSplitButton: FC<{
         >
             View
         </Button>
-        <Menu position="bottom-end" withinPortal shadow="md">
+        <Menu position="bottom-end">
             <Menu.Target>
                 <ActionIcon
                     variant="default"
@@ -158,7 +158,7 @@ const Title: FC<{ children: ReactNode }> = ({ children }) => (
 );
 
 const Muted: FC<{ children: ReactNode }> = ({ children }) => (
-    <Text size="xs" c="ldGray.6">
+    <Text size="xs" c="dimmed">
         {children}
     </Text>
 );
@@ -217,10 +217,10 @@ const InlineTitle: FC<{ title: string; detail: string }> = ({
         <Text span fw={500} inherit>
             {title}
         </Text>
-        <Text span c="ldGray.6" inherit>
+        <Text span c="dimmed" inherit>
             {' · '}
         </Text>
-        <Text span c="ldGray.6" inherit>
+        <Text span c="dimmed" inherit>
             {detail}
         </Text>
     </Text>
@@ -324,7 +324,7 @@ const renderCells = (
                 return (
                     <>
                         <Lead icon={<CardIcon tone="error" />}>
-                            <Text size="xs" c="ldGray.6" lineClamp={2}>
+                            <Text size="xs" c="dimmed" lineClamp={2}>
                                 {`${FAILED_TITLE}. ${state.message}`}
                             </Text>
                         </Lead>
@@ -396,7 +396,6 @@ export const DataAppBuildCard: FC<Props> = ({
     onView,
 }) => (
     <Paper
-        withBorder
         p="sm"
         radius="md"
         className={clsx(styles.card, {

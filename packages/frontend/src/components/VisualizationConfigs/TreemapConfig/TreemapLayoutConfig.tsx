@@ -106,9 +106,7 @@ export const Layout: React.FC = () => {
                     <Group gap="xs">
                         <Config.Heading>Dimension hierarchy</Config.Heading>
                         <Tooltip
-                            withinPortal={true}
                             maw={350}
-                            multiline
                             label="Drag and drop your dimensions to order them hierarchically."
                         >
                             <MantineIcon
@@ -148,9 +146,7 @@ export const Layout: React.FC = () => {
                     <Group gap="xs">
                         <Config.Heading>Size metric</Config.Heading>
                         <Tooltip
-                            withinPortal={true}
                             maw={350}
-                            multiline
                             label="Determines how large each block is."
                         >
                             <MantineIcon
@@ -188,9 +184,7 @@ export const Layout: React.FC = () => {
                     <Group gap="xs">
                         <Config.Heading>Color metric</Config.Heading>
                         <Tooltip
-                            withinPortal={true}
                             maw={350}
-                            multiline
                             label="Dynamically set the color of the nodes based on a metric. If not set, the treemap will use a default color scheme."
                         >
                             <MantineIcon

@@ -47,7 +47,7 @@ export const RowLimitControls: FC<Props> = ({ rowLimit, onRowLimitChange }) => (
                         })
                     }
                 />
-                <Text fz="xs" c="ldGray.6">
+                <Text fz="xs" c="dimmed">
                     the
                 </Text>
                 <SegmentedControl
@@ -74,7 +74,7 @@ export const RowLimitControls: FC<Props> = ({ rowLimit, onRowLimitChange }) => (
                         })
                     }
                 />
-                <Text fz="xs" c="ldGray.6">
+                <Text fz="xs" c="dimmed">
                     rows
                 </Text>
             </Group>

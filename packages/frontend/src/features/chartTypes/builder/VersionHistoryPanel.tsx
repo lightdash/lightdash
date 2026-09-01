@@ -347,10 +347,8 @@ const VersionHistoryPanel: FC<Props> = ({
                 <Text className={classes.title} span>
                     Version history
                 </Text>
-                <Tooltip withArrow label="Close history">
+                <Tooltip label="Close history">
                     <ActionIcon
-                        variant="subtle"
-                        color="gray"
                         size="sm"
                         aria-label="Close history"
                         onClick={onClose}

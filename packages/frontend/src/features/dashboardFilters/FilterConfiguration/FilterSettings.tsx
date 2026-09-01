@@ -213,9 +213,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 <Tooltip
                                     label={description}
                                     position="right"
-                                    multiline
                                     maw={300}
-                                    withinPortal
                                 >
                                     <div>{option.label}</div>
                                 </Tooltip>
@@ -280,7 +278,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
                 {(showValueInput || hasRequirement) && (
                     <Group gap="xs" wrap="nowrap" align="flex-start">
-                        <Box style={{ flex: 1 }}>
+                        <Box flex={1}>
                             <FilterInputComponent
                                 popoverProps={popoverProps}
                                 filterType={filterType}
@@ -311,8 +309,6 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                     )}
                                 >
                                     <ActionIcon
-                                        variant="subtle"
-                                        color="gray"
                                         size="sm"
                                         mt={4}
                                         disabled={
@@ -349,7 +345,6 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                             )}
                         {!hasRequirement && (
                             <Tooltip
-                                withinPortal
                                 position="right"
                                 label={
                                     isFilterDisabled

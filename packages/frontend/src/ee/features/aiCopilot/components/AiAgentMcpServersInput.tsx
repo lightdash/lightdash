@@ -471,7 +471,6 @@ const CreateMcpServerModal = ({
                         form.values.allowOAuthCredentialSharing && (
                             <Alert
                                 color="orange"
-                                variant="light"
                                 icon={<MantineIcon icon={IconAlertTriangle} />}
                                 title="Shared OAuth connection"
                             >
@@ -1273,18 +1272,10 @@ export const AiAgentMcpServersInput = ({
             isExpanded: boolean,
         ) => {
             return (
-                <Menu
-                    position="bottom-end"
-                    withArrow
-                    withinPortal
-                    shadow="md"
-                    width={220}
-                >
+                <Menu position="bottom-end" withArrow width={220}>
                     <Menu.Target>
                         <ActionIcon
                             type="button"
-                            variant="subtle"
-                            color="gray"
                             onClick={(event) => event.stopPropagation()}
                         >
                             <MantineIcon icon={IconDots} />
@@ -1452,14 +1443,11 @@ export const AiAgentMcpServersInput = ({
                                         </Text>
                                     )}
                                     <Tooltip
-                                        withinPortal
-                                        multiline
                                         w={320}
                                         label="Tokens measure how much of the model's working space these tools can take up. A larger tool set can leave less room for your question and the agent's answer, and may make requests slower or more expensive. Lightdash loads tools only when needed, so actual usage is often lower."
                                     >
                                         <ActionIcon
                                             type="button"
-                                            variant="subtle"
                                             color="ldGray"
                                             size="xs"
                                             aria-label="Why tool token usage matters"
@@ -1473,12 +1461,7 @@ export const AiAgentMcpServersInput = ({
                                 </Group>
                             )}
                             {showGithubConnectButton && (
-                                <Tooltip
-                                    withinPortal
-                                    multiline
-                                    w={260}
-                                    label={githubConnectTooltip}
-                                >
+                                <Tooltip w={260} label={githubConnectTooltip}>
                                     {renderGithubConnectButton('compact-xs')}
                                 </Tooltip>
                             )}
@@ -1556,7 +1539,6 @@ export const AiAgentMcpServersInput = ({
                                 return (
                                     <Paper
                                         key={mcpServer.uuid}
-                                        withBorder
                                         radius="md"
                                         p={0}
                                         style={{ overflow: 'hidden' }}
@@ -1629,7 +1611,6 @@ export const AiAgentMcpServersInput = ({
                                                 wrap="nowrap"
                                             >
                                                 <Badge
-                                                    variant="light"
                                                     color={getMcpConnectionStatusColor(
                                                         connectionStatus,
                                                     )}
@@ -1648,15 +1629,9 @@ export const AiAgentMcpServersInput = ({
                                                         mcpServer,
                                                         connectionStatus,
                                                     ) && (
-                                                        <Tooltip
-                                                            label="Test connection"
-                                                            withArrow
-                                                            withinPortal
-                                                        >
+                                                        <Tooltip label="Test connection">
                                                             <ActionIcon
                                                                 type="button"
-                                                                variant="subtle"
-                                                                color="gray"
                                                                 size="sm"
                                                                 loading={
                                                                     isRetesting

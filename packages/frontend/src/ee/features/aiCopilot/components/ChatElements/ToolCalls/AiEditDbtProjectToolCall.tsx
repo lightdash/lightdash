@@ -97,7 +97,7 @@ export const PullRequestViewMenu: FC<{
 
     return (
         <>
-            <Menu position="bottom-start" withinPortal>
+            <Menu position="bottom-start">
                 <Menu.Target>
                     <Button
                         variant="default"
@@ -285,7 +285,6 @@ export const PullRequestActionButtons: FC<{
             </Button>
             <Button
                 ref={mergeButtonRef}
-                variant="filled"
                 color="green"
                 size="compact-xs"
                 loading={isMerging}
@@ -361,7 +360,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
         // install — point the user at the connection settings to switch it.
         if (metadata.errorCode === 'unsupported_source_control') {
             return (
-                <Paper withBorder p="sm" radius="md">
+                <Paper p="sm" radius="md">
                     <Group gap="xs" align="flex-start" wrap="nowrap">
                         <ThemeIcon
                             variant="light"
@@ -376,7 +375,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                 <Text size="xs" fw={500}>
                                     Source control not supported
                                 </Text>
-                                <Text size="xs" c="ldGray.6">
+                                <Text size="xs" c="dimmed">
                                     AI writeback needs this project's dbt
                                     connection to use GitHub or GitLab. Update
                                     the connection to open pull requests from
@@ -406,7 +405,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
         }
         if (metadata.errorCode === 'git_write_permission') {
             return (
-                <Paper withBorder p="sm" radius="md">
+                <Paper p="sm" radius="md">
                     <Group gap="xs" align="flex-start" wrap="nowrap">
                         <ThemeIcon
                             variant="light"
@@ -421,7 +420,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                 <Text size="xs" fw={500}>
                                     No write access to this repository
                                 </Text>
-                                <Text size="xs" c="ldGray.6">
+                                <Text size="xs" c="dimmed">
                                     The change was prepared, but no pull request
                                     could be opened — this project's Git
                                     connection doesn't have permission to create
@@ -457,7 +456,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
         // thread rather than show a red error.
         if (metadata.errorCode === 'pull_request_not_open') {
             return (
-                <Paper withBorder p="sm" radius="md">
+                <Paper p="sm" radius="md">
                     <Group gap="xs" align="flex-start" wrap="nowrap">
                         <ThemeIcon
                             variant="light"
@@ -474,7 +473,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             <Text size="xs" fw={500}>
                                 This thread's pull request is closed
                             </Text>
-                            <Text size="xs" c="ldGray.6">
+                            <Text size="xs" c="dimmed">
                                 Its pull request has already been merged or
                                 closed, so further changes can't be added here.
                                 Start a new thread to request more changes.
@@ -485,7 +484,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
             );
         }
         return (
-            <Paper withBorder p="sm" radius="md">
+            <Paper p="sm" radius="md">
                 <Group gap="xs" align="flex-start" wrap="nowrap">
                     <ThemeIcon
                         variant="light"
@@ -499,7 +498,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         <Text size="xs" fw={500}>
                             The change couldn't be completed
                         </Text>
-                        <Text size="xs" c="ldGray.6">
+                        <Text size="xs" c="dimmed">
                             No pull request was opened. Ask again, or rephrase
                             the request, to retry.
                         </Text>
@@ -511,7 +510,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
 
     if (metadata.status === 'pending') {
         return (
-            <Paper withBorder p="sm" radius="md">
+            <Paper p="sm" radius="md">
                 <Group gap="xs" align="center" wrap="nowrap">
                     <ThemeIcon
                         variant="light"
@@ -537,7 +536,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
         // Success but no PR opened (writeback agent decided no file changes
         // were needed). Reassure rather than surface as a failure.
         return (
-            <Paper withBorder p="sm" radius="md">
+            <Paper p="sm" radius="md">
                 <Group gap="xs" align="center" wrap="nowrap">
                     <ThemeIcon
                         variant="light"
@@ -571,7 +570,6 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
 
     return (
         <Paper
-            withBorder
             p="sm"
             radius="md"
             className={
@@ -601,7 +599,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             </Text>
                             {summary && (
                                 <Group gap={6} wrap="nowrap">
-                                    <Text size="xs" c="ldGray.6">
+                                    <Text size="xs" c="dimmed">
                                         {summary}
                                     </Text>
                                     {shortCommitSha && (
@@ -611,7 +609,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                             </Text>
                                             <Text
                                                 size="xs"
-                                                c="ldGray.6"
+                                                c="dimmed"
                                                 ff="monospace"
                                                 title={
                                                     metadata.commitSha ??

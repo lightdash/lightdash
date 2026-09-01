@@ -155,7 +155,7 @@ export const GenerateTokenModal: FC<Props> = ({
                 </Button>
             }
         >
-            <Text c="ldGray.6" fz="sm" mt={-4}>
+            <Text c="dimmed" fz="sm" mt={-4}>
                 A project-level token, scoped to this project. Shown only once.
             </Text>
             <form id="generate-pgwire-token-form" onSubmit={handleSubmit}>

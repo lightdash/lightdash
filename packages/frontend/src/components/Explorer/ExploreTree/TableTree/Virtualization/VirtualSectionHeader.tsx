@@ -182,8 +182,6 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
                 {showWriteBackCustomMetrics && (
                     <Tooltip label="Write back custom metrics">
                         <ActionIcon
-                            variant="subtle"
-                            color="gray"
                             onClick={handleWriteBackCustomMetrics}
                             data-testid="VirtualSectionHeader/WriteBackCustomMetricsButton"
                         >
@@ -195,8 +193,6 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
                 {showWriteBackCustomDimensions && (
                     <Tooltip label="Write back custom dimensions">
                         <ActionIcon
-                            variant="subtle"
-                            color="gray"
                             onClick={handleWriteBackCustomDimensions}
                             data-testid="VirtualSectionHeader/WriteBackCustomDimensionsButton"
                         >

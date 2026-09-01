@@ -280,7 +280,7 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
                                             {dashboard.name}
                                         </Title>
                                         {group.tab && (
-                                            <Text size="sm" c="ldGray.6">
+                                            <Text size="sm" c="dimmed">
                                                 {group.tab.name}
                                             </Text>
                                         )}

@@ -294,19 +294,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                 />
                             )}
                         {explore.warnings && explore.warnings.length > 0 && (
-                            <HoverCard
-                                withinPortal
-                                position="right"
-                                withArrow
-                                radius="md"
-                                shadow="subtle"
-                            >
+                            <HoverCard position="right" withArrow>
                                 <HoverCard.Target>
-                                    <ActionIcon
-                                        variant="subtle"
-                                        color="yellow"
-                                        size="sm"
-                                    >
+                                    <ActionIcon color="yellow" size="sm">
                                         <MantineIcon
                                             icon={IconAlertTriangle}
                                             color="yellow.9"
@@ -330,7 +320,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                 <Menu.Target>
                                     <ActionIcon
                                         aria-label="Virtual view actions"
-                                        color="gray"
                                         variant="transparent"
                                     >
                                         <MantineIcon icon={IconDots} />
@@ -413,7 +402,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                 <Menu.Target>
                                     <ActionIcon
                                         aria-label="Query options"
-                                        color="gray"
                                         variant="transparent"
                                     >
                                         <MantineIcon icon={IconDots} />

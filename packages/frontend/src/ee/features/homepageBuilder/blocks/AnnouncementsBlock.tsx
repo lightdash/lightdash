@@ -407,7 +407,6 @@ const AnnouncementItemActions: FC<{
             {!announcement.published && (
                 <Tooltip label="Publish now">
                     <ActionIcon
-                        variant="subtle"
                         color="ldGray.6"
                         size="sm"
                         aria-label="Publish announcement now"
@@ -452,7 +451,6 @@ const AnnouncementItemActions: FC<{
             )}
             <Tooltip label={announcement.pinned ? 'Unpin' : 'Pin to top'}>
                 <ActionIcon
-                    variant="subtle"
                     color="ldGray.6"
                     size="sm"
                     aria-label={announcement.pinned ? 'Unpin' : 'Pin'}
@@ -470,7 +468,6 @@ const AnnouncementItemActions: FC<{
             </Tooltip>
             <Tooltip label="Edit">
                 <ActionIcon
-                    variant="subtle"
                     color="ldGray.6"
                     size="sm"
                     aria-label="Edit announcement"
@@ -481,7 +478,6 @@ const AnnouncementItemActions: FC<{
             </Tooltip>
             <Tooltip label="Delete">
                 <ActionIcon
-                    variant="subtle"
                     color="red"
                     size="sm"
                     aria-label="Delete announcement"
@@ -700,7 +696,6 @@ const SchedulePicker: FC<{ schedule: ScheduleFields }> = ({ schedule }) => (
                 <TimeInput
                     label="Time"
                     size="sm"
-                    radius="md"
                     value={schedule.time}
                     onChange={(event) =>
                         schedule.setTime(event.currentTarget.value)
@@ -906,7 +901,6 @@ const AnnouncementFormModal: FC<{
                         placeholder="None"
                         clearable
                         size="sm"
-                        radius="md"
                         data={CATEGORY_OPTIONS}
                         value={category}
                         onChange={(value) =>

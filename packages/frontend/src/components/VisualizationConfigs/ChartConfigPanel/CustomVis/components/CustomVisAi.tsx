@@ -48,13 +48,7 @@ export const GenerateVizWithAi = ({
     ]);
 
     return (
-        <Popover
-            width="400px"
-            position="bottom"
-            withArrow
-            shadow="md"
-            withinPortal
-        >
+        <Popover width="400px" position="bottom" withArrow>
             <Popover.Target>
                 <Button
                     size="compact-sm"

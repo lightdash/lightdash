@@ -40,7 +40,7 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
         />
     ) : ((userCanManage && pinnedItems.length <= 0) || !pinnedItems) &&
       isEnabled ? (
-        <Card withBorder variant="dotted">
+        <Card variant="dotted">
             <Group justify="space-between">
                 <Group justify="center" gap="xxs" my="xs" ml="xs">
                     <MantineIcon

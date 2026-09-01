@@ -245,10 +245,8 @@ const AppInspectorPanel: FC<Props> = ({
                                           ? 'Inspect data: on'
                                           : 'Inspect data'
                                 }
-                                withArrow
                                 position="top"
                                 maw={260}
-                                multiline
                             >
                                 {/* data-disabled (not disabled): a truly
                                     disabled button swallows the hover events
@@ -277,11 +275,9 @@ const AppInspectorPanel: FC<Props> = ({
                                 </ActionIcon>
                             </Tooltip>
                         )}
-                        <Tooltip label={clearLabel} withArrow position="top">
+                        <Tooltip label={clearLabel} position="top">
                             <ActionIcon
-                                variant="subtle"
                                 size="xs"
-                                color="gray"
                                 onClick={handleClear}
                                 aria-label={clearLabel}
                             >
@@ -291,7 +287,6 @@ const AppInspectorPanel: FC<Props> = ({
                         {onPersistLogsChange && (
                             <Tooltip
                                 label="Preserve logs across iframe refreshes and new app versions"
-                                withArrow
                                 position="top"
                             >
                                 <Box onClick={(e) => e.stopPropagation()}>
@@ -310,7 +305,7 @@ const AppInspectorPanel: FC<Props> = ({
                         )}
                     </>
                 )}
-                <ActionIcon variant="subtle" size="xs" color="gray">
+                <ActionIcon size="xs">
                     {collapsed ? (
                         <MantineIcon icon={IconChevronRight} size={12} />
                     ) : (
@@ -318,9 +313,7 @@ const AppInspectorPanel: FC<Props> = ({
                     )}
                 </ActionIcon>
                 <ActionIcon
-                    variant="subtle"
                     size="xs"
-                    color="gray"
                     onClick={handleDismiss}
                     aria-label="Close inspector panel"
                 >

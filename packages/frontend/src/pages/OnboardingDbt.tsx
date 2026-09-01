@@ -90,7 +90,7 @@ const DbtMethodPicker: FC = () => {
     return (
         <Box className={classes.column}>
             <Stack align="center" gap="xs">
-                <Title order={1} ta="center" fw={600}>
+                <Title order={1} ta="center">
                     Let's get you set up!
                 </Title>
                 <Text size="md" c="dimmed" ta="center">
@@ -102,7 +102,6 @@ const DbtMethodPicker: FC = () => {
                 {methods.map((method) => (
                     <Paper
                         key={method.to}
-                        withBorder
                         radius="md"
                         className={classes.methodCard}
                         onClick={() => {
@@ -113,7 +112,7 @@ const DbtMethodPicker: FC = () => {
                         <MantineIcon
                             icon={method.icon}
                             size="xl"
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                         <Box className={classes.methodText}>
                             <Text className={classes.methodName}>
@@ -123,7 +122,7 @@ const DbtMethodPicker: FC = () => {
                                 {method.description}
                             </Text>
                         </Box>
-                        <MantineIcon icon={IconChevronRight} color="ldGray.6" />
+                        <MantineIcon icon={IconChevronRight} color="dimmed" />
                     </Paper>
                 ))}
             </Stack>
@@ -283,7 +282,7 @@ const DbtCliWaiting: FC = () => {
         <Box className={classes.column}>
             <Stack align="center" gap="xs">
                 <Loader size="sm" />
-                <Title order={1} ta="center" fw={600}>
+                <Title order={1} ta="center">
                     Waiting for data
                 </Title>
                 <Text size="md" c="dimmed" ta="center">
@@ -292,7 +291,7 @@ const DbtCliWaiting: FC = () => {
                 </Text>
             </Stack>
 
-            <Paper withBorder radius="md" className={classes.stepsCard}>
+            <Paper radius="md" className={classes.stepsCard}>
                 {steps.map((step, index) => (
                     <Stack key={step.title} gap="xs">
                         <Group gap="sm" wrap="nowrap">

@@ -293,11 +293,9 @@ export const HeaderCreate: FC = () => {
                                     {getCtaLabels(ctaAction).label}
                                 </Button>
                                 <Menu
-                                    withinPortal
                                     disabled={!loadedColumns || !hasAnyAction}
                                     position="bottom-end"
                                     withArrow
-                                    shadow="md"
                                     offset={2}
                                     arrowOffset={10}
                                 >
@@ -320,11 +318,8 @@ export const HeaderCreate: FC = () => {
                                     <Menu.Dropdown>
                                         <Tooltip
                                             label="You don't have permission to save SQL charts in this project."
-                                            multiline
                                             maw={400}
                                             position="top"
-                                            withArrow
-                                            withinPortal
                                             disabled={canSaveChart}
                                         >
                                             <Group
@@ -360,7 +355,7 @@ export const HeaderCreate: FC = () => {
                                                         </Text>
                                                         <Text
                                                             fz="xs"
-                                                            c="ldGray.6"
+                                                            c="dimmed"
                                                         >
                                                             {
                                                                 getCtaLabels(
@@ -375,11 +370,8 @@ export const HeaderCreate: FC = () => {
 
                                         <Tooltip
                                             label="You don't have permission to create virtual views in this project."
-                                            multiline
                                             maw={400}
                                             position="top"
-                                            withArrow
-                                            withinPortal
                                             disabled={canCreateVirtualView}
                                         >
                                             <Group
@@ -417,7 +409,7 @@ export const HeaderCreate: FC = () => {
                                                         </Text>
                                                         <Text
                                                             fz="xs"
-                                                            c="ldGray.6"
+                                                            c="dimmed"
                                                         >
                                                             {
                                                                 getCtaLabels(
@@ -432,11 +424,8 @@ export const HeaderCreate: FC = () => {
 
                                         <Tooltip
                                             label={writeBackDisabledMessage}
-                                            multiline
                                             maw={400}
                                             position="top"
-                                            withArrow
-                                            withinPortal
                                             disabled={
                                                 writeBackDisabledMessage ===
                                                 undefined
@@ -486,7 +475,7 @@ export const HeaderCreate: FC = () => {
                                                         </Text>
                                                         <Text
                                                             fz="xs"
-                                                            c="ldGray.6"
+                                                            c="dimmed"
                                                         >
                                                             {
                                                                 getCtaLabels(

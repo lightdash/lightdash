@@ -95,12 +95,7 @@ const VisualizationConfig: FC<Props> = ({
                             label="Close visualization config"
                             position="right"
                         >
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                size="sm"
-                                onClick={onClose}
-                            >
+                            <ActionIcon size="sm" onClick={onClose}>
                                 <MantineIcon icon={IconX} />
                             </ActionIcon>
                         </Tooltip>

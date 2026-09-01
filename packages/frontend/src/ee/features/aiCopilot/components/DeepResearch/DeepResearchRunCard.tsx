@@ -420,7 +420,7 @@ export const DeepResearchRunCard = ({
                                 <MantineIcon
                                     icon={IconCheck}
                                     size={16}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                                 <Text size="sm" fw={600}>
                                     Research summary

@@ -51,9 +51,7 @@ export const LeaveOrganizationPanel: FC = () => {
             {isOnlyAdmin ? (
                 <Tooltip
                     label="You are the only admin in this organization. Promote another member to admin before leaving."
-                    multiline
                     w={260}
-                    withArrow
                 >
                     <Box>{button}</Box>
                 </Tooltip>

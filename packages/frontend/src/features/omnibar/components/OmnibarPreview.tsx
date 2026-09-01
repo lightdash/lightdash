@@ -103,7 +103,6 @@ const OmnibarPreview: FC<Props> = ({ item, spaceName }) => {
                     {hasVerification && (
                         <Badge
                             size="xs"
-                            variant="light"
                             color="green"
                             leftSection={<IconCircleCheckFilled size={10} />}
                             className={classes.flagBadge}

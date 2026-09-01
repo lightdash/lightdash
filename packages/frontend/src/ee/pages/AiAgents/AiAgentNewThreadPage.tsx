@@ -270,10 +270,7 @@ const AiAgentNewThreadPage: FC = () => {
                             {agent.instruction && (
                                 <Popover withArrow>
                                     <Popover.Target>
-                                        <ActionIcon
-                                            variant="subtle"
-                                            color="ldGray.6"
-                                        >
+                                        <ActionIcon color="ldGray.6">
                                             <MantineIcon
                                                 icon={IconInfoCircle}
                                             />
@@ -302,7 +299,7 @@ const AiAgentNewThreadPage: FC = () => {
                         {agent.description && (
                             <Text
                                 size="sm"
-                                c="ldGray.6"
+                                c="dimmed"
                                 ta="center"
                                 maw={600}
                                 style={{ whiteSpace: 'pre-wrap' }}

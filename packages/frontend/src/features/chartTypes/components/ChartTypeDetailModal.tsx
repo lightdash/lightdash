@@ -101,7 +101,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                 <SimpleGrid cols={2} className={classes.metaPanel}>
                     {builtBy !== null && (
                         <Box>
-                            <Text fz="xs" fw={600} c="ldGray.6">
+                            <Text fz="xs" fw={600} c="dimmed">
                                 Built by
                             </Text>
                             <Text fz="sm" fw={500} c="ldGray.8">
@@ -110,7 +110,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                         </Box>
                     )}
                     <Box>
-                        <Text fz="xs" fw={600} c="ldGray.6">
+                        <Text fz="xs" fw={600} c="dimmed">
                             Last updated
                         </Text>
                         <Text fz="sm" fw={500} c="ldGray.8">
@@ -118,7 +118,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                         </Text>
                     </Box>
                     <Box>
-                        <Text fz="xs" fw={600} c="ldGray.6">
+                        <Text fz="xs" fw={600} c="dimmed">
                             Inputs
                         </Text>
                         <Text fz="sm" fw={500} c="ldGray.8">
@@ -130,7 +130,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                         </Text>
                     </Box>
                     <Box>
-                        <Text fz="xs" fw={600} c="ldGray.6">
+                        <Text fz="xs" fw={600} c="dimmed">
                             Version
                         </Text>
                         <Text fz="sm" fw={500} c="ldGray.8">

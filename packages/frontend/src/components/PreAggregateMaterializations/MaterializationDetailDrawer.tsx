@@ -129,7 +129,7 @@ const ColumnsSection: FC<{
                             <Text fz="xs" ff="monospace">
                                 {name}
                             </Text>
-                            <Badge variant="outline" color="gray" size="xs">
+                            <Badge variant="outline" size="xs">
                                 {col.type}
                             </Badge>
                         </Group>
@@ -177,7 +177,6 @@ const MaterializationRoleSection: FC<{
                                             <Badge
                                                 key={`${attributeName}-${value}`}
                                                 variant="outline"
-                                                color="gray"
                                                 size="xs"
                                                 ff="monospace"
                                             >
@@ -214,21 +213,15 @@ const FiltersSection: FC<{
                         }}
                     >
                         <Group gap={6} wrap="wrap" align="center">
-                            <Badge
-                                variant="light"
-                                color="gray"
-                                size="xs"
-                                ff="monospace"
-                            >
+                            <Badge size="xs" ff="monospace">
                                 {filter.target.fieldRef}
                             </Badge>
-                            <Text fz="xs" c="ldGray.6" fw={500}>
+                            <Text fz="xs" c="dimmed" fw={500}>
                                 {filterOperatorLabel[filter.operator]}
                             </Text>
                             {value && (
                                 <Badge
                                     variant="outline"
-                                    color="gray"
                                     size="xs"
                                     ff="monospace"
                                 >
@@ -296,7 +289,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
                         >
                             {summary.preAggregateName}
                         </TruncatedText>
-                        <Text fz="xs" c="ldGray.6">
+                        <Text fz="xs" c="dimmed">
                             Pre-aggregate details
                         </Text>
                     </Stack>
@@ -337,7 +330,6 @@ const MaterializationDetailDrawer: FC<Props> = ({
                         {summary.metrics.map((m) => (
                             <Badge
                                 key={m}
-                                variant="light"
                                 bg={LD_FIELD_COLORS.metric.bg}
                                 c={LD_FIELD_COLORS.metric.color}
                                 size="sm"
@@ -355,7 +347,6 @@ const MaterializationDetailDrawer: FC<Props> = ({
                         {summary.dimensions.map((d) => (
                             <Badge
                                 key={d}
-                                variant="light"
                                 bg={LD_FIELD_COLORS.dimension.bg}
                                 c={LD_FIELD_COLORS.dimension.color}
                                 size="sm"
@@ -476,8 +467,6 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                 </Group>
                                 <Tooltip label="Rebuild this pre-aggregate">
                                     <ActionIcon
-                                        variant="subtle"
-                                        color="gray"
                                         size="sm"
                                         loading={isRefreshing}
                                         onClick={() =>
@@ -495,9 +484,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                 <Group gap={4}>
                                     <MantineIcon
                                         icon={IconCalendarClock}
-                                        color="ldGray.6"
+                                        color="dimmed"
                                     />
-                                    <Text size="sm" c="ldGray.6">
+                                    <Text size="sm" c="dimmed">
                                         Trigger:{' '}
                                         {TRIGGER_LABELS[
                                             materialization.trigger
@@ -509,9 +498,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                     <Group gap={4}>
                                         <MantineIcon
                                             icon={IconClock}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                         />
-                                        <Text size="sm" c="ldGray.6">
+                                        <Text size="sm" c="dimmed">
                                             Materialized at:{' '}
                                             {new Date(
                                                 materialization.materializedAt,
@@ -524,9 +513,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                     <Group gap={4}>
                                         <MantineIcon
                                             icon={IconTableRow}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                         />
-                                        <Text size="sm" c="ldGray.6">
+                                        <Text size="sm" c="dimmed">
                                             Rows:{' '}
                                             {materialization.rowCount.toLocaleString()}
                                         </Text>
@@ -537,9 +526,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                     <Group gap={4}>
                                         <MantineIcon
                                             icon={IconFile}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                         />
-                                        <Text size="sm" c="ldGray.6">
+                                        <Text size="sm" c="dimmed">
                                             File size:{' '}
                                             {formatFileSize(
                                                 materialization.totalBytes,
@@ -552,9 +541,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                     <Group gap={4}>
                                         <MantineIcon
                                             icon={IconHourglass}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                         />
-                                        <Text size="sm" c="ldGray.6">
+                                        <Text size="sm" c="dimmed">
                                             Build time:{' '}
                                             {formatDuration(
                                                 materialization.durationMs,

@@ -69,8 +69,6 @@ export const ReviewAssigneeMenu: FC<Props> = ({
             <Menu
                 width={210}
                 position="bottom-end"
-                shadow="sm"
-                withinPortal
                 onClose={() => setSearch('')}
             >
                 <Menu.Target>
@@ -84,7 +82,7 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                         onClick={(e) => e.stopPropagation()}
                         onPointerDown={(e) => e.stopPropagation()}
                     >
-                        <Tooltip label={assigneeName ?? 'Assign'} withinPortal>
+                        <Tooltip label={assigneeName ?? 'Assign'}>
                             <Group gap={6} wrap="nowrap">
                                 {assignee ? (
                                     <LightdashUserAvatar
@@ -115,7 +113,6 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                                     <Text
                                         fz="xs"
                                         fw={500}
-                                        c="ldGray.9"
                                         ff="var(--mantine-font-family)"
                                     >
                                         {assigneeName ?? 'Assign'}

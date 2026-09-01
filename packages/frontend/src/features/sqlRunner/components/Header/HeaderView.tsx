@@ -233,15 +233,9 @@ export const HeaderView: FC = () => {
                         )}
 
                         {(canManageChart || canSyncWithGoogleSheets) && (
-                            <Menu
-                                position="bottom"
-                                withArrow
-                                withinPortal
-                                shadow="md"
-                                width={200}
-                            >
+                            <Menu position="bottom" withArrow width={200}>
                                 <Menu.Target>
-                                    <ActionIcon color="gray" variant="subtle">
+                                    <ActionIcon>
                                         <MantineIcon icon={IconDots} />
                                     </ActionIcon>
                                 </Menu.Target>
@@ -286,7 +280,6 @@ export const HeaderView: FC = () => {
                                                 project?.upstreamProjectUuid !==
                                                 undefined
                                             }
-                                            withinPortal
                                         >
                                             <div>
                                                 <Menu.Item

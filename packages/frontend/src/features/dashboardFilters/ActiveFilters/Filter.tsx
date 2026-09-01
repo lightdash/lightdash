@@ -278,10 +278,8 @@ const Filter: FC<Props> = ({
                 disabled={disabled || isReadOnlyLocked}
                 transitionProps={{ transition: 'pop-top-left' }}
                 withArrow
-                shadow="md"
                 offset={1}
                 arrowOffset={14}
-                withinPortal
                 classNames={{ dropdown: dropdownClassName }}
             >
                 <Popover.Target>
@@ -294,8 +292,6 @@ const Filter: FC<Props> = ({
                                   getUiString('filters.notAppliedToAnyTiles'))
                         }
                         disabled={!isOrphaned && !isReadOnlyLocked}
-                        withinPortal
-                        multiline
                         maw={300}
                     >
                         <Button
@@ -328,7 +324,6 @@ const Filter: FC<Props> = ({
                                                 fz="xs"
                                                 label={requirementTooltip}
                                                 disabled={!isRequirementUnmet}
-                                                withinPortal
                                             >
                                                 <MantineIcon
                                                     icon={IconAsterisk}
@@ -370,7 +365,6 @@ const Filter: FC<Props> = ({
                                                               ? 'Lock filter on this tab'
                                                               : 'Lock filter'
                                                     }
-                                                    withinPortal
                                                 >
                                                     <ActionIcon
                                                         onClick={
@@ -379,7 +373,6 @@ const Filter: FC<Props> = ({
                                                         size="xs"
                                                         color="dark"
                                                         radius="xl"
-                                                        variant="subtle"
                                                         aria-label={
                                                             isLocked
                                                                 ? hasTabs
@@ -424,7 +417,6 @@ const Filter: FC<Props> = ({
                                             size="xs"
                                             color="dark"
                                             radius="xl"
-                                            variant="subtle"
                                         >
                                             <MantineIcon
                                                 size="sm"
@@ -451,7 +443,6 @@ const Filter: FC<Props> = ({
                             >
                                 <Text fz="xs" truncate>
                                     <Tooltip
-                                        withinPortal
                                         position="top-start"
                                         disabled={
                                             isPopoverOpen ||
@@ -485,7 +476,7 @@ const Filter: FC<Props> = ({
                                         isEmptyDashboardFilterRule(
                                             filterRule,
                                         )) ? (
-                                        <Text span c="ldGray.6" truncate>
+                                        <Text span c="dimmed" truncate>
                                             {getUiString('filters.isAnyValue')}
                                         </Text>
                                     ) : (
@@ -505,7 +496,6 @@ const Filter: FC<Props> = ({
                                             </Text>
                                             {truncatedValuesDisplay.hasMore && (
                                                 <HoverCard
-                                                    withinPortal
                                                     position="bottom"
                                                     classNames={{
                                                         dropdown:
@@ -513,12 +503,7 @@ const Filter: FC<Props> = ({
                                                     }}
                                                 >
                                                     <HoverCard.Target>
-                                                        <Badge
-                                                            size="sm"
-                                                            variant="light"
-                                                            color="gray"
-                                                            ml={4}
-                                                        >
+                                                        <Badge size="sm" ml={4}>
                                                             +
                                                             {
                                                                 truncatedValuesDisplay

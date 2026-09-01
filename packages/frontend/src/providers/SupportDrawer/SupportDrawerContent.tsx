@@ -125,7 +125,7 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                     fit="contain"
                 />
             ) : (
-                <Paper p="lg" withBorder h={200}>
+                <Paper p="lg" h={200}>
                     <Stack h="100%" align="center" justify="center" gap="xs">
                         {screenshotError ? (
                             <>

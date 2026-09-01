@@ -53,7 +53,6 @@ const OAuthClientRow: FC<{
                             {({ copied, copy }) => (
                                 <Tooltip
                                     label={copied ? 'Copied' : 'Copy'}
-                                    withArrow
                                     position="right"
                                 >
                                     <ActionIcon
@@ -80,7 +79,7 @@ const OAuthClientRow: FC<{
                     </Text>
                 </Table.Td>
                 <Table.Td w="1%">
-                    <Menu withinPortal position="bottom-end">
+                    <Menu position="bottom-end">
                         <Menu.Target>
                             <ActionIcon
                                 variant="transparent"
@@ -147,7 +146,7 @@ export const OAuthClientsTable: FC<{
     clients: OAuthClientSummary[];
 }> = ({ clients }) => {
     return (
-        <Paper withBorder style={{ overflow: 'hidden' }}>
+        <Paper style={{ overflow: 'hidden' }}>
             <Table
                 className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
             >

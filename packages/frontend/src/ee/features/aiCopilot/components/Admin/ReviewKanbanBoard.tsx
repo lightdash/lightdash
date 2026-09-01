@@ -551,7 +551,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
     };
 
     return (
-        <Stack gap="sm" style={{ minHeight: 0, flex: 1 }}>
+        <Stack gap="sm" mih={0} flex={1}>
             <Group gap="sm" wrap="wrap" className={styles.toolbar}>
                 <SearchFilter
                     search={search}
@@ -647,13 +647,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
                                         <Text fz="sm" fw={600}>
                                             {lane.label}
                                         </Text>
-                                        <Badge
-                                            color="gray"
-                                            variant="light"
-                                            size="sm"
-                                        >
-                                            {all.length}
-                                        </Badge>
+                                        <Badge size="sm">{all.length}</Badge>
                                     </Group>
                                     <DroppableLane
                                         laneId={lane.id}

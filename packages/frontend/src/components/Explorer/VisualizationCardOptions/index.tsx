@@ -41,7 +41,6 @@ const VisualizationCardOptions: FC = memo(() => {
 
     return (
         <Menu
-            shadow="md"
             position="bottom"
             withArrow
             closeOnClickOutside

@@ -106,7 +106,6 @@ const YFieldsAxisConfig: FC<{
                             <Tooltip label="Remove Y axis">
                                 <ActionIcon
                                     color="ldGray.6"
-                                    variant="subtle"
                                     onClick={() =>
                                         dispatch(
                                             actions.removeYAxisField(index),
@@ -182,7 +181,6 @@ const XFieldAxisConfig = ({
             <Tooltip label="Remove X axis">
                 <ActionIcon
                     color="ldGray.6"
-                    variant="subtle"
                     onClick={() => dispatch(actions.removeXAxisField())}
                     data-testid="remove-x-axis-field"
                 >
@@ -216,8 +214,6 @@ const GroupByFieldAxisConfig = ({
                 // When the field is deleted, the error state prevents the clear button from showing
                 groupByError && (
                     <ActionIcon
-                        variant="subtle"
-                        color="gray"
                         onClick={() =>
                             dispatch(actions.unsetGroupByReference())
                         }
@@ -322,7 +318,6 @@ export const CartesianChartFieldConfiguration = ({
                         <Tooltip label="Add Y axis">
                             <ActionIcon
                                 color="ldGray.6"
-                                variant="subtle"
                                 onClick={() =>
                                     dispatch(actions.addYAxisField())
                                 }

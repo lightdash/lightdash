@@ -17,12 +17,11 @@ const SettingsSearchInput: FC<SettingsSearchInputProps> = ({
     return (
         <TextInput
             size="xs"
-            radius="md"
             placeholder="Search settings"
             aria-label="Search settings"
             value={value}
             onChange={(event) => onChange(event.currentTarget.value)}
-            leftSection={<MantineIcon icon={IconSearch} color="ldGray.6" />}
+            leftSection={<MantineIcon icon={IconSearch} color="dimmed" />}
             rightSectionPointerEvents={hasValue ? 'auto' : 'none'}
             rightSection={
                 hasValue ? (

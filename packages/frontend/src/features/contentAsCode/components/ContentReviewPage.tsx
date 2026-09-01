@@ -159,13 +159,13 @@ const DraftRow: FC<{
                     {initials(draft.authorName)}
                 </Text>
             </Avatar>
-            <Stack gap={1} style={{ flex: 1, minWidth: 0 }}>
+            <Stack gap={1} flex={1} miw={0}>
                 <Group gap={6} wrap="nowrap">
                     <Text size="sm" fw={isActive ? 600 : 500} truncate>
                         {draft.slug}
                     </Text>
                     {draft.stale ? (
-                        <Badge size="xs" color="yellow" variant="light">
+                        <Badge size="xs" color="yellow">
                             Behind repo
                         </Badge>
                     ) : null}
@@ -334,7 +334,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
 
             <Divider orientation="vertical" />
 
-            <Stack style={{ flex: 1, minWidth: 0 }} gap="xs">
+            <Stack flex={1} miw={0} gap="xs">
                 {active && review ? (
                     <>
                         <Group
@@ -342,7 +342,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                             align="flex-start"
                             wrap="nowrap"
                         >
-                            <Stack gap={2} style={{ minWidth: 0 }}>
+                            <Stack gap={2} miw={0}>
                                 <Text fw={600} size="lg">
                                     {active.slug}
                                 </Text>
@@ -446,8 +446,6 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                                     ? `The repo changed ${review.staleness.changedFields.join(', ')} since this draft started. The author has to update it first.`
                                                     : `Opens this ${active.contentType}'s pull request with the draft's content`
                                             }
-                                            withinPortal
-                                            multiline
                                             w={300}
                                         >
                                             <Button
@@ -509,11 +507,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                             poolOptions={PIERRE_POOL_OPTIONS}
                             highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
                         >
-                            <Paper
-                                withBorder
-                                radius="md"
-                                style={{ overflow: 'hidden' }}
-                            >
+                            <Paper radius="md" style={{ overflow: 'hidden' }}>
                                 <Virtualizer
                                     key={active.uuid}
                                     style={viewportStyle}

@@ -80,11 +80,7 @@ const SocialLoginsPanel: FC = () => {
                             </Text>
                             {logins.length
                                 ? logins.map((login) => (
-                                      <Card
-                                          key={login.email}
-                                          withBorder
-                                          padding="xs"
-                                      >
+                                      <Card key={login.email} padding="xs">
                                           <Group justify="space-between">
                                               {login.email}
                                               <ActionIcon

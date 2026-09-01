@@ -72,9 +72,9 @@ const UsageRow: FC<{
                             <MantineIcon
                                 icon={item.spaceName ? IconFolder : IconUser}
                                 size={14}
-                                color="ldGray.6"
+                                color="dimmed"
                             />
-                            <Text fz="xs" c="ldGray.6">
+                            <Text fz="xs" c="dimmed">
                                 {item.spaceName ?? 'Personal app'}
                             </Text>
                         </Group>

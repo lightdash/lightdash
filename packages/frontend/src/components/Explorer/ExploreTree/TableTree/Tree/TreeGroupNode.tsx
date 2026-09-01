@@ -172,13 +172,11 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
             label={
                 <Group>
                     {!isOpen && hasSelectedChildren && (
-                        <Badge variant="light">{selectedChildrenCount}</Badge>
+                        <Badge>{selectedChildrenCount}</Badge>
                     )}
                     <HoverCard
                         openDelay={300}
                         keepMounted={false}
-                        shadow="sm"
-                        withinPortal
                         withArrow
                         disabled={!description}
                         position="right"

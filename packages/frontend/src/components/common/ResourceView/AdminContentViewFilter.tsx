@@ -48,7 +48,6 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
 
             <SegmentedControl
                 size="xs"
-                radius="md"
                 {...segmentedControlProps}
                 data={[
                     {
@@ -82,8 +81,6 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
                                   label: (
                                       <Center px={'xxs'}>
                                           <Tooltip
-                                              withArrow
-                                              withinPortal
                                               position="top"
                                               label={
                                                   'View all public and private spaces in your organization'
@@ -91,7 +88,7 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
                                           >
                                               <MantineIcon
                                                   icon={IconInfoCircle}
-                                                  color="ldGray.6"
+                                                  color="dimmed"
                                               />
                                           </Tooltip>
                                           <Text fz="sm" c="ldDark.9" ml={'xxs'}>

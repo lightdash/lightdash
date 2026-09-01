@@ -23,7 +23,7 @@ export const DashboardToolCallDescription: FC<
                     <Tooltip label={description}>
                         <MantineIcon
                             icon={IconInfoCircle}
-                            color="ldGray.6"
+                            color="dimmed"
                             size="sm"
                         />
                     </Tooltip>

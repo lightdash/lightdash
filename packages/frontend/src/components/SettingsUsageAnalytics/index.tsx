@@ -16,7 +16,6 @@ const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
             <Card
                 component={Link}
                 shadow="sm"
-                withBorder
                 style={{ cursor: 'pointer' }}
                 to={`/projects/${projectUuid}/user-activity`}
             >
@@ -24,7 +23,7 @@ const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
                     <MantineIcon
                         icon={IconLayoutDashboard}
                         size="xl"
-                        color="ldGray.6"
+                        color="dimmed"
                     />
                     <Text fw={600} fz="lg">
                         User Activity

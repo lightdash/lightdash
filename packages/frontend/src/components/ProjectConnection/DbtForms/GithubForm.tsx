@@ -88,10 +88,8 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             }))}
                             footer={
                                 <Tooltip
-                                    withinPortal
                                     position="left"
                                     w={300}
-                                    multiline
                                     label="Click here to open your Github installation page to add more repositories."
                                 >
                                     <Text
@@ -128,9 +126,7 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
 
                         <Tooltip label="Refresh repositories after updating access on Github">
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                mt="20px"
+                                mt="lg"
                                 onClick={() => refetchRepos()}
                                 disabled={!isValidGithubInstallation}
                             >
@@ -273,7 +269,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
 
     return (
         <>
-            <Stack style={{ marginTop: '8px' }}>
+            <Stack mt="xs">
                 <Group gap="sm">
                     <Select
                         allowDeselect={false}

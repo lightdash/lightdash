@@ -171,7 +171,6 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                     {(style) => (
                         <>
                             <Paper
-                                shadow="none"
                                 radius={0}
                                 className={classes.sidebarPaper}
                                 style={style}

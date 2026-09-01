@@ -429,7 +429,6 @@ const CreatePreviewModal: FC<Props> = ({
             actions={
                 <Button
                     color="dark"
-                    variant="filled"
                     disabled={
                         isPreviewCreating ||
                         !selectedProjectUuid ||
@@ -480,7 +479,6 @@ const CreatePreviewModal: FC<Props> = ({
                         <Tooltip label="Generate unique name">
                             <ActionIcon
                                 color="foreground.9"
-                                variant="subtle"
                                 onClick={() =>
                                     setPreviewName(handleGeneratePreviewName())
                                 }
@@ -532,7 +530,6 @@ const CreatePreviewModal: FC<Props> = ({
                                                     ?.message ||
                                                 'Failed to fetch branches'
                                             }
-                                            multiline
                                             w={250}
                                         >
                                             <ActionIcon
@@ -601,7 +598,7 @@ const CreatePreviewModal: FC<Props> = ({
                     </>
                 ) : (
                     <>
-                        <Text c="ldGray.6" fz="sm">
+                        <Text c="dimmed" fz="sm">
                             This{' '}
                             <Text span fw={600} fz="sm">
                                 {projectDetails?.dbtConnection?.type

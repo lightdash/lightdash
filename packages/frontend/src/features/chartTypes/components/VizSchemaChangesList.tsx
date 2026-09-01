@@ -198,7 +198,7 @@ const VizSchemaChangesList: FC<Props> = ({ changes, compact = false }) => {
                             <MantineIcon
                                 icon={row.icon}
                                 size={compact ? 'xs' : 'sm'}
-                                color="ldGray.6"
+                                color="dimmed"
                             />
                             <Text fz={fz} lh={1.4} className={classes.label}>
                                 <Text span fw={500}>

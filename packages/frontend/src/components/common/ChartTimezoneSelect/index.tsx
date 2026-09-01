@@ -88,15 +88,10 @@ const ChartTimezoneSelect: FC<Props> = ({ value, onChange, ...rest }) => {
                         </Text>
                     ) : null}
                     {option.value === USER_TIMEZONE_SETTING ? (
-                        <Tooltip
-                            multiline
-                            w={260}
-                            withinPortal
-                            label={USER_TIMEZONE_TOOLTIP}
-                        >
+                        <Tooltip w={260} label={USER_TIMEZONE_TOOLTIP}>
                             <MantineIcon
                                 icon={IconInfoCircle}
-                                color="ldGray.6"
+                                color="dimmed"
                                 size={14}
                             />
                         </Tooltip>

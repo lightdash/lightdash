@@ -101,7 +101,6 @@ const ProviderRow: FC<ProviderRowProps> = ({
                     {isSet && (
                         <Badge
                             size="sm"
-                            variant="light"
                             color="green"
                             leftSection={
                                 <MantineIcon icon={IconKey} size={12} />

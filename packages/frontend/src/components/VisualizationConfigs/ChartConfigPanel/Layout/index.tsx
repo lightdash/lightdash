@@ -219,7 +219,6 @@ export const Layout: FC<Props> = ({ items }) => {
                         <Group gap="two">
                             <Tooltip label="Flip Axes">
                                 <ActionIcon
-                                    variant="subtle"
                                     onClick={() =>
                                         setFlipAxis(!dirtyLayout?.flipAxes)
                                     }
@@ -455,7 +454,6 @@ export const Layout: FC<Props> = ({ items }) => {
                     {canBeStacked && (
                         <Tooltip
                             label="x-axis must be non-numeric to enable stacking"
-                            withinPortal
                             position="top-start"
                             disabled={!isXAxisFieldNumeric}
                         >

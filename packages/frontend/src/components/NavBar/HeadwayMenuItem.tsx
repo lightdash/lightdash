@@ -65,7 +65,7 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
     if (!isHeadwayloaded || !projectUuid) return null;
 
     return (
-        <Tooltip label="What's new?" withinPortal>
+        <Tooltip label="What's new?">
             <Button
                 variant="default"
                 size="xs"

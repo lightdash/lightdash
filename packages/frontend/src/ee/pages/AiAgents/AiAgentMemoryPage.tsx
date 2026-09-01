@@ -46,7 +46,7 @@ const AiAgentMemoryPage = () => {
                     Back to AI agents
                 </Anchor>
 
-                <Paper withBorder radius="lg" className={styles.surface}>
+                <Paper className={styles.surface}>
                     <Group
                         className={styles.header}
                         wrap="nowrap"

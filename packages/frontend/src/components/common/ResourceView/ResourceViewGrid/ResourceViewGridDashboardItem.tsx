@@ -33,7 +33,6 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
             ref={ref}
             pos="relative"
             p={0}
-            withBorder
             className={classes.gridCard}
             h="100%"
         >
@@ -77,7 +76,6 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
                 <Tooltip
                     position="top"
                     maw={400}
-                    multiline
                     label={item.data.description}
                     disabled={!item.data.description}
                 >
@@ -99,7 +97,7 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
                             size={14}
                         />
 
-                        <Text c="ldGray.6" fz="xs">
+                        <Text c="dimmed" fz="xs">
                             {item.data.views} views
                         </Text>
                     </Flex>

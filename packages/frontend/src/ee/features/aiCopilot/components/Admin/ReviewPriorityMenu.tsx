@@ -34,7 +34,7 @@ export const ReviewPriorityMenu: FC<Props> = ({
     const updatePriority = useUpdateAiAgentReviewItemPriority();
 
     return (
-        <Menu width={160} position="bottom-start" shadow="sm" withinPortal>
+        <Menu width={160} position="bottom-start">
             <Menu.Target>
                 <UnstyledButton
                     aria-label="Change priority"

@@ -205,7 +205,6 @@ export const MetricExploreFilter: FC<Props> = ({
                         variant="subtle"
                         size="compact-xs"
                         color="dark"
-                        radius="md"
                         rightSection={
                             <MantineIcon
                                 icon={IconX}
@@ -237,7 +236,6 @@ export const MetricExploreFilter: FC<Props> = ({
                         leftSection={<MantineIcon icon={IconFilter} />}
                         searchable
                         comboboxProps={{ withinPortal: true }}
-                        radius="md"
                         size="xs"
                         data={groupComboboxItems(
                             dimensions?.map((dimension) => ({
@@ -281,7 +279,6 @@ export const MetricExploreFilter: FC<Props> = ({
                                 )
                             }
                             size="xs"
-                            radius="md"
                             classNames={{
                                 root: filterStyles.operatorRoot,
                                 wrapper: filterStyles.operatorWrapper,

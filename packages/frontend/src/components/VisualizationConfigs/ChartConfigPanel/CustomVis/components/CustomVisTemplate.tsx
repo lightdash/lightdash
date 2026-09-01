@@ -66,7 +66,6 @@ export const SelectTemplate = ({
 
     return (
         <Menu
-            shadow="md"
             position="bottom"
             withArrow
             closeOnClickOutside

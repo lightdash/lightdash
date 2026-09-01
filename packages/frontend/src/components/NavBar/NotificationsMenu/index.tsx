@@ -104,7 +104,6 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     return shouldDisplayMenu ? (
         <Menu
             withArrow
-            shadow="lg"
             position="bottom-end"
             arrowOffset={16}
             offset={-2}

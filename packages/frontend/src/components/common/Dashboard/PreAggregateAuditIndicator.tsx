@@ -80,7 +80,6 @@ function TileDetail({ tile }: { tile: TilePreAggregateStatus }) {
                     <Tooltip
                         label={fieldId}
                         position="top"
-                        withArrow
                         openDelay={150}
                         classNames={{ tooltip: classes.fieldIdTooltip }}
                     >
@@ -210,7 +209,7 @@ function GroupContent({
         <Stack gap="xs">
             {hasHits && (
                 <Stack gap={2}>
-                    <Badge size="xs" variant="light" color="green" radius="sm">
+                    <Badge size="xs" color="green">
                         {group.hits.length} hit
                     </Badge>
                     <TileList tiles={group.hits} onClick={onClick} />
@@ -218,7 +217,7 @@ function GroupContent({
             )}
             {hasMisses && (
                 <Stack gap={2}>
-                    <Badge size="xs" variant="light" color="red" radius="sm">
+                    <Badge size="xs" color="red">
                         {group.misses.length} miss
                     </Badge>
                     <TileList tiles={group.misses} onClick={onClick} />
@@ -298,7 +297,7 @@ export function PreAggregateAuditDrawer({
             size="sm"
             title={
                 <Group gap="xs">
-                    <Paper p="6px" withBorder radius="md" bg="ldGray.0">
+                    <Paper p="6px" radius="md" bg="ldGray.0">
                         <MantineIcon
                             icon={IconBolt}
                             size="sm"

@@ -57,9 +57,7 @@ const PasswordTextInput: FC<React.PropsWithChildren<Props>> = ({
         <Popover
             opened={isPopoverOpen}
             position="bottom"
-            withinPortal
             width="target"
-            shadow="md"
             transitionProps={{ transition: 'pop' }}
         >
             <Popover.Target>

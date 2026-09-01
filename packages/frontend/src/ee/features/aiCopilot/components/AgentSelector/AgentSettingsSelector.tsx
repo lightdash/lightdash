@@ -77,7 +77,7 @@ export const AgentSettingsSelector = ({
                         <MantineIcon
                             icon={IconSettings}
                             size="sm"
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                         <Text size="xs" truncate="end" className={styles.label}>
                             Settings
@@ -85,7 +85,7 @@ export const AgentSettingsSelector = ({
                         <MantineIcon
                             icon={IconChevronDown}
                             size="sm"
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                     </Group>
                 </UnstyledButton>
@@ -96,7 +96,7 @@ export const AgentSettingsSelector = ({
                     <Combobox.Option value={ASK_AI_VALUE} p={2}>
                         <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
                             <Avatar size={22} color="ldGray" radius="xl">
-                                <Text size="10px" fw={600} c="ldGray.6">
+                                <Text size="10px" fw={600} c="dimmed">
                                     AI
                                 </Text>
                             </Avatar>

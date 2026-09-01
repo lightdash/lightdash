@@ -260,10 +260,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                             data={[
                                 {
                                     label: (
-                                        <Tooltip
-                                            label="Compare selected field to values"
-                                            withinPortal
-                                        >
+                                        <Tooltip label="Compare selected field to values">
                                             <Center>Values</Center>
                                         </Tooltip>
                                     ),
@@ -271,10 +268,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                 },
                                 {
                                     label: (
-                                        <Tooltip
-                                            label="Compare selected field to another field"
-                                            withinPortal
-                                        >
+                                        <Tooltip label="Compare selected field to another field">
                                             <Center>Field</Center>
                                         </Tooltip>
                                     ),
@@ -282,10 +276,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                 },
                                 {
                                     label: (
-                                        <Tooltip
-                                            label="Compare another field to values"
-                                            withinPortal
-                                        >
+                                        <Tooltip label="Compare another field to values">
                                             <Center>Field values</Center>
                                         </Tooltip>
                                     ),

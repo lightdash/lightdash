@@ -36,11 +36,7 @@ export const renderSelectOption = ({
             {option.label}
         </Text>
 
-        {option.adminOnly && (
-            <Badge size="xs" color="gray" variant="light" radius="sm">
-                Admins only
-            </Badge>
-        )}
+        {option.adminOnly && <Badge size="xs">Admins only</Badge>}
 
         {checked && <MantineIcon icon={IconCheck} size="sm" color="violet" />}
     </Group>

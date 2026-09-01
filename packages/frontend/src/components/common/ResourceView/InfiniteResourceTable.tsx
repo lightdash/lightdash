@@ -138,10 +138,9 @@ const DebouncedSearchInput = memo(
         );
 
         return (
-            <Tooltip withinPortal label="Search by name">
+            <Tooltip label="Search by name">
                 <TextInput
                     size="xs"
-                    radius="md"
                     classNames={{ input: classes.searchInput }}
                     styles={(inputTheme) => ({
                         input: {
@@ -163,7 +162,7 @@ const DebouncedSearchInput = memo(
                     leftSection={
                         <MantineIcon
                             size="md"
-                            color="ldGray.6"
+                            color="dimmed"
                             icon={IconSearch}
                         />
                     }
@@ -828,7 +827,6 @@ const InfiniteResourceTable = ({
                         {selectedItems.length > 0 ? (
                             <Button
                                 ml="auto"
-                                variant="filled"
                                 size="xs"
                                 color="blue"
                                 leftSection={
@@ -863,7 +861,7 @@ const InfiniteResourceTable = ({
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}
                         </Text>
-                        <Text fz="xs" fw={400} c="ldGray.6">
+                        <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
                                 ? `(${flatData.length} of ${totalResults} loaded)`
                                 : `(${flatData.length})`}

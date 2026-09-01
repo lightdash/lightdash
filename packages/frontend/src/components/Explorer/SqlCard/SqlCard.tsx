@@ -123,13 +123,11 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                                 label={
                                     copied ? 'Copied to clipboard' : 'Copy SQL'
                                 }
-                                withArrow
                                 position="right"
                                 color={copied ? 'green' : 'dark'}
                                 fw={500}
                             >
                                 <ActionIcon
-                                    variant="subtle"
                                     color={copied ? 'teal' : 'gray'}
                                     onClick={copy}
                                 >

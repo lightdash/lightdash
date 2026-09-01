@@ -467,7 +467,6 @@ export const ContentPanel: FC = () => {
                                                     : undefined
                                             }
                                             size="sm"
-                                            radius="md"
                                             data={[
                                                 {
                                                     value: EditorTabs.SQL,
@@ -476,7 +475,6 @@ export const ContentPanel: FC = () => {
                                                             disabled={
                                                                 !hasUnrunChanges
                                                             }
-                                                            withinPortal
                                                             label="You haven't run this query yet."
                                                         >
                                                             <Group
@@ -500,7 +498,6 @@ export const ContentPanel: FC = () => {
                                                             disabled={
                                                                 !!queryResults?.results
                                                             }
-                                                            withinPortal
                                                             label="Run a query to see the chart"
                                                         >
                                                             <Group
@@ -508,7 +505,7 @@ export const ContentPanel: FC = () => {
                                                                 wrap="nowrap"
                                                             >
                                                                 <MantineIcon
-                                                                    color="ldGray.6"
+                                                                    color="dimmed"
                                                                     icon={
                                                                         IconChartHistogram
                                                                     }
@@ -577,7 +574,6 @@ export const ContentPanel: FC = () => {
                                     {activeEditorTab === EditorTabs.SQL && (
                                         <Tooltip
                                             label="Format SQL"
-                                            withArrow
                                             position="bottom"
                                         >
                                             <ActionIcon

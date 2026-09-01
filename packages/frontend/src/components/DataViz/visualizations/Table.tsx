@@ -142,7 +142,6 @@ export const Table = <T extends IResultsRunner>({
                                             {columnsConfig[header.id]
                                                 ?.aggregation && (
                                                 <Badge
-                                                    variant="light"
                                                     size="sm"
                                                     color="indigo"
                                                     radius="xs"

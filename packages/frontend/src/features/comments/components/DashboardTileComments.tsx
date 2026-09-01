@@ -185,8 +185,6 @@ export const DashboardTileComments: FC<
     return (
         <Popover
             withArrow
-            withinPortal
-            shadow="md"
             position="bottom-end"
             offset={4}
             arrowOffset={10}
@@ -302,16 +300,12 @@ export const DashboardTileComments: FC<
                 >
                     <Tooltip
                         label="Comments"
-                        withArrow
-                        withinPortal
                         position="top"
                         disabled={openedComments}
                     >
                         <ActionIcon
                             display="block"
                             size="sm"
-                            variant="subtle"
-                            color="gray"
                             onClick={handleTargetClick}
                         >
                             <MantineIcon icon={IconMessage} />

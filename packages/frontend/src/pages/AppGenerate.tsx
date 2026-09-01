@@ -194,12 +194,7 @@ const AppResourceImage: FC<{
 const TemplateChip: FC<{ template: DataAppTemplate }> = ({ template }) => {
     const t = getTemplate(template);
     return (
-        <Badge
-            variant="light"
-            color="gray"
-            size="md"
-            leftSection={<MantineIcon icon={t.icon} size={12} />}
-        >
+        <Badge size="md" leftSection={<MantineIcon icon={t.icon} size={12} />}>
             {t.title}
         </Badge>
     );
@@ -214,13 +209,11 @@ const ThemeChip: FC<{
     disabled?: boolean;
     onThemeChange: (designUuid: string | null) => void;
 }> = ({ themeName, selectedThemeUuid, themes, disabled, onThemeChange }) => (
-    <Menu position="top-start" shadow="md" withinPortal>
+    <Menu position="top-start">
         <Menu.Target>
             <Badge
                 component="button"
                 type="button"
-                variant="light"
-                color="gray"
                 size="md"
                 leftSection={<MantineIcon icon={IconBrush} size={12} />}
                 disabled={disabled}
@@ -280,7 +273,6 @@ const ElementRefChip: FC<{ elementRef: ElementRef; onRemove: () => void }> = ({
     const label = elementRefChipLabel(elementRef);
     return (
         <Tooltip
-            withArrow
             position="top-start"
             disabled={!elementRef.loc}
             label={`Source: ${elementRef.loc}`}
@@ -292,8 +284,6 @@ const ElementRefChip: FC<{ elementRef: ElementRef; onRemove: () => void }> = ({
                 </Text>
                 <ActionIcon
                     size="xs"
-                    variant="subtle"
-                    color="gray"
                     radius="xl"
                     onClick={onRemove}
                     aria-label={`Remove ${label}`}
@@ -310,7 +300,6 @@ const ElementRefChip: FC<{ elementRef: ElementRef; onRemove: () => void }> = ({
  *  in the tooltip so the author can confirm what was installed. */
 const DepsChip: FC<{ deps: AppVersionDependencyEntry[] }> = ({ deps }) => (
     <Tooltip
-        withArrow
         position="top-start"
         label={
             <Stack gap={2}>
@@ -326,8 +315,6 @@ const DepsChip: FC<{ deps: AppVersionDependencyEntry[] }> = ({ deps }) => (
         }
     >
         <Badge
-            variant="light"
-            color="gray"
             size="sm"
             leftSection={<MantineIcon icon={IconPackage} size={10} />}
         >
@@ -339,7 +326,6 @@ const DepsChip: FC<{ deps: AppVersionDependencyEntry[] }> = ({ deps }) => (
 /** A status pill (theme-pill style) listing the connections this app can call. */
 const AvailableConnectionsChip: FC<{ aliases: string[] }> = ({ aliases }) => (
     <Tooltip
-        withArrow
         position="top"
         label={
             <Stack gap={2}>
@@ -355,8 +341,6 @@ const AvailableConnectionsChip: FC<{ aliases: string[] }> = ({ aliases }) => (
         }
     >
         <Badge
-            variant="light"
-            color="gray"
             size="md"
             leftSection={<MantineIcon icon={IconPlugConnected} size={12} />}
         >

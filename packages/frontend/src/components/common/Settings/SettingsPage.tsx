@@ -65,7 +65,7 @@ const SettingsPage: FC<PropsWithChildren<SettingsPageProps>> = ({
                     {description ? (
                         <Text
                             fz="sm"
-                            c="ldGray.6"
+                            c="dimmed"
                             className={classes.description}
                         >
                             {description}

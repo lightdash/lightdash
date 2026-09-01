@@ -374,12 +374,10 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
         <>
             <Menu
                 disabled={disabled}
-                withinPortal
                 opened={isOpen}
                 position="bottom-start"
                 withArrow
                 arrowPosition="center"
-                shadow="md"
                 offset={-4}
                 closeOnItemClick
                 closeOnClickOutside
@@ -391,7 +389,6 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             disabled={disabled}
                             aria-label="Menu"
                             data-testid={`ResourceViewActionMenu/${item.data.name}`}
-                            variant="subtle"
                             color="ldGray.6"
                         >
                             <IconDots size={16} />
@@ -554,7 +551,6 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                             project?.upstreamProjectUuid !==
                                             undefined
                                         }
-                                        withinPortal
                                     >
                                         <div>
                                             <Menu.Item

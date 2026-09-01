@@ -626,11 +626,7 @@ const TableCalculationModal: FC<Props> = ({
             size={isExpanded ? 'auto' : 'xl'}
             headerActions={
                 <Tooltip label={isExpanded ? 'Collapse' : 'Expand'}>
-                    <ActionIcon
-                        variant="subtle"
-                        onClick={toggleExpanded}
-                        color="gray"
-                    >
+                    <ActionIcon onClick={toggleExpanded}>
                         <MantineIcon
                             icon={isExpanded ? IconMinimize : IconMaximize}
                         />
@@ -679,12 +675,11 @@ const TableCalculationModal: FC<Props> = ({
                                         withArrow
                                         width={320}
                                         position="bottom-start"
-                                        shadow="md"
                                         openDelay={100}
                                         closeDelay={150}
                                     >
                                         <HoverCard.Target>
-                                            <Box style={{ display: 'flex' }}>
+                                            <Box display="flex">
                                                 <MantineIcon
                                                     icon={IconAlertTriangle}
                                                     color="red.6"
@@ -745,8 +740,6 @@ const TableCalculationModal: FC<Props> = ({
                         {showConvertToFormulaButton && (
                             <Tooltip
                                 label="Use AI to suggest a formula equivalent of your SQL. You can review and edit it before saving."
-                                withArrow
-                                multiline
                                 w={260}
                                 disabled={showConversionPreview}
                             >
@@ -826,7 +819,6 @@ const TableCalculationModal: FC<Props> = ({
                                         <Popover
                                             position="bottom-end"
                                             withArrow
-                                            shadow="md"
                                             width={300}
                                         >
                                             <Popover.Target>

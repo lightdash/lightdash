@@ -167,13 +167,7 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
             wrap="nowrap"
             className={classes.filtersRow}
         >
-            <Menu
-                position="bottom-start"
-                withArrow
-                shadow="md"
-                arrowOffset={11}
-                offset={2}
-            >
+            <Menu position="bottom-start" withArrow arrowOffset={11} offset={2}>
                 <Menu.Target>
                     <Button
                         size="compact-xs"
@@ -276,7 +270,6 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
             <Menu
                 position="bottom-start"
                 withArrow
-                shadow="md"
                 arrowOffset={11}
                 offset={2}
                 opened={isDateMenuOpen}
@@ -360,7 +353,6 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                 <Select
                     ref={createdByInputRef}
                     size="xs"
-                    radius="md"
                     w={200}
                     classNames={{ input: classes.createdByInput }}
                     placeholder="Search a user..."

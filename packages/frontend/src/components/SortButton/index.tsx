@@ -32,10 +32,9 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
     };
 
     return (
-        <Popover position="top-start" shadow="subtle" disabled={!isEditMode}>
+        <Popover position="top-start" disabled={!isEditMode}>
             <Popover.Target>
                 <Badge
-                    variant="light"
                     color="blue"
                     className={`${classes.badge} ${isEditMode ? classes.interactive : ''}`}
                     rightSection={

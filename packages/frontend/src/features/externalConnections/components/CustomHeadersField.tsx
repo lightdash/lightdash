@@ -40,7 +40,7 @@ export const CustomHeadersField: FC<Props> = ({
             <Text fz="sm" fw={500}>
                 {label}
             </Text>
-            <Text c="ldGray.6" fz="xs">
+            <Text c="dimmed" fz="xs">
                 Sent with every request — e.g. anthropic-version or
                 X-GitHub-Api-Version. Never put secrets here; use the
                 connection's authentication instead.
@@ -71,7 +71,6 @@ export const CustomHeadersField: FC<Props> = ({
                     />
                     <ActionIcon
                         aria-label="Remove header"
-                        variant="subtle"
                         color="ldGray.6"
                         mt={4}
                         disabled={disabled}

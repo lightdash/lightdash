@@ -22,7 +22,6 @@ export const DevCopyChartDebugData = () => {
             {({ copied, copy }) => (
                 <Tooltip
                     label={copied ? 'Copied!' : 'Copy chart debug data'}
-                    withArrow
                     position="bottom"
                 >
                     <ActionIcon onClick={copy} variant="default" size="md">

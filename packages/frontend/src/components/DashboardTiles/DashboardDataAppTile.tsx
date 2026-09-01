@@ -71,14 +71,7 @@ const DashboardFiltersIndicator: FC<{
     } available to this Data App`;
 
     return (
-        <HoverCard
-            withArrow
-            withinPortal
-            shadow="md"
-            position="bottom-end"
-            offset={4}
-            arrowOffset={10}
-        >
+        <HoverCard withArrow position="bottom-end" offset={4} arrowOffset={10}>
             <HoverCard.Dropdown>
                 <Stack gap="xs" align="flex-start">
                     <Text c="ldGray.7" fw={500} fz="xs">
@@ -90,11 +83,9 @@ const DashboardFiltersIndicator: FC<{
                             key={filterRule.id}
                             variant="outline"
                             color="ldGray.4"
-                            radius="sm"
                             size="lg"
                             fz="xs"
                             fw="normal"
-                            tt="none"
                         >
                             <Text fw={600} span inherit c="foreground">
                                 {labels.field}:
@@ -118,12 +109,7 @@ const DashboardFiltersIndicator: FC<{
                 </Stack>
             </HoverCard.Dropdown>
             <HoverCard.Target>
-                <ActionIcon
-                    aria-label={availableFiltersLabel}
-                    size="sm"
-                    variant="subtle"
-                    color="gray"
-                >
+                <ActionIcon aria-label={availableFiltersLabel} size="sm">
                     <MantineIcon icon={IconFilter} />
                 </ActionIcon>
             </HoverCard.Target>
@@ -314,7 +300,7 @@ const DataAppTile: FC<Props> = (props) => {
             extraMenuItems={editMenuItem}
             {...props}
         >
-            <Box className="non-draggable" style={{ flex: 1, minHeight: 0 }}>
+            <Box className="non-draggable" flex={1} mih={0}>
                 {isNotFound ? (
                     <SuboptimalState
                         icon={IconAppsOff}

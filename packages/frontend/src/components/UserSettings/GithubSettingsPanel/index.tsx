@@ -156,7 +156,6 @@ const GithubSettingsPanel: FC = () => {
                     <Flex justify="end">
                         {isWaitingForGithubRequest ? (
                             <Tooltip
-                                multiline
                                 maw={400}
                                 label={`
                                 An admin from your GitHub organization needs to approve this app

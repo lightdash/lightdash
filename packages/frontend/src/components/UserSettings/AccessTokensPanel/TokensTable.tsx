@@ -66,7 +66,6 @@ const TokenItem: FC<{
                     <span>
                         {expiresAt ? (
                             <Tooltip
-                                withinPortal
                                 position="top"
                                 maw={350}
                                 label={formatTimestamp(expiresAt)}
@@ -80,7 +79,6 @@ const TokenItem: FC<{
 
                     {rotatedAt && (
                         <Tooltip
-                            withinPortal
                             position="top"
                             maw={350}
                             label={`Last rotated at ${formatTimestamp(
@@ -89,7 +87,7 @@ const TokenItem: FC<{
                         >
                             <MantineIcon
                                 icon={IconInfoCircle}
-                                color="ldGray.6"
+                                color="dimmed"
                                 size="md"
                             />
                         </Tooltip>
@@ -99,7 +97,6 @@ const TokenItem: FC<{
             <Table.Td>
                 {lastUsedAt && (
                     <Tooltip
-                        withinPortal
                         position="top"
                         maw={350}
                         label={formatTimestamp(lastUsedAt)}
@@ -109,7 +106,7 @@ const TokenItem: FC<{
                 )}
             </Table.Td>
             <Table.Td w="1%">
-                <Menu withinPortal position="bottom-end">
+                <Menu position="bottom-end">
                     <Menu.Target>
                         <ActionIcon
                             variant="transparent"
@@ -216,7 +213,6 @@ const RotateTokenForm: FC<{
                             {({ copied, copy }) => (
                                 <Tooltip
                                     label={copied ? 'Copied' : 'Copy'}
-                                    withArrow
                                     position="right"
                                 >
                                     <ActionIcon
@@ -299,7 +295,7 @@ export const TokensTable = () => {
 
     return (
         <>
-            <Paper withBorder style={{ overflow: 'hidden' }}>
+            <Paper style={{ overflow: 'hidden' }}>
                 <Table
                     className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                 >
@@ -374,7 +370,7 @@ export const TokensTable = () => {
                     </Callout>
 
                     <Group gap="sm">
-                        <Paper p="xs" withBorder bg="ldGray.0">
+                        <Paper p="xs" bg="ldGray.0">
                             <Text ff="monospace" size="sm">
                                 {tokenToCopy?.uuid}
                             </Text>
@@ -383,7 +379,6 @@ export const TokensTable = () => {
                             {({ copied, copy }) => (
                                 <Tooltip
                                     label={copied ? 'Copied!' : 'Copy UUID'}
-                                    withArrow
                                     position="top"
                                 >
                                     <ActionIcon

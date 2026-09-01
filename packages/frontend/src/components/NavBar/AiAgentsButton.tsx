@@ -89,12 +89,10 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
         return (
             <HoverCard
                 width={240}
-                shadow="lg"
                 position="bottom-start"
                 offset={6}
                 openDelay={120}
                 closeDelay={80}
-                withinPortal
                 portalProps={{ target: '#navbar-header' }}
             >
                 <HoverCard.Target>
@@ -140,12 +138,10 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
     return (
         <HoverCard
             width={290}
-            shadow="lg"
             position="bottom-start"
             offset={6}
             openDelay={120}
             closeDelay={80}
-            withinPortal
             portalProps={{ target: '#navbar-header' }}
             onOpen={() => setIsPreviewOpen(true)}
             onClose={() => setIsPreviewOpen(false)}

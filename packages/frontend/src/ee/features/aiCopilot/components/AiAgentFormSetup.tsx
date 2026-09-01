@@ -137,15 +137,11 @@ const SwitchLabel = ({
         <Tooltip
             label={help}
             events={{ hover: true, focus: true, touch: true }}
-            withArrow
-            withinPortal
-            multiline
             position="right"
             maw="300px"
         >
             <ActionIcon
                 type="button"
-                variant="subtle"
                 color="ldGray"
                 size="xs"
                 aria-label={help}
@@ -963,9 +959,6 @@ export const AiAgentFormSetup = ({
                                                         </Text>
                                                         <Tooltip
                                                             label="Admins and developers (Manage AI Agents scope) will always have access to this agent."
-                                                            withArrow
-                                                            withinPortal
-                                                            multiline
                                                             position="right"
                                                             maw="250px"
                                                         >

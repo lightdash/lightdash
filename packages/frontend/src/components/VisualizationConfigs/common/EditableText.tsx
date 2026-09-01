@@ -58,7 +58,7 @@ export const EditableText: FC<Props> = ({
     const pencil = (
         <MantineIcon
             className={styles.action}
-            color="ldGray.6"
+            color="dimmed"
             icon={IconPencil}
             onClick={handleIconClick}
         />
@@ -81,16 +81,11 @@ export const EditableText: FC<Props> = ({
                 rightSection={
                     hasGranularity ? (
                         <Group gap={2} wrap="nowrap">
-                            <Menu
-                                withinPortal
-                                position="bottom-end"
-                                shadow="sm"
-                            >
+                            <Menu position="bottom-end">
                                 <Menu.Target>
                                     <ActionIcon
                                         className={styles.action}
                                         size="xs"
-                                        variant="subtle"
                                         color="ldGray.6"
                                     >
                                         <MantineIcon icon={IconVariable} />

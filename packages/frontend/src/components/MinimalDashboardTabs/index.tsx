@@ -34,7 +34,6 @@ const MinimalDashboardTabs = ({
         <Group p="xs" bg="background" gap={10} justify="space-between">
             <ActionIcon
                 size="md"
-                color="gray"
                 onClick={() => {
                     if (activeTab.prevUrl) {
                         void navigate(activeTab.prevUrl);
@@ -46,13 +45,12 @@ const MinimalDashboardTabs = ({
             </ActionIcon>
             <Group justify="center" flex={1}>
                 <Tooltip disabled={!isTruncated} label={activeTab.name}>
-                    <Menu shadow="md">
+                    <Menu>
                         <Menu.Target>
                             <Button
                                 size="xs"
                                 variant="subtle"
                                 color="ldGray.8"
-                                radius="md"
                                 rightSection={
                                     <MantineIcon icon={IconChevronDown} />
                                 }
@@ -93,7 +91,6 @@ const MinimalDashboardTabs = ({
             </Group>
             <ActionIcon
                 size="md"
-                color="gray"
                 onClick={() => {
                     if (activeTab.nextUrl) {
                         void navigate(activeTab.nextUrl);

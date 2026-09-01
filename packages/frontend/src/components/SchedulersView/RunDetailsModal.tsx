@@ -140,7 +140,7 @@ const JobTimingInfo: FC<{
     return (
         <Group gap="md" wrap="nowrap" w={240}>
             <Stack gap={4}>
-                <Text fz="xs" c="ldGray.6">
+                <Text fz="xs" c="dimmed">
                     started
                 </Text>
                 <Text fz="xs" style={{ whiteSpace: 'nowrap' }}>
@@ -148,7 +148,7 @@ const JobTimingInfo: FC<{
                 </Text>
             </Stack>
             <Stack gap={4}>
-                <Text fz="xs" c="ldGray.6">
+                <Text fz="xs" c="dimmed">
                     {endLabel}
                 </Text>
                 <Text fz="xs" style={{ whiteSpace: 'nowrap' }}>
@@ -156,7 +156,7 @@ const JobTimingInfo: FC<{
                 </Text>
             </Stack>
             <Stack gap={4}>
-                <Text fz="xs" c="ldGray.6">
+                <Text fz="xs" c="dimmed">
                     duration
                 </Text>
                 <Text fz="xs" style={{ whiteSpace: 'nowrap' }}>
@@ -188,14 +188,7 @@ const PartialFailureText: FC<{
                     <Text fz="xs" fw={500} c="orange.9">
                         {failure.chartName}
                     </Text>
-                    <Code
-                        c="orange.9"
-                        bg="transparent"
-                        style={{
-                            fontSize: '11px',
-                            padding: 0,
-                        }}
-                    >
+                    <Code c="orange.9" bg="transparent" fz="11px" p={0}>
                         {failure.error}
                     </Code>
                 </Stack>
@@ -228,14 +221,7 @@ const PartialFailureText: FC<{
                     <Text fz="xs" fw={500} c="orange.9">
                         AI summary could not be generated
                     </Text>
-                    <Code
-                        c="orange.9"
-                        bg="transparent"
-                        style={{
-                            fontSize: '11px',
-                            padding: 0,
-                        }}
-                    >
+                    <Code c="orange.9" bg="transparent" fz="11px" p={0}>
                         {failure.error}
                     </Code>
                 </Stack>
@@ -253,14 +239,7 @@ const PartialFailureText: FC<{
                     <Text fz="xs" fw={500} c="orange.9">
                         {failure.label}
                     </Text>
-                    <Code
-                        c="orange.9"
-                        bg="transparent"
-                        style={{
-                            fontSize: '11px',
-                            padding: 0,
-                        }}
-                    >
+                    <Code c="orange.9" bg="transparent" fz="11px" p={0}>
                         {failure.error}
                     </Code>
                 </Stack>
@@ -278,14 +257,7 @@ const PartialFailureText: FC<{
                     <Text fz="xs" fw={500} c="orange.9">
                         {failure.label}
                     </Text>
-                    <Code
-                        c="orange.9"
-                        bg="transparent"
-                        style={{
-                            fontSize: '11px',
-                            padding: 0,
-                        }}
-                    >
+                    <Code c="orange.9" bg="transparent" fz="11px" p={0}>
                         did not run in this delivery
                     </Code>
                 </Stack>
@@ -436,12 +408,12 @@ const JobRow: FC<{
     const subtitle =
         job.task === 'handleScheduledDelivery'
             ? run && (
-                  <Text fz="xs" c="ldGray.6">
+                  <Text fz="xs" c="dimmed">
                       {`Generate ${getFormatDisplayName(run.format)}`}
                   </Text>
               )
             : job.target && (
-                  <Text fz="xs" c="ldGray.6">
+                  <Text fz="xs" c="dimmed">
                       {getTargetDisplayName(job.target, job.targetType)}
                   </Text>
               );
@@ -453,7 +425,7 @@ const JobRow: FC<{
             align={hasDetails ? 'flex-start' : undefined}
         >
             {statusIcon}
-            <Stack gap={4} style={{ flex: 1 }}>
+            <Stack gap={4} flex={1}>
                 <Box>
                     <Text fz="sm" fw={500}>
                         {formatTaskName(job.task)}
@@ -497,7 +469,7 @@ const JobRow: FC<{
         >
             {mainContent}
             {isError && job.errorDetails && (
-                <Code block c="red.9" bg="red.0" style={{ fontSize: '11px' }}>
+                <Code block c="red.9" bg="red.0" fz="11px">
                     {job.errorDetails}
                 </Code>
             )}
@@ -663,7 +635,7 @@ const BatchJobRow: FC<{
         >
             <Group gap="md" wrap="nowrap" align="flex-start">
                 {getStatusIcon()}
-                <Stack gap={4} style={{ flex: 1 }}>
+                <Stack gap={4} flex={1}>
                     <Text fz="sm" fw={500}>
                         {formatTaskName(job.task, batchResult.total)}
                     </Text>
@@ -694,12 +666,7 @@ const BatchJobRow: FC<{
                                     {getTargetName(r.target)}
                                 </Text>
                                 {r.error && (
-                                    <Code
-                                        block
-                                        c="red.9"
-                                        bg="red.0"
-                                        style={{ fontSize: '11px' }}
-                                    >
+                                    <Code block c="red.9" bg="red.0" fz="11px">
                                         {r.error}
                                     </Code>
                                 )}
@@ -910,9 +877,9 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                                             : IconLayoutDashboard
                                     }
                                     size="sm"
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
-                                <Text fz="xs" c="ldGray.6">
+                                <Text fz="xs" c="dimmed">
                                     {run.resourceType === 'chart'
                                         ? 'Chart'
                                         : 'Dashboard'}
@@ -923,7 +890,7 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                             </Text>
                         </Box>
                         <Box>
-                            <Text fz="xs" c="ldGray.6">
+                            <Text fz="xs" c="dimmed">
                                 Created by
                             </Text>
                             <Text fz="sm" fw={500}>
@@ -933,7 +900,7 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                     </Group>
                     <Group gap="xl">
                         <Box>
-                            <Text fz="xs" c="ldGray.6">
+                            <Text fz="xs" c="dimmed">
                                 Scheduled
                             </Text>
                             <Text fz="sm" fw={500}>
@@ -941,7 +908,7 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                             </Text>
                         </Box>
                         <Box>
-                            <Text fz="xs" c="ldGray.6">
+                            <Text fz="xs" c="dimmed">
                                 Started
                             </Text>
                             <Text fz="sm" fw={500}>
@@ -1001,7 +968,7 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                             )}
                         </Stack>
                     ) : (
-                        <Text fz="sm" c="ldGray.6">
+                        <Text fz="sm" c="dimmed">
                             No jobs found
                         </Text>
                     )}

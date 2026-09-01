@@ -68,7 +68,6 @@ export const AiDataAppPreviewPanel: FC<Props> = ({ dataAppPreview }) => {
     const closeButton = (
         <ActionIcon
             size="sm"
-            variant="subtle"
             color="ldGray.6"
             onClick={() => dispatch(clearPreview())}
             aria-label="Close"
@@ -165,12 +164,11 @@ export const AiDataAppPreviewPanel: FC<Props> = ({ dataAppPreview }) => {
                     </Stack>
 
                     <Group gap={2} className={artifactStyles.headRight}>
-                        <Menu withinPortal position="bottom-end">
+                        <Menu position="bottom-end">
                             <Menu.Target>
-                                <Tooltip withinPortal label="More options">
+                                <Tooltip label="More options">
                                     <ActionIcon
                                         size="sm"
-                                        variant="subtle"
                                         color="ldGray.6"
                                         aria-label="More options"
                                     >

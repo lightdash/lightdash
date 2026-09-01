@@ -525,7 +525,6 @@ export const AiChartQuickOptions = ({
                 >
                     <ActionIcon
                         size="sm"
-                        variant="subtle"
                         color={isVerified ? 'green' : 'ldGray.6'}
                         onClick={handleVerifyToggle}
                     >
@@ -543,7 +542,7 @@ export const AiChartQuickOptions = ({
             {hasQuickActions && (
                 <Menu withArrow position="bottom-end">
                     <Menu.Target>
-                        <ActionIcon size="sm" variant="subtle" color="ldGray.9">
+                        <ActionIcon size="sm" color="ldGray.9">
                             <MantineIcon icon={IconDots} size="lg" />
                         </ActionIcon>
                     </Menu.Target>

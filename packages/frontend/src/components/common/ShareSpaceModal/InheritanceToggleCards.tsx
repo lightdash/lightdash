@@ -35,7 +35,6 @@ const InheritanceToggleCards: FC<InheritanceToggleCardsProps> = ({
     return (
         <Group grow align="stretch">
             <Paper
-                withBorder
                 p="md"
                 radius="md"
                 style={{
@@ -69,7 +68,6 @@ const InheritanceToggleCards: FC<InheritanceToggleCardsProps> = ({
             </Paper>
 
             <Paper
-                withBorder
                 p="md"
                 radius="md"
                 style={{

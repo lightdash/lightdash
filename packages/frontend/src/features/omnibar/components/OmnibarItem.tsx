@@ -84,7 +84,6 @@ const OmnibarItem: FC<Props> = ({
                 {itemHasVerification(item) && (
                     <Badge
                         size="xs"
-                        variant="light"
                         color="green"
                         leftSection={<IconCircleCheckFilled size={10} />}
                         className={classes.verifiedBadge}

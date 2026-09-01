@@ -140,10 +140,8 @@ const TableHeader: FC<TableHeaderProps> = ({
                                                     }}
                                                 >
                                                     <Tooltip
-                                                        withinPortal
                                                         openDelay={500}
                                                         maw={400}
-                                                        multiline
                                                         label={tooltipLabel}
                                                         position="top"
                                                         disabled={

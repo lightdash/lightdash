@@ -44,7 +44,6 @@ export const ToolCallPaper = ({
 
     return (
         <Paper
-            withBorder
             p="xs"
             radius="md"
             style={styles}
@@ -69,7 +68,7 @@ export const ToolCallPaper = ({
                         <MantineIcon
                             icon={IconSelector}
                             size={12}
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                     </Group>
                 </Group>

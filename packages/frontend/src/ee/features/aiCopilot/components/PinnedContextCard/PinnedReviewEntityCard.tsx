@@ -46,7 +46,9 @@ const Row: FC<{
             color="dimmed"
             style={{ marginTop: 2, flexShrink: 0 }}
         />
-        <Box style={{ flex: 1, minWidth: 0 }}>{children}</Box>
+        <Box flex={1} miw={0}>
+            {children}
+        </Box>
         {right}
     </Group>
 );
@@ -59,12 +61,7 @@ const PullRequestRow: FC<{
         <Row
             icon={IconGitPullRequest}
             right={
-                <Badge
-                    color={PR_STATE_COLORS[status]}
-                    variant="light"
-                    size="xs"
-                    radius="sm"
-                >
+                <Badge color={PR_STATE_COLORS[status]} size="xs">
                     {status}
                 </Badge>
             }
@@ -193,7 +190,7 @@ const PreviewEnvironmentRow: FC<{
             icon={IconFlask}
             right={
                 item.status ? (
-                    <Badge color="cyan" variant="light" size="xs" radius="sm">
+                    <Badge color="cyan" size="xs">
                         {item.status}
                     </Badge>
                 ) : undefined

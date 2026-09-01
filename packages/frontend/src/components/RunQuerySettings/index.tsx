@@ -89,12 +89,10 @@ const RunQuerySettings: FC<Props> = memo(
 
         return (
             <Popover
-                withinPortal
                 disabled={disabled || showCancel}
                 opened={opened}
                 position="bottom-end"
                 withArrow
-                shadow="md"
                 offset={2}
                 arrowOffset={10}
             >

@@ -99,8 +99,6 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
             cancelDisabled={isLoadingVirtual}
             headerActions={
                 <Tooltip
-                    withinPortal
-                    multiline
                     maw={300}
                     label={`Create a virtual view so others can reuse this query in Lightdash. The query won't be saved to or managed in your dbt project. ${
                         canWriteToDbtProject

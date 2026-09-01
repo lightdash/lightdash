@@ -72,8 +72,8 @@ const ExpandableSection = ({
     const [opened, { toggle }] = useDisclosure(false);
 
     return (
-        <Paper p="md" withBorder>
-            <UnstyledButton onClick={toggle} style={{ width: '100%' }}>
+        <Paper p="md">
+            <UnstyledButton onClick={toggle} w="100%">
                 <Group
                     gap="xs"
                     mb={opened ? 'sm' : undefined}
@@ -110,16 +110,15 @@ const TableToolbar = ({
         <Group pb={`${theme.spacing.sm}`} wrap="nowrap">
             <TextInput
                 size="xs"
-                radius="md"
                 type="search"
                 variant="default"
                 placeholder={placeholder}
                 value={search}
                 leftSection={
-                    <MantineIcon size="md" color="ldGray.6" icon={IconSearch} />
+                    <MantineIcon size="md" color="dimmed" icon={IconSearch} />
                 }
                 onChange={(e) => setSearch(e.target.value)}
-                style={{ flex: 1 }}
+                flex={1}
             />
         </Group>
     );
@@ -127,14 +126,10 @@ const TableToolbar = ({
 
 const DifferenceBadge = ({ diff }: { diff: number }) => {
     if (diff === 0) {
-        return (
-            <Badge color="gray" variant="light" size="sm">
-                0
-            </Badge>
-        );
+        return <Badge size="sm">0</Badge>;
     }
     return (
-        <Badge color={diff > 0 ? 'green' : 'red'} variant="light" size="sm">
+        <Badge color={diff > 0 ? 'green' : 'red'} size="sm">
             {diff > 0 ? '+' : ''}
             {diff}
         </Badge>
@@ -538,28 +533,26 @@ const ChartsTable = ({
                 Cell: ({ row }) => (
                     <div style={{ textAlign: 'center' }}>
                         {!row.original.inCurrent && row.original.inVersion && (
-                            <Badge color="green" variant="light" size="sm">
+                            <Badge color="green" size="sm">
                                 Add
                             </Badge>
                         )}
                         {row.original.inCurrent && !row.original.inVersion && (
-                            <Badge color="red" variant="light" size="sm">
+                            <Badge color="red" size="sm">
                                 Remove
                             </Badge>
                         )}
                         {row.original.inCurrent &&
                             row.original.inVersion &&
                             row.original.hasDifferentVersion && (
-                                <Badge color="yellow" variant="light" size="sm">
+                                <Badge color="yellow" size="sm">
                                     Version update
                                 </Badge>
                             )}
                         {row.original.inCurrent &&
                             row.original.inVersion &&
                             !row.original.hasDifferentVersion && (
-                                <Badge color="gray" variant="light" size="sm">
-                                    No change
-                                </Badge>
+                                <Badge size="sm">No change</Badge>
                             )}
                     </div>
                 ),
@@ -695,29 +688,27 @@ const FiltersTable = ({ data }: { data: any[] }) => {
                     <div style={{ textAlign: 'center' }}>
                         {!row.original.currentFilter &&
                             row.original.versionFilter && (
-                                <Badge color="green" variant="light" size="sm">
+                                <Badge color="green" size="sm">
                                     Add
                                 </Badge>
                             )}
                         {row.original.currentFilter &&
                             !row.original.versionFilter && (
-                                <Badge color="red" variant="light" size="sm">
+                                <Badge color="red" size="sm">
                                     Remove
                                 </Badge>
                             )}
                         {row.original.currentFilter &&
                             row.original.versionFilter &&
                             row.original.hasChanged && (
-                                <Badge color="yellow" variant="light" size="sm">
+                                <Badge color="yellow" size="sm">
                                     Update
                                 </Badge>
                             )}
                         {row.original.currentFilter &&
                             row.original.versionFilter &&
                             !row.original.hasChanged && (
-                                <Badge color="gray" variant="light" size="sm">
-                                    No change
-                                </Badge>
+                                <Badge size="sm">No change</Badge>
                             )}
                     </div>
                 ),
@@ -1136,16 +1127,14 @@ const DashboardVersionComparison = ({
                     color="blue"
                     badge={
                         comparison.tileDiff !== 0 ? (
-                            <Badge color="yellow" variant="light" size="lg">
+                            <Badge color="yellow" size="lg">
                                 {Math.abs(comparison.tileDiff)}{' '}
                                 {Math.abs(comparison.tileDiff) === 1
                                     ? 'change'
                                     : 'changes'}
                             </Badge>
                         ) : (
-                            <Badge color="gray" variant="light" size="lg">
-                                No change
-                            </Badge>
+                            <Badge size="lg">No change</Badge>
                         )
                     }
                 >
@@ -1164,14 +1153,10 @@ const DashboardVersionComparison = ({
                                 !c.inVersion,
                         ).length;
                         if (totalChanges === 0) {
-                            return (
-                                <Badge color="gray" variant="light" size="lg">
-                                    No change
-                                </Badge>
-                            );
+                            return <Badge size="lg">No change</Badge>;
                         }
                         return (
-                            <Badge color="yellow" variant="light" size="lg">
+                            <Badge color="yellow" size="lg">
                                 {totalChanges}{' '}
                                 {totalChanges === 1 ? 'change' : 'changes'}
                             </Badge>
@@ -1195,16 +1180,14 @@ const DashboardVersionComparison = ({
                     color="teal"
                     badge={
                         comparison.hasFilterChanges ? (
-                            <Badge color="yellow" variant="light" size="lg">
+                            <Badge color="yellow" size="lg">
                                 {comparison.changedFilterCount}{' '}
                                 {comparison.changedFilterCount === 1
                                     ? 'change'
                                     : 'changes'}
                             </Badge>
                         ) : (
-                            <Badge color="gray" variant="light" size="lg">
-                                No change
-                            </Badge>
+                            <Badge size="lg">No change</Badge>
                         )
                     }
                 >
@@ -1219,7 +1202,7 @@ const DashboardVersionComparison = ({
                 </ExpandableSection>
 
                 {versionQuery.data?.dashboard.description && (
-                    <Paper p="md" withBorder>
+                    <Paper p="md">
                         <Text fw={600} mb="xs">
                             Description
                         </Text>

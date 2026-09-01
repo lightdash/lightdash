@@ -362,7 +362,6 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
                                 {({ copied, copy }) => (
                                     <Tooltip
                                         label={copied ? 'Copied' : 'Copy'}
-                                        withArrow
                                         position="right"
                                     >
                                         <ActionIcon

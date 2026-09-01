@@ -259,7 +259,6 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                             <Tooltip label="Cancel">
                                 <ActionIcon
                                     size="xs"
-                                    variant="subtle"
                                     color="ldGray.6"
                                     onClick={resetAddState}
                                 >

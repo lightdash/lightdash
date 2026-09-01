@@ -73,7 +73,7 @@ type Props = {
 const TimeAgoText: FC<{ date: Date | string }> = ({ date }) => {
     const timeAgo = useTimeAgo(date);
     return (
-        <Text size="xs" c="ldGray.6">
+        <Text size="xs" c="dimmed">
             {timeAgo}
         </Text>
     );
@@ -118,14 +118,12 @@ const StatusFilter: FC<{
     return (
         <Popover width={250} position="bottom-start">
             <Popover.Target>
-                <Tooltip withinPortal label="Filter by status">
+                <Tooltip label="Filter by status">
                     <Button
                         h={32}
                         c="foreground"
-                        fw={500}
                         fz="sm"
                         variant="default"
-                        radius="md"
                         px="sm"
                         className={
                             hasSelection
@@ -151,7 +149,7 @@ const StatusFilter: FC<{
             </Popover.Target>
             <Popover.Dropdown p="sm">
                 <Stack gap={4}>
-                    <Text fz="xs" c="ldGray.6" fw={600}>
+                    <Text fz="xs" c="dimmed" fw={600}>
                         Filter by status:
                     </Text>
                     <ScrollArea.Autosize mah={200} type="always" scrollbars="y">
@@ -328,7 +326,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 size: 160,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
-                        <MantineIcon icon={IconTable} color="ldGray.6" />
+                        <MantineIcon icon={IconTable} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -360,7 +358,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     <Group gap="two" align="flex-start" wrap="nowrap">
                         <MantineIcon
                             icon={IconRowInsertBottom}
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                         {column.columnDef.header}
                     </Group>
@@ -377,7 +375,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     );
                     return (
                         <Group gap={4} wrap="nowrap">
-                            <Text size="xs" c="ldGray.6" ff="monospace">
+                            <Text size="xs" c="dimmed" ff="monospace">
                                 {rowCount != null
                                     ? rowCount.toLocaleString()
                                     : '\u2014'}
@@ -385,13 +383,12 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                             {hasRowLimitWarning && (
                                 <Tooltip
                                     label="Max rows applied"
-                                    withArrow
                                     position="top"
                                 >
                                     <MantineIcon
                                         icon={IconFilterExclamation}
                                         size="sm"
-                                        color="ldGray.6"
+                                        color="dimmed"
                                     />
                                 </Tooltip>
                             )}
@@ -399,7 +396,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                                 <MantineIcon
                                     icon={IconAlertTriangle}
                                     size="sm"
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                             )}
                         </Group>
@@ -414,7 +411,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 size: 90,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
-                        <MantineIcon icon={IconColumns} color="ldGray.6" />
+                        <MantineIcon icon={IconColumns} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -422,7 +419,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     const cols = row.original.materialization?.columns;
                     const count = cols ? Object.keys(cols).length : null;
                     return (
-                        <Text size="xs" c="ldGray.6" ff="monospace">
+                        <Text size="xs" c="dimmed" ff="monospace">
                             {count != null ? count : '\u2014'}
                         </Text>
                     );
@@ -436,14 +433,14 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 accessorFn: (row) => row.materialization?.totalBytes ?? null,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
-                        <MantineIcon icon={IconFile} color="ldGray.6" />
+                        <MantineIcon icon={IconFile} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => {
                     const bytes = row.original.materialization?.totalBytes;
                     return (
-                        <Text size="xs" c="ldGray.6" ff="monospace">
+                        <Text size="xs" c="dimmed" ff="monospace">
                             {bytes != null ? formatFileSize(bytes) : '\u2014'}
                         </Text>
                     );
@@ -458,14 +455,14 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 accessorFn: (row) => row.materialization?.durationMs ?? null,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
-                        <MantineIcon icon={IconHourglass} color="ldGray.6" />
+                        <MantineIcon icon={IconHourglass} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => {
                     const durationMs = row.original.materialization?.durationMs;
                     return (
-                        <Text size="xs" c="ldGray.6" ff="monospace">
+                        <Text size="xs" c="dimmed" ff="monospace">
                             {durationMs != null
                                 ? formatDuration(durationMs)
                                 : '\u2014'}
@@ -483,7 +480,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     row.materialization?.materializedAt ?? null,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
+                        <MantineIcon icon={IconClock} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -498,7 +495,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         !materializedAt
                     ) {
                         return (
-                            <Text size="xs" c="ldGray.6">
+                            <Text size="xs" c="dimmed">
                                 {'\u2014'}
                             </Text>
                         );
@@ -521,7 +518,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 size: 130,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
-                        <MantineIcon icon={IconCalendarTime} color="ldGray.6" />
+                        <MantineIcon icon={IconCalendarTime} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -538,7 +535,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     }
                     if (!refreshCron) {
                         return (
-                            <Text size="xs" c="ldGray.6">
+                            <Text size="xs" c="dimmed">
                                 Manual
                             </Text>
                         );
@@ -551,7 +548,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         >
                             <Text
                                 size="xs"
-                                c="ldGray.6"
+                                c="dimmed"
                                 ff="monospace"
                                 style={{ cursor: 'help' }}
                             >
@@ -576,8 +573,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     return (
                         <Tooltip label="Rebuild this pre-aggregate">
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 size="sm"
                                 loading={isThisRowRefreshing}
                                 onClick={(e) => {
@@ -629,7 +624,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.currentTarget.value)}
                         size="xs"
-                        radius="md"
                         w={200}
                     />
                     <StatusFilter
@@ -638,12 +632,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     />
                     {hasActiveFilters && (
                         <Tooltip label="Reset filters">
-                            <ActionIcon
-                                variant="subtle"
-                                size="sm"
-                                color="gray"
-                                onClick={resetFilters}
-                            >
+                            <ActionIcon size="sm" onClick={resetFilters}>
                                 <MantineIcon icon={IconFilterOff} />
                             </ActionIcon>
                         </Tooltip>
@@ -783,7 +772,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 description={`This rebuilds ${managedMaterializations.length} Lightdash-managed pre-aggregate${managedMaterializations.length === 1 ? '' : 's'}. External definitions stay untouched.`}
             >
                 <Stack gap="sm">
-                    <Text fz="xs" c="ldGray.6">
+                    <Text fz="xs" c="dimmed">
                         Depending on the number of pre-aggregates and the size
                         of your data, this may take several minutes and will use
                         warehouse resources. You can track the progress in the

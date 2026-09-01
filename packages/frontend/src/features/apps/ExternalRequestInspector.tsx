@@ -57,25 +57,23 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
                 className={classes.queryHeader}
                 onClick={() => setExpanded((v) => !v)}
             >
-                <ActionIcon variant="subtle" size="xs" color="gray">
+                <ActionIcon size="xs">
                     {expanded ? (
                         <MantineIcon icon={IconChevronDown} size={12} />
                     ) : (
                         <MantineIcon icon={IconChevronRight} size={12} />
                     )}
                 </ActionIcon>
-                <Badge size="xs" variant="light" color="gray">
-                    {request.alias}
-                </Badge>
+                <Badge size="xs">{request.alias}</Badge>
                 <Text size="xs" fw={500} truncate="end">
                     {request.method} {request.path}
                 </Text>
-                <Badge size="xs" variant="light" color={statusColor(request)}>
+                <Badge size="xs" color={statusColor(request)}>
                     {statusLabel(request)}
                 </Badge>
                 <Box ml="auto" />
                 {request.truncated && (
-                    <Badge size="xs" variant="light" color="yellow">
+                    <Badge size="xs" color="yellow">
                         truncated
                     </Badge>
                 )}
@@ -182,11 +180,7 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
                                 onClick={() => setJsonExpanded((v) => !v)}
                                 style={{ cursor: 'pointer' }}
                             >
-                                <ActionIcon
-                                    variant="subtle"
-                                    size="xs"
-                                    color="gray"
-                                >
+                                <ActionIcon size="xs">
                                     {jsonExpanded ? (
                                         <MantineIcon
                                             icon={IconChevronDown}
@@ -207,7 +201,6 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
                                 >
                                     {({ copied, copy }) => (
                                         <ActionIcon
-                                            variant="subtle"
                                             size="xs"
                                             color={copied ? 'green' : 'gray'}
                                             onClick={(e) => {

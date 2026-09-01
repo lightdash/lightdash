@@ -605,7 +605,6 @@ export const MetricExploreModal: FC<Props> = (props) => {
                                             variant="subtle"
                                             color="dark"
                                             size="compact-xs"
-                                            radius="md"
                                             className={styles.clearButton}
                                             data-visible={
                                                 query.comparison !==

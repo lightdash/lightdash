@@ -569,13 +569,7 @@ const AssistantBubbleContent: FC<{
     return (
         <>
             {shouldShowRetry && (
-                <Paper
-                    variant="dotted"
-                    radius="md"
-                    pr="md"
-                    shadow="none"
-                    bg="ldGray.0"
-                >
+                <Paper variant="dotted" radius="md" pr="md" bg="ldGray.0">
                     <Group gap="xs" align="center" justify="space-between">
                         <Alert
                             icon={
@@ -587,7 +581,6 @@ const AssistantBubbleContent: FC<{
                             }
                             color="ldGray.0"
                             variant="outline"
-                            radius="md"
                             w="80%"
                         >
                             <Stack gap={4}>
@@ -1144,7 +1137,7 @@ export const AssistantBubble: FC<Props> = memo(
                     </Stack>
                 )}
                 {!popoverOpened && downVoted && message.humanFeedback && (
-                    <Paper p="xs" mt="xs" radius="md" withBorder>
+                    <Paper p="xs" mt="xs" radius="md">
                         <Stack gap="xs">
                             <Group gap="xs">
                                 <MantineIcon
@@ -1167,7 +1160,6 @@ export const AssistantBubble: FC<Props> = memo(
                         <CopyButton value={message.message ?? ''}>
                             {({ copied, copy }) => (
                                 <ActionIcon
-                                    variant="subtle"
                                     color="ldGray.9"
                                     aria-label="copy"
                                     onClick={copy}
@@ -1181,7 +1173,6 @@ export const AssistantBubble: FC<Props> = memo(
 
                         {(!hasRating || upVoted) && (
                             <ActionIcon
-                                variant="subtle"
                                 color="ldGray.9"
                                 aria-label="upvote"
                                 onClick={handleUpvote}
@@ -1189,8 +1180,6 @@ export const AssistantBubble: FC<Props> = memo(
                                 <Tooltip
                                     label="Feedback sent"
                                     position="top"
-                                    withinPortal
-                                    withArrow
                                     // Hack to only render tooltip (on hover) when `hasRating` is false
                                     opened={hasRating ? undefined : false}
                                 >
@@ -1219,7 +1208,6 @@ export const AssistantBubble: FC<Props> = memo(
                             >
                                 <Popover.Target>
                                     <ActionIcon
-                                        variant="subtle"
                                         color="ldGray.9"
                                         aria-label="downvote"
                                         onClick={handleDownvote}
@@ -1255,7 +1243,6 @@ export const AssistantBubble: FC<Props> = memo(
                                                 }
                                                 minRows={3}
                                                 maxRows={5}
-                                                radius="md"
                                                 resize="vertical"
                                             />
                                             <Group gap="xs">
@@ -1286,7 +1273,6 @@ export const AssistantBubble: FC<Props> = memo(
                         {showAddToEvalsButton && onAddToEvals && (
                             <Tooltip label="Add this response to evals">
                                 <ActionIcon
-                                    variant="subtle"
                                     color="ldGray.9"
                                     aria-label="Add to evaluation set"
                                     onClick={() => onAddToEvals(message.uuid)}
@@ -1298,7 +1284,6 @@ export const AssistantBubble: FC<Props> = memo(
 
                         {isArtifactAvailable && (
                             <ActionIcon
-                                variant="subtle"
                                 color="ldGray.9"
                                 aria-label="Debug information"
                                 onClick={openDrawer}

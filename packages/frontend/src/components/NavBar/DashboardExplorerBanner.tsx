@@ -119,7 +119,6 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
             </Text>
 
             <Tooltip
-                withinPortal
                 // Hide tooltip when viewing the chart because the button copy is sufficient
                 disabled={action === 'viewing'}
                 label={cancelButtonTooltipText}

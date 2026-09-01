@@ -159,14 +159,14 @@ const JobDetailsDrawer: FC = () => {
                     <DrawerIcon job={activeJob} />
 
                     <Box>
-                        <Title order={4} fw={600}>
+                        <Title order={4}>
                             {jobStatusLabel(
                                 activeJob.jobStatus,
                                 activeJob.jobType,
                             )}
                         </Title>
                         {hasSteps && (
-                            <Text c="ldGray.6" fz="sm" fw={500}>{`${
+                            <Text c="dimmed" fz="sm" fw={500}>{`${
                                 runningStepsInfo(activeJob.steps)
                                     .completedStepsMessage
                             } steps complete - ${durationSince(
@@ -180,13 +180,12 @@ const JobDetailsDrawer: FC = () => {
             <Stack p="sm">
                 {activeJob.steps?.map((step) => (
                     <Alert
-                        variant="light"
                         key={step.jobUuid}
                         color={statusInfo(step.stepStatus)}
                         icon={<StepIcon step={step} />}
                         title={step.stepLabel}
                     >
-                        <Stack gap={1} style={{ flex: 1, minWidth: 0 }}>
+                        <Stack gap={1} flex={1} miw={0}>
                             <Text fz="xs" fw={500}>
                                 {jobStepStatusLabel(step.stepStatus)} (
                                 {jobStepDuration(step)})
@@ -221,8 +220,6 @@ const JobDetailsDrawer: FC = () => {
                                     >
                                         {({ copied, copy }) => (
                                             <ActionIcon
-                                                variant="subtle"
-                                                color="gray"
                                                 onClick={copy}
                                                 pos="absolute"
                                                 top={6}

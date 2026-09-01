@@ -113,7 +113,6 @@ const FunnelBuilder: FC = () => {
             <Group gap="sm" mb="md">
                 <Title order={4}>Funnel Builder</Title>
                 <Badge
-                    variant="light"
                     color="violet"
                     size="sm"
                     leftSection={<IconFlask2Filled size={12} />}

@@ -219,7 +219,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                                             validationError,
                                         )) &&
                                         !isDeleted(validationError) && (
-                                            <Text fz="xs" c="ldGray.6">
+                                            <Text fz="xs" c="dimmed">
                                                 {getViews(validationError)} view
                                                 {getViews(validationError) === 1
                                                     ? ''
@@ -286,8 +286,6 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                         >
                             <Tooltip label="Dismiss Error" position="top">
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
                                     size="xs"
                                     onClick={(
                                         e: React.MouseEvent<HTMLButtonElement>,
@@ -305,7 +303,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                                     <MantineIcon
                                         icon={IconX}
                                         size="lg"
-                                        color="ldGray.6"
+                                        color="dimmed"
                                     />
                                 </ActionIcon>
                             </Tooltip>

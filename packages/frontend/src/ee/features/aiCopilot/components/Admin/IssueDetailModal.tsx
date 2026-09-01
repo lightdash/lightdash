@@ -215,9 +215,7 @@ export const IssueDetailModal: FC<Props> = ({
                                 {targetAnchor && (
                                     <Tooltip
                                         label={targetAnchor}
-                                        withArrow
                                         openDelay={300}
-                                        multiline
                                         maw={340}
                                     >
                                         <Text className={styles.targetChip}>

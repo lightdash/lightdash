@@ -236,7 +236,7 @@ export const CustomSqlDimensionModal: FC<{
                             label="Label"
                             required
                             placeholder="Enter custom dimension label"
-                            style={{ flex: 1 }}
+                            flex={1}
                             {...form.getInputProps('customDimensionLabel')}
                             data-testid="CustomSqlDimensionModal/LabelInput"
                         />

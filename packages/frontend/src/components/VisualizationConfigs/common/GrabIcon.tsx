@@ -28,7 +28,7 @@ export const GrabIcon: FC<Props> = ({
                 cursor: disabled ? 'default' : 'grab',
             }}
         >
-            <MantineIcon color="ldGray.6" icon={IconGripVertical} />
+            <MantineIcon color="dimmed" icon={IconGripVertical} />
         </Box>
     );
 

@@ -70,10 +70,9 @@ const OwnersFilter: FC<OwnersFilterProps> = ({
 
     return (
         <Group gap={2}>
-            <Popover width={300} position="bottom-start" shadow="sm">
+            <Popover width={300} position="bottom-start">
                 <Popover.Target>
                     <Tooltip
-                        withinPortal
                         label="Filter metrics by owner"
                         openDelay={200}
                         maw={250}
@@ -82,10 +81,8 @@ const OwnersFilter: FC<OwnersFilterProps> = ({
                         <Button
                             h={32}
                             c="ldGray.7"
-                            fw={500}
                             fz="sm"
                             variant="default"
-                            radius="md"
                             py="xs"
                             px="sm"
                             leftSection={
@@ -115,7 +112,7 @@ const OwnersFilter: FC<OwnersFilterProps> = ({
                 </Popover.Target>
                 <Popover.Dropdown p="sm">
                     <Stack gap={4}>
-                        <Text fz="xs" c="ldGray.6" fw={600}>
+                        <Text fz="xs" c="dimmed" fw={600}>
                             Filter by owner:
                         </Text>
 
@@ -146,7 +143,7 @@ const OwnersFilter: FC<OwnersFilterProps> = ({
                         )}
 
                         {owners?.length === 0 && (
-                            <Text fz="xs" fw={500} c="ldGray.6">
+                            <Text fz="xs" fw={500} c="dimmed">
                                 No owners configured yet. Add spotlight.owner in
                                 your metric or model YAML to assign owners.
                             </Text>
@@ -238,7 +235,6 @@ const OwnersFilter: FC<OwnersFilterProps> = ({
                     <ActionIcon
                         size="xs"
                         color="ldGray.5"
-                        variant="subtle"
                         onClick={() => {
                             setSelectedOwners([]);
                         }}

@@ -263,7 +263,6 @@ const AppHeaderActions: FC<Props> = ({
                 <>
                     <Tooltip
                         label="Continue building"
-                        withinPortal
                         position="bottom"
                         openDelay={200}
                         transitionProps={{
@@ -273,7 +272,6 @@ const AppHeaderActions: FC<Props> = ({
                     >
                         <ActionIcon
                             aria-label="Continue building"
-                            radius="md"
                             onClick={onEdit}
                             bg="foreground"
                             c="background"
@@ -291,7 +289,6 @@ const AppHeaderActions: FC<Props> = ({
             )}
             <Tooltip
                 label="Refresh to re-run queries"
-                withinPortal
                 position="bottom"
                 openDelay={200}
                 transitionProps={{
@@ -302,7 +299,6 @@ const AppHeaderActions: FC<Props> = ({
                 <ActionIcon
                     variant="default"
                     size="md"
-                    radius="md"
                     disabled={refreshDisabled}
                     onClick={onRefresh}
                     aria-label="Refresh"
@@ -316,8 +312,6 @@ const AppHeaderActions: FC<Props> = ({
             )}
             <Menu
                 position="bottom-end"
-                shadow="md"
-                withinPortal
                 withArrow
                 arrowPosition="center"
                 onOpen={() => setMenuOpened(true)}
@@ -332,7 +326,6 @@ const AppHeaderActions: FC<Props> = ({
                         <ActionIcon
                             variant="default"
                             size="md"
-                            radius="md"
                             aria-label="App actions"
                         >
                             <MantineIcon icon={IconDots} />
@@ -388,11 +381,7 @@ const AppHeaderActions: FC<Props> = ({
                             }
                             rightSection={
                                 upgradeAvailable ? (
-                                    <Badge
-                                        size="xs"
-                                        variant="light"
-                                        color="blue"
-                                    >
+                                    <Badge size="xs" color="blue">
                                         New
                                     </Badge>
                                 ) : undefined

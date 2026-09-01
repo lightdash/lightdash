@@ -174,7 +174,6 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                     <TextInput
                         label="Brand domain"
                         placeholder="acme.com"
-                        radius="md"
                         leftSection={<MantineIcon icon={IconWorld} />}
                         {...form.getInputProps('domain')}
                         rightSection={
@@ -183,7 +182,6 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                                 position="top"
                             >
                                 <ActionIcon
-                                    variant="subtle"
                                     color={domainChanged ? 'blue' : 'gray'}
                                     loading={fetchMutation.isLoading}
                                     onClick={() => void handleRefresh()}
@@ -295,8 +293,6 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                                         position="top"
                                     >
                                         <ActionIcon
-                                            variant="subtle"
-                                            color="gray"
                                             className={classes.removeColor}
                                             onClick={() =>
                                                 form.removeListItem(
@@ -314,7 +310,6 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
 
                             <Button
                                 variant="default"
-                                radius="md"
                                 leftSection={<MantineIcon icon={IconPlus} />}
                                 className={classes.addColor}
                                 onClick={() =>
@@ -342,7 +337,6 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                         </Box>
                         <Button
                             variant="default"
-                            radius="md"
                             fullWidth
                             leftSection={<MantineIcon icon={IconWand} />}
                             onClick={handleGeneratePalette}

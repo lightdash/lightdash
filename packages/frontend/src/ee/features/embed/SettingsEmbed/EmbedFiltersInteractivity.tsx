@@ -163,7 +163,6 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                     Users can change:
                 </Text>
                 <SegmentedControl
-                    radius="md"
                     value={interactivityOptions.enabled as string}
                     onChange={(value: string) => {
                         setInteractivityOptions({
@@ -207,9 +206,6 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                         <Text inherit>Hide filters</Text>
                         <Tooltip
                             label="Hide filters from the embed UI while still applying them. Useful when building custom filter controls with the React SDK."
-                            withArrow
-                            withinPortal
-                            multiline
                             maw="300px"
                             position="right"
                         >
@@ -236,9 +232,6 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                         <Text inherit>Users can add their own filters</Text>
                         <Tooltip
                             label="Filters added by viewers are temporary and only last for the current session. This also requires the dashboard's 'Add filter' button to be visible to viewers."
-                            withArrow
-                            withinPortal
-                            multiline
                             maw="300px"
                             position="right"
                         >
@@ -287,7 +280,7 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                                                 {filter.disabled ? (
                                                     <Text
                                                         span
-                                                        c="ldGray.6"
+                                                        c="dimmed"
                                                         fz="xs"
                                                     >
                                                         is any value

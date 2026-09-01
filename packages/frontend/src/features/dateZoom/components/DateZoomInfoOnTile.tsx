@@ -40,8 +40,6 @@ export const DateZoomInfoOnTile: FC<DateZoomInfoOnTileProps> = ({
                 </>
             }
             disabled={!dateDimension}
-            multiline
-            withinPortal
         >
             <Paper radius="sm" py="xxs" px="xs" shadow="0">
                 <Group wrap="nowrap" gap="xxs">

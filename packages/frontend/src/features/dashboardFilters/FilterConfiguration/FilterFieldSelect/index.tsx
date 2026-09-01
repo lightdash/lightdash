@@ -196,9 +196,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                                         : undefined
                                 }
                                 position="right"
-                                multiline
                                 maw={300}
-                                withinPortal
                                 openDelay={500}
                             >
                                 <Group gap="xs" wrap="nowrap">
@@ -282,7 +280,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                         size="xs"
                         radius="md"
                         leftSection={
-                            <MantineIcon icon={IconSearch} color="ldGray.6" />
+                            <MantineIcon icon={IconSearch} color="dimmed" />
                         }
                         data-testid="FilterConfiguration/FieldSelectSearch"
                         styles={{

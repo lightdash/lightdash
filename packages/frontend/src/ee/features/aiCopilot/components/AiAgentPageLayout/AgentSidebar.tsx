@@ -110,7 +110,6 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
                         <Tooltip label="Delete thread" openDelay={300}>
                             <ActionIcon
                                 size="xs"
-                                variant="subtle"
                                 color="ldGray"
                                 className={classes.threadDeleteButton}
                                 aria-label="Delete thread"
@@ -180,7 +179,7 @@ const ThreadList: FC<ThreadListProps> = ({
             <Stack gap={2} className={classes.threadItems}>
                 {threads.length === 0 && (
                     <Paper variant="dotted" p="sm">
-                        <Text truncate="end" size="sm" c="ldGray.6" ta="center">
+                        <Text truncate="end" size="sm" c="dimmed" ta="center">
                             No threads yet
                         </Text>
                     </Paper>
