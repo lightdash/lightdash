@@ -497,6 +497,70 @@ describe('ContentAsCodeWritebackService', () => {
         expect(getPullRequest).not.toHaveBeenCalled();
     });
 
+    it('freezes the reviewed documents when a draft is written back', async () => {
+        const { service, contentDraftModel } = buildService();
+
+        await service.writeBackDraft(user, 'project-uuid', 'draft-uuid');
+
+        expect(contentDraftModel.update).toHaveBeenCalledWith(
+            'draft-uuid',
+            expect.objectContaining({
+                status: 'written_back',
+                writtenBackPublished: expect.objectContaining({
+                    name: 'Weekly KPIs',
+                }),
+                writtenBackDraft: expect.objectContaining({
+                    name: 'Weekly KPIs draft',
+                }),
+            }),
+        );
+    });
+
+    it('reviews a written-back draft from its frozen documents', async () => {
+        const { service, coderService } = buildService({
+            draft: {
+                ...dismissedDraft,
+                status: 'written_back',
+                writtenBackPublished: { name: 'Frozen published', tiles: [] },
+                writtenBackDraft: { name: 'Frozen draft', tiles: [] },
+            },
+        });
+
+        const review = await service.getDraftReview(
+            user,
+            'project-uuid',
+            'draft-uuid',
+        );
+
+        expect(review.publishedYaml).toContain('name: Frozen published');
+        expect(review.draftYaml).toContain('name: Frozen draft');
+        expect(coderService.getCurrentDashboardAsCode).not.toHaveBeenCalled();
+        expect(
+            coderService.getDashboardAsCodeWithOverlay,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('reviews a draft handed back to its author live, not from the frozen documents', async () => {
+        const { service, coderService } = buildService({
+            draft: {
+                ...dismissedDraft,
+                status: 'dismissed',
+                writtenBackPublished: { name: 'Frozen published', tiles: [] },
+                writtenBackDraft: { name: 'Frozen draft', tiles: [] },
+            },
+        });
+
+        const review = await service.getDraftReview(
+            user,
+            'project-uuid',
+            'draft-uuid',
+        );
+
+        expect(review.draftYaml).toContain('Weekly KPIs draft');
+        expect(review.draftYaml).not.toContain('Frozen');
+        expect(coderService.getDashboardAsCodeWithOverlay).toHaveBeenCalled();
+    });
+
     it('credits the draft author on the commit and in the PR body', async () => {
         const { service, gitIntegrationService, userModel } = buildService();
 
