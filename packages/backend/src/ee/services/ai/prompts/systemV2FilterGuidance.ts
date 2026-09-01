@@ -1,9 +1,9 @@
 import {
     DimensionType,
+    FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
     FilterOperator,
     FilterType,
     formatFilterExpressionExample,
-    getFilterExpressionExamples,
     MetricType,
     UnitOfTime,
     type AiFilterExample,
@@ -25,40 +25,6 @@ If the user mentions any time window ("last 3 months", "this quarter", "past yea
 - Selecting or comparing multiple non-contiguous periods (e.g. "Mar or May 2025"): prefer a single \`equals\` rule on the date field at the requested granularity with one value per period (e.g. a month-grain field with values \`2025-03-01\` and \`2025-05-01\`). This keeps every filter under AND.
 - Never set the dimension filter \`type\` to \`or\` when the query also has a categorical (or any non-date) filter. \`or\` applies across all dimension filters in the group, so the categorical filter becomes optional and is silently dropped. Only use \`type: or\` with one \`inBetween\` per range when the date ranges are the sole dimension filter and no granularity-aligned \`equals\` rule fits (e.g. arbitrary day ranges like "Mar 1–6 vs Apr 1–6").
 - Use \`limit\` only for explicit "top N" / "show me 10 rows" requests, never to approximate a time window.`;
-
-const lexicalProtectionExample = {
-    fieldId: 'orders_status',
-    fieldType: DimensionType.STRING,
-    fieldFilterType: FilterType.STRING,
-    operator: FilterOperator.EQUALS,
-    values: ['Coffee Filters (100pk), "special" \\ stock'],
-} satisfies AiFilterExample;
-
-export const getFilterExpressionPromptExamples = () => [
-    ...getFilterExpressionExamples(),
-    {
-        ...lexicalProtectionExample,
-        expression: formatFilterExpressionExample(lexicalProtectionExample),
-    },
-];
-
-export const renderFilterExpressionInstructionMatrix = (
-    examples = getFilterExpressionPromptExamples(),
-): string =>
-    [
-        '### Generated raw expression matrix',
-        'Each line is one complete raw string expression, labeled by filter type and operator:',
-        ...Object.values(FilterType).flatMap((fieldFilterType) => [
-            `${fieldFilterType}:`,
-            ...examples
-                .filter(
-                    (example) => example.fieldFilterType === fieldFilterType,
-                )
-                .map(
-                    (example) => `- ${example.operator}: ${example.expression}`,
-                ),
-        ]),
-    ].join('\n');
 
 const placementExamples = {
     dimensions: [
@@ -158,7 +124,7 @@ For \`generateVisualization\`, \`dimensions\`, \`metrics\`, and \`tableCalculati
 
 ${FILTER_EXPRESSION_PLACEMENT_EXAMPLES}
 
-${renderFilterExpressionInstructionMatrix()}
+${FILTER_EXPRESSION_GRAMMAR_DESCRIPTION}
 
 ## Time-based filtering
 

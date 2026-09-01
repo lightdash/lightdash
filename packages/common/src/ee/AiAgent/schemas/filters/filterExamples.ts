@@ -2,9 +2,10 @@ import { DimensionType, MetricType } from '../../../../types/field';
 import {
     FilterOperator,
     FilterType,
-    UnitOfTime,
+    type UnitOfTime,
 } from '../../../../types/filter';
 import assertUnreachable from '../../../../utils/assertUnreachable';
+import { filterExpressionDateUnits } from '../filterExpressions/operators';
 
 export type AiFilterExample = {
     fieldId: string;
@@ -61,20 +62,12 @@ const numberFilterExampleTemplates: FilterExampleTemplate[] = [
     { operator: FilterOperator.NOT_IN_BETWEEN, values: [100, 500] },
 ];
 
-const dateRelativeUnits = [
-    UnitOfTime.days,
-    UnitOfTime.weeks,
-    UnitOfTime.months,
-    UnitOfTime.quarters,
-    UnitOfTime.years,
-] as const;
-
 const dateRelativeFilterExampleTemplates: FilterExampleTemplate[] = [
     FilterOperator.IN_THE_PAST,
     FilterOperator.NOT_IN_THE_PAST,
     FilterOperator.IN_THE_NEXT,
 ].flatMap((operator) =>
-    dateRelativeUnits.flatMap((unitOfTime) =>
+    filterExpressionDateUnits.flatMap((unitOfTime) =>
         [false, true].map((completed) => ({
             operator,
             values: [2],
@@ -87,7 +80,7 @@ const dateCurrentFilterExampleTemplates: FilterExampleTemplate[] = [
     FilterOperator.IN_THE_CURRENT,
     FilterOperator.NOT_IN_THE_CURRENT,
 ].flatMap((operator) =>
-    dateRelativeUnits.map((unitOfTime) => ({
+    filterExpressionDateUnits.map((unitOfTime) => ({
         operator,
         values: [1],
         settings: { completed: false, unitOfTime },

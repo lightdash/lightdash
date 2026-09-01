@@ -93,9 +93,7 @@ describe('getSystemPromptV2 filter expressions', () => {
         expect(section).not.toContain('"filters"');
         expect(section).not.toContain('queryConfig: {');
         expect(section).not.toContain('"queryConfig"');
-        expect(
-            content.match(/### Generated raw expression matrix/g),
-        ).toHaveLength(1);
+        expect(content.match(/### string/g)).toHaveLength(1);
     });
 
     test('uses metadata-based filter categories without changing query grain', () => {

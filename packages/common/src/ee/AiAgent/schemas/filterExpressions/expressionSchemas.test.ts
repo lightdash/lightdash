@@ -1,6 +1,7 @@
 import { expectTypeOf } from 'vitest';
 import { DimensionType, MetricType } from '../../../../types/field';
 import { FilterOperator, FilterType } from '../../../../types/filter';
+import assertUnreachable from '../../../../utils/assertUnreachable';
 import {
     aggregationCustomMetricSchema,
     customMetricsSchema,
@@ -23,6 +24,7 @@ import {
     FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
     filterExpressionInputSchema,
     filterExpressionsSchema,
+    getFilterExpressionGrammarDescription,
     mergeConfigExpressionSchema,
     mergeSourceQueryConfigExpressionSchema,
     queryConfigExpressionSchemaV2,
@@ -39,7 +41,10 @@ import {
     type ToolRunQueryExpressionArgsV2,
     type ToolRunQueryExpressionRuntimeArgs,
 } from './expressionSchemas';
-import { filterExpressionOperators } from './operators';
+import {
+    filterExpressionDateUnits,
+    filterExpressionOperatorDefinitions,
+} from './operators';
 import {
     FILTER_EXPRESSION_MAX_LENGTH,
     FILTER_EXPRESSION_MAX_LITERAL_LENGTH,
@@ -116,6 +121,19 @@ const mergeConfig = {
     joinType: 'full' as const,
 };
 
+const getFilterTypeSection = (
+    description: string,
+    filterType: FilterType,
+): string => {
+    const marker = `### ${filterType}`;
+    const start = description.indexOf(marker);
+    if (start === -1) {
+        throw new Error(`Missing ${filterType} grammar section`);
+    }
+    const next = description.indexOf('\n\n### ', start + marker.length);
+    return description.slice(start, next === -1 ? undefined : next);
+};
+
 const legacyFilters = {
     type: 'and' as const,
     dimensions: [
@@ -145,18 +163,102 @@ describe('filter expression input schemas', () => {
         ).toBe(false);
     });
 
-    it('documents every exposed operator from the canonical map', () => {
-        filterExpressionOperators.forEach((operator) => {
-            expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(operator);
-            expect(FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION).toContain(
-                operator,
+    it('groups exactly the canonical operators by supported field type', () => {
+        for (const filterType of Object.values(FilterType)) {
+            const section = getFilterTypeSection(
+                FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
+                filterType,
             );
-        });
+
+            const supportedOperators =
+                filterExpressionOperatorDefinitions.filter(
+                    (definition) =>
+                        definition.argumentCountByFilterType[filterType] !==
+                        null,
+                );
+            const documentedOperators = section
+                .split('\n')
+                .filter((line) => line.startsWith('- `'));
+
+            expect(documentedOperators).toHaveLength(supportedOperators.length);
+            for (const definition of filterExpressionOperatorDefinitions) {
+                const operatorSyntax =
+                    definition.syntax === 'presence'
+                        ? `${definition.operator} [`
+                        : `${definition.operator}=`;
+                expect(section.includes(operatorSyntax)).toBe(
+                    definition.argumentCountByFilterType[filterType] !== null,
+                );
+            }
+        }
     });
 
-    it('renders the selected connector policy', () => {
+    it('renders canonical argument syntax and arity', () => {
+        for (const filterType of Object.values(FilterType)) {
+            for (const definition of filterExpressionOperatorDefinitions) {
+                const argumentCount =
+                    definition.argumentCountByFilterType[filterType];
+                if (argumentCount !== null) {
+                    const section = getFilterTypeSection(
+                        FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
+                        filterType,
+                    );
+
+                    switch (definition.argumentSyntax) {
+                        case 'none':
+                            expect(section).toContain(
+                                `\`${definition.operator} [0 values]\``,
+                            );
+                            break;
+                        case 'relativeDate':
+                            expect(section).toContain(
+                                `\`${definition.operator}=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\``,
+                            );
+                            break;
+                        case 'currentDate':
+                            expect(section).toContain(
+                                `\`${definition.operator}=<unit> [1 unit]\``,
+                            );
+                            break;
+                        case 'values': {
+                            const syntaxByArgumentCount = {
+                                0: definition.operator,
+                                1: `${definition.operator}=<value>`,
+                                2: `${definition.operator}=<first value>,<second value>`,
+                                oneOrMore: `${definition.operator}=<value>[,<value>...]`,
+                            };
+                            const arity =
+                                argumentCount === 'oneOrMore'
+                                    ? '1+ values'
+                                    : `${argumentCount} ${argumentCount === 1 ? 'value' : 'values'}`;
+                            expect(section).toContain(
+                                `\`${syntaxByArgumentCount[argumentCount]} [${arity}]\``,
+                            );
+                            break;
+                        }
+                        default:
+                            assertUnreachable(
+                                definition,
+                                'Unknown filter expression argument syntax',
+                            );
+                    }
+                }
+            }
+        }
+    });
+
+    it('is deterministic and renders the selected connector policy without contradiction', () => {
+        expect(getFilterExpressionGrammarDescription('andOr')).toBe(
+            FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
+        );
+        expect(getFilterExpressionGrammarDescription('andOnly')).toBe(
+            FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION,
+        );
         expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(
             'Join flat rules with AND or OR',
+        );
+        expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).not.toContain(
+            'Join flat rules with AND only',
         );
         expect(FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION).toContain(
             'Join flat rules with AND only. OR is not supported by this tool.',
@@ -166,10 +268,21 @@ describe('filter expression input schemas', () => {
         );
     });
 
-    it('documents quoting syntax characters without punctuation escapes', () => {
-        expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain('equals signs');
+    it('documents canonical date units and completed semantics', () => {
+        filterExpressionDateUnits.forEach((unit) => {
+            expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(unit);
+        });
         expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(
-            'commas and braces are literal; do not backslash-escape them',
+            'completed=false includes partial, true completed only',
+        );
+    });
+
+    it('documents quoting syntax characters without punctuation escapes', () => {
+        expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(
+            'Quote delimiters/reserved values',
+        );
+        expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(
+            'commas/braces are literal in quotes',
         );
     });
 
@@ -193,16 +306,16 @@ describe('filter expression input schemas', () => {
 
     it('documents parser safety limits', () => {
         expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(
-            `${FILTER_EXPRESSION_MAX_RULES} rules per expression`,
+            `${FILTER_EXPRESSION_MAX_RULES} rules;`,
         );
         expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(
-            `${FILTER_EXPRESSION_MAX_VALUES_PER_RULE} values (including settings) per rule`,
+            `${FILTER_EXPRESSION_MAX_VALUES_PER_RULE} values including settings/rule`,
         );
         expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(
-            `${FILTER_EXPRESSION_MAX_LITERAL_LENGTH} characters per literal`,
+            `${FILTER_EXPRESSION_MAX_LITERAL_LENGTH} characters/literal`,
         );
         expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(
-            `${FILTER_EXPRESSION_MAX_LENGTH} characters per expression`,
+            `${FILTER_EXPRESSION_MAX_LENGTH} characters/expression`,
         );
     });
 
