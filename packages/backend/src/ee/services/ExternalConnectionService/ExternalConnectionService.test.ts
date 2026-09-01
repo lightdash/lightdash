@@ -120,6 +120,7 @@ function buildService(opts: {
     findAppFn?: import('vitest').Mock;
     getCopilotConfigFn?: import('vitest').Mock;
     connections?: ExternalConnectionListItem[];
+    listLinkedAppsFn?: import('vitest').Mock;
 }) {
     const model = {
         findByUuid: vi
@@ -135,6 +136,9 @@ function buildService(opts: {
             upstreamProjectUuid: null,
         }),
         list: vi.fn().mockResolvedValue(opts.connections ?? [listedConnection]),
+        listLinkedApps:
+            opts.listLinkedAppsFn ??
+            vi.fn().mockResolvedValue({ items: [], total: 0 }),
         getDecryptedSecret: vi.fn().mockResolvedValue(opts.secret ?? 's3cr3t'),
         update:
             opts.updateFn ??
@@ -375,6 +379,48 @@ describe('ExternalConnectionService reads (view, not manage)', () => {
                 secret: null,
             }),
         ).rejects.toThrow(ForbiddenError);
+    });
+});
+
+describe('ExternalConnectionService linked app usage', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('returns linked apps to an external connection manager', async () => {
+        const linkedApps = {
+            items: [
+                {
+                    appUuid: 'app-1',
+                    name: 'Revenue dashboard',
+                    slug: 'revenue-dashboard',
+                    kind: 'data_app' as const,
+                    spaceUuid: null,
+                    spaceName: null,
+                    aliases: ['acme'],
+                },
+            ],
+            total: 1,
+        };
+        const listLinkedAppsFn = vi.fn().mockResolvedValue(linkedApps);
+        const { service } = buildService({ listLinkedAppsFn });
+        mockAbilityByActions(service, ['manage']);
+
+        await expect(
+            service.listLinkedApps(adminAccount, projectUuid, connectionUuid),
+        ).resolves.toEqual(linkedApps);
+        expect(listLinkedAppsFn).toHaveBeenCalledWith(connectionUuid);
+    });
+
+    it('does not expose linked app identities to a view-only builder', async () => {
+        const listLinkedAppsFn = vi.fn();
+        const { service } = buildService({ listLinkedAppsFn });
+        mockAbilityByActions(service, ['view']);
+
+        await expect(
+            service.listLinkedApps(viewerAccount, projectUuid, connectionUuid),
+        ).rejects.toThrow(ForbiddenError);
+        expect(listLinkedAppsFn).not.toHaveBeenCalled();
     });
 });
 

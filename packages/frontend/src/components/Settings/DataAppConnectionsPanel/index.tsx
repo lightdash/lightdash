@@ -1,4 +1,7 @@
-import { type ExternalConnection } from '@lightdash/common';
+import {
+    type ExternalConnection,
+    type ExternalConnectionListItem,
+} from '@lightdash/common';
 import { Button, Skeleton, Stack } from '@mantine/core';
 import { IconPlug, IconPlus } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
@@ -11,6 +14,7 @@ import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
 import { AddConnectionWizard } from './AddConnectionWizard';
 import { ConnectionsTable } from './ConnectionsTable';
+import { ConnectionUsageModal } from './ConnectionUsageModal';
 import { DeleteConnectionModal } from './DeleteConnectionModal';
 import { EditConnectionModal } from './EditConnectionModal';
 
@@ -39,6 +43,9 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
     >(undefined);
     const [connectionToDelete, setConnectionToDelete] = useState<
         ExternalConnection | undefined
+    >(undefined);
+    const [connectionToViewUsage, setConnectionToViewUsage] = useState<
+        ExternalConnectionListItem | undefined
     >(undefined);
     const addConnectionButton = (
         <Button
@@ -85,6 +92,9 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
                                         setConnectionToDelete={
                                             setConnectionToDelete
                                         }
+                                        setConnectionToViewUsage={
+                                            setConnectionToViewUsage
+                                        }
                                     />
                                 )}
                             </Stack>
@@ -125,6 +135,15 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
                     onClose={() => setConnectionToDelete(undefined)}
                     projectUuid={projectUuid}
                     connection={connectionToDelete}
+                />
+            )}
+
+            {connectionToViewUsage && (
+                <ConnectionUsageModal
+                    opened={!!connectionToViewUsage}
+                    onClose={() => setConnectionToViewUsage(undefined)}
+                    projectUuid={projectUuid}
+                    connection={connectionToViewUsage}
                 />
             )}
         </>

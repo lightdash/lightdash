@@ -95,6 +95,7 @@ import type {
     DecodedEmbed,
     EmbedUrl,
     ExternalConnection,
+    ExternalConnectionLinkedApps,
     ExternalConnectionSample,
     ExternalFetchResponse,
 } from '../ee';
@@ -1536,6 +1537,7 @@ type ApiResults =
     | DashboardPreAggregateAudit
     | ExternalConnection
     | ExternalConnection[]
+    | ExternalConnectionLinkedApps
     | ExternalConnectionSample
     | ExternalConnectionSample[]
     | AppExternalConnectionLink

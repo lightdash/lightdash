@@ -14,6 +14,7 @@ import {
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionConfigProposal,
+    type ExternalConnectionLinkedApps,
     type ExternalConnectionListItem,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
@@ -269,6 +270,15 @@ export class ExternalConnectionService extends BaseService {
         return connections.filter((connection) =>
             ability.can('view', getExternalConnectionSubject(connection)),
         );
+    }
+
+    async listLinkedApps(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ExternalConnectionLinkedApps> {
+        await this.getOwnedConnection(account, projectUuid, connectionUuid);
+        return this.externalConnectionModel.listLinkedApps(connectionUuid);
     }
 
     private async loadConnection(

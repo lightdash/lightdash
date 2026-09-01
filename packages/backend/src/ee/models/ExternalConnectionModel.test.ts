@@ -378,6 +378,70 @@ describe('ExternalConnectionModel', () => {
         });
     });
 
+    describe('listLinkedApps', () => {
+        it('groups aliases by active app and distinguishes project chart types', async () => {
+            tracker.on.select(AppExternalConnectionsTableName).responseOnce([
+                {
+                    app_id: 'chart-type-1',
+                    name: 'Region map',
+                    slug: 'region-map',
+                    template: 'data_app_viz',
+                    space_uuid: null,
+                    space_name: null,
+                    alias: 'maps',
+                },
+                {
+                    app_id: APP_ID,
+                    name: 'Revenue dashboard',
+                    slug: 'revenue-dashboard',
+                    template: 'dashboard',
+                    space_uuid: 'space-1',
+                    space_name: 'Sales',
+                    alias: 'acme',
+                },
+                {
+                    app_id: APP_ID,
+                    name: 'Revenue dashboard',
+                    slug: 'revenue-dashboard',
+                    template: 'dashboard',
+                    space_uuid: 'space-1',
+                    space_name: 'Sales',
+                    alias: 'acme-v2',
+                },
+            ]);
+
+            await expect(
+                model.listLinkedApps(CONNECTION_UUID),
+            ).resolves.toEqual({
+                items: [
+                    {
+                        appUuid: APP_ID,
+                        name: 'Revenue dashboard',
+                        slug: 'revenue-dashboard',
+                        kind: 'data_app',
+                        spaceUuid: 'space-1',
+                        spaceName: 'Sales',
+                        aliases: ['acme', 'acme-v2'],
+                    },
+                    {
+                        appUuid: 'chart-type-1',
+                        name: 'Region map',
+                        slug: 'region-map',
+                        kind: 'project_chart_type',
+                        spaceUuid: null,
+                        spaceName: null,
+                        aliases: ['maps'],
+                    },
+                ],
+                total: 2,
+            });
+
+            const query = tracker.history.select[0];
+            expect(query.bindings).toContain(CONNECTION_UUID);
+            expect(query.sql).toContain('"apps"."deleted_at" is null');
+        });
+    });
+
     describe('update', () => {
         it('updates builder linking independently of the stored secret', async () => {
             tracker.on.select(ExternalConnectionsTableName).response([
