@@ -56,12 +56,15 @@ failure. Before dependency installation, all commands failed before collection.
 
 ## Verification
 
-- common: typecheck and lint passed; full suite passed (165 files, 3,960 tests,
+- common: typecheck and lint passed; full suite passed (165 files, 3,964 tests,
   1 skipped)
 - backend: typecheck and lint passed; full suite passed (550 files, 9,010 tests,
   1 skipped)
-- frontend: typecheck and lint passed; Zod form/password tests passed (2 files,
-  2 tests)
+- frontend: typecheck and lint passed; full suite passed (421 files, 3,143
+  tests)
+- the root workspace test passed all 13 tasks, including common, warehouses,
+  CLI, query SDK, backend, and frontend; the workspace production build passed
+- all release-safety checks passed
 - MCP and agent contract snapshots pass without update mode; the stable MCP
   snapshot check passes and contains no `$ref`
 - frozen lockfile installation and supply-chain policy verification pass

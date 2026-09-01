@@ -1,9 +1,13 @@
 import { z } from 'zod';
 
+type JsonSchemaOptions = {
+    io: 'input' | 'output';
+    reused?: 'inline' | 'ref';
+};
+
 export const toJsonSchema = (
     schema: z.ZodType,
-    io: 'input' | 'output' = 'output',
-    reused: 'inline' | 'ref' = 'inline',
+    { io, reused = 'inline' }: JsonSchemaOptions,
 ) =>
     z.toJSONSchema(schema, {
         target: 'draft-07',

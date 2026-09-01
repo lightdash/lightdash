@@ -989,11 +989,14 @@ void dataAppVizGenerationSchemaIsPersistable;
 // target's 2019-09 meta-schema.
 type JsonSchemaObject = Record<string, unknown>;
 
+const isJsonSchemaObject = (value: unknown): value is JsonSchemaObject =>
+    value !== null && typeof value === 'object' && !Array.isArray(value);
+
 const makeOpenAiStrict = (value: unknown): unknown => {
     if (Array.isArray(value)) {
         return value.map(makeOpenAiStrict);
     }
-    if (value === null || typeof value !== 'object') {
+    if (!isJsonSchemaObject(value)) {
         return value;
     }
 
@@ -1002,28 +1005,32 @@ const makeOpenAiStrict = (value: unknown): unknown => {
             key,
             makeOpenAiStrict(child),
         ]),
-    ) as JsonSchemaObject;
-    if (schema.properties && typeof schema.properties === 'object') {
-        const properties = schema.properties as Record<string, unknown>;
-        const required = new Set(
-            Array.isArray(schema.required) ? schema.required : [],
-        );
-
-        Object.keys(properties).forEach((property) => {
-            if (!required.has(property)) {
-                properties[property] = {
-                    anyOf: [properties[property], { type: 'null' }],
-                };
-            }
-        });
-        schema.required = Object.keys(properties);
+    );
+    if (!isJsonSchemaObject(schema.properties)) {
+        return schema;
     }
 
-    return schema;
+    const required = new Set(
+        Array.isArray(schema.required) ? schema.required : [],
+    );
+    const properties = Object.fromEntries(
+        Object.entries(schema.properties).map(([property, propertySchema]) => [
+            property,
+            required.has(property)
+                ? propertySchema
+                : { anyOf: [propertySchema, { type: 'null' }] },
+        ]),
+    );
+
+    return {
+        ...schema,
+        properties,
+        required: Object.keys(properties),
+    };
 };
 
 export const dataAppVizJsonSchema = makeOpenAiStrict(
-    toJsonSchema(dataAppVizGenerationSchema, 'input'),
+    toJsonSchema(dataAppVizGenerationSchema, { io: 'input' }),
 );
 
 /** Whether a stored value still has the shape the option declares. */

@@ -45,7 +45,7 @@ const schemaToJson = (
     io: 'input' | 'output',
 ): JsonValue => {
     if (!schema) return null;
-    return toJsonSchema(schema, io) as JsonValue;
+    return toJsonSchema(schema, { io }) as JsonValue;
 };
 
 /**

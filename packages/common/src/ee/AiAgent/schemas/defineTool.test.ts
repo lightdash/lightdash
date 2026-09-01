@@ -63,7 +63,7 @@ describe('defineTool', () => {
         const serializeMcp = (view: typeof mcpLegacy | typeof mcpExpression) =>
             JSON.stringify({
                 description: view.description,
-                inputSchema: toJsonSchema(view.inputSchema, 'input'),
+                inputSchema: toJsonSchema(view.inputSchema, { io: 'input' }),
             });
         const contracts = {
             agentLegacy: serializeAgent(agentLegacy),
@@ -210,7 +210,9 @@ describe('defineTool', () => {
 
         const agentInputSchema = tool.for('agent').inputSchema;
         const { jsonSchema, validate } = agentInputSchema;
-        expect(jsonSchema).toEqual(toJsonSchema(inputSchema, 'input', 'ref'));
+        expect(jsonSchema).toEqual(
+            toJsonSchema(inputSchema, { io: 'input', reused: 'ref' }),
+        );
         expect(validate?.(input)).toEqual({
             success: true,
             value: input,
@@ -225,7 +227,7 @@ describe('defineTool', () => {
         const mcpInputSchema = tool.for('mcp').inputSchema;
         expect(mcpInputSchema).not.toBe(inputSchema);
         expect(
-            JSON.stringify(toJsonSchema(mcpInputSchema, 'input')),
+            JSON.stringify(toJsonSchema(mcpInputSchema, { io: 'input' })),
         ).not.toContain('"$ref"');
         expect(mcpInputSchema.parse(input)).toEqual(input);
     });

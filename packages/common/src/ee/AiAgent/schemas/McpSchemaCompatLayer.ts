@@ -1,7 +1,16 @@
-/* eslint-disable class-methods-use-this, no-underscore-dangle, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
-import { SchemaCompatLayer, type AllZodType } from '@mastra/schema-compat';
-import { z, ZodDefault } from 'zod';
-import { type AnyType } from '../../../types/any';
+/* eslint-disable class-methods-use-this */
+import { SchemaCompatLayer } from '@mastra/schema-compat';
+import { z } from 'zod';
+import { type ZodType as ZodTypeV3 } from 'zod/v3';
+
+const OPTIONAL_TYPES_TO_PROCESS = [
+    'ZodObject',
+    'ZodArray',
+    'ZodUnion',
+    'ZodNever',
+    'ZodUndefined',
+    'ZodTuple',
+] as const;
 
 export class McpSchemaCompatLayer extends SchemaCompatLayer {
     constructor() {
@@ -22,17 +31,26 @@ export class McpSchemaCompatLayer extends SchemaCompatLayer {
         return true;
     }
 
-    processZodType(value: AnyType): AnyType {
-        const v = value as z.ZodType;
+    processZodType(value: z.ZodType): z.ZodType;
+    processZodType(value: ZodTypeV3): ZodTypeV3;
+    processZodType(value: z.ZodType | ZodTypeV3): z.ZodType | ZodTypeV3;
+    processZodType(value: z.ZodType | ZodTypeV3): z.ZodType | ZodTypeV3 {
+        if (!(value instanceof z.ZodType)) {
+            throw new Error('MCP schema compatibility requires Zod 4');
+        }
 
+        return this.processZod4Type(value);
+    }
+
+    private processZod4Type(v: z.ZodType): z.ZodType {
         // Handle nullable types (e.g., z.string().nullable()) map them to optional but default to null
         if (v instanceof z.ZodNullable) {
-            let innerType = this.processZodType(v.unwrap());
-            const description =
-                v.description ?? (v.unwrap() as z.ZodType).description;
+            const nullableInner = v.unwrap() as z.ZodType;
+            let innerType = this.processZod4Type(nullableInner);
+            const description = v.description ?? nullableInner.description;
 
             // fix for `.default(...).nullable()`
-            if (!(innerType instanceof ZodDefault)) {
+            if (!this.isDefault(innerType)) {
                 innerType = innerType.optional();
             }
 
@@ -45,7 +63,7 @@ export class McpSchemaCompatLayer extends SchemaCompatLayer {
                     (val) => (val === null ? undefined : val),
                     description ? innerType.describe(description) : innerType,
                 )
-                .transform((val: AnyType) => (val === undefined ? null : val));
+                .transform((val) => (val === undefined ? null : val));
 
             return description ? normalized.describe(description) : normalized;
         }
@@ -57,15 +75,7 @@ export class McpSchemaCompatLayer extends SchemaCompatLayer {
 
         // Identical to @mastra/schema-compat/src/provider-compats/anthropic.ts
         if (this.isOptional(v)) {
-            const handleTypes: AllZodType[] = [
-                'ZodObject',
-                'ZodArray',
-                'ZodUnion',
-                'ZodNever',
-                'ZodUndefined',
-                'ZodTuple',
-            ];
-            return this.defaultZodOptionalHandler(v, handleTypes);
+            return this.defaultZodOptionalHandler(v, OPTIONAL_TYPES_TO_PROCESS);
         }
         if (this.isObj(v)) {
             return this.defaultZodObjectHandler(v);
@@ -80,10 +90,17 @@ export class McpSchemaCompatLayer extends SchemaCompatLayer {
             return v;
         }
 
-        return this.defaultUnsupportedZodTypeHandler(
-            v as AnyType,
-            ['ZodNever', 'ZodTuple', 'ZodUndefined'] as AnyType,
-        );
+        if (
+            v instanceof z.ZodNever ||
+            v instanceof z.ZodTuple ||
+            v instanceof z.ZodUndefined
+        ) {
+            throw new Error(
+                `${this.getModel().modelId} does not support zod type: ${v.constructor.name}`,
+            );
+        }
+
+        return v;
     }
 }
 
