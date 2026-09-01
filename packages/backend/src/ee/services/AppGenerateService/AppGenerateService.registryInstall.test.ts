@@ -581,7 +581,11 @@ describe('AppGenerateService.installRegistryChartType', () => {
         expect(fakeS3.objects.size).toBe(0);
     });
 
-    it('concurrent install losing the (app_id, version) race does NOT delete the winning install S3 keys', async () => {
+    it('concurrent FRESH installs racing on registry_slug: the loser cleans up its own S3 prefix and gets a friendly retry error', async () => {
+        // Both installers passed the unlocked listRegistryInstalledApps
+        // pre-check (see it below), so neither has `existing` — the DB
+        // unique violation is on (project_uuid, registry_slug), not on this
+        // loser's own (unshared) app_id/prefix, so cleaning it up is safe.
         const sourceTar = await buildTar([
             { name: 'src/App.tsx', content: 'x' },
         ]);
@@ -613,13 +617,64 @@ describe('AppGenerateService.installRegistryChartType', () => {
 
         await expect(
             svc.installRegistryChartType(fakeUser, PROJECT_UUID, 'sankey'),
-        ).rejects.toThrow(ParameterError);
+        ).rejects.toThrow(
+            'This chart type was just installed by someone else — refresh',
+        );
+
+        const deleteCalls = fakeS3.send.mock.calls
+            .map(([cmd]) => cmd as FakeCommand)
+            .filter((cmd) => cmd.constructor.name === 'DeleteObjectsCommand');
+        expect(deleteCalls.length).toBeGreaterThan(0);
+        // The loser's own writes were cleaned up — nothing left under its prefix.
+        expect(fakeS3.objects.size).toBe(0);
+    });
+
+    it('concurrent UPGRADE installs racing on (app_id, version): the loser does NOT touch S3 (the shared prefix belongs to the winner)', async () => {
+        const sourceTar = await buildTar([
+            { name: 'src/App.tsx', content: 'x' },
+        ]);
+        const distTar = await buildTar([
+            { name: 'dist/index.html', content: '<html/>' },
+        ]);
+        const fakeS3 = makeFakeS3();
+        const appModel = {
+            listRegistryInstalledApps: vi.fn().mockResolvedValue([
+                {
+                    app_id: 'existing-app-uuid',
+                    registry_slug: 'sankey',
+                    latest_ready_registry_version: '1.2.0',
+                },
+            ]),
+            getLatestVersion: vi.fn().mockResolvedValue({ version: 2 }),
+            createVersion: vi.fn().mockRejectedValue(databaseError('23505')),
+        };
+        const chartRegistryClient = {
+            downloadArtifact: vi
+                .fn()
+                .mockImplementation(
+                    (_entry: unknown, kind: 'source' | 'dist') =>
+                        Promise.resolve(
+                            kind === 'source' ? sourceTar : distTar,
+                        ),
+                ),
+        };
+        const svc = buildService({
+            appModel,
+            chartRegistryClient,
+            s3ClientOverride: fakeS3,
+        });
+
+        await expect(
+            svc.installRegistryChartType(fakeUser, PROJECT_UUID, 'sankey'),
+        ).rejects.toThrow(
+            'Another install of this chart type is in progress — retry',
+        );
 
         const deleteCalls = fakeS3.send.mock.calls
             .map(([cmd]) => cmd as FakeCommand)
             .filter((cmd) => cmd.constructor.name === 'DeleteObjectsCommand');
         expect(deleteCalls).toHaveLength(0);
-        // The winner's PutObject writes are still intact.
+        // The winner's PutObject writes under the shared prefix are still intact.
         expect(fakeS3.objects.size).toBeGreaterThan(0);
     });
 

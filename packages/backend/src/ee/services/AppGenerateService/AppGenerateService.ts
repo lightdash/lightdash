@@ -298,6 +298,7 @@ import {
     copyDesignIntoSandbox,
     type DesignSandboxCopyResult,
 } from './designSandboxCopy';
+import { assertValidDistTar } from './distTarValidation';
 import { resolveOtelExportHeaders } from './gcpOtelAuth';
 import { readDesignForDownload } from './readDesignForDownload';
 import { readS3ObjectAsBuffer } from './s3Utils';
@@ -8735,6 +8736,11 @@ export class AppGenerateService extends BaseService {
             this.chartRegistryClient.downloadArtifact(entry, 'source'),
             this.chartRegistryClient.downloadArtifact(entry, 'dist'),
         ]);
+        // The registry is an external input — validate the dist bundle's
+        // shape before any S3 write, so a malicious/malformed dist.tar (e.g.
+        // an entry that would overwrite source.tar at this version prefix)
+        // never reaches extraction.
+        await assertValidDistTar(distTar);
         const { client: s3Client, bucket } = this.getS3Client();
         const appUuid = existing?.app_id ?? uuidv4();
         const version = existing
@@ -8791,13 +8797,27 @@ export class AppGenerateService extends BaseService {
                 );
             }
         } catch (e) {
-            // A concurrent install of the same chart type can also win the
-            // race to (app_id, version) — its createVersion/createWithVersion
-            // already committed to this exact S3 prefix, so cleaning it up
-            // here would delete the winner's just-written bundle.
             if (isUniqueConstraintViolation(e)) {
+                if (existing) {
+                    // A concurrent upgrade of the same app can also win the
+                    // race to (app_id, version) — its createVersion already
+                    // committed to this exact S3 prefix, so cleaning it up
+                    // here would delete the winner's just-written bundle.
+                    throw new ParameterError(
+                        'Another install of this chart type is in progress — retry',
+                    );
+                }
+                // A concurrent fresh install races on registry_slug, not on
+                // this app's own (unshared) uuid/prefix — cleaning up here
+                // only removes the loser's own bundle, never the winner's.
+                await this.deleteVersionS3Prefix(
+                    s3Client,
+                    bucket,
+                    appUuid,
+                    version,
+                );
                 throw new ParameterError(
-                    'Another install of this chart type is in progress — retry',
+                    'This chart type was just installed by someone else — refresh',
                 );
             }
             await this.deleteVersionS3Prefix(
@@ -9747,7 +9767,6 @@ export class AppGenerateService extends BaseService {
         return new Promise<{ fileCount: number; totalBytes: number }>(
             (resolve, reject) => {
                 const extractor = extract();
-                const uploads: Promise<void>[] = [];
                 let fileCount = 0;
                 let totalBytes = 0;
 
@@ -9777,7 +9796,11 @@ export class AppGenerateService extends BaseService {
                                         relativePath,
                                     );
 
-                                const upload = s3Client
+                                // Awaited before next(): uploads run
+                                // sequentially rather than firing unbounded
+                                // concurrent PutObject calls for every tar
+                                // entry — bundles are small, so this is cheap.
+                                s3Client
                                     .send(
                                         new PutObjectCommand({
                                             Bucket: bucket,
@@ -9786,10 +9809,7 @@ export class AppGenerateService extends BaseService {
                                             ContentType: contentType,
                                         }),
                                     )
-                                    .then(() => {});
-
-                                uploads.push(upload);
-                                next();
+                                    .then(() => next(), reject);
                             });
                             stream.on('error', reject);
                         } else {
@@ -9799,11 +9819,10 @@ export class AppGenerateService extends BaseService {
                     },
                 );
 
+                // Every upload was awaited before its entry's next() was
+                // called, so by the time 'finish' fires all uploads are done.
                 extractor.on('finish', () => {
-                    Promise.all(uploads).then(
-                        () => resolve({ fileCount, totalBytes }),
-                        reject,
-                    );
+                    resolve({ fileCount, totalBytes });
                 });
 
                 extractor.on('error', reject);

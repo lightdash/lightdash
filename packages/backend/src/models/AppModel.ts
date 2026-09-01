@@ -1099,6 +1099,7 @@ export class AppModel {
             .where(`${AppsTableName}.project_uuid`, projectUuid)
             .whereNotNull(`${AppsTableName}.registry_slug`)
             .whereNull(`${AppsTableName}.deleted_at`)
+            .orderBy(`${AppsTableName}.created_at`)
             .select<
                 Array<{
                     app_id: string;
