@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     ProjectMemberRole,
     ProjectMemberRoleLabels,
     type Group as OrgGroup,
@@ -54,6 +55,81 @@ const segmentedLabel = (icon: typeof IconWorld, label: string) => (
         {label}
     </Group>
 );
+
+const AUDIENCE_MODES = ['everyone', 'groups', 'roles'] as const;
+type AudienceMode = (typeof AUDIENCE_MODES)[number];
+
+const isAudienceMode = (value: string): value is AudienceMode =>
+    AUDIENCE_MODES.some((mode) => mode === value);
+
+const initialModeFor = (ownAssignments: HomepageAssignment[]): AudienceMode => {
+    if (ownAssignments.some((a) => a.targetType === 'group')) return 'groups';
+    if (ownAssignments.some((a) => a.targetType === 'role')) return 'roles';
+    return 'everyone';
+};
+
+const pluralise = (count: number, noun: string) =>
+    `${count} ${noun}${count === 1 ? '' : 's'}`;
+
+const confirmLabelFor = (
+    mode: AudienceMode,
+    groupCount: number,
+    roleCount: number,
+): string => {
+    switch (mode) {
+        case 'everyone':
+            return 'Publish to everyone';
+        case 'groups':
+            return groupCount > 0
+                ? `Publish to ${pluralise(groupCount, 'group')}`
+                : 'Publish';
+        case 'roles':
+            return roleCount > 0
+                ? `Publish to ${pluralise(roleCount, 'role')}`
+                : 'Publish';
+        default:
+            return assertUnreachable(mode, 'Unknown audience mode');
+    }
+};
+
+// Publishing the homepage also flips every draft announcement live. The
+// query stays in the body (mounted while the modal is closed) so the callout
+// is already resolved by the time the modal opens.
+const useDraftAnnouncementCounts = (projectUuid: string) => {
+    const { data: announcementsPage } = useAnnouncements(projectUuid, {
+        page: 1,
+        pageSize: 100,
+        includeUnpublished: true,
+    });
+    const draftAnnouncements = (announcementsPage?.items ?? []).filter(
+        (announcement) => !announcement.published,
+    );
+    return {
+        draftCount: draftAnnouncements.length,
+        queuedSlackCount: draftAnnouncements.filter(
+            (announcement) => announcement.pendingSlackChannelId !== null,
+        ).length,
+    };
+};
+
+const DraftAnnouncementsCallout: FC<{
+    draftCount: number;
+    queuedSlackCount: number;
+}> = ({ draftCount, queuedSlackCount }) => {
+    if (draftCount === 0) return null;
+    return (
+        <Callout variant="warning">
+            <Text size="sm">
+                Publishing will also make{' '}
+                {pluralise(draftCount, 'draft announcement')} live
+                {queuedSlackCount > 0
+                    ? ' and send queued Slack notifications'
+                    : ''}
+                .
+            </Text>
+        </Callout>
+    );
+};
 
 type Props = {
     opened: boolean;
@@ -125,29 +201,13 @@ const PublishModalBody: FC<BodyProps> = ({
     assignments,
     reorderGroups,
 }) => {
-    // Publishing the homepage also flips every draft announcement live.
-    const { data: announcementsPage } = useAnnouncements(projectUuid, {
-        page: 1,
-        pageSize: 100,
-        includeUnpublished: true,
-    });
-    const draftAnnouncements = (announcementsPage?.items ?? []).filter(
-        (announcement) => !announcement.published,
-    );
-    const queuedSlackCount = draftAnnouncements.filter(
-        (announcement) => announcement.pendingSlackChannelId !== null,
-    ).length;
-
+    const draftAnnouncements = useDraftAnnouncementCounts(projectUuid);
     const ownAssignments = assignments.filter(
         (assignment) => assignment.homepageUuid === homepageUuid,
     );
-    const initialMode = ownAssignments.some((a) => a.targetType === 'group')
-        ? 'groups'
-        : ownAssignments.some((a) => a.targetType === 'role')
-          ? 'roles'
-          : 'everyone';
-
-    const [mode, setMode] = useState<string>(initialMode);
+    const [mode, setMode] = useState<AudienceMode>(() =>
+        initialModeFor(ownAssignments),
+    );
     const [selectedGroups, setSelectedGroups] = useState<string[]>(() =>
         ownAssignments
             .filter((a) => a.targetType === 'group')
@@ -201,20 +261,11 @@ const PublishModalBody: FC<BodyProps> = ({
         }
     };
 
-    const confirmLabel =
-        mode === 'groups'
-            ? selectedGroups.length > 0
-                ? `Publish to ${selectedGroups.length} group${
-                      selectedGroups.length === 1 ? '' : 's'
-                  }`
-                : 'Publish'
-            : mode === 'roles'
-              ? selectedRoles.length > 0
-                  ? `Publish to ${selectedRoles.length} role${
-                        selectedRoles.length === 1 ? '' : 's'
-                    }`
-                  : 'Publish'
-              : 'Publish to everyone';
+    const confirmLabel = confirmLabelFor(
+        mode,
+        selectedGroups.length,
+        selectedRoles.length,
+    );
 
     return (
         <MantineModal
@@ -242,7 +293,9 @@ const PublishModalBody: FC<BodyProps> = ({
                 <SegmentedControl
                     fullWidth
                     value={mode}
-                    onChange={setMode}
+                    onChange={(value) => {
+                        if (isAudienceMode(value)) setMode(value);
+                    }}
                     data={[
                         {
                             value: 'everyone',
@@ -463,19 +516,7 @@ const PublishModalBody: FC<BodyProps> = ({
                     </>
                 )}
 
-                {draftAnnouncements.length > 0 && (
-                    <Callout variant="warning">
-                        <Text size="sm">
-                            Publishing will also make{' '}
-                            {draftAnnouncements.length} draft announcement
-                            {draftAnnouncements.length === 1 ? '' : 's'} live
-                            {queuedSlackCount > 0
-                                ? ' and send queued Slack notifications'
-                                : ''}
-                            .
-                        </Text>
-                    </Callout>
-                )}
+                <DraftAnnouncementsCallout {...draftAnnouncements} />
 
                 <Group gap={7} p="10px 12px" className={classes.resolvesBar}>
                     <Text fz={11.5} fw={500} c="ldGray.5">
