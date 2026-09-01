@@ -287,6 +287,28 @@ describe('MCP tool contracts', () => {
         }).toMatchSnapshot();
     });
 
+    it('matches the filter-expression search_field_values tools/list snapshot', async () => {
+        const mcpService = makeMcpService();
+
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer({
+            runMetricQueryEnabled: true,
+            filterExpressionsEnabled: true,
+        });
+
+        const registered = mockRegisteredMcpTools.find(
+            ({ name }) => name === McpToolName.SEARCH_FIELD_VALUES,
+        );
+        expect(registered).toBeDefined();
+        expect({
+            name: registered?.name,
+            title: registered?.config.title,
+            description: registered?.config.description,
+            annotations: registered?.config.annotations,
+            inputSchema: schemaToJson(registered?.config.inputSchema),
+        }).toMatchSnapshot();
+    });
+
     it('registers generate_hashes without project scope', async () => {
         const mcpService = makeMcpService();
 

@@ -1,0 +1,92 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`filter expression examples > renders the complete generated instruction matrix 1`] = `
+"Examples by field filter type. Each line is one complete raw string expression:
+string:
+- isNull: orders_status isNull
+- notNull: orders_status notNull
+- equals: orders_status equals=example
+- equals: orders_status equals=example,another
+- notEquals: orders_status notEquals=excluded
+- notEquals: orders_status notEquals=excluded,another
+- startsWith: orders_status startsWith=prefix
+- startsWith: orders_status startsWith=prefix,another
+- endsWith: orders_status endsWith=suffix
+- endsWith: orders_status endsWith=suffix,another
+- include: orders_status include=contains
+- include: orders_status include=contains,another
+- doesNotInclude: orders_status doesNotInclude=exclude
+- doesNotInclude: orders_status doesNotInclude=exclude,another
+number:
+- isNull: orders_amount isNull
+- notNull: orders_amount notNull
+- equals: orders_amount equals=100
+- equals: orders_amount equals=100,500
+- notEquals: orders_amount notEquals=100
+- notEquals: orders_amount notEquals=100,500
+- lessThan: orders_amount lessThan=100
+- lessThanOrEqual: orders_amount lessThanOrEqual=100
+- greaterThan: orders_amount greaterThan=100
+- greaterThanOrEqual: orders_amount greaterThanOrEqual=100
+- inBetween: orders_amount inBetween=100,500
+- notInBetween: orders_amount notInBetween=100,500
+date:
+- isNull: orders_order_date isNull
+- notNull: orders_order_date notNull
+- equals: orders_order_date equals=2024-01-01
+- equals: orders_order_date equals=2024-01-01,2024-02-01
+- notEquals: orders_order_date notEquals=2024-01-01T00:00:00Z
+- notEquals: orders_order_date notEquals=2024-01-01T00:00:00Z,2024-02-01
+- lessThan: orders_order_date lessThan=2024-02-01T00:00:00Z
+- lessThanOrEqual: orders_order_date lessThanOrEqual=2024-02-01
+- greaterThan: orders_order_date greaterThan=2024-01-01
+- greaterThanOrEqual: orders_order_date greaterThanOrEqual=2024-01-01
+- inThePast: orders_order_date inThePast=2{unit:days,completed:false}
+- inThePast: orders_order_date inThePast=2{unit:days,completed:true}
+- inThePast: orders_order_date inThePast=2{unit:weeks,completed:false}
+- inThePast: orders_order_date inThePast=2{unit:weeks,completed:true}
+- inThePast: orders_order_date inThePast=2{unit:months,completed:false}
+- inThePast: orders_order_date inThePast=2{unit:months,completed:true}
+- inThePast: orders_order_date inThePast=2{unit:quarters,completed:false}
+- inThePast: orders_order_date inThePast=2{unit:quarters,completed:true}
+- inThePast: orders_order_date inThePast=2{unit:years,completed:false}
+- inThePast: orders_order_date inThePast=2{unit:years,completed:true}
+- notInThePast: orders_order_date notInThePast=2{unit:days,completed:false}
+- notInThePast: orders_order_date notInThePast=2{unit:days,completed:true}
+- notInThePast: orders_order_date notInThePast=2{unit:weeks,completed:false}
+- notInThePast: orders_order_date notInThePast=2{unit:weeks,completed:true}
+- notInThePast: orders_order_date notInThePast=2{unit:months,completed:false}
+- notInThePast: orders_order_date notInThePast=2{unit:months,completed:true}
+- notInThePast: orders_order_date notInThePast=2{unit:quarters,completed:false}
+- notInThePast: orders_order_date notInThePast=2{unit:quarters,completed:true}
+- notInThePast: orders_order_date notInThePast=2{unit:years,completed:false}
+- notInThePast: orders_order_date notInThePast=2{unit:years,completed:true}
+- inTheNext: orders_order_date inTheNext=2{unit:days,completed:false}
+- inTheNext: orders_order_date inTheNext=2{unit:days,completed:true}
+- inTheNext: orders_order_date inTheNext=2{unit:weeks,completed:false}
+- inTheNext: orders_order_date inTheNext=2{unit:weeks,completed:true}
+- inTheNext: orders_order_date inTheNext=2{unit:months,completed:false}
+- inTheNext: orders_order_date inTheNext=2{unit:months,completed:true}
+- inTheNext: orders_order_date inTheNext=2{unit:quarters,completed:false}
+- inTheNext: orders_order_date inTheNext=2{unit:quarters,completed:true}
+- inTheNext: orders_order_date inTheNext=2{unit:years,completed:false}
+- inTheNext: orders_order_date inTheNext=2{unit:years,completed:true}
+- inTheCurrent: orders_order_date inTheCurrent=days
+- inTheCurrent: orders_order_date inTheCurrent=weeks
+- inTheCurrent: orders_order_date inTheCurrent=months
+- inTheCurrent: orders_order_date inTheCurrent=quarters
+- inTheCurrent: orders_order_date inTheCurrent=years
+- notInTheCurrent: orders_order_date notInTheCurrent=days
+- notInTheCurrent: orders_order_date notInTheCurrent=weeks
+- notInTheCurrent: orders_order_date notInTheCurrent=months
+- notInTheCurrent: orders_order_date notInTheCurrent=quarters
+- notInTheCurrent: orders_order_date notInTheCurrent=years
+- inBetween: orders_order_date inBetween=2024-01-01,2024-01-31
+boolean:
+- isNull: orders_is_completed isNull
+- notNull: orders_is_completed notNull
+- equals: orders_is_completed equals=true
+- equals: orders_is_completed equals=false
+- notEquals: orders_is_completed notEquals=true
+- notEquals: orders_is_completed notEquals=false"
+`;

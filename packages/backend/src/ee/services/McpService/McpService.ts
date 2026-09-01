@@ -73,6 +73,7 @@ import {
     runQueryFilterExpressionToolDefinition,
     runQueryToolDefinition,
     runSqlToolDefinition,
+    searchFieldValuesFilterExpressionToolDefinition,
     searchFieldValuesToolDefinition,
     ServiceAcctAccount,
     SessionUser,
@@ -87,6 +88,8 @@ import {
     type ToolRunQueryArgsTransformed,
     type ToolRunQueryArgsV2,
     type ToolRunQueryExpressionArgsMcp,
+    type ToolSearchFieldValuesArgs,
+    type ToolSearchFieldValuesExpressionArgs,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
@@ -336,8 +339,19 @@ const mcpRunMetricQueryFilterExpressionTool = withProjectScopeInput(
 const mcpRenderChartTool = withProjectScopeInput(
     renderChartToolDefinition.for('mcp'),
 );
+type McpSearchFieldValuesArgs = (
+    | ToolSearchFieldValuesArgs
+    | ToolSearchFieldValuesExpressionArgs
+) & {
+    projectUuid: string;
+    agentUuid?: string;
+};
+
 const mcpSearchFieldValuesTool = withProjectScopeInput(
     searchFieldValuesToolDefinition.for('mcp'),
+);
+const mcpSearchFieldValuesFilterExpressionTool = withProjectScopeInput(
+    searchFieldValuesFilterExpressionToolDefinition.for('mcp'),
 );
 const mcpRunSqlTool = withProjectUuidInput(runSqlToolDefinition.for('mcp'));
 const mcpGetQueryResultTool = withProjectScopeInput(
@@ -3173,35 +3187,53 @@ export class McpService extends BaseService {
         );
 
         if (options.runMetricQueryEnabled) {
+            const searchFieldValuesToolView = options.filterExpressionsEnabled
+                ? mcpSearchFieldValuesFilterExpressionTool
+                : mcpSearchFieldValuesTool;
             this.registerTrackedTool(
-                mcpSearchFieldValuesTool.name,
+                searchFieldValuesToolView.name,
                 {
-                    title: mcpSearchFieldValuesTool.title,
-                    description: mcpSearchFieldValuesTool.description,
-                    inputSchema: mcpSearchFieldValuesTool.inputSchema.shape,
-                    annotations: mcpSearchFieldValuesTool.annotations,
+                    title: searchFieldValuesToolView.title,
+                    description: searchFieldValuesToolView.description,
+                    inputSchema: searchFieldValuesToolView.inputSchema.shape,
+                    annotations: searchFieldValuesToolView.annotations,
                 },
-                async (args, extra) => {
+                async (
+                    args: McpSearchFieldValuesArgs,
+                    extra: RequestHandlerExtra<
+                        ServerRequest,
+                        ServerNotification
+                    >,
+                ) => {
                     const ctx = getMcpContext(extra);
-
+                    const {
+                        projectUuid: requestedProjectUuid,
+                        agentUuid,
+                        ...searchFieldValuesArgs
+                    } = args;
                     const projectUuid = await this.resolveToolProjectUuid(
                         ctx,
-                        args.projectUuid,
+                        requestedProjectUuid,
                     );
                     await this.assertCanExploreProject(ctx, projectUuid);
-                    const argsWithProject = { ...args, projectUuid };
 
                     const toolsRuntime = await this.getToolsRuntime(
                         ctx,
                         projectUuid,
-                        args.agentUuid,
+                        agentUuid,
                     );
 
                     const searchFieldValuesTool = getSearchFieldValues({
                         searchFieldValues: toolsRuntime.searchFieldValues,
+                        getExplore: async ({ table }) =>
+                            unwrapMcpRuntimeResult(
+                                await toolsRuntime.getExplore({ table }),
+                            ),
+                        enableFilterExpressions:
+                            options.filterExpressionsEnabled,
                     });
                     const result = await searchFieldValuesTool.execute!(
-                        argsWithProject,
+                        searchFieldValuesArgs,
                         {
                             toolCallId: '',
                             messages: [],
@@ -3213,7 +3245,7 @@ export class McpService extends BaseService {
                         await McpService.streamToolResult(result),
                         undefined,
                         projectUuid,
-                        args.agentUuid,
+                        agentUuid,
                     );
                 },
             );

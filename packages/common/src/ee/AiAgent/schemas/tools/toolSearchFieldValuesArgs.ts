@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
 import { getFieldIdSchema } from '../fieldId';
+import { FILTER_EXPRESSION_EXAMPLES_DESCRIPTION } from '../filterExpressions/examples';
+import {
+    FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
+    filterExpressionInputSchema,
+} from '../filterExpressions/expressionSchemas';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
@@ -32,6 +37,28 @@ Usage Tips:
 - When a filters object is provided, include type, dimensions, metrics, and tableCalculations. Use null or [] for every unused category; never omit a category
 `;
 
+export const TOOL_SEARCH_FIELD_VALUES_FILTER_EXPRESSION_DESCRIPTION = ({
+    runtime,
+    toolName,
+}: ToolDescriptionContext): string => `Tool: ${toolName}
+
+Purpose:
+Validate or discover concrete values for a specific dimension before building a filter. Returns up to 100 unique values matching the query.
+
+Usage Tips:
+- Specify the table and field ID whose values you want to search
+- Prefer a non-empty query containing candidate text, such as "complete" for a status
+- ${boundedQueryInstructionByRuntime[runtime]}. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan
+- If the user or field metadata already provides the exact value, use it directly instead of searching
+- ${emptyFiltersInstructionByRuntime[runtime]}
+- When filters is provided, pass one flat AND expression containing dimension fields only
+
+Filter expression syntax:
+${FILTER_EXPRESSION_GRAMMAR_DESCRIPTION}
+
+${FILTER_EXPRESSION_EXAMPLES_DESCRIPTION}
+`;
+
 export const toolSearchFieldValuesArgsSchema = createToolSchema()
     .extend({
         table: z.string().describe('The table to search in.'),
@@ -52,6 +79,17 @@ export const toolSearchFieldValuesArgsSchema = createToolSchema()
     })
     .build();
 
+export const toolSearchFieldValuesExpressionArgsSchema =
+    toolSearchFieldValuesArgsSchema
+        .extend({
+            filters: filterExpressionInputSchema
+                .nullable()
+                .describe(
+                    'Optional flat AND filter expression containing dimension fields only. Use null when the value search needs no additional scope.',
+                ),
+        })
+        .strict();
+
 export const toolSearchFieldValuesArgsSchemaTransformed =
     toolSearchFieldValuesArgsSchema.transform((data) => ({
         ...data,
@@ -71,6 +109,9 @@ export type ToolSearchFieldValuesArgs = z.infer<
 >;
 export type ToolSearchFieldValuesArgsTransformed = z.infer<
     typeof toolSearchFieldValuesArgsSchemaTransformed
+>;
+export type ToolSearchFieldValuesExpressionArgs = z.infer<
+    typeof toolSearchFieldValuesExpressionArgsSchema
 >;
 export type ToolSearchFieldValuesOutput = z.infer<
     typeof toolSearchFieldValuesOutputSchema

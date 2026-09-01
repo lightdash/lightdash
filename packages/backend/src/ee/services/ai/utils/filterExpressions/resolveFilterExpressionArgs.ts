@@ -9,6 +9,7 @@ import {
     filterExpressionOperatorDefinitions,
     FilterOperator,
     filterRuleSchema,
+    filtersSchemaTransformed,
     FilterType,
     getFields,
     getFilterTypeFromItemType,
@@ -25,6 +26,7 @@ import {
     type FilterExpressionAst,
     type FilterExpressionParseError,
     type FilterExpressionSpan,
+    type Filters,
     type ToolRunQueryArgsTransformed,
     type ToolRunQueryExpressionArgs,
     type ToolRunQueryExpressionResolvedArgs,
@@ -37,6 +39,7 @@ import type {
     FilterExpressionResolutionError,
     FilterExpressionSource,
     QueryFilterExpressionCategory,
+    QueryFilterExpressionSource,
 } from './errors';
 
 type ExpressionToolArgs = ToolRunQueryExpressionArgs;
@@ -80,6 +83,12 @@ type ResolvedField = {
 type ResolvedQueryConfigParts = {
     customMetrics: unknown;
     filters: unknown;
+};
+
+type ResolvedCategoryGroup = {
+    connector: 'and' | 'or' | null;
+    connectorSpan: FilterExpressionSpan;
+    rules: RawFilterRule[];
 };
 
 export type ResolveFilterExpressionArgsResult = ResolutionResult<{
@@ -1820,6 +1829,82 @@ const resolveCustomMetrics = ({
     return success({ raw: rawCustomMetrics, transformed });
 };
 
+const resolveCategoryExpression = ({
+    expressionInput,
+    fields,
+    source,
+}: {
+    expressionInput: string;
+    fields: ResolvedField[];
+    source: FilterExpressionSource;
+}): ResolutionResult<ResolvedCategoryGroup> => {
+    const parsedResult = parseExpression(expressionInput, source, fields);
+    if (!parsedResult.success) return parsedResult;
+
+    const categoryRules: RawFilterRule[] = [];
+    for (const rule of parsedResult.data.rules) {
+        const ruleResult = resolveRuleWithRepair({
+            rule,
+            fields,
+            source,
+            input: expressionInput,
+        });
+        if (!ruleResult.success) return ruleResult;
+        categoryRules.push(ruleResult.data);
+    }
+
+    return success({
+        connector: parsedResult.data.connector,
+        connectorSpan:
+            parsedResult.data.rules[1]?.span ?? parsedResult.data.span,
+        rules: categoryRules,
+    });
+};
+
+export type ResolveSearchFieldValuesFilterExpressionResult =
+    ResolutionResult<Filters>;
+
+export const resolveSearchFieldValuesFilterExpression = ({
+    expressionInput,
+    explore,
+}: {
+    expressionInput: string;
+    explore: Explore;
+}): ResolveSearchFieldValuesFilterExpressionResult => {
+    const source = {
+        kind: 'queryFilter',
+        exploreName: explore.name,
+        category: 'dimensions',
+    } satisfies QueryFilterExpressionSource;
+    const result = resolveCategoryExpression({
+        expressionInput,
+        fields: makeExploreFields(explore),
+        source,
+    });
+    if (!result.success) return result;
+    if (result.data.connector === 'or') {
+        return failure({
+            code: 'FILTER_EXPRESSION_SEARCH_FIELD_VALUES_OR',
+            source,
+            span: result.data.connectorSpan,
+            problem:
+                'Field-value search filter rules are always combined with AND and cannot use OR.',
+            guidance:
+                'Keep only dimension rules that should all scope the value search, joined with AND.',
+            example: null,
+        });
+    }
+
+    return success(
+        filtersSchemaTransformed.parse({
+            type: 'and',
+            dimensions: result.data.rules,
+            metrics: null,
+            tableCalculations: null,
+        }),
+    );
+};
+
 const resolveQueryFilters = ({
     filters,
     fields,
@@ -1835,10 +1920,6 @@ const resolveQueryFilters = ({
         dimensions: filters.dimensions,
         metrics: filters.metrics,
         tableCalculations: filters.tableCalculations,
-    };
-    type ResolvedCategoryGroup = {
-        connector: 'and' | 'or' | null;
-        rules: RawFilterRule[];
     };
     const resolvedGroups: Record<
         QueryFilterExpressionCategory,
@@ -1857,34 +1938,17 @@ const resolveQueryFilters = ({
     for (const category of categories) {
         const expressionInput = expressions[category];
         if (expressionInput !== null) {
-            const source: FilterExpressionSource = {
-                kind: 'queryFilter',
-                exploreName,
-                category,
-            };
-            const parsedResult = parseExpression(
+            const result = resolveCategoryExpression({
                 expressionInput,
-                source,
                 fields,
-            );
-            if (!parsedResult.success) return parsedResult;
-            const expression = parsedResult.data;
-
-            const categoryRules: RawFilterRule[] = [];
-            for (const rule of expression.rules) {
-                const ruleResult = resolveRuleWithRepair({
-                    rule,
-                    fields,
-                    source,
-                    input: expressionInput,
-                });
-                if (!ruleResult.success) return ruleResult;
-                categoryRules.push(ruleResult.data);
-            }
-            resolvedGroups[category] = {
-                connector: expression.connector,
-                rules: categoryRules,
-            };
+                source: {
+                    kind: 'queryFilter',
+                    exploreName,
+                    category,
+                },
+            });
+            if (!result.success) return result;
+            resolvedGroups[category] = result.data;
         }
     }
 

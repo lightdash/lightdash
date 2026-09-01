@@ -11,6 +11,7 @@ import {
     mcpToolDefinitions,
     runQueryFilterExpressionToolDefinition,
     runQueryToolDefinition,
+    searchFieldValuesFilterExpressionToolDefinition,
 } from './tools';
 import { ToolNameSchema } from './visualizations';
 
@@ -33,6 +34,14 @@ describe('defineTool', () => {
             generateVisualizationFilterExpressionToolDefinition.for('agent')
                 .name,
         ).toBe('generateVisualization');
+        expect(
+            mcpToolDefinitions.includes(
+                searchFieldValuesFilterExpressionToolDefinition,
+            ),
+        ).toBe(false);
+        expect(
+            searchFieldValuesFilterExpressionToolDefinition.for('agent').name,
+        ).toBe('searchFieldValues');
         expect(runQueryFilterExpressionToolDefinition.for('mcp').name).toBe(
             'run_metric_query',
         );

@@ -58,6 +58,7 @@ const getFieldId = (
         case 'FILTER_EXPRESSION_MIXED_CONNECTORS':
         case 'FILTER_EXPRESSION_BOUNDS_EXCEEDED':
         case 'FILTER_EXPRESSION_CUSTOM_METRIC_OR':
+        case 'FILTER_EXPRESSION_SEARCH_FIELD_VALUES_OR':
             return undefined;
         default:
             return assertUnreachable(error, 'Unknown filter expression error');
