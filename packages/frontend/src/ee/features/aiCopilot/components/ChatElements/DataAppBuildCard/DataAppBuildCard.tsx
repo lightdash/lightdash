@@ -8,6 +8,7 @@ import {
     Stack,
     Text,
     ThemeIcon,
+    UnstyledButton,
 } from '@mantine/core';
 import {
     IconAlertTriangle,
@@ -18,7 +19,8 @@ import {
     IconEye,
 } from '@tabler/icons-react';
 import clsx from 'clsx';
-import { type FC, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
+import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import AppVersionNarration from '../../../../../../features/apps/components/AppVersionNarration';
 import { formatBuildDuration } from '../../../../../../features/apps/utils/formatBuildDuration';
@@ -161,6 +163,51 @@ const Muted: FC<{ children: ReactNode }> = ({ children }) => (
     </Text>
 );
 
+/**
+ * The agent's closing summary, as markdown. Long summaries would otherwise
+ * push the chat's next turn off screen, so they clamp to a few lines until
+ * the reader asks for the rest.
+ */
+const Summary: FC<{ children: string }> = ({ children }) => {
+    const clampRef = useRef<HTMLDivElement>(null);
+    const [expanded, setExpanded] = useState(false);
+    const [canExpand, setCanExpand] = useState(false);
+
+    // Only measured while clamped: expanding removes the overflow, and the
+    // flag has to survive that so "See less" stays available.
+    useEffect(() => {
+        const clamp = clampRef.current;
+        if (!clamp || expanded) return;
+        const measure = () =>
+            setCanExpand(clamp.scrollHeight > clamp.clientHeight + 1);
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(clamp);
+        return () => observer.disconnect();
+    }, [expanded, children]);
+
+    return (
+        <Stack gap={2} align="flex-start">
+            <Box
+                ref={clampRef}
+                className={clsx(styles.summary, {
+                    [styles.summaryClamped]: !expanded,
+                })}
+            >
+                <AiMarkdown>{children}</AiMarkdown>
+            </Box>
+            {canExpand && (
+                <UnstyledButton
+                    className={styles.summaryToggle}
+                    onClick={() => setExpanded((open) => !open)}
+                >
+                    {expanded ? 'See less' : 'See more'}
+                </UnstyledButton>
+            )}
+        </Stack>
+    );
+};
+
 /** One-line "title · detail" header used by rows that must stay single-line. */
 const InlineTitle: FC<{ title: string; detail: string }> = ({
     title,
@@ -268,7 +315,7 @@ const renderCells = (
                         />
                     </Actions>
                     <Body>
-                        <Text size="xs">{state.completionMessage}</Text>
+                        <Summary>{state.completionMessage}</Summary>
                     </Body>
                 </>
             );

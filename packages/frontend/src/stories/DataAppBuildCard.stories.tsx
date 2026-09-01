@@ -72,6 +72,23 @@ export const ReadyWithoutDuration: Story = {
     args: { state: { ...states.ready, version: 3, durationMs: null } },
 };
 
+export const ReadyWithLongSummary: Story = {
+    args: {
+        state: {
+            ...states.ready,
+            completionMessage: [
+                'This completes the report build. Summary of what was built:',
+                '',
+                '-   **`src/App.jsx`** — full report shell with a screen-only toolbar (Print + Download PDF), title page, and 6 content sections.',
+                '-   **`src/components/`** — `ReportPage`/`SectionHeading` (A4 page shell), `HeadlineKpis`, `MonthlyTrendChart`, `EventFamilyChart`, `TopOrgsTable`, each with loading and error states.',
+                '-   **`src/lib/constants.js`** — shared `EXPLORE`, an explicit date-range filter, and the `Lightdash Internal` org exclusion.',
+                '',
+                'Narrative text stays descriptive and historical only, as requested.',
+            ].join('\n'),
+        },
+    },
+};
+
 export const Failed: Story = { args: { state: states.failed } };
 
 export const Cancelled: Story = { args: { state: states.cancelled } };
