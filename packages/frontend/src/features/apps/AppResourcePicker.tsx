@@ -54,6 +54,7 @@ import {
     type FC,
 } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import MantineModal from '../../components/common/MantineModal';
 import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
 import { ChartIcon, IconBox } from '../../components/common/ResourceIcon';
 import { getChartIcon } from '../../components/common/ResourceIcon/utils';
@@ -948,6 +949,7 @@ export const ConnectionPickerView: FC<{
     /** App whose existing links show as checked rows that unlink on click;
      *  omit before a first build, when nothing can be linked yet. */
     linkedAppUuid?: string;
+    onUnlinkConfirmationChange?: (opened: boolean) => void;
 }> = ({
     selectedConnections,
     onSelect,
@@ -955,9 +957,14 @@ export const ConnectionPickerView: FC<{
     onDone,
     enabled,
     linkedAppUuid,
+    onUnlinkConfirmationChange,
 }) => {
     const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState('');
+    const [pendingUnlink, setPendingUnlink] = useState<{
+        connection: ExternalConnection;
+        alias: string;
+    } | null>(null);
     const { data: connections, isInitialLoading } = useExternalConnections(
         enabled ? projectUuid : undefined,
     );
@@ -965,6 +972,20 @@ export const ConnectionPickerView: FC<{
         enabled ? projectUuid : undefined,
         linkedAppUuid,
     );
+    const visibleConnections = useMemo(() => {
+        const byUuid = new Map(
+            (existingLinks ?? []).map((link) => [
+                link.connection.externalConnectionUuid,
+                link.connection,
+            ]),
+        );
+
+        for (const connection of connections ?? []) {
+            byUuid.set(connection.externalConnectionUuid, connection);
+        }
+
+        return [...byUuid.values()];
+    }, [connections, existingLinks]);
     const linkedAliases = useMemo(
         () =>
             new Map(
@@ -1002,16 +1023,15 @@ export const ConnectionPickerView: FC<{
 
     const filtered = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
-        const list = connections ?? [];
-        if (!q) return list;
-        return list.filter(
+        if (!q) return visibleConnections;
+        return visibleConnections.filter(
             (c) =>
                 c.name.toLowerCase().includes(q) ||
                 c.origin.toLowerCase().includes(q),
         );
-    }, [connections, searchQuery]);
+    }, [searchQuery, visibleConnections]);
 
-    const hasConnections = (connections?.length ?? 0) > 0;
+    const hasConnections = visibleConnections.length > 0;
     let emptyMessage = 'No connections match your search';
     if (!hasConnections) {
         emptyMessage = canManageConnections
@@ -1025,13 +1045,8 @@ export const ConnectionPickerView: FC<{
                 connection.externalConnectionUuid,
             );
             if (linkedAlias !== undefined && projectUuid && linkedAppUuid) {
-                unlink({
-                    projectUuid,
-                    appUuid: linkedAppUuid,
-                    alias: linkedAlias,
-                    name: connection.name,
-                });
-                onDeselect(connection.externalConnectionUuid);
+                setPendingUnlink({ connection, alias: linkedAlias });
+                onUnlinkConfirmationChange?.(true);
             } else if (selectedUuids.has(connection.externalConnectionUuid)) {
                 onDeselect(connection.externalConnectionUuid);
             } else {
@@ -1050,12 +1065,38 @@ export const ConnectionPickerView: FC<{
             linkedAppUuid,
             onDeselect,
             onSelect,
+            onUnlinkConfirmationChange,
             projectUuid,
             selectedConnections,
             selectedUuids,
-            unlink,
         ],
     );
+
+    const handleConfirmUnlink = useCallback(() => {
+        if (!pendingUnlink || !projectUuid || !linkedAppUuid) return;
+
+        unlink({
+            projectUuid,
+            appUuid: linkedAppUuid,
+            alias: pendingUnlink.alias,
+            name: pendingUnlink.connection.name,
+        });
+        onDeselect(pendingUnlink.connection.externalConnectionUuid);
+        setPendingUnlink(null);
+        onUnlinkConfirmationChange?.(false);
+    }, [
+        linkedAppUuid,
+        onDeselect,
+        onUnlinkConfirmationChange,
+        pendingUnlink,
+        projectUuid,
+        unlink,
+    ]);
+
+    const handleCancelUnlink = useCallback(() => {
+        setPendingUnlink(null);
+        onUnlinkConfirmationChange?.(false);
+    }, [onUnlinkConfirmationChange]);
 
     return (
         <>
@@ -1151,6 +1192,17 @@ export const ConnectionPickerView: FC<{
                     Done
                 </Button>
             </Box>
+            <MantineModal
+                opened={pendingUnlink !== null}
+                onClose={handleCancelUnlink}
+                title={`Unlink ${pendingUnlink?.connection.name ?? 'connection'}?`}
+                variant="delete"
+                size="md"
+                description="Unlinking removes access to this connection. You may not be able to link it again without help from a project admin."
+                confirmLabel="Unlink connection"
+                cancelLabel="Keep connection"
+                onConfirm={handleConfirmUnlink}
+            />
         </>
     );
 };
@@ -1177,6 +1229,7 @@ export const AttachButton: FC<{
     onAddFiles: () => void;
     disabled: boolean;
     filesDisabled: boolean;
+    linkedAppUuid?: string;
 }> = ({
     selectedCharts,
     onSelectChart,
@@ -1190,10 +1243,12 @@ export const AttachButton: FC<{
     onAddFiles,
     disabled,
     filesDisabled,
+    linkedAppUuid,
 }) => {
     const projectUuid = useProjectUuid();
     const [opened, setOpened] = useState(false);
     const [view, setView] = useState<AttachView>('menu');
+    const [unlinkConfirmationOpen, setUnlinkConfirmationOpen] = useState(false);
 
     const handleChange = useCallback((isOpen: boolean) => {
         setOpened(isOpen);
@@ -1235,6 +1290,8 @@ export const AttachButton: FC<{
             offset={8}
             shadow="md"
             trapFocus
+            closeOnClickOutside={!unlinkConfirmationOpen}
+            closeOnEscape={!unlinkConfirmationOpen}
         >
             <Popover.Target>
                 <Tooltip
@@ -1377,6 +1434,10 @@ export const AttachButton: FC<{
                                     setView('menu');
                                 }}
                                 enabled={opened}
+                                linkedAppUuid={linkedAppUuid}
+                                onUnlinkConfirmationChange={
+                                    setUnlinkConfirmationOpen
+                                }
                             />
                         ) : (
                             <DashboardPickerView
@@ -1422,6 +1483,7 @@ export const ConnectionAttachButton: FC<{
 }) => {
     const projectUuid = useProjectUuid();
     const [opened, setOpened] = useState(false);
+    const [unlinkConfirmationOpen, setUnlinkConfirmationOpen] = useState(false);
     const { data: existingLinks } = useAppExternalConnections(
         projectUuid,
         linkedAppUuid ?? undefined,
@@ -1461,6 +1523,8 @@ export const ConnectionAttachButton: FC<{
             offset={8}
             shadow="md"
             trapFocus
+            closeOnClickOutside={!unlinkConfirmationOpen}
+            closeOnEscape={!unlinkConfirmationOpen}
         >
             <Popover.Target>
                 <Tooltip
@@ -1513,6 +1577,7 @@ export const ConnectionAttachButton: FC<{
                     onDone={() => setOpened(false)}
                     enabled={opened}
                     linkedAppUuid={linkedAppUuid ?? undefined}
+                    onUnlinkConfirmationChange={setUnlinkConfirmationOpen}
                 />
             </Popover.Dropdown>
         </Popover>
