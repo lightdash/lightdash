@@ -31,8 +31,8 @@ failure. Before dependency installation, all commands failed before collection.
   Internal definitions moved from `_def` to `_zod.def` and are explicitly
   unstable. [Official migration guide](https://zod.dev/v4/changelog#updates-generics)
 - Native `z.toJSONSchema` supports draft-07, `io: "input"`, inline reuse, and
-  cycle rejection. Shared schema identity is inlined by default; `reused:
-  "ref"` is the opt-in behavior. [Official JSON Schema API](https://zod.dev/json-schema#ztojsonschema)
+  cycle rejection. Shared schema identity is inlined by default; reference
+  reuse requires `reused: "ref"`. [Official JSON Schema API](https://zod.dev/json-schema#ztojsonschema)
 - Native conversion rejects transforms and other unrepresentable types by
   default. Input-mode conversion is required for tool argument contracts whose
   output schema contains transforms. [Official JSON Schema API](https://zod.dev/json-schema#io)
@@ -56,7 +56,7 @@ failure. Before dependency installation, all commands failed before collection.
 
 ## Verification
 
-- common: typecheck and lint passed; full suite passed (165 files, 3,964 tests,
+- common: typecheck and lint passed; full suite passed (166 files, 3,969 tests,
   1 skipped)
 - backend: typecheck and lint passed; full suite passed (550 files, 9,010 tests,
   1 skipped)
@@ -67,4 +67,11 @@ failure. Before dependency installation, all commands failed before collection.
 - all release-safety checks passed
 - MCP and agent contract snapshots pass without update mode; the stable MCP
   snapshot check passes and contains no `$ref`
+- semantic differential testing covered all 33 MCP tools, recursively comparing
+  Zod 3 and Zod 4 input/output JSON Schemas with generated boundary values; the
+  shared converter preserves closed input objects and required coerced fields
+- agent-tool contract snapshots were audited separately: only closed object
+  boundaries and one runtime-optional unknown field changed
+- no contract widenings remain; the only sampled narrowings are Zod 4's RFC UUID
+  validation and rejection of integers outside JavaScript's safe range
 - frozen lockfile installation and supply-chain policy verification pass
