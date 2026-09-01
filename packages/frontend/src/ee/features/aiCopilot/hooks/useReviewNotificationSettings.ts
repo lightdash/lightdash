@@ -19,6 +19,8 @@ import {
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
+const reviewApi = lightdashApi; // pragma: allowlist secret
+
 type Settings = ApiAiReviewNotificationSettingsResponse['results'];
 
 const QUERY_KEY = ['ai-review-notification-settings'];
@@ -135,7 +137,7 @@ export const useUpdateReviewLinearDestination = () => {
 };
 
 const getReviewLinearRouting = async () =>
-    lightdashApi<ApiAiReviewLinearRoutingResponse['results']>({ // pragma: allowlist secret
+    reviewApi<ApiAiReviewLinearRoutingResponse['results']>({
         url: `/aiAgents/admin/review-linear-routing`,
         method: 'GET',
         body: undefined,
@@ -150,7 +152,7 @@ export const useReviewLinearRouting = (options?: { enabled?: boolean }) =>
     });
 
 const updateReviewLinearRouting = async (data: UpdateAiReviewLinearRouting) =>
-    lightdashApi<AiReviewLinearRouting>({ // pragma: allowlist secret
+    reviewApi<AiReviewLinearRouting>({
         url: `/aiAgents/admin/review-linear-routing`,
         method: 'PUT',
         body: JSON.stringify(data),

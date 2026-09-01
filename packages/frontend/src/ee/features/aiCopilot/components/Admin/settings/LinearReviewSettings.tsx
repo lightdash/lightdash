@@ -318,9 +318,7 @@ export const LinearReviewSettings = () => {
                             }))}
                             value={routing.projectUuids}
                             searchable
-                            disabled={
-                                !canEdit || isUpdating || projectsLoading
-                            }
+                            disabled={!canEdit || isUpdating || projectsLoading}
                             onChange={(projectUuids) =>
                                 saveRouting({
                                     applyToAllProjects: false,
