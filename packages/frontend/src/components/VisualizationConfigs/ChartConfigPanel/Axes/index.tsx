@@ -287,6 +287,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         <Group gap="xs">
                             <Config.Label>Sort</Config.Label>
                             <Select
+                                size="xs"
                                 allowDeselect={false}
                                 value={getXAxisSort(
                                     dirtyEchartsConfig?.xAxis?.[0],
