@@ -1814,4 +1814,38 @@ describe('AiAgentReviewClassifierModel', () => {
             expect(tracker.history.update).toHaveLength(1);
         });
     });
+
+    describe('listUnlinkedReviewItemsForLinearExport', () => {
+        it('returns open items that have a project and no Linear URL', async () => {
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([
+                { fingerprint: FINGERPRINT, project_uuid: PROJECT_UUID },
+            ]);
+
+            await expect(
+                model.listUnlinkedReviewItemsForLinearExport({
+                    organizationUuid: ORGANIZATION_UUID,
+                    projectUuids: null,
+                }),
+            ).resolves.toEqual([
+                { fingerprint: FINGERPRINT, projectUuid: PROJECT_UUID },
+            ]);
+
+            const sql = tracker.history.select[0].sql;
+            expect(sql).toContain(AiAgentReviewItemTableName);
+            expect(sql).toContain('linked_issue_url');
+            expect(tracker.history.select[0].bindings).toContain('triage');
+            expect(tracker.history.select[0].bindings).toContain('open');
+            expect(tracker.history.select[0].bindings).toContain('in_progress');
+        });
+
+        it('returns nothing when selected-project routing has no projects', async () => {
+            await expect(
+                model.listUnlinkedReviewItemsForLinearExport({
+                    organizationUuid: ORGANIZATION_UUID,
+                    projectUuids: [],
+                }),
+            ).resolves.toEqual([]);
+            expect(tracker.history.select).toHaveLength(0);
+        });
+    });
 });

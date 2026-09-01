@@ -74,6 +74,13 @@ export type UpdateAiReviewLinearRouting = {
 export type ApiAiReviewLinearRoutingResponse =
     ApiSuccess<AiReviewLinearRouting>;
 
+export type AiReviewLinearBackfillResult = {
+    queuedCount: number;
+};
+
+export type ApiAiReviewLinearBackfillResponse =
+    ApiSuccess<AiReviewLinearBackfillResult>;
+
 export const resolveAiReviewLinearDestination = ({
     organizationUuid,
     projectUuid,

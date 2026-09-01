@@ -2546,6 +2546,40 @@ export class AiAgentReviewClassifierModel {
             .ignore();
     }
 
+    async listUnlinkedReviewItemsForLinearExport(args: {
+        organizationUuid: string;
+        projectUuids: string[] | null;
+    }): Promise<Array<{ fingerprint: string; projectUuid: string }>> {
+        if (args.projectUuids && args.projectUuids.length === 0) {
+            return [];
+        }
+
+        const rows = await this.database<AiAgentReviewItemTable>(
+            AiAgentReviewItemTableName,
+        )
+            .select('fingerprint', 'project_uuid')
+            .where('organization_uuid', args.organizationUuid)
+            .whereNull('linked_issue_url')
+            .whereNotNull('project_uuid')
+            .whereIn('status', ['triage', 'open', 'in_progress'])
+            .modify((query) => {
+                if (args.projectUuids) {
+                    void query.whereIn('project_uuid', args.projectUuids);
+                }
+            });
+
+        return rows.flatMap((row) =>
+            row.project_uuid
+                ? [
+                      {
+                          fingerprint: row.fingerprint,
+                          projectUuid: row.project_uuid,
+                      },
+                  ]
+                : [],
+        );
+    }
+
     async updateReviewItemLinkedIssueUrl(args: {
         fingerprint: string;
         organizationUuid: string;
