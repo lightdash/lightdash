@@ -49,6 +49,7 @@ export const toDraftSummary = (draft: ContentDraft): ContentDraftSummary => ({
     authorName: draft.authorName,
     status: draft.status as ContentDraftSummary['status'],
     prUrl: draft.prUrl,
+    writebackStatus: draft.writebackStatus,
     createdAt: draft.createdAt,
     updatedAt: draft.updatedAt,
 });

@@ -350,26 +350,24 @@ export class ContentAsCodeWritebackService extends BaseService {
         ) {
             throw new ParameterError('Unsupported draft content type');
         }
-        const published =
-            draft.contentType === 'chart'
-                ? await this.coderService.getPortableChartAsCode(
-                      projectUuid,
-                      draft.contentUuid,
-                  )
-                : await this.coderService.getCurrentDashboardAsCode(
-                      draft.contentUuid,
-                  );
-        const draftDoc =
-            draft.contentType === 'chart'
-                ? await this.coderService.getPortableChartAsCodeWithOverlay(
-                      projectUuid,
-                      draft.contentUuid,
-                      draft.draft,
-                  )
-                : await this.coderService.getDashboardAsCodeWithOverlay(
-                      draft.contentUuid,
-                      draft.draft,
-                  );
+        // A written-back draft shows what actually went to the repo, not a
+        // live diff that drifts as published content moves on; a draft handed
+        // back to its author is live again
+        if (
+            draft.status === 'written_back' &&
+            draft.writtenBackPublished &&
+            draft.writtenBackDraft
+        ) {
+            return {
+                draft,
+                publishedYaml: dumpContentAsCode(draft.writtenBackPublished),
+                draftYaml: dumpContentAsCode(draft.writtenBackDraft),
+            };
+        }
+        const { published, draftDoc } = await this.renderDraftDocuments(
+            projectUuid,
+            draft,
+        );
         return {
             draft,
             publishedYaml: dumpContentAsCode(published),
@@ -397,17 +395,10 @@ export class ContentAsCodeWritebackService extends BaseService {
         }
         const contentType =
             draft.contentType === 'chart' ? 'chart' : 'dashboard';
-        const draftDoc =
-            contentType === 'chart'
-                ? await this.coderService.getPortableChartAsCodeWithOverlay(
-                      projectUuid,
-                      draft.contentUuid,
-                      draft.draft,
-                  )
-                : await this.coderService.getDashboardAsCodeWithOverlay(
-                      draft.contentUuid,
-                      draft.draft,
-                  );
+        const { published, draftDoc } = await this.renderDraftDocuments(
+            projectUuid,
+            draft,
+        );
         const row = await this.writeContentToWritebackPr(user, {
             projectUuid,
             contentType,
@@ -420,8 +411,41 @@ export class ContentAsCodeWritebackService extends BaseService {
         await this.contentDraftModel.update(draft.uuid, {
             status: 'written_back',
             prUrl: row.prUrl,
+            writtenBackPublished: published,
+            writtenBackDraft: draftDoc,
         });
         return { ...draft, status: 'written_back', prUrl: row.prUrl };
+    }
+
+    private async renderDraftDocuments(
+        projectUuid: string,
+        draft: ContentDraft,
+    ): Promise<{
+        published: ChartAsCode | DashboardAsCode;
+        draftDoc: ChartAsCode | DashboardAsCode;
+    }> {
+        if (draft.contentType === 'chart') {
+            const [published, draftDoc] = await Promise.all([
+                this.coderService.getPortableChartAsCode(
+                    projectUuid,
+                    draft.contentUuid,
+                ),
+                this.coderService.getPortableChartAsCodeWithOverlay(
+                    projectUuid,
+                    draft.contentUuid,
+                    draft.draft,
+                ),
+            ]);
+            return { published, draftDoc };
+        }
+        const [published, draftDoc] = await Promise.all([
+            this.coderService.getCurrentDashboardAsCode(draft.contentUuid),
+            this.coderService.getDashboardAsCodeWithOverlay(
+                draft.contentUuid,
+                draft.draft,
+            ),
+        ]);
+        return { published, draftDoc };
     }
 
     async dismissDraft(

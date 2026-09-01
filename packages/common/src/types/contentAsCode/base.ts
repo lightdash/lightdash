@@ -126,6 +126,7 @@ export type ContentDraftSummary = {
     authorName: string | null;
     status: 'open' | 'written_back' | 'dismissed';
     prUrl: string | null;
+    writebackStatus: ContentAsCodeWritebackStatus | null;
     createdAt: Date;
     updatedAt: Date;
 };

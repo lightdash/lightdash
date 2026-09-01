@@ -1,4 +1,4 @@
-import { type ContentDraftSummary } from '@lightdash/common';
+import { assertUnreachable, type ContentDraftSummary } from '@lightdash/common';
 import {
     Anchor,
     Avatar,
@@ -89,12 +89,34 @@ const changeStats = (
     return { added, removed };
 };
 
+const writebackLabel = (
+    status: ContentDraftSummary['writebackStatus'],
+): string => {
+    switch (status) {
+        case 'merged':
+            return 'PR merged';
+        case 'closed':
+            return 'PR closed';
+        case 'error':
+            return 'Write-back failed';
+        case 'pending':
+        case 'open':
+        case null:
+            return 'PR opened';
+        default:
+            return assertUnreachable(
+                status,
+                `Unknown write-back status ${status}`,
+            );
+    }
+};
+
 const rowMeta = (draft: ContentDraftSummary): string => {
     const author = draft.authorName ?? 'Unknown author';
     const when = timeAgo(draft.updatedAt);
     switch (draft.status) {
         case 'written_back':
-            return `PR opened · ${author} · ${when}`;
+            return `${writebackLabel(draft.writebackStatus)} · ${author} · ${when}`;
         case 'dismissed':
             return `Dismissed · ${author} · ${when}`;
         case 'open':

@@ -1,3 +1,8 @@
+import {
+    type ChartAsCode,
+    type ContentAsCodeWritebackStatus,
+    type DashboardAsCode,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     ContentDraftsTableName,
@@ -15,6 +20,9 @@ export type ContentDraft = {
     draft: object;
     status: string;
     prUrl: string | null;
+    writebackStatus: ContentAsCodeWritebackStatus | null;
+    writtenBackPublished: ChartAsCode | DashboardAsCode | null;
+    writtenBackDraft: ChartAsCode | DashboardAsCode | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -24,7 +32,10 @@ type ContentDraftModelArguments = {
 };
 
 const parseRow = (
-    row: DbContentDraft & { author_name?: string | null },
+    row: DbContentDraft & {
+        author_name?: string | null;
+        writeback_status?: string | null;
+    },
 ): ContentDraft => ({
     uuid: row.content_draft_uuid,
     authorName: row.author_name ?? null,
@@ -36,9 +47,23 @@ const parseRow = (
     draft: row.draft,
     status: row.status,
     prUrl: row.pr_url,
+    writebackStatus:
+        (row.writeback_status as ContentAsCodeWritebackStatus | null) ?? null,
+    writtenBackPublished:
+        (row.written_back_published as ChartAsCode | DashboardAsCode | null) ??
+        null,
+    writtenBackDraft:
+        (row.written_back_draft as ChartAsCode | DashboardAsCode | null) ??
+        null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
 });
+
+// The latest write-back row for a draft carries the PR state
+const writebackStatusSubquery = (knex: Knex) =>
+    knex.raw(
+        `(select status from content_as_code_writebacks w where w.content_draft_uuid = ${ContentDraftsTableName}.content_draft_uuid order by w.created_at desc limit 1) as writeback_status`,
+    );
 
 export class ContentDraftModel {
     private readonly database: Knex;
@@ -187,11 +212,17 @@ export class ContentDraftModel {
                 `${ContentDraftsTableName}.author_user_uuid`,
             )
             .where({ content_draft_uuid: uuid })
-            .select<DbContentDraft & { author_name: string | null }>(
+            .select<
+                DbContentDraft & {
+                    author_name: string | null;
+                    writeback_status: string | null;
+                }
+            >(
                 `${ContentDraftsTableName}.*`,
                 this.database.raw(
                     "users.first_name || ' ' || users.last_name as author_name",
                 ),
+                writebackStatusSubquery(this.database),
             )
             .first();
         return row ? parseRow(row) : undefined;
@@ -205,25 +236,42 @@ export class ContentDraftModel {
                 `${ContentDraftsTableName}.author_user_uuid`,
             )
             .where(`${ContentDraftsTableName}.project_uuid`, projectUuid)
-            .select<(DbContentDraft & { author_name: string | null })[]>(
+            .select<
+                (DbContentDraft & {
+                    author_name: string | null;
+                    writeback_status: string | null;
+                })[]
+            >(
                 `${ContentDraftsTableName}.*`,
                 this.database.raw(
                     "users.first_name || ' ' || users.last_name as author_name",
                 ),
+                writebackStatusSubquery(this.database),
             )
-            .orderBy('updated_at', 'desc');
+            .orderBy(`${ContentDraftsTableName}.updated_at`, 'desc');
         return rows.map(parseRow);
     }
 
     async update(
         uuid: string,
-        update: { status?: string; prUrl?: string | null },
+        update: {
+            status?: string;
+            prUrl?: string | null;
+            writtenBackPublished?: ChartAsCode | DashboardAsCode | null;
+            writtenBackDraft?: ChartAsCode | DashboardAsCode | null;
+        },
     ): Promise<void> {
         await this.database(ContentDraftsTableName)
             .where({ content_draft_uuid: uuid })
             .update({
                 ...(update.status !== undefined && { status: update.status }),
                 ...(update.prUrl !== undefined && { pr_url: update.prUrl }),
+                ...(update.writtenBackPublished !== undefined && {
+                    written_back_published: update.writtenBackPublished,
+                }),
+                ...(update.writtenBackDraft !== undefined && {
+                    written_back_draft: update.writtenBackDraft,
+                }),
                 updated_at: new Date(),
             });
     }

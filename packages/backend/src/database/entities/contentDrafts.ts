@@ -12,6 +12,8 @@ export type DbContentDraft = {
     draft: object;
     status: string;
     pr_url: string | null;
+    written_back_published: object | null;
+    written_back_draft: object | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -28,7 +30,15 @@ export type CreateDbContentDraft = Pick<
     Partial<Pick<DbContentDraft, 'created_at' | 'updated_at'>>;
 
 export type UpdateDbContentDraft = Partial<
-    Pick<DbContentDraft, 'draft' | 'status' | 'pr_url' | 'updated_at'>
+    Pick<
+        DbContentDraft,
+        | 'draft'
+        | 'status'
+        | 'pr_url'
+        | 'written_back_published'
+        | 'written_back_draft'
+        | 'updated_at'
+    >
 >;
 
 export type ContentDraftsTable = Knex.CompositeTableType<
