@@ -29,6 +29,11 @@ describe('picker templates', () => {
         expect(ids).toEqual(['forecaster', 'scorecard']);
     });
 
+    it('exposes template questions on resolved definitions', () => {
+        expect(getTemplate('forecaster').questions?.length).toBeGreaterThan(0);
+        expect(getTemplate('dashboard').questions).toBeUndefined();
+    });
+
     it('resolves a definition with an icon for every template', () => {
         expect(getTemplate('forecaster').icon).toBeDefined();
         expect(getTemplate('dashboard').icon).toBeDefined();
