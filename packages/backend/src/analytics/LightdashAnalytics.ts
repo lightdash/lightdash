@@ -8,6 +8,7 @@ import {
     CartesianSeriesType,
     ChartKind,
     ChartType,
+    ContentReviewNotificationEvent,
     ContentType,
     DbtProjectType,
     getRequestMethod,
@@ -2927,6 +2928,21 @@ export type ContentVerificationEvent = BaseTrack & {
     };
 };
 
+export type ContentReviewNotificationSentEvent = BaseTrack & {
+    event:
+        | 'content_review_notification.sent'
+        | 'content_review_notification.errored';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        channel: 'email' | 'slack_channel' | 'slack_dm';
+        notificationEvent: ContentReviewNotificationEvent;
+        recipientCount: number;
+        error: string | undefined;
+    };
+};
+
 export type ContentReviewRequestEvent = BaseTrack & {
     event:
         | 'content_review_request.submitted'
@@ -3636,6 +3652,7 @@ type TypedEvent =
     | AiRouterMessageRoutedEvent
     | ContentVerificationEvent
     | ContentReviewRequestEvent
+    | ContentReviewNotificationSentEvent
     | SchedulerOwnershipReassignedEvent
     | DashboardOwnershipReassignedEvent
     | ImpersonationEvent

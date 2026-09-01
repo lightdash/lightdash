@@ -139,3 +139,17 @@ export type ApiContentReviewSettingsResponse = {
     status: 'ok';
     results: ContentReviewSettings;
 };
+
+export enum ContentReviewNotificationEvent {
+    SUBMITTED = 'submitted',
+    APPROVED = 'approved',
+    REJECTED = 'rejected',
+}
+
+export const getContentReviewRequestsPath = (projectUuid: string): string =>
+    `/projects/${projectUuid}/review-requests`;
+
+export const getContentReviewRequestPath = (
+    projectUuid: string,
+    requestUuid: string,
+): string => `${getContentReviewRequestsPath(projectUuid)}/${requestUuid}`;
