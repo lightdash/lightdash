@@ -1,15 +1,17 @@
 .logo {
     display: block;
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     flex-shrink: 0;
+    border-radius: 6px;
 }
 
 .logoSm {
     display: block;
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     flex-shrink: 0;
+    border-radius: 5px;
 }
 
 .stepIndex {
