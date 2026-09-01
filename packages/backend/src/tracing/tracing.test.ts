@@ -46,6 +46,24 @@ describe('getOtelTraceExportConfig', () => {
         });
     });
 
+    it('matches NodeSDK handling when none is combined with exporters', () => {
+        vi.stubEnv('OTEL_TRACES_EXPORTER', 'none,otlp');
+        expect(getOtelTraceExportConfig()).toEqual({
+            exporters: ['none'],
+            protocol: null,
+            warnings: [],
+        });
+
+        vi.stubEnv('OTEL_TRACES_EXPORTER', 'otlp,none');
+        expect(getOtelTraceExportConfig()).toEqual({
+            exporters: ['otlp'],
+            protocol: 'http/protobuf',
+            warnings: [
+                'OTEL_TRACES_EXPORTER contains "none" with other exporters; OpenTelemetry will use the default "otlp" exporter',
+            ],
+        });
+    });
+
     it('reports console export without an OTLP protocol', () => {
         vi.stubEnv('OTEL_TRACES_EXPORTER', 'console');
         vi.stubEnv('OTEL_EXPORTER_OTLP_PROTOCOL', 'grpc');

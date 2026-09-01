@@ -109,6 +109,8 @@ export const getOtelTraceExportConfig = (): OtelTraceExportConfig => {
     ).filter((exporter) => exporter !== 'null');
     const warnings: string[] = [];
 
+    // Match NodeSDK: leading "none" configures no exporter; later "none"
+    // values cause the SDK to fall back to its default OTLP exporter.
     if (requestedExporters[0] === 'none') {
         return { exporters: ['none'], protocol: null, warnings };
     }
