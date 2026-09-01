@@ -1,14 +1,28 @@
 {
   "schemaVersion": "2",
-  "version": "2.75.1",
-  "previousVersion": "2.75.0",
-  "releaseDate": "2026-09-01T16:07:34.940Z",
+  "version": "2.76.0",
+  "previousVersion": "2.75.1",
+  "releaseDate": "2026-09-01T16:19:43.376Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260831121540_add_chart_registry_provenance.ts",
+        "edition": "core",
+        "tables": [
+          "app_versions",
+          "apps"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

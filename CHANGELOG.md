@@ -1,3 +1,10 @@
+# [2.76.0](https://github.com/lightdash/lightdash/compare/2.75.1...2.76.0) (2026-09-01)
+
+
+### Features
+
+* chart registry contract types + provenance columns ([#28373](https://github.com/lightdash/lightdash/issues/28373)) ([afa0d67](https://github.com/lightdash/lightdash/commit/afa0d670a91c1a763334dbd14e5eb044c306dfad))
+
 ## [2.75.1](https://github.com/lightdash/lightdash/compare/2.75.0...2.75.1) (2026-09-01)
 
 
