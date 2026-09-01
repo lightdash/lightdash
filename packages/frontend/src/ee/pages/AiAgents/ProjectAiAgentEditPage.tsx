@@ -16,7 +16,7 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import {
     IconAdjustmentsAlt,
     IconArrowLeft,
@@ -24,6 +24,7 @@ import {
     IconCircleCheck,
     IconMessageCircleShare,
 } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import {
     Link,
@@ -90,12 +91,12 @@ const useObjectUrl = (file: File | null): string | null => {
 };
 
 const formSchema = z.object({
-    name: z.string().min(1),
+    name: z.string().min(1, 'Name is required'),
     description: z.string().nullable(),
     integrations: z.array(
         z.object({
             type: z.literal('slack'),
-            channelId: z.string().min(1),
+            channelId: z.string().min(1, 'Channel is required'),
         }),
     ),
     tags: z.array(z.string()).nullable(),

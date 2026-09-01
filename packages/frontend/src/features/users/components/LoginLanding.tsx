@@ -20,9 +20,10 @@ import {
     Anchor,
     PasswordInput,
 } from '@mantine/core';
-import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 import { useTimeout } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import {
     useCallback,
     useEffect,

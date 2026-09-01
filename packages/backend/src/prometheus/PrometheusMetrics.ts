@@ -2016,7 +2016,7 @@ export default class PrometheusMetrics {
                 Logger.error(
                     `Invalid PrometheusEventMetricManager config from ${resolvedPath}`,
                     {
-                        errors: parsedConfig.error.errors.map((issue) => ({
+                        errors: parsedConfig.error.issues.map((issue) => ({
                             message: issue.message,
                             path: issue.path.join('.'),
                         })),

@@ -505,7 +505,7 @@ export const aiAgentJudgeProjectContextEntrySchema = z
     .superRefine((entry, ctx) => {
         if (entry.op === 'update' && !entry.id) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'id is required when op is update',
                 path: ['id'],
             });
@@ -683,7 +683,7 @@ const judgeOutputRefinement = (
         output.primaryRootCause === 'not_a_failure'
     ) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message:
                 'promotedToFinding must be false when primaryRootCause is not_a_failure',
             path: ['promotedToFinding'],
@@ -691,7 +691,7 @@ const judgeOutputRefinement = (
     }
     if (output.promotedToFinding && NOT_A_FAILURE_SIGNALS.has(output.signal)) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: `promotedToFinding must be false when signal is ${output.signal}; promoted findings need a failure signal`,
             path: ['signal'],
         });
@@ -701,7 +701,7 @@ const judgeOutputRefinement = (
         output.recommendation?.actionType === 'no_action'
     ) {
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message:
                 'promoted findings must carry an actionable recommendation, not no_action',
             path: ['recommendation', 'actionType'],

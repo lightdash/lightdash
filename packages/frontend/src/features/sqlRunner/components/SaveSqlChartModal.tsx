@@ -5,8 +5,9 @@ import {
     type ApiCreateSqlChart,
 } from '@lightdash/common';
 import { Button, Stack, Textarea, TextInput } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -34,7 +35,7 @@ enum ModalStep {
 
 const saveChartFormSchema = z
     .object({
-        name: z.string().min(1),
+        name: z.string().min(1, 'Name is required'),
         description: z.string().nullable(),
     })
     .merge(saveToSpaceSchema);

@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { type z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { z } from 'zod';
 import { mcpToolDefinitions } from '../ee/AiAgent/schemas/tools/toolDefinitions';
+import { toJsonSchema } from '../utils/zodJsonSchema';
 
 /**
  * Generates the committed stable/default MCP tool surface used for
@@ -40,9 +40,16 @@ export const getOutputPath = (): string =>
         'packages/common/src/schemas/json/mcp-tools-1.0.json',
     );
 
-const schemaToJson = (schema: z.ZodTypeAny | undefined | null): JsonValue => {
+// The MCP SDK rebuilds registered object schemas from their shape before
+// converting, so top-level object metadata never reaches `tools/list`.
+const schemaToJson = (
+    schema: z.ZodType | undefined | null,
+    io: 'input' | 'output',
+): JsonValue => {
     if (!schema) return null;
-    return zodToJsonSchema(schema, { target: 'jsonSchema7' }) as JsonValue;
+    const served =
+        schema instanceof z.ZodObject ? z.object(schema.shape) : schema;
+    return toJsonSchema(served, { io }) as JsonValue;
 };
 
 /**
@@ -59,11 +66,12 @@ export const buildMcpToolsSnapshot = (): JsonObject => {
                 description: view.description,
                 annotations: (view.annotations ?? {}) as unknown as JsonValue,
                 inputSchema: schemaToJson(
-                    view.inputSchema as unknown as z.ZodTypeAny,
+                    view.inputSchema as unknown as z.ZodType,
+                    'input',
                 ),
                 outputSchema:
                     'outputSchema' in view && view.outputSchema
-                        ? schemaToJson(view.outputSchema as z.ZodTypeAny)
+                        ? schemaToJson(view.outputSchema as z.ZodType, 'output')
                         : null,
             };
             return entry;

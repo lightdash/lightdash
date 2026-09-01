@@ -1,4 +1,6 @@
 import z, { type ZodSchema } from 'zod';
+import { z as zV3 } from 'zod/v3';
+import { toJsonSchema } from '../../../utils/zodJsonSchema';
 import { McpSchemaCompatLayer } from './McpSchemaCompatLayer';
 import {
     toolFindFieldsArgsSchema,
@@ -17,6 +19,23 @@ const mapZodSchema = <T>(schema: ZodSchema): ZodSchema<T> =>
     mcpSchemaCompatLayer.processZodType(schema) as ZodSchema<T>;
 
 describe('McpSchemaCompatLayer', () => {
+    describe('version and unsupported type guards', () => {
+        test('rejects accidental Zod 3 schemas with a clear error', () => {
+            expect(() =>
+                mcpSchemaCompatLayer.processZodType(zV3.string()),
+            ).toThrow('MCP schema compatibility requires Zod 4');
+        });
+
+        test.each([z.never(), z.tuple([]), z.undefined()])(
+            'rejects unsupported MCP schema type %#',
+            (schema) => {
+                expect(() =>
+                    mcpSchemaCompatLayer.processZodType(schema),
+                ).toThrow('does not support zod type');
+            },
+        );
+    });
+
     describe('baseline', () => {
         const schema = z.object({
             name: z.string().describe('The name of the person'),
@@ -544,27 +563,36 @@ describe('McpSchemaCompatLayer', () => {
     });
 
     describe('JSON Schema $ref generation', () => {
-        // Regression test: zodToJsonSchema must not produce $ref pointers in
+        // Regression test: JSON Schema conversion must not produce $ref pointers in
         // the run_metric_query schema. The MCP Gateway cannot resolve them and
         // returns 500 ERR_INVALID_URL when filters are present.
         test('toolRunMetricQueryArgsSchema should not produce $ref pointers', () => {
-            // Use the same zodToJsonSchema that the MCP SDK uses internally
-            // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
-            const { zodToJsonSchema } = require('zod-to-json-schema') as {
-                zodToJsonSchema: (
-                    schema: z.ZodSchema,
-                    opts?: Record<string, unknown>,
-                ) => Record<string, unknown>;
-            };
             const processed = mcpSchemaCompatLayer.processZodType(
                 toolRunMetricQueryArgsSchema,
             );
-            const jsonSchema = zodToJsonSchema(processed, {
-                strictUnions: true,
-                pipeStrategy: 'input',
-            });
+            const jsonSchema = toJsonSchema(processed, { io: 'input' });
             const serialized = JSON.stringify(jsonSchema);
             expect(serialized).not.toContain('"$ref"');
+        });
+
+        test('shared schema instances remain inline and parse independently', () => {
+            const shared = z.object({ value: z.string() });
+            const processed = mapZodSchema(
+                z.object({ first: shared, second: shared }),
+            );
+
+            expect(
+                JSON.stringify(toJsonSchema(processed, { io: 'input' })),
+            ).not.toContain('"$ref"');
+            expect(
+                processed.parse({
+                    first: { value: 'one' },
+                    second: { value: 'two' },
+                }),
+            ).toEqual({
+                first: { value: 'one' },
+                second: { value: 'two' },
+            });
         });
     });
 

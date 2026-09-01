@@ -20,8 +20,9 @@ import {
     Textarea,
     TextInput,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type ClipboardEvent, type FC, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';

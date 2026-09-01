@@ -1,4 +1,7 @@
-import { getPasswordSchema } from '@lightdash/common';
+import {
+    getPasswordSchema,
+    PASSWORD_REQUIREMENT_MESSAGES,
+} from '@lightdash/common';
 import { Group, Popover, Progress, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconCheck, IconX } from '@tabler/icons-react';
@@ -31,9 +34,7 @@ type Props = {
 };
 
 const passwordSchema = getPasswordSchema();
-const checks = passwordSchema._def.checks
-    .map((check) => check.message)
-    .filter((check): check is string => !!check);
+const checks = PASSWORD_REQUIREMENT_MESSAGES;
 
 const PasswordTextInput: FC<React.PropsWithChildren<Props>> = ({
     passwordValue,
@@ -45,7 +46,7 @@ const PasswordTextInput: FC<React.PropsWithChildren<Props>> = ({
     const validation = passwordSchema.safeParse(passwordValue);
 
     const fails = !validation.success
-        ? validation.error.errors.map((error) => error.message)
+        ? validation.error.issues.map((error) => error.message)
         : [];
 
     const strength = Math.ceil(

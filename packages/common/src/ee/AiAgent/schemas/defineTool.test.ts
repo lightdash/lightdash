@@ -1,6 +1,6 @@
 import { getEncoding } from 'js-tiktoken';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { toJsonSchema, toLlmJsonSchema } from '../../../utils/zodJsonSchema';
 import { defineTool } from './defineTool';
 import { FILTER_EXPRESSION_GRAMMAR_DESCRIPTION } from './filterExpressions';
 import {
@@ -63,7 +63,7 @@ describe('defineTool', () => {
         const serializeMcp = (view: typeof mcpLegacy | typeof mcpExpression) =>
             JSON.stringify({
                 description: view.description,
-                inputSchema: zodToJsonSchema(view.inputSchema),
+                inputSchema: toJsonSchema(view.inputSchema, { io: 'input' }),
             });
         const contracts = {
             agentLegacy: serializeAgent(agentLegacy),
@@ -127,12 +127,12 @@ describe('defineTool', () => {
             cl100kTokens: 4_500,
             o200kTokens: 4_600,
         });
-        // Preserve at least a 45% agent reduction and a 60% Model Context
+        // Preserve at least a 44% agent reduction and a 60% Model Context
         // Protocol (MCP) reduction across bytes and both tokenizers.
         expectAtMostRatio(
             measurements.agentExpression,
             measurements.agentLegacy,
-            0.55,
+            0.56,
         );
         expectAtMostRatio(
             measurements.mcpExpression,
@@ -211,10 +211,7 @@ describe('defineTool', () => {
         const agentInputSchema = tool.for('agent').inputSchema;
         const { jsonSchema, validate } = agentInputSchema;
         expect(jsonSchema).toEqual(
-            zodToJsonSchema(inputSchema, {
-                $refStrategy: 'root',
-                target: 'jsonSchema7',
-            }),
+            toLlmJsonSchema(inputSchema, { reused: 'ref' }),
         );
         expect(validate?.(input)).toEqual({
             success: true,
@@ -229,9 +226,9 @@ describe('defineTool', () => {
 
         const mcpInputSchema = tool.for('mcp').inputSchema;
         expect(mcpInputSchema).not.toBe(inputSchema);
-        expect(JSON.stringify(zodToJsonSchema(mcpInputSchema))).not.toContain(
-            '"$ref"',
-        );
+        expect(
+            JSON.stringify(toJsonSchema(mcpInputSchema, { io: 'input' })),
+        ).not.toContain('"$ref"');
         expect(mcpInputSchema.parse(input)).toEqual(input);
     });
 

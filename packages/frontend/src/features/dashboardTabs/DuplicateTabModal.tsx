@@ -1,7 +1,8 @@
 import { type DashboardTab } from '@lightdash/common';
 import { Button, TextInput, type ModalProps } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconCopy } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { z } from 'zod';
 import MantineModal from '../../components/common/MantineModal';

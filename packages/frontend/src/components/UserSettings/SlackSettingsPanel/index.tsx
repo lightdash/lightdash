@@ -21,7 +21,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import {
     IconAlertCircle,
     IconDeviceFloppy,
@@ -29,6 +29,7 @@ import {
     IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, type FC } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';
@@ -57,7 +58,7 @@ type SlackSettingsFormValues = SlackAppCustomSettings & {
 };
 
 const formSchema = z.object({
-    notificationChannel: z.string().min(1).nullable(),
+    notificationChannel: z.string().min(1, 'Channel is required').nullable(),
     appProfilePhotoUrl: z
         .string()
         .url({ message: 'Enter a valid URL' })
@@ -72,13 +73,15 @@ const formSchema = z.object({
                 .string({
                     message: 'You must select a Slack channel',
                 })
-                .min(1),
-            availableTags: z.array(z.string().min(1)).nullable(),
+                .min(1, 'You must select a Slack channel'),
+            availableTags: z
+                .array(z.string().min(1, 'Tag cannot be empty'))
+                .nullable(),
         }),
     ),
     aiThreadAccessConsent: z.boolean().optional(),
     aiRequireOAuth: z.boolean().optional(),
-    aiMultiAgentChannelId: z.string().min(1).optional(),
+    aiMultiAgentChannelId: z.string().min(1, 'Channel is required').optional(),
     aiMultiAgentProjectUuids: z.array(z.string().uuid()).nullable().optional(),
     unfurlsEnabled: z.boolean().optional(),
     aiAgentsEnabled: z.boolean().optional(),

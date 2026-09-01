@@ -8,9 +8,8 @@ import {
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
-import type { ZodRawShape, ZodTypeAny } from 'zod';
+import type { ZodRawShape, ZodType } from 'zod';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import {
     getMcpAnalystPrompt,
@@ -25,7 +24,7 @@ type RegisteredMcpTool = {
         description: string;
         inputSchema: ZodRawShape;
         annotations: Record<string, unknown>;
-        outputSchema?: ZodRawShape | ZodTypeAny;
+        outputSchema?: ZodRawShape | ZodType;
         _meta?: Record<string, unknown>;
     };
 };
@@ -83,16 +82,20 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
 }));
 
 const schemaToJson = (
-    schema: ZodTypeAny | ZodRawShape | undefined,
+    schema: ZodType | ZodRawShape | undefined,
+    io: 'input' | 'output',
 ): unknown => {
     if (!schema) {
         return null;
     }
 
-    return zodToJsonSchema(
+    return z.toJSONSchema(
         schema instanceof z.ZodType ? schema : z.object(schema),
         {
-            target: 'jsonSchema7',
+            target: 'draft-07',
+            io,
+            reused: 'inline',
+            cycles: 'throw',
         },
     );
 };
@@ -217,7 +220,7 @@ describe('MCP tool contracts', () => {
             name,
             title: config.title,
             description: config.description,
-            argsSchema: schemaToJson(config.argsSchema),
+            argsSchema: schemaToJson(config.argsSchema, 'input'),
             prompt: name === 'lightdash-analyst' ? MCP_ANALYST_PROMPT : null,
         }));
         const tools = mockRegisteredMcpTools.map(({ name, config }) => ({
@@ -227,9 +230,9 @@ describe('MCP tool contracts', () => {
             title: config.title,
             description: config.description,
             annotations: config.annotations,
-            inputSchema: schemaToJson(config.inputSchema),
+            inputSchema: schemaToJson(config.inputSchema, 'input'),
             ...(config.outputSchema
-                ? { outputSchema: schemaToJson(config.outputSchema) }
+                ? { outputSchema: schemaToJson(config.outputSchema, 'output') }
                 : {}),
         }));
 
@@ -301,8 +304,11 @@ describe('MCP tool contracts', () => {
             title: registered?.config.title,
             description: registered?.config.description,
             annotations: registered?.config.annotations,
-            inputSchema: schemaToJson(registered?.config.inputSchema),
-            outputSchema: schemaToJson(registered?.config.outputSchema),
+            inputSchema: schemaToJson(registered?.config.inputSchema, 'input'),
+            outputSchema: schemaToJson(
+                registered?.config.outputSchema,
+                'output',
+            ),
         }).toMatchSnapshot();
     });
 
@@ -324,7 +330,7 @@ describe('MCP tool contracts', () => {
             title: registered?.config.title,
             description: registered?.config.description,
             annotations: registered?.config.annotations,
-            inputSchema: schemaToJson(registered?.config.inputSchema),
+            inputSchema: schemaToJson(registered?.config.inputSchema, 'input'),
         }).toMatchSnapshot();
     });
 
@@ -357,7 +363,7 @@ describe('MCP tool contracts', () => {
         const toolsWithoutProjectUuid = projectScopedTools
             .filter(({ config }) => {
                 const inputSchema = inputSchemaRequirements.parse(
-                    schemaToJson(config.inputSchema),
+                    schemaToJson(config.inputSchema, 'input'),
                 );
                 return !inputSchema.required?.includes('projectUuid');
             })

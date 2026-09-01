@@ -63,7 +63,10 @@ export const isToolName = (toolName: string): toolName is ToolName =>
     ToolNameSchema.safeParse(toolName).success;
 
 // display messages schema
-export const ToolDisplayMessagesSchema = z.record(ToolNameSchema, z.string());
+export const ToolDisplayMessagesSchema = z.partialRecord(
+    ToolNameSchema,
+    z.string(),
+);
 
 export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     findExplores: 'Finding relevant explores',
