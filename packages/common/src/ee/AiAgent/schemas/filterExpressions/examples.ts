@@ -189,6 +189,29 @@ export const getFilterExpressionExamples = (): FilterExpressionExample[] =>
 
 const filterExpressionExamples = getFilterExpressionExamples();
 
+const getGeneratedExpressionExample = ({
+    fieldFilterType,
+    operator,
+    valueCount,
+}: {
+    fieldFilterType: FilterType;
+    operator: FilterOperator;
+    valueCount: number;
+}) => {
+    const example = filterExpressionExamples.find(
+        (candidate) =>
+            candidate.fieldFilterType === fieldFilterType &&
+            candidate.operator === operator &&
+            candidate.values?.length === valueCount,
+    );
+    if (!example) {
+        throw new Error(
+            `Missing generated ${fieldFilterType} ${operator} filter expression example with ${valueCount} values`,
+        );
+    }
+    return example;
+};
+
 export const FILTER_EXPRESSION_EXAMPLES_DESCRIPTION = [
     'Examples by field filter type. Each line is one complete raw string expression:',
     ...Object.values(FilterType).flatMap((fieldFilterType) => {
@@ -202,4 +225,26 @@ export const FILTER_EXPRESSION_EXAMPLES_DESCRIPTION = [
             ),
         ];
     }),
+].join('\n');
+
+const filterExpressionAndOnlyExample = [
+    getGeneratedExpressionExample({
+        fieldFilterType: FilterType.STRING,
+        operator: FilterOperator.EQUALS,
+        valueCount: 1,
+    }),
+    getGeneratedExpressionExample({
+        fieldFilterType: FilterType.NUMBER,
+        operator: FilterOperator.GREATER_THAN,
+        valueCount: 1,
+    }),
+]
+    .map(({ expression }) => expression)
+    .join(' AND ');
+
+export const FILTER_EXPRESSION_AND_ONLY_EXAMPLES_DESCRIPTION = [
+    'AND-only multiple-rule example:',
+    `- ${filterExpressionAndOnlyExample}`,
+    '',
+    FILTER_EXPRESSION_EXAMPLES_DESCRIPTION,
 ].join('\n');

@@ -3,6 +3,7 @@ import { DimensionType } from '../../../../types/field';
 import { FilterOperator, FilterType } from '../../../../types/filter';
 import { type AiFilterExample } from '../filters/filterExamples';
 import {
+    FILTER_EXPRESSION_AND_ONLY_EXAMPLES_DESCRIPTION,
     FILTER_EXPRESSION_EXAMPLES_DESCRIPTION,
     formatFilterExpressionExample,
     getFilterExpressionExamples,
@@ -48,6 +49,24 @@ describe('filter expression examples', () => {
                 success: true,
             });
         }
+    });
+
+    it('generates an AND-only multiple-rule example', () => {
+        const exampleLine =
+            FILTER_EXPRESSION_AND_ONLY_EXAMPLES_DESCRIPTION.split('\n').find(
+                (line) => line.startsWith('- '),
+            );
+        if (!exampleLine) {
+            throw new Error('Missing generated AND-only example');
+        }
+
+        expect(FILTER_EXPRESSION_AND_ONLY_EXAMPLES_DESCRIPTION).not.toContain(
+            ' OR ',
+        );
+        expect(parseFilterExpression(exampleLine.slice(2))).toMatchObject({
+            success: true,
+            expression: { connector: 'and', rules: [{}, {}] },
+        });
     });
 
     it('quotes protected lexical content without changing its value', () => {

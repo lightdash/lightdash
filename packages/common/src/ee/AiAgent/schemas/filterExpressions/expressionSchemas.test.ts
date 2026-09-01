@@ -19,6 +19,7 @@ import {
 import {
     aggregationCustomMetricExpressionSchema,
     customMetricsExpressionSchema,
+    FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION,
     FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
     filterExpressionInputSchema,
     filterExpressionsSchema,
@@ -147,7 +148,22 @@ describe('filter expression input schemas', () => {
     it('documents every exposed operator from the canonical map', () => {
         filterExpressionOperators.forEach((operator) => {
             expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(operator);
+            expect(FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION).toContain(
+                operator,
+            );
         });
+    });
+
+    it('renders the selected connector policy', () => {
+        expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(
+            'Join flat rules with AND or OR',
+        );
+        expect(FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION).toContain(
+            'Join flat rules with AND only. OR is not supported by this tool.',
+        );
+        expect(FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION).not.toContain(
+            'Join flat rules with AND or OR',
+        );
     });
 
     it('documents quoting syntax characters without punctuation escapes', () => {
