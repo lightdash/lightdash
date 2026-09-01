@@ -45,6 +45,21 @@ type ContentAsCodeWritebackServiceArguments = {
 
 type WritebackContentType = 'chart' | 'dashboard';
 
+const WRITEBACK_BRANCH_PREFIX = 'lightdash/write-back';
+
+// The stored branch column is varchar(255); file-backed git hosts cap a ref
+// component at 255 bytes too
+const MAX_BRANCH_LENGTH = 255;
+
+// Git ref component rules: no spaces or `~^:?*[\`, no `..`, no leading or
+// trailing `.`, no `.lock` suffix
+const toRefSafeComponent = (value: string): string =>
+    value
+        .replace(/[^A-Za-z0-9._-]+/g, '-')
+        .replace(/\.{2,}/g, '.')
+        .replace(/^[.-]+|[.-]+$/g, '')
+        .replace(/\.lock$/, '') || 'content';
+
 type CommitAuthor = { name: string; email: string | null };
 
 const commitAuthorFromUser = (user: {
@@ -140,6 +155,28 @@ export class ContentAsCodeWritebackService extends BaseService {
         } catch {
             return 'instance';
         }
+    }
+
+    // Mirrors the repo layout so a chart and a dashboard sharing a slug get
+    // different branches; drafts are siblings of the propose branch because
+    // git cannot hold both `<slug>` and `<slug>/...` refs
+    static getWritebackBranch(
+        instanceSlug: string,
+        contentType: WritebackContentType,
+        slug: string,
+        contentDraftUuid: string | null,
+    ): string {
+        const folder = contentType === 'chart' ? 'charts' : 'dashboards';
+        const prefix = `${WRITEBACK_BRANCH_PREFIX}/${instanceSlug}/${folder}/`;
+        const suffix = contentDraftUuid ? `--draft-${contentDraftUuid}` : '';
+        const slugBudget = Math.max(
+            20,
+            MAX_BRANCH_LENGTH - prefix.length - suffix.length,
+        );
+        const safeSlug = toRefSafeComponent(slug)
+            .slice(0, slugBudget)
+            .replace(/[.-]+$/, '');
+        return `${prefix}${safeSlug}${suffix}`;
     }
 
     private static getContentFilePath(
@@ -612,10 +649,12 @@ export class ContentAsCodeWritebackService extends BaseService {
             this.assertWritebackOwner(row, target.contentDraftUuid);
         }
         if (row === undefined) {
-            const baseBranch = `lightdash/write-back/${this.getInstanceSlug()}/${slug}`;
-            const branch = target.contentDraftUuid
-                ? `${baseBranch}/draft-${target.contentDraftUuid}`
-                : baseBranch;
+            const branch = ContentAsCodeWritebackService.getWritebackBranch(
+                this.getInstanceSlug(),
+                contentType,
+                slug,
+                target.contentDraftUuid,
+            );
             try {
                 row = await this.contentAsCodeWritebackModel.create({
                     projectUuid,
