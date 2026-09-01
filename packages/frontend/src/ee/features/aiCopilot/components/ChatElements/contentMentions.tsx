@@ -243,6 +243,42 @@ export const isContentMentionSuggestionActive = (editor: Editor | null) => {
     return state?.active === true;
 };
 
+/** What the @-mention dropdown is doing, per the suggestion renderer. */
+export type ContentMentionMenuState =
+    | { status: 'closed' }
+    | { status: 'dismissed' }
+    | { status: 'open'; itemCount: number };
+
+export const CLOSED_CONTENT_MENTION_MENU: ContentMentionMenuState = {
+    status: 'closed',
+};
+
+/**
+ * Enter belongs to the dropdown only while it has something to select. Mentions
+ * allow spaces, so a stray `@` keeps the query alive for the rest of the
+ * sentence — a menu showing "no results", or one dismissed with Escape, must
+ * hand Enter back to the composer. While items are still resolving there is no
+ * menu yet, so fall back to the plugin's own active flag.
+ */
+export const contentMentionMenuOwnsEnter = (
+    menu: ContentMentionMenuState,
+    isSuggestionActive: boolean,
+) => {
+    switch (menu.status) {
+        case 'open':
+            return menu.itemCount > 0;
+        case 'dismissed':
+            return false;
+        case 'closed':
+            return isSuggestionActive;
+        default:
+            return assertUnreachable(
+                menu,
+                'Unknown content mention menu state',
+            );
+    }
+};
+
 const getContentMentionContentType = (value: unknown) => {
     if (value === FILE_MENTION_CONTENT_TYPE) return FILE_MENTION_CONTENT_TYPE;
     if (value === REPOSITORY_MENTION_CONTENT_TYPE)
@@ -642,12 +678,12 @@ const renderContentMentionItem = (
 const generateContentMentionSuggestion = ({
     getProjectUuid,
     getPriorityItems,
-    onPopupOpenChange,
+    onMenuStateChange,
     includeFilesAndRepositories,
 }: {
     getProjectUuid: () => string | undefined;
     getPriorityItems: () => ContentMentionSuggestionItem[];
-    onPopupOpenChange?: (open: boolean) => void;
+    onMenuStateChange?: (state: ContentMentionMenuState) => void;
     includeFilesAndRepositories: boolean;
 }): MentionOptions['suggestion'] => ({
     char: '@',
@@ -733,10 +769,18 @@ const generateContentMentionSuggestion = ({
     render: () => {
         let component: ReactRenderer<SuggestionListRef> | undefined;
         let popup: TippyInstance | undefined;
+        // Escape hides the dropdown but leaves the suggestion match in place;
+        // it must stay hidden — and stay out of Enter's way — until the match
+        // exits.
+        let dismissed = false;
 
         return {
             onStart: (props) => {
-                onPopupOpenChange?.(true);
+                dismissed = false;
+                onMenuStateChange?.({
+                    status: 'open',
+                    itemCount: props.items.length,
+                });
                 component = new ReactRenderer(SuggestionList, {
                     props: {
                         ...props,
@@ -764,6 +808,11 @@ const generateContentMentionSuggestion = ({
                 })[0];
             },
             onUpdate: (props) => {
+                if (dismissed) return;
+                onMenuStateChange?.({
+                    status: 'open',
+                    itemCount: props.items.length,
+                });
                 component?.updateProps({
                     ...props,
                     renderItem: renderContentMentionItem,
@@ -779,14 +828,17 @@ const generateContentMentionSuggestion = ({
             },
             onKeyDown: (props) => {
                 if (props.event.key === 'Escape') {
-                    onPopupOpenChange?.(false);
+                    dismissed = true;
+                    onMenuStateChange?.({ status: 'dismissed' });
                     popup?.hide();
                     return true;
                 }
+                if (dismissed) return false;
                 return component?.ref?.onKeyDown(props) ?? false;
             },
             onExit: () => {
-                onPopupOpenChange?.(false);
+                dismissed = false;
+                onMenuStateChange?.(CLOSED_CONTENT_MENTION_MENU);
                 popup?.destroy();
                 component?.destroy();
                 popup = undefined;
@@ -799,12 +851,12 @@ const generateContentMentionSuggestion = ({
 export const createContentMentionExtension = ({
     getProjectUuid,
     getPriorityItems,
-    onPopupOpenChange,
+    onMenuStateChange,
     includeFilesAndRepositories = true,
 }: {
     getProjectUuid: () => string | undefined;
     getPriorityItems: () => ContentMentionSuggestionItem[];
-    onPopupOpenChange?: (open: boolean) => void;
+    onMenuStateChange?: (state: ContentMentionMenuState) => void;
     includeFilesAndRepositories?: boolean;
 }) =>
     Mention.extend({
@@ -852,7 +904,7 @@ export const createContentMentionExtension = ({
         suggestion: generateContentMentionSuggestion({
             getProjectUuid,
             getPriorityItems,
-            onPopupOpenChange,
+            onMenuStateChange,
             includeFilesAndRepositories,
         }),
         renderText: ({ node }) =>
