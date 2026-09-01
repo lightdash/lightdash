@@ -1,3 +1,17 @@
+# [2.74.0](https://github.com/lightdash/lightdash/compare/2.73.0...2.74.0) (2026-09-01)
+
+
+### Bug Fixes
+
+* **api:** keep POST /projects/{uuid}/refresh working without a body ([#28417](https://github.com/lightdash/lightdash/issues/28417)) ([9187512](https://github.com/lightdash/lightdash/commit/9187512f2600f94e55f3a60994063e2cc81c74d2)), closes [#28405](https://github.com/lightdash/lightdash/issues/28405)
+
+
+### Features
+
+* **ai:** render data app build summaries as markdown and truncate them ([#28404](https://github.com/lightdash/lightdash/issues/28404)) ([d3df7ba](https://github.com/lightdash/lightdash/commit/d3df7ba12f0856f34007a91539c97d1ea62b2d91))
+* **content-as-code:** record draft bases, flag stale drafts, and let authors update to the latest repo version ([#28411](https://github.com/lightdash/lightdash/issues/28411)) ([27c2b0b](https://github.com/lightdash/lightdash/commit/27c2b0b541bf28979ebbc35dd99de5eb480a1f90))
+* **content-as-code:** refresh dbt split button that also syncs content from the repo ([#28405](https://github.com/lightdash/lightdash/issues/28405)) ([e612d07](https://github.com/lightdash/lightdash/commit/e612d0729bf237bfd59aca380b74283d3eace9f5))
+
 # [2.73.0](https://github.com/lightdash/lightdash/compare/2.72.5...2.73.0) (2026-09-01)
 
 

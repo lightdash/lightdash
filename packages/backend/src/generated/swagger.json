@@ -195,6 +195,52 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ContentAsCodePullFailure": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "file": {
+                        "type": "string"
+                    }
+                },
+                "required": ["message", "file"],
+                "type": "object"
+            },
+            "ContentAsCodePullSummary": {
+                "properties": {
+                    "failures": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentAsCodePullFailure"
+                        },
+                        "type": "array"
+                    },
+                    "dashboards": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "charts": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["failures", "dashboards", "charts"],
+                "type": "object"
+            },
+            "ApiContentAsCodePullResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ContentAsCodePullSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ContentAsCodeUploadAdvisory": {
                 "properties": {
                     "openDraftCount": {
@@ -228,6 +274,9 @@
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "stale": {
+                        "type": "boolean"
                     },
                     "writebackStatus": {
                         "allOf": [
@@ -268,6 +317,7 @@
                 "required": [
                     "updatedAt",
                     "createdAt",
+                    "stale",
                     "writebackStatus",
                     "prUrl",
                     "status",
@@ -297,8 +347,37 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ContentDraftStaleness": {
+                "properties": {
+                    "conflictingFields": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "changedFields": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "draftUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["conflictingFields", "changedFields", "draftUuid"],
+                "type": "object"
+            },
             "ContentDraftReview": {
                 "properties": {
+                    "staleness": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentDraftStaleness"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "draftYaml": {
                         "type": "string"
                     },
@@ -313,6 +392,7 @@
                     }
                 },
                 "required": [
+                    "staleness",
                     "draftYaml",
                     "publishedYaml",
                     "filePath",
@@ -332,6 +412,95 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "ContentDraftFieldChange": {
+                "properties": {
+                    "mine": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "repo": {
+                        "type": "string"
+                    },
+                    "field": {
+                        "type": "string"
+                    }
+                },
+                "required": ["mine", "repo", "field"],
+                "type": "object"
+            },
+            "ContentDraftStalenessDetails": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ContentDraftStaleness"
+                    },
+                    {
+                        "properties": {
+                            "changes": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ContentDraftFieldChange"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["changes"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiContentDraftStalenessResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentDraftStalenessDetails"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiContentDraftRebaseResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ContentDraftSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ContentDraftFieldResolution": {
+                "type": "string",
+                "enum": ["mine", "latest"]
+            },
+            "Record_string.ContentDraftFieldResolution_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/ContentDraftFieldResolution"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ContentDraftRebaseRequest": {
+                "properties": {
+                    "resolutions": {
+                        "$ref": "#/components/schemas/Record_string.ContentDraftFieldResolution_"
+                    }
+                },
+                "required": ["resolutions"],
                 "type": "object"
             },
             "ApiContentDraftWriteBackResponse": {
@@ -8258,6 +8427,10 @@
                         "type": "string",
                         "description": "The viewer authored a dismissed draft that can be reopened"
                     },
+                    "draftStaleness": {
+                        "$ref": "#/components/schemas/ContentDraftStaleness",
+                        "description": "The viewer's draft started from an upload snapshot the repo has since moved past"
+                    },
                     "dashboardVersionId": {
                         "type": "number",
                         "format": "double"
@@ -8729,6 +8902,10 @@
                     "dismissedDraftUuid": {
                         "type": "string",
                         "description": "The caller's latest dismissed draft, available to reopen."
+                    },
+                    "draftStaleness": {
+                        "$ref": "#/components/schemas/ContentDraftStaleness",
+                        "description": "The caller's draft started from an upload snapshot the repo has since moved past."
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -14608,6 +14785,10 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "draftStaleness": {
+                        "$ref": "#/components/schemas/ContentDraftStaleness",
+                        "description": "The viewer's draft started from an upload snapshot the repo has since moved past"
+                    },
                     "dismissedDraftUuid": {
                         "type": "string",
                         "description": "The viewer authored a dismissed draft that can be reopened"
@@ -15480,6 +15661,10 @@
                         "required": ["draftUuid", "code"],
                         "type": "object",
                         "description": "The caller's draft could not be safely applied."
+                    },
+                    "draftStaleness": {
+                        "$ref": "#/components/schemas/ContentDraftStaleness",
+                        "description": "The caller's draft started from an upload snapshot the repo has since moved past."
                     },
                     "dismissedDraftUuid": {
                         "type": "string",
@@ -46472,6 +46657,14 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiRefreshBody": {
+                "properties": {
+                    "syncContent": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
             "ApiSuccess__jobIds-string-Array__": {
                 "properties": {
                     "results": {
@@ -57915,7 +58108,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.73.0",
+        "version": "2.74.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -58245,6 +58438,47 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/code/pull": {
+            "post": {
+                "operationId": "pullContentAsCodeFromGit",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentAsCodePullResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Apply charts and dashboards as code from the project's repo, the in-app\nequivalent of `lightdash upload`",
+                "summary": "Pull content from git",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/code/upload-advisory": {
             "get": {
                 "operationId": "getContentAsCodeUploadAdvisory",
@@ -58382,6 +58616,114 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/drafts/{draftUuid}/staleness": {
+            "get": {
+                "operationId": "getContentDraftStaleness",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentDraftStalenessResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "What the repo and the draft each changed since the draft's base",
+                "summary": "Get content draft staleness",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "draftUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/drafts/{draftUuid}/rebase": {
+            "post": {
+                "operationId": "rebaseContentDraft",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentDraftRebaseResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Move the caller's draft onto the repo's latest upload snapshot",
+                "summary": "Rebase content draft",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "draftUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ContentDraftRebaseRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/code/drafts/{draftUuid}/write-back": {
@@ -82602,7 +82944,17 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiRefreshBody"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/pre-aggregates/refresh": {
