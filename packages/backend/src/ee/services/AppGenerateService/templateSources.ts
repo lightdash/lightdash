@@ -3,6 +3,7 @@ import {
     FORECASTER_SOURCE_FILES,
     type TemplateSourceFile,
 } from './templateSources/forecasterSource.generated';
+import { SCORECARD_SOURCE_FILES } from './templateSources/scorecardSource.generated';
 
 export { type TemplateSourceFile };
 
@@ -19,6 +20,7 @@ export { type TemplateSourceFile };
 const TEMPLATE_SOURCES: Partial<Record<DataAppTemplate, TemplateSourceFile[]>> =
     {
         forecaster: FORECASTER_SOURCE_FILES,
+        scorecard: SCORECARD_SOURCE_FILES,
     };
 
 export const getTemplateSource = (
@@ -47,8 +49,17 @@ The workspace already contains the finished Forecaster app: components under src
 - Keep the governance language (plan summary traceability, footer) intact.
 - Verify your bindings against the model YAML — a wrong field id fails loudly on the app page.`;
 
+const SCORECARD_BIND_INSTRUCTIONS = `[Template: KPI Scorecard — seeded starter]
+The workspace already contains the finished KPI Scorecard app: components under src/ and a template.json manifest at the app root holding everything that is meant to vary. Your job is to BIND this app to the user's request, not to rebuild it:
+- Read template.json first. The scorecard is defined by bindings.tiles — an ordered list where each tile names an explore, the metric to show, the base time dimension used for the period window (day grain is derived as <timeDimension>_day), a label, a unit ({kind: currency|number|percent, symbol}), and an optional numeric target.
+- Resolve the user's request (and any clarification answers) against the real data models in /tmp/dbt-repo/models: add, remove, reorder, or retarget tiles so the scorecard shows the metrics they asked for. Use metric keys and dimension names exactly as declared in the YAML; every tile's timeDimension must be a date/timestamp dimension on that tile's explore.
+- Set targets only when the user states them. Adjust parameters.period options/default and comparison, and labels (title, eyebrow, tagline, control copy), in template.json. Theme via theme.vars only if a look is requested.
+- Do not rewrite the components or src/template.js: the deterministic starting point is the feature. Touch component code only for behavior the manifest cannot express, and keep changes minimal.
+- Verify every explore/metric/dimension against the model YAML — a wrong id fails loudly on the app page.`;
+
 const TEMPLATE_BIND_INSTRUCTIONS: Partial<Record<DataAppTemplate, string>> = {
     forecaster: FORECASTER_BIND_INSTRUCTIONS,
+    scorecard: SCORECARD_BIND_INSTRUCTIONS,
 };
 
 /**

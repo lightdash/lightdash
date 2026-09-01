@@ -32,6 +32,22 @@ describe('template starter sources', () => {
         expect(manifest.bindings.history.primaryMetric).toBeTruthy();
     });
 
+    it('provides seeded source for scorecard with list-valued tile bindings', () => {
+        const source = getTemplateSource('scorecard');
+        expect(source).not.toBeNull();
+        const manifest = JSON.parse(
+            source!.find((f) => f.filename === 'template.json')!.contents,
+        );
+        expect(Array.isArray(manifest.bindings.tiles)).toBe(true);
+        expect(manifest.bindings.tiles.length).toBeGreaterThan(1);
+        for (const tile of manifest.bindings.tiles) {
+            expect(tile.explore).toBeTruthy();
+            expect(tile.metric).toBeTruthy();
+            expect(tile.timeDimension).toBeTruthy();
+        }
+        expect(getTemplateBindInstructions('scorecard')).toContain('tiles');
+    });
+
     it('has no source for instruction-pack templates', () => {
         for (const id of [
             'dashboard',

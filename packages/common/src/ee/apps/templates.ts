@@ -85,4 +85,14 @@ export const DATA_APP_TEMPLATE_DEFINITIONS: Record<
         inGallery: true,
         requiredFlag: FeatureFlags.EnableDataAppTemplates,
     },
+    scorecard: {
+        id: 'scorecard',
+        title: 'KPI Scorecard',
+        description:
+            'A tiled scorecard of key metrics: period totals, comparison deltas, sparklines, and targets.',
+        category: 'Reporting',
+        inPicker: false,
+        inGallery: true,
+        requiredFlag: FeatureFlags.EnableDataAppTemplates,
+    },
 };

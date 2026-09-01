@@ -7,6 +7,7 @@ import {
     IconChartLine,
     IconFileText,
     IconLayoutDashboard,
+    IconLayoutGrid,
     IconPencil,
     IconPresentation,
     IconPuzzle,
@@ -30,6 +31,7 @@ const TEMPLATE_ICONS: Record<DataAppTemplate, TablerIcon> = {
     custom: IconPencil,
     data_app_viz: IconPuzzle,
     forecaster: IconChartLine,
+    scorecard: IconLayoutGrid,
 };
 
 const toDefinition = (id: DataAppTemplate): TemplateDefinition => {

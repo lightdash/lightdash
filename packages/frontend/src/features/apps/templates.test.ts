@@ -26,7 +26,7 @@ describe('picker templates', () => {
         const ids = getGalleryTemplates(
             new Set([FeatureFlags.EnableDataAppTemplates]),
         ).map((t) => t.id);
-        expect(ids).toEqual(['forecaster']);
+        expect(ids).toEqual(['forecaster', 'scorecard']);
     });
 
     it('resolves a definition with an icon for every template', () => {
