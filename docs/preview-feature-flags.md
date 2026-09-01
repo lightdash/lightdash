@@ -1,8 +1,8 @@
 # Feature flags in preview environments
 
-Preview environments (`LIGHTDASH_MODE=pr`) and the Okteto agent dev environment
-enable most feature flags by default and expose an API for toggling them, so QA
-can validate recent features without a redeploy.
+Preview environments (`LIGHTDASH_MODE=pr`) enable most feature flags by default
+and expose an API for toggling them, so QA can validate recent features without
+a redeploy.
 
 ## Defaults
 
@@ -34,8 +34,7 @@ unconfigured (for example email whitelabel needs a Postmark token, data apps
 need an app runtime). Those surfaces render but won't work end to end.
 
 This is controlled by `LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED`, which defaults
-to `true` in PR mode. Set it to `false` for production-like flag resolution, or
-`true` in any other environment (the Okteto dev compose file does this).
+to `true` in PR mode. Set it to `false` for production-like flag resolution.
 
 ## Managing flags at runtime
 
@@ -57,10 +56,6 @@ curl -X DELETE -H "Authorization: ApiKey $LDPAT" \
 ```
 
 Unknown flag ids are rejected, so a typo can't silently create a dead override.
-
-In an Okteto dev environment the backend runs from the committed TSOA output, so
-run `pnpm generate-api` (and restart the API) if these routes 404. Preview
-environments build with `pnpm build`, which regenerates them.
 
 ## Resolution order
 
