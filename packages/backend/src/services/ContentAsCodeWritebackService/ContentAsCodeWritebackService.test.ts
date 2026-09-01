@@ -36,6 +36,9 @@ type Overrides = {
     draft?: object | undefined;
     createError?: Error;
     openDraftCount?: number;
+    branchExists?: boolean;
+    providerPullRequest?: { prNumber: number; prUrl: string } | null;
+    pullRequestCreateError?: Error;
 };
 
 const buildService = (overrides: Overrides = {}) => {
@@ -47,16 +50,23 @@ const buildService = (overrides: Overrides = {}) => {
             path: '/',
             type: DbtProjectType.GITHUB,
         }),
-        createBranchFromSource: vi.fn().mockResolvedValue({}),
+        createBranchFromSource: overrides.branchExists
+            ? vi.fn().mockRejectedValue(new Error('Reference already exists'))
+            : vi.fn().mockResolvedValue({}),
+        findOpenPullRequestForBranch: vi
+            .fn()
+            .mockResolvedValue(overrides.providerPullRequest ?? null),
         saveFile: vi.fn().mockResolvedValue({ sha: 'new-sha', path: 'p' }),
         getFileOrDirectory:
             overrides.existingFile === 'missing' || !overrides.existingFile
                 ? vi.fn().mockRejectedValue(new Error('Not found'))
                 : vi.fn().mockResolvedValue(overrides.existingFile),
-        createPullRequestFromBranch: vi.fn().mockResolvedValue({
-            prTitle: 'Update chart',
-            prUrl: 'https://github.com/acme/analytics/pull/42',
-        }),
+        createPullRequestFromBranch: overrides.pullRequestCreateError
+            ? vi.fn().mockRejectedValue(overrides.pullRequestCreateError)
+            : vi.fn().mockResolvedValue({
+                  prTitle: 'Update chart',
+                  prUrl: 'https://github.com/acme/analytics/pull/42',
+              }),
         recordPullRequest: vi.fn().mockResolvedValue(undefined),
     };
     const coderService = {
@@ -368,6 +378,98 @@ describe('ContentAsCodeWritebackService', () => {
             gitIntegrationService.createPullRequestFromBranch.mock.calls[0][5];
         expect(prSource).toBe(PullRequestSource.CONTENT_AS_CODE);
         expect(gitIntegrationService.recordPullRequest).not.toHaveBeenCalled();
+    });
+
+    it('adopts the open PR found on the provider when the branch already exists', async () => {
+        const { service, gitIntegrationService, contentAsCodeWritebackModel } =
+            buildService({
+                branchExists: true,
+                providerPullRequest: {
+                    prNumber: 7,
+                    prUrl: 'https://github.com/acme/analytics/pull/7',
+                },
+            });
+
+        await service.propose(user, 'project-uuid', 'chart', 'monthly-revenue');
+
+        expect(
+            gitIntegrationService.findOpenPullRequestForBranch,
+        ).toHaveBeenCalledWith(
+            user,
+            'project-uuid',
+            'lightdash/write-back/app.lightdash.dev/monthly-revenue',
+        );
+        expect(gitIntegrationService.saveFile).toHaveBeenCalledTimes(1);
+        expect(
+            gitIntegrationService.createPullRequestFromBranch,
+        ).not.toHaveBeenCalled();
+        expect(contentAsCodeWritebackModel.update).toHaveBeenCalledWith(
+            'row-uuid',
+            {
+                prNumber: 7,
+                prUrl: 'https://github.com/acme/analytics/pull/7',
+                status: 'open',
+            },
+        );
+    });
+
+    it('opens a new PR when the existing branch has no open PR', async () => {
+        const { service, gitIntegrationService, contentAsCodeWritebackModel } =
+            buildService({ branchExists: true, providerPullRequest: null });
+
+        await service.propose(user, 'project-uuid', 'chart', 'monthly-revenue');
+
+        expect(
+            gitIntegrationService.createPullRequestFromBranch,
+        ).toHaveBeenCalledTimes(1);
+        expect(contentAsCodeWritebackModel.update).toHaveBeenCalledWith(
+            'row-uuid',
+            expect.objectContaining({ prNumber: 42, status: 'open' }),
+        );
+    });
+
+    it('adopts the provider PR when creating one is refused as a duplicate', async () => {
+        const { service, gitIntegrationService, contentAsCodeWritebackModel } =
+            buildService({
+                pullRequestCreateError: new Error(
+                    'Validation Failed: A pull request already exists for acme:lightdash/write-back/app.lightdash.dev/monthly-revenue.',
+                ),
+            });
+        gitIntegrationService.findOpenPullRequestForBranch.mockResolvedValue({
+            prNumber: 9,
+            prUrl: 'https://github.com/acme/analytics/pull/9',
+        });
+
+        await service.propose(user, 'project-uuid', 'chart', 'monthly-revenue');
+
+        expect(contentAsCodeWritebackModel.update).toHaveBeenCalledWith(
+            'row-uuid',
+            {
+                prNumber: 9,
+                prUrl: 'https://github.com/acme/analytics/pull/9',
+                status: 'open',
+            },
+        );
+        expect(contentAsCodeWritebackModel.update).not.toHaveBeenCalledWith(
+            'row-uuid',
+            expect.objectContaining({ status: 'error' }),
+        );
+    });
+
+    it('marks the row as error when a duplicate PR cannot be found anywhere', async () => {
+        const { service, contentAsCodeWritebackModel } = buildService({
+            pullRequestCreateError: new Error(
+                'Validation Failed: A pull request already exists for acme:lightdash/write-back/app.lightdash.dev/monthly-revenue.',
+            ),
+        });
+
+        await expect(
+            service.propose(user, 'project-uuid', 'chart', 'monthly-revenue'),
+        ).rejects.toThrow('pull request already exists');
+        expect(contentAsCodeWritebackModel.update).toHaveBeenCalledWith(
+            'row-uuid',
+            expect.objectContaining({ status: 'error' }),
+        );
     });
 
     it('writes dashboard-owned charts with portable chart type bindings', async () => {

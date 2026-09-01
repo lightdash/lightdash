@@ -1821,4 +1821,27 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             prUrl: pullRequest.html_url,
         };
     }
+
+    // Provider-side lookup so a branch whose PR was opened by another
+    // instance (or before a database reset) can be adopted. GitHub only.
+    async findOpenPullRequestForBranch(
+        user: SessionUser,
+        projectUuid: string,
+        branch: string,
+    ): Promise<{ prNumber: number; prUrl: string } | null> {
+        const creds = await this.getGitCredentials(user, projectUuid, {
+            preferUserToken: true,
+        });
+        if (creds.type !== DbtProjectType.GITHUB) return null;
+        const pullRequest = await GithubClient.findOpenPullRequestByHead({
+            owner: creds.owner,
+            repo: creds.repo,
+            head: branch,
+            installationId: creds.installationId,
+            token: creds.token,
+        });
+        return pullRequest
+            ? { prNumber: pullRequest.number, prUrl: pullRequest.url }
+            : null;
+    }
 }
