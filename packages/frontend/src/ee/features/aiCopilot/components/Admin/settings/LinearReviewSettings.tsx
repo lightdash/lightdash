@@ -7,6 +7,7 @@ import {
     Group,
     Loader,
     MultiSelect,
+    Paper,
     Select,
     Stack,
     Switch,
@@ -14,7 +15,7 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
-import { IconExternalLink, IconKey, IconTrash } from '@tabler/icons-react';
+import { IconExternalLink, IconTrash } from '@tabler/icons-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import {
     useDeleteLinearInstallationMutation,
@@ -25,11 +26,13 @@ import {
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useProjects } from '../../../../../../hooks/useProjects';
 import useApp from '../../../../../../providers/App/useApp';
+import linearSvg from '../../../../../../svgs/linear.svg';
 import {
     useBackfillReviewLinearIssues,
     useReviewLinearRouting,
     useUpdateReviewLinearRouting,
 } from '../../../hooks/useReviewNotificationSettings';
+import styles from './LinearReviewSettings.module.css';
 import { buildLinearAppSetupUrl } from './linearReviewSettingsUtils';
 
 const selectOptionsWithCurrent = (
@@ -46,6 +49,14 @@ const selectOptionsWithCurrent = (
     return [...options, { value: currentValue, label: currentValue }];
 };
 
+const LinearLogo = ({ compact = false }: { compact?: boolean }) => (
+    <img
+        src={linearSvg}
+        alt="Linear"
+        className={compact ? styles.logoSm : styles.logo}
+    />
+);
+
 export const LinearReviewSettings = () => {
     const { health, user } = useApp();
     const [linearClientId, setLinearClientId] = useState('');
@@ -56,17 +67,19 @@ export const LinearReviewSettings = () => {
         useProjects();
     const linearInstallationQuery = useLinearInstallation();
     const installation = linearInstallationQuery.data;
+    const installationLoading = linearInstallationQuery.isInitialLoading;
     const hasLinear = !!installation;
     const requiresReconnect = installation?.requiresReconnect === true;
+    const canLoadLinear = hasLinear && !requiresReconnect;
     const { data: linearTeams, isInitialLoading: linearTeamsLoading } =
-        useLinearTeams({ enabled: hasLinear && !requiresReconnect });
+        useLinearTeams({ enabled: canLoadLinear });
     const routingQuery = useReviewLinearRouting({
-        enabled: hasLinear && !requiresReconnect,
+        enabled: canLoadLinear,
     });
     const routing = routingQuery.data;
     const { data: linearProjects, isInitialLoading: linearProjectsLoading } =
         useLinearProjects({
-            enabled: hasLinear && !requiresReconnect,
+            enabled: canLoadLinear,
             teamId: routing?.linearTeamId ?? null,
         });
     const { mutate: updateRouting, isLoading: routingUpdating } =
@@ -139,53 +152,33 @@ export const LinearReviewSettings = () => {
         !!routing?.linearTeamId &&
         (routing.applyToAllProjects || routing.projectUuids.length > 0);
 
-    const oauthForm = (
-        <Stack gap="xs">
-            <Text c="dimmed" fz="xs">
-                Create a private OAuth app with the callback already filled in,
-                then paste its public client ID once. No API key or client
-                secret required.
-            </Text>
-            <Button
-                size="xs"
-                variant="subtle"
-                component="a"
-                href={setupUrl}
-                target="_blank"
-                rel="noreferrer"
-                rightSection={<MantineIcon icon={IconExternalLink} size={14} />}
-            >
-                Create Linear app
-            </Button>
-            <form onSubmit={submitLinearOAuth}>
-                <Group gap="xs" wrap="nowrap" align="flex-end">
-                    <TextInput
-                        style={{ flex: 1 }}
-                        size="xs"
-                        label="Linear OAuth client ID"
-                        value={linearClientId}
-                        placeholder="Paste the client ID from Linear"
-                        disabled={!canEdit || isUpdating}
-                        onChange={(event) =>
-                            setLinearClientId(event.currentTarget.value)
-                        }
-                    />
-                    <Button
-                        type="submit"
-                        size="xs"
-                        disabled={
-                            !canEdit ||
-                            isUpdating ||
-                            linearClientId.trim().length === 0
-                        }
-                    >
-                        {requiresReconnect
-                            ? 'Reconnect Linear'
-                            : 'Connect Linear'}
-                    </Button>
-                </Group>
-            </form>
-        </Stack>
+    const connectForm = (
+        <form onSubmit={submitLinearOAuth}>
+            <Group gap="xs" wrap="nowrap" align="flex-end">
+                <TextInput
+                    className={styles.clientIdInput}
+                    size="xs"
+                    label="Linear OAuth client ID"
+                    value={linearClientId}
+                    placeholder="Paste the client ID from Linear"
+                    disabled={!canEdit || isUpdating}
+                    onChange={(event) =>
+                        setLinearClientId(event.currentTarget.value)
+                    }
+                />
+                <Button
+                    type="submit"
+                    size="xs"
+                    disabled={
+                        !canEdit ||
+                        isUpdating ||
+                        linearClientId.trim().length === 0
+                    }
+                >
+                    {requiresReconnect ? 'Reconnect Linear' : 'Connect Linear'}
+                </Button>
+            </Group>
+        </form>
     );
 
     return (
@@ -199,15 +192,13 @@ export const LinearReviewSettings = () => {
             >
                 <Box maw={620}>
                     <Group gap="xs" mb={4}>
+                        <LinearLogo compact={hasLinear && !requiresReconnect} />
                         <Title order={6}>Linear issues</Title>
                         {hasLinear && (
                             <Badge
                                 size="sm"
                                 variant="light"
                                 color={requiresReconnect ? 'yellow' : 'green'}
-                                leftSection={
-                                    <MantineIcon icon={IconKey} size={12} />
-                                }
                             >
                                 {requiresReconnect
                                     ? 'Reconnect required'
@@ -215,76 +206,120 @@ export const LinearReviewSettings = () => {
                             </Badge>
                         )}
                     </Group>
-                    <Text c="dimmed" fz="xs">
-                        Create one Linear issue for each new review finding.
-                        Existing open findings can be exported with the button
-                        below. Each issue links back here, and the review issue
-                        shows the Linear URL. This is a one-way export; status
-                        changes are not synced back.
+                    <Text c="ldGray.6" fz="xs">
+                        {hasLinear && !requiresReconnect
+                            ? 'New findings create a Linear issue automatically. Existing open findings can be exported below. Each issue links both ways; status is not synced.'
+                            : 'Send review findings to Linear as issues. Each issue links both ways. Status is not synced.'}
                     </Text>
-                    {hasLinear && (
-                        <Text c="dimmed" fz="xs" mt={4}>
+                    {hasLinear && !requiresReconnect && (
+                        <Text c="ldGray.6" fz="xs" mt={4}>
                             Connected to {installation.organizationName} (
-                            {installation.organizationUrlKey}). Tokens are
-                            encrypted and scoped to this Lightdash organization.
+                            {installation.organizationUrlKey}).
                         </Text>
                     )}
                 </Box>
-                {linearInstallationQuery.isInitialLoading ||
-                (hasLinear &&
-                    !requiresReconnect &&
-                    routingQuery.isInitialLoading) ? (
-                    <Loader size="sm" />
-                ) : (
-                    <Switch
-                        size="md"
-                        aria-label="Create Linear issues for AI review findings"
-                        checked={
-                            !!routing?.enabled &&
-                            hasLinear &&
-                            !requiresReconnect
-                        }
-                        disabled={
-                            !canEdit ||
-                            isUpdating ||
-                            !hasLinear ||
-                            requiresReconnect ||
-                            !canEnableExport
-                        }
-                        onChange={(event) =>
-                            saveRouting({
-                                enabled: event.currentTarget.checked,
-                            })
-                        }
-                    />
-                )}
+                {installationLoading && <Loader size="sm" />}
+                {canLoadLinear &&
+                    (routingQuery.isInitialLoading ? (
+                        <Loader size="sm" />
+                    ) : (
+                        <Switch
+                            size="md"
+                            aria-label="Create Linear issues for AI review findings"
+                            checked={!!routing?.enabled}
+                            disabled={
+                                !canEdit || isUpdating || !canEnableExport
+                            }
+                            onChange={(event) =>
+                                saveRouting({
+                                    enabled: event.currentTarget.checked,
+                                })
+                            }
+                        />
+                    ))}
             </Group>
 
-            {!hasLinear || requiresReconnect ? (
-                oauthForm
-            ) : (
-                <Group gap="xs" justify="flex-end">
-                    <Button
-                        size="xs"
-                        variant="default"
-                        component="a"
-                        href="/api/v1/linear/install"
-                        disabled={!canEdit || isUpdating}
-                    >
-                        Reconnect
-                    </Button>
-                    <Button
-                        type="button"
-                        size="xs"
-                        variant="subtle"
-                        color="red"
-                        disabled={!canEdit || isUpdating}
-                        leftSection={<MantineIcon icon={IconTrash} size={14} />}
-                        onClick={() => deleteLinear()}
-                    >
-                        Remove
-                    </Button>
-                </Group>
+            {!hasLinear && !installationLoading && (
+                <Paper variant="dotted" p="md" radius="md">
+                    <Stack gap="md">
+                        <Group align="flex-start" gap="sm" wrap="nowrap">
+                            <Text className={styles.stepIndex}>1</Text>
+                            <Stack gap={6} flex={1}>
+                                <Text fw={600} fz="sm">
+                                    Create a Linear app
+                                </Text>
+                                <Text c="ldGray.6" fz="xs">
+                                    Opens Linear with the callback already
+                                    filled in. Private app, no client secret.
+                                </Text>
+                                <Button
+                                    size="xs"
+                                    variant="default"
+                                    component="a"
+                                    href={setupUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    w="fit-content"
+                                    rightSection={
+                                        <MantineIcon
+                                            icon={IconExternalLink}
+                                            size={14}
+                                        />
+                                    }
+                                >
+                                    Create Linear app
+                                </Button>
+                            </Stack>
+                        </Group>
+                        <Divider />
+                        <Group align="flex-start" gap="sm" wrap="nowrap">
+                            <Text className={styles.stepIndex}>2</Text>
+                            <Stack gap={6} flex={1}>
+                                <Text fw={600} fz="sm">
+                                    Paste the client ID and connect
+                                </Text>
+                                <Text c="ldGray.6" fz="xs">
+                                    Use the public client ID from the app you
+                                    just created.
+                                </Text>
+                                {connectForm}
+                            </Stack>
+                        </Group>
+                    </Stack>
+                </Paper>
+            )}
+
+            {requiresReconnect && (
+                <Paper variant="dotted" p="md" radius="md">
+                    <Stack gap="xs">
+                        <Text fw={600} fz="sm">
+                            Reconnect Linear to keep exporting issues
+                        </Text>
+                        <Text c="ldGray.6" fz="xs">
+                            The saved app can no longer create issues. Create a
+                            new private app or reconnect with the same client
+                            ID.
+                        </Text>
+                        <Button
+                            size="xs"
+                            variant="default"
+                            component="a"
+                            href={setupUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            w="fit-content"
+                            rightSection={
+                                <MantineIcon
+                                    icon={IconExternalLink}
+                                    size={14}
+                                />
+                            }
+                        >
+                            Create Linear app
+                        </Button>
+                        {connectForm}
+                    </Stack>
+                </Paper>
             )}
 
             {hasLinear && !requiresReconnect && routing && (
@@ -311,7 +346,7 @@ export const LinearReviewSettings = () => {
                     />
                     {!routing.applyToAllProjects && (
                         <MultiSelect
-                            label="Lightdash projects" // pragma: allowlist secret
+                            label="Projects"
                             placeholder={
                                 projectsLoading
                                     ? 'Loading projects'
@@ -385,17 +420,41 @@ export const LinearReviewSettings = () => {
                             saveRouting({ linearProjectId });
                         }}
                     />
-                    {routing.enabled && (
+                    <Group gap="xs">
+                        {routing.enabled && (
+                            <Button
+                                size="xs"
+                                variant="default"
+                                disabled={!canEdit || isUpdating}
+                                loading={linearBackfilling}
+                                onClick={() => backfillLinear()}
+                            >
+                                Create issues for existing findings
+                            </Button>
+                        )}
                         <Button
                             size="xs"
                             variant="default"
+                            component="a"
+                            href="/api/v1/linear/install"
                             disabled={!canEdit || isUpdating}
-                            loading={linearBackfilling}
-                            onClick={() => backfillLinear()}
                         >
-                            Create issues for existing findings
+                            Reconnect
                         </Button>
-                    )}
+                        <Button
+                            type="button"
+                            size="xs"
+                            variant="subtle"
+                            color="red"
+                            disabled={!canEdit || isUpdating}
+                            leftSection={
+                                <MantineIcon icon={IconTrash} size={14} />
+                            }
+                            onClick={() => deleteLinear()}
+                        >
+                            Remove
+                        </Button>
+                    </Group>
                 </Stack>
             )}
         </>

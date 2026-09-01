@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
     updateRouting: vi.fn(),
     backfillLinear: vi.fn(),
     hasLinear: false,
+    installationLoading: false,
     routing: {
         organizationUuid: 'org-1',
         applyToAllProjects: true,
@@ -52,7 +53,7 @@ vi.mock(
                       requiresReconnect: false,
                   }
                 : undefined,
-            isInitialLoading: false,
+            isInitialLoading: mocks.installationLoading,
         }),
         useLinearProjects: () => ({ data: [], isInitialLoading: false }),
         useLinearTeams: () => ({
@@ -98,6 +99,7 @@ describe('LinearReviewSettings', () => {
             linearTeamId: 'team-1',
             linearProjectId: null,
         };
+        mocks.installationLoading = false;
     });
 
     it('prefills the self-hosted OAuth app and requires only its public client ID', async () => {
@@ -124,10 +126,47 @@ describe('LinearReviewSettings', () => {
         expect(connect).toBeEnabled();
     });
 
-    it('discloses that issue creation is one-way', () => {
+    it('does not show the setup steps while the installation is loading', () => {
+        mocks.installationLoading = true;
         renderSettings();
 
-        expect(screen.getByText(/This is a one-way export/)).toBeVisible();
+        expect(
+            screen.queryByText('Create a Linear app'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('switch', {
+                name: 'Create Linear issues for AI review findings',
+            }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows a two-step Linear setup with the Linear logo', () => {
+        renderSettings();
+
+        expect(screen.getByRole('img', { name: 'Linear' })).toBeVisible();
+        expect(screen.getByText('Create a Linear app')).toBeVisible();
+        expect(
+            screen.getByText('Paste the client ID and connect'),
+        ).toBeVisible();
+        expect(screen.getByText(/Status is not synced/)).toBeVisible();
+        expect(
+            screen.queryByRole('switch', {
+                name: 'Create Linear issues for AI review findings',
+            }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows the Linear logo and export toggle when connected', () => {
+        mocks.hasLinear = true;
+        renderSettings();
+
+        expect(screen.getByRole('img', { name: 'Linear' })).toBeVisible();
+        expect(
+            screen.getByRole('switch', {
+                name: 'Create Linear issues for AI review findings',
+            }),
+        ).toBeChecked();
+        expect(screen.getByText(/Connected to Example/)).toBeVisible();
     });
 
     it('exports existing findings when Linear is already connected', async () => {
