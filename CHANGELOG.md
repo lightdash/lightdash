@@ -1,3 +1,10 @@
+# [2.79.0](https://github.com/lightdash/lightdash/compare/2.78.0...2.79.0) (2026-09-01)
+
+
+### Features
+
+* **ai-reviews:** export existing findings to Linear ([#28430](https://github.com/lightdash/lightdash/issues/28430)) ([167abd3](https://github.com/lightdash/lightdash/commit/167abd36c295103d626d3ae87590486bd9461321))
+
 # [2.78.0](https://github.com/lightdash/lightdash/compare/2.77.0...2.78.0) (2026-09-01)
 
 

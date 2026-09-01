@@ -37607,6 +37607,33 @@
                 ],
                 "type": "object"
             },
+            "AiReviewLinearBackfillResult": {
+                "properties": {
+                    "queuedCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["queuedCount"],
+                "type": "object"
+            },
+            "ApiSuccess_AiReviewLinearBackfillResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiReviewLinearBackfillResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiReviewLinearBackfillResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiReviewLinearBackfillResult_"
+            },
             "AiReviewLinearDestination": {
                 "properties": {
                     "linearProjectId": {
@@ -58108,7 +58135,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.78.0",
+        "version": "2.79.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -73394,6 +73421,37 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/aiAgents/admin/review-linear-issues/backfill": {
+            "post": {
+                "operationId": "backfillAiReviewLinearIssues",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiReviewLinearBackfillResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create Linear issues for existing open AI review findings",
+                "summary": "Backfill AI review Linear issues",
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/aiAgents/admin/review-linear-destination/{projectUuid}": {
