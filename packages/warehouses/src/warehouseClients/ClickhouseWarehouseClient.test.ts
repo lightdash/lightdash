@@ -7,24 +7,17 @@ import {
 } from './ClickhouseWarehouseClient';
 
 describe('getMaxOpenConnections', () => {
-    afterEach(() => {
-        delete process.env.NATS_WORKER_CONCURRENCY;
+    it('defaults to 10 when concurrency is unknown', () => {
+        expect(getMaxOpenConnections()).toBe(10);
+        expect(getMaxOpenConnections(NaN)).toBe(10);
     });
 
-    it('defaults to 10 when NATS_WORKER_CONCURRENCY is unset or invalid', () => {
-        expect(getMaxOpenConnections()).toBe(10);
-        process.env.NATS_WORKER_CONCURRENCY = 'abc';
-        expect(getMaxOpenConnections()).toBe(10);
-    });
-
-    it('matches NATS_WORKER_CONCURRENCY when larger than the default', () => {
-        process.env.NATS_WORKER_CONCURRENCY = '100';
-        expect(getMaxOpenConnections()).toBe(100);
+    it('matches the given concurrency when larger than the default', () => {
+        expect(getMaxOpenConnections(100)).toBe(100);
     });
 
     it('never shrinks below the default', () => {
-        process.env.NATS_WORKER_CONCURRENCY = '1';
-        expect(getMaxOpenConnections()).toBe(10);
+        expect(getMaxOpenConnections(1)).toBe(10);
     });
 });
 
