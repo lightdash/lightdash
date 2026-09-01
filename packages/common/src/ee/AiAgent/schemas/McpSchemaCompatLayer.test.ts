@@ -1,5 +1,8 @@
 import z, { type ZodSchema } from 'zod';
-import { McpSchemaCompatLayer } from './McpSchemaCompatLayer';
+import {
+    createMcpCompatibleInputSchema,
+    McpSchemaCompatLayer,
+} from './McpSchemaCompatLayer';
 import {
     toolFindFieldsArgsSchema,
     toolFindFieldsArgsSchemaTransformed,
@@ -14,7 +17,9 @@ import {
 const mcpSchemaCompatLayer = new McpSchemaCompatLayer();
 
 const mapZodSchema = <T>(schema: ZodSchema): ZodSchema<T> =>
-    mcpSchemaCompatLayer.processZodType(schema) as ZodSchema<T>;
+    createMcpCompatibleInputSchema(
+        schema as z.ZodObject<z.ZodRawShape>,
+    ) as ZodSchema<T>;
 
 describe('McpSchemaCompatLayer', () => {
     describe('baseline', () => {

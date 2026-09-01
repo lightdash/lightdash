@@ -1,6 +1,9 @@
 import { getEncoding } from 'js-tiktoken';
 import { z } from 'zod';
-import { toDraft7JsonSchema } from '../../../utils/zodJsonSchema';
+import {
+    draft7JsonSchemaOptions,
+    toDraft7JsonSchema,
+} from '../../../utils/zodJsonSchema';
 import { defineTool } from './defineTool';
 import { FILTER_EXPRESSION_GRAMMAR_DESCRIPTION } from './filterExpressions';
 import {
@@ -117,15 +120,17 @@ describe('defineTool', () => {
             mcpLegacy: measure(contracts.mcpLegacy),
             mcpExpression: measure(contracts.mcpExpression),
         };
+        // Zod 4 `toJSONSchema` is a bit larger than zod-to-json-schema (uuid
+        // format, record propertyNames). Keep the same reduction ratios.
         expectWithinBudget(measurements.agentExpression, {
             bytes: 25_000,
-            cl100kTokens: 5_500,
-            o200kTokens: 5_600,
+            cl100kTokens: 5_800,
+            o200kTokens: 5_900,
         });
         expectWithinBudget(measurements.mcpExpression, {
             bytes: 20_000,
-            cl100kTokens: 4_500,
-            o200kTokens: 4_600,
+            cl100kTokens: 4_700,
+            o200kTokens: 4_800,
         });
         // Preserve at least a 45% agent reduction and a 60% Model Context
         // Protocol (MCP) reduction across bytes and both tokenizers.
@@ -211,11 +216,7 @@ describe('defineTool', () => {
         const agentInputSchema = tool.for('agent').inputSchema;
         const { jsonSchema, validate } = agentInputSchema;
         expect(jsonSchema).toEqual(
-            z.toJSONSchema(inputSchema, {
-                target: 'draft-07',
-                reused: 'ref',
-                unrepresentable: 'any',
-            }),
+            z.toJSONSchema(inputSchema, draft7JsonSchemaOptions('ref')),
         );
         expect(validate?.(input)).toEqual({
             success: true,

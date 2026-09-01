@@ -1,15 +1,12 @@
 import { jsonSchema, type Schema } from 'ai';
 import { z } from 'zod';
+import { draft7JsonSchemaOptions } from '../../../utils/zodJsonSchema';
 
 export const createAgentInputSchema = <T extends z.ZodType>(
     inputSchema: T,
 ): Schema<z.output<T>> =>
     jsonSchema<z.output<T>>(
-        z.toJSONSchema(inputSchema, {
-            target: 'draft-07',
-            reused: 'ref',
-            unrepresentable: 'any',
-        }),
+        z.toJSONSchema(inputSchema, draft7JsonSchemaOptions('ref')),
         {
             validate: (value) => {
                 const result = inputSchema.safeParse(value);
