@@ -90,6 +90,7 @@ import {
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import Transaction = Knex.Transaction;
 import { dismissOpenContentDrafts } from '../ContentDraftModel';
+import { cancelPendingContentReviewRequests } from '../ContentReviewRequestModel';
 
 export type GetDashboardQuery = Pick<
     DashboardTable['base'],
@@ -1755,6 +1756,16 @@ export class DashboardModel {
             dashboardUuid,
         ]);
         await dismissOpenContentDrafts(this.database, 'chart', ownedChartUuids);
+        await cancelPendingContentReviewRequests(
+            this.database,
+            ContentType.DASHBOARD,
+            [dashboardUuid],
+        );
+        await cancelPendingContentReviewRequests(
+            this.database,
+            ContentType.CHART,
+            ownedChartUuids,
+        );
     }
 
     async softDelete(
