@@ -2,7 +2,15 @@ import {
     OrganizationMemberRole,
     type AiAgentDocumentContext,
 } from '@lightdash/common';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { getSystemPromptV2 } from './systemV2';
+import {
+    EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+    FILTER_EXPRESSION_GUIDANCE_SECTION,
+    STRUCTURED_FILTER_GUIDANCE_SECTION,
+    STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+} from './systemV2FilterGuidance';
 import {
     requestingUserRoleFromCustomRole,
     requestingUserRoleFromSystemRole,
@@ -20,7 +28,39 @@ const searchFieldValuesInstruction = (
         .split('\n')
         .find((line) => line.startsWith('4. **searchFieldValues**'));
 
+const extractExpressionFilterSection = (content: string): string => {
+    const start = content.indexOf('## Filter expressions');
+    const end = content.indexOf('## String filter case sensitivity');
+    if (start < 0 || end < 0 || end <= start) {
+        throw new Error('Expression filter section was not rendered');
+    }
+    return content.slice(start, end).trimEnd();
+};
+
+const normalizeFilterModeSections = (
+    content: string,
+    searchFieldValuesGuidance: string,
+    filterGuidance: string,
+): string =>
+    content
+        .replace(searchFieldValuesGuidance, '{{search guidance}}')
+        .replace(filterGuidance, '{{filter guidance}}');
+
 describe('getSystemPromptV2 filter expressions', () => {
+    test('keeps the complete flag-off prompt byte-identical', () => {
+        const baseline = readFileSync(
+            join(__dirname, '__fixtures__/systemV2.flag-off.txt'),
+        );
+        const rendered = Buffer.from(
+            promptText({
+                availableExplores: [],
+                date: '2026-08-27',
+            }),
+        );
+
+        expect(rendered.equals(baseline)).toBe(true);
+    });
+
     test('keeps structured field-value guidance when disabled', () => {
         expect(
             searchFieldValuesInstruction({ availableExplores: [] }),
@@ -34,6 +74,64 @@ describe('getSystemPromptV2 filter expressions', () => {
                 enableFilterExpressions: true,
             }),
         ).toMatchSnapshot();
+    });
+
+    test('renders expression-only filter guidance', () => {
+        const content = promptText({
+            availableExplores: [],
+            date: '2026-08-27',
+            enableFilterExpressions: true,
+        });
+        const section = extractExpressionFilterSection(content);
+
+        expect(section).toMatchSnapshot();
+        expect(section).not.toContain('`type`');
+        expect(section).not.toContain('type: or');
+        expect(section).not.toContain('rule arrays');
+        expect(section).not.toContain('filter objects');
+        expect(section).not.toContain('filters: {');
+        expect(section).not.toContain('"filters"');
+        expect(section).not.toContain('queryConfig');
+        expect(
+            content.match(/### Generated raw expression matrix/g),
+        ).toHaveLength(1);
+    });
+
+    test('leaves no template placeholders in either mode', () => {
+        for (const enableFilterExpressions of [false, true]) {
+            expect(
+                promptText({
+                    availableExplores: [],
+                    enableFilterExpressions,
+                }),
+            ).not.toMatch(/\{\{[^}]+\}\}/);
+        }
+    });
+
+    test('keeps unrelated prompt sections identical between modes', () => {
+        const structured = promptText({
+            availableExplores: [],
+            date: '2026-08-27',
+        });
+        const expression = promptText({
+            availableExplores: [],
+            date: '2026-08-27',
+            enableFilterExpressions: true,
+        });
+
+        expect(
+            normalizeFilterModeSections(
+                expression,
+                EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+                FILTER_EXPRESSION_GUIDANCE_SECTION,
+            ),
+        ).toBe(
+            normalizeFilterModeSections(
+                structured,
+                STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+                STRUCTURED_FILTER_GUIDANCE_SECTION,
+            ),
+        );
     });
 });
 

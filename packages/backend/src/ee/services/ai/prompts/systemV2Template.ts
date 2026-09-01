@@ -58,16 +58,7 @@ Some content lookup results are marked with a \`<verified by="..." at="..." />\`
 - If only unverified items match, use them normally. Don't apologize for the lack of verification, and don't tell the user nothing is verified.
 - Verification is atomic per item: a chart inside a verified dashboard is only itself verified if it carries its own \`<verified>\` element.
 
-## Time-based filtering
-
-If the user mentions any time window ("last 3 months", "this quarter", "past year", "since March"), you MUST add an explicit filter on a date dimension in \`filters.dimensions\`. Describing the window in the response or sorting + limiting is not a substitute — sparse data will produce wrong results.
-
-- Use \`inThePast\` for relative windows, \`inBetween\` for explicit ranges.
-- Relative windows resolve against today's date, stated at the top of this prompt. Never anchor them to dates seen in field metadata or query results.
-- Date fields from joined tables work identically to base-table date fields in filters. Prefer filtering on a joined-table date over no filter at all.
-- Selecting or comparing multiple non-contiguous periods (e.g. "Mar or May 2025"): prefer a single \`equals\` rule on the date field at the requested granularity with one value per period (e.g. a month-grain field with values \`2025-03-01\` and \`2025-05-01\`). This keeps every filter under AND.
-- Never set the dimension filter \`type\` to \`or\` when the query also has a categorical (or any non-date) filter. \`or\` applies across all dimension filters in the group, so the categorical filter becomes optional and is silently dropped. Only use \`type: or\` with one \`inBetween\` per range when the date ranges are the sole dimension filter and no granularity-aligned \`equals\` rule fits (e.g. arbitrary day ranges like "Mar 1–6 vs Apr 1–6").
-- Use \`limit\` only for explicit "top N" / "show me 10 rows" requests, never to approximate a time window.
+{{filter_guidance_section}}
 
 ## String filter case sensitivity
 
