@@ -37,6 +37,7 @@ const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     lineDecorationsWidth: 0,
     lineNumbersMinChars: 0,
     fixedOverflowWidgets: true,
+    renderLineHighlight: 'none',
 };
 
 // Each LabelEditor registers its completion provider against a private Monaco
@@ -216,7 +217,7 @@ export const LabelEditor: FC<LabelEditorProps> = ({
         <Input.Wrapper label={label} description={description}>
             <Paper
                 className={`${styles.editorWrapper} ${readOnly ? styles.editorWrapperReadOnly : ''}`}
-                radius="sm"
+                radius="md"
                 pos="relative"
             >
                 {localValue.length === 0 && placeholder ? (

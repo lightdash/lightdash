@@ -1,6 +1,6 @@
 import { ChartType, FeatureFlags } from '@lightdash/common';
 import { Button, Menu } from '@mantine/core';
-import { IconChevronDown, IconCode } from '@tabler/icons-react';
+import { IconCheck, IconChevronDown, IconCode } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -79,7 +79,11 @@ const VisualizationCardOptions: FC = memo(() => {
                     <Menu.Item
                         key={option.id}
                         disabled={disabled}
-                        color={option.selected ? 'blue' : undefined}
+                        rightSection={
+                            option.selected ? (
+                                <MantineIcon icon={IconCheck} />
+                            ) : undefined
+                        }
                         leftSection={
                             <MantineIcon
                                 icon={option.icon}
@@ -98,7 +102,11 @@ const VisualizationCardOptions: FC = memo(() => {
 
                 <Menu.Item
                     disabled={disabled}
-                    color={isCustomChart ? 'blue' : undefined}
+                    rightSection={
+                        isCustomChart ? (
+                            <MantineIcon icon={IconCheck} />
+                        ) : undefined
+                    }
                     leftSection={<MantineIcon icon={IconCode} />}
                     onClick={handleSelectCustom}
                 >
