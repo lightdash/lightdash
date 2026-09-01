@@ -2546,7 +2546,6 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
 > = [
     // Add per migration; truthy env value enables the flag.
     ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
-    ['GOOGLE_CHAT_ENABLED', 'google-chat-enabled'],
     ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
     // GROUPS_ENABLED is also read by UserService for group-sync logic (separate
     // from the feature flag) — keep the config field, but translate the env

@@ -3187,35 +3187,17 @@ export class AiAgentToolsService extends BaseService {
                         : curatedResult.results;
                 }
 
-                // Keep the rollout flag for MCP and existing operational
-                // control, but always protect agent runs. An empty search is
-                // compiled as `LIKE '%%'`, which is an unbounded distinct
-                // scan and a predictable warehouse-limit failure on large
-                // tables. Agent runs can safely ask for a narrower value and
-                // retry without spending a warehouse slot first.
-                const { enabled: guardEnabled } =
-                    await this.featureFlagService.get({
-                        user: context.user,
-                        featureFlagId: FeatureFlags.AiFieldValueSearchGuard,
-                    });
-                const effectiveGuardEnabled =
-                    context.source === 'ai_agent' || guardEnabled;
-
-                // Observability. Deliberately does NOT log the query text or any
-                // returned values (they can contain user data) — only the field
-                // identifier, the request shape and timing.
+                // An empty search compiles as `LIKE '%%'`, an unbounded
+                // distinct scan and a predictable warehouse-limit failure on
+                // large tables. Refuse it up front so the caller can retry
+                // with a narrower value instead of spending a warehouse slot.
                 Logger.info(
                     `[ai-field-values] search source=${context.source} ` +
                         `table=${args.table} fieldId=${args.fieldId} ` +
-                        `isEmptyQuery=${isEmptyQuery} queryLen=${query.length} ` +
-                        `guard=${effectiveGuardEnabled}`,
+                        `isEmptyQuery=${isEmptyQuery} queryLen=${query.length}`,
                 );
 
-                // An empty query compiles to `LIKE '%%'` — "distinct the whole
-                // column" — the worst case on a high-cardinality field. With the
-                // guard on, refuse it up front (0s) with a message the agent can
-                // act on, instead of paying for a full-column scan first.
-                if (effectiveGuardEnabled && isEmptyQuery) {
+                if (isEmptyQuery) {
                     Logger.warn(
                         `[ai-field-values] guard blocked empty-query scan ` +
                             `source=${context.source} table=${args.table} ` +

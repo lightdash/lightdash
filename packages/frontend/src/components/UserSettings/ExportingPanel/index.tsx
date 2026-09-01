@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     type OrganizationSettings,
     type UpdateOrganizationSettings,
 } from '@lightdash/common';
@@ -22,7 +21,6 @@ import {
     useUpdateOrganizationSettings,
 } from '../../../hooks/organization/useOrganizationSettings';
 import { useGetSlack } from '../../../hooks/slack/useSlack';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 import { NumberInput } from '../../common/NumberInput';
 
@@ -227,10 +225,6 @@ const ExportingPanel: FC = () => {
     const { data, isInitialLoading } = useOrganizationSettings();
     const health = useHealth();
     const { data: slackInstallation } = useGetSlack();
-    const { data: googleChatFlag } = useServerFeatureFlag(
-        FeatureFlags.GoogleChatEnabled,
-    );
-
     if (isInitialLoading || !data) {
         return <Loader />;
     }
@@ -240,7 +234,7 @@ const ExportingPanel: FC = () => {
         email: health.data?.hasEmailClient ?? false,
         slack: !!slackInstallation?.organizationUuid,
         msteams: health.data?.hasMicrosoftTeams ?? false,
-        googlechat: googleChatFlag?.enabled === true,
+        googlechat: true,
     };
     const availableChannels = CHANNELS.filter((c) => isAvailable[c.key]);
 
