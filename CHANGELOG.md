@@ -1,3 +1,10 @@
+## [2.75.1](https://github.com/lightdash/lightdash/compare/2.75.0...2.75.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* **scheduler:** send plain-text emails without a cron ([#28223](https://github.com/lightdash/lightdash/issues/28223)) ([5279190](https://github.com/lightdash/lightdash/commit/52791909d265e0acc14be86659b204ad553623f8))
+
 # [2.75.0](https://github.com/lightdash/lightdash/compare/2.74.0...2.75.0) (2026-09-01)
 
 
