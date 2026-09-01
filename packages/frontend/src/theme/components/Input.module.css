@@ -14,9 +14,7 @@
 }
 
 .input {
-    transition:
-        border-color 120ms ease,
-        box-shadow 120ms ease;
+    transition: border-color 120ms ease;
 }
 
 /* Mantine sets these on the input element per variant, so the override has
@@ -26,7 +24,7 @@
     --input-bd: var(--mantine-color-default-border);
     --input-bg: var(--mantine-color-body);
     --input-bd-focus: light-dark(
-        var(--mantine-color-gray-4),
+        var(--mantine-color-gray-5),
         var(--mantine-color-dark-3)
     );
 }
@@ -49,21 +47,16 @@
     );
 }
 
+/* Same specificity as the variant rule above, so focus wins over it. */
 .input[data-variant='default']:focus,
 .input[data-variant='default']:focus-within,
 .input[data-variant='subtle']:focus,
 .input[data-variant='subtle']:focus-within {
-    box-shadow: 0 0 0 rem(3px) var(--ld-color-ring);
+    --input-bd: var(--input-bd-focus);
 }
 
 .input[data-error] {
     --input-bd-focus: var(--mantine-color-error);
-}
-
-.input[data-variant='default'][data-error]:focus,
-.input[data-variant='default'][data-error]:focus-within {
-    box-shadow: 0 0 0 rem(3px)
-        light-dark(rgb(250 82 82 / 0.12), rgb(250 82 82 / 0.18));
 }
 
 .input[data-disabled],

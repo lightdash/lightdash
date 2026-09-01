@@ -75,7 +75,6 @@ export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
         '--mantine-color-disabled-color': 'var(--mantine-color-gray-4)',
         '--mantine-color-disabled-border': 'var(--mantine-color-gray-2)',
         '--ld-color-page': 'var(--mantine-color-gray-0)',
-        '--ld-color-ring': 'rgb(24 24 27 / 0.08)',
     },
     dark: {
         '--mantine-color-body': 'var(--mantine-color-dark-6)',
@@ -87,6 +86,5 @@ export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
         '--mantine-color-default-border': 'var(--mantine-color-dark-4)',
         '--mantine-color-default-hover': 'var(--mantine-color-dark-5)',
         '--ld-color-page': 'var(--mantine-color-dark-7)',
-        '--ld-color-ring': 'rgb(236 236 238 / 0.12)',
     },
 });
