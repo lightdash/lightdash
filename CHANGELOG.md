@@ -1,3 +1,10 @@
+# [2.68.0](https://github.com/lightdash/lightdash/compare/2.67.5...2.68.0) (2026-09-01)
+
+
+### Features
+
+* **homepage:** attribute announcement Slack posts with author and category ([#28370](https://github.com/lightdash/lightdash/issues/28370)) ([f65866b](https://github.com/lightdash/lightdash/commit/f65866b688746a9fce3c3d6f687fcc4b116825c3))
+
 ## [2.67.5](https://github.com/lightdash/lightdash/compare/2.67.4...2.67.5) (2026-09-01)
 
 
