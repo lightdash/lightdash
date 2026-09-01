@@ -195,11 +195,11 @@ import {
     createSandboxManager,
     S3SnapshotStore,
     SandboxCommandError,
-    SandboxManager,
     type AzureSandboxesConfig,
     type CloudRunSandboxesConfig,
     type PersistentWorkspace,
     type SandboxHandle,
+    type SandboxManagerPort,
     type SandboxSpec,
 } from '../SandboxRuntime';
 import {
@@ -338,6 +338,8 @@ type AppExternalConnectionDoc = {
     samples: ExternalConnectionSample[];
 };
 
+type AppRuntimeS3 = { client: S3Client; bucket: string };
+
 type AppGenerateServiceDeps = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -365,6 +367,9 @@ type AppGenerateServiceDeps = {
     externalConnectionModel: ExternalConnectionModel;
     sandboxRegistryModel: SandboxRegistryModel;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+    /** Test seams: null in production, where both are built from config. */
+    sandboxManager: SandboxManagerPort | null;
+    appRuntimeS3: AppRuntimeS3 | null;
 };
 
 // Inputs for the AI agent's code-free data app read: manifest fields, the
@@ -586,8 +591,9 @@ export class AppGenerateService extends BaseService {
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
-    // Lazily built from config on first use; memoized for the service lifetime.
-    private sandboxManager: SandboxManager | undefined;
+    private readonly appRuntimeS3: AppRuntimeS3 | null;
+
+    private sandboxManager: SandboxManagerPort | undefined;
 
     private readonly dataReferenceRefreshes = new Map<
         string,
@@ -618,6 +624,8 @@ export class AppGenerateService extends BaseService {
         externalConnectionModel,
         sandboxRegistryModel,
         orgAiCopilotConfigResolver,
+        sandboxManager,
+        appRuntimeS3,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -643,6 +651,8 @@ export class AppGenerateService extends BaseService {
         this.externalConnectionModel = externalConnectionModel;
         this.sandboxRegistryModel = sandboxRegistryModel;
         this.orgAiCopilotConfigResolver = orgAiCopilotConfigResolver;
+        this.sandboxManager = sandboxManager ?? undefined;
+        this.appRuntimeS3 = appRuntimeS3;
     }
 
     private async getDataAppProjectContext(
@@ -1003,12 +1013,12 @@ export class AppGenerateService extends BaseService {
 
     /**
      * The sandbox manager over the provider selected by `SANDBOX_PROVIDER`
-     * (e2b | docker). Memoized — the feature talks only to the manager for
-     * lifecycle (acquire/resume/suspend/destroy via the stable `sandbox_uuid`)
-     * and to the returned {@link SandboxHandle} for the data plane.
+     * (e2b | docker). The feature talks only to the manager for lifecycle
+     * (acquire/resume/suspend/destroy via the stable `sandbox_uuid`) and to
+     * the returned {@link SandboxHandle} for the data plane.
      * See docs/sandbox-runtime.md.
      */
-    private getSandboxManager(): SandboxManager {
+    private getSandboxManager(): SandboxManagerPort {
         if (!this.sandboxManager) {
             const { sandboxProvider } = this.lightdashConfig.appRuntime;
             this.sandboxManager = createSandboxManager({
@@ -1153,7 +1163,9 @@ export class AppGenerateService extends BaseService {
         };
     }
 
-    private getS3Client(): { client: S3Client; bucket: string } {
+    private getS3Client(): AppRuntimeS3 {
+        if (this.appRuntimeS3) return this.appRuntimeS3;
+
         const s3Config = this.lightdashConfig.appRuntime.s3;
         if (!s3Config) {
             throw new MissingConfigError(

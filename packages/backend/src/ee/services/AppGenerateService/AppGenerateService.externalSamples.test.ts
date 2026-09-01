@@ -82,6 +82,8 @@ function buildService() {
             externalConnectionModel: {} as never,
             sandboxRegistryModel: {} as never,
             orgAiCopilotConfigResolver: {} as never,
+            sandboxManager: null,
+            appRuntimeS3: null,
         }) as unknown as PrivateWithSamples,
         featureFlagModel,
     };

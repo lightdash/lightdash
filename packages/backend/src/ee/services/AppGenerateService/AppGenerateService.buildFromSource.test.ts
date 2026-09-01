@@ -181,6 +181,8 @@ function buildService(
         orgAiCopilotConfigResolver: {
             getClaudeCodeConfig: vi.fn().mockResolvedValue(COPILOT_CONFIG),
         } as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
     });
 
     const service = raw as unknown as ServiceWithPrivates;

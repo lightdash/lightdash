@@ -233,6 +233,8 @@ function buildService(
         externalConnectionModel: externalConnectionModel as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
     });
 
     // Stub ability checks to allow everything

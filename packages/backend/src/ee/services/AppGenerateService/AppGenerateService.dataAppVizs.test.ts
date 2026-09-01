@@ -113,6 +113,8 @@ function buildService(
         } as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
     });
     // Bypass real CASL — the mapping/flow is what these tests cover.
     (
