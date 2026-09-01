@@ -5,7 +5,8 @@ import { extract, type Headers } from 'tar-stream';
 const DIST_INDEX_HTML = 'dist/index.html';
 const DIST_ASSETS_PREFIX = 'dist/assets/';
 const ALLOWED_DIST_DIRECTORIES = new Set(['dist/', DIST_ASSETS_PREFIX]);
-const DIST_ASSET_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+// Leading underscore allowed: rollup emits chunks like _commonjsHelpers-<hash>.js.
+const DIST_ASSET_NAME_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9._-]*$/;
 const MAX_DIST_TAR_FILES = 500;
 
 /**

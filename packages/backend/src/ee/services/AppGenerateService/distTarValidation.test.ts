@@ -59,6 +59,15 @@ describe('assertValidDistTar', () => {
         await expect(assertValidDistTar(tar)).resolves.toBeUndefined();
     });
 
+    it('accepts a leading-underscore asset name (rollup _commonjsHelpers chunks)', async () => {
+        const tar = await buildTar([
+            ...HAPPY_PATH_ENTRIES,
+            { name: 'dist/assets/_commonjsHelpers-Bc9lxTvG.js', content: '//' },
+        ]);
+
+        await expect(assertValidDistTar(tar)).resolves.toBeUndefined();
+    });
+
     it('rejects an entry named dist/source.tar (would overwrite the source artifact)', async () => {
         const tar = await buildTar([
             { name: 'dist/index.html', content: '<html/>' },
