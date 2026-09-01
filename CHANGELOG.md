@@ -1,3 +1,10 @@
+## [2.67.5](https://github.com/lightdash/lightdash/compare/2.67.4...2.67.5) (2026-09-01)
+
+
+### Bug Fixes
+
+* **data-apps:** allow editors to unlink external connections ([#28358](https://github.com/lightdash/lightdash/issues/28358)) ([35bda50](https://github.com/lightdash/lightdash/commit/35bda5083e3d83508def80cddba0b6d99d86caba))
+
 ## [2.67.4](https://github.com/lightdash/lightdash/compare/2.67.3...2.67.4) (2026-08-31)
 
 
