@@ -3,6 +3,7 @@ import {
     type ApiContentReviewRequestOrNullResponse,
     type ApiContentReviewRequestResponse,
     type ApiContentReviewSettingsResponse,
+    type ApiContentReviewSimilarContentResponse,
     type ApproveContentReviewRequestBody,
     type ContentReviewContentType,
     type ContentReviewRequestStatus,
@@ -119,3 +120,23 @@ export const updateContentReviewSettings = (
         method: 'PATCH',
         body: JSON.stringify(body),
     });
+
+export const getSimilarContentForReview = (
+    projectUuid: string,
+    params: {
+        contentType: ContentReviewContentType;
+        name: string;
+        excludeContentUuid: string;
+    },
+) => {
+    const search = new URLSearchParams({
+        contentType: params.contentType,
+        name: params.name,
+        excludeContentUuid: params.excludeContentUuid,
+    });
+    return lightdashApi<ApiContentReviewSimilarContentResponse['results']>({
+        url: `${contentReviewBasePath(projectUuid)}/similar?${search.toString()}`,
+        method: 'GET',
+        body: undefined,
+    });
+};

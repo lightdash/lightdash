@@ -27,6 +27,7 @@ export type ContentReviewSimilarContentItem = {
     contentType: ContentReviewContentType;
     contentUuid: string;
     name: string;
+    slug: string;
     spaceUuid: string;
     spaceName: string;
     isVerified: boolean;
@@ -153,3 +154,8 @@ export const getContentReviewRequestPath = (
     projectUuid: string,
     requestUuid: string,
 ): string => `${getContentReviewRequestsPath(projectUuid)}/${requestUuid}`;
+
+export type ApiContentReviewSimilarContentResponse = {
+    status: 'ok';
+    results: ContentReviewSimilarContentItem[];
+};
