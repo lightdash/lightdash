@@ -1,11 +1,14 @@
 import {
+    type ApiSaveExternalConnectionSampleRequest,
     type ExternalConnection,
     type ExternalFetchResponse,
+    type UpdateExternalConnection,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConnectionExamplesPanel } from './ConnectionExamplesPanel';
+import { EditConnectionModal } from './EditConnectionModal';
 
 const mocks = vi.hoisted(() => ({
     test: vi.fn(),
@@ -32,6 +35,16 @@ vi.mock(
     () => ({
         useSaveConnectionSample: () => ({
             mutate: mocks.saveSample,
+            mutateAsync: mocks.saveSample,
+            isLoading: false,
+        }),
+    }),
+);
+vi.mock(
+    '../../../features/externalConnections/hooks/useUpdateExternalConnection',
+    () => ({
+        useUpdateExternalConnection: () => ({
+            mutateAsync: vi.fn(),
             isLoading: false,
         }),
     }),
@@ -47,7 +60,6 @@ vi.mock(
         }),
     }),
 );
-
 const connection: ExternalConnection = {
     externalConnectionUuid: 'connection-uuid',
     projectUuid: 'project-uuid',
@@ -77,24 +89,35 @@ const connection: ExternalConnection = {
     updatedAt: new Date('2026-01-01T00:00:00Z'),
 };
 
+const panel = (
+    config: UpdateExternalConnection,
+    onQueueSample: (sample: ApiSaveExternalConnectionSampleRequest) => void,
+) => (
+    <MantineProvider env="test">
+        <ConnectionExamplesPanel
+            projectUuid="project-uuid"
+            connection={connection}
+            config={config}
+            configFingerprint={JSON.stringify(config)}
+            hasUnsavedChanges
+            isSampleQueued={false}
+            onQueueSample={onQueueSample}
+            onClearQueuedSample={vi.fn()}
+        />
+    </MantineProvider>
+);
+
 const renderPanel = (
     allowedMethods: ExternalConnection['allowedMethods'],
     onQueueSample = vi.fn(),
 ) => {
-    render(
-        <MantineProvider env="test">
-            <ConnectionExamplesPanel
-                projectUuid="project-uuid"
-                connection={connection}
-                config={{ allowedMethods }}
-                hasUnsavedChanges
-                isSampleQueued={false}
-                onQueueSample={onQueueSample}
-                onClearQueuedSample={vi.fn()}
-            />
-        </MantineProvider>,
-    );
-    return { onQueueSample };
+    const result = render(panel({ allowedMethods }, onQueueSample));
+    return {
+        ...result,
+        onQueueSample,
+        rerenderWithConfig: (config: UpdateExternalConnection) =>
+            result.rerender(panel(config, onQueueSample)),
+    };
 };
 
 describe('ConnectionExamplesPanel draft config', () => {
@@ -172,5 +195,58 @@ describe('ConnectionExamplesPanel draft config', () => {
             response: { id: 1 },
         });
         expect(mocks.saveSample).not.toHaveBeenCalled();
+    });
+
+    it('does not expose a test result produced with an older draft config', () => {
+        mocks.testResult = {
+            status: 200,
+            contentType: 'application/json',
+            body: { id: 1 },
+            truncated: false,
+        };
+        const onQueueSample = vi.fn();
+        const { rerenderWithConfig } = renderPanel(['GET'], onQueueSample);
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Send test request' }),
+        );
+        expect(
+            screen.getByRole('button', { name: 'Save with connection' }),
+        ).toBeInTheDocument();
+
+        rerenderWithConfig({
+            origin: 'https://api.other-example.com',
+            allowedMethods: ['GET'],
+        });
+
+        expect(
+            screen.queryByRole('button', { name: 'Save with connection' }),
+        ).not.toBeInTheDocument();
+        expect(onQueueSample).not.toHaveBeenCalled();
+    });
+
+    it('keeps the example path when switching tabs', () => {
+        render(
+            <MantineProvider env="test">
+                <EditConnectionModal
+                    opened
+                    onClose={vi.fn()}
+                    projectUuid="project-uuid"
+                    connection={connection}
+                />
+            </MantineProvider>,
+        );
+
+        fireEvent.click(screen.getByRole('tab', { name: 'Examples' }));
+        fireEvent.change(screen.getByRole('textbox', { name: 'Path' }), {
+            target: { value: '/v1/drivers' },
+        });
+
+        fireEvent.click(screen.getByRole('tab', { name: 'Instructions' }));
+        fireEvent.click(screen.getByRole('tab', { name: 'Examples' }));
+
+        expect(screen.getByRole('textbox', { name: 'Path' })).toHaveValue(
+            '/v1/drivers',
+        );
     });
 });
