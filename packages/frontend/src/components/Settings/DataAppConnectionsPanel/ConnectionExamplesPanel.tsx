@@ -196,6 +196,7 @@ type Props = {
     projectUuid: string;
     connection: ExternalConnection;
     config: UpdateExternalConnection;
+    configFingerprint: string;
     hasUnsavedChanges: boolean;
     isSampleQueued: boolean;
     onQueueSample: (sample: ApiSaveExternalConnectionSampleRequest) => void;
@@ -206,6 +207,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
     projectUuid,
     connection,
     config,
+    configFingerprint,
     hasUnsavedChanges,
     isSampleQueued,
     onQueueSample,
@@ -222,10 +224,12 @@ export const ConnectionExamplesPanel: FC<Props> = ({
         validate: zodResolver(exampleFormSchema),
     });
 
-    // The exact request that produced the current test result. Saved verbatim so
-    // a sample never pairs the latest form edits with an older response.
-    const [testedRequest, setTestedRequest] =
-        useState<ExternalConnectionSampleRequest | null>(null);
+    // The exact request and config that produced the current test result. Saved
+    // verbatim so a sample never pairs later edits with an older response.
+    const [testedRequest, setTestedRequest] = useState<{
+        request: ExternalConnectionSampleRequest;
+        configFingerprint: string;
+    } | null>(null);
 
     const testMutation = useTestConnection();
     const saveSampleMutation = useSaveConnectionSample();
@@ -241,6 +245,16 @@ export const ConnectionExamplesPanel: FC<Props> = ({
     const method = methodOptions.includes(form.values.method)
         ? form.values.method
         : (methodOptions[0] ?? 'GET');
+    // This panel stays mounted across tabs, so a draft edit can make the last
+    // response stale. Keep the request inputs, but only expose results produced
+    // by the current config.
+    const validTestedRequest =
+        testedRequest?.configFingerprint === configFingerprint
+            ? testedRequest.request
+            : null;
+    const validTestResponse = validTestedRequest
+        ? testMutation.data
+        : undefined;
 
     // Pasting a URL (or path) with a query string splits the query out into the
     // key/value rows instead of leaving it stuck in the path. The pasted URL is
@@ -269,7 +283,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                         ? parseJson(values.requestBody)
                         : undefined,
             };
-            setTestedRequest(request);
+            setTestedRequest({ request, configFingerprint });
             testMutation.mutate({
                 projectUuid,
                 connectionUuid: connection.externalConnectionUuid,
@@ -282,11 +296,11 @@ export const ConnectionExamplesPanel: FC<Props> = ({
     const handleSaveSample = (data: ExternalFetchResponse) => {
         // Save the immutable snapshot of the request that produced this
         // response — not the current (possibly edited) form state.
-        if (!testedRequest) return;
+        if (!validTestedRequest) return;
 
         const sample: ApiSaveExternalConnectionSampleRequest = {
             label: form.values.sampleLabel.trim() || null,
-            request: testedRequest,
+            request: validTestedRequest,
             response: data.body,
         };
         if (hasUnsavedChanges) {
@@ -443,11 +457,11 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                 </Group>
             )}
 
-            {methodOptions.length > 0 && testMutation.data && (
+            {methodOptions.length > 0 && validTestResponse && (
                 <Stack gap="xs">
-                    <ConnectionTestResult response={testMutation.data} />
+                    <ConnectionTestResult response={validTestResponse} />
 
-                    {testMutation.data.status < 300 && (
+                    {validTestResponse.status < 300 && (
                         <>
                             <TextInput
                                 label="Sample label (optional)"
@@ -462,7 +476,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                                     size="xs"
                                     variant="outline"
                                     onClick={() =>
-                                        handleSaveSample(testMutation.data!)
+                                        handleSaveSample(validTestResponse)
                                     }
                                     loading={saveSampleMutation.isLoading}
                                 >

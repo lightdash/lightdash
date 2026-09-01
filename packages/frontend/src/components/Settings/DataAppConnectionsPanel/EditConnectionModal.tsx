@@ -244,11 +244,12 @@ const EditConnectionModalContent: FC<Props> = ({
                         </Stack>
                     </Tabs.Panel>
 
-                    <Tabs.Panel value="examples">
+                    <Tabs.Panel value="examples" keepMounted>
                         <ConnectionExamplesPanel
                             projectUuid={projectUuid}
                             connection={connection}
                             config={draftConfig}
+                            configFingerprint={draftConfigFingerprint}
                             hasUnsavedChanges={form.isDirty()}
                             isSampleQueued={validPendingSample !== null}
                             onQueueSample={(sample) =>
