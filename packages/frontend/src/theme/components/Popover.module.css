@@ -1,0 +1,6 @@
+/* Shared by Popover, HoverCard and Combobox dropdowns. */
+.dropdown {
+    --popover-border-color: var(--mantine-color-default-border);
+    --popover-shadow: var(--mantine-shadow-md);
+    background-color: var(--mantine-color-body);
+}

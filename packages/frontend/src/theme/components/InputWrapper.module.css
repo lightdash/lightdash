@@ -1,0 +1,18 @@
+.label {
+    font-weight: 500;
+    color: var(--mantine-color-text);
+    margin-bottom: rem(4px);
+}
+
+.description {
+    color: var(--mantine-color-dimmed);
+    line-height: var(--mantine-line-height-xs);
+}
+
+.error {
+    line-height: var(--mantine-line-height-xs);
+}
+
+.required {
+    color: var(--mantine-color-error);
+}

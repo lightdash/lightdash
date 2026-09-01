@@ -1,0 +1,13 @@
+/* Shared by Paper and Card. */
+.root {
+    --paper-border-color: var(--mantine-color-default-border);
+    background-color: var(--mantine-color-body);
+}
+
+/* Empty / placeholder / unavailable sections. */
+.root[data-variant='dotted'] {
+    border: 1px dashed
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+    background-color: transparent;
+    box-shadow: none;
+}

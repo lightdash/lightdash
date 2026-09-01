@@ -1,0 +1,50 @@
+/* Sizes: 28 / 32 / 36 / 40 / 44px. Mantine reads these indirection
+   variables from its own size resolver, so overriding them here re-sizes
+   every button without a vars callback. */
+.root {
+    --button-height-xs: rem(28px);
+    --button-height-sm: rem(32px);
+    --button-height-md: rem(36px);
+    --button-height-lg: rem(40px);
+    --button-height-xl: rem(44px);
+
+    --button-padding-x-xs: rem(10px);
+    --button-padding-x-sm: rem(12px);
+    --button-padding-x-md: rem(14px);
+    --button-padding-x-lg: rem(16px);
+    --button-padding-x-xl: rem(20px);
+
+    font-weight: 500;
+    letter-spacing: 0;
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease,
+        color 120ms ease,
+        box-shadow 120ms ease;
+}
+
+.root[data-variant='filled'],
+.root[data-variant='default'] {
+    box-shadow: var(--mantine-shadow-xs);
+}
+
+.root[data-variant='default']:hover:not([data-disabled]) {
+    --button-bd: 1px solid var(--mantine-color-gray-3);
+
+    @mixin dark {
+        --button-bd: 1px solid var(--mantine-color-dark-3);
+    }
+}
+
+.root[data-disabled],
+.root:disabled {
+    box-shadow: none;
+}
+
+.section[data-position='left'] {
+    margin-inline-end: rem(6px);
+}
+
+.section[data-position='right'] {
+    margin-inline-start: rem(6px);
+}

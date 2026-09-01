@@ -1,0 +1,24 @@
+/* Shared by Checkbox and Radio. */
+.input {
+    border-color: light-dark(
+        var(--mantine-color-gray-3),
+        var(--mantine-color-dark-3)
+    );
+    background-color: var(--mantine-color-body);
+    box-shadow: var(--mantine-shadow-xs);
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease;
+}
+
+.input:checked {
+    box-shadow: none;
+}
+
+.label {
+    font-size: var(--mantine-font-size-sm);
+}
+
+.description {
+    color: var(--mantine-color-dimmed);
+}

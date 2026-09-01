@@ -1,0 +1,43 @@
+.dropdown {
+    --popover-border-color: var(--mantine-color-default-border);
+    --popover-shadow: var(--mantine-shadow-md);
+    padding: rem(4px);
+    background-color: var(--mantine-color-body);
+}
+
+.option {
+    border-radius: var(--mantine-radius-sm);
+    padding: rem(6px) rem(8px);
+    line-height: var(--mantine-line-height-sm);
+}
+
+/* Keyboard / hover highlight: a quiet fill, not the primary color. */
+.option[data-combobox-selected] {
+    background-color: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
+}
+
+.option[data-combobox-disabled] {
+    color: var(--mantine-color-disabled-color);
+}
+
+.groupLabel {
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-dimmed);
+}
+
+.groupLabel::after {
+    display: none;
+}
+
+.empty {
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-sm);
+    padding: rem(8px);
+}
+
+.header,
+.footer {
+    border-color: var(--mantine-color-default-border);
+}

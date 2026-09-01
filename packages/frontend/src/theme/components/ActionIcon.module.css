@@ -1,0 +1,30 @@
+/* Sizes: 20 / 24 / 28 / 32 / 40px. */
+.root {
+    --ai-size-xs: rem(20px);
+    --ai-size-sm: rem(24px);
+    --ai-size-md: rem(28px);
+    --ai-size-lg: rem(32px);
+    --ai-size-xl: rem(40px);
+
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease,
+        color 120ms ease;
+}
+
+.root[data-variant='default'] {
+    box-shadow: var(--mantine-shadow-xs);
+}
+
+.root[data-variant='default']:hover:not([data-disabled]) {
+    --ai-bd: 1px solid var(--mantine-color-gray-3);
+
+    @mixin dark {
+        --ai-bd: 1px solid var(--mantine-color-dark-3);
+    }
+}
+
+.root[data-disabled],
+.root:disabled {
+    box-shadow: none;
+}

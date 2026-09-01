@@ -1,0 +1,82 @@
+/* Applies to every input-based component (TextInput, Select, Textarea,
+   MultiSelect, TagsInput, …) because they all render Input. */
+
+/* Sizes: 28 / 32 / 36 / 40 / 44px, matching Button. */
+.wrapper {
+    --input-height-xs: rem(28px);
+    --input-height-sm: rem(32px);
+    --input-height-md: rem(36px);
+    --input-height-lg: rem(40px);
+    --input-height-xl: rem(44px);
+
+    --input-placeholder-color: var(--mantine-color-placeholder);
+    --input-section-color: var(--mantine-color-dimmed);
+}
+
+.input {
+    transition:
+        border-color 120ms ease,
+        box-shadow 120ms ease;
+}
+
+/* Mantine sets these on the input element per variant, so the override has
+   to live at the same level to win. */
+.input[data-variant='default'],
+.input[data-variant='subtle'] {
+    --input-bd: var(--mantine-color-default-border);
+    --input-bg: var(--mantine-color-body);
+    --input-bd-focus: light-dark(
+        var(--mantine-color-gray-4),
+        var(--mantine-color-dark-3)
+    );
+}
+
+.input[data-variant='default']:hover:not(
+        :focus,
+        :focus-within,
+        [data-disabled],
+        :disabled
+    ),
+.input[data-variant='subtle']:hover:not(
+        :focus,
+        :focus-within,
+        [data-disabled],
+        :disabled
+    ) {
+    --input-bd: light-dark(
+        var(--mantine-color-gray-3),
+        var(--mantine-color-dark-3)
+    );
+}
+
+.input[data-variant='default']:focus,
+.input[data-variant='default']:focus-within,
+.input[data-variant='subtle']:focus,
+.input[data-variant='subtle']:focus-within {
+    box-shadow: 0 0 0 rem(3px) var(--ld-color-ring);
+}
+
+.input[data-error] {
+    --input-bd-focus: var(--mantine-color-error);
+}
+
+.input[data-variant='default'][data-error]:focus,
+.input[data-variant='default'][data-error]:focus-within {
+    box-shadow: 0 0 0 rem(3px)
+        light-dark(rgb(250 82 82 / 0.12), rgb(250 82 82 / 0.18));
+}
+
+.input[data-disabled],
+.input:disabled {
+    opacity: 1;
+}
+
+/* `subtle`: the quiet form input used in settings panels. Slightly bolder
+   text, secondary color, otherwise the default look. */
+.input[data-variant='subtle'] {
+    font-weight: 500;
+    --input-color: light-dark(
+        var(--mantine-color-gray-7),
+        var(--mantine-color-dark-1)
+    );
+}

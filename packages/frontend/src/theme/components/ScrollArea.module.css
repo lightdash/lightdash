@@ -1,0 +1,21 @@
+.scrollbar {
+    background-color: transparent;
+}
+
+.scrollbar:hover {
+    background-color: transparent;
+}
+
+.thumb {
+    background-color: light-dark(
+        var(--mantine-color-gray-3),
+        var(--mantine-color-ldGray-3)
+    );
+}
+
+.scrollbar:hover .thumb {
+    background-color: light-dark(
+        var(--mantine-color-gray-4),
+        var(--mantine-color-ldGray-4)
+    );
+}

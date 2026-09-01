@@ -15,6 +15,16 @@ the [Frontend Style Guide](../../.cursor/rules/frontend.mdc). Key points:
 -   **Shared layout vars** - Heights/widths/z-indexes (navbar, page content, sidebar, dashboard header/tabs) are global CSS vars sourced from `*/constants.ts` via `src/theme/cssVariablesResolver.ts`. Reference `var(--name)` in CSS; don't hardcode the literal or bridge it through an inline `style`. To add one: constant → resolver → `var()`.
 -   **Component docs** - Props/APIs at `https://mantine.dev/core/[component-name]/` (e.g. select, segmented-control)
 
+## 🎛️ Theme
+
+The theme lives in `src/theme/`: `colors.ts` (neutral ramps, `primary` is the ink color), `index.ts` (type scale, radius, shadows), `cssVariablesResolver.ts` (semantic tokens) and `components/` (one CSS module per component plus the registry in `components/index.ts`).
+
+-   **Use semantic tokens, not `light-dark()` pairs**: `--mantine-color-body` (surface), `--ld-color-page` (canvas), `--mantine-color-default-border`, `--mantine-color-default-hover`, `--mantine-color-text`, `--mantine-color-dimmed`, `--mantine-color-placeholder`. They resolve per scheme already.
+-   **`ldGray.N` means the same thing in both schemes**: 0 canvas, 1 muted fill, 2 border, 3 strong border, 4 faint icon, 5 tertiary text, 6 secondary text (same as `dimmed`), 7 label, 9 text.
+-   **Defaults you get for free**: Paper/Card are bordered, flat (no shadow), 12px radius; Menu/Popover carry the `md` shadow; ActionIcon is `subtle`; Badge is `light` gray; Button sizes are 28/32/36/40px. Do not restate these at call sites.
+-   **Add a variant, not a one-off**: repeated overrides belong in `src/theme/components/<Component>.module.css`. Reach for the theme's `vars` callback only when Mantine writes the value inline (button/badge colors, NavLink fill, input font size).
+-   **Check both schemes** in the `Theme/Gallery` story (`src/stories/ThemeGallery.stories.tsx`) before shipping a theme change.
+
 ## 🧩 Reusable Components
 
 -   **Modals**: Always use `MantineModal` from `components/common/MantineModal`. See `stories/Modal.stories.tsx` for examples.

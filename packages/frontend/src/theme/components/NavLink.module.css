@@ -1,0 +1,48 @@
+/* Sidebar navigation. Active and hover share one quiet fill; the active
+   item is told apart by full text color. */
+.root {
+    border-radius: var(--mantine-radius-md);
+    padding: rem(6px) rem(8px);
+    margin-bottom: rem(2px);
+    font-weight: 500;
+    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
+    transition:
+        background-color 120ms ease,
+        color 120ms ease;
+}
+
+.root:hover:not([data-active]) {
+    background-color: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
+}
+
+.root[data-active] {
+    font-weight: 500;
+}
+
+.label {
+    font-size: var(--mantine-font-size-sm);
+    line-height: var(--mantine-line-height-sm);
+}
+
+.section {
+    color: var(--mantine-color-dimmed);
+    transition: color 120ms ease;
+}
+
+.root:hover .section,
+.root[data-active] .section {
+    color: var(--mantine-color-text);
+}
+
+.description {
+    color: var(--mantine-color-dimmed);
+}
+
+.chevron {
+    color: var(--mantine-color-dimmed);
+}
+
+.children {
+    --nl-offset: rem(20px);
+}

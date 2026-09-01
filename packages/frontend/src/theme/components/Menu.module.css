@@ -1,0 +1,31 @@
+.dropdown {
+    --popover-border-color: var(--mantine-color-default-border);
+    --popover-shadow: var(--mantine-shadow-md);
+    padding: rem(4px);
+    background-color: var(--mantine-color-body);
+}
+
+.item {
+    --menu-item-hover: var(--mantine-color-default-hover);
+    border-radius: var(--mantine-radius-sm);
+    padding: rem(6px) rem(8px);
+    font-size: var(--mantine-font-size-sm);
+    line-height: var(--mantine-line-height-sm);
+    font-weight: 400;
+}
+
+.itemSection[data-position='left'] {
+    margin-inline-end: rem(8px);
+}
+
+.label {
+    padding: rem(6px) rem(8px) rem(4px);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-dimmed);
+}
+
+.divider {
+    margin: rem(4px) rem(-4px);
+    border-color: var(--mantine-color-default-border);
+}
