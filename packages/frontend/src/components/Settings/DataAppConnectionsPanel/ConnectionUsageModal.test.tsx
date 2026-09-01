@@ -13,6 +13,7 @@ import { ConnectionUsageModal } from './ConnectionUsageModal';
 const mocks = vi.hoisted(() => ({
     data: { items: [], total: 0 } as ExternalConnectionLinkedApps,
     refetch: vi.fn(),
+    unlink: vi.fn(),
 }));
 
 vi.mock(
@@ -23,6 +24,16 @@ vi.mock(
             isLoading: false,
             isError: false,
             refetch: mocks.refetch,
+        }),
+    }),
+);
+
+vi.mock(
+    '../../../features/externalConnections/hooks/useUnlinkAppExternalConnection',
+    () => ({
+        useUnlinkAppExternalConnection: () => ({
+            mutate: mocks.unlink,
+            isLoading: false,
         }),
     }),
 );
@@ -141,7 +152,7 @@ describe('external connection usage', () => {
         );
     });
 
-    it('groups data apps and chart types with their destination links', () => {
+    it('shows linked resources and confirms before unlinking every alias', () => {
         mocks.data = {
             items: [
                 {
@@ -187,5 +198,34 @@ describe('external connection usage', () => {
             '/projects/project-uuid/chart-types/chart-type-1',
         );
         expect(screen.queryByText(/Aliases?:/)).not.toBeInTheDocument();
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Unlink Revenue dashboard',
+            }),
+        );
+
+        const confirmation = screen
+            .getByText('Unlink Example API?')
+            .closest('[role="dialog"]');
+        expect(confirmation).toHaveTextContent(
+            'Unlinking removes access to this connection.',
+        );
+        expect(confirmation).not.toHaveTextContent(
+            'You may not be able to link it again without help from a project admin.',
+        );
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Unlink connection' }),
+        );
+        expect(mocks.unlink).toHaveBeenCalledWith(
+            {
+                projectUuid: 'project-uuid',
+                appUuid: 'app-1',
+                aliases: ['acme', 'acme-v2'],
+                name: 'Example API',
+            },
+            expect.objectContaining({ onSuccess: expect.any(Function) }),
+        );
     });
 });

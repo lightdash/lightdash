@@ -9,22 +9,29 @@ import useToaster from '../../../hooks/toaster/useToaster';
 type UnlinkParams = {
     projectUuid: string;
     appUuid: string;
-    alias: string;
     name: string;
-};
+} & ({ alias: string } | { aliases: string[] });
 
-const unlinkAppExternalConnection = async ({
-    projectUuid,
-    appUuid,
-    alias,
-}: UnlinkParams) =>
-    lightdashApi<undefined>({
-        url: `/ee/projects/${projectUuid}/apps/${appUuid}/external-connections/${encodeURIComponent(
-            alias,
-        )}`,
-        method: 'DELETE',
-        body: undefined,
-    });
+const getAliases = (params: UnlinkParams) =>
+    'aliases' in params ? params.aliases : [params.alias];
+
+const unlinkAppExternalConnection = async (
+    params: UnlinkParams,
+): Promise<undefined> => {
+    const { projectUuid, appUuid } = params;
+    await Promise.all(
+        getAliases(params).map((alias) =>
+            lightdashApi<undefined>({
+                url: `/ee/projects/${projectUuid}/apps/${appUuid}/external-connections/${encodeURIComponent(
+                    alias,
+                )}`,
+                method: 'DELETE',
+                body: undefined,
+            }),
+        ),
+    );
+    return undefined;
+};
 
 const linksQueryKey = (projectUuid: string, appUuid: string) => [
     'app-external-connections',
@@ -33,7 +40,7 @@ const linksQueryKey = (projectUuid: string, appUuid: string) => [
 ];
 
 /** Unlinks optimistically and rolls back on failure. The app keeps calling
- *  the alias until it is rebuilt, so the toast points at the composer. */
+ *  removed aliases until it is rebuilt, so the toast points at the composer. */
 export const useUnlinkAppExternalConnection = () => {
     const queryClient = useQueryClient();
     const { showToastInfo, showToastApiError } = useToaster();
@@ -44,7 +51,9 @@ export const useUnlinkAppExternalConnection = () => {
         { previousLinks: AppExternalConnectionLinked[] | undefined }
     >({
         mutationFn: unlinkAppExternalConnection,
-        onMutate: async ({ projectUuid, appUuid, alias }) => {
+        onMutate: async (params) => {
+            const { projectUuid, appUuid } = params;
+            const aliases = getAliases(params);
             const queryKey = linksQueryKey(projectUuid, appUuid);
             await queryClient.cancelQueries({ queryKey });
             const previousLinks =
@@ -53,7 +62,8 @@ export const useUnlinkAppExternalConnection = () => {
                 );
             queryClient.setQueryData<AppExternalConnectionLinked[]>(
                 queryKey,
-                (links) => links?.filter((link) => link.alias !== alias),
+                (links) =>
+                    links?.filter((link) => !aliases.includes(link.alias)),
             );
             return { previousLinks };
         },
@@ -75,9 +85,17 @@ export const useUnlinkAppExternalConnection = () => {
             });
         },
         onSettled: async (_data, _error, { projectUuid, appUuid }) => {
-            await queryClient.invalidateQueries({
-                queryKey: linksQueryKey(projectUuid, appUuid),
-            });
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: linksQueryKey(projectUuid, appUuid),
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ['external-connection-linked-apps', projectUuid],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ['external-connections', projectUuid],
+                }),
+            ]);
         },
     });
 };
