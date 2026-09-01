@@ -87,7 +87,7 @@ const VisualizationConfig: FC<Props> = ({
             {withHeader ? (
                 <>
                     <Group justify="space-between">
-                        <Text fz={16} fw={600}>
+                        <Text fz="md" fw={600}>
                             Configure chart
                         </Text>
 

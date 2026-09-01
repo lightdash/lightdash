@@ -113,7 +113,7 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                                     // ff needed: the UnstyledButton ancestor
                                     // reintroduces the UA's button font.
                                     <Text
-                                        fz={12}
+                                        fz="xs"
                                         fw={500}
                                         c="ldGray.9"
                                         ff="var(--mantine-font-family)"

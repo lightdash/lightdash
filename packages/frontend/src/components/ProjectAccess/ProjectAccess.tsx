@@ -405,7 +405,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                         // Build role summary tooltip
                         const roleSummary = (
                             <Stack>
-                                <Text fw={300} fz="xs">
+                                <Text fw={400} fz="xs">
                                     Organization role:{' '}
                                     <Text fw={600} span fz="xs">
                                         {getRoleName(
@@ -414,7 +414,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                                     </Text>
                                 </Text>
                                 {u.userGroupAccesses.map((uga) => (
-                                    <Text key={uga.group.uuid} fw={300}>
+                                    <Text key={uga.group.uuid} fw={400}>
                                         Group{' '}
                                         <Text fw={600} span>
                                             {uga.group.name}
@@ -426,7 +426,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                                     </Text>
                                 ))}
                                 {u.hasProjectRole && (
-                                    <Text fw={300}>
+                                    <Text fw={400}>
                                         Project role:{' '}
                                         <Text fw={600} span>
                                             {u.projectRole}

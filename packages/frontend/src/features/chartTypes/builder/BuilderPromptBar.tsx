@@ -687,7 +687,7 @@ const BuilderPromptBar = forwardRef<BuilderPromptBarHandle, Props>(
             <Box className={classes.wrap}>
                 {props.build.error !== null && (
                     <Box className={classes.failedPill}>
-                        <Text fz={13} c="red.7" lineClamp={1}>
+                        <Text fz="sm" c="red.7" lineClamp={1}>
                             {props.build.error}
                         </Text>
                         {props.build.retry && (

@@ -102,7 +102,7 @@ const ProposedChangeRow: FC<{
                 {summary}
             </Text>
             {objectRefs.length > 0 && (
-                <Text fz={11} c="dimmed">
+                <Text fz="xs" c="dimmed">
                     {objectRefs.join(', ')}
                 </Text>
             )}
@@ -120,7 +120,7 @@ const ReviewFindingRow: FC<{
             icon={IconSearch}
             right={
                 item.findingCount > 1 ? (
-                    <Text fz={10} fw={600} c="dimmed" style={{ flexShrink: 0 }}>
+                    <Text fz="xs" fw={600} c="dimmed" style={{ flexShrink: 0 }}>
                         {item.findingCount}×
                     </Text>
                 ) : undefined
@@ -135,7 +135,7 @@ const ReviewFindingRow: FC<{
                         component="button"
                         type="button"
                         onClick={toggleEvidence}
-                        fz={11}
+                        fz="xs"
                         c="dimmed"
                         underline="never"
                         mt={2}
@@ -161,7 +161,7 @@ const ReviewFindingRow: FC<{
                             {item.evidenceExcerpts.map((excerpt, idx) => (
                                 <Text
                                     key={idx}
-                                    fz={11}
+                                    fz="xs"
                                     c="dimmed"
                                     className={
                                         excerpt.redacted

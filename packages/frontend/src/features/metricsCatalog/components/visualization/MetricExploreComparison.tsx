@@ -244,7 +244,7 @@ export const MetricExploreComparison: FC<Props> = ({
                                                 }}
                                             />
                                         ) : (
-                                            <Text span c="ldGray.7" fz={13}>
+                                            <Text span c="ldGray.7" fz="sm">
                                                 Only metrics with a time
                                                 dimension defined in the .yml
                                                 can be compared.{' '}

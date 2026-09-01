@@ -8,7 +8,7 @@ export const GoogleSheetsInfoPopover = () => {
             <HoverCard.Target>
                 <Button
                     size="xs"
-                    fz={9}
+                    fz="xs"
                     variant="subtle"
                     color="ldGray.3"
                     leftSection={

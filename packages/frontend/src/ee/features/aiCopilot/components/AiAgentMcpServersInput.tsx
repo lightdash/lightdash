@@ -1604,7 +1604,7 @@ export const AiAgentMcpServersInput = ({
                                                     <Text
                                                         size="sm"
                                                         c="dimmed"
-                                                        fw={450}
+                                                        fw={500}
                                                     >
                                                         {getMcpAuthTypeLabel(
                                                             mcpServer.authType,

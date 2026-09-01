@@ -106,7 +106,7 @@ export const ChartDataTable = ({
                                                 position="top"
                                                 withinPortal
                                             >
-                                                <Group gap="two" fz={13}>
+                                                <Group gap="two" fz="sm">
                                                     {columnsConfig?.[header.id]
                                                         ?.aggregation && (
                                                         <Badge

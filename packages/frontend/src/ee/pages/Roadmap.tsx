@@ -328,7 +328,7 @@ const RoadmapColumn: FC<{
                     bg={`${color}.5`}
                     className={styles.statusDot}
                 />
-                <Text fz="sm" fw={650}>
+                <Text fz="sm" fw={600}>
                     {label}
                 </Text>
                 <Badge color="gray" variant="light" size="sm">
@@ -375,7 +375,7 @@ const RoadmapColumn: FC<{
                                         gap="sm"
                                         wrap="nowrap"
                                     >
-                                        <Text fw={550} fz="sm" lineClamp={3}>
+                                        <Text fw={500} fz="sm" lineClamp={3}>
                                             {item.title}
                                         </Text>
                                         <Text

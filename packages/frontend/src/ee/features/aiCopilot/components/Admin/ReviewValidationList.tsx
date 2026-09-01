@@ -63,7 +63,7 @@ export const ReviewValidationList: FC<Props> = ({ previewProjectUuid }) => {
 
     return (
         <Stack gap="xs" pt="xs">
-            <Text fz="xs" fw={700} tt="uppercase" lts={0.4} c="ldGray.7">
+            <Text fz="xs" fw={600} tt="uppercase" lts={0.4} c="ldGray.7">
                 {total} validation {total === 1 ? 'error' : 'errors'}
             </Text>
 

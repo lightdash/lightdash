@@ -90,7 +90,7 @@ const DbtMethodPicker: FC = () => {
     return (
         <Box className={classes.column}>
             <Stack align="center" gap="xs">
-                <Title order={1} ta="center" fw={700}>
+                <Title order={1} ta="center" fw={600}>
                     Let's get you set up!
                 </Title>
                 <Text size="md" c="dimmed" ta="center">
@@ -283,7 +283,7 @@ const DbtCliWaiting: FC = () => {
         <Box className={classes.column}>
             <Stack align="center" gap="xs">
                 <Loader size="sm" />
-                <Title order={1} ta="center" fw={700}>
+                <Title order={1} ta="center" fw={600}>
                     Waiting for data
                 </Title>
                 <Text size="md" c="dimmed" ta="center">

@@ -1774,7 +1774,7 @@ const AppGenerate: FC = () => {
                             <Stack gap="lg" className={classes.composeHeading}>
                                 <Stack gap={6}>
                                     <Text
-                                        fw={700}
+                                        fw={600}
                                         fz={28}
                                         className={classes.composeTitle}
                                     >

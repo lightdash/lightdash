@@ -286,7 +286,7 @@ const InfiniteResourceTable = ({
                             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
                                 e.stopPropagation()
                             }
-                            fz={12}
+                            fz="xs"
                             fw={500}
                         >
                             {space.name}
@@ -297,7 +297,7 @@ const InfiniteResourceTable = ({
                 // Personal (space-less) data apps have no space to link to.
                 if (isResourceViewDataAppItem(item) && !item.data.spaceUuid) {
                     return (
-                        <Text fz={12} fw={500} c="dimmed">
+                        <Text fz="xs" fw={500} c="dimmed">
                             -
                         </Text>
                     );
@@ -309,7 +309,7 @@ const InfiniteResourceTable = ({
                     : undefined;
                 if (inaccessibleSpaceName) {
                     return (
-                        <Text fz={12} fw={500} c="ldGray.7">
+                        <Text fz="xs" fw={500} c="ldGray.7">
                             {inaccessibleSpaceName}
                         </Text>
                     );
@@ -326,7 +326,7 @@ const InfiniteResourceTable = ({
             Cell: ({ row }) => {
                 if (isResourceViewSpaceItem(row.original))
                     return (
-                        <Text fz={12} fw={500} c="ldGray.7">
+                        <Text fz="xs" fw={500} c="ldGray.7">
                             -
                         </Text>
                     );
@@ -343,7 +343,7 @@ const InfiniteResourceTable = ({
                 const item = row.original;
                 if (!isResourceViewItemDashboard(item) || !item.data.owner) {
                     return (
-                        <Text fz={12} fw={500} c="dimmed">
+                        <Text fz="xs" fw={500} c="dimmed">
                             -
                         </Text>
                     );
@@ -352,7 +352,7 @@ const InfiniteResourceTable = ({
                 const ownerName =
                     `${firstName} ${lastName}`.trim() || email || '-';
                 return (
-                    <Text fz={12} fw={500} c="ldGray.7">
+                    <Text fz="xs" fw={500} c="ldGray.7">
                         {ownerName}
                     </Text>
                 );
@@ -367,12 +367,12 @@ const InfiniteResourceTable = ({
             Cell: ({ row }) => {
                 if (isResourceViewSpaceItem(row.original))
                     return (
-                        <Text fz={12} fw={500} c="ldGray.7">
+                        <Text fz="xs" fw={500} c="ldGray.7">
                             -
                         </Text>
                     );
                 return (
-                    <Text fz={12} fw={500} c="ldGray.7">
+                    <Text fz="xs" fw={500} c="ldGray.7">
                         {row.original.data.views}
                     </Text>
                 );

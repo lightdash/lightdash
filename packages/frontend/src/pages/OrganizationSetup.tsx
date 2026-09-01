@@ -375,8 +375,8 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                                     />
                                                 ) : (
                                                     <Text
-                                                        fw={700}
-                                                        fz={20}
+                                                        fw={600}
+                                                        fz="xl"
                                                         c="white"
                                                     >
                                                         {logoTileInitial}

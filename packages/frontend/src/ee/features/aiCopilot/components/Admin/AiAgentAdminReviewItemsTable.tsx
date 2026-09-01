@@ -377,7 +377,7 @@ const FindingCell = ({
 }: {
     reviewItem: AiAgentReviewItemSummary;
 }) => (
-    <Text fw={700} fz="sm" c="ldGray.9" lineClamp={2}>
+    <Text fw={600} fz="sm" c="ldGray.9" lineClamp={2}>
         {getIssueTitle(reviewItem)}
     </Text>
 );
@@ -816,7 +816,7 @@ const AiAgentAdminReviewItemsTable = ({
                             wrap="nowrap"
                             className={styles.toolbarHeading}
                         >
-                            <Text fz="sm" fw={700} c="ldGray.9">
+                            <Text fz="sm" fw={600} c="ldGray.9">
                                 Issues
                             </Text>
                             <ReviewConceptHelp />

@@ -71,7 +71,7 @@ const ChangeIndicator: FC<{
             withinPortal
         >
             <Badge
-                fz={13}
+                fz="sm"
                 fw={500}
                 size="lg"
                 radius="md"
@@ -208,7 +208,7 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
     return (
         <Paper
             p="md"
-            fz={14}
+            fz="sm"
             withBorder
             style={(theme) => ({
                 borderColor: selected
@@ -226,7 +226,7 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
             />
             <Stack key={data.label} gap="xs">
                 <Group justify="space-between">
-                    <Title fz={14} fw={500} c="ldGray.7">
+                    <Title fz="sm" fw={500} c="ldGray.7">
                         {title}
                     </Title>
                     <Group gap="xs" wrap="nowrap">

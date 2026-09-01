@@ -299,7 +299,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                     {row.original.name}
                                 </Text>
                                 {description && (
-                                    <Text fz={12} c="dimmed" lineClamp={1}>
+                                    <Text fz="xs" c="dimmed" lineClamp={1}>
                                         {description}
                                     </Text>
                                 )}

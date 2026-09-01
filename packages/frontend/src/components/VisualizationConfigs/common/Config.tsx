@@ -36,7 +36,7 @@ const Heading: FC<PropsWithChildren> = ({ children }) => (
 );
 
 const Subheading: FC<PropsWithChildren> = ({ children }) => (
-    <Text c="ldGray.7" fz={13} fw={600}>
+    <Text c="ldGray.7" fz="sm" fw={600}>
         {children}
     </Text>
 );

@@ -638,7 +638,7 @@ export const SchedulerList: FC<Props> = ({
                         size={32}
                         color="ldGray.5"
                     />
-                    <Text fw={700} fz="lg">
+                    <Text fw={600} fz="lg">
                         {isThresholdAlert
                             ? 'Get notified when your data crosses a threshold'
                             : 'Deliver this on a schedule'}

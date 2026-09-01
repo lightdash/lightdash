@@ -364,7 +364,7 @@ const OnboardingInviteExpert: FC = () => {
                         <Title
                             order={1}
                             ta="center"
-                            fw={700}
+                            fw={600}
                             ref={titleRef}
                             tabIndex={-1}
                             className={classes.title}
@@ -402,7 +402,7 @@ const OnboardingInviteExpert: FC = () => {
                     <Title
                         order={1}
                         ta="center"
-                        fw={700}
+                        fw={600}
                         ref={titleRef}
                         tabIndex={-1}
                         className={classes.title}

@@ -287,7 +287,7 @@ const TilesTable = ({ data }: { data: any[] }) => {
                 header: 'Tile Type',
                 size: 150,
                 Footer: () => (
-                    <Text size="xs" fw={700}>
+                    <Text size="xs" fw={600}>
                         Total
                     </Text>
                 ),
@@ -303,7 +303,7 @@ const TilesTable = ({ data }: { data: any[] }) => {
                 ),
                 Footer: () =>
                     totals ? (
-                        <Text size="xs" ta="right" fw={700}>
+                        <Text size="xs" ta="right" fw={600}>
                             {totals.current}
                         </Text>
                     ) : null,
@@ -319,7 +319,7 @@ const TilesTable = ({ data }: { data: any[] }) => {
                 ),
                 Footer: () =>
                     totals ? (
-                        <Text size="xs" ta="right" fw={700}>
+                        <Text size="xs" ta="right" fw={600}>
                             {totals.selected}
                         </Text>
                     ) : null,

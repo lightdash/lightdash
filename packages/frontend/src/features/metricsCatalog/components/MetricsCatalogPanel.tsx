@@ -107,7 +107,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
             >
                 <Stack gap="sm" w="100%" ref={ref}>
                     <Group justify="space-between">
-                        <Text fw={600} fz={14}>
+                        <Text fw={600} fz="sm">
                             ✨ Lightdash Spotlight is here!
                         </Text>
                         <ActionIcon
@@ -120,7 +120,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                         </ActionIcon>
                     </Group>
                     <LearnMoreContent width="100%" height="100%" />
-                    <Text fz={13} c="ldGray.3">
+                    <Text fz="sm" c="ldGray.3">
                         Explore and curate your key Metrics in the{' '}
                         <Text span fw={600} inherit>
                             Catalog

@@ -138,7 +138,7 @@ export const Table = <T extends IResultsRunner>({
                                                   }
                                         }
                                     >
-                                        <Group gap="two" fz={13}>
+                                        <Group gap="two" fz="sm">
                                             {columnsConfig[header.id]
                                                 ?.aggregation && (
                                                 <Badge

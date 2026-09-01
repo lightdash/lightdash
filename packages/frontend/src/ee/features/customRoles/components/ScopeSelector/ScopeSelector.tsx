@@ -228,7 +228,7 @@ const ScopePanel: FC<{
                                         className={styles.scopeContent}
                                         gap="two"
                                     >
-                                        <Text fw={500} fz={13}>
+                                        <Text fw={500} fz="sm">
                                             {formatScopeName(scope.name)}
                                         </Text>
                                         <Text
@@ -262,7 +262,7 @@ const ScopePanel: FC<{
                                                                 }
                                                             />
                                                             <Text
-                                                                fz={11}
+                                                                fz="xs"
                                                                 c="dimmed"
                                                                 fw={500}
                                                             >

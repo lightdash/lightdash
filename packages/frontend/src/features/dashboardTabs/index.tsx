@@ -1026,7 +1026,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                             <Button
                                                                 ml="sm"
                                                                 size="sm"
-                                                                fz={13}
+                                                                fz="sm"
                                                                 variant="subtle"
                                                                 flex="0 0 auto"
                                                                 disabled={

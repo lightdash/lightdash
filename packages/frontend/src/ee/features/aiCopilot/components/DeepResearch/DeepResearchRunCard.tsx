@@ -139,7 +139,7 @@ export const DeepResearchRunHeading = ({
                 <Group gap="xs" align="baseline" wrap="nowrap">
                     <Text
                         size="xs"
-                        fw={700}
+                        fw={600}
                         ff="monospace"
                         tt="uppercase"
                         className={styles.eyebrow}
@@ -422,7 +422,7 @@ export const DeepResearchRunCard = ({
                                     size={16}
                                     color="ldGray.6"
                                 />
-                                <Text size="sm" fw={700}>
+                                <Text size="sm" fw={600}>
                                     Research summary
                                 </Text>
                             </Group>

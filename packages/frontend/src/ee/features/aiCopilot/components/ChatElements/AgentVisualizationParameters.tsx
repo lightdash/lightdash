@@ -37,7 +37,7 @@ const AgentVisualizationParameters: FC<Props> = ({ parameterValues }) => {
                         <Text span c="dimmed" fz="xs">
                             is
                         </Text>{' '}
-                        <Text fw={700} span fz="xs">
+                        <Text fw={600} span fz="xs">
                             {formatParameterValue(value)}
                         </Text>
                     </Text>

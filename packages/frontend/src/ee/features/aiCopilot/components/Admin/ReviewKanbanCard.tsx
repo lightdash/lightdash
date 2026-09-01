@@ -130,12 +130,12 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                     Example
                                 </Badge>
                             )}
-                            <Text fz="sm" fw={550} lineClamp={2}>
+                            <Text fz="sm" fw={500} lineClamp={2}>
                                 {title}
                             </Text>
                             {targetAnchor && (
                                 <Code
-                                    fz={10}
+                                    fz="xs"
                                     c="dimmed"
                                     w="fit-content"
                                     maw="100%"

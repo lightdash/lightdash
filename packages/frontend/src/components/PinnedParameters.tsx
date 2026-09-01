@@ -102,7 +102,7 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
                 >
                     <Text truncate>
                         <Text span>{parameter.label || parameterKey}:</Text>{' '}
-                        <Text fw={700} span>
+                        <Text fw={600} span>
                             {displayValue}
                         </Text>
                     </Text>

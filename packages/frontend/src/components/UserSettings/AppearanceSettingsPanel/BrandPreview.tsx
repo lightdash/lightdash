@@ -168,7 +168,7 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                         />
                     ) : (
                         <Box className={classes.navLogoFallback}>
-                            <Text size="xs" fw={700} c={primary}>
+                            <Text size="xs" fw={600} c={primary}>
                                 {displayName[0]?.toUpperCase() ?? 'A'}
                             </Text>
                         </Box>
@@ -198,7 +198,7 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                 <Group justify="space-between" align="flex-start" wrap="nowrap">
                     <Stack gap={2}>
                         <Text
-                            fw={700}
+                            fw={600}
                             fz={22}
                             ff={titleFamily}
                             className={classes.title}
@@ -223,7 +223,7 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                         <Text size="xs" c="dimmed" ff={bodyFamily}>
                             Total revenue
                         </Text>
-                        <Text fw={700} fz={24} ff={titleFamily}>
+                        <Text fw={600} fz={24} ff={titleFamily}>
                             $1.24M
                         </Text>
                         <Text size="xs" c="teal" ff={bodyFamily}>

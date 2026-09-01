@@ -85,7 +85,7 @@ export const UserBubble: FC<Props> = ({
                     <Anchor
                         component={Link}
                         c="dimmed"
-                        fz={10}
+                        fz="xs"
                         to={`/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${message.threadUuid}/messages/${message.uuid}`}
                     >
                         {timeAgo}

@@ -186,7 +186,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                         </Box>
                         <Stack gap={4}>
                             <Group gap={8} align="center">
-                                <Text fz="lg" fw={700}>
+                                <Text fz="lg" fw={600}>
                                     Autopilot
                                 </Text>
                                 <BetaBadge />
@@ -238,7 +238,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                         </Box>
                         <Stack gap={4}>
                             <Group gap={8} align="center">
-                                <Text fz="lg" fw={700}>
+                                <Text fz="lg" fw={600}>
                                     Autopilot
                                 </Text>
                                 <BetaBadge />

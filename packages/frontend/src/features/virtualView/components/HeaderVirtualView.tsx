@@ -104,7 +104,7 @@ const ChartErrorListItem: FC<{
                 label={
                     <Stack gap={2}>
                         {errorMessages.map((message, index) => (
-                            <Text fz={11} key={index}>
+                            <Text fz="xs" key={index}>
                                 {message}
                             </Text>
                         ))}

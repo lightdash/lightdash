@@ -76,7 +76,7 @@ const SettingsNavigation: FC<SettingsNavigationProps> = ({
                             {section.title}
                         </Title>
                         {section.subtitle !== null && (
-                            <Text fz="sm" fw={700} mt={2}>
+                            <Text fz="sm" fw={600} mt={2}>
                                 {section.subtitle}
                             </Text>
                         )}

@@ -311,7 +311,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
             <Stack gap="md" miw="20rem">
                 {isDialog && (
                     <Stack gap="xs">
-                        <Text fz="xs" fw={700} tt="uppercase" c="dimmed">
+                        <Text fz="xs" fw={600} tt="uppercase" c="dimmed">
                             Export configuration
                         </Text>
                         <Text fz="sm" c="dimmed">

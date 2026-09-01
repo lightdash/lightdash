@@ -239,7 +239,7 @@ const InfiniteResourceTableColumnName = ({
                     </Group>
                     {showTypeAndViews && (
                         <Group gap="xs" wrap="nowrap">
-                            <Text fz={12} c="ldGray.6">
+                            <Text fz="xs" c="ldGray.6">
                                 {getResourceTypeName(item)} •{' '}
                                 <Tooltip
                                     position="top-start"

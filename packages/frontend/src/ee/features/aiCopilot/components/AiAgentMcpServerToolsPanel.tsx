@@ -93,13 +93,13 @@ const ToolDescriptionModal = ({
         >
             <Stack gap="md">
                 <Box>
-                    <Text size="xs" fw={700} c="dimmed" tt="uppercase">
+                    <Text size="xs" fw={600} c="dimmed" tt="uppercase">
                         Tool name
                     </Text>
                     <Text size="sm">{toolName}</Text>
                 </Box>
                 <Box>
-                    <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb="xs">
+                    <Text size="xs" fw={600} c="dimmed" tt="uppercase" mb="xs">
                         Description
                     </Text>
                     <Box data-color-mode={colorScheme}>
@@ -435,7 +435,7 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
                                                     <TruncatedText
                                                         maxWidth="100%"
                                                         fz="sm"
-                                                        fw={700}
+                                                        fw={600}
                                                         c="ldGray.9"
                                                     >
                                                         {tool.title ||

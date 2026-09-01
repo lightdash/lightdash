@@ -354,7 +354,7 @@ const AiSearchBoxInner: FC<Props> = ({
                                         className={styles.reviewsPromoButton}
                                     >
                                         <Group gap="xs" wrap="nowrap">
-                                            <Text span fz="xs" fw={700}>
+                                            <Text span fz="xs" fw={600}>
                                                 {reviewsPromoLabel}
                                             </Text>
                                             <CategoryBadge
