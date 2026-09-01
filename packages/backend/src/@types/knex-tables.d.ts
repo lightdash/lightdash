@@ -55,6 +55,14 @@ import {
     ContentDraftsTableName,
 } from '../database/entities/contentDrafts';
 import {
+    ContentReviewRequestsTable,
+    ContentReviewRequestsTableName,
+} from '../database/entities/contentReviewRequests';
+import {
+    ContentReviewSettingsTable,
+    ContentReviewSettingsTableName,
+} from '../database/entities/contentReviewSettings';
+import {
     ContentVerificationTable,
     ContentVerificationTableName,
 } from '../database/entities/contentVerification';
@@ -804,6 +812,8 @@ declare module 'knex/types/tables' {
         [ContentAsCodeProjectSettingsTableName]: ContentAsCodeProjectSettingsTable;
         [ContentAsCodeWritebacksTableName]: ContentAsCodeWritebackTable;
         [ContentVerificationTableName]: ContentVerificationTable;
+        [ContentReviewRequestsTableName]: ContentReviewRequestsTable;
+        [ContentReviewSettingsTableName]: ContentReviewSettingsTable;
         [AppsTableName]: AppsTable;
         [AppVersionsTableName]: AppVersionsTable;
         [AppUserAccessTableName]: AppUserAccessTable;

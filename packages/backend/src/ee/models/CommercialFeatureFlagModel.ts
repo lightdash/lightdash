@@ -16,6 +16,8 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
                 this.getAiCopilotFlag.bind(this),
             [CommercialFeatureFlags.DirectAccess]:
                 this.getDirectAccessFlag.bind(this),
+            [CommercialFeatureFlags.ContentReviewRequests]:
+                this.getContentReviewRequestsFlag.bind(this),
             [CommercialFeatureFlags.HomepageBuilder]:
                 this.getHomepageBuilderFlag.bind(this),
         };
@@ -25,6 +27,16 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
     // consistent with the other commercial flags: a staff-written user-level
     // override can enable direct access past an organization disable.
     private async getDirectAccessFlag(args: FeatureFlagLogicArgs) {
+        if (!args.user) {
+            return { id: args.featureFlagId, enabled: false };
+        }
+        const dbResult = await this.tryGetFromDatabase(args);
+        return dbResult ?? { id: args.featureFlagId, enabled: false };
+    }
+
+    // Default-off; enabled per-org via DB-backed overrides. Requires direct
+    // access, which the review flow uses to let reviewers see personal content.
+    private async getContentReviewRequestsFlag(args: FeatureFlagLogicArgs) {
         if (!args.user) {
             return { id: args.featureFlagId, enabled: false };
         }

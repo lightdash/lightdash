@@ -13,6 +13,8 @@ import { ContentAsCodeSnapshotModel } from './ContentAsCodeSnapshotModel';
 import { ContentAsCodeWritebackModel } from './ContentAsCodeWritebackModel';
 import { ContentDraftModel } from './ContentDraftModel';
 import { ContentModel } from './ContentModel/ContentModel';
+import { ContentReviewRequestModel } from './ContentReviewRequestModel';
+import { ContentReviewSettingsModel } from './ContentReviewSettingsModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
 import { DashboardAccessModel } from './DashboardAccessModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
@@ -163,6 +165,8 @@ export type ModelManifest = {
     contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
     contentAsCodeWritebackModel: ContentAsCodeWritebackModel;
     contentDraftModel: ContentDraftModel;
+    contentReviewRequestModel: ContentReviewRequestModel;
+    contentReviewSettingsModel: ContentReviewSettingsModel;
     contentVerificationModel: ContentVerificationModel;
     tagsModel: TagsModel;
     featureFlagModel: FeatureFlagModel;
@@ -908,6 +912,20 @@ export class ModelRepository
         return this.getModel(
             'contentDraftModel',
             () => new ContentDraftModel({ database: this.database }),
+        );
+    }
+
+    public getContentReviewRequestModel(): ContentReviewRequestModel {
+        return this.getModel(
+            'contentReviewRequestModel',
+            () => new ContentReviewRequestModel({ database: this.database }),
+        );
+    }
+
+    public getContentReviewSettingsModel(): ContentReviewSettingsModel {
+        return this.getModel(
+            'contentReviewSettingsModel',
+            () => new ContentReviewSettingsModel({ database: this.database }),
         );
     }
 
