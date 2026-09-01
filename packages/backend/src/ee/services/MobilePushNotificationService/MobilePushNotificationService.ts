@@ -16,6 +16,10 @@ import {
 import { type MobilePushNotificationsConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
 import { type MobilePushEnvironment } from '../../database/entities/mobilePushNotifications';
+import {
+    type LiveActivityStartAttempt,
+    type SchedulableLiveActivityStartAttempt,
+} from '../../models/MobilePushNotificationModel';
 
 type MobilePushUser = {
     userUuid: string;
@@ -46,34 +50,6 @@ type MobilePushPrompt = {
     threadUuid: string;
     agentUuid: string | null;
     createdByUserUuid: string;
-};
-
-type LiveActivityStartAttempt = {
-    liveActivityStartAttemptUuid: string;
-    liveActivityUuid: string;
-    installationUuid: string;
-    organizationUuid: string;
-    userUuid: string;
-    promptUuid: string;
-    environment: MobilePushEnvironment;
-    pushToStartToken: string | null;
-    pushToStartTokenFingerprint: string | null;
-    status:
-        | 'excluded'
-        | 'pending'
-        | 'processing'
-        | 'retryable'
-        | 'sent'
-        | 'failed';
-    attemptCount: number;
-};
-
-type SchedulableLiveActivityStartAttempt = {
-    liveActivityStartAttemptUuid: string;
-    installationUuid: string;
-    organizationUuid: string;
-    projectUuid: string;
-    userUuid: string;
 };
 
 type UpsertLiveActivity = {
