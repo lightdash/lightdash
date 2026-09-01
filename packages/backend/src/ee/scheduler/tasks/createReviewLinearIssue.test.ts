@@ -25,7 +25,18 @@ const makeDeps = (overrides: Record<string, unknown> = {}) => {
         title: 'Broken metric',
     });
     const linkIssueUrlForOrganization = vi.fn().mockResolvedValue(undefined);
-    const updateReviewItemLinkedIssueUrl = vi.fn().mockResolvedValue(undefined);
+    const setLinkedIssueUrl = vi.fn().mockResolvedValue(undefined);
+    const withReviewItemLinkedIssueLock = vi
+        .fn()
+        .mockImplementation(
+            (
+                _args: unknown,
+                run: (
+                    linkedIssueUrl: string | null,
+                    setUrl: (url: string) => Promise<void>,
+                ) => Promise<void>,
+            ) => run(null, setLinkedIssueUrl),
+        );
 
     return {
         siteUrl: 'https://app.example.com',
@@ -64,7 +75,7 @@ const makeDeps = (overrides: Record<string, unknown> = {}) => {
                 },
                 agentUuid: 'agent-1',
             }),
-            updateReviewItemLinkedIssueUrl,
+            withReviewItemLinkedIssueLock,
         },
         projectModel: {
             get: vi.fn().mockResolvedValue({ name: 'Jaffle shop' }),
@@ -77,11 +88,11 @@ const makeDeps = (overrides: Record<string, unknown> = {}) => {
             track: vi.fn(),
         },
         createIssueForOrganization,
-        updateReviewItemLinkedIssueUrl,
+        setLinkedIssueUrl,
         ...overrides,
     } as unknown as Deps & {
         createIssueForOrganization: Mock;
-        updateReviewItemLinkedIssueUrl: Mock;
+        setLinkedIssueUrl: Mock;
     };
 };
 
@@ -130,11 +141,9 @@ describe('createReviewLinearIssue', () => {
                 description: expect.stringContaining('**Priority:** high'),
             }),
         );
-        expect(deps.updateReviewItemLinkedIssueUrl).toHaveBeenCalledWith({
-            organizationUuid: ORGANIZATION_UUID,
-            fingerprint: FINGERPRINT,
-            linkedIssueUrl: 'https://linear.app/acme/issue/PRD-12',
-        });
+        expect(deps.setLinkedIssueUrl).toHaveBeenCalledWith(
+            'https://linear.app/acme/issue/PRD-12',
+        );
         expect(
             deps.linearAppService.linkIssueUrlForOrganization,
         ).toHaveBeenCalledWith(ORGANIZATION_UUID, {
@@ -156,10 +165,11 @@ describe('createReviewLinearIssue', () => {
         await expect(createReviewLinearIssue(deps)(payload)).rejects.toThrow(
             FINGERPRINT,
         );
-        expect(deps.updateReviewItemLinkedIssueUrl).not.toHaveBeenCalled();
+        expect(deps.setLinkedIssueUrl).not.toHaveBeenCalled();
     });
 
     it('skips review items that already have a linked issue', async () => {
+        const setLinkedIssueUrl = vi.fn();
         const deps = makeDeps({
             aiAgentReviewClassifierModel: {
                 getReviewItem: vi.fn().mockResolvedValue({
@@ -173,7 +183,60 @@ describe('createReviewLinearIssue', () => {
                     latestFinding: null,
                     agentUuid: null,
                 }),
-                updateReviewItemLinkedIssueUrl: vi.fn(),
+                withReviewItemLinkedIssueLock: vi
+                    .fn()
+                    .mockImplementation(
+                        (
+                            _args: unknown,
+                            run: (
+                                linkedIssueUrl: string | null,
+                                setUrl: (url: string) => Promise<void>,
+                            ) => Promise<void>,
+                        ) =>
+                            run(
+                                'https://linear.app/acme/issue/PRD-1',
+                                setLinkedIssueUrl,
+                            ),
+                    ),
+            },
+        });
+
+        await createReviewLinearIssue(deps)(payload);
+
+        expect(deps.createIssueForOrganization).not.toHaveBeenCalled();
+        expect(setLinkedIssueUrl).not.toHaveBeenCalled();
+    });
+
+    it('decides from the locked row, not the earlier read, so concurrent jobs do not duplicate', async () => {
+        const setLinkedIssueUrl = vi.fn();
+        const deps = makeDeps({
+            aiAgentReviewClassifierModel: {
+                getReviewItem: vi.fn().mockResolvedValue({
+                    title: 'Broken metric',
+                    description: 'Count is wrong',
+                    primaryRootCause: 'semantic_layer',
+                    priority: 'high',
+                    findingCount: 1,
+                    targetRefs: [],
+                    linkedIssueUrl: null,
+                    latestFinding: null,
+                    agentUuid: null,
+                }),
+                withReviewItemLinkedIssueLock: vi
+                    .fn()
+                    .mockImplementation(
+                        (
+                            _args: unknown,
+                            run: (
+                                linkedIssueUrl: string | null,
+                                setUrl: (url: string) => Promise<void>,
+                            ) => Promise<void>,
+                        ) =>
+                            run(
+                                'https://linear.app/acme/issue/PRD-1',
+                                setLinkedIssueUrl,
+                            ),
+                    ),
             },
         });
 
@@ -199,11 +262,9 @@ describe('createReviewLinearIssue', () => {
 
         await createReviewLinearIssue(deps)(payload);
 
-        expect(deps.updateReviewItemLinkedIssueUrl).toHaveBeenCalledWith({
-            organizationUuid: ORGANIZATION_UUID,
-            fingerprint: FINGERPRINT,
-            linkedIssueUrl: 'https://linear.app/acme/issue/PRD-12',
-        });
+        expect(deps.setLinkedIssueUrl).toHaveBeenCalledWith(
+            'https://linear.app/acme/issue/PRD-12',
+        );
     });
 });
 

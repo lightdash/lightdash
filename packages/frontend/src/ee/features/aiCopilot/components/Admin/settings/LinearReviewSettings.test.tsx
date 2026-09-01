@@ -8,6 +8,7 @@ import { buildLinearAppSetupUrl } from './linearReviewSettingsUtils';
 const mocks = vi.hoisted(() => ({
     deleteLinear: vi.fn(),
     updateRouting: vi.fn(),
+    backfillLinear: vi.fn(),
     hasLinear: false,
     routing: {
         organizationUuid: 'org-1',
@@ -70,6 +71,10 @@ vi.mock('../../../hooks/useReviewNotificationSettings', () => ({
         mutate: mocks.updateRouting,
         isLoading: false,
     }),
+    useBackfillReviewLinearIssues: () => ({
+        mutate: mocks.backfillLinear,
+        isLoading: false,
+    }),
 }));
 
 const renderSettings = (initialEntry = '/generalSettings/ai/general') =>
@@ -123,6 +128,20 @@ describe('LinearReviewSettings', () => {
         renderSettings();
 
         expect(screen.getByText(/This is a one-way export/)).toBeVisible();
+    });
+
+    it('exports existing findings when Linear is already connected', async () => {
+        mocks.hasLinear = true;
+        const user = userEvent.setup();
+        renderSettings();
+
+        await user.click(
+            screen.getByRole('button', {
+                name: 'Create issues for existing findings',
+            }),
+        );
+
+        expect(mocks.backfillLinear).toHaveBeenCalled();
     });
 
     it('lets admins send findings from every project', async () => {

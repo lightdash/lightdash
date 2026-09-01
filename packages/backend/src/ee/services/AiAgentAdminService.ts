@@ -24,6 +24,7 @@ import {
     AiAgentReviewWritebackJobPayload,
     AiAgentSummary,
     AiAgentThreadDump,
+    AiReviewLinearBackfillResult,
     AiReviewLinearDestination,
     AiReviewLinearRouting,
     AiReviewNotificationSettings,
@@ -1188,6 +1189,83 @@ export class AiAgentAdminService extends BaseService {
             organizationUuid,
             ...routing,
         });
+    }
+
+    async backfillReviewLinearIssues(
+        user: SessionUser,
+    ): Promise<AiReviewLinearBackfillResult> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        const routing =
+            await this.aiAgentReviewNotificationModel.getLinearRouting(
+                organizationUuid,
+            );
+        if (!routing.enabled || !routing.linearTeamId) {
+            throw new ParameterError(
+                'Enable Linear issues and choose a team before exporting existing findings',
+            );
+        }
+
+        const queuedCount = await this.enqueueUnlinkedLinearIssues({
+            organizationUuid,
+            applyToAllProjects: routing.applyToAllProjects,
+            projectUuids: routing.projectUuids,
+            userUuid: user.userUuid,
+        });
+
+        return { queuedCount };
+    }
+
+    private async enqueueUnlinkedLinearIssues(args: {
+        organizationUuid: string;
+        applyToAllProjects: boolean;
+        projectUuids: string[];
+        userUuid: string;
+    }): Promise<number> {
+        const items =
+            await this.aiAgentReviewClassifierModel.listUnlinkedReviewItemsForLinearExport(
+                {
+                    organizationUuid: args.organizationUuid,
+                    projectUuids: args.applyToAllProjects
+                        ? null
+                        : args.projectUuids,
+                },
+            );
+
+        const fingerprintsByProject = new Map<string, string[]>();
+        for (const item of items) {
+            const fingerprints =
+                fingerprintsByProject.get(item.projectUuid) ?? [];
+            fingerprints.push(item.fingerprint);
+            fingerprintsByProject.set(item.projectUuid, fingerprints);
+        }
+
+        const batchSize = 25;
+        let queuedCount = 0;
+        for (const [projectUuid, fingerprints] of fingerprintsByProject) {
+            for (
+                let index = 0;
+                index < fingerprints.length;
+                index += batchSize
+            ) {
+                const batch = fingerprints.slice(index, index + batchSize);
+                // eslint-disable-next-line no-await-in-loop
+                await this.aiAgentReviewNotificationService.createLinearIssues({
+                    organizationUuid: args.organizationUuid,
+                    projectUuid,
+                    fingerprints: batch,
+                    reviewRunUuid: null,
+                    userUuid: args.userUuid,
+                });
+                queuedCount += batch.length;
+            }
+        }
+
+        return queuedCount;
     }
 
     async listReviewItems(
