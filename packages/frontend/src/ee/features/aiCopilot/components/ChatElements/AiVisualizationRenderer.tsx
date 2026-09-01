@@ -355,7 +355,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                     </Box>
 
                     {displayDetails ? (
-                        <Stack gap="xs" style={{ flexShrink: 0 }}>
+                        <Stack gap="xs" className="ld-shrink-0">
                             <Flex align="center" justify="flex-start">
                                 <Button
                                     size="compact-xs"

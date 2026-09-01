@@ -1057,7 +1057,7 @@ const DetailSidebar: FC<{
                     <TargetIcon
                         size={16}
                         color="var(--mantine-color-dimmed)"
-                        style={{ flexShrink: 0 }}
+                        className="ld-shrink-0"
                     />
                     <TruncatedText maxWidth={260} fz="sm" fw={600}>
                         {action.targetName}
@@ -1894,7 +1894,7 @@ const ActionRow: FC<{
                     <TargetIcon
                         size={14}
                         color="var(--mantine-color-dimmed)"
-                        style={{ flexShrink: 0 }}
+                        className="ld-shrink-0"
                     />
                     <TruncatedText maxWidth={220} fz="xs" fw={500}>
                         {action.targetName}

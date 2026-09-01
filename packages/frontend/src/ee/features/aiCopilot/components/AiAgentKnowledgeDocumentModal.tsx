@@ -194,7 +194,7 @@ const LoadedDocumentModal = ({
                     <Box
                         data-color-mode={colorScheme}
                         h="100%"
-                        style={{ overflowY: 'auto' }}
+                        className="ld-scroll-y"
                     >
                         <MDEditor.Markdown
                             source={form.values.content}

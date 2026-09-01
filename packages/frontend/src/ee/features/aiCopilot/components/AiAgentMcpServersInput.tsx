@@ -1541,7 +1541,7 @@ export const AiAgentMcpServersInput = ({
                                         key={mcpServer.uuid}
                                         radius="md"
                                         p={0}
-                                        style={{ overflow: 'hidden' }}
+                                        className="ld-overflow-hidden"
                                     >
                                         <Group
                                             justify="space-between"

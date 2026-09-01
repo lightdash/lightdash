@@ -171,7 +171,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                                         'noopener,noreferrer',
                                     );
                                 }}
-                                style={{ cursor: 'pointer' }}
+                                className="ld-pointer"
                                 title={`Open "${writePreviewData?.url}" in new tab`}
                             >
                                 {writePreviewData?.repo}

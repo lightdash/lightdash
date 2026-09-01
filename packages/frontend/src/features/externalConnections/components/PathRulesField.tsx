@@ -109,7 +109,7 @@ export const PathRulesField: FC<Props> = ({
                     variant="subtle"
                     size="compact-sm"
                     leftSection={<MantineIcon icon={IconPlus} />}
-                    style={{ alignSelf: 'flex-start' }}
+                    className="ld-self-start"
                     disabled={disabled}
                     onClick={() =>
                         onPrefixesChange([...prefixes, makePathPrefix()])

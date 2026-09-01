@@ -79,13 +79,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
     return (
         <Box>
             <Group justify="space-between">
-                <Group
-                    gap="two"
-                    ref={ref}
-                    style={{
-                        flexGrow: 1,
-                    }}
-                >
+                <Group gap="two" ref={ref} className="ld-grow">
                     {isGrouped && (
                         <GrabIcon
                             dragHandleProps={dragHandleProps}
@@ -126,11 +120,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
                     )}
                     {!isSingle && isGrouped && (
-                        <Box
-                            style={{
-                                flexGrow: 1,
-                            }}
-                        >
+                        <Box className="ld-grow">
                             <EditableText
                                 disabled={series.hidden}
                                 defaultValue={seriesValue}

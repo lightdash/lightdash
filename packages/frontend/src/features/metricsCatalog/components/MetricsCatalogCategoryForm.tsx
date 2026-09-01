@@ -308,9 +308,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             gap={2}
                             w="100%"
                             mah={140}
-                            style={{
-                                overflowY: 'auto',
-                            }}
+                            className="ld-scroll-y"
                         >
                             {filteredExistingCategories.map((category) => (
                                 <MetricCatalogCategoryFormItem

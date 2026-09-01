@@ -163,7 +163,7 @@ export const PreviewAndCustomizeScreenshot: FC<
                     onClick={() => setIsImageModalOpen(false)}
                     w="100%"
                     h="100%"
-                    style={{ cursor: 'pointer' }}
+                    className="ld-pointer"
                 />
             </Modal>
         </Box>

@@ -379,7 +379,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                     <MantineIcon
                         icon={alertIcon}
                         color={color}
-                        style={{ flexShrink: 0 }}
+                        className="ld-shrink-0"
                     />
                 </Tooltip>
             );
@@ -445,7 +445,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         offset={isCustomDimension(item) ? 36 : 70}
                     >
                         <HoverCard.Target>
-                            <Text truncate fz="sm" style={{ flexGrow: 1 }}>
+                            <Text truncate fz="sm" className="ld-grow">
                                 <Highlight
                                     component="span"
                                     highlight={searchQuery || ''}
@@ -488,7 +488,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                             <MantineIcon
                                 icon={IconHierarchyOff}
                                 color="dimmed"
-                                style={{ flexShrink: 0 }}
+                                className="ld-shrink-0"
                             />
                         </Tooltip>
                     )}
@@ -503,7 +503,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                             <ActionIcon onClick={handleFilterClick}>
                                 <MantineIcon
                                     icon={IconFilter}
-                                    style={{ flexShrink: 0 }}
+                                    className="ld-shrink-0"
                                 />
                             </ActionIcon>
                         </Tooltip>
@@ -513,7 +513,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                             <ActionIcon onClick={handleDeleteClick}>
                                 <MantineIcon
                                     icon={IconTrash}
-                                    style={{ flexShrink: 0 }}
+                                    className="ld-shrink-0"
                                 />
                             </ActionIcon>
                         </Tooltip>
@@ -523,7 +523,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                             <MantineIcon
                                 icon={IconAlertTriangle}
                                 color="yellow.9"
-                                style={{ flexShrink: 0 }}
+                                className="ld-shrink-0"
                             />
                         </Tooltip>
                     ) : null}

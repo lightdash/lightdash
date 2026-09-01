@@ -170,7 +170,7 @@ const ScopePanel: FC<{
 
     return (
         <Stack gap="md" h="100%" w="100%">
-            <Group justify="space-between" style={{ flexShrink: 0 }}>
+            <Group justify="space-between" className="ld-shrink-0">
                 <Title order={5}>{group.groupName}</Title>
                 <Group gap="xs">
                     <Text size="xs" fw={500}>
@@ -487,7 +487,7 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
 
     return (
         <Stack gap="sm" h="100%">
-            <Stack gap="sm" style={{ flexShrink: 0 }}>
+            <Stack gap="sm" className="ld-shrink-0">
                 <Group justify="space-between">
                     <Stack gap="two">
                         <Title order={5}>Permissions</Title>
@@ -539,7 +539,7 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
             </Stack>
 
             {filteredScopes.length === 0 ? (
-                <Paper p="xl" style={{ flexShrink: 0 }}>
+                <Paper p="xl" className="ld-shrink-0">
                     <Text ta="center" fz="sm">
                         No permissions found matching your search.
                     </Text>

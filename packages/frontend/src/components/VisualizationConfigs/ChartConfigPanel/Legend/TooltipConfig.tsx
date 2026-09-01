@@ -278,7 +278,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                         size="md"
                         display="inline"
                         color="ldGray.5"
-                        style={{ cursor: 'pointer' }}
+                        className="ld-pointer"
                     />
                 </Tooltip>
                 <Switch

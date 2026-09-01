@@ -117,7 +117,7 @@ const ReviewFindingRow: FC<{
             icon={IconSearch}
             right={
                 item.findingCount > 1 ? (
-                    <Text fz="xs" fw={600} c="dimmed" style={{ flexShrink: 0 }}>
+                    <Text fz="xs" fw={600} c="dimmed" className="ld-shrink-0">
                         {item.findingCount}×
                     </Text>
                 ) : undefined

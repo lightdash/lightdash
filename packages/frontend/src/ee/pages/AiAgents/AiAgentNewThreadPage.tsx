@@ -285,9 +285,7 @@ const AiAgentNewThreadPage: FC = () => {
                                         >
                                             <Text
                                                 size="sm"
-                                                style={{
-                                                    whiteSpace: 'pre-wrap',
-                                                }}
+                                                className="ld-pre-wrap"
                                             >
                                                 {agent.instruction}
                                             </Text>
@@ -302,7 +300,7 @@ const AiAgentNewThreadPage: FC = () => {
                                 c="dimmed"
                                 ta="center"
                                 maw={600}
-                                style={{ whiteSpace: 'pre-wrap' }}
+                                className="ld-pre-wrap"
                             >
                                 {agent.description}
                             </Text>

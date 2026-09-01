@@ -1789,7 +1789,7 @@ const AppGenerate: FC = () => {
                                             void fetchNextPage();
                                         }
                                     }}
-                                    style={{ cursor: 'pointer' }}
+                                    className="ld-pointer"
                                 >
                                     {isFetchingNextPage ? (
                                         <Loader size="xs" />

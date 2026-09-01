@@ -478,7 +478,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         size="xs"
                                     />
                                 }
-                                style={{ cursor: 'pointer' }}
+                                className="ld-pointer"
                                 onClick={() => {
                                     setSearchParams({
                                         tab: SchedulersViewTab.RUN_HISTORY,

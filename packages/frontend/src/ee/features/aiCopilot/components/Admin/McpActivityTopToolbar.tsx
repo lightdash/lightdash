@@ -67,7 +67,7 @@ export const McpActivityTopToolbar: FC<McpActivityTopToolbarProps> = memo(
                             orientation="vertical"
                             w={1}
                             h={20}
-                            style={{ alignSelf: 'center' }}
+                            className="ld-self-center"
                         />
                         <AgentsFilter
                             selectedAgentUuids={selectedAgentUuids}
@@ -78,7 +78,7 @@ export const McpActivityTopToolbar: FC<McpActivityTopToolbarProps> = memo(
                             orientation="vertical"
                             w={1}
                             h={20}
-                            style={{ alignSelf: 'center' }}
+                            className="ld-self-center"
                         />
                         <SegmentedControl
                             size="xs"
@@ -101,7 +101,7 @@ export const McpActivityTopToolbar: FC<McpActivityTopToolbarProps> = memo(
                                     orientation="vertical"
                                     w={1}
                                     h={20}
-                                    style={{ alignSelf: 'center' }}
+                                    className="ld-self-center"
                                 />
                                 <Button
                                     variant="subtle"

@@ -322,11 +322,7 @@ export const HeaderCreate: FC = () => {
                                             position="top"
                                             disabled={canSaveChart}
                                         >
-                                            <Group
-                                                style={{
-                                                    cursor: 'pointer',
-                                                }}
-                                            >
+                                            <Group className="ld-pointer">
                                                 <Menu.Item
                                                     disabled={!canSaveChart}
                                                     onClick={() => {
@@ -374,11 +370,7 @@ export const HeaderCreate: FC = () => {
                                             position="top"
                                             disabled={canCreateVirtualView}
                                         >
-                                            <Group
-                                                style={{
-                                                    cursor: 'pointer',
-                                                }}
-                                            >
+                                            <Group className="ld-pointer">
                                                 <Menu.Item
                                                     disabled={
                                                         !canCreateVirtualView
@@ -439,11 +431,7 @@ export const HeaderCreate: FC = () => {
                                                     );
                                             }}
                                         >
-                                            <Group
-                                                style={{
-                                                    cursor: 'pointer',
-                                                }}
-                                            >
+                                            <Group className="ld-pointer">
                                                 <Menu.Item
                                                     disabled={
                                                         writeBackDisabledMessage !==

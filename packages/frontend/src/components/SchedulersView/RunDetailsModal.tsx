@@ -143,7 +143,7 @@ const JobTimingInfo: FC<{
                 <Text fz="xs" c="dimmed">
                     started
                 </Text>
-                <Text fz="xs" style={{ whiteSpace: 'nowrap' }}>
+                <Text fz="xs" className="ld-nowrap">
                     {startedAt ? formatTimeOnly(startedAt) : '-'}
                 </Text>
             </Stack>
@@ -151,7 +151,7 @@ const JobTimingInfo: FC<{
                 <Text fz="xs" c="dimmed">
                     {endLabel}
                 </Text>
-                <Text fz="xs" style={{ whiteSpace: 'nowrap' }}>
+                <Text fz="xs" className="ld-nowrap">
                     {completedAt ? formatTimeOnly(completedAt) : '-'}
                 </Text>
             </Stack>
@@ -159,7 +159,7 @@ const JobTimingInfo: FC<{
                 <Text fz="xs" c="dimmed">
                     duration
                 </Text>
-                <Text fz="xs" style={{ whiteSpace: 'nowrap' }}>
+                <Text fz="xs" className="ld-nowrap">
                     {startedAt && completedAt
                         ? formatDuration(startedAt, completedAt)
                         : '-'}

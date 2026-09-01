@@ -178,7 +178,7 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
                             <Group
                                 gap={4}
                                 onClick={() => setJsonExpanded((v) => !v)}
-                                style={{ cursor: 'pointer' }}
+                                className="ld-pointer"
                             >
                                 <ActionIcon size="xs">
                                     {jsonExpanded ? (

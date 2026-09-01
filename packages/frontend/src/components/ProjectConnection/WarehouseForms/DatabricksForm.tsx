@@ -411,9 +411,7 @@ const DatabricksForm: FC<{
                                             gap="xs"
                                         >
                                             <TextInput
-                                                style={{
-                                                    flexGrow: 1,
-                                                }}
+                                                className="ld-grow"
                                                 size="xs"
                                                 {...form.getInputProps(
                                                     `warehouse.compute.${index}.name`,
@@ -422,9 +420,7 @@ const DatabricksForm: FC<{
                                                 required
                                             />
                                             <TextInput
-                                                style={{
-                                                    flexGrow: 1,
-                                                }}
+                                                className="ld-grow"
                                                 size="xs"
                                                 {...form.getInputProps(
                                                     `warehouse.compute.${index}.httpPath`,

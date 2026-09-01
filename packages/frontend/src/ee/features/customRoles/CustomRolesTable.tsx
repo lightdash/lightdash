@@ -132,7 +132,7 @@ export const CustomRolesTable: FC<TableProps> = ({
 
     return (
         <>
-            <Paper style={{ overflow: 'hidden' }}>
+            <Paper className="ld-overflow-hidden">
                 <Table
                     className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                 >

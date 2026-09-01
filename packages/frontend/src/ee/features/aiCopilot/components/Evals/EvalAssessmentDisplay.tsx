@@ -83,11 +83,7 @@ export const EvalAssessmentDisplay: FC<EvalAssessmentDisplayProps> = ({
                     }
                 >
                     {assessment.reason && (
-                        <Text
-                            size="xs"
-                            style={{ whiteSpace: 'pre-wrap' }}
-                            mt="xs"
-                        >
+                        <Text size="xs" className="ld-pre-wrap" mt="xs">
                             {assessment.reason}
                         </Text>
                     )}
@@ -96,11 +92,7 @@ export const EvalAssessmentDisplay: FC<EvalAssessmentDisplayProps> = ({
                             <Text size="xs" fw={600} c="dimmed">
                                 Expected Response
                             </Text>
-                            <Text
-                                size="xs"
-                                style={{ whiteSpace: 'pre-wrap' }}
-                                fs="italic"
-                            >
+                            <Text size="xs" className="ld-pre-wrap" fs="italic">
                                 {expectedResponse}
                             </Text>
                         </Stack>

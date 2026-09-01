@@ -357,7 +357,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                     <TextInput
                         label="Path"
                         placeholder="/v1/endpoint"
-                        style={{ flexGrow: 1 }}
+                        className="ld-grow"
                         onPaste={handlePathPaste}
                         {...form.getInputProps('path')}
                     />
@@ -406,7 +406,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                         variant="subtle"
                         size="compact-sm"
                         leftSection={<MantineIcon icon={IconPlus} />}
-                        style={{ alignSelf: 'flex-start' }}
+                        className="ld-self-start"
                         onClick={() =>
                             form.insertListItem('queryParams', {
                                 uuid: uuidv4(),

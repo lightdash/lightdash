@@ -128,7 +128,7 @@ const ProviderRow: FC<ProviderRowProps> = ({
 
             <Group gap="xs" wrap="nowrap" align="flex-end">
                 <PasswordInput
-                    style={{ flex: 1 }}
+                    flex={1}
                     size="xs"
                     aria-label={label}
                     value={value}

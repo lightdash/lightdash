@@ -149,7 +149,7 @@ export const SyncModalView: FC<Props> = ({
             {schedulers.length > 0 ? (
                 <Box
                     mah={400}
-                    style={{ overflowY: 'auto' }}
+                    className="ld-scroll-y"
                     onScroll={
                         onScrollBottom
                             ? (e) => {
@@ -191,9 +191,7 @@ export const SyncModalView: FC<Props> = ({
                                 <Paper
                                     key={sync.schedulerUuid}
                                     p="sm"
-                                    style={{
-                                        overflow: 'hidden',
-                                    }}
+                                    className="ld-overflow-hidden"
                                 >
                                     <Group
                                         wrap="nowrap"

@@ -154,7 +154,7 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
                                     c="ldGray.5"
                                     w={20}
                                     ta="right"
-                                    style={{ flexShrink: 0 }}
+                                    className="ld-shrink-0"
                                 >
                                     {index + 1}
                                 </Text>

@@ -85,3 +85,44 @@ strong {
         opacity: 1;
     }
 }
+
+/* Layout utilities for the few rules Mantine has no style prop for. */
+.ld-shrink-0 {
+    flex-shrink: 0;
+}
+
+.ld-grow {
+    flex-grow: 1;
+}
+
+.ld-overflow-hidden {
+    overflow: hidden;
+}
+
+.ld-scroll-y {
+    overflow-y: auto;
+}
+
+.ld-self-center {
+    align-self: center;
+}
+
+.ld-self-end {
+    align-self: flex-end;
+}
+
+.ld-self-start {
+    align-self: flex-start;
+}
+
+.ld-pointer {
+    cursor: pointer;
+}
+
+.ld-nowrap {
+    white-space: nowrap;
+}
+
+.ld-pre-wrap {
+    white-space: pre-wrap;
+}

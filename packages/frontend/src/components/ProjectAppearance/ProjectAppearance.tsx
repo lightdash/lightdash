@@ -100,7 +100,7 @@ const ProjectAppearance: FC<Props> = ({ projectUuid }) => {
                             leftSection={
                                 <MantineIcon icon={IconExternalLink} />
                             }
-                            style={{ alignSelf: 'flex-end' }}
+                            className="ld-self-end"
                         >
                             Manage organization palettes
                         </Button>

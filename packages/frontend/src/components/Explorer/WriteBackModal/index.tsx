@@ -397,12 +397,7 @@ const MultipleItemsModalContent = ({
                         {capitalize(texts[type].baseName)} YAML to be created:
                     </Text>
 
-                    <Paper
-                        h="100%"
-                        style={{
-                            overflowY: 'auto',
-                        }}
-                    >
+                    <Paper h="100%" className="ld-scroll-y">
                         <CodeBlock
                             code={error || previewCode}
                             language="yaml"

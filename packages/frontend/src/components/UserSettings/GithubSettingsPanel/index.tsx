@@ -96,7 +96,7 @@ const GithubSettingsPanel: FC = () => {
                             Your GitHub integration has access to the following
                             repositories ({data.length}):
                         </Text>
-                        <Box mah={200} style={{ overflowY: 'auto' }}>
+                        <Box mah={200} className="ld-scroll-y">
                             <Text
                                 component="ul"
                                 fz="xs"

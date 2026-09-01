@@ -136,7 +136,7 @@ const LightdashVisualization = memo(
                             title="Unable to load visualization"
                             description={
                                 <Fragment>
-                                    <Text style={{ whiteSpace: 'pre-wrap' }}>
+                                    <Text className="ld-pre-wrap">
                                         {apiErrorDetail.message || ''}
                                     </Text>
                                     {apiErrorDetail.data.documentationUrl && (
