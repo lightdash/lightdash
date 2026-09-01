@@ -151,8 +151,6 @@ const SingleSeriesConfiguration: FC<Props> = ({
                 <Group gap="one">
                     {isGrouped && (
                         <ActionIcon
-                            variant="subtle"
-                            color="gray"
                             onClick={() => {
                                 updateSingleSeries({
                                     ...series,
@@ -166,11 +164,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         </ActionIcon>
                     )}
                     {isCollapsable && (
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            onClick={toggleIsOpen}
-                        >
+                        <ActionIcon onClick={toggleIsOpen}>
                             <MantineIcon
                                 color="ldGray.7"
                                 icon={isOpen ? IconChevronUp : IconChevronDown}
@@ -237,17 +231,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             ]}
                             rightSection={
                                 series.label?.show ? (
-                                    <Popover
-                                        position="bottom-end"
-                                        shadow="md"
-                                        withinPortal
-                                    >
+                                    <Popover position="bottom-end">
                                         <Popover.Target>
-                                            <ActionIcon
-                                                color="gray"
-                                                variant="subtle"
-                                                size="xs"
-                                            >
+                                            <ActionIcon size="xs">
                                                 <MantineIcon
                                                     icon={IconSettings}
                                                     color="gray.6"

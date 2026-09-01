@@ -64,7 +64,6 @@ const CurrentBadge: FC = () => (
         color="blue"
         variant="filled"
         size="xs"
-        radius="sm"
         fw={600}
         className={classes.badge}
     >
@@ -76,14 +75,7 @@ const ExpiryBadge: FC<{ expiresAt: Date | null }> = ({ expiresAt }) => {
     const expiresInDays = getExpiresInDays(expiresAt);
     if (expiresInDays === null) return null;
     return (
-        <Badge
-            color="orange"
-            variant="light"
-            size="xs"
-            radius="sm"
-            fw={500}
-            className={classes.badge}
-        >
+        <Badge color="orange" size="xs" className={classes.badge}>
             {expiresInDays === 0
                 ? 'Expires today'
                 : `Expires in ${expiresInDays}d`}
@@ -104,11 +96,7 @@ const SwitcherLabel: FC<{
     if (!upstreamProjectName) {
         return (
             <Group gap={6} wrap="nowrap" miw={0}>
-                <Tooltip
-                    withinPortal
-                    label={activeProjectName}
-                    disabled={!isTruncated}
-                >
+                <Tooltip label={activeProjectName} disabled={!isTruncated}>
                     <Text
                         ref={truncatedRef}
                         truncate
@@ -122,7 +110,7 @@ const SwitcherLabel: FC<{
                 <MantineIcon
                     icon={IconChevronDown}
                     size="sm"
-                    color="ldGray.6"
+                    color="dimmed"
                     className={classes.breadcrumbSeparator}
                 />
             </Group>
@@ -131,12 +119,7 @@ const SwitcherLabel: FC<{
 
     return (
         <Group gap={4} wrap="nowrap" miw={0}>
-            <Text
-                fw={500}
-                fz="xs"
-                c="ldGray.6"
-                className={classes.upstreamName}
-            >
+            <Text fw={500} fz="xs" c="dimmed" className={classes.upstreamName}>
                 {upstreamProjectName}
             </Text>
             <MantineIcon
@@ -145,11 +128,7 @@ const SwitcherLabel: FC<{
                 color="ldGray.5"
                 className={classes.breadcrumbSeparator}
             />
-            <Tooltip
-                withinPortal
-                label={activeProjectName}
-                disabled={!isTruncated}
-            >
+            <Tooltip label={activeProjectName} disabled={!isTruncated}>
                 <Text
                     ref={truncatedRef}
                     truncate
@@ -164,7 +143,7 @@ const SwitcherLabel: FC<{
             <MantineIcon
                 icon={IconChevronDown}
                 size="sm"
-                color="ldGray.6"
+                color="dimmed"
                 className={classes.breadcrumbSeparator}
             />
         </Group>
@@ -184,13 +163,7 @@ const ProjectRow: FC<{
     return (
         <Menu.Item onClick={() => !isActive && onNavigate(item.projectUuid)}>
             <Group gap="sm" justify="space-between" wrap="nowrap">
-                <Tooltip
-                    withinPortal
-                    label={item.name}
-                    maw={300}
-                    disabled={!isTruncated}
-                    multiline
-                >
+                <Tooltip label={item.name} maw={300} disabled={!isTruncated}>
                     <Highlight
                         ref={truncatedRef}
                         highlight={searchQuery.length >= 2 ? searchQuery : ''}
@@ -248,11 +221,9 @@ const PreviewRow: FC<{
             <Group gap="sm" justify="space-between" wrap="nowrap">
                 <Group gap={6} wrap="nowrap" miw={0}>
                     <Tooltip
-                        withinPortal
                         label={item.name}
                         maw={300}
                         disabled={!isTruncated}
-                        multiline
                     >
                         <Highlight
                             ref={truncatedRef}
@@ -682,7 +653,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                                     <MantineIcon
                                         icon={IconChevronLeft}
                                         size="sm"
-                                        color="ldGray.6"
+                                        color="dimmed"
                                     />
                                     <Text fz="xs" fw={500} c="ldGray.5">
                                         Projects
@@ -763,9 +734,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                                     </Text>
                                     <Badge
                                         color="blue"
-                                        variant="light"
                                         size="xs"
-                                        radius="sm"
                                         fw={600}
                                         className={classes.badge}
                                     >

@@ -110,7 +110,6 @@ export const ItemDetailPreview: FC<{
                             {metricInfo.name}
                         </Text>
                         <Badge
-                            radius="sm"
                             color="indigo"
                             p={2}
                             style={{
@@ -329,8 +328,6 @@ export const TableItemDetailPreview = ({
         <Popover
             opened={showPreview}
             keepMounted={false}
-            shadow="sm"
-            withinPortal
             disabled={!description}
             position="right"
             withArrow

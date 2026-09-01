@@ -56,7 +56,6 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
                         <Alert
                             icon={<MantineIcon icon={IconAlertTriangle} />}
                             color="yellow"
-                            variant="light"
                             ta="left"
                         >
                             You don't have permission to create new projects.

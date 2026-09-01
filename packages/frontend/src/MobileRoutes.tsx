@@ -110,8 +110,6 @@ export const MobileNavBar: FC = () => {
                     >
                         <Group align="center" justify="space-between" flex={1}>
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 component={Link}
                                 to={'/'}
                                 title="Home"
@@ -143,7 +141,7 @@ export const MobileNavBar: FC = () => {
                 onClose={toggleMenu}
                 size="75%"
             >
-                <Title order={6} fw={600} mb="xs">
+                <Title order={6} mb="xs">
                     Project
                 </Title>
                 <ProjectSwitcher portalTarget={null} />

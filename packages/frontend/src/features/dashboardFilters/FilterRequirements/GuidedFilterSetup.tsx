@@ -402,7 +402,7 @@ export const GuidedFilterSetupProgress: FC<GuidedFilterSetupProgressProps> = ({
     return (
         <Stack gap={6}>
             <Group justify="space-between">
-                <Text size="xs" c="ldGray.6">
+                <Text size="xs" c="dimmed">
                     {satisfiedCount} of {rules.length} set
                 </Text>
                 <Text size="xs" c={remainingCount === 0 ? 'green' : 'ldGray.5'}>
@@ -422,7 +422,7 @@ export const GuidedFilterSetupProgress: FC<GuidedFilterSetupProgressProps> = ({
                 component="button"
                 type="button"
                 size="xs"
-                c="ldGray.6"
+                c="dimmed"
                 ta="center"
                 mt={4}
                 className={classes.buttonAnchor}

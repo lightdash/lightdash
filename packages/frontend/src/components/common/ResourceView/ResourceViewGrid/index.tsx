@@ -196,7 +196,7 @@ const DraggableItem: FC<DraggableItemProps> = ({
             <MantineIcon
                 display={showDragIcon ? 'block' : 'none'}
                 size="sm"
-                color="ldGray.6"
+                color="dimmed"
                 icon={IconGripVertical}
             />
         </Box>
@@ -408,7 +408,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                 return (
                     <Stack gap={5} key={group.name}>
                         {localGroupedItems.length > 1 && (
-                            <Text tt="uppercase" fz="xs" fw={600} c="ldGray.6">
+                            <Text tt="uppercase" fz="xs" fw={600} c="dimmed">
                                 {group.name}
                             </Text>
                         )}

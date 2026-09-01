@@ -57,7 +57,6 @@ export const Layout: React.FC = () => {
                                       ? 'To add more groups you need to add more dimensions to your query'
                                       : undefined
                             }
-                            withinPortal
                         >
                             <AddButton
                                 onClick={groupAdd}

@@ -181,10 +181,9 @@ const GroupValueRow: FC<{
                 }}
             />
             {groups.length > 1 && (
-                <Menu position="bottom-end" withinPortal>
+                <Menu position="bottom-end">
                     <Menu.Target>
                         <ActionIcon
-                            variant="subtle"
                             color="ldDark.4"
                             size="sm"
                             title="Move to group"
@@ -239,7 +238,6 @@ const GroupValueRow: FC<{
                 </Menu>
             )}
             <ActionIcon
-                variant="subtle"
                 color="ldDark.6"
                 size="sm"
                 onClick={() => {
@@ -291,7 +289,6 @@ const CustomGroupCard: FC<{
                 />
                 {groups.length > 1 && (
                     <ActionIcon
-                        variant="subtle"
                         color="ldDark.6"
                         mt="xl"
                         onClick={() => {
@@ -860,7 +857,6 @@ export const CustomBinDimensionModal: FC<{
                                                 />
 
                                                 <ActionIcon
-                                                    variant="subtle"
                                                     color="ldDark.6"
                                                     onClick={() => {
                                                         const newRange = [

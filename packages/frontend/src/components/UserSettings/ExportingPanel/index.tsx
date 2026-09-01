@@ -173,8 +173,6 @@ const ExportingForm: FC<{
                                                     isOverridden ? (
                                                         <Tooltip label="Clear — inherit the expiry above">
                                                             <ActionIcon
-                                                                variant="subtle"
-                                                                color="gray"
                                                                 size="sm"
                                                                 onClick={() =>
                                                                     form.setFieldValue(

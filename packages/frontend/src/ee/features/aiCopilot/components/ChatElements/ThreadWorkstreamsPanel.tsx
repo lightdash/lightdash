@@ -45,7 +45,7 @@ export const ThreadWorkstreamsPanel: FC<Props> = ({ workstreams }) => {
 
     return (
         <Box className={styles.container}>
-            <Paper withBorder radius="md" p={0} mb="sm" bg="ldGray.0">
+            <Paper radius="md" p={0} mb="sm" bg="ldGray.0">
                 <UnstyledButton
                     w="100%"
                     px="sm"
@@ -53,20 +53,17 @@ export const ThreadWorkstreamsPanel: FC<Props> = ({ workstreams }) => {
                     onClick={() => setExpanded((e) => !e)}
                 >
                     <Group gap="xs" wrap="nowrap">
-                        <MantineIcon
-                            icon={IconGitPullRequest}
-                            color="ldGray.6"
-                        />
+                        <MantineIcon icon={IconGitPullRequest} color="dimmed" />
                         <Text size="sm" fw={500} c="ldGray.7">
                             Pull requests in this conversation
                         </Text>
-                        <Badge size="sm" variant="light" color="ldGray">
+                        <Badge size="sm" color="ldGray">
                             {workstreams.length}
                         </Badge>
                         <Box className={styles.spacer} />
                         <MantineIcon
                             icon={IconChevronRight}
-                            color="ldGray.6"
+                            color="dimmed"
                             className={
                                 expanded
                                     ? styles.chevronExpanded
@@ -104,7 +101,6 @@ export const ThreadWorkstreamsPanel: FC<Props> = ({ workstreams }) => {
                                     {badge ? (
                                         <Badge
                                             size="sm"
-                                            variant="light"
                                             color={badge.color}
                                             className={styles.noShrink}
                                         >

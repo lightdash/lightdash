@@ -148,7 +148,6 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
             {...wrapperProps}
         >
             <Tooltip
-                withinPortal
                 maw={400}
                 position="top"
                 label={descriptionLabel}
@@ -167,7 +166,6 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
                     mt={valueFontSize * 0.15 * spacingMultiplier}
                 >
                     <Tooltip
-                        withinPortal
                         maw={400}
                         label={descriptionLabel ?? label}
                         disabled={
@@ -177,7 +175,7 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
                     >
                         <Text
                             fz={labelFontSize}
-                            c="ldGray.6"
+                            c="dimmed"
                             fw={500}
                             ta="center"
                             lineClamp={labelLineClamp}
@@ -206,7 +204,7 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
                     }
                     gap="xs"
                 >
-                    <Tooltip withinPortal label={comparison.tooltip}>
+                    <Tooltip label={comparison.tooltip}>
                         <Group
                             className={getTrendPillClass(
                                 comparison.direction,
@@ -253,7 +251,6 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
                     {comparison.label &&
                         availableHeight > COMPARISON_LABEL_MIN_HEIGHT && (
                             <Tooltip
-                                withinPortal
                                 label={comparison.label}
                                 disabled={
                                     comparison.label.length <
@@ -263,7 +260,7 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
                                 <BigNumberText
                                     span
                                     fz={comparisonFontSize}
-                                    c="ldGray.6"
+                                    c="dimmed"
                                     fw={400}
                                     lineClamp={1}
                                 >

@@ -307,8 +307,6 @@ const GeneralSettings: FC = () => {
                                 : 'To use metrics as rows, you need to move a dimension to "Columns"'
                         }
                         w={300}
-                        multiline
-                        withinPortal
                         position="top-start"
                     >
                         <Box>
@@ -408,8 +406,6 @@ const GeneralSettings: FC = () => {
                         isPivotTableEnabled ? 'un-pivoted' : ''
                     } dimensions`}
                     w={300}
-                    multiline
-                    withinPortal
                     position="top-start"
                 >
                     <Box>
@@ -454,8 +450,6 @@ const GeneralSettings: FC = () => {
                                 } dimensions`
                     }
                     w={300}
-                    multiline
-                    withinPortal
                     position="top-start"
                 >
                     <Box>

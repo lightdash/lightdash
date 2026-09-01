@@ -133,15 +133,12 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                         ) : null}
                     </>
                 }
-                withinPortal
                 position="top"
-                withArrow
                 openDelay={500}
                 color="dark"
                 events={{ hover: true, focus: true, touch: false }}
                 disabled={clampedLabel === null && item.description === null}
                 maw={300}
-                multiline
             >
                 <UnstyledButton
                     className={classes.card}
@@ -268,7 +265,7 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
                                 icon={IconDots}
                                 size="xl"
                                 stroke={1.5}
-                                color="ldGray.6"
+                                color="dimmed"
                             />
                         )}
                         <Text fz="xs" fw={500} lh={1.2}>
@@ -289,7 +286,7 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
                             icon={IconPlus}
                             size="xl"
                             stroke={1.5}
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                         <Text fz="xs" fw={500} lh={1.2}>
                             New chart type

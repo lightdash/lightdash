@@ -56,14 +56,7 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
     }, [onUnpin, parameterKey]);
 
     return (
-        <Popover
-            position="bottom-start"
-            withArrow
-            shadow="md"
-            offset={1}
-            arrowOffset={14}
-            withinPortal
-        >
+        <Popover position="bottom-start" withArrow offset={1} arrowOffset={14}>
             <Popover.Target>
                 <Button
                     size="xs"

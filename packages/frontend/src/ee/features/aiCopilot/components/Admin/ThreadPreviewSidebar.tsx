@@ -87,11 +87,10 @@ const ReviewMetadataField = ({
         </Text>
         <Tooltip
             label={tooltip ?? value}
-            withArrow
             openDelay={250}
             disabled={!tooltip && value.length < 28}
         >
-            <Text fz="sm" fw={500} c="ldGray.9" lineClamp={1}>
+            <Text fz="sm" fw={500} lineClamp={1}>
                 {value}
             </Text>
         </Tooltip>
@@ -231,15 +230,13 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
 
             <Group justify="space-between" align="flex-start" p="sm">
                 <Group gap="xs">
-                    <Title order={5} fw={600}>
+                    <Title order={5}>
                         {selectedReviewItem
                             ? 'Review details'
                             : 'Thread preview'}
                     </Title>
                     <Tooltip label="Open Thread" position="right">
                         <ActionIcon
-                            variant="subtle"
-                            color="gray"
                             aria-label="Open full thread"
                             component={Link}
                             target="_blank"
@@ -259,8 +256,6 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                     )}
                     <Tooltip label="Open Agent Settings" position="right">
                         <ActionIcon
-                            variant="subtle"
-                            color="gray"
                             aria-label="Open agent settings"
                             component={Link}
                             target="_blank"
@@ -328,7 +323,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                 />
                                             </Group>
 
-                                            <Title order={5} fw={600}>
+                                            <Title order={5}>
                                                 {getCompactIssueTitle(
                                                     selectedReviewItem,
                                                 )}
@@ -557,10 +552,8 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                         justify="space-between"
                                         align="center"
                                     >
-                                        <Title order={6} fw={600}>
-                                            Issues
-                                        </Title>
-                                        <Badge variant="light" color="violet">
+                                        <Title order={6}>Issues</Title>
+                                        <Badge color="violet">
                                             {reviewSummary.findingCount}
                                         </Badge>
                                     </Group>
@@ -616,7 +609,6 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                         }
                                                     />
                                                     <Badge
-                                                        variant="light"
                                                         color={
                                                             threadReviewStatusColors[
                                                                 reviewItem
@@ -637,7 +629,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                     </Text>
                                                     <Text
                                                         fz="xs"
-                                                        c="ldGray.6"
+                                                        c="dimmed"
                                                         lineClamp={2}
                                                     >
                                                         {reviewItem.description}

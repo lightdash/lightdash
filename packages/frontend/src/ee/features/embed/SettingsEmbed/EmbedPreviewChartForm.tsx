@@ -243,7 +243,6 @@ const EmbedPreviewChartForm: FC<{
                         onChange={(value) =>
                             form.setFieldValue('expiresIn', value)
                         }
-                        radius="md"
                         data={[
                             { label: '1 hour', value: '1 hour' },
                             { label: '1 day', value: '1 day' },
@@ -255,7 +254,7 @@ const EmbedPreviewChartForm: FC<{
                     />
                 </Stack>
 
-                <Paper p="md" withBorder>
+                <Paper p="md">
                     <Stack gap="md">
                         <Title order={6}>Identification & Security</Title>
                         <Stack gap="xs">
@@ -287,7 +286,7 @@ const EmbedPreviewChartForm: FC<{
                                                 <TextInput
                                                     size="xs"
                                                     placeholder="E.g. user_country"
-                                                    style={{ flex: 1 }}
+                                                    flex={1}
                                                     {...form.getInputProps(
                                                         `userAttributes.${index}.key`,
                                                     )}
@@ -295,7 +294,7 @@ const EmbedPreviewChartForm: FC<{
                                                 <TextInput
                                                     size="xs"
                                                     placeholder="E.g. US"
-                                                    style={{ flex: 1 }}
+                                                    flex={1}
                                                     {...form.getInputProps(
                                                         `userAttributes.${index}.value`,
                                                     )}
@@ -342,7 +341,7 @@ const EmbedPreviewChartForm: FC<{
                     </Stack>
                 </Paper>
 
-                <Paper p="md" withBorder>
+                <Paper p="md">
                     <Stack gap="md">
                         <Title order={6}>Interactivity & Permissions</Title>
                         <Stack gap="xs">
@@ -375,12 +374,11 @@ const EmbedPreviewChartForm: FC<{
                 </Paper>
 
                 {writeActionsPanel && (
-                    <Paper p="md" withBorder>
+                    <Paper p="md">
                         <Stack gap="xs" mb="md">
                             <Group gap="sm">
                                 <Title order={6}>Write actions</Title>
                                 <Badge
-                                    variant="light"
                                     color="violet"
                                     size="sm"
                                     leftSection={<IconFlask2Filled size={12} />}

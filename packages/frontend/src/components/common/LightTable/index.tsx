@@ -502,9 +502,7 @@ const BaseCell = (
                             <Tooltip
                                 position="top"
                                 disabled={isSelected}
-                                withinPortal
                                 maw={400}
-                                multiline
                                 label={withTooltip}
                                 openDelay={500}
                             >

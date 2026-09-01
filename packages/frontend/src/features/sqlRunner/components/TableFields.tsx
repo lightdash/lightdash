@@ -40,12 +40,9 @@ const TableField: FC<{
                         {({ copied, copy }) => (
                             <Tooltip
                                 label={copied ? 'Copied to clipboard' : 'Copy'}
-                                withArrow
                                 position="right"
                             >
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
                                     size={16}
                                     onClick={copy}
                                     bg="ldGray.1"
@@ -64,14 +61,14 @@ const TableField: FC<{
                 <TableFieldIcon fieldType={field.type} />
             )}
 
-            <Tooltip withinPortal label={field.name} disabled={!isTruncated}>
+            <Tooltip label={field.name} disabled={!isTruncated}>
                 <Text
                     ref={truncatedRef}
                     fw={500}
                     p={4}
                     fz="sm"
                     c="ldGray.7"
-                    style={{ flex: 1 }}
+                    flex={1}
                     truncate
                 >
                     <Highlight
@@ -140,8 +137,6 @@ export const TableFields: FC = () => {
                                     onMouseDown={(event) =>
                                         event.preventDefault()
                                     }
-                                    variant="subtle"
-                                    color="gray"
                                     size="xs"
                                     onClick={() => setSearch('')}
                                 >
@@ -170,7 +165,7 @@ export const TableFields: FC = () => {
                     offsetScrollbars
                     scrollbars="y"
                     classNames={{ content: scrollAreaClasses.verticalContent }}
-                    style={{ flex: 1 }}
+                    flex={1}
                     type="auto"
                     scrollbarSize={8}
                     pl="sm"

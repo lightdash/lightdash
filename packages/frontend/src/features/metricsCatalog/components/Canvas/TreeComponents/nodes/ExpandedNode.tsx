@@ -68,11 +68,9 @@ const ChangeIndicator: FC<{
         <Tooltip
             position="bottom"
             label={getComparisonLabel(timeFrame, rollingDays)}
-            withinPortal
         >
             <Badge
                 fz="sm"
-                fw={500}
                 size="lg"
                 radius="md"
                 py="two"
@@ -209,7 +207,6 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
         <Paper
             p="md"
             fz="sm"
-            withBorder
             style={(theme) => ({
                 borderColor: selected
                     ? theme.colors.blue[5]
@@ -234,19 +231,16 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
                             <Tooltip
                                 label="Add drivers from YAML"
                                 openDelay={300}
-                                withinPortal
                             >
                                 <ActionIcon
                                     size="xs"
-                                    variant="subtle"
-                                    color="gray"
                                     onClick={handleAddDrivers}
                                     aria-label="Add YAML drivers to canvas"
                                 >
                                     <MantineIcon
                                         icon={IconHierarchy3}
                                         size={12}
-                                        color="ldGray.6"
+                                        color="dimmed"
                                     />
                                 </ActionIcon>
                             </Tooltip>

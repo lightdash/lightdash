@@ -124,7 +124,6 @@ export const AiChartVisualization: FC<Props> = ({
                 <Group justify="flex-end">
                     <ActionIcon
                         size="sm"
-                        variant="subtle"
                         color="ldGray.9"
                         onClick={() => dispatch(clearPreview())}
                     >
@@ -177,7 +176,6 @@ export const AiChartVisualization: FC<Props> = ({
                     {showCloseButton && (
                         <ActionIcon
                             size="sm"
-                            variant="subtle"
                             color="ldGray.4"
                             onClick={() => dispatch(clearPreview())}
                         >
@@ -236,7 +234,6 @@ export const AiChartVisualization: FC<Props> = ({
                 {showCloseButton && (
                     <ActionIcon
                         size="sm"
-                        variant="subtle"
                         color="ldGray.4"
                         onClick={() => dispatch(clearPreview())}
                     >

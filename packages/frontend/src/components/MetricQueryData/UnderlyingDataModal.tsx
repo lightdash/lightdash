@@ -345,7 +345,6 @@ const UnderlyingDataModalContent: FC = () => {
                     disabled={!exploreFromHereUrl}
                     loading={isCreatingShareUrl}
                     variant="light"
-                    radius="md"
                     size="compact-sm"
                 >
                     Explore from here

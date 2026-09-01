@@ -350,7 +350,6 @@ export default function AppPreviewTest() {
                                 document.fullscreenEnabled ? (
                                     <Tooltip
                                         label="Enter Fullscreen Mode"
-                                        withinPortal
                                         position="bottom"
                                         openDelay={200}
                                         transitionProps={{
@@ -361,7 +360,6 @@ export default function AppPreviewTest() {
                                         <ActionIcon
                                             variant="default"
                                             size="md"
-                                            radius="md"
                                             onClick={handleToggleFullscreen}
                                             aria-label="Enter Fullscreen Mode"
                                         >

@@ -63,7 +63,7 @@ const AppInfoOverlay: FC<Props> = ({
 }) => (
     <Stack gap="sm" w={320} p="md" className={styles.appInfoOverlay}>
         <Box>
-            <Text fz="sm" fw={600} c="ldGray.9" mb={4}>
+            <Text fz="sm" fw={600} mb={4}>
                 {displayName}
             </Text>
             {description && (
@@ -108,17 +108,12 @@ const AppInfoOverlay: FC<Props> = ({
                             {({ copied, copy }) => (
                                 <UnstyledButton onClick={copy}>
                                     <Group gap={6} wrap="nowrap">
-                                        <Text
-                                            fz="xs"
-                                            fw={500}
-                                            c="ldGray.9"
-                                            ff="monospace"
-                                        >
+                                        <Text fz="xs" fw={500} ff="monospace">
                                             {slug}
                                         </Text>
                                         <MantineIcon
                                             icon={copied ? IconCheck : IconCopy}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                             size="sm"
                                         />
                                     </Group>

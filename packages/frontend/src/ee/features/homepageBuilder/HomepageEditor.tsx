@@ -269,7 +269,7 @@ const RowGap: FC<{
                                     leftSection={
                                         <MantineIcon
                                             icon={definition.icon}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                         />
                                     }
                                     onClick={() => onQuickAdd(definition)}
@@ -358,7 +358,7 @@ const ColumnGutter: FC<{
                             leftSection={
                                 <MantineIcon
                                     icon={definition.icon}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                             }
                             onClick={() => onAdd(definition)}
@@ -452,7 +452,7 @@ const BlockCard: FC<BlockCardProps> = ({
                     aria-label={`Drag ${definition.label} block`}
                 >
                     <span className={classes.blockHandle}>
-                        <MantineIcon icon={IconGripVertical} color="ldGray.6" />
+                        <MantineIcon icon={IconGripVertical} color="dimmed" />
                     </span>
                     <span className={classes.blockTypeLabel}>
                         {definition.label}
@@ -461,7 +461,6 @@ const BlockCard: FC<BlockCardProps> = ({
                 <Group gap={2} className={classes.blockActions} wrap="nowrap">
                     <Tooltip label="Move up">
                         <ActionIcon
-                            variant="subtle"
                             color="ldGray.6"
                             disabled={!canUp}
                             onClick={onUp}
@@ -471,7 +470,6 @@ const BlockCard: FC<BlockCardProps> = ({
                     </Tooltip>
                     <Tooltip label="Move down">
                         <ActionIcon
-                            variant="subtle"
                             color="ldGray.6"
                             disabled={!canDown}
                             onClick={onDown}
@@ -481,21 +479,13 @@ const BlockCard: FC<BlockCardProps> = ({
                     </Tooltip>
                     {!definition.singleton && (
                         <Tooltip label="Duplicate">
-                            <ActionIcon
-                                variant="subtle"
-                                color="ldGray.6"
-                                onClick={onDuplicate}
-                            >
+                            <ActionIcon color="ldGray.6" onClick={onDuplicate}>
                                 <MantineIcon icon={IconCopy} />
                             </ActionIcon>
                         </Tooltip>
                     )}
                     <Tooltip label="Remove">
-                        <ActionIcon
-                            variant="subtle"
-                            color="red"
-                            onClick={onRemove}
-                        >
+                        <ActionIcon color="red" onClick={onRemove}>
                             <MantineIcon icon={IconTrash} />
                         </ActionIcon>
                     </Tooltip>
@@ -785,7 +775,7 @@ export const HomepageEditor: FC<Props> = ({
                                 <MantineIcon
                                     icon={IconUsers}
                                     size={15}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                                 Editing:{' '}
                                 <strong>
@@ -797,7 +787,7 @@ export const HomepageEditor: FC<Props> = ({
                                 <MantineIcon
                                     icon={IconChevronDown}
                                     size={13}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                             </button>
                         </Menu.Target>

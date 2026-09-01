@@ -64,7 +64,6 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                     variant="subtle"
                     size="compact-xs"
                     color="dark"
-                    radius="md"
                     rightSection={
                         <MantineIcon icon={IconX} color="ldGray.5" size={12} />
                     }
@@ -98,7 +97,6 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                         placeholder="Segment by"
                         leftSection={<Blocks />}
                         searchable
-                        radius="md"
                         size="xs"
                         data={segmentByData}
                         disabled={segmentByData.length === 0}
@@ -137,7 +135,6 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                 <Alert
                     py="xs"
                     px="sm"
-                    variant="light"
                     color="blue"
                     style={{
                         border: '1px dashed var(--mantine-color-blue-4)',

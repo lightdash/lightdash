@@ -55,7 +55,7 @@ const ProgressStep: FC<StepperStepProps & { tooltip: string }> = ({
     tooltip,
     ...stepProps
 }) => (
-    <Tooltip label={tooltip} maw={360} multiline withArrow withinPortal>
+    <Tooltip label={tooltip} maw={360}>
         <Stepper.Step {...stepProps} />
     </Tooltip>
 );

@@ -146,7 +146,7 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
             <SettingsGridCard>
                 <Stack gap="xs">
                     <Title order={5}>Time zone behavior</Title>
-                    <Text c="ldGray.6" fz="sm">
+                    <Text c="dimmed" fz="sm">
                         {timezoneSupportEnabled ? (
                             <>
                                 The time zone used for date filters, time

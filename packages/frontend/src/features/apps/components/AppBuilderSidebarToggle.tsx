@@ -15,9 +15,8 @@ const AppBuilderSidebarToggle: FC<Props> = ({ collapsed, onToggle }) => {
     const label = collapsed ? 'Show build panel' : 'Hide build panel';
 
     return (
-        <Tooltip label={label} withArrow position="right">
+        <Tooltip label={label} position="right">
             <ActionIcon
-                variant="subtle"
                 size="sm"
                 color="ldGray.6"
                 onClick={onToggle}

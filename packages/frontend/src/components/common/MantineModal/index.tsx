@@ -355,7 +355,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                             align={subtitle ? 'center' : 'flex-start'}
                         >
                             {effectiveIcon ? (
-                                <Paper p="6px" withBorder radius="md">
+                                <Paper p="6px" radius="md">
                                     <MantineIcon
                                         icon={effectiveIcon}
                                         size="md"
@@ -367,7 +367,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                     {title}
                                 </Text>
                                 {subtitle ? (
-                                    <Text c="ldGray.6" fz="sm" lh="20px">
+                                    <Text c="dimmed" fz="sm" lh="20px">
                                         {subtitle}
                                     </Text>
                                 ) : null}

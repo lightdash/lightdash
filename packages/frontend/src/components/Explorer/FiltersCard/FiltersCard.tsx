@@ -410,12 +410,7 @@ const QueryAFiltersCard: FC = memo(() => {
                             }
                             position="bottom-start"
                         >
-                            <Badge
-                                color="gray"
-                                variant="light"
-                                tt="none"
-                                fw={500}
-                            >
+                            <Badge>
                                 {totalActiveFilters} active filter
                                 {totalActiveFilters === 1 ? '' : 's'}
                             </Badge>

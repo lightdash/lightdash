@@ -171,8 +171,6 @@ export const HeaderEdit: FC = () => {
                                 {savedSqlChart.name}
                             </Title>
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 size="xs"
                                 onClick={() => {
                                     dispatch(toggleModal('updateChartModal'));
@@ -241,15 +239,9 @@ export const HeaderEdit: FC = () => {
                                 </ActionIcon>
                             </Tooltip>
                         )}
-                        <Menu
-                            position="bottom"
-                            withArrow
-                            withinPortal
-                            shadow="md"
-                            width={200}
-                        >
+                        <Menu position="bottom" withArrow width={200}>
                             <Menu.Target>
-                                <ActionIcon color="gray" variant="subtle">
+                                <ActionIcon>
                                     <MantineIcon icon={IconDots} />
                                 </ActionIcon>
                             </Menu.Target>

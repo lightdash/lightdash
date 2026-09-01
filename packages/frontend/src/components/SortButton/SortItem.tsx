@@ -130,7 +130,6 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                         disabled={!isEditMode}
                         value={selectedSortDirection}
                         size="xs"
-                        radius="md"
                         color="ldDark.5"
                         data={getSortDirectionOrder(item).map((direction) => ({
                             label: getSortLabel(item, direction),
@@ -153,7 +152,6 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                         disabled={!isEditMode}
                         value={selectedSortNullsFirst}
                         size="xs"
-                        radius="md"
                         color="ldDark.5"
                         data={Object.entries(sortNullsFirstLabels).map(
                             ([value, label]) => ({
@@ -179,7 +177,6 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                             <ActionIcon
                                 onClick={onRemoveSortField}
                                 size="xs"
-                                variant="subtle"
                                 color="ldGray.6"
                             >
                                 <MantineIcon icon={IconMinus} />

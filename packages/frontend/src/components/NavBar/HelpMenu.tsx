@@ -44,7 +44,6 @@ const HelpMenu: FC = () => {
     return (
         <Menu
             withArrow
-            shadow="lg"
             position="bottom-end"
             arrowOffset={16}
             offset={-2}

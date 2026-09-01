@@ -364,7 +364,6 @@ const OnboardingInviteExpert: FC = () => {
                         <Title
                             order={1}
                             ta="center"
-                            fw={600}
                             ref={titleRef}
                             tabIndex={-1}
                             className={classes.title}
@@ -394,15 +393,10 @@ const OnboardingInviteExpert: FC = () => {
             <DocumentTitle title="Invite an expert" />
             <Box className={classes.column}>
                 <Stack align="center" gap="xs">
-                    <MantineIcon
-                        icon={IconUserPlus}
-                        size="xl"
-                        color="ldGray.6"
-                    />
+                    <MantineIcon icon={IconUserPlus} size="xl" color="dimmed" />
                     <Title
                         order={1}
                         ta="center"
-                        fw={600}
                         ref={titleRef}
                         tabIndex={-1}
                         className={classes.title}
@@ -415,12 +409,7 @@ const OnboardingInviteExpert: FC = () => {
                     </Text>
                 </Stack>
 
-                <Paper
-                    withBorder
-                    shadow="subtle"
-                    radius="md"
-                    className={classes.card}
-                >
+                <Paper radius="md" className={classes.card}>
                     {isPreparingPlayground || isEnteringPlayground ? (
                         <PreparingPlaygroundCard />
                     ) : playgroundFailure ? (

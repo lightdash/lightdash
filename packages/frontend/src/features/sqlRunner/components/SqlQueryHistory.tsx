@@ -44,7 +44,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
 
     return (
         <Stack w="100%">
-            <HoverCard withinPortal position="left" shadow="sm">
+            <HoverCard position="left">
                 <HoverCard.Target>
                     <UnstyledButton
                         data-testid="sql-query-history-item"
@@ -132,7 +132,7 @@ export const SqlQueryHistory: FC = () => {
     }
 
     return (
-        <Popover withinPortal>
+        <Popover>
             <Popover.Target>
                 <Tooltip label="SQL Query history">
                     <ActionIcon

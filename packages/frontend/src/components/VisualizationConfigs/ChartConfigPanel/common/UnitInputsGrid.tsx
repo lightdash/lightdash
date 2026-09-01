@@ -85,13 +85,7 @@ export const UnitInputsGrid: FC<Props> = ({
             </Flex>
 
             <Center px="xs" py="one">
-                <Badge
-                    variant="light"
-                    color="blue"
-                    radius={'xs'}
-                    fullWidth
-                    h="100%"
-                >
+                <Badge color="blue" radius={'xs'} fullWidth h="100%">
                     {centerLabel}
                 </Badge>
             </Center>

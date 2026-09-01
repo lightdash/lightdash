@@ -115,8 +115,6 @@ const FilterQuarterPicker: FC<Props> = ({
             opened={opened}
             onClose={close}
             position="bottom"
-            shadow="md"
-            withinPortal
             {...popoverProps}
         >
             <Popover.Target>

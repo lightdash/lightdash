@@ -126,16 +126,12 @@ const EmbedDashboardFilters: FC<Props> = ({ canAddFilters = false }) => {
                 )}
                 {showResetFiltersButton && (
                     // TODO: create a common component for this
-                    <Tooltip
-                        label={getUiString('filters.resetAll')}
-                        withinPortal
-                    >
+                    <Tooltip label={getUiString('filters.resetAll')}>
                         <Button
                             data-dashboard-filter-control
                             aria-label={getUiString('filters.resetAll')}
                             size="xs"
                             variant="default"
-                            radius="md"
                             color="gray"
                             onClick={() => {
                                 setHaveFiltersChanged(false);

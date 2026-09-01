@@ -37,22 +37,19 @@ const VirtualMissingFieldComponent: FC<VirtualMissingFieldProps> = ({
                 style={{ flexShrink: 0 }}
             />
 
-            <Text truncate size="sm" style={{ flex: 1, minWidth: 0 }}>
+            <Text truncate size="sm" flex={1} miw={0}>
                 {fieldId}
             </Text>
 
             <Tooltip
-                withinPortal
                 label={
                     <Text size="xs" style={{ wordBreak: 'break-all' }}>
                         Remove missing field "{fieldId}".
                     </Text>
                 }
                 maw={300}
-                multiline
             >
                 <ActionIcon
-                    color="gray"
                     variant="transparent"
                     style={{ flexShrink: 0 }}
                     onClick={handleClick}

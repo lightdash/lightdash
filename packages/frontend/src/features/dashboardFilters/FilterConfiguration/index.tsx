@@ -637,7 +637,6 @@ const FilterConfiguration: FC<Props> = ({
                     <Box>
                         <Button
                             size="xs"
-                            variant="filled"
                             disabled={
                                 isApplyDisabled || isLockedRequiredMissingValue
                             }

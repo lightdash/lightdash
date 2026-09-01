@@ -42,17 +42,12 @@ export const AgentSettingsSection: FC<Props> = ({
                 wrap="wrap"
             >
                 <Group align="flex-start" gap="xs" wrap="nowrap">
-                    <Paper p="xxs" withBorder radius="sm">
+                    <Paper p="xxs" radius="sm">
                         <MantineIcon icon={icon} size="md" />
                     </Paper>
                     <Stack gap={2}>
                         <Group gap="xs" align="center">
-                            <Title
-                                id={`${id}-title`}
-                                order={5}
-                                c="ldGray.9"
-                                fw={600}
-                            >
+                            <Title id={`${id}-title`} order={5}>
                                 {title}
                             </Title>
                             {badge}

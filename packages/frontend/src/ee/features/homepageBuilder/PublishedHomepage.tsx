@@ -28,7 +28,7 @@ const BlockRenderer: FC<{
     if (!definition) return null;
     if (personalPlaceholders && definition.personal) {
         return (
-            <Paper withBorder p="md" h="100%">
+            <Paper p="md" h="100%">
                 <Text size="sm" fw={600}>
                     {definition.label}
                 </Text>

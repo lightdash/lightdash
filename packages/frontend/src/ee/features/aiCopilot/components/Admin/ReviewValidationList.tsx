@@ -41,7 +41,7 @@ export const ReviewValidationList: FC<Props> = ({ previewProjectUuid }) => {
         return (
             <Group gap="xs" pt="xs">
                 <Loader size={12} color="ldGray.5" />
-                <Text fz="xs" c="ldGray.6">
+                <Text fz="xs" c="dimmed">
                     Loading validation results…
                 </Text>
             </Group>
@@ -55,7 +55,7 @@ export const ReviewValidationList: FC<Props> = ({ previewProjectUuid }) => {
 
     if (total === 0) {
         return (
-            <Text fz="xs" c="ldGray.6" pt="xs">
+            <Text fz="xs" c="dimmed" pt="xs">
                 No validation errors found
             </Text>
         );
@@ -70,15 +70,9 @@ export const ReviewValidationList: FC<Props> = ({ previewProjectUuid }) => {
             <List size="xs" spacing={4} c="ldGray.7">
                 {errors.slice(0, MAX_VISIBLE_ERRORS).map((error) => (
                     <List.Item key={error.validationUuid}>
-                        <Tooltip
-                            label={error.error}
-                            withArrow
-                            multiline
-                            maw={320}
-                            openDelay={300}
-                        >
+                        <Tooltip label={error.error} maw={320} openDelay={300}>
                             <Text fz="xs" c="ldGray.7" lineClamp={1}>
-                                <Text span inherit fw={600} c="ldGray.9">
+                                <Text span inherit fw={600}>
                                     {getValidationName(error)}
                                 </Text>
                                 {' - '}

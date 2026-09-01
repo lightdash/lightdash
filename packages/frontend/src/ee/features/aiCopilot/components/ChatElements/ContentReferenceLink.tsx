@@ -170,7 +170,7 @@ export const ContentReferenceLink = ({
             {showArrow && (
                 <MantineIcon
                     icon={IconArrowRight}
-                    color="ldGray.6"
+                    color="dimmed"
                     size={11}
                     stroke={1.5}
                 />

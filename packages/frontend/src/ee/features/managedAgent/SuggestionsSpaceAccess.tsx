@@ -95,7 +95,6 @@ export const SuggestionsSpaceAccess: FC<{
                         {space && (
                             <Badge
                                 size="xs"
-                                variant="light"
                                 color={
                                     space.inheritParentPermissions
                                         ? 'gray'

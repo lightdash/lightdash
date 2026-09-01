@@ -120,13 +120,7 @@ export const SuggestionList = forwardRef<
     );
 
     return (
-        <Paper
-            ref={containerRef}
-            withBorder
-            shadow="subtle"
-            p={0}
-            className={styles.container}
-        >
+        <Paper ref={containerRef} p={0} className={styles.container}>
             <div className={styles.list}>
                 {groupedItems
                     ? groupedItems.map((group) => (

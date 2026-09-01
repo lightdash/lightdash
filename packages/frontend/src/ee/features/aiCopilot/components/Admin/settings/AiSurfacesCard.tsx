@@ -32,7 +32,7 @@ const SurfaceRow: FC<{
         <MantineIcon icon={icon} size="lg" color="ldGray.7" />
         <Stack gap={2} flex={1}>
             <Title order={6}>{name}</Title>
-            <Text c="ldGray.6" fz="xs">
+            <Text c="dimmed" fz="xs">
                 {description}
             </Text>
         </Stack>
@@ -86,18 +86,13 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
                                         size={12}
                                     />
                                 }
-                                radius="sm"
-                                variant="light"
-                                color="gray"
                                 size="sm"
-                                tt="none"
-                                fw={500}
                             >
                                 Free trial
                             </Badge>
                         )}
                     </Group>
-                    <Text c="ldGray.6" fz="xs">
+                    <Text c="dimmed" fz="xs">
                         Where agents can be reached. Per-agent access still
                         applies on every surface.
                     </Text>

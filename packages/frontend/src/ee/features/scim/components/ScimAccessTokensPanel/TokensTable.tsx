@@ -56,7 +56,6 @@ const TokenItem: FC<{
                     </span>
                     {rotatedAt && (
                         <Tooltip
-                            withinPortal
                             position="top"
                             maw={350}
                             label={`Last rotated at ${formatTimestamp(
@@ -65,7 +64,7 @@ const TokenItem: FC<{
                         >
                             <MantineIcon
                                 icon={IconInfoCircle}
-                                color="ldGray.6"
+                                color="dimmed"
                                 size="md"
                             />
                         </Tooltip>
@@ -75,7 +74,6 @@ const TokenItem: FC<{
             <Table.Td>
                 {lastUsedAt ? (
                     <Tooltip
-                        withinPortal
                         position="top"
                         maw={350}
                         label={formatTimestamp(lastUsedAt)}
@@ -88,7 +86,7 @@ const TokenItem: FC<{
             </Table.Td>
             <Table.Td>
                 <Group gap="xs" wrap="nowrap">
-                    <Tooltip withinPortal position="top" maw={350} label={uuid}>
+                    <Tooltip position="top" maw={350} label={uuid}>
                         <Text fz="sm" className={classesModule.uuid}>
                             ...{uuid.slice(-8)}
                         </Text>
@@ -97,7 +95,6 @@ const TokenItem: FC<{
                         {({ copied, copy }) => (
                             <Tooltip
                                 label={copied ? 'Copied' : 'Copy'}
-                                withArrow
                                 position="right"
                             >
                                 <ActionIcon
@@ -145,7 +142,7 @@ export const TokensTable = () => {
 
     return (
         <>
-            <Paper withBorder style={{ overflow: 'hidden' }}>
+            <Paper style={{ overflow: 'hidden' }}>
                 <Table
                     className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                 >

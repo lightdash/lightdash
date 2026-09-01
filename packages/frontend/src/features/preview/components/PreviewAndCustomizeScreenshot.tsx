@@ -82,7 +82,7 @@ export const PreviewAndCustomizeScreenshot: FC<
                     </Radio.Group>
 
                     <Stack>
-                        <Card withBorder p={0}>
+                        <Card p={0}>
                             <Box pos="relative">
                                 {currentPreview ? (
                                     <Image

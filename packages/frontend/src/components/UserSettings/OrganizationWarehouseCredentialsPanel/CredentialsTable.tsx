@@ -42,8 +42,6 @@ const CredentialsItem: FC<
         >
             <Group>
                 <ActionIcon
-                    variant="subtle"
-                    color="gray"
                     onClick={() =>
                         setWarehouseCredentialsToBeEdited(credentials)
                     }
@@ -52,8 +50,6 @@ const CredentialsItem: FC<
                 </ActionIcon>
 
                 <ActionIcon
-                    variant="subtle"
-                    color="gray"
                     onClick={() =>
                         setWarehouseCredentialsToBeDeleted(credentials)
                     }
@@ -71,7 +67,7 @@ export const CredentialsTable: FC<CredentialsTableProps> = ({
     setWarehouseCredentialsToBeDeleted,
 }) => {
     return (
-        <Paper withBorder style={{ overflow: 'hidden' }}>
+        <Paper style={{ overflow: 'hidden' }}>
             <Table
                 className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                 ta="left"

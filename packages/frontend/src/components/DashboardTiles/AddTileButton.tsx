@@ -132,13 +132,7 @@ const AddTileButton: FC<Props> = ({
     return (
         <>
             {canAddTile ? (
-                <Menu
-                    position="bottom"
-                    withArrow
-                    withinPortal
-                    shadow="md"
-                    width={200}
-                >
+                <Menu position="bottom" withArrow width={200}>
                     <Menu.Target>
                         <Button
                             size="xs"
@@ -200,7 +194,7 @@ const AddTileButton: FC<Props> = ({
                                     >
                                         <MantineIcon
                                             icon={IconInfoCircle}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                         />
                                     </Tooltip>
                                 </Group>

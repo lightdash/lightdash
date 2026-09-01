@@ -25,8 +25,6 @@ const AgentVisualizationParameters: FC<Props> = ({ parameterValues }) => {
                 <Badge
                     key={name}
                     variant="default"
-                    radius="sm"
-                    tt="none"
                     fw={400}
                     className={classes.parameterBadge}
                 >

@@ -133,7 +133,6 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
             headerActions={
                 <Tooltip
                     label="Create a new model in your dbt project from this SQL query. This will create a new branch and start a pull request."
-                    multiline
                     maw={300}
                 >
                     <MantineIcon
@@ -160,7 +159,6 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                             Files to be created in{' '}
                             <Badge
                                 radius="md"
-                                variant="light"
                                 color="ldGray.9"
                                 fz="xs"
                                 leftSection={
@@ -186,7 +184,6 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                                     key={file}
                                     position="top-start"
                                     label={file}
-                                    multiline
                                     maw={300}
                                 >
                                     <List.Item fz="xs" ff="monospace">

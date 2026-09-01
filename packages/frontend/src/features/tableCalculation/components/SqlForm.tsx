@@ -202,7 +202,7 @@ export const SqlForm: FC<Props> = ({
     return (
         <Flex direction="column" h="100%">
             <ScrollArea
-                style={{ flex: 1 }}
+                flex={1}
                 className={conversionState ? classes.editorBlurred : undefined}
             >
                 <SqlEditor

@@ -193,7 +193,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
             <SettingsGridCard>
                 <div>
                     <Title order={5}>Table selection</Title>
-                    <Text size="sm" c="ldGray.6" my={'xs'}>
+                    <Text size="sm" c="dimmed" my={'xs'}>
                         You have selected <b>{modelsIncluded.length}</b> models{' '}
                         {modelsIncluded.length > 0 && (
                             <Anchor
@@ -214,7 +214,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                     title={name}
                                     truncate
                                     size="sm"
-                                    c="ldGray.6"
+                                    c="dimmed"
                                 >
                                     {name}
                                 </Text>

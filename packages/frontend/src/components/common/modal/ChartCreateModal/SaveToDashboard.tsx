@@ -195,7 +195,7 @@ export const SaveToDashboard: FC<Props> = ({
                 </Stack>
                 <Stack gap={4}>
                     <Text fw={500}>Saving to "{dashboardName}" dashboard</Text>
-                    <Text fw={400} c="ldGray.6" fz="xs">
+                    <Text fw={400} c="dimmed" fz="xs">
                         This chart will be saved exclusively to the dashboard "
                         {dashboardName}", keeping your space clutter-free.
                     </Text>

@@ -73,8 +73,6 @@ const Callout: FC<CalloutProps> = ({
     return (
         <Alert
             color={config.color}
-            variant="light"
-            radius="md"
             icon={!hideIcon && resolvedIcon}
             title={title}
             {...alertProps}

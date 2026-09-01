@@ -836,10 +836,9 @@ export const AgentChatInput = ({
         );
 
         return (
-            <Menu position="bottom-start" withinPortal shadow="md" width={220}>
+            <Menu position="bottom-start" width={220}>
                 <Menu.Target>
                     <ActionIcon
-                        variant="subtle"
                         color="ldGray.6"
                         size={30}
                         radius="xl"
@@ -852,11 +851,7 @@ export const AgentChatInput = ({
                                 : undefined
                         }
                     >
-                        <MantineIcon
-                            icon={IconPlus}
-                            size={16}
-                            color="ldGray.6"
-                        />
+                        <MantineIcon icon={IconPlus} size={16} color="dimmed" />
                     </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>

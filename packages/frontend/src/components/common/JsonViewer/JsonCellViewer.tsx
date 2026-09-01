@@ -97,14 +97,10 @@ export const JsonCellModal: FC<ModalProps> = ({ value, opened, onClose }) => {
             headerActions={
                 <CopyButton value={formattedJson} timeout={2000}>
                     {({ copied, copy }) => (
-                        <Tooltip
-                            label={copied ? 'Copied JSON' : 'Copy JSON'}
-                            withinPortal
-                        >
+                        <Tooltip label={copied ? 'Copied JSON' : 'Copy JSON'}>
                             <ActionIcon
                                 color={copied ? 'teal' : 'gray'}
                                 onClick={copy}
-                                variant="subtle"
                             >
                                 <MantineIcon
                                     icon={copied ? IconCheck : IconCopy}

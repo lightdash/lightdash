@@ -85,7 +85,6 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
             position="bottom-start"
             opened={opened}
             onClose={setLocalStorage}
-            shadow="sm"
         >
             <Popover.Target>
                 <Button
@@ -111,7 +110,6 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                             ✨ Lightdash Spotlight is here!
                         </Text>
                         <ActionIcon
-                            color="gray"
                             variant="transparent"
                             size="xs"
                             onClick={handleClose}
@@ -134,7 +132,6 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                     <Group gap="xs">
                         <Button
                             variant="outline"
-                            radius="md"
                             bg="ldDark.4"
                             c="ldGray.0"
                             hidden={true}
@@ -151,7 +148,6 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                             component="a"
                             href="https://docs.lightdash.com/guides/metrics-catalog/"
                             target="_blank"
-                            radius="md"
                             style={{ border: 'none', flexGrow: 1 }}
                         >
                             Learn more
@@ -481,7 +477,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                     <Text c="ldGray.8" fw={600} size="xl">
                         Metrics Catalog
                     </Text>
-                    <Text c="ldGray.6" size="sm" fw={400}>
+                    <Text c="dimmed" size="sm" fw={400}>
                         Browse all Metrics & KPIs across this project
                     </Text>
                 </Box>

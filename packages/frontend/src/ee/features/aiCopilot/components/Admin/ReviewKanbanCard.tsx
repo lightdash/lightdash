@@ -118,13 +118,11 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                         align="flex-start"
                         wrap="nowrap"
                     >
-                        <Stack gap={2} style={{ minWidth: 0 }}>
+                        <Stack gap={2} miw={0}>
                             {isExample && (
                                 <Badge
                                     size="xs"
-                                    radius="sm"
                                     variant="default"
-                                    color="gray"
                                     w="fit-content"
                                 >
                                     Example
@@ -261,8 +259,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                     <Button
                         data-tour="reviews-pr"
                         size="compact-xs"
-                        radius="md"
-                        variant="filled"
                         disabled
                         leftSection={<MantineIcon icon={IconBolt} size={12} />}
                         className={styles.startAction}
@@ -272,8 +268,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                 ) : (
                     <Button
                         size="compact-xs"
-                        radius="md"
-                        variant="filled"
                         leftSection={
                             <MantineIcon
                                 icon={isRetry ? IconRefresh : IconBolt}

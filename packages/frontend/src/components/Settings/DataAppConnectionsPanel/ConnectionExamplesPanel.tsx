@@ -160,11 +160,11 @@ const SampleRow: FC<SampleRowProps> = ({
             }}
         >
             <Group justify="space-between" align="flex-start" wrap="nowrap">
-                <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+                <Stack gap={4} flex={1} miw={0}>
                     <Text fw={500} fz="sm" truncate>
                         {label}
                     </Text>
-                    <Text fz="xs" c="ldGray.6" ff="monospace" truncate>
+                    <Text fz="xs" c="dimmed" ff="monospace" truncate>
                         {requestSummary}
                     </Text>
                     <Text fz="xs" c="ldGray.5" ff="monospace" lineClamp={2}>
@@ -322,13 +322,13 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                 <Text fw={500} fz="sm">
                     Test connection and add examples
                 </Text>
-                <Text c="ldGray.6" fz="xs">
+                <Text c="dimmed" fz="xs">
                     Send a real request through this connection and optionally
                     save it as a sample for app generation.
                 </Text>
                 {isSampleQueued && (
                     <Group gap="xs">
-                        <Text c="ldGray.6" fz="xs">
+                        <Text c="dimmed" fz="xs">
                             A tested sample is queued and will be added when you
                             save the connection.
                         </Text>
@@ -345,7 +345,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
             </Stack>
 
             {methodOptions.length === 0 && (
-                <Text c="ldGray.6" fz="sm">
+                <Text c="dimmed" fz="sm">
                     This image-only connection does not allow proxied requests,
                     so there is nothing to test here.
                 </Text>
@@ -383,7 +383,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                     <Text fz="sm" fw={500}>
                         Query params
                     </Text>
-                    <Text c="ldGray.6" fz="xs">
+                    <Text c="dimmed" fz="xs">
                         Sent as URL query params. Tip: paste a URL with a query
                         string into the path field to fill these in
                         automatically.
@@ -393,7 +393,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                             <TextInput
                                 size="xs"
                                 placeholder="key"
-                                style={{ flex: 1 }}
+                                flex={1}
                                 {...form.getInputProps(
                                     `queryParams.${index}.key`,
                                 )}
@@ -401,13 +401,12 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                             <TextInput
                                 size="xs"
                                 placeholder="value"
-                                style={{ flex: 1 }}
+                                flex={1}
                                 {...form.getInputProps(
                                     `queryParams.${index}.value`,
                                 )}
                             />
                             <ActionIcon
-                                variant="subtle"
                                 color="red"
                                 onClick={() =>
                                     form.removeListItem('queryParams', index)
@@ -485,7 +484,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                                         ? 'Save with connection'
                                         : 'Save as sample'}
                                 </Button>
-                                <Text fz="xs" c="ldGray.6">
+                                <Text fz="xs" c="dimmed">
                                     {hasUnsavedChanges
                                         ? 'The sample will be added after you save the connection.'
                                         : 'Saved samples ground Claude in the API response shape.'}
@@ -517,7 +516,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                         ))}
                     </Stack>
                 ) : (
-                    <Text fz="xs" c="ldGray.6">
+                    <Text fz="xs" c="dimmed">
                         {methodOptions.length === 0
                             ? 'No saved samples yet.'
                             : 'No saved samples yet — run a test above and save it.'}

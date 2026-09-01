@@ -136,7 +136,7 @@ const RefreshDbtButton: FC<{
             return null;
         }
         return (
-            <Popover withinPortal withArrow width={300}>
+            <Popover withArrow width={300}>
                 <Popover.Target>
                     <Box
                         style={{
@@ -233,8 +233,6 @@ const RefreshDbtButton: FC<{
 
     const refreshButton = (
         <Tooltip
-            withinPortal
-            multiline
             w={320}
             position="bottom"
             label={MODE_COPY[activeMode].tooltip}
@@ -260,10 +258,8 @@ const RefreshDbtButton: FC<{
                 <Button.Group>
                     {refreshButton}
                     <Menu
-                        withinPortal
                         position="bottom-end"
                         withArrow
-                        shadow="md"
                         offset={2}
                         arrowOffset={10}
                     >
@@ -297,7 +293,7 @@ const RefreshDbtButton: FC<{
                                             >
                                                 {MODE_COPY[option].label}
                                             </Text>
-                                            <Text fz="xs" c="ldGray.6">
+                                            <Text fz="xs" c="dimmed">
                                                 {MODE_COPY[option].description}
                                             </Text>
                                         </Stack>
@@ -312,10 +308,9 @@ const RefreshDbtButton: FC<{
             )}
             {data?.type === ProjectType.PREVIEW && (
                 <Tooltip
-                    withinPortal
                     label={`Developer previews are temporary Lightdash projects`}
                 >
-                    <Badge color="yellow" size="lg" radius="sm">
+                    <Badge color="yellow" size="lg">
                         Developer preview
                     </Badge>
                 </Tooltip>

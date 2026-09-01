@@ -38,14 +38,12 @@ const CompilationSourceFilter: FC<CompilationSourceFilterProps> = ({
         <Group gap={2} wrap="nowrap">
             <Popover width={250} position="bottom-start">
                 <Popover.Target>
-                    <Tooltip withinPortal label="Filter logs by source">
+                    <Tooltip label="Filter logs by source">
                         <Button
                             h={32}
                             c="foreground"
-                            fw={500}
                             fz="sm"
                             variant="default"
-                            radius="md"
                             px="sm"
                             className={
                                 hasSelectedSource
@@ -96,7 +94,6 @@ const CompilationSourceFilter: FC<CompilationSourceFilterProps> = ({
                         aria-label="Clear source filter"
                         size="xs"
                         color="ldGray.5"
-                        variant="subtle"
                         onClick={() => setSelectedSource(null)}
                     >
                         <MantineIcon icon={IconX} />

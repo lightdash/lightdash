@@ -357,7 +357,6 @@ const EmbedWriteActionsForm: FC<Props> = ({
                             width="target"
                             position="bottom-start"
                             middlewares={{ flip: true, shift: true }}
-                            withinPortal
                         >
                             <Menu.Target>
                                 <Button
@@ -426,10 +425,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
 
                     {selectedServiceAccount && (
                         <Group gap="xs">
-                            <Badge
-                                variant="light"
-                                leftSection={<MantineIcon icon={IconKey} />}
-                            >
+                            <Badge leftSection={<MantineIcon icon={IconKey} />}>
                                 {getServiceAccountRoleLabel(
                                     selectedServiceAccount,
                                 )}
@@ -449,7 +445,6 @@ const EmbedWriteActionsForm: FC<Props> = ({
                             width="target"
                             position="bottom-start"
                             middlewares={{ flip: true, shift: true }}
-                            withinPortal
                         >
                             <Menu.Target>
                                 <Button
@@ -515,7 +510,6 @@ const EmbedWriteActionsForm: FC<Props> = ({
                     {selectedSpace && (
                         <Group gap="xs">
                             <Badge
-                                variant="light"
                                 leftSection={<MantineIcon icon={IconFolder} />}
                             >
                                 Target space

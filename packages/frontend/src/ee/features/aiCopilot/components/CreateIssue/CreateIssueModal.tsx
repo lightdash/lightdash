@@ -72,11 +72,7 @@ const ReportedFromChip: FC<{ context: CreateIssueContext }> = ({ context }) => {
 
     if (context.chartUuid) {
         return (
-            <Badge
-                variant="light"
-                color="gray"
-                leftSection={<MantineIcon icon={IconChartBar} size={12} />}
-            >
+            <Badge leftSection={<MantineIcon icon={IconChartBar} size={12} />}>
                 Reported from {chart?.name ?? 'a chart'}
             </Badge>
         );
@@ -84,8 +80,6 @@ const ReportedFromChip: FC<{ context: CreateIssueContext }> = ({ context }) => {
     if (context.dashboardUuid) {
         return (
             <Badge
-                variant="light"
-                color="gray"
                 leftSection={
                     <MantineIcon icon={IconLayoutDashboard} size={12} />
                 }

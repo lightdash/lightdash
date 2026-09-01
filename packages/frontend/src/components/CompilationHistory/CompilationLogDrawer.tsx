@@ -47,12 +47,10 @@ export const CompilationLogDrawer: FC<CompilationLogDrawerProps> = ({
                             {({ copied, copy }) => (
                                 <Tooltip
                                     label={copied ? 'Copied' : 'Copy JSON'}
-                                    withinPortal
                                 >
                                     <ActionIcon
                                         color={copied ? 'teal' : 'gray'}
                                         onClick={copy}
-                                        variant="subtle"
                                     >
                                         <MantineIcon
                                             icon={copied ? IconCheck : IconCopy}

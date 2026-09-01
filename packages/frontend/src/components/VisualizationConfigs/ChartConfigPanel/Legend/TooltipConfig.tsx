@@ -263,9 +263,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
             <Group gap="xs" align="center">
                 <Config.Label>Custom</Config.Label>
                 <Tooltip
-                    withinPortal={true}
                     maw={350}
-                    multiline
                     label="Use this input to enhance chart tooltips with additional content. You can incorporate HTML code and include dynamic values using the format ${variable_name}.
                                 Click here to read more about this on our docs."
                 >
@@ -300,7 +298,6 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                 <Paper
                     className={styles.editorWrapper}
                     radius="md"
-                    withBorder
                     pos="relative"
                 >
                     {tooltipValue?.length === 0 ? (

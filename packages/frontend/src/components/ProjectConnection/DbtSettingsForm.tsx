@@ -141,7 +141,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         <div
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
         >
-            <Stack style={{ marginTop: '8px' }}>
+            <Stack mt="xs">
                 <Select
                     allowDeselect={false}
                     name="dbt.type"
@@ -166,7 +166,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 {type !== DbtProjectType.NONE && (
                     <>
                         <FormSection name="target">
-                            <Stack style={{ marginTop: '8px' }}>
+                            <Stack mt="xs">
                                 <TextInput
                                     name="dbt.target"
                                     {...form.getInputProps('dbt.target')}
@@ -207,7 +207,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                             name="Advanced"
                             isOpen={isAdvancedSettingsOpen}
                         >
-                            <Stack style={{ marginTop: '8px' }}>
+                            <Stack mt="xs">
                                 {type !== DbtProjectType.DBT_CLOUD_IDE && (
                                     <TextInput
                                         name="dbt.selector"

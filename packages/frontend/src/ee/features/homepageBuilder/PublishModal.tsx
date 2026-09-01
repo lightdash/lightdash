@@ -364,7 +364,7 @@ const PublishModalBody: FC<BodyProps> = ({
                                     <MantineIcon
                                         icon={IconUsersGroup}
                                         size={16}
-                                        color="ldGray.6"
+                                        color="dimmed"
                                     />
                                     <Text fz={13.5} fw={500} flex={1}>
                                         {group.name}
@@ -387,7 +387,7 @@ const PublishModalBody: FC<BodyProps> = ({
                                     fw={600}
                                     tt="uppercase"
                                     lts="0.05em"
-                                    c="ldGray.6"
+                                    c="dimmed"
                                     mb={4}
                                 >
                                     If someone’s in more than one group
@@ -424,7 +424,6 @@ const PublishModalBody: FC<BodyProps> = ({
                                                     </Text>
                                                 </Box>
                                                 <ActionIcon
-                                                    variant="subtle"
                                                     color="ldGray.6"
                                                     size="sm"
                                                     disabled={index === 0}
@@ -442,7 +441,6 @@ const PublishModalBody: FC<BodyProps> = ({
                                                     />
                                                 </ActionIcon>
                                                 <ActionIcon
-                                                    variant="subtle"
                                                     color="ldGray.6"
                                                     size="sm"
                                                     disabled={
@@ -496,7 +494,7 @@ const PublishModalBody: FC<BodyProps> = ({
                                     <MantineIcon
                                         icon={IconShieldCheck}
                                         size={16}
-                                        color="ldGray.6"
+                                        color="dimmed"
                                     />
                                     <Box flex={1}>
                                         <Text fz={13.5} fw={500}>

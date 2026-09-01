@@ -25,13 +25,9 @@ export const GroupsTopToolbar: FC<GroupsTopToolbarProps> = memo(
                 wrap="nowrap"
                 {...props}
             >
-                <Tooltip
-                    withinPortal
-                    label="Search by name, members or member email"
-                >
+                <Tooltip label="Search by name, members or member email">
                     <TextInput
                         size="xs"
-                        radius="md"
                         type="search"
                         variant="default"
                         placeholder="Search groups by name, members or member email"
@@ -39,7 +35,7 @@ export const GroupsTopToolbar: FC<GroupsTopToolbarProps> = memo(
                         leftSection={
                             <MantineIcon
                                 size="md"
-                                color="ldGray.6"
+                                color="dimmed"
                                 icon={IconSearch}
                             />
                         }

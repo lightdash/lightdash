@@ -259,7 +259,6 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
                         <TextInput
                             leftSection={<MantineIcon icon={IconSearch} />}
                             rightSectionPointerEvents="all"
-                            radius="md"
                             rightSection={
                                 search ? (
                                     <ActionIcon
@@ -267,8 +266,6 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
                                         onMouseDown={(event) =>
                                             event.preventDefault()
                                         }
-                                        variant="subtle"
-                                        color="gray"
                                         onClick={() => setSearch('')}
                                     >
                                         <MantineIcon icon={IconX} />

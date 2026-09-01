@@ -84,7 +84,7 @@ const PostgresForm: FC<{
 
     return (
         <>
-            <Stack style={{ marginTop: '8px' }}>
+            <Stack mt="xs">
                 <TextInput
                     label="Host"
                     description="This is the host where the database is running."
@@ -129,7 +129,7 @@ const PostgresForm: FC<{
                     disabled={disabled}
                 />
                 <FormSection isOpen={isOpen} name="advanced">
-                    <Stack style={{ marginTop: '8px' }}>
+                    <Stack mt="xs">
                         <BooleanSwitch
                             name="warehouse.requireUserCredentials"
                             {...form.getInputProps(
@@ -327,7 +327,7 @@ const PostgresForm: FC<{
                             isOpen={showSshTunnelConfiguration}
                             name="ssh-config"
                         >
-                            <Stack style={{ marginBottom: '8px' }}>
+                            <Stack mb="xs">
                                 <TextInput
                                     label="SSH Remote Host"
                                     disabled={disabled}
@@ -380,7 +380,6 @@ const PostgresForm: FC<{
                                                                     ? 'Copied'
                                                                     : 'Copy'
                                                             }
-                                                            withArrow
                                                             position="right"
                                                         >
                                                             <ActionIcon
@@ -390,7 +389,6 @@ const PostgresForm: FC<{
                                                                 ) =>
                                                                     event.preventDefault()
                                                                 }
-                                                                variant="subtle"
                                                                 color={
                                                                     copied
                                                                         ? 'teal'

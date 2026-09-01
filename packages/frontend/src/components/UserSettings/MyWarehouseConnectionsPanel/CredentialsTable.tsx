@@ -47,7 +47,7 @@ const CredentialsItem: FC<
                 <Group gap="xs" wrap="nowrap">
                     <Text size="sm">{credentials.project.name}</Text>
                     {credentials.project.type === ProjectType.PREVIEW && (
-                        <Badge size="xs" variant="light" color="orange">
+                        <Badge size="xs" color="orange">
                             Preview
                         </Badge>
                     )}
@@ -59,7 +59,7 @@ const CredentialsItem: FC<
             )}
         </Table.Td>
         <Table.Td w="1%">
-            <Menu withinPortal position="bottom-end">
+            <Menu position="bottom-end">
                 <Menu.Target>
                     <ActionIcon
                         variant="transparent"
@@ -99,7 +99,7 @@ export const CredentialsTable: FC<CredentialsTableProps> = ({
     setWarehouseCredentialsToBeDeleted,
 }) => {
     return (
-        <Paper withBorder style={{ overflow: 'hidden' }}>
+        <Paper style={{ overflow: 'hidden' }}>
             <Table
                 className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
             >

@@ -40,7 +40,7 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
     }, [isLoading, start, clear]);
 
     return (
-        <Box style={{ position: 'relative', flex: 1 }}>
+        <Box pos="relative" flex={1}>
             <LoadingOverlay visible={isLoading} />
 
             {error && (
@@ -50,9 +50,7 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
             )}
 
             {isLoading && showLoadingMessage && (
-                <Text c="ldGray.9" ta="center">
-                    Hang on, still loading...
-                </Text>
+                <Text ta="center">Hang on, still loading...</Text>
             )}
 
             {!isLoading && !error && (

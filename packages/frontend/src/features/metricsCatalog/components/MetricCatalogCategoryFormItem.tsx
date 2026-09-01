@@ -77,7 +77,6 @@ const EditPopover: FC<EditPopoverProps> = ({
 
     return (
         <Popover
-            withinPortal
             position="top"
             opened={opened}
             closeOnClickOutside
@@ -86,12 +85,9 @@ const EditPopover: FC<EditPopoverProps> = ({
             onDismiss={handleClose}
             onClose={handleClose}
             trapFocus={opened}
-            shadow="sm"
         >
             <Popover.Target>
                 <ActionIcon
-                    variant="subtle"
-                    color="gray"
                     className={styles.editButton}
                     style={{
                         visibility: hovered || opened ? 'visible' : 'hidden',
@@ -105,7 +101,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                     }}
                     tabIndex={-1}
                 >
-                    <MantineIcon icon={IconDots} color="ldGray.6" size={14} />
+                    <MantineIcon icon={IconDots} color="dimmed" size={14} />
                 </ActionIcon>
             </Popover.Target>
             <Popover.Dropdown
@@ -116,13 +112,12 @@ const EditPopover: FC<EditPopoverProps> = ({
                 }}
             >
                 <Stack gap="xs">
-                    <Text size="xs" fw={500} c="ldGray.6">
+                    <Text size="xs" fw={500} c="dimmed">
                         Edit category
                     </Text>
                     <TextInput
                         placeholder="Category name"
                         size="xs"
-                        radius="md"
                         w="100%"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
@@ -237,7 +232,6 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                 <Tooltip
                     maw={200}
                     position="top"
-                    withinPortal
                     openDelay={200}
                     fz="xs"
                     label="This category was created in the .yml config and its properties cannot be edited"
@@ -248,11 +242,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                             visibility: hovered ? 'visible' : 'hidden',
                         }}
                     >
-                        <MantineIcon
-                            icon={IconCode}
-                            color="ldGray.6"
-                            size={14}
-                        />
+                        <MantineIcon icon={IconCode} color="dimmed" size={14} />
                     </Box>
                 </Tooltip>
             )}

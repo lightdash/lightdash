@@ -26,7 +26,7 @@ export const Header: FC<{
     }
 
     return (
-        <Paper shadow="none" radius={0} px="md" py="xs" withBorder={false}>
+        <Paper radius={0} px="md" py="xs" withBorder={false}>
             <Stack gap="xs">
                 <Skeleton height={20} width={'15%'} radius="sm" />
                 <Skeleton height={10} width={'20%'} radius="sm" />

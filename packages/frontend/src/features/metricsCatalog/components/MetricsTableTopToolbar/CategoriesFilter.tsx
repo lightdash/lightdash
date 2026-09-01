@@ -79,10 +79,9 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
 
     return (
         <Group gap={2}>
-            <Popover width={300} position="bottom-start" shadow="sm">
+            <Popover width={300} position="bottom-start">
                 <Popover.Target>
                     <Tooltip
-                        withinPortal
                         label="Filter metrics by category"
                         openDelay={200}
                         maw={250}
@@ -91,10 +90,8 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                         <Button
                             h={32}
                             c="ldGray.7"
-                            fw={500}
                             fz="sm"
                             variant="default"
-                            radius="md"
                             py="xs"
                             px="sm"
                             leftSection={
@@ -125,7 +122,7 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                 <Popover.Dropdown p="sm">
                     <Stack gap="sm">
                         <Group justify="space-between">
-                            <Text fz="xs" c="ldGray.6" fw={600} span>
+                            <Text fz="xs" c="dimmed" fw={600} span>
                                 Filter by categories:
                             </Text>
 
@@ -182,7 +179,7 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                         )}
 
                         {categories?.length === 0 && (
-                            <Text fz="xs" fw={500} c="ldGray.6">
+                            <Text fz="xs" fw={500} c="dimmed">
                                 No categories added yet. Click on the category
                                 cells to assign categories to your metrics.
                             </Text>
@@ -277,7 +274,6 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                     <ActionIcon
                         size="xs"
                         color="ldGray.5"
-                        variant="subtle"
                         onClick={() => {
                             setSelectedCategories([]);
                         }}

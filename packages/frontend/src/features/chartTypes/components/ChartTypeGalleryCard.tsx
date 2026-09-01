@@ -54,11 +54,9 @@ const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
             </Stack>
             <FloatingActionsPill className={classes.menuHost}>
                 {canEdit && (
-                    <Tooltip label="Edit" withArrow withinPortal>
+                    <Tooltip label="Edit">
                         <ActionIcon
                             size="sm"
-                            variant="subtle"
-                            color="gray"
                             component={Link}
                             to={chartTypeBuilderPath(
                                 dataAppViz.projectUuid,
@@ -73,8 +71,6 @@ const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
                 )}
                 <Menu
                     withArrow
-                    withinPortal
-                    shadow="md"
                     position="bottom-end"
                     offset={4}
                     arrowOffset={10}
@@ -82,8 +78,6 @@ const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
                     <Menu.Target>
                         <ActionIcon
                             size="sm"
-                            variant="subtle"
-                            color="gray"
                             aria-label={`Actions for ${displayName}`}
                             onClick={(e) => e.stopPropagation()}
                         >

@@ -471,7 +471,7 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                 }}
             >
                 <Group gap="two" wrap="nowrap">
-                    <Menu withinPortal withArrow shadow="md">
+                    <Menu withArrow>
                         <Menu.Target>
                             <ActionIcon
                                 size="xs"

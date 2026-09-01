@@ -226,7 +226,6 @@ const EmbedPreviewAiAgentForm: FC<{
                         onChange={(value) =>
                             form.setFieldValue('expiresIn', value)
                         }
-                        radius="md"
                         data={[
                             { label: '1 hour', value: '1 hour' },
                             { label: '1 day', value: '1 day' },
@@ -238,7 +237,7 @@ const EmbedPreviewAiAgentForm: FC<{
                     />
                 </Stack>
 
-                <Paper p="md" withBorder>
+                <Paper p="md">
                     <Stack gap="md">
                         <Title order={6}>Identification & Security</Title>
                         <Stack gap="xs">
@@ -327,7 +326,7 @@ const EmbedPreviewAiAgentForm: FC<{
 
                 {writeActionsPanel}
 
-                <Paper p="md" withBorder>
+                <Paper p="md">
                     <Switch
                         label="Explore from here"
                         description="Allow embedded users to open generated charts in Explore."

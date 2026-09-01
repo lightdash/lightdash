@@ -296,7 +296,6 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                         <Group gap={2} className={styles.headRight}>
                             <ActionIcon
                                 size="sm"
-                                variant="subtle"
                                 color="ldGray.6"
                                 onClick={() => dispatch(clearPreview())}
                                 aria-label="Close"
@@ -435,7 +434,6 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             />
                             <ActionIcon
                                 size="sm"
-                                variant="subtle"
                                 color="ldGray.6"
                                 onClick={() => dispatch(clearPreview())}
                                 aria-label="Close"

@@ -62,7 +62,6 @@ const ExploreMenu: FC<Props> = memo((props) => {
             >
                 <Menu
                     withArrow
-                    shadow="lg"
                     position="bottom-start"
                     arrowOffset={16}
                     offset={-2}
@@ -78,7 +77,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
                             fz="sm"
                             leftSection={
                                 <MantineIcon
-                                    color="ldGray.6"
+                                    color="dimmed"
                                     icon={IconSquareRoundedPlus}
                                 />
                             }

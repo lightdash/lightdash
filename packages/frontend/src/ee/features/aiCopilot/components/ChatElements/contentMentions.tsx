@@ -550,7 +550,7 @@ const renderFileMentionItem = (
             data-selected={isSelected}
         >
             <Group wrap="nowrap" gap="xs" w="100%">
-                <MantineIcon icon={IconFile} size="sm" color="ldGray.6" />
+                <MantineIcon icon={IconFile} size="sm" color="dimmed" />
                 <div className={styles.contentMentionSuggestionText}>
                     <TruncatedText maxWidth="100%" fz="xs" fw={500} inline>
                         {name}
@@ -588,7 +588,7 @@ const renderRepositoryMentionItem = (
                             : IconBrandGithub
                     }
                     size="sm"
-                    color="ldGray.6"
+                    color="dimmed"
                 />
                 <div className={styles.contentMentionSuggestionText}>
                     <TruncatedText maxWidth="100%" fz="xs" fw={500} inline>
@@ -604,8 +604,6 @@ const renderRepositoryMentionItem = (
                     <Badge
                         ml="auto"
                         size="xs"
-                        variant="light"
-                        color="gray"
                         title="The coding agent can't open a pull request on this repository"
                     >
                         Read-only

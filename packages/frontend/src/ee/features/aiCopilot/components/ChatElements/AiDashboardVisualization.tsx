@@ -75,8 +75,6 @@ export const AiDashboardVisualization: FC<Props> = memo(
                             {showCloseButton && (
                                 <ActionIcon
                                     size="sm"
-                                    variant="subtle"
-                                    color="gray"
                                     onClick={() => dispatch(clearPreview())}
                                 >
                                     <MantineIcon icon={IconX} color="gray" />
@@ -95,7 +93,7 @@ export const AiDashboardVisualization: FC<Props> = memo(
                         flexDirection: 'column',
                     }}
                 >
-                    <Stack gap="md" style={{ minHeight: 'min-content' }}>
+                    <Stack gap="md" mih="min-content">
                         {dashboardConfig.visualizations.map(
                             (visualization, index) => (
                                 <Card

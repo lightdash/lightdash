@@ -205,7 +205,6 @@ const UserAttributeModal: FC<{
 
                             <Tooltip
                                 position="right"
-                                multiline
                                 maw={200}
                                 label="This will be the default value for the attribute if no other value is assigned to the user or group."
                             >

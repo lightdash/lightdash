@@ -60,13 +60,7 @@ export const ConfirmDeleteButton: FC<Props> = ({
     };
 
     return (
-        <Tooltip
-            label={tooltip}
-            opened={armed}
-            withArrow
-            position="top"
-            withinPortal
-        >
+        <Tooltip label={tooltip} opened={armed} position="top">
             <ActionIcon
                 {...actionIconProps}
                 aria-label={ariaLabel}

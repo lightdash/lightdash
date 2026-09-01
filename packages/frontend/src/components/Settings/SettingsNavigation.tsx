@@ -72,9 +72,7 @@ const SettingsNavigation: FC<SettingsNavigationProps> = ({
             {sections.map((section) => (
                 <Box key={section.id}>
                     <Box mb="xs">
-                        <Title order={6} fw={600}>
-                            {section.title}
-                        </Title>
+                        <Title order={6}>{section.title}</Title>
                         {section.subtitle !== null && (
                             <Text fz="sm" fw={600} mt={2}>
                                 {section.subtitle}

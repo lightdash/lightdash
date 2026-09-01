@@ -46,11 +46,7 @@ const VisualizationCard = ({
     children: React.ReactNode;
 }) => {
     return (
-        <Card
-            className={classes.visualizationCard}
-            style={{ gridArea: grid }}
-            withBorder
-        >
+        <Card className={classes.visualizationCard} style={{ gridArea: grid }}>
             <Text style={{ float: 'left' }} fw={600} mb={10}>
                 {description}
             </Text>

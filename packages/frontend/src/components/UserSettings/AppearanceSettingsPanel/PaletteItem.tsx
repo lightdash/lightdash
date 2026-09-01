@@ -67,7 +67,6 @@ export const PaletteItem: FC<PaletteItemProps> = ({
         <>
             <Paper
                 p="sm"
-                withBorder
                 radius="sm"
                 pos="relative"
                 onMouseEnter={() => setIsHovered(true)}
@@ -130,10 +129,9 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                             <Tooltip
                                 label="This palette is read only. It has been configured as the override color palette for your organization. While this is set, you cannot update/edit, or delete this palette."
                                 position="bottom-end"
-                                multiline
                                 maw={200}
                             >
-                                <Badge color="gray" variant="light">
+                                <Badge>
                                     <Group gap={2}>
                                         Override
                                         <MantineIcon
@@ -164,21 +162,11 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                             </Button>
                         )}
 
-                        {isActive && (
-                            <Badge color="green" variant="light">
-                                Active
-                            </Badge>
-                        )}
+                        {isActive && <Badge color="green">Active</Badge>}
 
-                        <Menu
-                            shadow="subtle"
-                            position="bottom-end"
-                            disabled={readOnly}
-                        >
+                        <Menu position="bottom-end" disabled={readOnly}>
                             <Menu.Target>
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
                                     size="xs"
                                     aria-label="Palette actions"
                                 >

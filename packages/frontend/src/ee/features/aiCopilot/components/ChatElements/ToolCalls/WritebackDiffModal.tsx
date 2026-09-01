@@ -105,7 +105,7 @@ const SingleFileDiff: FC<{ patch: string }> = ({ patch }) => {
             poolOptions={POOL_OPTIONS}
             highlighterOptions={HIGHLIGHTER_OPTIONS}
         >
-            <Paper withBorder radius="md" w="100%" h="100%" style={scrollStyle}>
+            <Paper radius="md" w="100%" h="100%" style={scrollStyle}>
                 <PatchDiff
                     // Remount per file so the highlighter resets cleanly.
                     key={patch.slice(0, 80)}

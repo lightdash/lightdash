@@ -198,7 +198,7 @@ const FilterFacet = ({
                         )}
                         <Box maw={200} style={{ overflow: 'hidden' }}>
                             {typeof option.label === 'string' ? (
-                                <Text fz="xs" c="ldGray.9" truncate>
+                                <Text fz="xs" truncate>
                                     {option.label}
                                 </Text>
                             ) : (
@@ -207,7 +207,7 @@ const FilterFacet = ({
                         </Box>
                     </Group>
                     {option.count !== undefined && (
-                        <Text fz="xs" c="ldGray.6" fw={500}>
+                        <Text fz="xs" c="dimmed" fw={500}>
                             {option.count}
                         </Text>
                     )}
@@ -220,7 +220,6 @@ const FilterFacet = ({
         <Button
             variant="default"
             size="xs"
-            radius="md"
             loading={loading}
             className={
                 hasSelection
@@ -253,7 +252,7 @@ const FilterFacet = ({
                     {label}
                 </Text>
                 {hasSelection && (
-                    <Badge size="xs" radius="xl" variant="light" color="indigo">
+                    <Badge size="xs" radius="xl" color="indigo">
                         {selected.length}
                     </Badge>
                 )}
@@ -262,12 +261,10 @@ const FilterFacet = ({
     );
 
     return (
-        <Popover position="bottom-start" withArrow shadow="md" radius="md">
+        <Popover position="bottom-start" withArrow>
             <Popover.Target>
                 {tooltipLabel ? (
-                    <Tooltip withinPortal label={tooltipLabel}>
-                        {trigger}
-                    </Tooltip>
+                    <Tooltip label={tooltipLabel}>{trigger}</Tooltip>
                 ) : (
                     trigger
                 )}
@@ -314,14 +311,14 @@ const FilterFacet = ({
                                 readOnly
                                 tabIndex={-1}
                             />
-                            <Text fz="xs" fw={500} c="ldGray.9">
+                            <Text fz="xs" fw={500}>
                                 {allSelected ? 'Deselect all' : 'Select all'}
                             </Text>
                         </Group>
                     </UnstyledButton>
                 )}
                 {!hasAnyOption ? (
-                    <Text fz="xs" c="ldGray.6" p="xs">
+                    <Text fz="xs" c="dimmed" p="xs">
                         {emptyLabel}
                     </Text>
                 ) : (

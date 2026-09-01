@@ -92,7 +92,6 @@ export const ValidationSummarySection: FC<Props> = ({
                         return (
                             <Paper
                                 key={group.groupKey}
-                                withBorder
                                 px="sm"
                                 py={6}
                                 className={
@@ -107,7 +106,6 @@ export const ValidationSummarySection: FC<Props> = ({
                                     >
                                         <Group gap="xs" wrap="nowrap">
                                             <Badge
-                                                variant="light"
                                                 color={
                                                     group.errorType ===
                                                     ValidationErrorType.Model
@@ -126,19 +124,15 @@ export const ValidationSummarySection: FC<Props> = ({
                                                 >
                                                     {getGroupTitle(group)}
                                                 </Text>
-                                                <Text fz="xs" c="ldGray.6">
+                                                <Text fz="xs" c="dimmed">
                                                     {getAffectedLabel(group)}
                                                 </Text>
                                             </Stack>
                                         </Group>
                                     </UnstyledButton>
                                     {isDeletableModelGroup && (
-                                        <Tooltip
-                                            withinPortal
-                                            label="Delete all content referencing this model"
-                                        >
+                                        <Tooltip label="Delete all content referencing this model">
                                             <ActionIcon
-                                                variant="subtle"
                                                 color="red"
                                                 size="sm"
                                                 onClick={() =>

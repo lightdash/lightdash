@@ -263,13 +263,11 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
             )}
             <Group gap="xs" justify="flex-end">
                 <Tooltip
-                    withinPortal
                     color={isCopied ? 'teal' : undefined}
                     label={isCopied ? 'Copied!' : 'Copy to clipboard'}
                 >
                     <ActionIcon
                         size="md"
-                        radius="md"
                         onClick={onCopyToClipboard}
                         variant="default"
                     >

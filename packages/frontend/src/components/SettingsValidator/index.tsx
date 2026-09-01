@@ -218,7 +218,7 @@ export const SettingsValidator: FC<{
                     />
                 )}
                 {isLoading ? (
-                    <Paper withBorder shadow="sm">
+                    <Paper shadow="sm">
                         <Group justify="center" gap="xs" p="md">
                             <Loader color="gray" />
                         </Group>
@@ -267,7 +267,7 @@ export const SettingsValidator: FC<{
                         onBulkDelete={setSelectionDeleteItems}
                     />
                 ) : (
-                    <Paper withBorder shadow="sm">
+                    <Paper shadow="sm">
                         <Group justify="center" gap="xs" p="md">
                             <MantineIcon icon={IconCheck} color="green" />
                             <Text fw={500} c="ldGray.7">

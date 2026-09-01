@@ -225,8 +225,6 @@ const LoginForm: FC<{
                             <ActionIcon
                                 aria-label="Clear email address"
                                 onMouseDown={(event) => event.preventDefault()}
-                                variant="subtle"
-                                color="gray"
                                 onClick={onClearEmail}
                             >
                                 <MantineIcon icon={IconX} />

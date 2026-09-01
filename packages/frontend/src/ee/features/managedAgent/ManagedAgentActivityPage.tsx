@@ -284,9 +284,7 @@ const SetupSection: FC<{
                         <Box className={classes.setupOrb}>
                             <IconTarget size={16} />
                         </Box>
-                        <Title order={4} fw={600}>
-                            Autopilot
-                        </Title>
+                        <Title order={4}>Autopilot</Title>
                         <Box className={classes.activeBadge}>
                             <Box
                                 className={
@@ -322,7 +320,6 @@ const SetupSection: FC<{
                             variant="default"
                             color="dark"
                             size="md"
-                            radius="md"
                             onClick={onRunNow}
                             disabled={!enabled || isRunNowLoading || isRunning}
                             loading={isRunNowLoading || isRunning}
@@ -770,7 +767,6 @@ const ContentContextDetails: FC<{
                             label={formatAbsoluteTimestamp(
                                 new Date(context.updatedAt).toISOString(),
                             )}
-                            withinPortal
                         >
                             <span>
                                 {formatDistanceToNowStrict(
@@ -849,10 +845,7 @@ const ProjectContextDetails: FC<{
                 )}
                 {createdAt && (
                     <InfoRow icon={IconClock} label="Created">
-                        <Tooltip
-                            label={formatAbsoluteTimestamp(createdAt)}
-                            withinPortal
-                        >
+                        <Tooltip label={formatAbsoluteTimestamp(createdAt)}>
                             <span>{formatTimestamp(createdAt)}</span>
                         </Tooltip>
                     </InfoRow>
@@ -1035,7 +1028,7 @@ const DetailSidebar: FC<{
                         tooltip={config.tooltip}
                     />
                     <Group gap={2}>
-                        <Menu position="bottom-end" withinPortal>
+                        <Menu position="bottom-end">
                             <Menu.Target>
                                 <UnstyledButton className={classes.closeBtn}>
                                     <IconDots size={14} />
@@ -1079,10 +1072,7 @@ const DetailSidebar: FC<{
                                 target="_blank"
                                 rel="noreferrer"
                                 aria-label={`Open ${action.targetType}`}
-                                variant="subtle"
-                                color="gray"
                                 size="sm"
-                                radius="md"
                                 className={classes.titleAction}
                             >
                                 <MantineIcon
@@ -1172,8 +1162,6 @@ const DetailSidebar: FC<{
                     ) : (
                         <Tooltip
                             label="This fix was recorded before revert support. Restore manually via chart history."
-                            withinPortal
-                            multiline
                             w={240}
                         >
                             <Button
@@ -1994,9 +1982,8 @@ const RunHeaderRow: FC<{
                     ) : (
                         <Tooltip
                             label={TRIGGERED_BY_ICON[run.triggeredBy].tooltip}
-                            withinPortal
                         >
-                            <Box style={{ display: 'inline-flex' }}>
+                            <Box display="inline-flex">
                                 <MantineIcon
                                     icon={
                                         TRIGGERED_BY_ICON[run.triggeredBy].icon
@@ -2019,7 +2006,6 @@ const RunHeaderRow: FC<{
                                 label={formatAbsoluteTimestamp(
                                     run.startedAt.toString(),
                                 )}
-                                withinPortal
                             >
                                 <Text fz="xs" c="dimmed">
                                     {formatTimestamp(run.startedAt.toString())}
@@ -2053,20 +2039,13 @@ const RunHeaderRow: FC<{
                                         ];
                                     if (!cfg || !count) return null;
                                     return (
-                                        <Tooltip
-                                            key={type}
-                                            label={cfg.label}
-                                            withinPortal
-                                        >
+                                        <Tooltip key={type} label={cfg.label}>
                                             <span
                                                 className={classes.runCountPill}
                                             >
                                                 <Box
                                                     className={classes.dot}
-                                                    style={{
-                                                        backgroundColor:
-                                                            cfg.dotColor,
-                                                    }}
+                                                    bg={cfg.dotColor}
                                                 />
                                                 {count}
                                             </span>
@@ -2188,7 +2167,6 @@ const QuietRunsGroup: FC<{
                     label={`${runs.length} quiet ${
                         runs.length === 1 ? 'run' : 'runs'
                     }`}
-                    withinPortal
                 >
                     <Box style={{ display: 'flex', justifyContent: 'center' }}>
                         <MantineIcon
@@ -2348,10 +2326,10 @@ const FilterChipMultiSelect: FC<{
     );
 
     return (
-        <Menu position="bottom-start" shadow="md" closeOnItemClick={false}>
+        <Menu position="bottom-start" closeOnItemClick={false}>
             <Menu.Target>
                 {selectedLabels.length > 1 ? (
-                    <Tooltip label={selectedLabels.join(', ')} withinPortal>
+                    <Tooltip label={selectedLabels.join(', ')}>
                         {chipButton}
                     </Tooltip>
                 ) : (
@@ -2414,7 +2392,6 @@ const FilterChipDateRange: FC<{
     return (
         <Menu
             position="bottom-start"
-            shadow="md"
             opened={isOpen}
             onOpen={menuHandlers.open}
             onClose={menuHandlers.close}
@@ -2462,7 +2439,6 @@ const ActionFilterBar: FC<{
             <TextInput
                 className={classes.filterSearch}
                 size="xs"
-                radius="md"
                 placeholder="Search actions…"
                 leftSection={<MantineIcon icon={IconSearch} size={14} />}
                 value={filters.search}
@@ -2843,11 +2819,7 @@ const ManagedAgentActivityPage: FC = () => {
     }
 
     return (
-        <Stack
-            h={`calc(100vh - ${NAVBAR_HEIGHT}px)`}
-            gap={0}
-            style={{ flex: 1 }}
-        >
+        <Stack h={`calc(100vh - ${NAVBAR_HEIGHT}px)`} gap={0} flex={1}>
             <PanelGroup direction="horizontal">
                 <Panel
                     id="activity-table"

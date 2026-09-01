@@ -121,7 +121,6 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                     leftSection={<TableFilled />}
                     fz="sm"
                     c="ldDark.7"
-                    fw={500}
                     className={styles.tableButton}
                     styles={(theme) => ({
                         section: {

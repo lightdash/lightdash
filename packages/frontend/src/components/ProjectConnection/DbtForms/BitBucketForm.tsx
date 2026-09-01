@@ -14,7 +14,6 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     return (
         <>
             <Alert
-                variant="light"
                 color="yellow"
                 title="Bitbucket app passwords deprecation"
                 mb="md"

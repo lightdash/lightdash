@@ -81,7 +81,7 @@ export const CanvasTimeFramePicker: FC<Props> = ({
                     leftSection={
                         <MantineIcon
                             icon={IconCalendar}
-                            color="ldGray.6"
+                            color="dimmed"
                             size={14}
                         />
                     }
@@ -105,7 +105,7 @@ export const CanvasTimeFramePicker: FC<Props> = ({
                     {dateRanges.currentRange}
                 </Text>
             </Group>
-            <Text c="ldGray.6" fz="sm" fw={500}>
+            <Text c="dimmed" fz="sm" fw={500}>
                 compared to
             </Text>
             <Text

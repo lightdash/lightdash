@@ -30,7 +30,7 @@ export const StreamRecoveryAlert = () => {
                     size={14}
                     style={{ flexShrink: 0 }}
                 />
-                <Group gap={6} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                <Group gap={6} wrap="nowrap" flex={1} miw={0}>
                     <Text
                         size="xs"
                         fw={500}

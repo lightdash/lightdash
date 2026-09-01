@@ -136,11 +136,9 @@ export const MetricExploreComparison: FC<Props> = ({
                             key={comparison.type}
                             label={comparison.tooltipLabel}
                             position="right"
-                            withinPortal
                         >
                             <Paper
                                 p="sm"
-                                withBorder
                                 radius="md"
                                 className={comparisonStyles.comparisonPaper}
                                 data-selected={
@@ -160,11 +158,7 @@ export const MetricExploreComparison: FC<Props> = ({
                                         justify="space-between"
                                     >
                                         <Group wrap="nowrap">
-                                            <Paper
-                                                p="xs"
-                                                radius="md"
-                                                withBorder
-                                            >
+                                            <Paper p="xs" radius="md">
                                                 <MantineIcon
                                                     icon={comparison.icon}
                                                 />
@@ -193,7 +187,6 @@ export const MetricExploreComparison: FC<Props> = ({
                                                 allowDeselect={false}
                                                 placeholder="Select a metric"
                                                 searchable
-                                                radius="md"
                                                 size="xs"
                                                 data={groupComboboxItems(
                                                     metricsWithTimeDimensionsQuery.data?.map(

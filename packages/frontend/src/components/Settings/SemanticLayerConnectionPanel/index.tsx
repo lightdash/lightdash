@@ -75,11 +75,7 @@ const ConnectionChip: FC<{ label: string; value: string; span?: boolean }> = ({
         </Box>
         <CopyButton value={value} timeout={2000}>
             {({ copied, copy }) => (
-                <Tooltip
-                    label={copied ? 'Copied' : 'Copy'}
-                    withArrow
-                    position="left"
-                >
+                <Tooltip label={copied ? 'Copied' : 'Copy'} position="left">
                     <ActionIcon variant="default" size="sm" onClick={copy}>
                         <MantineIcon
                             icon={copied ? IconCheck : IconCopy}
@@ -112,7 +108,7 @@ const Step: FC<{
                 <Stack gap={2}>
                     <Title order={6}>{title}</Title>
                     {description && (
-                        <Text c="ldGray.6" fz="sm">
+                        <Text c="dimmed" fz="sm">
                             {description}
                         </Text>
                     )}
@@ -132,14 +128,9 @@ const CodeBlock: FC<{ displayValue: ReactNode; copyValue: string }> = ({
         <Box className={classes.codeBlockCopy}>
             <CopyButton value={copyValue} timeout={2000}>
                 {({ copied, copy }) => (
-                    <Tooltip
-                        label={copied ? 'Copied' : 'Copy'}
-                        withArrow
-                        position="left"
-                    >
+                    <Tooltip label={copied ? 'Copied' : 'Copy'} position="left">
                         <ActionIcon
                             color={copied ? 'teal' : 'gray'}
-                            variant="subtle"
                             onClick={copy}
                         >
                             <MantineIcon icon={copied ? IconCheck : IconCopy} />
@@ -304,7 +295,7 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                 <Group justify="space-between" wrap="nowrap" align="flex-start">
                     <Stack gap="xxs">
                         <Title order={5}>Metric SQL API</Title>
-                        <Text c="ldGray.6" size="sm">
+                        <Text c="dimmed" size="sm">
                             Connect BI tools and SQL clients over the Postgres
                             wire protocol. Follow the three steps below.
                         </Text>
@@ -379,7 +370,7 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                                             }
                                         />
                                         {isServiceAccountsEnabled ? (
-                                            <Text c="ldGray.6" fz="sm">
+                                            <Text c="dimmed" fz="sm">
                                                 Don&apos;t have a token?{' '}
                                                 <Anchor
                                                     component="button"
@@ -393,7 +384,7 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                                                 </Anchor>
                                             </Text>
                                         ) : (
-                                            <Text c="ldGray.6" fz="sm">
+                                            <Text c="dimmed" fz="sm">
                                                 Paste a personal access token
                                                 from your account settings.
                                             </Text>

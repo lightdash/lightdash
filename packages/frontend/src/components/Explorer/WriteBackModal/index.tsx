@@ -399,7 +399,6 @@ const MultipleItemsModalContent = ({
 
                     <Paper
                         h="100%"
-                        withBorder
                         style={{
                             overflowY: 'auto',
                         }}

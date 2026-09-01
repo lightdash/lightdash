@@ -59,13 +59,13 @@ const TableRow: FC<{
                 </Tooltip>
             </Table.Td>
             <Table.Td>
-                <Badge variant="light" color="gray">
+                <Badge>
                     {level === 'organization' ? 'Organization' : 'Project'}
                 </Badge>
             </Table.Td>
             <Table.Td>{createdAt ? formatDate(createdAt) : '-'}</Table.Td>
             <Table.Td w="1%">
-                <Menu withinPortal position="bottom-end">
+                <Menu position="bottom-end">
                     <Menu.Target>
                         <ActionIcon
                             variant="transparent"
@@ -136,7 +136,7 @@ export const CustomRolesTable: FC<TableProps> = ({
 
     return (
         <>
-            <Paper withBorder style={{ overflow: 'hidden' }}>
+            <Paper style={{ overflow: 'hidden' }}>
                 <Table
                     className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                 >

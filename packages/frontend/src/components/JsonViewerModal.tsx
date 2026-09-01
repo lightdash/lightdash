@@ -50,7 +50,6 @@ export const JsonViewerModal = ({
                         {({ copied, copy }) => (
                             <Tooltip
                                 label={copied ? 'Copied' : 'Copy'}
-                                withArrow
                                 position="right"
                             >
                                 <Button

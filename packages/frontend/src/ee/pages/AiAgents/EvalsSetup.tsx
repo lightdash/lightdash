@@ -116,12 +116,11 @@ export const EvalsSetup: FC<Props> = ({ projectUuid, agentUuid }) => {
                     <Card
                         key={evaluation.evalUuid}
                         p="md"
-                        withBorder
                         component={Link}
                         to={`/projects/${projectUuid}/ai-agents/${agentUuid}/edit/evals/${evaluation.evalUuid}`}
                     >
                         <Group justify="space-between" align="flex-start">
-                            <Stack gap="xs" style={{ flex: 1 }}>
+                            <Stack gap="xs" flex={1}>
                                 <Group gap="xs" align="center">
                                     <Title order={5} lineClamp={1}>
                                         {evaluation.title}

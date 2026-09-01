@@ -605,30 +605,19 @@ const SavedChartsHeader: FC = () => {
                                         dashboardName={savedChart.dashboardName}
                                     />
                                 )}
-                                <Title
-                                    c="ldDark.9"
-                                    order={5}
-                                    fw={600}
-                                    maw={500}
-                                    lineClamp={1}
-                                >
+                                <Title order={5} maw={500} lineClamp={1}>
                                     {savedChart.name}
                                 </Title>
 
                                 {savedChart.hasUnpublishedChanges && (
                                     <Tooltip
                                         label="Only you can see these changes. A reviewer can write them back to the repo from Content review."
-                                        multiline
                                         maw={280}
-                                        withinPortal
                                     >
                                         <Badge
                                             color="yellow"
                                             variant="dot"
                                             size="sm"
-                                            radius="sm"
-                                            tt="none"
-                                            fw={500}
                                         >
                                             Unpublished changes
                                         </Badge>
@@ -642,9 +631,6 @@ const SavedChartsHeader: FC = () => {
                                         color="blue"
                                         variant="dot"
                                         size="sm"
-                                        radius="sm"
-                                        tt="none"
-                                        fw={500}
                                     >
                                         {savedChart.draftsAwaitingReview} draft
                                         {savedChart.draftsAwaitingReview === 1
@@ -661,8 +647,6 @@ const SavedChartsHeader: FC = () => {
                                                 ? `Verified by ${savedChart.verification.verifiedBy.firstName} ${savedChart.verification.verifiedBy.lastName}`
                                                 : 'Verified'
                                         }
-                                        withArrow
-                                        withinPortal
                                         zIndex={10000}
                                     >
                                         <IconCircleCheckFilled
@@ -800,7 +784,6 @@ const SavedChartsHeader: FC = () => {
                                                 <Tooltip
                                                     offset={-1}
                                                     label="Return to dashboard"
-                                                    withinPortal
                                                     position="bottom"
                                                 >
                                                     <ActionIcon
@@ -828,7 +811,6 @@ const SavedChartsHeader: FC = () => {
                                     ? 'Exit Fullscreen Mode'
                                     : 'Enter Fullscreen Mode'
                             }
-                            withinPortal
                             position="bottom"
                             openDelay={200}
                             transitionProps={{
@@ -843,7 +825,6 @@ const SavedChartsHeader: FC = () => {
                                         : 'Enter Fullscreen Mode'
                                 }
                                 variant="default"
-                                radius="md"
                                 onClick={handleToggleFullscreen}
                             >
                                 <MantineIcon
@@ -861,8 +842,6 @@ const SavedChartsHeader: FC = () => {
                         <Menu
                             position="bottom"
                             withArrow
-                            withinPortal
-                            shadow="md"
                             width={200}
                             disabled={!unsavedChartVersion.tableName}
                         >
@@ -1010,7 +989,6 @@ const SavedChartsHeader: FC = () => {
                                     <Tooltip
                                         label="You must enable first an upstream project in settings > Data ops"
                                         disabled={!promoteDisabled}
-                                        withinPortal
                                     >
                                         <div>
                                             <Menu.Item

@@ -73,7 +73,6 @@ const InviteSuccess: FC<{
                             {({ copied, copy }) => (
                                 <Tooltip
                                     label={copied ? 'Copied' : 'Copy'}
-                                    withArrow
                                     position="right"
                                 >
                                     <ActionIcon

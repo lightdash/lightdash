@@ -120,8 +120,6 @@ const ResourceVerifiedInlineBadge = ({
 
     return (
         <Tooltip
-            withinPortal
-            multiline
             maw={300}
             position="bottom"
             label={
@@ -239,7 +237,7 @@ const InfiniteResourceTableColumnName = ({
                     </Group>
                     {showTypeAndViews && (
                         <Group gap="xs" wrap="nowrap">
-                            <Text fz="xs" c="ldGray.6">
+                            <Text fz="xs" c="dimmed">
                                 {getResourceTypeName(item)} •{' '}
                                 <Tooltip
                                     position="top-start"

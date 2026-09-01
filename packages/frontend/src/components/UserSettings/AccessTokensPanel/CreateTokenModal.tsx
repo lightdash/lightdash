@@ -110,7 +110,6 @@ export const CreateTokenModal: FC<{
                                 {({ copied, copy }) => (
                                     <Tooltip
                                         label={copied ? 'Copied' : 'Copy'}
-                                        withArrow
                                         position="right"
                                     >
                                         <ActionIcon
@@ -143,7 +142,6 @@ export const CreateTokenModal: FC<{
                                 {({ copied, copy }) => (
                                     <Tooltip
                                         label={copied ? 'Copied' : 'Copy'}
-                                        withArrow
                                         position="right"
                                     >
                                         <ActionIcon

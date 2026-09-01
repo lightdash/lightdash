@@ -85,7 +85,7 @@ export const GaugeDisplayConfig: FC = memo(() => {
                                 onNumberChange={(value) => setMax(value ?? 0)}
                                 placeholder="100"
                                 decimalScale={2}
-                                style={{ flex: 1 }}
+                                flex={1}
                             />
                         ) : (
                             <FieldSelect
@@ -123,10 +123,7 @@ export const GaugeDisplayConfig: FC = memo(() => {
                             data={[
                                 {
                                     label: (
-                                        <Tooltip
-                                            label="Set the maximum value"
-                                            withinPortal
-                                        >
+                                        <Tooltip label="Set the maximum value">
                                             <Center>Value</Center>
                                         </Tooltip>
                                     ),
@@ -134,10 +131,7 @@ export const GaugeDisplayConfig: FC = memo(() => {
                                 },
                                 {
                                     label: (
-                                        <Tooltip
-                                            label="Select a field to use as the maximum value"
-                                            withinPortal
-                                        >
+                                        <Tooltip label="Select a field to use as the maximum value">
                                             <Center>Field</Center>
                                         </Tooltip>
                                     ),

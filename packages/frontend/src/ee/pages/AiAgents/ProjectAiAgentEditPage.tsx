@@ -346,7 +346,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     <Paper
                         variant="dotted"
                         p="xl"
-                        shadow="subtle"
                         component={Stack}
                         gap="xxs"
                         align="center"

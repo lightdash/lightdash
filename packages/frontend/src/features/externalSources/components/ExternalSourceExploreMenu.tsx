@@ -72,7 +72,6 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
                 <Menu.Target>
                     <ActionIcon
                         aria-label="External source actions"
-                        color="gray"
                         variant="transparent"
                     >
                         <MantineIcon icon={IconDots} />

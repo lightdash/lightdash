@@ -236,7 +236,6 @@ export const FixDashboardFilterModal: FC<Props> = ({
                                 value={oldName ?? fieldName}
                             />
                             <Tooltip
-                                withinPortal
                                 disabled={!isFieldsError}
                                 label={`Could not find any fields on explore ${tableName}. Perhaps you want to replace the model instead?`}
                             >
@@ -253,7 +252,6 @@ export const FixDashboardFilterModal: FC<Props> = ({
                                         )}
                                         onSearchChange={setSearch}
                                         searchValue={search}
-                                        radius="md"
                                         data={fieldOptions}
                                         required
                                         disabled={isFieldsError}
@@ -293,7 +291,6 @@ export const FixDashboardFilterModal: FC<Props> = ({
                     )}
                     {totalOccurrences > 1 ? (
                         <Tooltip
-                            withinPortal
                             position="left"
                             label="Check this to rename all occurrences of this field in other charts and dashboards."
                         >

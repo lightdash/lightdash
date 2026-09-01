@@ -33,7 +33,6 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
             ref={ref}
             pos="relative"
             p={0}
-            withBorder
             className={classes.gridCard}
             h="100%"
         >
@@ -79,7 +78,6 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                     label={item.data.description}
                     position="top"
                     maw={400}
-                    multiline
                     disabled={!item.data.description}
                 >
                     <Text lineClamp={2} fz="sm" fw={600}>
@@ -100,7 +98,7 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                             size={14}
                         />
 
-                        <Text c="ldGray.6" fz="xs">
+                        <Text c="dimmed" fz="xs">
                             {item.data.views} views
                         </Text>
                     </Flex>

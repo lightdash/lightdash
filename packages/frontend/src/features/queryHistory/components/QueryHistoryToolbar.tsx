@@ -99,11 +99,7 @@ export const QueryHistoryToolbar: FC<Props> = ({
                         </button>
                     ))}
                 </div>
-                <Menu
-                    shadow="subtle"
-                    position="bottom-end"
-                    closeOnItemClick={false}
-                >
+                <Menu position="bottom-end" closeOnItemClick={false}>
                     <Menu.Target>
                         <button type="button" className={styles.statusButton}>
                             Status

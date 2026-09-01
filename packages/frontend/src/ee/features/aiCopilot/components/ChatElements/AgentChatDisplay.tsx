@@ -74,15 +74,13 @@ const CompactionDivider = () => (
                 Summarized Conversation
             </Text>
             <Tooltip
-                withinPortal
                 maw={320}
-                multiline
                 label="Lightdash automatically summarizes earlier messages when a conversation gets long, so responses stay fast and relevant."
             >
                 <Box
                     component="span"
                     aria-label="About summarized conversations"
-                    style={{ display: 'inline-flex' }}
+                    display="inline-flex"
                 >
                     <IconInfoCircle
                         size={14}

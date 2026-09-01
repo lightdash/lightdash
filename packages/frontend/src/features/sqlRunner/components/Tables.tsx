@@ -112,10 +112,8 @@ const TableItem: FC<TableItemProps> = memo(
                             className={styles.tableIcon}
                         />
                         <Tooltip
-                            withinPortal
                             label={table}
                             disabled={!isTruncated}
-                            multiline
                             maw={300}
                         >
                             {search.length > 2 ? (
@@ -145,7 +143,6 @@ const TableItem: FC<TableItemProps> = memo(
                         {({ copied, copy }) => (
                             <Tooltip
                                 label={copied ? 'Copied to clipboard' : 'Copy'}
-                                withArrow
                                 position="right"
                             >
                                 <ActionIcon size="xs" onClick={copy} bg="body">
@@ -336,7 +333,6 @@ export const Tables: FC = () => {
                 <Tooltip
                     opened={search.length > 0 && search.length < 3}
                     label="Enter at least 3 characters to search"
-                    withinPortal
                 >
                     <TextInput
                         size="sm"

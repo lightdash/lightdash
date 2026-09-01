@@ -282,13 +282,7 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                     {memory.terms.length > 0 ? (
                         <Group gap={6}>
                             {memory.terms.map((term) => (
-                                <Badge
-                                    key={term}
-                                    variant="light"
-                                    color="gray"
-                                    tt="none"
-                                    size="sm"
-                                >
+                                <Badge key={term} size="sm">
                                     {term}
                                 </Badge>
                             ))}

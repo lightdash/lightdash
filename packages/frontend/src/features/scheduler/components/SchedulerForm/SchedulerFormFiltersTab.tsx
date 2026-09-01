@@ -119,14 +119,14 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
         // show invalid dashboard filter
         return (
             <Group gap="xs" wrap="nowrap" justify="flex-start">
-                <Paper key={dashboardFilter.id} withBorder p="xs" radius="md">
+                <Paper key={dashboardFilter.id} p="xs" radius="md">
                     <Group gap="xs">
                         <MantineIcon icon={IconAlertTriangle} color="red" />
                         <Text span fw={500} fz="sm">
                             Invalid filter
                         </Text>
                         <Text fw={400} span fz="xs">
-                            <Text span c="ldGray.6" fz="xs">
+                            <Text span c="dimmed" fz="xs">
                                 Tried to reference field with unknown id:
                             </Text>
                             <Text span fz="xs" fw={500}>
@@ -154,7 +154,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     return (
         <Stack key={dashboardFilter.id} gap="xs">
             <Group gap="xs" wrap="nowrap" align="flex-start">
-                <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                <Group gap="xs" flex={1} miw={0}>
                     <FieldIcon item={field} />
                     <FieldLabel
                         item={{
@@ -181,7 +181,6 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                         <Tooltip
                             label={`Applies to: ${tilesWithFilter.join(', ')}`}
                             fz="xs"
-                            multiline
                             w={200}
                         >
                             <Text fz="xs" color="ldGray.6" span>
@@ -230,7 +229,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                 </Group>
             </Group>
             {!isEditing && hasChanged && (
-                <Text fz="xs" c="ldGray.6">
+                <Text fz="xs" c="dimmed">
                     Unsaved changes
                 </Text>
             )}
@@ -238,9 +237,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
             {isEditing && (
                 <Flex gap="xs" wrap="wrap">
                     <Select
-                        style={{
-                            flex: '0 0 180px',
-                        }}
+                        flex="0 0 180px"
                         size="xs"
                         value={
                             schedulerFilter?.operator ??
@@ -294,7 +291,7 @@ const RemovedFilterItem: FC<RemovedFilterItemProps> = ({
 
     return (
         <Group gap="xs" wrap="nowrap" align="flex-start">
-            <Group gap="xs" opacity={0.5} style={{ flex: 1, minWidth: 0 }}>
+            <Group gap="xs" opacity={0.5} flex={1} miw={0}>
                 <FieldIcon item={field} />
                 <FieldLabel
                     item={{
@@ -303,7 +300,7 @@ const RemovedFilterItem: FC<RemovedFilterItemProps> = ({
                     }}
                     hideTableName
                 />
-                <Text fz="xs" c="ldGray.6" span>
+                <Text fz="xs" c="dimmed" span>
                     Uses dashboard default
                 </Text>
             </Group>

@@ -157,7 +157,7 @@ const VerifyEmailForm: FC<{
                                 >
                                     Submit
                                 </Button>
-                                <Text c="ldGray.6" ta={align} fz="sm" fw={500}>
+                                <Text c="dimmed" ta={align} fz="sm" fw={500}>
                                     Your one-time password expires in{' '}
                                     <Text span fw={500} fz="sm" c="ldGray.7">
                                         {zeroPad(minutes)}:{zeroPad(seconds)}

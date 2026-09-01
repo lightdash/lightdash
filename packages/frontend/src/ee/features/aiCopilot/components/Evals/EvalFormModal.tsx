@@ -221,7 +221,6 @@ export const EvalFormModal: FC<Props> = ({
                         placeholder="Enter evaluation title"
                         required
                         {...form.getInputProps('title')}
-                        radius="md"
                     />
 
                     <Textarea
@@ -230,7 +229,6 @@ export const EvalFormModal: FC<Props> = ({
                         placeholder="Enter evaluation description (optional)"
                         rows={3}
                         {...form.getInputProps('description')}
-                        radius="md"
                     />
 
                     <Box>
@@ -306,7 +304,6 @@ export const EvalFormModal: FC<Props> = ({
                                         </Stack>
 
                                         <ActionIcon
-                                            variant="subtle"
                                             color="red"
                                             disabled={
                                                 form.values.prompts.length <= 1

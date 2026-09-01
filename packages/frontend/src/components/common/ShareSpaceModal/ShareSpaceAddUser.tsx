@@ -400,7 +400,6 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     {spaceAccess && roleTitle && (
                         <Badge
                             size="sm"
-                            variant="light"
                             color={getAccessColor(spaceAccess.role).join('.')}
                             radius="xl"
                         >
@@ -470,7 +469,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     return (
         <Group>
             <MultiSelect
-                style={{ flex: 1 }}
+                flex={1}
                 classNames={{ option: styles.option }}
                 searchable
                 clearable

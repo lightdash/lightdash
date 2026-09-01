@@ -113,14 +113,10 @@ const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
                     >
                         <Title order={5}>Scheduled Deliveries</Title>
                         <Tooltip label="Click to refresh the status of the scheduled deliveries">
-                            <ActionIcon
-                                onClick={handleRefresh}
-                                variant="subtle"
-                                size="xs"
-                            >
+                            <ActionIcon onClick={handleRefresh} size="xs">
                                 <MantineIcon
                                     icon={IconRefresh}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                     stroke={2}
                                 />
                             </ActionIcon>

@@ -81,12 +81,7 @@ const GroupListItem: FC<{
             <Text fw={isActive ? 600 : 500} fz="sm">
                 {group.groupName}
             </Text>
-            <Badge
-                variant="light"
-                size="sm"
-                radius="sm"
-                color={selectedCount === 0 ? 'gray' : 'blue'}
-            >
+            <Badge size="sm" color={selectedCount === 0 ? 'gray' : 'blue'}>
                 {selectedCount} / {totalCount}
             </Badge>
         </PolymorphicGroupButton>

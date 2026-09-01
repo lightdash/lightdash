@@ -632,7 +632,7 @@ const DefaultBottomToolbar = <TData extends RowData>({
             py="sm"
             className={classes.bottomToolbar}
         >
-            <Text c="ldGray.6" fz="xs" fw={500}>
+            <Text c="dimmed" fz="xs" fw={500}>
                 {table.getFilteredRowModel().rows.length} rows
             </Text>
             <Pagination
@@ -680,11 +680,11 @@ const DefaultEmptyState = <TData extends RowData>({
                 className={classes.emptyStateIcon}
             />
             <Stack align="center" gap={4} maw={360}>
-                <Title order={5} fw={600} c="foreground" ta="center">
+                <Title order={5} c="foreground" ta="center">
                     {title}
                 </Title>
                 {description ? (
-                    <Text fz="sm" c="ldGray.6" ta="center">
+                    <Text fz="sm" c="dimmed" ta="center">
                         {description}
                     </Text>
                 ) : null}

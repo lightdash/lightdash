@@ -72,7 +72,6 @@ const EditModeGranularityItem: FC<EditModeGranularityItemProps> = ({
                 >
                     <ActionIcon
                         size="xs"
-                        variant="subtle"
                         color={isDefault ? 'blue' : 'ldGray'}
                         onClick={(e) => {
                             e.stopPropagation();
@@ -299,7 +298,6 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
             >
                 {!hideDefaultInView && (
                     <Menu
-                        withinPortal
                         withArrow
                         closeOnItemClick={!isEditMode}
                         closeOnClickOutside
@@ -314,7 +312,6 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                             <Tooltip
                                 label={defaultTooltip}
                                 disabled={!defaultTooltip}
-                                withinPortal
                                 position="bottom"
                             >
                                 <Button
@@ -456,7 +453,6 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                             'dateZoom.viewModeTooltip',
                                         )}
                                         position="left"
-                                        multiline
                                         maw={200}
                                     >
                                         <Menu.Item

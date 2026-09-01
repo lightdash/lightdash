@@ -49,7 +49,6 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <Alert
                 icon={<MantineIcon icon={IconInfoCircle} size={'md'} />}
                 title="Requirements"
-                variant="light"
             >
                 <p>
                     The dbt job that builds your project must{' '}
@@ -110,7 +109,6 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             {({ copied, copy }) => (
                                 <Tooltip
                                     label={copied ? 'Copied' : 'Copy'}
-                                    withArrow
                                     position="left"
                                 >
                                     <ActionIcon
@@ -118,7 +116,6 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                         onMouseDown={(event) =>
                                             event.preventDefault()
                                         }
-                                        variant="subtle"
                                         color={copied ? 'teal' : 'gray'}
                                         onClick={copy}
                                     >

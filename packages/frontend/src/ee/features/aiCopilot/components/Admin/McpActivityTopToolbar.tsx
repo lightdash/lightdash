@@ -82,7 +82,6 @@ export const McpActivityTopToolbar: FC<McpActivityTopToolbarProps> = memo(
                         />
                         <SegmentedControl
                             size="xs"
-                            radius="md"
                             value={selectedStatus}
                             onChange={(value) =>
                                 setSelectedStatus(

@@ -39,7 +39,7 @@ const OnboardingPanel: FC<Props> = ({ projectUrlIdentifier, userName }) => {
                 You&apos;re ready to start exploring. Here&apos;s what you can
                 do with Lightdash:
             </Text>
-            <Paper withBorder p="xl" mt="lg">
+            <Paper p="xl" mt="lg">
                 <Group justify="center">
                     {onboardingSteps.map((step) => (
                         <Card key={step.title} mx="xl">
@@ -49,7 +49,7 @@ const OnboardingPanel: FC<Props> = ({ projectUrlIdentifier, userName }) => {
                             <Title order={5} fw={500} ta="center">
                                 {step.title}
                             </Title>
-                            <Text fz="sm" c="ldGray.6" ta="center">
+                            <Text fz="sm" c="dimmed" ta="center">
                                 {step.description}
                             </Text>
                         </Card>

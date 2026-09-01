@@ -278,7 +278,6 @@ const EmbedPreviewDashboardForm: FC<{
                     </Text>
                     <SegmentedControl
                         value={form.values.expiresIn}
-                        radius="md"
                         onChange={(value) =>
                             form.setFieldValue('expiresIn', value)
                         }
@@ -293,7 +292,7 @@ const EmbedPreviewDashboardForm: FC<{
                     />
                 </Stack>
 
-                <Paper p="md" withBorder>
+                <Paper p="md">
                     <Stack gap="md">
                         <Title order={6}>Identification & Security</Title>
                         <Stack gap="xs">
@@ -325,7 +324,7 @@ const EmbedPreviewDashboardForm: FC<{
                                                 <TextInput
                                                     size="xs"
                                                     placeholder="E.g. user_country"
-                                                    style={{ flex: 1 }}
+                                                    flex={1}
                                                     {...form.getInputProps(
                                                         `userAttributes.${index}.key`,
                                                     )}
@@ -333,7 +332,7 @@ const EmbedPreviewDashboardForm: FC<{
                                                 <TextInput
                                                     size="xs"
                                                     placeholder="E.g. US"
-                                                    style={{ flex: 1 }}
+                                                    flex={1}
                                                     {...form.getInputProps(
                                                         `userAttributes.${index}.value`,
                                                     )}
@@ -380,7 +379,7 @@ const EmbedPreviewDashboardForm: FC<{
                     </Stack>
                 </Paper>
 
-                <Paper p="md" withBorder>
+                <Paper p="md">
                     <Stack gap="sm">
                         <Title order={6}>Interactivity & Permissions</Title>
                         <Stack gap="md">
@@ -481,9 +480,6 @@ const EmbedPreviewDashboardForm: FC<{
                                                 </Text>
                                                 <Tooltip
                                                     label="Lets data apps run project-wide metric queries and use external connections linked by an admin."
-                                                    withArrow
-                                                    withinPortal
-                                                    multiline
                                                     maw="300px"
                                                     position="right"
                                                 >
@@ -514,12 +510,11 @@ const EmbedPreviewDashboardForm: FC<{
                 </Paper>
 
                 {writeActionsPanel && (
-                    <Paper p="md" withBorder>
+                    <Paper p="md">
                         <Stack gap="xs" mb="md">
                             <Group gap="sm">
                                 <Title order={6}>Write actions</Title>
                                 <Badge
-                                    variant="light"
                                     color="violet"
                                     size="sm"
                                     leftSection={<IconFlask2Filled size={12} />}

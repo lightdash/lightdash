@@ -197,7 +197,6 @@ export const LinearReviewSettings = () => {
                         {hasLinear && (
                             <Badge
                                 size="sm"
-                                variant="light"
                                 color={requiresReconnect ? 'yellow' : 'green'}
                             >
                                 {requiresReconnect
@@ -206,13 +205,13 @@ export const LinearReviewSettings = () => {
                             </Badge>
                         )}
                     </Group>
-                    <Text c="ldGray.6" fz="xs">
+                    <Text c="dimmed" fz="xs">
                         {hasLinear && !requiresReconnect
                             ? 'New findings create a Linear issue automatically. Existing open findings can be exported below. Each issue links both ways; status is not synced.'
                             : 'Send review findings to Linear as issues. Each issue links both ways. Status is not synced.'}
                     </Text>
                     {hasLinear && !requiresReconnect && (
-                        <Text c="ldGray.6" fz="xs" mt={4}>
+                        <Text c="dimmed" fz="xs" mt={4}>
                             Connected to {installation.organizationName} (
                             {installation.organizationUrlKey}).
                         </Text>
@@ -248,7 +247,7 @@ export const LinearReviewSettings = () => {
                                 <Text fw={600} fz="sm">
                                     Create a Linear app
                                 </Text>
-                                <Text c="ldGray.6" fz="xs">
+                                <Text c="dimmed" fz="xs">
                                     Opens Linear with the callback already
                                     filled in. Private app, no client secret.
                                 </Text>
@@ -278,7 +277,7 @@ export const LinearReviewSettings = () => {
                                 <Text fw={600} fz="sm">
                                     Paste the client ID and connect
                                 </Text>
-                                <Text c="ldGray.6" fz="xs">
+                                <Text c="dimmed" fz="xs">
                                     Use the public client ID from the app you
                                     just created.
                                 </Text>
@@ -295,7 +294,7 @@ export const LinearReviewSettings = () => {
                         <Text fw={600} fz="sm">
                             Reconnect Linear to keep exporting issues
                         </Text>
-                        <Text c="ldGray.6" fz="xs">
+                        <Text c="dimmed" fz="xs">
                             The saved app can no longer create issues. Create a
                             new private app or reconnect with the same client
                             ID.

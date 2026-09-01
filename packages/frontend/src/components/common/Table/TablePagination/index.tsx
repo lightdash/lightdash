@@ -10,7 +10,7 @@ interface ResultCountProps {
 }
 
 export const ResultCount: FC<ResultCountProps> = ({ count }) => (
-    <Text style={{ marginLeft: 'auto' }} fz="xs">
+    <Text ml="auto" fz="xs">
         {count === 0 ? null : count === 1 ? '1 result' : `${count} results`}
     </Text>
 );

@@ -17,7 +17,6 @@ export const ShareLinkButton: FC<ShareLinkButtonProps> = ({
             {({ copied, copy }) => (
                 <Tooltip
                     label={copied ? 'Link copied!' : label}
-                    withinPortal
                     position="bottom"
                     openDelay={200}
                     transitionProps={{ transition: 'fade', duration: 150 }}
@@ -26,7 +25,6 @@ export const ShareLinkButton: FC<ShareLinkButtonProps> = ({
                         variant="default"
                         onClick={copy}
                         size="md"
-                        radius="md"
                         aria-label={copied ? 'Link copied' : label}
                     >
                         <MantineIcon

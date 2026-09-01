@@ -392,8 +392,6 @@ const AllowedDomainsPanel: FC = () => {
                                                                 </Text>
 
                                                                 <Tooltip
-                                                                    withinPortal
-                                                                    multiline
                                                                     label={
                                                                         role?.subLabel
                                                                     }
@@ -442,8 +440,6 @@ const AllowedDomainsPanel: FC = () => {
                                     )}
 
                                     <Tooltip
-                                        withinPortal
-                                        multiline
                                         disabled={canAddMoreProjects}
                                         label={
                                             'There are no other projects to add'

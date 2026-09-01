@@ -78,10 +78,7 @@ export const UserBubble: FC<Props> = ({
                         {name}
                     </Text>
                 ) : null}
-                <Tooltip
-                    label={format(parseISO(message.createdAt), 'PPpp')}
-                    withinPortal
-                >
+                <Tooltip label={format(parseISO(message.createdAt), 'PPpp')}>
                     <Anchor
                         component={Link}
                         c="dimmed"
@@ -121,7 +118,6 @@ export const UserBubble: FC<Props> = ({
                 radius="md"
                 py={6}
                 px="sm"
-                withBorder
                 color="white"
                 className={`${styles.messageCard} ${
                     isEmptyMessage ? styles.emptyMessageCard : ''
@@ -186,7 +182,6 @@ export const UserBubble: FC<Props> = ({
                             radius="md"
                             py={4}
                             px="xs"
-                            withBorder
                             className={styles.steerCard}
                         >
                             <MDEditor.Markdown

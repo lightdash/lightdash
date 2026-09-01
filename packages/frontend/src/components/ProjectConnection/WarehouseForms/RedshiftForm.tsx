@@ -144,7 +144,7 @@ const RedshiftForm: FC<{
 
     return (
         <>
-            <Stack style={{ marginTop: '8px' }}>
+            <Stack mt="xs">
                 <TextInput
                     name="warehouse.host"
                     label="Host"
@@ -189,7 +189,7 @@ const RedshiftForm: FC<{
                     disabled={disabled}
                 />
                 <FormSection isOpen={isOpen} name="advanced">
-                    <Stack style={{ marginTop: '8px' }}>
+                    <Stack mt="xs">
                         <BooleanSwitch
                             name="warehouse.requireUserCredentials"
                             label="Require users to provide their own credentials"
@@ -324,7 +324,7 @@ const RedshiftForm: FC<{
                             isOpen={showSshTunnelConfiguration}
                             name="ssh-config"
                         >
-                            <Stack style={{ marginBottom: '8px' }}>
+                            <Stack mb="xs">
                                 <TextInput
                                     name="warehouse.sshTunnelHost"
                                     label="SSH Remote Host"
@@ -375,7 +375,6 @@ const RedshiftForm: FC<{
                                                                     ? 'Copied'
                                                                     : 'Copy'
                                                             }
-                                                            withArrow
                                                             position="right"
                                                         >
                                                             <ActionIcon
@@ -385,7 +384,6 @@ const RedshiftForm: FC<{
                                                                 ) =>
                                                                     event.preventDefault()
                                                                 }
-                                                                variant="subtle"
                                                                 color={
                                                                     copied
                                                                         ? 'teal'

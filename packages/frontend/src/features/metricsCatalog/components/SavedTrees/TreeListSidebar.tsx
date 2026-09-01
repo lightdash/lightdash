@@ -89,7 +89,7 @@ const TreeListSidebar: FC = () => {
                             )}
                         </Group>
 
-                        <ScrollArea style={{ flex: 1 }} offsetScrollbars>
+                        <ScrollArea flex={1} offsetScrollbars>
                             {isLoading ? (
                                 <Text fz="xs" c="dimmed" ta="center" mt="md">
                                     Loading trees...
@@ -118,14 +118,14 @@ const TreeListSidebar: FC = () => {
                                                 <Group
                                                     gap={4}
                                                     wrap="nowrap"
-                                                    style={{ flex: 1 }}
+                                                    flex={1}
                                                 >
                                                     <Text
                                                         fz="xs"
                                                         fw={500}
                                                         c="ldGray.7"
                                                         truncate
-                                                        style={{ flex: 1 }}
+                                                        flex={1}
                                                     >
                                                         {tree.name}
                                                     </Text>
@@ -141,11 +141,7 @@ const TreeListSidebar: FC = () => {
                                                         </Tooltip>
                                                     )}
                                                 </Group>
-                                                <Badge
-                                                    size="xs"
-                                                    variant="light"
-                                                    color="gray"
-                                                >
+                                                <Badge size="xs">
                                                     {tree.nodeCount}
                                                 </Badge>
                                             </Group>

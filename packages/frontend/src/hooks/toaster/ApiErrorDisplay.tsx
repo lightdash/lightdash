@@ -111,11 +111,7 @@ export const CopyErrorButton = ({
 }) => (
     <CopyButton value={value}>
         {({ copied, copy }) => (
-            <Tooltip
-                label={copied ? 'Copied' : 'Copy error'}
-                withArrow
-                position="right"
-            >
+            <Tooltip label={copied ? 'Copied' : 'Copy error'} position="right">
                 <ActionIcon
                     aria-label="Copy error details"
                     color="ldGray.6"

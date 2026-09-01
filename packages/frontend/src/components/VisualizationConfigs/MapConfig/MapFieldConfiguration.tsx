@@ -92,7 +92,6 @@ const MapFieldConfiguration: FC<MapFieldConfigurationProps> = ({ fieldId }) => {
             <Tooltip
                 position="top"
                 opened={isTooltipVisible}
-                withinPortal
                 label={isVisible ? 'Hide in tooltip' : 'Show in tooltip'}
             >
                 <Box

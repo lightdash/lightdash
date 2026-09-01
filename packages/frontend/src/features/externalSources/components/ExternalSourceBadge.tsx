@@ -9,8 +9,6 @@ export const ExternalSourceBadge: FC<{ sourceRef: ExternalSourceRef }> = ({
     sourceRef,
 }) => (
     <Badge
-        variant="light"
-        color="gray"
         size="sm"
         leftSection={<MantineIcon icon={IconFileSpreadsheet} size="sm" />}
     >

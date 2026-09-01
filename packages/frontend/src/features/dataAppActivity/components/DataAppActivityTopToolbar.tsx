@@ -180,7 +180,6 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                     />
                     <SegmentedControl
                         size="xs"
-                        radius="md"
                         value={selectedPeriod}
                         onChange={(value) =>
                             setSelectedPeriod(
@@ -200,7 +199,6 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                     />
                     <SegmentedControl
                         size="xs"
-                        radius="md"
                         value={selectedKind}
                         onChange={(value) =>
                             setSelectedKind(value as DataAppActivityKind)

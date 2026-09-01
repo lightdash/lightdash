@@ -10,15 +10,12 @@ type Props = {
 
 const ConnectionChip: FC<Props> = ({ name, onRemove }) => (
     <Badge
-        variant="light"
-        color="gray"
         size="md"
         leftSection={<MantineIcon icon={IconPlugConnected} size={12} />}
         rightSection={
             <ActionIcon
                 size="xs"
                 variant="transparent"
-                color="gray"
                 onClick={onRemove}
                 aria-label={`Remove ${name}`}
             >

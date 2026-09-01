@@ -177,7 +177,6 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
                             <Badge
                                 size="xs"
                                 p="2px 4px"
-                                radius="sm"
                                 variant="outline"
                                 color="ldGray.6"
                                 fz="8px"
@@ -207,9 +206,6 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
                     </Text>
                     <Tooltip
                         label="Admins and developers (Manage AI Agents scope) will always have access."
-                        withArrow
-                        withinPortal
-                        multiline
                         position="right"
                         maw="250px"
                     >

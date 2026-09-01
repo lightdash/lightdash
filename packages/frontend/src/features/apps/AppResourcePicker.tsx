@@ -122,12 +122,9 @@ export const ScreenshotButton: FC<{
 }> = ({ onClick, disabled, loading }) => (
     <Tooltip
         label="Capture a screenshot of the preview and attach it"
-        withArrow
         position="top"
     >
         <ActionIcon
-            variant="subtle"
-            color="gray"
             size="md"
             radius="xl"
             onClick={onClick}
@@ -160,7 +157,6 @@ export const InspectButton: FC<{
                 ? 'Inspect mode on - click any element in the preview'
                 : 'Point at an element in the preview to reference it'
         }
-        withArrow
         position="top"
     >
         <ActionIcon
@@ -519,7 +515,7 @@ const QueryPickerView: FC<{
                 )}
             </ScrollArea.Autosize>
             <Box className={classes.attachPickerFooter}>
-                <Button size="compact-xs" radius="md" onClick={onDone}>
+                <Button size="compact-xs" onClick={onDone}>
                     Done
                 </Button>
             </Box>
@@ -588,8 +584,6 @@ export const SelectedAttachmentSection: FC<{
                         </Text>
                         <ActionIcon
                             size="xs"
-                            variant="subtle"
-                            color="gray"
                             radius="xl"
                             onClick={() => onRemove(att.id)}
                             disabled={disabled || loading}
@@ -621,12 +615,7 @@ const AddDataButton: FC<{
     disabled?: boolean;
     tooltipSuffix?: string;
 }> = ({ onClick, disabled, tooltipSuffix }) => (
-    <Tooltip
-        label={`${SAMPLE_DATA_TOOLTIP}${tooltipSuffix ?? ''}`}
-        multiline
-        w={260}
-        withArrow
-    >
+    <Tooltip label={`${SAMPLE_DATA_TOOLTIP}${tooltipSuffix ?? ''}`} w={260}>
         <UnstyledButton
             type="button"
             onClick={onClick}
@@ -651,9 +640,7 @@ const InlineDataToggle: FC<{
 }> = ({ onClick, disabled, tooltipSuffix }) => (
     <Tooltip
         label={`Sample data included — click to remove.${tooltipSuffix ?? ''}`}
-        multiline
         w={260}
-        withArrow
     >
         <UnstyledButton
             type="button"
@@ -673,9 +660,7 @@ const AddLinkButton: FC<{ onClick: () => void; disabled?: boolean }> = ({
 }) => (
     <Tooltip
         label="Link live — run this chart by reference so the app updates when the chart changes in Lightdash."
-        multiline
         w={260}
-        withArrow
     >
         <UnstyledButton
             type="button"
@@ -695,9 +680,7 @@ const InlineLinkToggle: FC<{ onClick: () => void; disabled?: boolean }> = ({
 }) => (
     <Tooltip
         label="Linked live — click to unlink (revert to a copied query)."
-        multiline
         w={260}
-        withArrow
     >
         <UnstyledButton
             type="button"
@@ -778,8 +761,6 @@ export const SelectedQuerySection: FC<{
                         )}
                         <ActionIcon
                             size="xs"
-                            variant="subtle"
-                            color="gray"
                             radius="xl"
                             onClick={() => onRemove(chart.uuid)}
                             disabled={disabled}
@@ -927,7 +908,7 @@ const DashboardPickerView: FC<{
                 )}
             </ScrollArea.Autosize>
             <Box className={classes.attachPickerFooter}>
-                <Button size="compact-xs" radius="md" onClick={onDone}>
+                <Button size="compact-xs" onClick={onDone}>
                     Done
                 </Button>
             </Box>
@@ -1188,7 +1169,7 @@ export const ConnectionPickerView: FC<{
                         </Group>
                     </Anchor>
                 )}
-                <Button size="compact-xs" radius="md" onClick={onDone}>
+                <Button size="compact-xs" onClick={onDone}>
                     Done
                 </Button>
             </Box>
@@ -1288,7 +1269,6 @@ export const AttachButton: FC<{
             onChange={handleChange}
             position="top-start"
             offset={8}
-            shadow="md"
             trapFocus
             closeOnClickOutside={!unlinkConfirmationOpen}
             closeOnEscape={!unlinkConfirmationOpen}
@@ -1296,7 +1276,6 @@ export const AttachButton: FC<{
             <Popover.Target>
                 <Tooltip
                     label="Add charts, dashboards, connections or files"
-                    withArrow
                     position="top"
                     disabled={opened}
                 >
@@ -1395,7 +1374,6 @@ export const AttachButton: FC<{
                             className={classes.attachPickerHeader}
                         >
                             <ActionIcon
-                                variant="subtle"
                                 size="sm"
                                 onClick={() => setView('menu')}
                                 aria-label="Back to attach menu"
@@ -1521,7 +1499,6 @@ export const ConnectionAttachButton: FC<{
             onChange={setOpened}
             position="top-start"
             offset={8}
-            shadow="md"
             trapFocus
             closeOnClickOutside={!unlinkConfirmationOpen}
             closeOnEscape={!unlinkConfirmationOpen}
@@ -1529,9 +1506,7 @@ export const ConnectionAttachButton: FC<{
             <Popover.Target>
                 <Tooltip
                     label={tooltipLabel}
-                    withArrow
                     position="top"
-                    multiline
                     maw={280}
                     disabled={opened}
                 >
@@ -1547,7 +1522,6 @@ export const ConnectionAttachButton: FC<{
                         }}
                     >
                         <ActionIcon
-                            variant="subtle"
                             color="ldGray"
                             size="sm"
                             aria-label={triggerLabel}
@@ -1634,8 +1608,6 @@ export const SelectedDashboardSection: FC<{
                     )}
                     <ActionIcon
                         size="xs"
-                        variant="subtle"
-                        color="gray"
                         radius="xl"
                         onClick={onRemove}
                         disabled={disabled}

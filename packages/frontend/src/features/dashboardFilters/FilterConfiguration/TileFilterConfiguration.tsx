@@ -411,9 +411,7 @@ const TileFilterConfiguration: FC<Props> = ({
         return (
             <Flex align="center" gap="xxs">
                 <ActionIcon
-                    color="gray"
                     size="xs"
-                    variant="subtle"
                     onClick={toggleCollapse}
                     aria-label={getUiString(
                         isCollapsed

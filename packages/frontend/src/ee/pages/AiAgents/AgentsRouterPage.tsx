@@ -360,7 +360,7 @@ const AgentsRouterPage = () => {
                                 <MantineIcon
                                     icon={IconNotebook}
                                     size="sm"
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                                 <Text size="xs">Memories</Text>
                             </Group>
@@ -477,13 +477,10 @@ const AgentsRouterPage = () => {
                                             width={280}
                                             position="bottom-end"
                                             withArrow
-                                            shadow="md"
                                         >
                                             <Popover.Target>
                                                 <ActionIcon
                                                     size="sm"
-                                                    variant="subtle"
-                                                    color="gray"
                                                     aria-label="Why these agents?"
                                                 >
                                                     <MantineIcon
@@ -549,8 +546,6 @@ const AgentsRouterPage = () => {
                                                                 <Badge
                                                                     size="xs"
                                                                     color="violet"
-                                                                    variant="light"
-                                                                    radius="sm"
                                                                 >
                                                                     Recommended
                                                                 </Badge>

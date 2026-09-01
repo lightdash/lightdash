@@ -393,17 +393,12 @@ const DashboardHeader = memo(
                     {dashboard.hasUnpublishedChanges && (
                         <Tooltip
                             label="Only you can see these changes. A reviewer can write them back to the repo from Content review."
-                            multiline
                             maw={280}
-                            withinPortal
                         >
                             <Badge
                                 color="yellow"
                                 variant="dot"
                                 size="sm"
-                                radius="sm"
-                                tt="none"
-                                fw={500}
                                 style={{ cursor: 'default' }}
                             >
                                 Unpublished changes
@@ -413,9 +408,7 @@ const DashboardHeader = memo(
                     {!!dashboard.draftsAwaitingReview && (
                         <Tooltip
                             label="Other people have unpublished changes on this dashboard. Review them and write them back to the repo."
-                            multiline
                             maw={280}
-                            withinPortal
                         >
                             <Badge
                                 component={Link}
@@ -423,9 +416,6 @@ const DashboardHeader = memo(
                                 color="blue"
                                 variant="dot"
                                 size="sm"
-                                radius="sm"
-                                tt="none"
-                                fw={500}
                                 style={{ cursor: 'pointer' }}
                             >
                                 {dashboard.draftsAwaitingReview} draft
@@ -437,7 +427,6 @@ const DashboardHeader = memo(
                         </Tooltip>
                     )}
                     <Popover
-                        withinPortal
                         withArrow
                         offset={{
                             mainAxis: -2,
@@ -445,12 +434,7 @@ const DashboardHeader = memo(
                         }}
                     >
                         <Popover.Target>
-                            <ActionIcon
-                                variant="subtle"
-                                size="md"
-                                radius="md"
-                                color="ldGray.6"
-                            >
+                            <ActionIcon size="md" color="ldGray.6">
                                 <MantineIcon icon={IconInfoCircle} />
                             </ActionIcon>
                         </Popover.Target>
@@ -470,8 +454,6 @@ const DashboardHeader = memo(
                                     ? `Verified by ${dashboard.verification.verifiedBy.firstName} ${dashboard.verification.verifiedBy.lastName}`
                                     : 'Verified'
                             }
-                            withArrow
-                            withinPortal
                             zIndex={10000}
                         >
                             <IconCircleCheckFilled
@@ -485,9 +467,7 @@ const DashboardHeader = memo(
 
                     {dashboardUuid && (
                         <ActionIcon
-                            variant="subtle"
                             size="md"
-                            radius="md"
                             color={isDashboardFavorited ? 'orange' : 'ldGray.6'}
                             onClick={() => {
                                 toggleFavorite({
@@ -509,10 +489,8 @@ const DashboardHeader = memo(
 
                     {isEditMode && userCanManageDashboard && (
                         <ActionIcon
-                            variant="subtle"
                             size="md"
                             color="ldGray.6"
-                            radius="md"
                             disabled={isSaving}
                             onClick={handleEditClick}
                         >
@@ -601,12 +579,7 @@ const DashboardHeader = memo(
                                     duration: 150,
                                 }}
                             >
-                                <ActionIcon
-                                    variant="subtle"
-                                    size="md"
-                                    radius="md"
-                                    color="orange.6"
-                                >
+                                <ActionIcon size="md" color="orange.6">
                                     <MantineIcon icon={IconAlertTriangle} />
                                 </ActionIcon>
                             </Tooltip>
@@ -623,7 +596,6 @@ const DashboardHeader = memo(
 
                         <Tooltip
                             fz="xs"
-                            withinPortal
                             position="bottom"
                             label="No changes to save"
                             disabled={hasDashboardChanged}
@@ -659,7 +631,6 @@ const DashboardHeader = memo(
                         {!!userCanManageDashboard && !isFullscreen && (
                             <Tooltip
                                 label="Edit dashboard"
-                                withinPortal
                                 position="bottom"
                                 openDelay={200}
                                 transitionProps={{
@@ -669,7 +640,6 @@ const DashboardHeader = memo(
                             >
                                 <ActionIcon
                                     aria-label="Edit dashboard"
-                                    radius="md"
                                     onClick={onEditClicked}
                                     bg="foreground"
                                     c="background"
@@ -697,7 +667,6 @@ const DashboardHeader = memo(
                                 label={`Dashboard uses cached data from ${dayjs(
                                     oldestCacheTime,
                                 ).format('MMM D, YYYY h:mm A')}`}
-                                withinPortal
                                 position="bottom"
                                 openDelay={200}
                                 transitionProps={{
@@ -710,7 +679,7 @@ const DashboardHeader = memo(
                                         <MantineIcon
                                             icon={IconDatabase}
                                             size="sm"
-                                            color="ldGray.6"
+                                            color="dimmed"
                                         />
 
                                         <Text fz="xs" c="dimmed">
@@ -740,7 +709,6 @@ const DashboardHeader = memo(
                                             ? 'Exit Fullscreen Mode'
                                             : 'Enter Fullscreen Mode'
                                     }
-                                    withinPortal
                                     position="bottom"
                                     openDelay={200}
                                     transitionProps={{
@@ -751,7 +719,6 @@ const DashboardHeader = memo(
                                     <ActionIcon
                                         variant="default"
                                         size="md"
-                                        radius="md"
                                         onClick={onToggleFullscreen}
                                     >
                                         <MantineIcon
@@ -775,8 +742,6 @@ const DashboardHeader = memo(
                                 data-testid="dashboard-header-menu"
                                 position="bottom"
                                 withArrow
-                                withinPortal
-                                shadow="md"
                                 disabled={
                                     !userCanManageDashboard &&
                                     !userCanExportData &&
@@ -804,11 +769,7 @@ const DashboardHeader = memo(
                                                 />
                                             </Box>
                                         )}
-                                        <ActionIcon
-                                            variant="default"
-                                            size="md"
-                                            radius="md"
-                                        >
+                                        <ActionIcon variant="default" size="md">
                                             <MantineIcon icon={IconDots} />
                                         </ActionIcon>
                                     </Box>
@@ -965,7 +926,6 @@ const DashboardHeader = memo(
                                                     project?.upstreamProjectUuid !==
                                                     undefined
                                                 }
-                                                withinPortal
                                             >
                                                 <div>
                                                     <Menu.Item

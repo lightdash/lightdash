@@ -26,15 +26,11 @@ export const UsersTopToolbar: FC<UsersTopToolbarProps> = memo(
                 wrap="nowrap"
                 {...props}
             >
-                <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                    <Tooltip
-                        withinPortal
-                        label="Search by name, email, or role"
-                    >
+                <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
+                    <Tooltip label="Search by name, email, or role">
                         <TextInput
                             data-testid="org-users-search-input"
                             size="xs"
-                            radius="md"
                             type="search"
                             variant="default"
                             placeholder="Search users by name, email, or role"
@@ -42,7 +38,7 @@ export const UsersTopToolbar: FC<UsersTopToolbarProps> = memo(
                             leftSection={
                                 <MantineIcon
                                     size="md"
-                                    color="ldGray.6"
+                                    color="dimmed"
                                     icon={IconSearch}
                                 />
                             }

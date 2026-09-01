@@ -73,10 +73,9 @@ const TableFilter: FC<TableFilterProps> = ({
 
     return (
         <Group gap={2}>
-            <Popover width={300} position="bottom-start" shadow="sm">
+            <Popover width={300} position="bottom-start">
                 <Popover.Target>
                     <Tooltip
-                        withinPortal
                         label="Filter metrics by table"
                         openDelay={200}
                         maw={250}
@@ -85,10 +84,8 @@ const TableFilter: FC<TableFilterProps> = ({
                         <Button
                             h={32}
                             c="ldGray.7"
-                            fw={500}
                             fz="sm"
                             variant="default"
-                            radius="md"
                             py="xs"
                             px="sm"
                             leftSection={
@@ -118,7 +115,7 @@ const TableFilter: FC<TableFilterProps> = ({
                 </Popover.Target>
                 <Popover.Dropdown p="sm">
                     <Stack gap={4}>
-                        <Text fz="xs" c="ldGray.6" fw={600}>
+                        <Text fz="xs" c="dimmed" fw={600}>
                             Filter by tables:
                         </Text>
 
@@ -149,7 +146,7 @@ const TableFilter: FC<TableFilterProps> = ({
                         )}
 
                         {tableOptions.length === 0 && (
-                            <Text fz="xs" fw={500} c="ldGray.6">
+                            <Text fz="xs" fw={500} c="dimmed">
                                 No tables available.
                             </Text>
                         )}
@@ -205,7 +202,6 @@ const TableFilter: FC<TableFilterProps> = ({
                     <ActionIcon
                         size="xs"
                         color="ldGray.5"
-                        variant="subtle"
                         onClick={() => {
                             setSelectedTables([]);
                         }}

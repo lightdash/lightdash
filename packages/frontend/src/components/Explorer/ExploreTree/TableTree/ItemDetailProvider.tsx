@@ -37,13 +37,8 @@ const CopyableInput: FC<{ label: string; value: string }> = ({
         rightSection={
             <CopyButton value={value} timeout={1500}>
                 {({ copied, copy }) => (
-                    <Tooltip
-                        label={copied ? 'Copied' : 'Copy'}
-                        withArrow
-                        position="left"
-                    >
+                    <Tooltip label={copied ? 'Copied' : 'Copy'} position="left">
                         <ActionIcon
-                            variant="subtle"
                             size="xs"
                             color={copied ? 'teal' : 'gray'}
                             onClick={copy}

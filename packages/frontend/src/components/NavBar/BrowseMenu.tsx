@@ -119,7 +119,6 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
     return (
         <Menu
             withArrow
-            shadow="lg"
             position="bottom-start"
             arrowOffset={16}
             offset={-2}
@@ -137,7 +136,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     size="xs"
                     fz="sm"
                     leftSection={
-                        <MantineIcon color="ldGray.6" icon={IconCategory} />
+                        <MantineIcon color="dimmed" icon={IconCategory} />
                     }
                 >
                     Browse
@@ -247,7 +246,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                 Spaces
                             </Text>
                             <MantineIcon
-                                color="ldGray.6"
+                                color="dimmed"
                                 size={14}
                                 icon={
                                     spacesExpanded

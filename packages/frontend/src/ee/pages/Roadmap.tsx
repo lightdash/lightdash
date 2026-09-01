@@ -215,7 +215,6 @@ const RoadmapDetailsModal: FC<{
                                                         ? 'Copied'
                                                         : 'Copy ticket ID'
                                                 }
-                                                withArrow
                                             >
                                                 <ActionIcon
                                                     aria-label={
@@ -331,9 +330,7 @@ const RoadmapColumn: FC<{
                 <Text fz="sm" fw={600}>
                     {label}
                 </Text>
-                <Badge color="gray" variant="light" size="sm">
-                    {count}
-                </Badge>
+                <Badge size="sm">{count}</Badge>
                 {recencyLabel && (
                     <Text c="dimmed" fz="xs">
                         {recencyLabel}
@@ -402,7 +399,6 @@ const RoadmapColumn: FC<{
                                                 item.priority,
                                             )}
                                             size="xs"
-                                            variant="light"
                                         >
                                             {item.priority}
                                         </Badge>
@@ -417,9 +413,7 @@ const RoadmapColumn: FC<{
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             aria-label={`Open GitHub issue: ${item.title}`}
-                                                            color="gray"
                                                             size="sm"
-                                                            variant="subtle"
                                                             onClick={(event) =>
                                                                 event.stopPropagation()
                                                             }
@@ -442,9 +436,7 @@ const RoadmapColumn: FC<{
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             aria-label={`Open pull request: ${item.title}`}
-                                                            color="gray"
                                                             size="sm"
-                                                            variant="subtle"
                                                             onClick={(event) =>
                                                                 event.stopPropagation()
                                                             }
@@ -673,10 +665,7 @@ const RoadmapTable: FC<RoadmapTableProps> = ({
                 enableSorting: true,
                 sortDescFirst: false,
                 Cell: ({ row }) => (
-                    <Badge
-                        color={getStatusColor(row.original.status)}
-                        variant="light"
-                    >
+                    <Badge color={getStatusColor(row.original.status)}>
                         {row.original.status}
                     </Badge>
                 ),
@@ -688,10 +677,7 @@ const RoadmapTable: FC<RoadmapTableProps> = ({
                 enableSorting: true,
                 sortDescFirst: false,
                 Cell: ({ row }) => (
-                    <Badge
-                        color={getPriorityColor(row.original.priority)}
-                        variant="light"
-                    >
+                    <Badge color={getPriorityColor(row.original.priority)}>
                         {row.original.priority}
                     </Badge>
                 ),

@@ -202,7 +202,7 @@ const Settings: FC = () => {
                         <SettingsGridCard>
                             <Box>
                                 <Title order={5}>Danger zone</Title>
-                                <Text c="ldGray.6" fz="xs">
+                                <Text c="dimmed" fz="xs">
                                     Leave the organization to remove yourself
                                     from it (you cannot leave if you are the
                                     only admin). This action is not reversible.
@@ -288,7 +288,7 @@ const Settings: FC = () => {
                         <SettingsGridCard>
                             <div>
                                 <Title order={5}>Allowed email domains</Title>
-                                <Text c="ldGray.6" fz="xs">
+                                <Text c="dimmed" fz="xs">
                                     Anyone with email addresses at these domains
                                     can automatically join the organization.
                                 </Text>
@@ -299,7 +299,7 @@ const Settings: FC = () => {
                         <SettingsGridCard>
                             <div>
                                 <Title order={5}>Default project</Title>
-                                <Text c="ldGray.6" fz="xs">
+                                <Text c="dimmed" fz="xs">
                                     This is the project users will see when they
                                     log in for the first time or from a new
                                     device. If a user does not have access, they
@@ -324,7 +324,7 @@ const Settings: FC = () => {
                         <SettingsGridCard>
                             <Box>
                                 <Title order={5}>Danger zone</Title>
-                                <Text c="ldGray.6" fz="xs">
+                                <Text c="dimmed" fz="xs">
                                     {
                                         'Leave the organization to remove yourself from it (you cannot leave if you are the only admin). '
                                     }
@@ -359,7 +359,7 @@ const Settings: FC = () => {
                         <SettingsGridCard>
                             <div>
                                 <Title order={5}>Scheduled deliveries</Title>
-                                <Text c="ldGray.6" fz="xs">
+                                <Text c="dimmed" fz="xs">
                                     Control how files exported from your
                                     organization — starting with scheduled
                                     deliveries — are shared.{' '}
@@ -391,7 +391,7 @@ const Settings: FC = () => {
                         <SettingsGridCard>
                             <div>
                                 <Title order={5}>Query and export limits</Title>
-                                <Text c="ldGray.6" fz="xs">
+                                <Text c="dimmed" fz="xs">
                                     Limit how many rows a query can return and
                                     how many cells a CSV or Excel export can
                                     contain for your organization.
@@ -961,8 +961,6 @@ const Settings: FC = () => {
             collapsedSidebarContent={
                 <Tooltip label="Pin sidebar" position="right">
                     <ActionIcon
-                        variant="subtle"
-                        color="gray"
                         size="lg"
                         onClick={() => setIsSidebarCollapsed(false)}
                         aria-label="Pin sidebar"
@@ -989,8 +987,6 @@ const Settings: FC = () => {
                             }
                         >
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 size="lg"
                                 onClick={() =>
                                     setIsSidebarCollapsed(!isSidebarCollapsed)
@@ -1025,7 +1021,7 @@ const Settings: FC = () => {
                             />
                         ) : (
                             <Stack gap="xs" align="center" py="xl" px="md">
-                                <Text fz="sm" c="ldGray.6" ta="center">
+                                <Text fz="sm" c="dimmed" ta="center">
                                     No settings match “{debouncedSearch.trim()}”
                                 </Text>
                                 <Anchor

@@ -67,8 +67,6 @@ export const MultiKeyValuePairsInput = ({
 
                     {labelHelp && (
                         <ActionIcon
-                            variant="subtle"
-                            color="gray"
                             onClick={(
                                 e: React.MouseEvent<HTMLButtonElement>,
                             ) => {
@@ -100,8 +98,6 @@ export const MultiKeyValuePairsInput = ({
                         />
 
                         <ActionIcon
-                            variant="subtle"
-                            color="gray"
                             onClick={() => removeValue(index)}
                             disabled={disabled}
                         >

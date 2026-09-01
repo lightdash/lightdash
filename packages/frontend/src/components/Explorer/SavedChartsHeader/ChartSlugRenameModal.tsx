@@ -132,7 +132,7 @@ const ChartSlugRenameModal: FC<Props> = ({
                         <Text size="sm" fw={500}>
                             URL preview
                         </Text>
-                        <Paper withBorder bg="gray.0" p="sm">
+                        <Paper bg="gray.0" p="sm">
                             <Text
                                 component="code"
                                 size="xs"

@@ -18,7 +18,7 @@ export const SqlEditorActions: FC<{
     return (
         <Group pos="absolute" bottom={5} right={12} gap="xxs">
             {onFormat && (
-                <Tooltip label="Format SQL" withArrow position="left">
+                <Tooltip label="Format SQL" position="left">
                     <ActionIcon
                         onClick={onFormat}
                         color="ldLight"
@@ -34,7 +34,6 @@ export const SqlEditorActions: FC<{
                         ? 'Disable editor soft-wrapping'
                         : 'Enable editor soft-wrapping'
                 }
-                withArrow
                 position="left"
             >
                 <ActionIcon
@@ -53,7 +52,6 @@ export const SqlEditorActions: FC<{
                 {({ copied, copy }) => (
                     <Tooltip
                         label={copied ? 'Copied to clipboard!' : 'Copy'}
-                        withArrow
                         position="right"
                         color={copied ? 'green' : 'dark'}
                     >

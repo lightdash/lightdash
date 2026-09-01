@@ -113,12 +113,8 @@ export const GroupItem = forwardRef<
                         />
                     </Box>
 
-                    <Tooltip label="Override value label options" withinPortal>
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            onClick={toggle}
-                        >
+                    <Tooltip label="Override value label options">
+                        <ActionIcon onClick={toggle}>
                             <MantineIcon
                                 icon={opened ? IconChevronUp : IconChevronDown}
                             />

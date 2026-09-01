@@ -200,7 +200,7 @@ const StaticChips: FC<{ types: ChipKey[] }> = ({ types }) => (
                 <MantineIcon
                     icon={CHIP_DEFS[type].icon}
                     size={14}
-                    color="ldGray.6"
+                    color="dimmed"
                 />
                 {CHIP_DEFS[type].title}
             </span>

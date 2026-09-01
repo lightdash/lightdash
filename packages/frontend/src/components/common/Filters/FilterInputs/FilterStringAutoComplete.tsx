@@ -86,7 +86,6 @@ const RefreshIndicator: FC<{
 
     return (
         <Tooltip
-            withinPortal
             position="left"
             label={getUiString('filters.autocomplete.refreshTooltip')}
         >
@@ -385,17 +384,12 @@ const FilterStringAutoComplete: FC<Props> = ({
                         rightSectionPointerEvents="all"
                         rightSection={
                             disabled ? null : (
-                                <Tooltip
-                                    withinPortal
-                                    label="Edit filter values"
-                                >
+                                <Tooltip label="Edit filter values">
                                     <ActionIcon
                                         aria-label="Edit filter values"
                                         onMouseDown={(event) =>
                                             event.preventDefault()
                                         }
-                                        variant="subtle"
-                                        color="gray"
                                         size="sm"
                                         onClick={() => openManageValues()}
                                     >
@@ -484,7 +478,6 @@ const FilterStringAutoComplete: FC<Props> = ({
                                                     'filters.autocomplete.filterNotAvailable',
                                                 )
                                             }
-                                            withinPortal
                                         >
                                             <MantineIcon
                                                 icon={IconAlertCircle}
@@ -494,14 +487,11 @@ const FilterStringAutoComplete: FC<Props> = ({
                                     ) : null}
 
                                     <Tooltip
-                                        withinPortal
                                         label={getUiString(
                                             'filters.autocomplete.editValuesTooltip',
                                         )}
                                     >
                                         <ActionIcon
-                                            variant="subtle"
-                                            color="gray"
                                             size="sm"
                                             onClick={openManageValues}
                                             style={{

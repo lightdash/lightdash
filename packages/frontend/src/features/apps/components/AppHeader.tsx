@@ -69,7 +69,6 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                 </Title>
 
                 <Popover
-                    withinPortal
                     withArrow
                     offset={{
                         mainAxis: -2,
@@ -77,12 +76,7 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                     }}
                 >
                     <Popover.Target>
-                        <ActionIcon
-                            variant="subtle"
-                            size="md"
-                            radius="md"
-                            color="ldGray.6"
-                        >
+                        <ActionIcon size="md" color="ldGray.6">
                             <MantineIcon icon={IconInfoCircle} />
                         </ActionIcon>
                     </Popover.Target>
@@ -102,9 +96,7 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                 </Popover>
 
                 <ActionIcon
-                    variant="subtle"
                     size="md"
-                    radius="md"
                     color={isFavorited ? 'orange' : 'ldGray.6'}
                     disabled={favoriteMutation.isLoading}
                     aria-label={
