@@ -4,7 +4,7 @@ import {
     dataAppVizSchema,
     getEffectiveOptionValues,
     getVisibleDataAppClaudeModels,
-isOfficialChartType,
+    isOfficialChartType,
     pruneDataAppVizOptionValues,
     resolveDefaultDataAppClaudeModel,
     resolveDefaultVisibleDataAppClaudeModel,

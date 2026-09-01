@@ -166,10 +166,11 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                 {item.state === 'update_available' && (
                     <Callout
                         variant="warning"
-                        title="Upgrading affects every chart of this type"
+                        title="Existing charts keep their pinned version"
                     >
-                        Upgrading updates every chart in this project that uses
-                        this chart type.
+                        Charts pinned to an earlier version keep rendering it
+                        until each chart is upgraded; charts without a pinned
+                        version switch to v{item.version} right away.
                         {item.changelog && (
                             <Text fz="sm" mt="xs">
                                 {item.changelog}
