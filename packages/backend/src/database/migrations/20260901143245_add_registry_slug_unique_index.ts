@@ -1,5 +1,10 @@
 import { Knex } from 'knex';
 
+export const classification = {
+    kind: 'safe',
+    reason: 'Creates a partial unique index on registry-installed apps; additive DDL that never reads or rewrites existing rows',
+} as const;
+
 const AppsTableName = 'apps';
 const UniqueIndexName = 'apps_project_registry_slug_uniq';
 const LOCK_TIMEOUT = '5s';
