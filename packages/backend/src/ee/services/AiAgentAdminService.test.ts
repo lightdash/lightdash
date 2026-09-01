@@ -1598,6 +1598,88 @@ describe('AiAgentAdminService review notification settings', () => {
             ),
         ).rejects.toThrow('A Linear team is required to create review issues');
     });
+
+    it('saves Linear routing for every project', async () => {
+        const upsertLinearRouting = vi
+            .fn()
+            .mockImplementation((value) => Promise.resolve(value));
+        const service = makeService({
+            aiAgentReviewNotificationModel: { upsertLinearRouting },
+        });
+
+        await service.updateReviewLinearRouting(makeAdminUser(), {
+            applyToAllProjects: true,
+            projectUuids: [],
+            enabled: true,
+            linearTeamId: 'team-1',
+            linearProjectId: 'linear-project-1',
+        });
+
+        expect(upsertLinearRouting).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            applyToAllProjects: true,
+            projectUuids: [],
+            enabled: true,
+            linearTeamId: 'team-1',
+            linearProjectId: 'linear-project-1',
+        });
+    });
+
+    it('saves Linear routing for selected projects', async () => {
+        const upsertLinearRouting = vi
+            .fn()
+            .mockImplementation((value) => Promise.resolve(value));
+        const getAllByOrganizationUuid = vi
+            .fn()
+            .mockResolvedValue([
+                { projectUuid: PROJECT_UUID },
+                { projectUuid: OTHER_PROJECT_UUID },
+            ]);
+        const service = makeService({
+            projectModel: { getAllByOrganizationUuid },
+            aiAgentReviewNotificationModel: { upsertLinearRouting },
+        });
+
+        await service.updateReviewLinearRouting(makeAdminUser(), {
+            applyToAllProjects: false,
+            projectUuids: [PROJECT_UUID, OTHER_PROJECT_UUID],
+            enabled: true,
+            linearTeamId: 'team-1',
+            linearProjectId: null,
+        });
+
+        expect(getAllByOrganizationUuid).toHaveBeenCalledWith(
+            ORGANIZATION_UUID,
+        );
+        expect(upsertLinearRouting).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            applyToAllProjects: false,
+            projectUuids: [PROJECT_UUID, OTHER_PROJECT_UUID],
+            enabled: true,
+            linearTeamId: 'team-1',
+            linearProjectId: null,
+        });
+    });
+
+    it('rejects selected-project routing when no projects are chosen', async () => {
+        const upsertLinearRouting = vi.fn();
+        const service = makeService({
+            aiAgentReviewNotificationModel: { upsertLinearRouting },
+        });
+
+        await expect(
+            service.updateReviewLinearRouting(makeAdminUser(), {
+                applyToAllProjects: false,
+                projectUuids: [],
+                enabled: true,
+                linearTeamId: 'team-1',
+                linearProjectId: null,
+            }),
+        ).rejects.toThrow(
+            'Select at least one project or apply Linear issues to all projects',
+        );
+        expect(upsertLinearRouting).not.toHaveBeenCalled();
+    });
 });
 
 describe('getAiAgentReviewItemWritebackEligibility', () => {

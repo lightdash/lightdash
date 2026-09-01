@@ -18,6 +18,7 @@ export type DbAiReviewNotificationSettings = {
     linear_enabled: boolean;
     linear_team_id: string | null;
     linear_project_id: string | null;
+    linear_apply_to_all_projects: boolean | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -60,7 +61,10 @@ export type AiReviewNotificationSettingsTable = Knex.CompositeTableType<
         | 'linear_project_id'
     > &
         Partial<
-            Pick<DbAiReviewNotificationSettings, 'created_at' | 'updated_at'>
+            Pick<
+                DbAiReviewNotificationSettings,
+                'linear_apply_to_all_projects' | 'created_at' | 'updated_at'
+            >
         >,
     Partial<
         Pick<
@@ -70,6 +74,7 @@ export type AiReviewNotificationSettingsTable = Knex.CompositeTableType<
             | 'linear_enabled'
             | 'linear_team_id'
             | 'linear_project_id'
+            | 'linear_apply_to_all_projects'
             | 'updated_at'
         >
     >

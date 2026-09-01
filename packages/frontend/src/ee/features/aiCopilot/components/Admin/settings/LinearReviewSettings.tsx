@@ -2,9 +2,11 @@ import {
     Badge,
     Box,
     Button,
+    Checkbox,
     Divider,
     Group,
     Loader,
+    MultiSelect,
     Select,
     Stack,
     Switch,
@@ -13,7 +15,7 @@ import {
     Title,
 } from '@mantine/core';
 import { IconExternalLink, IconKey, IconTrash } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import {
     useDeleteLinearInstallationMutation,
     useLinearInstallation,
@@ -24,46 +26,53 @@ import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useProjects } from '../../../../../../hooks/useProjects';
 import useApp from '../../../../../../providers/App/useApp';
 import {
-    useReviewLinearDestination,
-    useUpdateReviewLinearDestination,
+    useReviewLinearRouting,
+    useUpdateReviewLinearRouting,
 } from '../../../hooks/useReviewNotificationSettings';
 import { buildLinearAppSetupUrl } from './linearReviewSettingsUtils';
+
+const selectOptionsWithCurrent = (
+    options: Array<{ value: string; label: string }>,
+    currentValue: string | null,
+) => {
+    if (
+        !currentValue ||
+        options.some((option) => option.value === currentValue)
+    ) {
+        return options;
+    }
+
+    return [...options, { value: currentValue, label: currentValue }];
+};
 
 export const LinearReviewSettings = () => {
     const { health, user } = useApp();
     const [linearClientId, setLinearClientId] = useState('');
-    const [selectedProjectUuid, setSelectedProjectUuid] = useState<
-        string | null
-    >(null);
     const canEdit = user.data?.ability?.can('manage', 'Organization') ?? false;
     const siteUrl = health.data?.siteUrl ?? window.location.origin;
 
     const { data: projects = [], isInitialLoading: projectsLoading } =
         useProjects();
-    useEffect(() => {
-        if (!selectedProjectUuid && projects[0]) {
-            setSelectedProjectUuid(projects[0].projectUuid);
-        }
-    }, [projects, selectedProjectUuid]);
-
     const linearInstallationQuery = useLinearInstallation();
     const installation = linearInstallationQuery.data;
     const hasLinear = !!installation;
     const requiresReconnect = installation?.requiresReconnect === true;
     const { data: linearTeams, isInitialLoading: linearTeamsLoading } =
         useLinearTeams({ enabled: hasLinear && !requiresReconnect });
-    const destinationQuery = useReviewLinearDestination(selectedProjectUuid);
-    const destination = destinationQuery.data;
+    const routingQuery = useReviewLinearRouting({
+        enabled: hasLinear && !requiresReconnect,
+    });
+    const routing = routingQuery.data;
     const { data: linearProjects, isInitialLoading: linearProjectsLoading } =
         useLinearProjects({
             enabled: hasLinear && !requiresReconnect,
-            teamId: destination?.linearTeamId ?? null,
+            teamId: routing?.linearTeamId ?? null,
         });
-    const { mutate: updateDestination, isLoading: destinationUpdating } =
-        useUpdateReviewLinearDestination();
+    const { mutate: updateRouting, isLoading: routingUpdating } =
+        useUpdateReviewLinearRouting();
     const { mutate: deleteLinear, isLoading: linearDeleting } =
         useDeleteLinearInstallationMutation();
-    const isUpdating = destinationUpdating || linearDeleting;
+    const isUpdating = routingUpdating || linearDeleting;
 
     const submitLinearOAuth = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -75,29 +84,57 @@ export const LinearReviewSettings = () => {
     };
 
     const setupUrl = useMemo(() => buildLinearAppSetupUrl(siteUrl), [siteUrl]);
-    const saveDestination = (
+    const saveRouting = (
         changes: Partial<{
+            applyToAllProjects: boolean;
+            projectUuids: string[];
             enabled: boolean;
             linearTeamId: string | null;
             linearProjectId: string | null;
         }>,
     ) => {
-        if (!selectedProjectUuid || !destination) return;
-        updateDestination({
-            projectUuid: selectedProjectUuid,
-            data: {
-                enabled: changes.enabled ?? destination.enabled,
-                linearTeamId:
-                    changes.linearTeamId === undefined
-                        ? destination.linearTeamId
-                        : changes.linearTeamId,
-                linearProjectId:
-                    changes.linearProjectId === undefined
-                        ? destination.linearProjectId
-                        : changes.linearProjectId,
-            },
+        if (!routing) return;
+        updateRouting({
+            applyToAllProjects:
+                changes.applyToAllProjects ?? routing.applyToAllProjects,
+            projectUuids: changes.projectUuids ?? routing.projectUuids,
+            enabled: changes.enabled ?? routing.enabled,
+            linearTeamId:
+                changes.linearTeamId === undefined
+                    ? routing.linearTeamId
+                    : changes.linearTeamId,
+            linearProjectId:
+                changes.linearProjectId === undefined
+                    ? routing.linearProjectId
+                    : changes.linearProjectId,
         });
     };
+
+    const teamOptions = useMemo(
+        () =>
+            selectOptionsWithCurrent(
+                (linearTeams ?? []).map((team) => ({
+                    value: team.id,
+                    label: `${team.name} (${team.key})`,
+                })),
+                routing?.linearTeamId ?? null,
+            ),
+        [linearTeams, routing?.linearTeamId],
+    );
+    const linearProjectOptions = useMemo(
+        () =>
+            selectOptionsWithCurrent(
+                (linearProjects ?? []).map((project) => ({
+                    value: project.id,
+                    label: project.name,
+                })),
+                routing?.linearProjectId ?? null,
+            ),
+        [linearProjects, routing?.linearProjectId],
+    );
+    const canEnableExport =
+        !!routing?.linearTeamId &&
+        (routing.applyToAllProjects || routing.projectUuids.length > 0);
 
     const oauthForm = (
         <Stack gap="xs">
@@ -189,14 +226,16 @@ export const LinearReviewSettings = () => {
                     )}
                 </Box>
                 {linearInstallationQuery.isInitialLoading ||
-                destinationQuery.isInitialLoading ? (
+                (hasLinear &&
+                    !requiresReconnect &&
+                    routingQuery.isInitialLoading) ? (
                     <Loader size="sm" />
                 ) : (
                     <Switch
                         size="md"
                         aria-label="Create Linear issues for AI review findings"
                         checked={
-                            !!destination?.enabled &&
+                            !!routing?.enabled &&
                             hasLinear &&
                             !requiresReconnect
                         }
@@ -205,10 +244,10 @@ export const LinearReviewSettings = () => {
                             isUpdating ||
                             !hasLinear ||
                             requiresReconnect ||
-                            !destination?.linearTeamId
+                            !canEnableExport
                         }
                         onChange={(event) =>
-                            saveDestination({
+                            saveRouting({
                                 enabled: event.currentTarget.checked,
                             })
                         }
@@ -243,23 +282,55 @@ export const LinearReviewSettings = () => {
                 </Group>
             )}
 
-            {hasLinear && !requiresReconnect && (
+            {hasLinear && !requiresReconnect && routing && (
                 <Stack gap="sm">
-                    <Select
-                        label="Lightdash project"
-                        placeholder={
-                            projectsLoading
-                                ? 'Loading projects'
-                                : 'Select a project'
-                        }
-                        data={projects.map((project) => ({
-                            value: project.projectUuid,
-                            label: project.name,
-                        }))}
-                        value={selectedProjectUuid}
+                    <Checkbox
+                        label="All projects"
+                        description="Findings from every project, including ones created later."
+                        checked={routing.applyToAllProjects}
                         disabled={!canEdit || isUpdating || projectsLoading}
-                        onChange={setSelectedProjectUuid}
+                        onChange={(event) => {
+                            const applyToAllProjects =
+                                event.currentTarget.checked;
+                            saveRouting({
+                                applyToAllProjects,
+                                projectUuids: applyToAllProjects
+                                    ? []
+                                    : projects.map(
+                                          (project) => project.projectUuid,
+                                      ),
+                                enabled:
+                                    routing.enabled && !!routing.linearTeamId,
+                            });
+                        }}
                     />
+                    {!routing.applyToAllProjects && (
+                        <MultiSelect
+                            label="Lightdash projects" // pragma: allowlist secret
+                            placeholder={
+                                projectsLoading
+                                    ? 'Loading projects'
+                                    : 'Select projects'
+                            }
+                            data={projects.map((project) => ({
+                                value: project.projectUuid,
+                                label: project.name,
+                            }))}
+                            value={routing.projectUuids}
+                            searchable
+                            disabled={!canEdit || isUpdating || projectsLoading}
+                            onChange={(projectUuids) =>
+                                saveRouting({
+                                    applyToAllProjects: false,
+                                    projectUuids,
+                                    enabled:
+                                        routing.enabled &&
+                                        !!routing.linearTeamId &&
+                                        projectUuids.length > 0,
+                                })
+                            }
+                        />
+                    )}
                     <Select
                         label="Linear team"
                         placeholder={
@@ -267,25 +338,25 @@ export const LinearReviewSettings = () => {
                                 ? 'Loading teams'
                                 : 'Select a team'
                         }
-                        data={(linearTeams ?? []).map((team) => ({
-                            value: team.id,
-                            label: `${team.name} (${team.key})`,
-                        }))}
-                        value={destination?.linearTeamId ?? null}
+                        data={teamOptions}
+                        value={routing.linearTeamId}
                         disabled={
                             !canEdit ||
                             isUpdating ||
-                            !selectedProjectUuid ||
-                            destinationQuery.isInitialLoading ||
+                            routingQuery.isInitialLoading ||
                             linearTeamsLoading
                         }
-                        onChange={(linearTeamId) =>
-                            saveDestination({
-                                enabled: !!linearTeamId,
+                        onChange={(linearTeamId) => {
+                            if (linearTeamsLoading) return;
+                            saveRouting({
+                                enabled:
+                                    !!linearTeamId &&
+                                    (routing.applyToAllProjects ||
+                                        routing.projectUuids.length > 0),
                                 linearTeamId,
                                 linearProjectId: null,
-                            })
-                        }
+                            });
+                        }}
                     />
                     <Select
                         label="Linear project"
@@ -295,21 +366,19 @@ export const LinearReviewSettings = () => {
                                 ? 'Loading projects'
                                 : 'Optional project'
                         }
-                        data={(linearProjects ?? []).map((project) => ({
-                            value: project.id,
-                            label: project.name,
-                        }))}
-                        value={destination?.linearProjectId ?? null}
+                        data={linearProjectOptions}
+                        value={routing.linearProjectId}
                         disabled={
                             !canEdit ||
                             isUpdating ||
-                            !destination?.linearTeamId ||
+                            !routing.linearTeamId ||
                             linearProjectsLoading
                         }
                         clearable
-                        onChange={(linearProjectId) =>
-                            saveDestination({ linearProjectId })
-                        }
+                        onChange={(linearProjectId) => {
+                            if (linearProjectsLoading) return;
+                            saveRouting({ linearProjectId });
+                        }}
                     />
                 </Stack>
             )}

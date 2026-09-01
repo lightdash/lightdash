@@ -54,6 +54,78 @@ export type UpdateAiReviewLinearDestination = Pick<
 export type ApiAiReviewLinearDestinationResponse =
     ApiSuccess<AiReviewLinearDestination>;
 
+export type AiReviewLinearRouting = {
+    organizationUuid: string;
+    applyToAllProjects: boolean;
+    projectUuids: string[];
+    enabled: boolean;
+    linearTeamId: string | null;
+    linearProjectId: string | null;
+};
+
+export type UpdateAiReviewLinearRouting = {
+    applyToAllProjects: boolean;
+    projectUuids: string[];
+    enabled: boolean;
+    linearTeamId: string | null;
+    linearProjectId: string | null;
+};
+
+export type ApiAiReviewLinearRoutingResponse =
+    ApiSuccess<AiReviewLinearRouting>;
+
+export const resolveAiReviewLinearDestination = ({
+    organizationUuid,
+    projectUuid,
+    applyToAllProjects,
+    settings,
+    destination,
+    hasProjectDestinations,
+}: {
+    organizationUuid: string;
+    projectUuid: string;
+    applyToAllProjects: boolean;
+    settings: Pick<
+        AiReviewNotificationSettings,
+        'linearEnabled' | 'linearTeamId' | 'linearProjectId'
+    >;
+    destination: AiReviewLinearDestination | null;
+    hasProjectDestinations: boolean;
+}): AiReviewLinearDestination => {
+    if (applyToAllProjects) {
+        return {
+            organizationUuid,
+            projectUuid,
+            enabled: settings.linearEnabled,
+            linearTeamId: settings.linearTeamId,
+            linearProjectId: settings.linearProjectId,
+        };
+    }
+
+    if (destination) {
+        return destination;
+    }
+
+    // Preserve routing configured before destinations became project-scoped.
+    if (!hasProjectDestinations && settings.linearTeamId) {
+        return {
+            organizationUuid,
+            projectUuid,
+            enabled: settings.linearEnabled,
+            linearTeamId: settings.linearTeamId,
+            linearProjectId: settings.linearProjectId,
+        };
+    }
+
+    return {
+        organizationUuid,
+        projectUuid,
+        enabled: false,
+        linearTeamId: null,
+        linearProjectId: null,
+    };
+};
+
 export type AiReviewNotificationRecipient = {
     userUuid: string;
     email: string;

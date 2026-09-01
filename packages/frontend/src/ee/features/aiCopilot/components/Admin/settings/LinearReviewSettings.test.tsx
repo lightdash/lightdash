@@ -7,7 +7,16 @@ import { buildLinearAppSetupUrl } from './linearReviewSettingsUtils';
 
 const mocks = vi.hoisted(() => ({
     deleteLinear: vi.fn(),
-    updateDestination: vi.fn(),
+    updateRouting: vi.fn(),
+    hasLinear: false,
+    routing: {
+        organizationUuid: 'org-1',
+        applyToAllProjects: true,
+        projectUuids: [] as string[],
+        enabled: true,
+        linearTeamId: 'team-1',
+        linearProjectId: null as string | null,
+    },
 }));
 
 vi.mock('../../../../../../providers/App/useApp', () => ({
@@ -19,7 +28,10 @@ vi.mock('../../../../../../providers/App/useApp', () => ({
 
 vi.mock('../../../../../../hooks/useProjects', () => ({
     useProjects: () => ({
-        data: [{ projectUuid: 'project-1', name: 'Jaffle shop' }],
+        data: [
+            { projectUuid: 'project-1', name: 'Jaffle shop' },
+            { projectUuid: 'project-2', name: 'Analytics' },
+        ],
         isInitialLoading: false,
     }),
 }));
@@ -32,21 +44,30 @@ vi.mock(
             isLoading: false,
         }),
         useLinearInstallation: () => ({
-            data: undefined,
+            data: mocks.hasLinear
+                ? {
+                      organizationName: 'Example',
+                      organizationUrlKey: 'example',
+                      requiresReconnect: false,
+                  }
+                : undefined,
             isInitialLoading: false,
         }),
         useLinearProjects: () => ({ data: [], isInitialLoading: false }),
-        useLinearTeams: () => ({ data: [], isInitialLoading: false }),
+        useLinearTeams: () => ({
+            data: [{ id: 'team-1', name: 'Analytics Engineering', key: 'AE' }],
+            isInitialLoading: false,
+        }),
     }),
 );
 
 vi.mock('../../../hooks/useReviewNotificationSettings', () => ({
-    useReviewLinearDestination: () => ({
-        data: undefined,
+    useReviewLinearRouting: () => ({
+        data: mocks.hasLinear ? mocks.routing : undefined,
         isInitialLoading: false,
     }),
-    useUpdateReviewLinearDestination: () => ({
-        mutate: mocks.updateDestination,
+    useUpdateReviewLinearRouting: () => ({
+        mutate: mocks.updateRouting,
         isLoading: false,
     }),
 }));
@@ -63,6 +84,15 @@ const renderSettings = (initialEntry = '/generalSettings/ai/general') =>
 describe('LinearReviewSettings', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.hasLinear = false;
+        mocks.routing = {
+            organizationUuid: 'org-1',
+            applyToAllProjects: true,
+            projectUuids: [],
+            enabled: true,
+            linearTeamId: 'team-1',
+            linearProjectId: null,
+        };
     });
 
     it('prefills the self-hosted OAuth app and requires only its public client ID', async () => {
@@ -93,5 +123,26 @@ describe('LinearReviewSettings', () => {
         renderSettings();
 
         expect(screen.getByText(/This is a one-way export/)).toBeVisible();
+    });
+
+    it('lets admins send findings from every project', async () => {
+        mocks.hasLinear = true;
+        const user = userEvent.setup();
+        renderSettings();
+
+        expect(screen.getByLabelText('All projects')).toBeChecked();
+        expect(
+            screen.queryByLabelText('Lightdash projects'), // pragma: allowlist secret
+        ).not.toBeInTheDocument();
+
+        await user.click(screen.getByLabelText('All projects'));
+
+        expect(mocks.updateRouting).toHaveBeenCalledWith({
+            applyToAllProjects: false,
+            projectUuids: ['project-1', 'project-2'],
+            enabled: true,
+            linearTeamId: 'team-1',
+            linearProjectId: null,
+        });
     });
 });

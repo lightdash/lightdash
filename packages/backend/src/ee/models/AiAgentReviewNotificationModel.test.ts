@@ -39,7 +39,6 @@ describe('AiAgentReviewNotificationModel', () => {
     });
 
     it('uses legacy org routing until a project destination is saved', async () => {
-        tracker.on.select(AiReviewLinearDestinationTableName).response([]);
         tracker.on.select(AiReviewNotificationSettingsTableName).response([
             {
                 organization_uuid: 'org-1',
@@ -48,8 +47,10 @@ describe('AiAgentReviewNotificationModel', () => {
                 linear_enabled: true,
                 linear_team_id: 'team-1',
                 linear_project_id: 'linear-project-1',
+                linear_apply_to_all_projects: false,
             },
         ]);
+        tracker.on.select(AiReviewLinearDestinationTableName).response([]);
 
         await expect(
             model.getLinearDestination('org-1', 'project-1'),
@@ -59,6 +60,63 @@ describe('AiAgentReviewNotificationModel', () => {
             enabled: true,
             linearTeamId: 'team-1',
             linearProjectId: 'linear-project-1',
+        });
+    });
+
+    it('uses org routing for every project when apply-to-all is enabled', async () => {
+        tracker.on.select(AiReviewNotificationSettingsTableName).response([
+            {
+                organization_uuid: 'org-1',
+                enabled: false,
+                slack_channel_id: null,
+                linear_enabled: true,
+                linear_team_id: 'team-1',
+                linear_project_id: 'linear-project-1',
+                linear_apply_to_all_projects: true,
+            },
+        ]);
+        tracker.on.select(AiReviewLinearDestinationTableName).response([]);
+
+        await expect(
+            model.getLinearDestination('org-1', 'project-2'),
+        ).resolves.toEqual({
+            organizationUuid: 'org-1',
+            projectUuid: 'project-2',
+            enabled: true,
+            linearTeamId: 'team-1',
+            linearProjectId: 'linear-project-1',
+        });
+    });
+
+    it('returns selected-project routing from saved destinations', async () => {
+        tracker.on.select(AiReviewNotificationSettingsTableName).response([
+            {
+                organization_uuid: 'org-1',
+                enabled: false,
+                slack_channel_id: null,
+                linear_enabled: true,
+                linear_team_id: 'team-1',
+                linear_project_id: 'linear-project-1',
+                linear_apply_to_all_projects: false,
+            },
+        ]);
+        tracker.on.select(AiReviewLinearDestinationTableName).response([
+            {
+                organization_uuid: 'org-1',
+                project_uuid: 'project-1',
+                enabled: true,
+                linear_team_id: 'team-2',
+                linear_project_id: 'linear-project-2',
+            },
+        ]);
+
+        await expect(model.getLinearRouting('org-1')).resolves.toEqual({
+            organizationUuid: 'org-1',
+            applyToAllProjects: false,
+            projectUuids: ['project-1'],
+            enabled: true,
+            linearTeamId: 'team-2',
+            linearProjectId: 'linear-project-2',
         });
     });
 
