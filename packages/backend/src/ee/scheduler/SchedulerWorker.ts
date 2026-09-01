@@ -10,8 +10,11 @@ import {
 } from '@lightdash/common';
 import type { AddJobFunction } from 'graphile-worker';
 import Logger from '../../logging/logger';
+import { type ContentReviewRequestModel } from '../../models/ContentReviewRequestModel';
+import { type ContentReviewSettingsModel } from '../../models/ContentReviewSettingsModel';
 import { type OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type UserModel } from '../../models/UserModel';
 import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { tryJobOrTimeout } from '../../scheduler/SchedulerJobTimeout';
@@ -41,6 +44,7 @@ import { type OnboardingAgentService } from '../services/OnboardingAgentService/
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
 import type { ProjectHomepageService } from '../services/ProjectHomepageService';
 import { createReviewLinearIssue } from './tasks/createReviewLinearIssue';
+import { sendContentReviewNotification } from './tasks/sendContentReviewNotification';
 import { sendReviewNotification } from './tasks/sendReviewNotification';
 
 const MCP_TOOL_CALL_RETENTION_DAYS = 90;
@@ -140,6 +144,9 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
         | 'reconcileLiveActivity'
         | 'sweepLiveActivities'
     >;
+    contentReviewRequestModel: ContentReviewRequestModel;
+    contentReviewSettingsModel: ContentReviewSettingsModel;
+    userModel: UserModel;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
@@ -187,6 +194,12 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly mobilePushNotificationService: CommercialSchedulerWorkerArguments['mobilePushNotificationService'];
 
+    protected readonly contentReviewRequestModel: ContentReviewRequestModel;
+
+    protected readonly contentReviewSettingsModel: ContentReviewSettingsModel;
+
+    protected readonly userModel: UserModel;
+
     private readonly cleanupMetrics: PrometheusMetrics | null;
 
     constructor(args: CommercialSchedulerWorkerArguments) {
@@ -216,6 +229,9 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.projectHomepageService = args.projectHomepageService;
         this.externalSourceService = args.externalSourceService;
         this.mobilePushNotificationService = args.mobilePushNotificationService;
+        this.contentReviewRequestModel = args.contentReviewRequestModel;
+        this.contentReviewSettingsModel = args.contentReviewSettingsModel;
+        this.userModel = args.userModel;
         this.cleanupMetrics = args.prometheusMetrics ?? null;
     }
 
@@ -1026,6 +1042,21 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         this.aiAgentReviewClassifierModel,
                     projectModel: this.projectModel,
                     openIdIdentityModel: this.openIdIdentityModel,
+                    slackClient: this.slackClient,
+                    analytics: this.analytics,
+                })(payload);
+            },
+            [EE_SCHEDULER_TASKS.SEND_CONTENT_REVIEW_NOTIFICATION]: async (
+                payload,
+            ) => {
+                await sendContentReviewNotification({
+                    siteUrl: this.lightdashConfig.siteUrl,
+                    contentReviewRequestModel: this.contentReviewRequestModel,
+                    contentReviewSettingsModel: this.contentReviewSettingsModel,
+                    projectModel: this.projectModel,
+                    userModel: this.userModel,
+                    openIdIdentityModel: this.openIdIdentityModel,
+                    emailClient: this.emailClient,
                     slackClient: this.slackClient,
                     analytics: this.analytics,
                 })(payload);
