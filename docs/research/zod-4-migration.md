@@ -79,7 +79,7 @@ failure. Before dependency installation, all commands failed before collection.
 ## Performance measurements
 
 Measured on the same machine in clean worktrees at the exact merge base
-(`fbe9632c`) and final PR commit (`fa12e406`):
+(`fbe9632c`) and final PR commit (`6f4c5c54`):
 
 | Measurement | Merge base | Zod 4 PR | Change |
 | --- | ---: | ---: | ---: |
@@ -88,7 +88,7 @@ Measured on the same machine in clean worktrees at the exact merge base
 | Rejected AI query parse, median | 0.694M ops/s | 0.176M ops/s | 3.94x slower |
 | 53-tool agent schema registry construction, median | 3.37ms | 13.81ms | +10.44ms |
 | Frontend production build, median of 4 alternating warm runs | 7.56s | 7.87s | +4.1%; within noise |
-| Initial frontend payload | 3,054,510 gzip bytes | 3,057,390 gzip bytes | +2,880 bytes (+0.09%) |
+| Initial frontend payload | 3,054,510 gzip bytes | 3,057,361 gzip bytes | +2,851 bytes (+0.09%) |
 
 The invalid-parse slowdown affects rejected tool calls rather than normal valid
 traffic. Registry construction is cold setup work and remains about 14ms in
@@ -96,5 +96,5 @@ absolute terms. Frontend build timings have changed direction across repeated
 runs, so no build-speed claim is made.
 
 Before locale pruning, the initial payload was 3,085,818 gzip bytes: +31,308
-bytes against the merge base. The Vite guard recovers 90.8% of that regression
+bytes against the merge base. The Vite guard recovers 90.9% of that regression
 and fails future builds if unused non-English Zod locales return.
