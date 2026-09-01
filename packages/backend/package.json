@@ -196,7 +196,7 @@
         "vitest": "4.1.6",
         "winston": "3.13.0",
         "yaml": "2.8.3",
-        "zod": "3.25.55"
+        "zod": "4.5.0"
     },
     "devDependencies": {
         "@tsoa/cli": "6.6.0",

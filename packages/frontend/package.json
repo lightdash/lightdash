@@ -142,7 +142,7 @@
         "vega-embed": "7.1.0",
         "vega-lite": "6.4.1",
         "vega-themes": "3.0.0",
-        "zod": "3.25.55"
+        "zod": "4.5.0"
     },
     "devDependencies": {
         "@chromatic-com/storybook": "5.1.1",
