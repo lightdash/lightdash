@@ -1,0 +1,8 @@
+.placeholder {
+    background-color: light-dark(
+        var(--mantine-color-gray-2),
+        var(--mantine-color-dark-4)
+    );
+    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
+    font-weight: 500;
+}

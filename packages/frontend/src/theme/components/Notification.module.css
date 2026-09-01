@@ -1,0 +1,15 @@
+.root {
+    border: 1px solid var(--mantine-color-default-border);
+    box-shadow: var(--mantine-shadow-lg);
+    background-color: var(--mantine-color-body);
+}
+
+.title {
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+}
+
+.description {
+    font-size: var(--mantine-font-size-sm);
+    color: var(--mantine-color-dimmed);
+}

@@ -1,0 +1,9 @@
+.root {
+    --divider-color: var(--mantine-color-default-border);
+}
+
+.label {
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+}

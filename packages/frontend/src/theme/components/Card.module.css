@@ -1,0 +1,3 @@
+.section[data-with-border] {
+    border-color: var(--mantine-color-default-border);
+}
