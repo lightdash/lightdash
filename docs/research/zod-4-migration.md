@@ -75,3 +75,18 @@ failure. Before dependency installation, all commands failed before collection.
 - no contract widenings remain; the only sampled narrowings are Zod 4's RFC UUID
   validation and rejection of integers outside JavaScript's safe range
 - frozen lockfile installation and supply-chain policy verification pass
+
+## Performance measurements
+
+- Median common-package typecheck time improved from 1.92s to 1.18s in six
+  alternating warm runs.
+- Valid `toolRunQueryArgsSchema` parsing improved from about 0.86M to 4.23M
+  operations/second. Invalid parsing slowed from about 0.51M to 0.16M
+  operations/second.
+- The unoptimized frontend production build added 31.3KB gzip to the initial
+  payload because Zod's `z` namespace retained all 52 locale modules. The
+  frontend Vite plugin now replaces that locale barrel with English only and
+  fails the build if a non-English Zod locale returns. The final initial-load
+  delta against the exact PR merge base is 2.8KB gzip.
+- Warm frontend production build time remained within noise: 9.7s on the PR
+  versus 10.3s on the merge base.
