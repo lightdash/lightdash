@@ -33,11 +33,7 @@ import {
     useUpdateReviewLinearRouting,
 } from '../../../hooks/useReviewNotificationSettings';
 import styles from './LinearReviewSettings.module.css';
-import {
-    isLinearSettingsPreviewEnabled,
-    LINEAR_SETTINGS_PREVIEW,
-    buildLinearAppSetupUrl,
-} from './linearReviewSettingsUtils';
+import { buildLinearAppSetupUrl } from './linearReviewSettingsUtils';
 
 const selectOptionsWithCurrent = (
     options: Array<{ value: string; label: string }>,
@@ -66,40 +62,26 @@ export const LinearReviewSettings = () => {
     const [linearClientId, setLinearClientId] = useState('');
     const canEdit = user.data?.ability?.can('manage', 'Organization') ?? false;
     const siteUrl = health.data?.siteUrl ?? window.location.origin;
-    const isPreview = isLinearSettingsPreviewEnabled();
 
     const { data: projects = [], isInitialLoading: projectsLoading } =
         useProjects();
-    const linearInstallationQuery = useLinearInstallation({
-        enabled: !isPreview,
-    });
-    const installation = isPreview
-        ? LINEAR_SETTINGS_PREVIEW.installation
-        : linearInstallationQuery.data;
+    const linearInstallationQuery = useLinearInstallation();
+    const installation = linearInstallationQuery.data;
+    const installationLoading = linearInstallationQuery.isInitialLoading;
     const hasLinear = !!installation;
     const requiresReconnect = installation?.requiresReconnect === true;
-    const canLoadLinear = hasLinear && !requiresReconnect && !isPreview;
-    const { data: fetchedLinearTeams, isInitialLoading: linearTeamsLoading } =
+    const canLoadLinear = hasLinear && !requiresReconnect;
+    const { data: linearTeams, isInitialLoading: linearTeamsLoading } =
         useLinearTeams({ enabled: canLoadLinear });
     const routingQuery = useReviewLinearRouting({
         enabled: canLoadLinear,
     });
-    const routing = isPreview
-        ? LINEAR_SETTINGS_PREVIEW.routing
-        : routingQuery.data;
-    const {
-        data: fetchedLinearProjects,
-        isInitialLoading: linearProjectsLoading,
-    } = useLinearProjects({
-        enabled: canLoadLinear,
-        teamId: routing?.linearTeamId ?? null,
-    });
-    const linearTeams = isPreview
-        ? LINEAR_SETTINGS_PREVIEW.teams
-        : fetchedLinearTeams;
-    const linearProjects = isPreview
-        ? LINEAR_SETTINGS_PREVIEW.projects
-        : fetchedLinearProjects;
+    const routing = routingQuery.data;
+    const { data: linearProjects, isInitialLoading: linearProjectsLoading } =
+        useLinearProjects({
+            enabled: canLoadLinear,
+            teamId: routing?.linearTeamId ?? null,
+        });
     const { mutate: updateRouting, isLoading: routingUpdating } =
         useUpdateReviewLinearRouting();
     const { mutate: backfillLinear, isLoading: linearBackfilling } =
@@ -127,7 +109,7 @@ export const LinearReviewSettings = () => {
             linearProjectId: string | null;
         }>,
     ) => {
-        if (!routing || isPreview) return;
+        if (!routing) return;
         updateRouting({
             applyToAllProjects:
                 changes.applyToAllProjects ?? routing.applyToAllProjects,
@@ -236,11 +218,9 @@ export const LinearReviewSettings = () => {
                         </Text>
                     )}
                 </Box>
-                {hasLinear &&
-                    !requiresReconnect &&
-                    (!isPreview &&
-                    (linearInstallationQuery.isInitialLoading ||
-                        routingQuery.isInitialLoading) ? (
+                {installationLoading && <Loader size="sm" />}
+                {canLoadLinear &&
+                    (routingQuery.isInitialLoading ? (
                         <Loader size="sm" />
                     ) : (
                         <Switch
@@ -248,10 +228,7 @@ export const LinearReviewSettings = () => {
                             aria-label="Create Linear issues for AI review findings"
                             checked={!!routing?.enabled}
                             disabled={
-                                !canEdit ||
-                                isUpdating ||
-                                isPreview ||
-                                !canEnableExport
+                                !canEdit || isUpdating || !canEnableExport
                             }
                             onChange={(event) =>
                                 saveRouting({
@@ -262,7 +239,7 @@ export const LinearReviewSettings = () => {
                     ))}
             </Group>
 
-            {!hasLinear && (
+            {!hasLinear && !installationLoading && (
                 <Paper variant="dotted" p="md" radius="md">
                     <Stack gap="md">
                         <Group align="flex-start" gap="sm" wrap="nowrap">
@@ -351,12 +328,7 @@ export const LinearReviewSettings = () => {
                         label="All projects"
                         description="Findings from every project, including ones created later."
                         checked={routing.applyToAllProjects}
-                        disabled={
-                            !canEdit ||
-                            isUpdating ||
-                            isPreview ||
-                            projectsLoading
-                        }
+                        disabled={!canEdit || isUpdating || projectsLoading}
                         onChange={(event) => {
                             const applyToAllProjects =
                                 event.currentTarget.checked;
@@ -386,12 +358,7 @@ export const LinearReviewSettings = () => {
                             }))}
                             value={routing.projectUuids}
                             searchable
-                            disabled={
-                                !canEdit ||
-                                isUpdating ||
-                                isPreview ||
-                                projectsLoading
-                            }
+                            disabled={!canEdit || isUpdating || projectsLoading}
                             onChange={(projectUuids) =>
                                 saveRouting({
                                     applyToAllProjects: false,
@@ -416,7 +383,6 @@ export const LinearReviewSettings = () => {
                         disabled={
                             !canEdit ||
                             isUpdating ||
-                            isPreview ||
                             routingQuery.isInitialLoading ||
                             linearTeamsLoading
                         }
@@ -445,7 +411,6 @@ export const LinearReviewSettings = () => {
                         disabled={
                             !canEdit ||
                             isUpdating ||
-                            isPreview ||
                             !routing.linearTeamId ||
                             linearProjectsLoading
                         }
@@ -460,7 +425,7 @@ export const LinearReviewSettings = () => {
                             <Button
                                 size="xs"
                                 variant="default"
-                                disabled={!canEdit || isUpdating || isPreview}
+                                disabled={!canEdit || isUpdating}
                                 loading={linearBackfilling}
                                 onClick={() => backfillLinear()}
                             >
@@ -472,7 +437,7 @@ export const LinearReviewSettings = () => {
                             variant="default"
                             component="a"
                             href="/api/v1/linear/install"
-                            disabled={!canEdit || isUpdating || isPreview}
+                            disabled={!canEdit || isUpdating}
                         >
                             Reconnect
                         </Button>
@@ -481,7 +446,7 @@ export const LinearReviewSettings = () => {
                             size="xs"
                             variant="subtle"
                             color="red"
-                            disabled={!canEdit || isUpdating || isPreview}
+                            disabled={!canEdit || isUpdating}
                             leftSection={
                                 <MantineIcon icon={IconTrash} size={14} />
                             }

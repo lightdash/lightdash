@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
     updateRouting: vi.fn(),
     backfillLinear: vi.fn(),
     hasLinear: false,
+    installationLoading: false,
     routing: {
         organizationUuid: 'org-1',
         applyToAllProjects: true,
@@ -52,7 +53,7 @@ vi.mock(
                       requiresReconnect: false,
                   }
                 : undefined,
-            isInitialLoading: false,
+            isInitialLoading: mocks.installationLoading,
         }),
         useLinearProjects: () => ({ data: [], isInitialLoading: false }),
         useLinearTeams: () => ({
@@ -98,6 +99,7 @@ describe('LinearReviewSettings', () => {
             linearTeamId: 'team-1',
             linearProjectId: null,
         };
+        mocks.installationLoading = false;
     });
 
     it('prefills the self-hosted OAuth app and requires only its public client ID', async () => {
@@ -122,6 +124,20 @@ describe('LinearReviewSettings', () => {
             'client-1',
         );
         expect(connect).toBeEnabled();
+    });
+
+    it('does not show the setup steps while the installation is loading', () => {
+        mocks.installationLoading = true;
+        renderSettings();
+
+        expect(
+            screen.queryByText('Create a Linear app'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('switch', {
+                name: 'Create Linear issues for AI review findings',
+            }),
+        ).not.toBeInTheDocument();
     });
 
     it('shows a two-step Linear setup with the Linear logo', () => {
