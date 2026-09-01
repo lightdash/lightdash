@@ -20,17 +20,23 @@
 .input:hover {
     white-space: normal;
     overflow: visible;
-    background: var(--mantine-color-ldGray-2);
+    background: var(--mantine-color-default-hover);
 }
 
 .input::placeholder {
-    color: var(--mantine-color-ldGray-6);
+    color: var(--mantine-color-dimmed);
 }
 
 .lighter:hover {
-    background: var(--mantine-color-ldGray-1);
+    background: var(--mantine-color-default-hover);
 }
 
 .lighter::placeholder {
-    color: var(--mantine-color-ldGray-5);
+    color: var(--mantine-color-placeholder);
+}
+
+.heading {
+    font-size: var(--mantine-font-size-md);
+    font-weight: 600;
+    letter-spacing: -0.005em;
 }

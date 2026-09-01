@@ -59,7 +59,7 @@ const AddFilterButton: FC<{ onClick: () => void }> = ({ onClick }) => {
             }}
         >
             <Button
-                variant="outline"
+                variant="light"
                 size="xs"
                 leftSection={<MantineIcon icon={IconPlus} />}
                 onClick={onClick}

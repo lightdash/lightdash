@@ -33,7 +33,7 @@ export const TrialWarningBanner = ({ access }: Props) => {
             <Text
                 c={isExpired ? 'white' : 'gray.9'}
                 size="sm"
-                fw={700}
+                fw={600}
                 truncate
             >
                 {isExpired

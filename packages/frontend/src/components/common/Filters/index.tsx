@@ -135,7 +135,7 @@ const AddFilterSection: FC<AddFilterSectionProps> = ({
                     style={{ flex: 1 }}
                 >
                     <Button
-                        variant="outline"
+                        variant="light"
                         size="xs"
                         leftSection={<MantineIcon icon={IconPlus} />}
                         disabled={fields.length <= 0}

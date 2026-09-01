@@ -126,7 +126,7 @@
 }
 
 .content[data-sidebar-border='true'] {
-    border-left: 1px solid var(--mantine-color-ldGray-3);
+    border-left: 1px solid var(--mantine-color-default-border);
 }
 
 .fixedContainer {
