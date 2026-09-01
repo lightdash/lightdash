@@ -2116,7 +2116,34 @@ Recommended Dashboard Structure:
                 "filters": {
                   "anyOf": [
                     {
-                      "$ref": "#/definitions/__schema118",
+                      "additionalProperties": false,
+                      "properties": {
+                        "dimensions": {
+                          "items": {
+                            "$ref": "#/definitions/__schema121",
+                          },
+                          "type": "array",
+                        },
+                        "metrics": {
+                          "items": {
+                            "$ref": "#/definitions/__schema121",
+                          },
+                          "type": "array",
+                        },
+                        "tableCalculations": {
+                          "items": {
+                            "$ref": "#/definitions/__schema42",
+                          },
+                          "type": "array",
+                        },
+                        "type": {
+                          "$ref": "#/definitions/__schema118",
+                        },
+                      },
+                      "required": [
+                        "type",
+                      ],
+                      "type": "object",
                     },
                     {
                       "type": "null",
@@ -2461,42 +2488,15 @@ All branches of an IF must return the same type.",
           "type": "string",
         },
         "__schema118": {
-          "additionalProperties": false,
-          "properties": {
-            "dimensions": {
-              "items": {
-                "$ref": "#/definitions/__schema121",
-              },
-              "type": "array",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/__schema119",
             },
-            "metrics": {
-              "items": {
-                "$ref": "#/definitions/__schema121",
-              },
-              "type": "array",
+            {
+              "$ref": "#/definitions/__schema120",
             },
-            "tableCalculations": {
-              "items": {
-                "$ref": "#/definitions/__schema42",
-              },
-              "type": "array",
-            },
-            "type": {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/__schema119",
-                },
-                {
-                  "$ref": "#/definitions/__schema120",
-                },
-              ],
-              "description": "Type of filter group operation",
-            },
-          },
-          "required": [
-            "type",
           ],
-          "type": "object",
+          "description": "Type of filter group operation",
         },
         "__schema119": {
           "const": "and",
@@ -2725,7 +2725,7 @@ All branches of an IF must return the same type.",
             },
             "joinKey": {
               "items": {
-                "$ref": "#/definitions/__schema132",
+                "$ref": "#/definitions/__schema133",
               },
               "minItems": 1,
               "type": "array",
@@ -2761,6 +2761,7 @@ All branches of an IF must return the same type.",
             },
             "queryConfig": {
               "additionalProperties": false,
+              "description": "A second semantic-layer query. The primary query limit and parameter values apply to the whole merge.",
               "properties": {
                 "customMetrics": {
                   "$ref": "#/definitions/__schema11",
@@ -2772,14 +2773,7 @@ All branches of an IF must return the same type.",
                   "$ref": "#/definitions/__schema1",
                 },
                 "filters": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/definitions/__schema118",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
+                  "$ref": "#/definitions/__schema132",
                 },
                 "metrics": {
                   "$ref": "#/definitions/__schema4",
@@ -2806,12 +2800,73 @@ All branches of an IF must return the same type.",
           "type": "object",
         },
         "__schema132": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "dimensions": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "$ref": "#/definitions/__schema121",
+                      },
+                      "type": "array",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "metrics": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "$ref": "#/definitions/__schema121",
+                      },
+                      "type": "array",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "tableCalculations": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "$ref": "#/definitions/__schema42",
+                      },
+                      "type": "array",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "type": {
+                  "$ref": "#/definitions/__schema118",
+                },
+              },
+              "required": [
+                "type",
+                "dimensions",
+                "metrics",
+                "tableCalculations",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "__schema133": {
           "additionalProperties": false,
           "properties": {
             "fields": {
               "description": "One selected dimension from each source. Both must represent the same grain and value type.",
               "items": {
-                "$ref": "#/definitions/__schema133",
+                "$ref": "#/definitions/__schema134",
               },
               "maxItems": 2,
               "minItems": 2,
@@ -2829,7 +2884,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema133": {
+        "__schema134": {
           "additionalProperties": false,
           "properties": {
             "fieldId": {
@@ -6732,42 +6787,15 @@ All branches of an IF must return the same type.",
           "type": "string",
         },
         "__schema117": {
-          "additionalProperties": false,
-          "properties": {
-            "dimensions": {
-              "items": {
-                "$ref": "#/definitions/__schema120",
-              },
-              "type": "array",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/__schema118",
             },
-            "metrics": {
-              "items": {
-                "$ref": "#/definitions/__schema120",
-              },
-              "type": "array",
+            {
+              "$ref": "#/definitions/__schema119",
             },
-            "tableCalculations": {
-              "items": {
-                "$ref": "#/definitions/__schema41",
-              },
-              "type": "array",
-            },
-            "type": {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/__schema118",
-                },
-                {
-                  "$ref": "#/definitions/__schema119",
-                },
-              ],
-              "description": "Type of filter group operation",
-            },
-          },
-          "required": [
-            "type",
           ],
-          "type": "object",
+          "description": "Type of filter group operation",
         },
         "__schema118": {
           "const": "and",
@@ -6982,7 +7010,7 @@ All branches of an IF must return the same type.",
             },
             "joinKey": {
               "items": {
-                "$ref": "#/definitions/__schema134",
+                "$ref": "#/definitions/__schema135",
               },
               "minItems": 1,
               "type": "array",
@@ -7018,6 +7046,7 @@ All branches of an IF must return the same type.",
             },
             "queryConfig": {
               "additionalProperties": false,
+              "description": "A second semantic-layer query. The primary query limit and parameter values apply to the whole merge.",
               "properties": {
                 "customMetrics": {
                   "$ref": "#/definitions/__schema10",
@@ -7029,14 +7058,7 @@ All branches of an IF must return the same type.",
                   "$ref": "#/definitions/__schema0",
                 },
                 "filters": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/definitions/__schema117",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
+                  "$ref": "#/definitions/__schema134",
                 },
                 "metrics": {
                   "$ref": "#/definitions/__schema3",
@@ -7063,12 +7085,73 @@ All branches of an IF must return the same type.",
           "type": "object",
         },
         "__schema134": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "dimensions": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "$ref": "#/definitions/__schema120",
+                      },
+                      "type": "array",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "metrics": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "$ref": "#/definitions/__schema120",
+                      },
+                      "type": "array",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "tableCalculations": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "$ref": "#/definitions/__schema41",
+                      },
+                      "type": "array",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "type": {
+                  "$ref": "#/definitions/__schema117",
+                },
+              },
+              "required": [
+                "type",
+                "dimensions",
+                "metrics",
+                "tableCalculations",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "__schema135": {
           "additionalProperties": false,
           "properties": {
             "fields": {
               "description": "One selected dimension from each source. Both must represent the same grain and value type.",
               "items": {
-                "$ref": "#/definitions/__schema135",
+                "$ref": "#/definitions/__schema136",
               },
               "maxItems": 2,
               "minItems": 2,
@@ -7086,7 +7169,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema135": {
+        "__schema136": {
           "additionalProperties": false,
           "properties": {
             "fieldId": {
@@ -8429,7 +8512,34 @@ All branches of an IF must return the same type.",
             "filters": {
               "anyOf": [
                 {
-                  "$ref": "#/definitions/__schema117",
+                  "additionalProperties": false,
+                  "properties": {
+                    "dimensions": {
+                      "items": {
+                        "$ref": "#/definitions/__schema120",
+                      },
+                      "type": "array",
+                    },
+                    "metrics": {
+                      "items": {
+                        "$ref": "#/definitions/__schema120",
+                      },
+                      "type": "array",
+                    },
+                    "tableCalculations": {
+                      "items": {
+                        "$ref": "#/definitions/__schema41",
+                      },
+                      "type": "array",
+                    },
+                    "type": {
+                      "$ref": "#/definitions/__schema117",
+                    },
+                  },
+                  "required": [
+                    "type",
+                  ],
+                  "type": "object",
                 },
                 {
                   "type": "null",
