@@ -516,6 +516,32 @@ describe('ContentAsCodeWritebackService', () => {
         );
     });
 
+    it('writes files under the stamped content path', async () => {
+        const { service, gitIntegrationService } = buildService({
+            settings: { syncEnabled: true, path: 'analytics/content' },
+        });
+        await service.propose(user, 'project-uuid', 'chart', 'monthly-revenue');
+
+        const [, , , filePath] = gitIntegrationService.saveFile.mock.calls[0];
+        expect(filePath).toBe('analytics/content/charts/monthly-revenue.yml');
+    });
+
+    it('names the reviewed file by the stamped content path', async () => {
+        const { service } = buildService({
+            settings: { syncEnabled: true, path: 'analytics/content' },
+        });
+
+        const review = await service.getDraftReview(
+            user,
+            'project-uuid',
+            'draft-uuid',
+        );
+
+        expect(review.filePath).toBe(
+            'analytics/content/dashboards/weekly-kpis.yml',
+        );
+    });
+
     it('reviews a written-back draft from its frozen documents', async () => {
         const { service, coderService } = buildService({
             draft: {

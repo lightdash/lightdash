@@ -63,6 +63,7 @@ import {
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isSlackTarget,
+    normalizeContentAsCodePath,
     NotFoundError,
     NotificationFrequency,
     NotImplementedError,
@@ -88,6 +89,8 @@ import {
     UpdatedByUser,
     validateEmail,
     VirtualViewAsCode,
+    type ContentAsCodeProjectSettings,
+    type ContentAsCodeSettingsStamp,
     type ContentVerificationInfo,
     type DashboardTileWithSlug,
     type Filters,
@@ -3040,10 +3043,7 @@ export class CoderService extends BaseService {
     async getContentAsCodeSettings(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<{
-        syncEnabled: boolean;
-        stampedAt: Date;
-    } | null> {
+    ): Promise<ContentAsCodeProjectSettings | null> {
         const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -3102,7 +3102,7 @@ export class CoderService extends BaseService {
     async stampContentAsCodeSettings(
         user: SessionUser,
         projectUuid: string,
-        settings: { sync: boolean },
+        settings: ContentAsCodeSettingsStamp,
     ): Promise<void> {
         const project = await this.projectModel.get(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
@@ -3126,6 +3126,10 @@ export class CoderService extends BaseService {
         await this.contentAsCodeProjectSettingsModel.upsert({
             projectUuid,
             syncEnabled: settings.sync,
+            path:
+                settings.path === undefined
+                    ? null
+                    : normalizeContentAsCodePath(settings.path),
         });
     }
 

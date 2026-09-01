@@ -36,6 +36,7 @@ import {
     type ApiVirtualViewAsCodeListResponse,
     type ApiVirtualViewAsCodeUpsertResponse,
     type ChartAsCode,
+    type ContentAsCodeSettingsStamp,
     type ContentSlugRenameRequest,
     type DashboardAsCode,
     type ExternalConnectionAsCode,
@@ -304,6 +305,7 @@ export class ProjectCoderController extends BaseController {
             .getDraftReview(toSessionUser(req.account), projectUuid, draftUuid);
         return codeSuccess({
             summary: toDraftSummary(review.draft),
+            filePath: review.filePath,
             publishedYaml: review.publishedYaml,
             draftYaml: review.draftYaml,
         });
@@ -389,7 +391,7 @@ export class ProjectCoderController extends BaseController {
     async stampContentAsCodeSettings(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Body() body: { sync: boolean },
+        @Body() body: ContentAsCodeSettingsStamp,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
