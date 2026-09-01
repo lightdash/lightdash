@@ -101,29 +101,32 @@ Measured on the same machine in clean worktrees at the exact merge base
 | Measurement | Merge base | Zod 4 PR | Change |
 | --- | ---: | ---: | ---: |
 | Common TypeScript check, median of 6 alternating warm runs | 1.84s | 1.10s | 40% faster |
-| Representative valid AI query parse, median | 0.970M ops/s | 5.30M ops/s | 5.47x faster |
-| Rejected AI query parse, median | 0.694M ops/s | 0.176M ops/s | 3.94x slower |
 | 53-tool agent schema registry construction, median | 3.37ms | 13.81ms | +10.44ms |
 | Frontend production build, median of 4 alternating warm runs | 7.56s | 7.87s | +4.1%; within noise |
 | Initial frontend payload | 3,054,510 gzip bytes | 3,057,361 gzip bytes | +2,851 bytes (+0.09%) |
 
-The invalid-parse slowdown affects rejected tool calls rather than normal valid
-traffic. Registry construction is cold setup work and remains about 14ms in
-absolute terms. Frontend build timings have changed direction across repeated
-runs, so no build-speed claim is made.
+Parsing, measured with the real `toolRunQueryArgsSchema` (filters present; the
+rejected payload has two invalid fields), 20,000 iterations per pass, median of
+7 passes, alternating trees on a quiet machine:
 
-After the review fixes (`dcc0b3d4`), re-measured against the earlier PR commit
-`e058a5b6` in the same worktree: converting all 53 agent tool schemas in one
+| `run_query` parse | Zod 3 | Zod 4 | Change |
+| --- | ---: | ---: | ---: |
+| Valid payload | 0.016M ops/s | 0.20M ops/s | 12x faster |
+| Rejected payload | 0.016M ops/s | 0.065M ops/s | 4x faster |
+
+Within Zod 4 a rejection costs about 3x a valid parse, but both are well ahead
+of Zod 3. An earlier draft reported rejected parses as 3.94x slower from a
+synthetic input; that did not reproduce with the real schema and is withdrawn.
+Registry construction is cold setup work and remains about 14ms in absolute
+terms. Frontend build timings have changed direction across repeated runs, so
+no build-speed claim is made.
+
+After the review fixes (`efd213b3`), re-measured against the earlier PR commit
+`5bf445c1` in the same worktree: converting all 53 agent tool schemas in one
 process takes 27ms (median of 20 passes) against 46ms before, because the
 `isOptional()`-based `required` override ran a parse per property; native
 conversion alone is 17ms. The initial frontend payload is unchanged (identical
 raw size, +2 gzip bytes), and the normalizer runs only on the backend.
-
-The rejected-parse row does not reproduce with the real `toolRunQueryArgsSchema`
-(filters present, two invalid fields), alternating trees on a quiet machine:
-Zod 3 parses 0.016M valid and 0.016M rejected payloads per second, Zod 4
-0.20M valid and 0.065M rejected. For this schema Zod 4 rejects about 4x
-faster than Zod 3; a rejection costs about 3x a valid parse within Zod 4.
 
 Before locale pruning, the initial payload was 3,085,818 gzip bytes: +31,308
 bytes against the merge base. The Vite guard recovers 90.9% of that regression
