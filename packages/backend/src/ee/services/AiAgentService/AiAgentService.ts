@@ -9586,9 +9586,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         prompt: SlackPrompt,
         metadata: { appUuid: string; name: string },
     ): Promise<KnownBlock | undefined> {
-        if (this.lightdashConfig.headlessBrowser?.host === undefined) {
-            return undefined;
-        }
         const capture = async (): Promise<KnownBlock | undefined> => {
             const { imageBuffer, imageUrl } =
                 await this.unfurlService.exportDataApp({

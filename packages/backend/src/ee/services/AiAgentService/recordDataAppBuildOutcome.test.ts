@@ -39,7 +39,6 @@ const buildService = (
     options?: {
         isSlack?: boolean;
         alreadyResolved?: boolean;
-        headlessBrowser?: boolean;
         captureError?: Error;
         slackImage?:
             | { source: 'slackFile'; fileId: string }
@@ -67,16 +66,7 @@ const buildService = (
               }),
     );
     const service = new AiAgentService({
-        lightdashConfig: {
-            siteUrl: 'https://ld.example.com',
-            headlessBrowser:
-                options?.headlessBrowser === false
-                    ? { internalLightdashHost: 'http://internal.example.com' }
-                    : {
-                          host: 'headless-chrome',
-                          internalLightdashHost: 'http://internal.example.com',
-                      },
-        },
+        lightdashConfig: { siteUrl: 'https://ld.example.com' },
         aiAgentModel: {
             updateToolResultIfPending,
             hasToolResult,
@@ -260,26 +250,6 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
         await service.recordDataAppBuildOutcome(PAYLOAD);
 
         expect(postMessage).toHaveBeenCalledTimes(1);
-        expect(postMessage).toHaveBeenCalledWith(
-            expect.objectContaining({
-                blocks: [
-                    expect.objectContaining({
-                        text: expect.stringContaining('Open it in the builder'),
-                    }),
-                ],
-            }),
-        );
-    });
-
-    it('skips the screenshot when no headless browser is configured', async () => {
-        const { service, postMessage, exportDataApp } = buildService(
-            { status: 'ready' },
-            { isSlack: true, headlessBrowser: false },
-        );
-
-        await service.recordDataAppBuildOutcome(PAYLOAD);
-
-        expect(exportDataApp).not.toHaveBeenCalled();
         expect(postMessage).toHaveBeenCalledWith(
             expect.objectContaining({
                 blocks: [
