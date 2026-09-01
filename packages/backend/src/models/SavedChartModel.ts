@@ -107,6 +107,7 @@ import {
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
 import { dismissOpenContentDrafts } from './ContentDraftModel';
+import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
 
 type DbSavedChartDetails = {
@@ -1342,6 +1343,11 @@ export class SavedChartModel {
         await dismissOpenContentDrafts(this.database, 'chart', [
             savedChartUuid,
         ]);
+        await cancelPendingContentReviewRequests(
+            this.database,
+            ContentType.CHART,
+            [savedChartUuid],
+        );
         return savedChart;
     }
 
@@ -1359,6 +1365,11 @@ export class SavedChartModel {
         await dismissOpenContentDrafts(this.database, 'chart', [
             savedChartUuid,
         ]);
+        await cancelPendingContentReviewRequests(
+            this.database,
+            ContentType.CHART,
+            [savedChartUuid],
+        );
         return savedChart;
     }
 

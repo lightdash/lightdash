@@ -2927,6 +2927,28 @@ export type ContentVerificationEvent = BaseTrack & {
     };
 };
 
+export type ContentReviewRequestEvent = BaseTrack & {
+    event:
+        | 'content_review_request.submitted'
+        | 'content_review_request.approved'
+        | 'content_review_request.rejected'
+        | 'content_review_request.cancelled';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        contentType: ContentType;
+        contentId: string;
+        targetSpaceId: string | null;
+        routedTo?: 'space_editors' | 'group';
+        reviewerCount?: number;
+        movedItemCount?: number;
+        similarContentShown?: number;
+        verified?: boolean;
+        turnaroundSeconds?: number;
+    };
+};
+
 export type AiAgentArtifactVersionVerifiedEvent = BaseTrack & {
     event: 'ai_agent.artifact_version_verified';
     userId: string;
@@ -3613,6 +3635,7 @@ type TypedEvent =
     | AiRouterInstructionsUpdatedEvent
     | AiRouterMessageRoutedEvent
     | ContentVerificationEvent
+    | ContentReviewRequestEvent
     | SchedulerOwnershipReassignedEvent
     | DashboardOwnershipReassignedEvent
     | ImpersonationEvent

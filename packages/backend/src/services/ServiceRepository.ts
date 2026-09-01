@@ -181,6 +181,7 @@ interface ServiceManifest {
     aiService: unknown;
     aiAgentCoderService: unknown;
     projectHomepageService: unknown;
+    contentReviewRequestService: unknown;
     aiAgentService: unknown;
     aiAgentToolsService: unknown;
     aiAgentAdminService: unknown;
@@ -1625,6 +1626,12 @@ export class ServiceRepository
         ProjectHomepageServiceImplT,
     >(): ProjectHomepageServiceImplT {
         return this.getService('projectHomepageService');
+    }
+
+    public getContentReviewRequestService<
+        ContentReviewRequestServiceImplT,
+    >(): ContentReviewRequestServiceImplT {
+        return this.getService('contentReviewRequestService');
     }
 
     public getHomepageRecommendedActionSkipsService<

@@ -14,6 +14,10 @@ import {
     ContentReviewRequestsTableName,
     type DbContentReviewRequest,
 } from '../database/entities/contentReviewRequests';
+import { DashboardsTableName } from '../database/entities/dashboards';
+import { ProjectTableName } from '../database/entities/projects';
+import { SavedChartsTableName } from '../database/entities/savedCharts';
+import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
 
@@ -77,6 +81,43 @@ export type CreateContentReviewRequest = {
     similarContent: ContentReviewSimilarContentItem[];
     grantedPrincipals: ContentReviewGrantedPrincipal[];
 };
+
+export type ContentReviewContentLocation = {
+    uuid: string;
+    name: string;
+    slug: string;
+    spaceUuid: string | null;
+    dashboardUuid: string | null;
+    deleted: boolean;
+};
+
+export type ContentReviewSpaceInfo = {
+    uuid: string;
+    name: string;
+    projectUuid: string;
+    isDefaultUserSpace: boolean;
+    deleted: boolean;
+};
+
+type DbLocationRow = {
+    uuid: string;
+    name: string;
+    slug: string;
+    space_uuid: string | null;
+    dashboard_uuid: string | null;
+    deleted_at: Date | null;
+};
+
+const parseLocationRow = (
+    row: DbLocationRow,
+): ContentReviewContentLocation => ({
+    uuid: row.uuid,
+    name: row.name,
+    slug: row.slug,
+    spaceUuid: row.space_uuid,
+    dashboardUuid: row.dashboard_uuid,
+    deleted: row.deleted_at !== null,
+});
 
 export type ListContentReviewRequestsFilters = {
     projectUuid: string;
@@ -352,5 +393,93 @@ export class ContentReviewRequestModel {
                 granted_principals: JSON.stringify([]),
                 updated_at: new Date(),
             });
+    }
+
+    async transaction<T>(callback: (tx: Knex) => Promise<T>): Promise<T> {
+        return this.database.transaction(callback);
+    }
+
+    async findChartLocations(
+        chartUuids: string[],
+    ): Promise<ContentReviewContentLocation[]> {
+        if (chartUuids.length === 0) return [];
+        const rows = await this.database(SavedChartsTableName)
+            .leftJoin(
+                SpaceTableName,
+                `${SavedChartsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .whereIn(`${SavedChartsTableName}.saved_query_uuid`, chartUuids)
+            .select<DbLocationRow[]>(
+                `${SavedChartsTableName}.saved_query_uuid as uuid`,
+                `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.slug`,
+                `${SpaceTableName}.space_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.deleted_at`,
+            );
+        return rows.map(parseLocationRow);
+    }
+
+    async findDashboardLocations(
+        dashboardUuids: string[],
+    ): Promise<ContentReviewContentLocation[]> {
+        if (dashboardUuids.length === 0) return [];
+        const rows = await this.database(DashboardsTableName)
+            .leftJoin(
+                SpaceTableName,
+                `${DashboardsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .whereIn(`${DashboardsTableName}.dashboard_uuid`, dashboardUuids)
+            .select<DbLocationRow[]>(
+                `${DashboardsTableName}.dashboard_uuid as uuid`,
+                `${DashboardsTableName}.name`,
+                `${DashboardsTableName}.slug`,
+                `${SpaceTableName}.space_uuid`,
+                this.database.raw('null as dashboard_uuid'),
+                `${DashboardsTableName}.deleted_at`,
+            );
+        return rows.map(parseLocationRow);
+    }
+
+    async findSpaceInfo(
+        spaceUuids: string[],
+    ): Promise<Map<string, ContentReviewSpaceInfo>> {
+        if (spaceUuids.length === 0) return new Map();
+        const rows = await this.database(SpaceTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .select<
+                {
+                    space_uuid: string;
+                    name: string;
+                    project_uuid: string;
+                    is_default_user_space: boolean;
+                    deleted_at: Date | null;
+                }[]
+            >(
+                `${SpaceTableName}.space_uuid`,
+                `${SpaceTableName}.name`,
+                `${ProjectTableName}.project_uuid`,
+                `${SpaceTableName}.is_default_user_space`,
+                `${SpaceTableName}.deleted_at`,
+            );
+        return new Map(
+            rows.map((row) => [
+                row.space_uuid,
+                {
+                    uuid: row.space_uuid,
+                    name: row.name,
+                    projectUuid: row.project_uuid,
+                    isDefaultUserSpace: row.is_default_user_space,
+                    deleted: row.deleted_at !== null,
+                },
+            ]),
+        );
     }
 }
