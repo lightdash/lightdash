@@ -41,7 +41,10 @@ const buildService = (
         alreadyResolved?: boolean;
         headlessBrowser?: boolean;
         captureError?: Error;
-        slackImage?: { source: string; fileId?: string; url?: string } | null;
+        slackImage?:
+            | { source: 'slackFile'; fileId: string }
+            | { source: 'url'; url: string }
+            | null;
     },
 ) => {
     const updateToolResultIfPending = vi

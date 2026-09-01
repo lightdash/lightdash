@@ -9579,12 +9579,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         );
     }
 
-    /**
-     * Best-effort screenshot of a ready data app for the Slack build outcome
-     * message. Renders as the prompt author via the shared data app render
-     * path, then uploads to Slack (file preferred, hosted URL fallback). Any
-     * failure or an overall timeout degrades to the text-only outcome.
-     */
+    private static readonly DATA_APP_SCREENSHOT_TIMEOUT_MS = 60_000;
+
+    // Renders as the prompt author, who owns the personal app the build
+    // created. Best-effort: undefined degrades to the text-only outcome.
     private async tryBuildDataAppScreenshotBlock(
         prompt: SlackPrompt,
         metadata: { appUuid: string; name: string },
@@ -9646,16 +9644,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }),
             ]);
         } catch (error) {
-            Logger.warn(
-                `AiAgent.postDataAppBuildOutcomeToSlack: screenshot skipped for app ${
-                    metadata.appUuid
-                }: ${getErrorMessage(error)}`,
-            );
+            this.logger.warn('Data app build outcome screenshot skipped', {
+                appUuid: metadata.appUuid,
+                promptUuid: prompt.promptUuid,
+                organizationUuid: prompt.organizationUuid,
+                error: getErrorMessage(error),
+            });
             return undefined;
         }
     }
-
-    private static readonly DATA_APP_SCREENSHOT_TIMEOUT_MS = 60_000;
 
     /**
      * A memory belongs to the owner of the thread it came from, so every memory
