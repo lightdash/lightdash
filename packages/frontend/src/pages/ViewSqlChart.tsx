@@ -27,6 +27,7 @@ import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
 import type { EChartsInstance } from '../components/EChartsReactWrapper';
 import { Parameters, useParameters } from '../features/parameters';
+import styles from '../features/sqlRunner/components/ContentPanel.module.css';
 import { ChartDownload } from '../features/sqlRunner/components/Download/ChartDownload';
 import ResultsDownloadButton from '../features/sqlRunner/components/Download/ResultsDownloadButton';
 import { Header } from '../features/sqlRunner/components/Header';
@@ -124,14 +125,12 @@ const ViewSqlChart = () => {
             withFullHeight
             header={<Header mode="view" />}
         >
-            <Paper shadow="none" radius={0} px="md" pb={0} pt="sm" flex={1}>
-                <Stack h="100%">
-                    <Group justify="space-between">
+            <Stack p="lg" flex={1} miw={0} className={styles.root}>
+                <Paper className={styles.card}>
+                    <Box className={styles.cardHeader}>
                         <Group justify="space-between">
                             <SegmentedControl
-                                color="ldGray.9"
-                                size="xs"
-                                radius="md"
+                                size="sm"
                                 disabled={isChartResultsLoading}
                                 data={[
                                     {
@@ -230,7 +229,7 @@ const ViewSqlChart = () => {
                                     />
                                 )}
                         </Group>
-                    </Group>
+                    </Box>
 
                     {chartError && <ErrorState error={chartError.error} />}
                     {chartResultsError && (
@@ -238,7 +237,13 @@ const ViewSqlChart = () => {
                     )}
 
                     {chartData && !isChartLoading && (
-                        <Box h="100%" pos="relative" flex={1}>
+                        <Box
+                            className={styles.cardBody}
+                            data-padded={
+                                activeTab === TabOption.CHART &&
+                                !isVizTableConfig(chartData.config)
+                            }
+                        >
                             <ConditionalVisibility
                                 isVisible={activeTab === TabOption.CHART}
                             >
@@ -342,8 +347,8 @@ const ViewSqlChart = () => {
                             </ConditionalVisibility>
                         </Box>
                     )}
-                </Stack>
-            </Paper>
+                </Paper>
+            </Stack>
         </Page>
     );
 };

@@ -1,12 +1,10 @@
 import { getFieldQuoteChar } from '@lightdash/common';
-import { Group, Paper, Stack, ActionIcon, Tooltip } from '@mantine/core';
-import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
+import { Stack } from '@mantine/core';
 import { useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useMount, useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
-import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import {
     resetChartState,
@@ -30,7 +28,6 @@ import {
     setProjectUuid,
     setQuoteChar,
     setSavedChartData,
-    setSidebarOpen,
     setSql,
     setSqlLimit,
     setState,
@@ -65,9 +62,6 @@ const SqlRunner = ({
     const location = useLocation();
     const navigate = useNavigate();
 
-    const isLeftSidebarOpen = useAppSelector(
-        (state) => state.sqlRunner.isLeftSidebarOpen,
-    );
     const { data: project } = useProject(projectUuid);
     const { showToastError } = useToaster();
 
@@ -163,10 +157,6 @@ const SqlRunner = ({
         }
     }, [dispatch, warehouseType, warehouseConnectionType]);
 
-    const handleSetSidebarOpen = (isOpen: boolean) => {
-        dispatch(setSidebarOpen(isOpen));
-    };
-
     if (chartError) {
         return <ErrorState error={chartError.error} />;
     }
@@ -176,52 +166,16 @@ const SqlRunner = ({
             title="SQL Runner"
             noContentPadding
             flexContent
-            header={
-                mode === 'virtualView' && virtualViewState ? (
+            sidebar={<Sidebar />}
+        >
+            <Stack gap={0} flex={1} miw={0}>
+                {mode === 'virtualView' && virtualViewState ? (
                     <HeaderVirtualView virtualViewState={virtualViewState} />
                 ) : (
                     <Header mode={params.slug ? 'edit' : 'create'} />
-                )
-            }
-            isSidebarOpen={isLeftSidebarOpen}
-            sidebar={<Sidebar setSidebarOpen={handleSetSidebarOpen} />}
-            noSidebarPadding
-        >
-            <Group
-                align="stretch"
-                grow
-                gap="none"
-                p={0}
-                style={{ flex: 1 }}
-                w={'100%'}
-            >
-                {!isLeftSidebarOpen && (
-                    <Paper
-                        shadow="none"
-                        radius={0}
-                        withBorder={false}
-                        px="sm"
-                        py="lg"
-                        style={{ flexGrow: 0 }}
-                    >
-                        <Stack gap="xs">
-                            <Tooltip label={'Open sidebar'} position="right">
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
-                                    size="sm"
-                                    onClick={() => handleSetSidebarOpen(true)}
-                                >
-                                    <MantineIcon
-                                        icon={IconLayoutSidebarLeftExpand}
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Stack>
-                    </Paper>
                 )}
                 <ContentPanel />
-            </Group>
+            </Stack>
         </Page>
     );
 };

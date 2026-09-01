@@ -7,7 +7,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { IconLayoutSidebarLeftCollapse, IconReload } from '@tabler/icons-react';
+import { IconReload } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { VisualizationConfigPanel } from '../../../components/DataViz/VisualizationConfigPanel';
@@ -15,13 +15,10 @@ import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import { useRefreshTables } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSelectedChartType, SidebarTabs } from '../store/sqlRunnerSlice';
+import classes from './Sidebar.module.css';
 import { TablesPanel } from './TablesPanel';
 
-type Props = {
-    setSidebarOpen: (isOpen: boolean) => void;
-};
-
-export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
+export const Sidebar: FC = () => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
@@ -38,45 +35,22 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
         (state) => state.sqlRunner.activeSidebarTab,
     );
     const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
+    const isTablesTab = activeSidebarTab === SidebarTabs.TABLES;
 
     return (
-        <Stack gap="xs" style={{ flex: 1, overflow: 'hidden' }}>
-            <Group justify="space-between" p="sm">
-                <Group wrap="nowrap" gap="xs">
-                    <Title order={5} fz="sm" c="ldGray.6">
-                        {activeSidebarTab === SidebarTabs.TABLES
-                            ? 'TABLES'
-                            : 'VISUALIZATION'}
-                    </Title>
-                    {activeSidebarTab === SidebarTabs.TABLES && (
-                        <Tooltip label="Refresh tables" position="right">
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                size="xs"
-                                onClick={() => updateTables()}
-                            >
-                                <MantineIcon icon={IconReload}></MantineIcon>
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </Group>
-                <Tooltip label="Close sidebar" position="left">
-                    <ActionIcon variant="subtle" color="gray" size="xs">
-                        <MantineIcon
-                            icon={IconLayoutSidebarLeftCollapse}
-                            onClick={() => setSidebarOpen(false)}
-                        />
-                    </ActionIcon>
-                </Tooltip>
+        <Stack gap="sm" className={classes.root}>
+            <Group justify="space-between" wrap="nowrap" gap="xs">
+                <Title order={4}>{isTablesTab ? 'Tables' : 'Chart'}</Title>
+                {isTablesTab && (
+                    <Tooltip label="Refresh tables" position="right">
+                        <ActionIcon size="sm" onClick={() => updateTables()}>
+                            <MantineIcon icon={IconReload} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
             </Group>
 
-            <Stack
-                display={
-                    activeSidebarTab === SidebarTabs.TABLES ? 'inherit' : 'none'
-                }
-                style={{ flex: 1, overflow: 'hidden' }}
-            >
+            <Stack className={classes.panel} data-active={isTablesTab}>
                 <TablesPanel
                     isLoading={isLoading}
                     error={error?.error.message || null}
@@ -87,16 +61,10 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                 offsetScrollbars
                 scrollbars="y"
                 classNames={{ content: scrollAreaClasses.verticalContent }}
-                px="sm"
-                style={{
-                    flex: 1,
-                    display:
-                        activeSidebarTab === SidebarTabs.VISUALIZATION
-                            ? 'inherit'
-                            : 'none',
-                }}
+                className={classes.panel}
+                data-active={!isTablesTab}
             >
-                <Stack style={{ flex: 1, overflow: 'hidden' }}>
+                <Stack className={classes.panel}>
                     <VisualizationConfigPanel
                         selectedChartType={selectedChartType || ChartKind.TABLE}
                         setSelectedChartType={(value) =>

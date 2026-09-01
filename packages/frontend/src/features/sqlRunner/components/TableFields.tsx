@@ -69,7 +69,7 @@ const TableField: FC<{
                     ref={truncatedRef}
                     fw={500}
                     p={4}
-                    fz={13}
+                    fz="sm"
                     c="ldGray.7"
                     style={{ flex: 1 }}
                     truncate
@@ -83,7 +83,7 @@ const TableField: FC<{
                     </Highlight>
                 </Text>
             </Tooltip>
-            <Text fz={12} c="ldGray.5">
+            <Text fz="xs" c="ldGray.5">
                 {field.type}
             </Text>
         </Group>

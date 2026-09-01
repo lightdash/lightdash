@@ -1,0 +1,89 @@
+.root {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.panel[hidden] {
+    display: none;
+}
+
+/* Editor and results are cards, like the Explorer's sections. */
+.card {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.cardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-sm);
+    flex-shrink: 0;
+    min-height: rem(44px);
+    padding: rem(6px) var(--mantine-spacing-sm);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.cardBody {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Charts breathe inside the card; tables sit flush so the card is their frame. */
+.cardBody[data-padded='true'] {
+    padding: var(--mantine-spacing-md);
+}
+
+.editorSurface {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+}
+
+.editorSurface[data-scroll='true'] {
+    overflow-y: auto;
+}
+
+.resultsBody {
+    height: 100%;
+    position: relative;
+    overflow: auto;
+}
+
+/* The gap between the cards doubles as the drag handle; a pill appears on
+   hover so the affordance is discoverable without being drawn all the time. */
+.resizeHandle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--mantine-spacing-md);
+    cursor: row-resize;
+}
+
+.resizeHandle::before {
+    content: '';
+    width: rem(48px);
+    height: rem(4px);
+    border-radius: rem(999px);
+    background-color: transparent;
+    transition: background-color 120ms ease;
+}
+
+.resizeHandle:hover::before,
+.resizeHandle[data-resize-handle-state='drag']::before {
+    background-color: light-dark(
+        var(--mantine-color-gray-3),
+        var(--mantine-color-dark-3)
+    );
+}

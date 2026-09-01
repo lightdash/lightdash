@@ -21,6 +21,7 @@ import {
     IconChevronRight,
     IconCopy,
     IconSearch,
+    IconTable,
     IconX,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
@@ -100,47 +101,44 @@ const TableItem: FC<TableItemProps> = memo(
                         dispatch(toggleActiveTable({ table, schema }));
                     }}
                     w="100%"
-                    p={4}
-                    flex={1}
                     fz="sm"
                     data-active={isActive || undefined}
                     className={styles.tableButton}
                 >
-                    <Tooltip
-                        withinPortal
-                        label={table}
-                        disabled={!isTruncated}
-                        multiline
-                        maw={300}
-                        style={{
-                            wordBreak: 'break-word',
-                        }}
-                    >
-                        {search.length > 2 ? (
-                            <Text
-                                ref={truncatedRef}
-                                truncate
-                                fz="sm"
-                                style={{ flex: 1 }}
-                            >
-                                <Highlight
-                                    component="span"
-                                    highlight={search || ''}
-                                    inherit
-                                >
+                    <Group gap="xs" wrap="nowrap">
+                        <MantineIcon
+                            icon={IconTable}
+                            size="sm"
+                            className={styles.tableIcon}
+                        />
+                        <Tooltip
+                            withinPortal
+                            label={table}
+                            disabled={!isTruncated}
+                            multiline
+                            maw={300}
+                        >
+                            {search.length > 2 ? (
+                                <Text ref={truncatedRef} truncate fz="sm">
+                                    <Highlight
+                                        component="span"
+                                        highlight={search || ''}
+                                        inherit
+                                    >
+                                        {table}
+                                    </Highlight>
+                                </Text>
+                            ) : (
+                                <Text fz="sm" truncate>
                                     {table}
-                                </Highlight>
-                            </Text>
-                        ) : (
-                            <Text fz="sm">{table}</Text>
-                        )}
-                    </Tooltip>
+                                </Text>
+                            )}
+                        </Tooltip>
+                    </Group>
                 </UnstyledButton>
 
                 <Box
-                    pos="absolute"
-                    top={4}
-                    right={8}
+                    className={styles.copyButton}
                     display={hovered ? 'block' : 'none'}
                 >
                     <CopyButton value={`${quotedTable}`}>
@@ -150,17 +148,10 @@ const TableItem: FC<TableItemProps> = memo(
                                 withArrow
                                 position="right"
                             >
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
-                                    size={16}
-                                    onClick={copy}
-                                    bg="ldGray.1"
-                                >
+                                <ActionIcon size="xs" onClick={copy} bg="body">
                                     <MantineIcon
                                         icon={IconCopy}
-                                        color={copied ? 'green' : 'blue'}
-                                        onClick={copy}
+                                        color={copied ? 'green' : undefined}
                                     />
                                 </ActionIcon>
                             </Tooltip>
@@ -215,14 +206,15 @@ const Table: FC<{
                 className={styles.schemaButton}
                 ff="inherit"
             >
-                <Group wrap="nowrap" gap="two">
-                    <Text p={6} fz="sm" c="ldGray.8">
-                        {schema}
-                    </Text>
-
+                <Group wrap="nowrap" gap="xs">
                     <MantineIcon
                         icon={isExpanded ? IconChevronDown : IconChevronRight}
+                        size="sm"
+                        className={styles.chevron}
                     />
+                    <Text fz="sm" fw={500} truncate>
+                        {schema}
+                    </Text>
                 </Group>
             </UnstyledButton>
             {isExpanded && (
@@ -241,11 +233,10 @@ const Table: FC<{
                                 schema={`${schema}`}
                                 database={database}
                                 partitionColumn={tables[table].partitionColumn}
-                                ml="sm"
                             />
                         ))}
                     {Object.keys(tables).length > limitTableResults && (
-                        <Text ml="md" c="ldGray.5">
+                        <Text ml="md" fz="xs" c="dimmed">
                             Filtering first {limitTableResults} of{' '}
                             {Object.keys(tables).length} tables, search to see
                             more
@@ -341,14 +332,14 @@ export const Tables: FC = () => {
 
     return (
         <>
-            <Box px="sm">
+            <Box>
                 <Tooltip
                     opened={search.length > 0 && search.length < 3}
                     label="Enter at least 3 characters to search"
                     withinPortal
                 >
                     <TextInput
-                        size="xs"
+                        size="sm"
                         disabled={!data && !debouncedSearch}
                         leftSection={
                             isLoading ? (
@@ -365,8 +356,6 @@ export const Tables: FC = () => {
                                     onMouseDown={(event) =>
                                         event.preventDefault()
                                     }
-                                    variant="subtle"
-                                    color="gray"
                                     size="xs"
                                     onClick={() => setSearch('')}
                                 >
@@ -377,12 +366,6 @@ export const Tables: FC = () => {
                         placeholder="Search tables"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        styles={(theme) => ({
-                            input: {
-                                borderRadius: theme.radius.md,
-                                border: `1px solid ${theme.colors.ldGray[3]}`,
-                            },
-                        })}
                     />
                 </Tooltip>
             </Box>
@@ -391,10 +374,8 @@ export const Tables: FC = () => {
                 offsetScrollbars
                 scrollbars="y"
                 classNames={{ content: scrollAreaClasses.verticalContent }}
-                pl="sm"
-                style={{ flex: 1 }}
+                flex={1}
                 type="auto"
-                scrollbarSize={8}
             >
                 {isSuccess &&
                     filteredTablesBySchema &&
@@ -415,7 +396,9 @@ export const Tables: FC = () => {
 
             {isSuccess && !data && (
                 <Center p="sm">
-                    <Text c="ldGray.4">No results found</Text>
+                    <Text c="dimmed" fz="sm">
+                        No results found
+                    </Text>
                 </Center>
             )}
         </>
