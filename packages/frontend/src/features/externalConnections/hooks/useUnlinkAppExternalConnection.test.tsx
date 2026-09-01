@@ -2,7 +2,7 @@ import { type AppExternalConnectionLinked } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { type FC, type PropsWithChildren } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../../api';
 import { useUnlinkAppExternalConnection } from './useUnlinkAppExternalConnection';
 
@@ -14,6 +14,10 @@ vi.mock('../../../hooks/toaster/useToaster', () => ({
 const queryKey = ['app-external-connections', 'project-1', 'app-1'];
 const links = [
     { alias: 'weather', connection: { externalConnectionUuid: 'c-weather' } },
+    {
+        alias: 'weather-v2',
+        connection: { externalConnectionUuid: 'c-weather' },
+    },
     { alias: 'images', connection: { externalConnectionUuid: 'c-images' } },
 ] as unknown as AppExternalConnectionLinked[];
 
@@ -37,24 +41,34 @@ const setup = () => {
 };
 
 describe('useUnlinkAppExternalConnection', () => {
-    it('DELETEs by alias and drops the link from the cache', async () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('DELETEs every alias and drops the links from the cache', async () => {
         vi.mocked(lightdashApi).mockResolvedValue(undefined as never);
         const { queryClient, result } = setup();
 
         result.current.mutate({
             projectUuid: 'project-1',
             appUuid: 'app-1',
-            alias: 'weather',
+            aliases: ['weather', 'weather-v2'],
             name: 'Weather',
         });
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(lightdashApi).toHaveBeenCalledTimes(2);
+        expect(lightdashApi).toHaveBeenNthCalledWith(1, {
             url: '/ee/projects/project-1/apps/app-1/external-connections/weather',
             method: 'DELETE',
             body: undefined,
         });
-        expect(queryClient.getQueryData(queryKey)).toEqual([links[1]]);
+        expect(lightdashApi).toHaveBeenNthCalledWith(2, {
+            url: '/ee/projects/project-1/apps/app-1/external-connections/weather-v2',
+            method: 'DELETE',
+            body: undefined,
+        });
+        expect(queryClient.getQueryData(queryKey)).toEqual([links[2]]);
     });
 
     it('restores the link when the request fails', async () => {

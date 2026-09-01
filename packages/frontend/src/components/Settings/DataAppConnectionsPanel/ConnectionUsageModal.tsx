@@ -17,12 +17,14 @@ import {
     IconAppWindow,
     IconFolder,
     IconLink,
+    IconUnlink,
     IconPuzzle,
     IconUser,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { useExternalConnectionLinkedApps } from '../../../features/externalConnections/hooks/useExternalConnectionLinkedApps';
+import { useUnlinkAppExternalConnection } from '../../../features/externalConnections/hooks/useUnlinkAppExternalConnection';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import classes from './ConnectionUsageModal.module.css';
@@ -37,41 +39,57 @@ type Props = {
 const UsageRow: FC<{
     projectUuid: string;
     item: ExternalConnectionLinkedApp;
-}> = ({ projectUuid, item }) => {
+    onUnlink: (item: ExternalConnectionLinkedApp) => void;
+}> = ({ projectUuid, item, onUnlink }) => {
     const isDataApp = item.kind === 'data_app';
     const path = isDataApp
         ? `/projects/${projectUuid}/apps/${item.appUuid}`
         : `/projects/${projectUuid}/chart-types/${item.appUuid}`;
+    const displayName = getAppDisplayName(item.name, item.appUuid);
 
     return (
-        <Box
-            component={Link}
-            to={path}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={classes.resourceRow}
-        >
-            <ThemeIcon variant="light" size="lg" color="orange">
-                <MantineIcon icon={isDataApp ? IconAppWindow : IconPuzzle} />
-            </ThemeIcon>
+        <Box className={classes.resourceRow}>
+            <Box
+                component={Link}
+                to={path}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={classes.resourceLink}
+            >
+                <ThemeIcon variant="light" size="lg" color="orange">
+                    <MantineIcon
+                        icon={isDataApp ? IconAppWindow : IconPuzzle}
+                    />
+                </ThemeIcon>
 
-            <Stack gap={2} miw={0} flex={1}>
-                <Text fz="sm" fw={600} truncate>
-                    {getAppDisplayName(item.name, item.appUuid)}
-                </Text>
-                {isDataApp && (
-                    <Group gap={4} wrap="wrap">
-                        <MantineIcon
-                            icon={item.spaceName ? IconFolder : IconUser}
-                            size={14}
-                            color="ldGray.6"
-                        />
-                        <Text fz="xs" c="ldGray.6">
-                            {item.spaceName ?? 'Personal app'}
-                        </Text>
-                    </Group>
-                )}
-            </Stack>
+                <Stack gap={2} miw={0} flex={1}>
+                    <Text fz="sm" fw={600} truncate>
+                        {displayName}
+                    </Text>
+                    {isDataApp && (
+                        <Group gap={4} wrap="wrap">
+                            <MantineIcon
+                                icon={item.spaceName ? IconFolder : IconUser}
+                                size={14}
+                                color="ldGray.6"
+                            />
+                            <Text fz="xs" c="ldGray.6">
+                                {item.spaceName ?? 'Personal app'}
+                            </Text>
+                        </Group>
+                    )}
+                </Stack>
+            </Box>
+            <Button
+                variant="subtle"
+                color="red"
+                size="compact-sm"
+                leftSection={<MantineIcon icon={IconUnlink} size={14} />}
+                onClick={() => onUnlink(item)}
+                aria-label={`Unlink ${displayName}`}
+            >
+                Unlink
+            </Button>
         </Box>
     );
 };
@@ -80,7 +98,8 @@ const UsageSection: FC<{
     title: string;
     items: ExternalConnectionLinkedApp[];
     projectUuid: string;
-}> = ({ title, items, projectUuid }) => (
+    onUnlink: (item: ExternalConnectionLinkedApp) => void;
+}> = ({ title, items, projectUuid, onUnlink }) => (
     <Stack gap="xs">
         <Group gap="xs">
             <Title order={6}>{title}</Title>
@@ -94,6 +113,7 @@ const UsageSection: FC<{
                     key={item.appUuid}
                     projectUuid={projectUuid}
                     item={item}
+                    onUnlink={onUnlink}
                 />
             ))}
         </Stack>
@@ -106,15 +126,31 @@ export const ConnectionUsageModal: FC<Props> = ({
     projectUuid,
     connection,
 }) => {
+    const [pendingUnlink, setPendingUnlink] =
+        useState<ExternalConnectionLinkedApp>();
     const { data, isLoading, isError, refetch } =
         useExternalConnectionLinkedApps(
             projectUuid,
             opened ? connection.externalConnectionUuid : undefined,
         );
+    const { mutate: unlink, isLoading: isUnlinking } =
+        useUnlinkAppExternalConnection();
     const dataApps =
         data?.items.filter((item) => item.kind === 'data_app') ?? [];
     const chartTypes =
         data?.items.filter((item) => item.kind === 'project_chart_type') ?? [];
+    const handleConfirmUnlink = () => {
+        if (!pendingUnlink) return;
+        unlink(
+            {
+                projectUuid,
+                appUuid: pendingUnlink.appUuid,
+                aliases: pendingUnlink.aliases,
+                name: connection.name,
+            },
+            { onSuccess: () => setPendingUnlink(undefined) },
+        );
+    };
 
     return (
         <MantineModal
@@ -162,6 +198,7 @@ export const ConnectionUsageModal: FC<Props> = ({
                             title="Data apps"
                             items={dataApps}
                             projectUuid={projectUuid}
+                            onUnlink={setPendingUnlink}
                         />
                     )}
                     {chartTypes.length > 0 && (
@@ -169,10 +206,25 @@ export const ConnectionUsageModal: FC<Props> = ({
                             title="Chart types"
                             items={chartTypes}
                             projectUuid={projectUuid}
+                            onUnlink={setPendingUnlink}
                         />
                     )}
                 </Stack>
             )}
+            <MantineModal
+                opened={pendingUnlink !== undefined}
+                onClose={() => setPendingUnlink(undefined)}
+                title={`Unlink ${connection.name}?`}
+                variant="delete"
+                icon={IconUnlink}
+                size="md"
+                description="Unlinking removes access to this connection."
+                confirmLabel="Unlink connection"
+                cancelLabel="Keep connection"
+                confirmLoading={isUnlinking}
+                cancelDisabled={isUnlinking}
+                onConfirm={handleConfirmUnlink}
+            />
         </MantineModal>
     );
 };
