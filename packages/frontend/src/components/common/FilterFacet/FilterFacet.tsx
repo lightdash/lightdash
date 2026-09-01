@@ -1,4 +1,5 @@
 import {
+    ActionIcon,
     Badge,
     Box,
     Button,
@@ -17,6 +18,7 @@ import {
 import {
     IconChevronDown,
     IconSearch,
+    IconX,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import { useCallback, useRef, type ReactNode } from 'react';
@@ -59,6 +61,10 @@ export type FilterFacetProps = {
     scrollEndOffset?: number;
     /** Shows a row that selects/deselects every listed option at once */
     enableSelectAll?: boolean;
+    /** Rendered at the top of the dropdown, above the search input */
+    headerSection?: ReactNode;
+    /** Shows a clear button next to the trigger while there is a selection */
+    clearable?: boolean;
 };
 
 const isOptionVisible = (
@@ -89,6 +95,8 @@ const FilterFacet = ({
     onScrollEnd,
     scrollEndOffset = 50,
     enableSelectAll = false,
+    headerSection,
+    clearable = false,
 }: FilterFacetProps) => {
     const selectedSet = new Set(selected);
     const viewportRef = useRef<HTMLDivElement>(null);
@@ -196,7 +204,7 @@ const FilterFacet = ({
                                 disabled={disabled}
                             />
                         )}
-                        <Box maw={200} style={{ overflow: 'hidden' }}>
+                        <Box maw={200} className={classes.optionLabel}>
                             {typeof option.label === 'string' ? (
                                 <Text fz="xs" truncate>
                                     {option.label}
@@ -231,7 +239,7 @@ const FilterFacet = ({
                     <MantineIcon
                         icon={icon}
                         size="md"
-                        color={hasSelection ? 'indigo.5' : 'ldGray.5'}
+                        color={hasSelection ? 'ldGray.7' : 'ldGray.5'}
                     />
                 ) : undefined
             }
@@ -239,20 +247,16 @@ const FilterFacet = ({
                 <MantineIcon
                     icon={IconChevronDown}
                     size="sm"
-                    color={hasSelection ? 'indigo.5' : 'ldGray.5'}
+                    color={hasSelection ? 'ldGray.7' : 'ldGray.5'}
                 />
             }
         >
             <Group gap={6} wrap="nowrap">
-                <Text
-                    fz="xs"
-                    fw={500}
-                    c={hasSelection ? 'indigo.7' : 'ldGray.7'}
-                >
+                <Text fz="xs" fw={500} c="ldGray.7">
                     {label}
                 </Text>
                 {hasSelection && (
-                    <Badge size="xs" radius="xl" color="indigo">
+                    <Badge size="xs" radius="xl" variant="filled">
                         {selected.length}
                     </Badge>
                 )}
@@ -260,7 +264,7 @@ const FilterFacet = ({
         </Button>
     );
 
-    return (
+    const popover = (
         <Popover position="bottom-start" withArrow>
             <Popover.Target>
                 {tooltipLabel ? (
@@ -270,6 +274,11 @@ const FilterFacet = ({
                 )}
             </Popover.Target>
             <Popover.Dropdown p={4} miw={240}>
+                {headerSection && (
+                    <Box px="xs" pt={4} pb={6}>
+                        {headerSection}
+                    </Box>
+                )}
                 {helperText && (
                     <Text fz="xs" c="dimmed" px="xs" py={4}>
                         {helperText}
@@ -346,6 +355,26 @@ const FilterFacet = ({
                 )}
             </Popover.Dropdown>
         </Popover>
+    );
+
+    if (!clearable) return popover;
+
+    return (
+        <Group gap={2} wrap="nowrap">
+            {popover}
+            {hasSelection && (
+                <Tooltip label="Clear">
+                    <ActionIcon
+                        size="xs"
+                        color="ldGray.5"
+                        aria-label={`Clear ${label} filter`}
+                        onClick={() => onChange([])}
+                    >
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+        </Group>
     );
 };
 

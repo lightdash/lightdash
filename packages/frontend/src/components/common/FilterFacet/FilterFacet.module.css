@@ -6,23 +6,20 @@
 }
 
 .filterButton:hover {
-    background-color: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-dark-6)
-    );
+    background-color: var(--mantine-color-default-hover);
     transition: background-color var(--mantine-other-transitionDuration)
         var(--mantine-other-transitionTimingFunction);
 }
 
 .filterButtonSelected {
-    border: 1px solid var(--mantine-color-indigo-outline);
-    background-color: var(--mantine-color-indigo-light);
+    border: 1px solid var(--mantine-color-ldGray-3);
+    background-color: var(--mantine-color-ldGray-1);
     text-overflow: ellipsis;
     box-shadow: var(--mantine-shadow-subtle);
 }
 
 .filterButtonSelected:hover {
-    background-color: var(--mantine-color-indigo-light-hover);
+    background-color: var(--mantine-color-default-hover);
     transition: background-color var(--mantine-other-transitionDuration)
         var(--mantine-other-transitionTimingFunction);
 }
@@ -35,10 +32,7 @@
 }
 
 .option:hover {
-    background-color: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-dark-6)
-    );
+    background-color: var(--mantine-color-default-hover);
 }
 
 .optionDisabled {
@@ -48,6 +42,10 @@
 
 .optionDisabled:hover {
     background-color: transparent;
+}
+
+.optionLabel {
+    overflow: hidden;
 }
 
 .groupLabel {
