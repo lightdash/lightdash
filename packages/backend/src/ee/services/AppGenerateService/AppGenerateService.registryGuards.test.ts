@@ -166,6 +166,8 @@ function buildService(
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
         chartRegistryClient: {} as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
     });
 
     vi.spyOn(
