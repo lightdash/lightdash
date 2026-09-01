@@ -100,7 +100,6 @@ import {
     isSlackPrompt,
     KnexPaginateArgs,
     KnexPaginatedData,
-    LightdashPage,
     LightdashUser,
     MetricSourcedMergeQuery,
     NotFoundError,
@@ -9591,26 +9590,20 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return undefined;
         }
         const capture = async (): Promise<KnownBlock | undefined> => {
-            const minimalUrl = new URL(
-                `/minimal/projects/${prompt.projectUuid}/apps/${metadata.appUuid}`,
-                this.lightdashConfig.headlessBrowser.internalLightdashHost,
-            ).href;
-            const { imageUrl } = await this.unfurlService.unfurlImage({
-                url: minimalUrl,
-                lightdashPage: LightdashPage.APP,
-                imageId: `slack-app-build-outcome-${nanoidGenerator()}`,
-                authUserUuid: prompt.createdByUserUuid,
-                context: ScreenshotContext.SLACK,
-                contextId: prompt.promptUuid,
-                selectedTabs: null,
-            });
-            if (!imageUrl) {
-                return undefined;
-            }
+            const { imageBuffer, imageUrl } =
+                await this.unfurlService.exportDataApp({
+                    projectUuid: prompt.projectUuid,
+                    appUuid: metadata.appUuid,
+                    appName: metadata.name,
+                    authUserUuid: prompt.createdByUserUuid,
+                    organizationUuid: prompt.organizationUuid,
+                    context: ScreenshotContext.SLACK,
+                    contextId: prompt.promptUuid,
+                });
             const image = await this.slackClient.tryUploadingImageToSlack({
                 organizationUuid: prompt.organizationUuid,
                 imageUrl,
-                imageBuffer: undefined,
+                imageBuffer,
                 title: metadata.name,
             });
             if (!image) {

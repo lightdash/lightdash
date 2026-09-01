@@ -1200,6 +1200,75 @@ export class UnfurlService extends BaseService {
     }
 
     /**
+     * Renders a data app's minimal page to a hosted PNG under the acting
+     * user's identity (one-time login grant). The caller is responsible for
+     * verifying the user may see the app. Returns the buffer beside the
+     * hosted URL so callers with their own delivery path (e.g. Slack file
+     * upload) don't need to fetch the image back.
+     */
+    async exportDataApp({
+        projectUuid,
+        appUuid,
+        appName,
+        authUserUuid,
+        organizationUuid,
+        context,
+        contextId,
+    }: {
+        projectUuid: UUID;
+        appUuid: UUID;
+        appName: string;
+        authUserUuid: UUID;
+        organizationUuid: UUID;
+        context: ScreenshotContext;
+        contextId?: unknown;
+    }): Promise<{ imageBuffer: Buffer; imageUrl: string }> {
+        const minimalUrl = new URL(
+            `/minimal/projects/${projectUuid}/apps/${appUuid}`,
+            this.lightdashConfig.headlessBrowser.internalLightdashHost,
+        ).href;
+
+        this.logger.info(`Exporting data app to hosted image`, {
+            userUuid: authUserUuid,
+            organizationUuid,
+            projectUuid,
+            appUuid,
+            minimalUrl,
+        });
+
+        const cookie = await this.getUserCookie(authUserUuid);
+        const imageId = `app-image_${snakeCaseName(appName)}_${useNanoid()}`;
+
+        const result = await this.saveScreenshot({
+            authUserUuid,
+            imageId,
+            cookie,
+            url: minimalUrl,
+            lightdashPage: LightdashPage.APP,
+            organizationUuid,
+            resourceUuid: appUuid,
+            resourceName: appName,
+            context,
+            contextId,
+            selectedTabs: null,
+        });
+        if (!result?.imageBuffer) {
+            throw new UnexpectedServerError('Unable to export data app image');
+        }
+
+        const imageUrl = await this.hostImage(
+            result.imageBuffer,
+            imageId,
+            organizationUuid,
+        );
+        this.logger.info(`Data app exported successfully`, {
+            userUuid: authUserUuid,
+            appUuid,
+        });
+        return { imageBuffer: result.imageBuffer, imageUrl };
+    }
+
+    /**
      * Reads the always-mounted #lightdash-screenshot-progress element and
      * logs which tile UUIDs are still unaccounted for, so that on
      * #lightdash-ready-indicator timeouts we can identify the specific

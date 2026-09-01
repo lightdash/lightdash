@@ -52,9 +52,10 @@ const buildService = (
         .mockResolvedValue(options?.alreadyResolved !== true);
     const hasToolResult = vi.fn().mockResolvedValue(true);
     const postMessage = vi.fn().mockResolvedValue(undefined);
-    const unfurlImage = options?.captureError
+    const exportDataApp = options?.captureError
         ? vi.fn().mockRejectedValue(options.captureError)
         : vi.fn().mockResolvedValue({
+              imageBuffer: Buffer.from('png-bytes'),
               imageUrl: 'https://ld.example.com/api/v1/slack/preview/img-1',
           });
     const tryUploadingImageToSlack = vi.fn().mockResolvedValue(
@@ -96,14 +97,14 @@ const buildService = (
             }),
         },
         slackClient: { postMessage, tryUploadingImageToSlack },
-        unfurlService: { unfurlImage },
+        unfurlService: { exportDataApp },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
     return {
         service,
         updateToolResultIfPending,
         postMessage,
-        unfurlImage,
+        exportDataApp,
         tryUploadingImageToSlack,
     };
 };
@@ -155,20 +156,26 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
     });
 
     it('posts the builder link and a screenshot in one message when a Slack-originated build is ready', async () => {
-        const { service, postMessage, unfurlImage, tryUploadingImageToSlack } =
-            buildService({ status: 'ready' }, { isSlack: true });
+        const {
+            service,
+            postMessage,
+            exportDataApp,
+            tryUploadingImageToSlack,
+        } = buildService({ status: 'ready' }, { isSlack: true });
 
         await service.recordDataAppBuildOutcome(PAYLOAD);
 
-        expect(unfurlImage).toHaveBeenCalledWith(
+        expect(exportDataApp).toHaveBeenCalledWith(
             expect.objectContaining({
-                url: 'http://internal.example.com/minimal/projects/proj-1/apps/app-1',
+                projectUuid: 'proj-1',
+                appUuid: 'app-1',
                 authUserUuid: 'author-1',
             }),
         );
         expect(tryUploadingImageToSlack).toHaveBeenCalledWith(
             expect.objectContaining({
                 organizationUuid: 'org-1',
+                imageBuffer: Buffer.from('png-bytes'),
                 imageUrl: 'https://ld.example.com/api/v1/slack/preview/img-1',
             }),
         );
@@ -265,14 +272,14 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
     });
 
     it('skips the screenshot when no headless browser is configured', async () => {
-        const { service, postMessage, unfurlImage } = buildService(
+        const { service, postMessage, exportDataApp } = buildService(
             { status: 'ready' },
             { isSlack: true, headlessBrowser: false },
         );
 
         await service.recordDataAppBuildOutcome(PAYLOAD);
 
-        expect(unfurlImage).not.toHaveBeenCalled();
+        expect(exportDataApp).not.toHaveBeenCalled();
         expect(postMessage).toHaveBeenCalledWith(
             expect.objectContaining({
                 blocks: [
@@ -285,7 +292,7 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
     });
 
     it('posts the failure message to the Slack thread when the build fails', async () => {
-        const { service, postMessage, unfurlImage } = buildService(
+        const { service, postMessage, exportDataApp } = buildService(
             {
                 status: 'error',
                 error: 'sandbox exploded',
@@ -309,11 +316,11 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
                 ],
             }),
         );
-        expect(unfurlImage).not.toHaveBeenCalled();
+        expect(exportDataApp).not.toHaveBeenCalled();
     });
 
     it('posts the cancelled message to the Slack thread when the build is cancelled', async () => {
-        const { service, postMessage, unfurlImage } = buildService(
+        const { service, postMessage, exportDataApp } = buildService(
             { status: 'error', error: 'Cancelled by user' },
             { isSlack: true },
         );
@@ -333,22 +340,22 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
                 ],
             }),
         );
-        expect(unfurlImage).not.toHaveBeenCalled();
+        expect(exportDataApp).not.toHaveBeenCalled();
     });
 
     it('posts nothing to Slack for a web-originated build', async () => {
-        const { service, postMessage, unfurlImage } = buildService({
+        const { service, postMessage, exportDataApp } = buildService({
             status: 'ready',
         });
 
         await service.recordDataAppBuildOutcome(PAYLOAD);
 
         expect(postMessage).not.toHaveBeenCalled();
-        expect(unfurlImage).not.toHaveBeenCalled();
+        expect(exportDataApp).not.toHaveBeenCalled();
     });
 
     it('does not post again when the tool result was already resolved by a racing terminal writer', async () => {
-        const { service, postMessage, unfurlImage } = buildService(
+        const { service, postMessage, exportDataApp } = buildService(
             { status: 'error', error: 'Build timed out.' },
             { isSlack: true, alreadyResolved: true },
         );
@@ -356,6 +363,6 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
         await service.recordDataAppBuildOutcome(PAYLOAD);
 
         expect(postMessage).not.toHaveBeenCalled();
-        expect(unfurlImage).not.toHaveBeenCalled();
+        expect(exportDataApp).not.toHaveBeenCalled();
     });
 });
