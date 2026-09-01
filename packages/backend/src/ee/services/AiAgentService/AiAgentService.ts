@@ -100,6 +100,7 @@ import {
     isSlackPrompt,
     KnexPaginateArgs,
     KnexPaginatedData,
+    LightdashPage,
     LightdashUser,
     MetricSourcedMergeQuery,
     NotFoundError,
@@ -213,6 +214,7 @@ import {
     searchRepoCode,
 } from '../../../clients/github/Github';
 import { type SlackClient } from '../../../clients/Slack/SlackClient';
+import { safeUrl } from '../../../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { isUniqueConstraintViolation } from '../../../database/errors';
 import Logger from '../../../logging/logger';
@@ -249,7 +251,10 @@ import { SavedChartService } from '../../../services/SavedChartsService/SavedCha
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
-import { UnfurlService } from '../../../services/UnfurlService/UnfurlService';
+import {
+    ScreenshotContext,
+    UnfurlService,
+} from '../../../services/UnfurlService/UnfurlService';
 import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
@@ -9550,11 +9555,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
         const { metadata } = outcome;
         if (metadata.status === 'success') {
+            const screenshotBlock = await this.tryBuildDataAppScreenshotBlock(
+                prompt,
+                metadata,
+            );
             await this.postOutcomeToSlack(
                 prompt,
-                getMarkdownBlocks(
-                    `:white_check_mark: Your data app **${metadata.name}** is ready — [Open it in the builder](${metadata.href})`,
-                ),
+                [
+                    ...getMarkdownBlocks(
+                        `:white_check_mark: Your data app **${metadata.name}** is ready — [Open it in the builder](${metadata.href})`,
+                    ),
+                    ...(screenshotBlock ? [screenshotBlock] : []),
+                ],
                 `Your data app "${metadata.name}" is ready: ${metadata.href}`,
             );
             return;
@@ -9566,6 +9578,84 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             text,
         );
     }
+
+    /**
+     * Best-effort screenshot of a ready data app for the Slack build outcome
+     * message. Renders as the prompt author via the shared data app render
+     * path, then uploads to Slack (file preferred, hosted URL fallback). Any
+     * failure or an overall timeout degrades to the text-only outcome.
+     */
+    private async tryBuildDataAppScreenshotBlock(
+        prompt: SlackPrompt,
+        metadata: { appUuid: string; name: string },
+    ): Promise<KnownBlock | undefined> {
+        if (this.lightdashConfig.headlessBrowser?.host === undefined) {
+            return undefined;
+        }
+        const capture = async (): Promise<KnownBlock | undefined> => {
+            const minimalUrl = new URL(
+                `/minimal/projects/${prompt.projectUuid}/apps/${metadata.appUuid}`,
+                this.lightdashConfig.headlessBrowser.internalLightdashHost,
+            ).href;
+            const { imageUrl } = await this.unfurlService.unfurlImage({
+                url: minimalUrl,
+                lightdashPage: LightdashPage.APP,
+                imageId: `slack-app-build-outcome-${nanoidGenerator()}`,
+                authUserUuid: prompt.createdByUserUuid,
+                context: ScreenshotContext.SLACK,
+                contextId: prompt.promptUuid,
+                selectedTabs: null,
+            });
+            if (!imageUrl) {
+                return undefined;
+            }
+            const image = await this.slackClient.tryUploadingImageToSlack({
+                organizationUuid: prompt.organizationUuid,
+                imageUrl,
+                imageBuffer: undefined,
+                title: metadata.name,
+            });
+            if (!image) {
+                return undefined;
+            }
+            if (image.source === 'slackFile') {
+                return {
+                    type: 'image',
+                    slack_file: { id: image.fileId },
+                    alt_text: metadata.name,
+                };
+            }
+            const safeImageUrl = safeUrl(image.url);
+            if (!safeImageUrl) {
+                return undefined;
+            }
+            return {
+                type: 'image',
+                image_url: safeImageUrl,
+                alt_text: metadata.name,
+            };
+        };
+        try {
+            return await Promise.race([
+                capture(),
+                new Promise<undefined>((resolve) => {
+                    setTimeout(
+                        () => resolve(undefined),
+                        AiAgentService.DATA_APP_SCREENSHOT_TIMEOUT_MS,
+                    ).unref();
+                }),
+            ]);
+        } catch (error) {
+            Logger.warn(
+                `AiAgent.postDataAppBuildOutcomeToSlack: screenshot skipped for app ${
+                    metadata.appUuid
+                }: ${getErrorMessage(error)}`,
+            );
+            return undefined;
+        }
+    }
+
+    private static readonly DATA_APP_SCREENSHOT_TIMEOUT_MS = 60_000;
 
     /**
      * A memory belongs to the owner of the thread it came from, so every memory

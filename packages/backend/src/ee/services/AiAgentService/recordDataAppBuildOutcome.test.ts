@@ -25,6 +25,7 @@ const SLACK_PROMPT = {
     threadUuid: 'thread-1',
     organizationUuid: 'org-1',
     projectUuid: 'proj-1',
+    createdByUserUuid: 'author-1',
     slackChannelId: 'C123',
     promptSlackTs: '111.222',
 };
@@ -35,15 +36,43 @@ const buildService = (
         error?: string | null;
         status_message?: string | null;
     },
-    options?: { isSlack?: boolean; alreadyResolved?: boolean },
+    options?: {
+        isSlack?: boolean;
+        alreadyResolved?: boolean;
+        headlessBrowser?: boolean;
+        captureError?: Error;
+        slackImage?: { source: string; fileId?: string; url?: string } | null;
+    },
 ) => {
     const updateToolResultIfPending = vi
         .fn()
         .mockResolvedValue(options?.alreadyResolved !== true);
     const hasToolResult = vi.fn().mockResolvedValue(true);
     const postMessage = vi.fn().mockResolvedValue(undefined);
+    const unfurlImage = options?.captureError
+        ? vi.fn().mockRejectedValue(options.captureError)
+        : vi.fn().mockResolvedValue({
+              imageUrl: 'https://ld.example.com/api/v1/slack/preview/img-1',
+          });
+    const tryUploadingImageToSlack = vi.fn().mockResolvedValue(
+        options?.slackImage === null
+            ? undefined
+            : (options?.slackImage ?? {
+                  source: 'slackFile',
+                  fileId: 'F123',
+              }),
+    );
     const service = new AiAgentService({
-        lightdashConfig: { siteUrl: 'https://ld.example.com' },
+        lightdashConfig: {
+            siteUrl: 'https://ld.example.com',
+            headlessBrowser:
+                options?.headlessBrowser === false
+                    ? { internalLightdashHost: 'http://internal.example.com' }
+                    : {
+                          host: 'headless-chrome',
+                          internalLightdashHost: 'http://internal.example.com',
+                      },
+        },
         aiAgentModel: {
             updateToolResultIfPending,
             hasToolResult,
@@ -63,10 +92,17 @@ const buildService = (
                 ...version,
             }),
         },
-        slackClient: { postMessage },
+        slackClient: { postMessage, tryUploadingImageToSlack },
+        unfurlService: { unfurlImage },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
-    return { service, updateToolResultIfPending, postMessage };
+    return {
+        service,
+        updateToolResultIfPending,
+        postMessage,
+        unfurlImage,
+        tryUploadingImageToSlack,
+    };
 };
 
 describe('AiAgentService.recordDataAppBuildOutcome', () => {
@@ -115,14 +151,25 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
         expect(updateToolResultIfPending).not.toHaveBeenCalled();
     });
 
-    it('posts the builder link to the Slack thread when a Slack-originated build is ready', async () => {
-        const { service, postMessage } = buildService(
-            { status: 'ready' },
-            { isSlack: true },
-        );
+    it('posts the builder link and a screenshot in one message when a Slack-originated build is ready', async () => {
+        const { service, postMessage, unfurlImage, tryUploadingImageToSlack } =
+            buildService({ status: 'ready' }, { isSlack: true });
 
         await service.recordDataAppBuildOutcome(PAYLOAD);
 
+        expect(unfurlImage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: 'http://internal.example.com/minimal/projects/proj-1/apps/app-1',
+                authUserUuid: 'author-1',
+            }),
+        );
+        expect(tryUploadingImageToSlack).toHaveBeenCalledWith(
+            expect.objectContaining({
+                organizationUuid: 'org-1',
+                imageUrl: 'https://ld.example.com/api/v1/slack/preview/img-1',
+            }),
+        );
+        expect(postMessage).toHaveBeenCalledTimes(1);
         expect(postMessage).toHaveBeenCalledWith(
             expect.objectContaining({
                 organizationUuid: 'org-1',
@@ -135,14 +182,107 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
                             '[Open it in the builder](https://ld.example.com/projects/proj-1/apps/app-1)',
                         ),
                     }),
+                    expect.objectContaining({
+                        type: 'image',
+                        slack_file: { id: 'F123' },
+                    }),
                 ],
                 text: expect.stringContaining('Revenue app'),
             }),
         );
     });
 
-    it('posts the failure message to the Slack thread when the build fails', async () => {
+    it('falls back to the hosted image URL when the Slack file upload falls back', async () => {
         const { service, postMessage } = buildService(
+            { status: 'ready' },
+            {
+                isSlack: true,
+                slackImage: {
+                    source: 'url',
+                    url: 'https://ld.example.com/api/v1/slack/preview/img-1',
+                },
+            },
+        );
+
+        await service.recordDataAppBuildOutcome(PAYLOAD);
+
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                blocks: expect.arrayContaining([
+                    expect.objectContaining({
+                        type: 'image',
+                        image_url:
+                            'https://ld.example.com/api/v1/slack/preview/img-1',
+                    }),
+                ]),
+            }),
+        );
+    });
+
+    it('posts the text-only outcome when screenshot capture fails', async () => {
+        const { service, postMessage } = buildService(
+            { status: 'ready' },
+            { isSlack: true, captureError: new Error('browser crashed') },
+        );
+
+        await service.recordDataAppBuildOutcome(PAYLOAD);
+
+        expect(postMessage).toHaveBeenCalledTimes(1);
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                blocks: [
+                    expect.objectContaining({
+                        text: expect.stringContaining(
+                            '[Open it in the builder](https://ld.example.com/projects/proj-1/apps/app-1)',
+                        ),
+                    }),
+                ],
+            }),
+        );
+    });
+
+    it('posts the text-only outcome when the image cannot reach Slack at all', async () => {
+        const { service, postMessage } = buildService(
+            { status: 'ready' },
+            { isSlack: true, slackImage: null },
+        );
+
+        await service.recordDataAppBuildOutcome(PAYLOAD);
+
+        expect(postMessage).toHaveBeenCalledTimes(1);
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                blocks: [
+                    expect.objectContaining({
+                        text: expect.stringContaining('Open it in the builder'),
+                    }),
+                ],
+            }),
+        );
+    });
+
+    it('skips the screenshot when no headless browser is configured', async () => {
+        const { service, postMessage, unfurlImage } = buildService(
+            { status: 'ready' },
+            { isSlack: true, headlessBrowser: false },
+        );
+
+        await service.recordDataAppBuildOutcome(PAYLOAD);
+
+        expect(unfurlImage).not.toHaveBeenCalled();
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                blocks: [
+                    expect.objectContaining({
+                        text: expect.stringContaining('Open it in the builder'),
+                    }),
+                ],
+            }),
+        );
+    });
+
+    it('posts the failure message to the Slack thread when the build fails', async () => {
+        const { service, postMessage, unfurlImage } = buildService(
             {
                 status: 'error',
                 error: 'sandbox exploded',
@@ -166,10 +306,11 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
                 ],
             }),
         );
+        expect(unfurlImage).not.toHaveBeenCalled();
     });
 
     it('posts the cancelled message to the Slack thread when the build is cancelled', async () => {
-        const { service, postMessage } = buildService(
+        const { service, postMessage, unfurlImage } = buildService(
             { status: 'error', error: 'Cancelled by user' },
             { isSlack: true },
         );
@@ -189,18 +330,22 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
                 ],
             }),
         );
+        expect(unfurlImage).not.toHaveBeenCalled();
     });
 
     it('posts nothing to Slack for a web-originated build', async () => {
-        const { service, postMessage } = buildService({ status: 'ready' });
+        const { service, postMessage, unfurlImage } = buildService({
+            status: 'ready',
+        });
 
         await service.recordDataAppBuildOutcome(PAYLOAD);
 
         expect(postMessage).not.toHaveBeenCalled();
+        expect(unfurlImage).not.toHaveBeenCalled();
     });
 
     it('does not post again when the tool result was already resolved by a racing terminal writer', async () => {
-        const { service, postMessage } = buildService(
+        const { service, postMessage, unfurlImage } = buildService(
             { status: 'error', error: 'Build timed out.' },
             { isSlack: true, alreadyResolved: true },
         );
@@ -208,5 +353,6 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
         await service.recordDataAppBuildOutcome(PAYLOAD);
 
         expect(postMessage).not.toHaveBeenCalled();
+        expect(unfurlImage).not.toHaveBeenCalled();
     });
 });
