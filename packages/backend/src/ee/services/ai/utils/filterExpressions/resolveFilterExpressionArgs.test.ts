@@ -971,7 +971,7 @@ describe('resolveFilterExpressionArgs', () => {
         expectParseableExample(error.example);
     });
 
-    it('reports unknown fields with suggestions and a stable located message', async () => {
+    it('reports unknown fields with typed suggestions and a stable located message', async () => {
         const error = await expectResolutionError(
             expressionArgs({
                 filters: {
@@ -987,17 +987,25 @@ describe('resolveFilterExpressionArgs', () => {
             fieldId: 'orders_customer_nam',
             reason: 'notFound',
             suggestions: ['orders_customer_name'],
+            suggestedFields: [
+                {
+                    fieldId: 'orders_customer_name',
+                    category: 'dimensions',
+                    filterType: FilterType.STRING,
+                },
+            ],
             span: {
                 start: { offset: 0, line: 1, column: 1 },
                 end: { offset: 19, line: 1, column: 20 },
             },
+            example: 'orders_customer_name equals=Acme',
         });
         expect(formatFilterExpressionError(error)).toMatchInlineSnapshot(`
           "[FILTER_EXPRESSION_UNKNOWN_FIELD]
           Invalid dimension filter expression for field "orders_customer_nam".
 
           Location: line 1, column 1
-          Problem: The field does not exist in explore "test_explore". Did you mean: orders_customer_name?
+          Problem: The field does not exist in explore "test_explore". Did you mean: orders_customer_name (dimension, string)?
           How to fix: Replace it with an existing dimension field ID, or use field discovery to find the field.
           Example: orders_customer_name equals=Acme"
         `);
@@ -1084,6 +1092,291 @@ describe('resolveFilterExpressionArgs', () => {
                 'orders_customer_name equals="Acme, Inc." AND orders_product_category equals=Hardware',
         });
     });
+    it.each([
+        {
+            category: 'dimensions',
+            expression: 'orders_customer_segment startsWith=Acme',
+            expectedFieldId: 'orders_customer_name',
+            expectedCategory: 'dimensions',
+            expectedFilterType: FilterType.STRING,
+            expectedExample: 'orders_customer_name startsWith=Acme',
+        },
+        {
+            category: 'metrics',
+            expression: 'gross_revenue greaterThan=100',
+            expectedFieldId: 'orders_total_revenue',
+            expectedCategory: 'metrics',
+            expectedFilterType: FilterType.NUMBER,
+            expectedExample: 'orders_total_revenue greaterThan=100',
+        },
+        {
+            category: 'tableCalculations',
+            expression: 'margin_percent lessThan=0.2',
+            expectedFieldId: 'profit_margin',
+            expectedCategory: 'tableCalculations',
+            expectedFilterType: FilterType.NUMBER,
+            expectedExample: 'profit_margin lessThan=0.2',
+        },
+    ] as const)(
+        'keeps $category suggestions in their category',
+        async ({
+            category,
+            expression,
+            expectedFieldId,
+            expectedCategory,
+            expectedFilterType,
+            expectedExample,
+        }) => {
+            const error = await expectResolutionError(
+                expressionArgs({
+                    tableCalculations: [numericFormula],
+                    filters: {
+                        dimensions: null,
+                        metrics: null,
+                        tableCalculations: null,
+                        [category]: expression,
+                    },
+                }),
+            );
+
+            expect(error).toMatchObject({
+                code: 'FILTER_EXPRESSION_UNKNOWN_FIELD',
+                suggestions: [expectedFieldId],
+                suggestedFields: [
+                    {
+                        fieldId: expectedFieldId,
+                        category: expectedCategory,
+                        filterType: expectedFilterType,
+                    },
+                ],
+                example: expectedExample,
+            });
+            const categoryLabel =
+                expectedCategory === 'tableCalculations'
+                    ? 'table calculation'
+                    : expectedCategory.slice(0, -1);
+            expect(formatFilterExpressionError(error)).toContain(
+                `Did you mean: ${expectedFieldId} (${categoryLabel}, ${expectedFilterType})?`,
+            );
+        },
+    );
+
+    it.each([
+        {
+            operatorScope: 'date-only',
+            expression:
+                'orders_customer_nam inThePast=30{completed:false,unit:days}',
+            expectedFieldId: 'orders_order_date',
+            expectedFilterType: FilterType.DATE,
+        },
+        {
+            operatorScope: 'string-only',
+            expression: 'orders_order_dat startsWith=2025',
+            expectedFieldId: 'orders_customer_name',
+            expectedFilterType: FilterType.STRING,
+        },
+    ] as const)(
+        'derives $operatorScope suggestion types from operator definitions',
+        async ({ expression, expectedFieldId, expectedFilterType }) => {
+            const error = await expectResolutionError(
+                expressionArgs({
+                    filters: {
+                        dimensions: expression,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+
+            expect(error).toMatchObject({
+                code: 'FILTER_EXPRESSION_UNKNOWN_FIELD',
+                suggestions: [expectedFieldId],
+                suggestedFields: [
+                    {
+                        fieldId: expectedFieldId,
+                        category: 'dimensions',
+                        filterType: expectedFilterType,
+                    },
+                ],
+            });
+        },
+    );
+
+    it('preserves the full expression when a field replacement is valid', async () => {
+        const expression = String.raw`orders_customer_name equals="Acme, Inc. \"HQ\""   AND
+orders_order_dat inThePast=30{completed:false,unit:days} AND orders_product_category notEquals='A\\B, {x}=y'`;
+        const expectedExample = expression.replace(
+            'orders_order_dat',
+            'orders_order_date',
+        );
+        const error = await expectResolutionError(
+            expressionArgs({
+                filters: {
+                    dimensions: expression,
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
+
+        expect(error).toMatchObject({
+            code: 'FILTER_EXPRESSION_UNKNOWN_FIELD',
+            suggestions: ['orders_order_date'],
+            example: expectedExample,
+        });
+        expect(error.example).not.toContain('example value');
+        if (error.example === null) {
+            throw new Error('Expected a semantically valid repair example');
+        }
+
+        const data = await expectResolved(
+            expressionArgs({
+                filters: {
+                    dimensions: error.example,
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
+        expect(
+            data.persistedArgs.queryConfig.filters?.dimensions,
+        ).toMatchObject([
+            { values: ['Acme, Inc. "HQ"'] },
+            {
+                fieldId: 'orders_order_date',
+                values: [30],
+                settings: { completed: false, unitOfTime: 'days' },
+            },
+            { values: ['A\\B, {x}=y'] },
+        ]);
+    });
+
+    it('does not recursively repair a second unknown field', async () => {
+        const error = await expectResolutionError(
+            expressionArgs({
+                filters: {
+                    dimensions:
+                        'orders_customer_nam equals=Acme AND orders_product_categor equals=Hardware',
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
+
+        expect(error).toMatchObject({
+            code: 'FILTER_EXPRESSION_UNKNOWN_FIELD',
+            fieldId: 'orders_customer_nam',
+            suggestions: ['orders_customer_name'],
+            example: null,
+        });
+    });
+
+    it('keeps a typed suggestion but omits an invalid scalar repair', async () => {
+        const error = await expectResolutionError(
+            expressionArgs({
+                filters: {
+                    dimensions: 'orders_amount_typo equals=nonnumeric',
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+        );
+
+        expect(error).toMatchObject({
+            code: 'FILTER_EXPRESSION_UNKNOWN_FIELD',
+            suggestions: ['orders_amount'],
+            suggestedFields: [
+                {
+                    fieldId: 'orders_amount',
+                    category: 'dimensions',
+                    filterType: FilterType.NUMBER,
+                },
+            ],
+            example: null,
+        });
+        const formatted = formatFilterExpressionError(error);
+        expect(formatted).toContain(
+            'Did you mean: orders_amount (dimension, number)?',
+        );
+        expect(formatted).not.toContain('Example:');
+    });
+
+    it('excludes metrics from custom metric filter suggestions', async () => {
+        const error = await expectResolutionError(
+            expressionArgs({
+                customMetrics: [
+                    {
+                        ...aggregationCustomMetric,
+                        filters: 'orders_total_revenue_typo greaterThan=10',
+                    },
+                ],
+            }),
+        );
+
+        expect(error).toMatchObject({
+            code: 'FILTER_EXPRESSION_UNKNOWN_FIELD',
+            suggestions: ['orders_amount'],
+            suggestedFields: [
+                {
+                    fieldId: 'orders_amount',
+                    category: 'dimensions',
+                    filterType: FilterType.NUMBER,
+                },
+            ],
+            guidance: expect.stringContaining('dimension field ID'),
+            example: 'orders_amount greaterThan=10',
+        });
+        if (error.code !== 'FILTER_EXPRESSION_UNKNOWN_FIELD') {
+            throw new Error('Expected an unknown field error');
+        }
+        expect(error.suggestions).not.toContain('orders_total_revenue');
+        expect(formatFilterExpressionError(error)).not.toContain(
+            'explore field ID',
+        );
+    });
+
+    it.each([
+        {
+            fieldKind: 'metric',
+            expression: 'orders_total_revenue greaterThan=100',
+            fieldCategory: 'metrics',
+        },
+        {
+            fieldKind: 'table calculation',
+            expression: 'profit_margin greaterThan=0.2',
+            fieldCategory: 'tableCalculations',
+        },
+    ] as const)(
+        'rejects an exact $fieldKind in a custom metric filter at resolution',
+        async ({ expression, fieldCategory }) => {
+            const error = await expectResolutionError(
+                expressionArgs({
+                    customMetrics: [
+                        { ...aggregationCustomMetric, filters: expression },
+                    ],
+                    tableCalculations: [numericFormula],
+                }),
+            );
+
+            expect(error).toMatchObject({
+                code: 'FILTER_EXPRESSION_CUSTOM_METRIC_WRONG_CATEGORY',
+                source: {
+                    kind: 'customMetricFilter',
+                    customMetricName: 'completed_revenue',
+                },
+                allowedCategory: 'dimensions',
+                fieldCategory,
+                span: {
+                    start: { offset: 0, line: 1, column: 1 },
+                },
+                example: null,
+            });
+            const formatted = formatFilterExpressionError(error);
+            expect(formatted).toContain('only accept dimension fields');
+            expect(formatted).not.toContain('Example:');
+            expect(formatted).not.toContain('parserMessage');
+        },
+    );
 
     it.each([
         ['dimensions', 'orders_total_revenue greaterThan=10', 'metrics'],
@@ -1164,9 +1457,10 @@ describe('resolveFilterExpressionArgs', () => {
             fieldId: 'orders_total_revenue',
             reason: 'ambiguous',
             suggestions: [],
+            suggestedFields: [],
             example: null,
         });
-        expect(formatFilterExpressionError(error)).not.toContain('\nExample:');
+        expect(formatFilterExpressionError(error)).not.toContain('Example:');
     });
 
     it('resolves aggregation custom metrics as metric filter fields', async () => {
@@ -1209,33 +1503,6 @@ describe('resolveFilterExpressionArgs', () => {
             expect(error).toMatchObject({
                 code: 'FILTER_EXPRESSION_INVALID_VALUE',
                 source: { kind: 'queryFilter', category: 'metrics' },
-                fieldId: postCalculationMetricId,
-                filterType: FilterType.NUMBER,
-                problem: `Metric type "${metricType}" is not supported by AI filters.`,
-                guidance:
-                    'Use another metric whose type is supported by AI filters, or remove this filter rule.',
-            });
-        },
-    );
-
-    it.each(unsupportedAiFilterMetricTypes)(
-        'rejects unsupported AI custom metric filter type %s before persistence',
-        async (metricType) => {
-            const error = await expectResolutionError(
-                expressionArgs({
-                    customMetrics: [
-                        {
-                            ...aggregationCustomMetric,
-                            filters: `${postCalculationMetricId} greaterThan=100`,
-                        },
-                    ],
-                }),
-                () => exploreWithPostCalculationMetric(metricType),
-            );
-
-            expect(error).toMatchObject({
-                code: 'FILTER_EXPRESSION_INVALID_VALUE',
-                source: { kind: 'customMetricFilter' },
                 fieldId: postCalculationMetricId,
                 filterType: FilterType.NUMBER,
                 problem: `Metric type "${metricType}" is not supported by AI filters.`,

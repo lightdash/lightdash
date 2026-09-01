@@ -79,6 +79,13 @@ const errorsByCode: Record<
         fieldId: 'orders_statu',
         reason: 'notFound',
         suggestions: ['orders_status'],
+        suggestedFields: [
+            {
+                fieldId: 'orders_status',
+                category: 'dimensions',
+                filterType: FilterType.STRING,
+            },
+        ],
     },
     FILTER_EXPRESSION_WRONG_CATEGORY: {
         ...details,
@@ -87,6 +94,15 @@ const errorsByCode: Record<
         fieldId: 'orders_total_revenue',
         expectedCategory: 'metrics',
         actualCategory: 'dimensions',
+    },
+    FILTER_EXPRESSION_CUSTOM_METRIC_WRONG_CATEGORY: {
+        ...details,
+        code: 'FILTER_EXPRESSION_CUSTOM_METRIC_WRONG_CATEGORY',
+        source: customMetricSource,
+        fieldId: 'orders_total_revenue',
+        allowedCategory: 'dimensions',
+        fieldCategory: 'metrics',
+        example: null,
     },
     FILTER_EXPRESSION_INVALID_VALUE: {
         ...details,
@@ -148,6 +164,12 @@ Location: line 2, column 3
 Problem: The expression is invalid.
 How to fix: Correct the expression.
 Example: field equals=value`,
+    FILTER_EXPRESSION_CUSTOM_METRIC_WRONG_CATEGORY: `[FILTER_EXPRESSION_CUSTOM_METRIC_WRONG_CATEGORY]
+Invalid custom metric "completed_revenue" filter expression for field "orders_total_revenue".
+
+Location: line 2, column 3
+Problem: The expression is invalid.
+How to fix: Correct the expression.`,
     FILTER_EXPRESSION_INVALID_VALUE: `[FILTER_EXPRESSION_INVALID_VALUE]
 Invalid metric filter expression for field "orders_total_revenue".
 

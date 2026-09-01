@@ -50,6 +50,7 @@ const getFieldId = (
     switch (error.code) {
         case 'FILTER_EXPRESSION_UNKNOWN_FIELD':
         case 'FILTER_EXPRESSION_WRONG_CATEGORY':
+        case 'FILTER_EXPRESSION_CUSTOM_METRIC_WRONG_CATEGORY':
         case 'FILTER_EXPRESSION_INVALID_VALUE':
         case 'FILTER_EXPRESSION_WRONG_ARITY':
             return error.fieldId;
