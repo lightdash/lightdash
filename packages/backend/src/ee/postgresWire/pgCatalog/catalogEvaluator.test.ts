@@ -12,18 +12,24 @@ const catalog: PgWireTable[] = [
         fields: [
             {
                 fieldId: 'orders_status',
+                table: 'orders',
+                name: 'status',
                 kind: 'dimension',
                 type: 'string',
                 description: 'Status',
             },
             {
                 fieldId: 'orders_amount',
+                table: 'orders',
+                name: 'amount',
                 kind: 'dimension',
                 type: 'number',
                 description: null,
             },
             {
                 fieldId: 'orders_count',
+                table: 'orders',
+                name: 'count',
                 kind: 'metric',
                 type: 'count',
                 description: null,
@@ -36,6 +42,8 @@ const catalog: PgWireTable[] = [
         fields: [
             {
                 fieldId: 'customers_id',
+                table: 'customers',
+                name: 'id',
                 kind: 'dimension',
                 type: 'number',
                 description: null,

@@ -305,6 +305,8 @@ export const createLightdashPgWireHandlers = (
                             .filter((d) => !d.hidden)
                             .map((d) => ({
                                 fieldId: getItemId(d),
+                                table: d.table,
+                                name: d.name,
                                 kind: 'dimension' as const,
                                 type: d.type,
                                 description: describe(d),
@@ -313,6 +315,8 @@ export const createLightdashPgWireHandlers = (
                             .filter((m) => !m.hidden)
                             .map((m) => ({
                                 fieldId: getItemId(m),
+                                table: m.table,
+                                name: m.name,
                                 kind: 'metric' as const,
                                 type: m.type,
                                 description: describe(m),

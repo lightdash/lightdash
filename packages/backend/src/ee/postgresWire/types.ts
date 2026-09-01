@@ -5,6 +5,10 @@ export type PgWireFieldKind = 'dimension' | 'metric';
 export type PgWireField = {
     /** Lightdash field id, exposed to clients as the column name (e.g. `orders_status`) */
     fieldId: string;
+    /** explore table the field belongs to (base or joined), for ${table.name} metric refs */
+    table: string;
+    /** field name within its table */
+    name: string;
     kind: PgWireFieldKind;
     /** DimensionType or MetricType value, used to pick a Postgres type OID */
     type: string;
