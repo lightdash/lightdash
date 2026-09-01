@@ -12,6 +12,7 @@ describeContentAsCodeSchemaContract({
         // Overlay flags for unpublished drafts; not part of the as-code document.
         'dismissedDraftUuid',
         'draftOverlayError',
+        'draftStaleness',
         'draftsAwaitingReview',
         'firstViewedAt',
         'hasUnpublishedChanges',
