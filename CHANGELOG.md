@@ -1,3 +1,18 @@
+# [2.72.0](https://github.com/lightdash/lightdash/compare/2.71.3...2.72.0) (2026-09-01)
+
+
+### Bug Fixes
+
+* **cli:** report per-type counts in the upload summary ([#28386](https://github.com/lightdash/lightdash/issues/28386)) ([967b596](https://github.com/lightdash/lightdash/commit/967b596436a6d5d8b89827e353365ba2aa59e4a3))
+* **content-as-code:** dismiss open drafts when their content is deleted ([#28383](https://github.com/lightdash/lightdash/issues/28383)) ([a721103](https://github.com/lightdash/lightdash/commit/a7211032847a91cca06c2864aa3a99d641440913))
+* **dashboards:** say a draft was saved when a dashboard save is held for review ([#28384](https://github.com/lightdash/lightdash/issues/28384)) ([6c7c76c](https://github.com/lightdash/lightdash/commit/6c7c76c5ecf2f9725a8d4c2246ee68bfed4027db))
+* **dashboards:** show the author's chart draft inside dashboard tiles ([#28385](https://github.com/lightdash/lightdash/issues/28385)) ([3bbaa26](https://github.com/lightdash/lightdash/commit/3bbaa269bdddb6b7a42252114ce412a0cce02d0f))
+
+
+### Features
+
+* **data-apps:** unlink external connections from settings ([#28395](https://github.com/lightdash/lightdash/issues/28395)) ([b5ef3f8](https://github.com/lightdash/lightdash/commit/b5ef3f856b0ebb70e8a23d6e01da518f0dfa084f))
+
 ## [2.71.3](https://github.com/lightdash/lightdash/compare/2.71.2...2.71.3) (2026-09-01)
 
 

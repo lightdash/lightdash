@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.71.3",
-  "previousVersion": "2.71.2",
-  "releaseDate": "2026-09-01T12:10:32.769Z",
+  "version": "2.72.0",
+  "previousVersion": "2.71.3",
+  "releaseDate": "2026-09-01T12:37:28.609Z",
   "migrations": {
     "present": true,
     "count": 1,
@@ -10,7 +10,7 @@
     "eeCount": 0,
     "files": [
       {
-        "name": "20260901120000_add_written_back_documents_to_content_drafts.ts",
+        "name": "20260901130000_index_open_content_drafts_by_content.ts",
         "edition": "core",
         "tables": [
           "content_drafts"
@@ -18,7 +18,7 @@
         "heaviness": {
           "locksTable": true,
           "rewritesTable": false,
-          "scansTable": false
+          "scansTable": true
         }
       }
     ]

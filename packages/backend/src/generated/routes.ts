@@ -54001,6 +54001,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        includeUnpublishedDraft: { dataType: 'boolean' },
                         pivotResults: { dataType: 'boolean' },
                         limit: {
                             dataType: 'union',
