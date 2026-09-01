@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { Agent } from 'undici';
 import {
     afterAll,
     afterEach,
@@ -13,6 +14,7 @@ import {
 import {
     ChartRegistryClient,
     chartRegistryFetch,
+    createPinnedLookup,
     type ChartRegistryFetch as ChartRegistryFetchType,
 } from './ChartRegistryClient';
 
@@ -399,5 +401,127 @@ describe('ChartRegistryClient real network (defaultFetch)', () => {
         const asset = await client.getAsset('thumb.png');
         expect(asset?.buffer.equals(imageBytes)).toBe(true);
         expect(asset?.contentType).toBe('image/png');
+    });
+
+    // Proves the DNS-rebinding fix: createPinnedLookup is the lookup that
+    // chartRegistryFetch hands to undici's Agent so the socket connects to
+    // the address validatePublicHttpUrl already checked, instead of
+    // triggering a second, independently-resolvable DNS lookup.
+    describe('pinned dispatcher (createPinnedLookup)', () => {
+        it('completes a real request when the URL hostname matches the pin, connecting via the pinned address rather than the hostname', async () => {
+            const baseUrl = await startServer((req, res) => {
+                res.writeHead(200, { 'content-type': 'text/plain' });
+                res.end('pinned-ok');
+            });
+            const { port } = new URL(baseUrl);
+            // The request targets "localhost", but the pin maps it straight
+            // to 127.0.0.1 — proving the socket uses the pinned address
+            // rather than re-resolving "localhost" itself.
+            const dispatcher = new Agent({
+                connect: {
+                    lookup: createPinnedLookup('localhost', {
+                        address: '127.0.0.1',
+                        family: 4,
+                    }),
+                },
+            });
+            try {
+                const response = await fetch(`http://localhost:${port}/`, {
+                    dispatcher,
+                } as never);
+                expect(await response.text()).toBe('pinned-ok');
+            } finally {
+                await dispatcher.close();
+            }
+        });
+
+        it('refuses to connect when asked to resolve a hostname other than the one it was pinned for', async () => {
+            const baseUrl = await startServer((req, res) => {
+                res.writeHead(200);
+                res.end('should not be reached');
+            });
+            const { port } = new URL(baseUrl);
+            const dispatcher = new Agent({
+                connect: {
+                    lookup: createPinnedLookup('charts.example.com', {
+                        address: '127.0.0.1',
+                        family: 4,
+                    }),
+                },
+            });
+            try {
+                await expect(
+                    fetch(`http://localhost:${port}/`, {
+                        dispatcher,
+                    } as never),
+                ).rejects.toThrow();
+            } finally {
+                await dispatcher.close();
+            }
+        });
+    });
+});
+
+describe('createPinnedLookup', () => {
+    it('returns the pinned address for the matching hostname', async () => {
+        const lookup = createPinnedLookup('charts.example.com', {
+            address: '203.0.113.5',
+            family: 4,
+        });
+        const result = await new Promise((resolve, reject) => {
+            lookup('charts.example.com', {}, (err, address, family) => {
+                if (err) reject(err);
+                else resolve({ address, family });
+            });
+        });
+        expect(result).toEqual({ address: '203.0.113.5', family: 4 });
+    });
+
+    it('returns the pinned address for a case-insensitive hostname match', async () => {
+        const lookup = createPinnedLookup('Charts.Example.com', {
+            address: '203.0.113.5',
+            family: 4,
+        });
+        const result = await new Promise((resolve, reject) => {
+            lookup('charts.example.com', {}, (err, address, family) => {
+                if (err) reject(err);
+                else resolve({ address, family });
+            });
+        });
+        expect(result).toEqual({ address: '203.0.113.5', family: 4 });
+    });
+
+    it('honors the { all: true } lookup option by returning an address array', async () => {
+        const lookup = createPinnedLookup('charts.example.com', {
+            address: '203.0.113.5',
+            family: 4,
+        });
+        const result = await new Promise((resolve, reject) => {
+            lookup(
+                'charts.example.com',
+                { all: true },
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (err: unknown, addrs: any) => {
+                    if (err) reject(err);
+                    else resolve(addrs);
+                },
+            );
+        });
+        expect(result).toEqual([{ address: '203.0.113.5', family: 4 }]);
+    });
+
+    it('errors for a hostname different from the one it was pinned for', async () => {
+        const lookup = createPinnedLookup('charts.example.com', {
+            address: '203.0.113.5',
+            family: 4,
+        });
+        await expect(
+            new Promise((resolve, reject) => {
+                lookup('evil.example.com', {}, (err) => {
+                    if (err) reject(err);
+                    else resolve(undefined);
+                });
+            }),
+        ).rejects.toThrow(/unexpected hostname/i);
     });
 });
