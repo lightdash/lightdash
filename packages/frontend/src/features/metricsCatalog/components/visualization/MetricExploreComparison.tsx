@@ -147,9 +147,11 @@ export const MetricExploreComparison: FC<Props> = ({
                                     query.comparison === comparison.type ||
                                     undefined
                                 }
-                                onClick={() =>
-                                    handleComparisonChange(comparison.type)
-                                }
+                                onClick={() => {
+                                    if (query.comparison !== comparison.type) {
+                                        handleComparisonChange(comparison.type);
+                                    }
+                                }}
                             >
                                 <Stack>
                                     <Group
