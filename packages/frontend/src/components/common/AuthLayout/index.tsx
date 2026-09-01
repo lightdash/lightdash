@@ -55,13 +55,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                         <LightdashLogo />
                     </Box>
                     {withLegacyCard ? (
-                        <Card
-                            id={cardId}
-                            p="xl"
-                            radius="xs"
-                            withBorder
-                            shadow="xs"
-                        >
+                        <Card id={cardId} p="xl" radius="md">
                             {legacyTitle && (
                                 <Title order={3} ta="center" mb="md">
                                     {legacyTitle}

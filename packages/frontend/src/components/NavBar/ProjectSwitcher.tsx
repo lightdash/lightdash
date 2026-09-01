@@ -81,7 +81,7 @@ const ExpiryBadge: FC<{ expiresAt: Date | null }> = ({ expiresAt }) => {
             variant="light"
             size="xs"
             radius="sm"
-            fw={450}
+            fw={500}
             className={classes.badge}
         >
             {expiresInDays === 0
@@ -269,7 +269,7 @@ const PreviewRow: FC<{
                         </Highlight>
                     </Tooltip>
                     {upstreamName && (
-                        <Text fz={10} c="ldGray.5" truncate maw={120}>
+                        <Text fz="xs" c="ldGray.5" truncate maw={120}>
                             {upstreamName}
                         </Text>
                     )}
@@ -766,7 +766,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                                         variant="light"
                                         size="xs"
                                         radius="sm"
-                                        fw={700}
+                                        fw={600}
                                         className={classes.badge}
                                     >
                                         {matchingProjects.length}
@@ -808,7 +808,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                                                     }
                                                 >
                                                     <Text
-                                                        fz={10}
+                                                        fz="xs"
                                                         fw={600}
                                                         c="ldGray.5"
                                                         tt="uppercase"

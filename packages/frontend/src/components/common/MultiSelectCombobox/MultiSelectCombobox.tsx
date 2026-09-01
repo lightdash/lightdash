@@ -1,5 +1,7 @@
 import {
+    CheckIcon,
     Combobox,
+    Group,
     Pill,
     PillsInput,
     ScrollArea,
@@ -16,7 +18,6 @@ import {
     type KeyboardEvent,
     type ReactNode,
 } from 'react';
-import classes from './MultiSelectCombobox.module.css';
 
 export type MultiSelectComboboxOption = {
     value: string;
@@ -395,16 +396,23 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                                     value={option.value}
                                                     disabled={option.disabled}
                                                     active={selected}
-                                                    className={classes.option}
-                                                    fz="sm"
-                                                    ff="inherit"
-                                                    px="sm"
-                                                    py="xxs"
                                                 >
-                                                    {renderOption?.(
-                                                        option,
-                                                        selected,
-                                                    ) ?? option.label}
+                                                    <Group
+                                                        gap="xs"
+                                                        wrap="nowrap"
+                                                    >
+                                                        <CheckIcon
+                                                            size={12}
+                                                            opacity={
+                                                                selected ? 1 : 0
+                                                            }
+                                                            aria-hidden
+                                                        />
+                                                        {renderOption?.(
+                                                            option,
+                                                            selected,
+                                                        ) ?? option.label}
+                                                    </Group>
                                                 </Combobox.Option>
                                             );
                                         },
@@ -413,9 +421,6 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                         <Combobox.Group
                                             key={`${group.group}-${groupIndex}`}
                                             label={group.group}
-                                            fz="sm"
-                                            ff="inherit"
-                                            px="sm"
                                         >
                                             {children}
                                         </Combobox.Group>
@@ -427,12 +432,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                     <Combobox.Option
                                         value={CREATE_VALUE}
                                         data-create-option
-                                        fz="xs"
                                         fw={500}
-                                        c="dark"
-                                        ff="inherit"
-                                        px="sm"
-                                        py="xxs"
                                     >
                                         {createLabel ?? (
                                             <Text c="indigo">

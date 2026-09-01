@@ -1,22 +1,21 @@
 .leftGroup {
     flex-shrink: 0;
+    gap: var(--mantine-spacing-sm);
 }
 
 .rightGroup {
     flex-shrink: 0;
+    gap: var(--mantine-spacing-xs);
 }
 
 .logoButton {
     width: auto;
-    height: 34px;
-    background-color: transparent;
+    height: rem(32px);
+    padding: 0 rem(2px);
 
     & svg {
-        height: 32px;
+        height: rem(28px);
         width: auto;
-    }
-    &:hover {
-        background-color: transparent;
     }
 }
 
