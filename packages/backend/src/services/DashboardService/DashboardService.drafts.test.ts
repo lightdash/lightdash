@@ -240,15 +240,20 @@ describe('DashboardService drafts gating (sync + git-backed only)', () => {
         expect(upsertOpenDraft).not.toHaveBeenCalled();
     });
 
-    it('publishes normally for content-as-code managers', async () => {
+    it('drafts for content-as-code managers too, recording the upload snapshot as base', async () => {
         const { service, upsertOpenDraft } = buildService();
         const result = await service['maybeStoreDraft'](
             reviewerUser,
             dashboardDao,
             draftFields,
         );
-        expect(result).toBeUndefined();
-        expect(upsertOpenDraft).not.toHaveBeenCalled();
+        expect(result?.hasUnpublishedChanges).toBe(true);
+        expect(upsertOpenDraft).toHaveBeenCalledWith(
+            expect.objectContaining({
+                authorUserUuid: reviewerUser.userUuid,
+                base: expect.objectContaining({ hash: 'abc' }),
+            }),
+        );
     });
 
     it('turns a Git-backed dashboard move into a portable draft field', async () => {
@@ -355,7 +360,7 @@ describe('DashboardService drafts gating (sync + git-backed only)', () => {
         );
     });
 
-    it('publishes every bulk dashboard update for a Content as Code manager', async () => {
+    it('drafts every bulk dashboard update for a Content as Code manager', async () => {
         const managedDashboard = {
             ...dashboardDao,
             uuid: 'managed-dashboard',
@@ -377,11 +382,8 @@ describe('DashboardService drafts gating (sync + git-backed only)', () => {
 
         await service.updateMultiple(reviewerUser, PROJECT_UUID, updates);
 
-        expect(upsertOpenDraft).not.toHaveBeenCalled();
-        expect(dashboardUpdateMultiple).toHaveBeenCalledWith(
-            PROJECT_UUID,
-            updates,
-        );
+        expect(upsertOpenDraft).toHaveBeenCalledTimes(1);
+        expect(dashboardUpdateMultiple).not.toHaveBeenCalled();
     });
 
     it('blocks an editor from deleting a Git-backed dashboard', async () => {

@@ -1,5 +1,10 @@
 import { ParameterError } from '../errors';
 import type { PromotionAction } from '../promotion';
+import type {
+    ContentDraftFieldResolution,
+    ContentDraftStaleness,
+    ContentDraftStalenessDetails,
+} from './draftRebase';
 import { joinContentAsCodePath } from './fileDiscovery';
 
 export const DEFAULT_CONTENT_AS_CODE_PATH = 'lightdash';
@@ -183,6 +188,8 @@ export type ContentDraftSummary = {
     status: 'open' | 'written_back' | 'dismissed';
     prUrl: string | null;
     writebackStatus: ContentAsCodeWritebackStatus | null;
+    // The repo moved past the upload snapshot the draft started from
+    stale: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -192,6 +199,21 @@ export type ContentDraftReview = {
     filePath: string;
     publishedYaml: string;
     draftYaml: string;
+    staleness: ContentDraftStaleness | null;
+};
+
+export type ContentDraftRebaseRequest = {
+    resolutions: Record<string, ContentDraftFieldResolution>;
+};
+
+export type ApiContentDraftRebaseResponse = {
+    status: 'ok';
+    results: ContentDraftSummary;
+};
+
+export type ApiContentDraftStalenessResponse = {
+    status: 'ok';
+    results: ContentDraftStalenessDetails | null;
 };
 
 export type ApiContentDraftsResponse = {
