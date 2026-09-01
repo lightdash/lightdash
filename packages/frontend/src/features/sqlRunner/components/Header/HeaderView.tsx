@@ -185,8 +185,8 @@ export const HeaderView: FC = () => {
         <>
             <PageHeader cardProps={{ py: 'xs' }}>
                 <Group justify="space-between" flex={1} wrap="nowrap">
-                    <Stack gap="none">
-                        <Group gap="two">
+                    <Stack gap={0} miw={0}>
+                        <Group gap={4} wrap="nowrap">
                             {space && (
                                 <TitleBreadCrumbs
                                     projectUuid={projectUuid}
@@ -194,7 +194,7 @@ export const HeaderView: FC = () => {
                                     spaceName={space.name}
                                 />
                             )}
-                            <Title c="ldDark.9" order={5} fw={600}>
+                            <Title order={5} maw={500} lineClamp={1}>
                                 {savedSqlChart.name}
                             </Title>
                         </Group>
