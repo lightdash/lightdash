@@ -73,6 +73,7 @@ import {
     renderCandidateBlock,
     selectCandidateFields,
 } from '../tools/grepFieldsIndex';
+import { getIterateDataApp } from '../tools/iterateDataApp';
 import { getListContent } from '../tools/listContent';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListProjects } from '../tools/listProjects';
@@ -962,6 +963,12 @@ export const getAgentTools = (
           })
         : null;
 
+    const iterateDataApp = args.enableGenerateDataApp
+        ? getIterateDataApp({
+              iterateDataApp: dependencies.iterateDataApp,
+          })
+        : null;
+
     const editDbtProject = args.enableAiWriteback
         ? getEditDbtProject({
               editDbtProject: dependencies.editDbtProject,
@@ -1158,6 +1165,7 @@ export const getAgentTools = (
         generateHashes,
         generateUuids,
         ...(generateDataApp ? { generateDataApp } : {}),
+        ...(iterateDataApp ? { iterateDataApp } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
         ...(editProjectContext ? { editProjectContext } : {}),
         ...(editRepo ? { editRepo } : {}),

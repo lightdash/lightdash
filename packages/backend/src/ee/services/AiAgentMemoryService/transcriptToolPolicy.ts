@@ -109,6 +109,7 @@ export const DISTILL_TOOL_POLICIES = {
     getPullRequestDiff: { result: omitResult('volatile repository diff') },
     editRepo: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     generateDataApp: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
+    iterateDataApp: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
     editDbtProject: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     syncDbtProject: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     setupPreviewDeploy: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },

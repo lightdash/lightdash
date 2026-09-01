@@ -9455,6 +9455,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 appUuid,
                 version,
                 name: app.name,
+                slug: app.slug,
                 status: appVersion.status,
                 error: appVersion.error,
                 statusMessage: appVersion.status_message,
@@ -9558,15 +9559,24 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 prompt,
                 metadata,
             );
+            // Version 1 is a creation; anything later is an iteration outcome.
+            const readyPhrase =
+                metadata.version === 1
+                    ? `Your data app **${metadata.name}** is ready.`
+                    : `Version ${metadata.version} of **${metadata.name}** is ready.`;
+            const readyText =
+                metadata.version === 1
+                    ? `Your data app "${metadata.name}" is ready: ${metadata.href}`
+                    : `Version ${metadata.version} of "${metadata.name}" is ready: ${metadata.href}`;
             await this.postOutcomeToSlack(
                 prompt,
                 [
                     ...getMarkdownBlocks(
-                        `:white_check_mark: Your data app **${metadata.name}** is ready. [Open it in the builder](${metadata.href})`,
+                        `:white_check_mark: ${readyPhrase} [Open it in the builder](${metadata.href})`,
                     ),
                     ...(screenshotBlock ? [screenshotBlock] : []),
                 ],
-                `Your data app "${metadata.name}" is ready: ${metadata.href}`,
+                readyText,
             );
             return;
         }
@@ -10427,6 +10437,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findContent: toolsRuntime.findContent,
             readContent: toolsRuntime.readContent,
             generateDataApp: toolsRuntime.generateDataApp,
+            iterateDataApp: toolsRuntime.iterateDataApp,
             resolveUrl: toolsRuntime.resolveUrl,
             editContent: toolsRuntime.editContent,
             createContent: toolsRuntime.createContent,
@@ -10639,6 +10650,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findContent,
             readContent,
             generateDataApp,
+            iterateDataApp,
             resolveUrl,
             editContent,
             createContent,
@@ -11234,6 +11246,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findContent,
             readContent,
             generateDataApp,
+            iterateDataApp,
             resolveUrl,
             editContent,
             createContent,
@@ -12677,6 +12690,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 case 'syncDbtProject':
                     return 'Preparing the semantic-layer changes...';
                 case 'generateDataApp':
+                case 'iterateDataApp':
                     return 'Starting the data app build...';
                 case 'setupPreviewDeploy':
                     return 'Setting up the preview...';

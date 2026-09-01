@@ -60,6 +60,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     listProjects: 'list_projects',
     getProjectInfo: 'get_project_info',
     generateDataApp: 'generate_data_app',
+    iterateDataApp: 'iterate_data_app',
     editDbtProject: 'edit_dbt_project',
     editProjectContext: 'edit_project_context',
     editRepo: 'edit_repo',
