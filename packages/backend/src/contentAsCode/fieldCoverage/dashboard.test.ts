@@ -29,6 +29,7 @@ describeContentAsCodeSchemaContract({
         'views',
     ],
     documentOnlyFields: [
+        'access',
         'contentType',
         'downloadedAt',
         // Portable representation of the model's `owner`

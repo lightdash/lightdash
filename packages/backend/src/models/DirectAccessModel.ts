@@ -1069,6 +1069,138 @@ export class DirectAccessModel {
         ];
     }
 
+    /**
+     * Batch variant of `listAssignments` for content-as-code export: one pass
+     * over the user table and one over the group table for many resources of
+     * one type. Unknown or grant-free resources simply have no entry. Callers
+     * must pass uuids they have already located and authorized within one
+     * organization — unlike `listAssignments`, no location check runs here.
+     */
+    async listAssignmentsForResources({
+        resourceType,
+        resourceUuids,
+    }: {
+        resourceType: DirectAccessResourceType;
+        resourceUuids: string[];
+    }): Promise<Record<string, DirectAccessAssignment[]>> {
+        if (resourceUuids.length === 0) {
+            return {};
+        }
+        const config = TABLE_CONFIG[resourceType];
+        const [userRows, groupRows] = await Promise.all([
+            this.database(config.userTable)
+                .innerJoin(
+                    UserTableName,
+                    `${UserTableName}.user_uuid`,
+                    `${config.userTable}.user_uuid`,
+                )
+                .leftJoin(EmailTableName, function joinPrimaryEmail() {
+                    this.on(
+                        `${EmailTableName}.user_id`,
+                        `${UserTableName}.user_id`,
+                    ).andOnVal(`${EmailTableName}.is_primary`, true);
+                })
+                .whereIn(
+                    `${config.userTable}.${config.resourceColumn}`,
+                    resourceUuids,
+                )
+                .select<
+                    {
+                        resourceUuid: string;
+                        userUuid: string;
+                        firstName: string;
+                        lastName: string;
+                        email: string | null;
+                        role: SpaceMemberRole;
+                        grantedByUserUuid: string | null;
+                        createdAt: Date;
+                        updatedAt: Date;
+                    }[]
+                >({
+                    resourceUuid: `${config.userTable}.${config.resourceColumn}`,
+                    userUuid: `${UserTableName}.user_uuid`,
+                    firstName: `${UserTableName}.first_name`,
+                    lastName: `${UserTableName}.last_name`,
+                    email: `${EmailTableName}.email`,
+                    role: `${config.userTable}.space_role`,
+                    grantedByUserUuid: `${config.userTable}.granted_by_user_uuid`,
+                    createdAt: `${config.userTable}.created_at`,
+                    updatedAt: `${config.userTable}.updated_at`,
+                })
+                .orderBy([
+                    { column: `${config.userTable}.created_at`, order: 'asc' },
+                    { column: `${UserTableName}.user_uuid`, order: 'asc' },
+                ]),
+            this.database(config.groupTable)
+                .innerJoin(
+                    GroupTableName,
+                    `${GroupTableName}.group_uuid`,
+                    `${config.groupTable}.group_uuid`,
+                )
+                .whereIn(
+                    `${config.groupTable}.${config.resourceColumn}`,
+                    resourceUuids,
+                )
+                .select<
+                    {
+                        resourceUuid: string;
+                        groupUuid: string;
+                        name: string;
+                        role: SpaceMemberRole;
+                        grantedByUserUuid: string | null;
+                        createdAt: Date;
+                        updatedAt: Date;
+                    }[]
+                >({
+                    resourceUuid: `${config.groupTable}.${config.resourceColumn}`,
+                    groupUuid: `${GroupTableName}.group_uuid`,
+                    name: `${GroupTableName}.name`,
+                    role: `${config.groupTable}.space_role`,
+                    grantedByUserUuid: `${config.groupTable}.granted_by_user_uuid`,
+                    createdAt: `${config.groupTable}.created_at`,
+                    updatedAt: `${config.groupTable}.updated_at`,
+                })
+                .orderBy([
+                    { column: `${config.groupTable}.created_at`, order: 'asc' },
+                    { column: `${GroupTableName}.group_uuid`, order: 'asc' },
+                ]),
+        ]);
+
+        const assignments: Record<string, DirectAccessAssignment[]> = {};
+        const push = (uuid: string, assignment: DirectAccessAssignment) => {
+            assignments[uuid] = [...(assignments[uuid] ?? []), assignment];
+        };
+        userRows.forEach((row) => {
+            push(row.resourceUuid, {
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    userUuid: row.userUuid,
+                    firstName: row.firstName,
+                    lastName: row.lastName,
+                    email: row.email,
+                },
+                role: row.role,
+                grantedByUserUuid: row.grantedByUserUuid,
+                createdAt: row.createdAt,
+                updatedAt: row.updatedAt,
+            });
+        });
+        groupRows.forEach((row) => {
+            push(row.resourceUuid, {
+                principal: {
+                    type: DirectAccessPrincipalType.GROUP,
+                    groupUuid: row.groupUuid,
+                    name: row.name,
+                },
+                role: row.role,
+                grantedByUserUuid: row.grantedByUserUuid,
+                createdAt: row.createdAt,
+                updatedAt: row.updatedAt,
+            });
+        });
+        return assignments;
+    }
+
     private static async validatePrincipal(
         trx: Knex,
         context: DirectAccessMutationContext,

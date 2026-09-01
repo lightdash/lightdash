@@ -45,6 +45,8 @@ import {
     DashboardTileTarget,
     DashboardTileTypes,
     DimensionType,
+    DirectAccessPrincipalType,
+    DirectAccessResourceType,
     Explore,
     ExploreType,
     ForbiddenError,
@@ -88,8 +90,10 @@ import {
     UpdatedByUser,
     validateEmail,
     VirtualViewAsCode,
+    type ContentAsCodeDirectAccess,
     type ContentVerificationInfo,
     type DashboardTileWithSlug,
+    type DirectAccessAssignment,
     type Filters,
     type GoogleSheetsSyncAsCode,
     type SpaceSummaryBase,
@@ -123,6 +127,7 @@ import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
+import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { PromoteService } from '../PromoteService/PromoteService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
@@ -196,6 +201,7 @@ type CoderServiceArguments = {
     groupsModel: GroupsModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     userModel: UserModel;
+    directAccessService: DirectAccessService;
 };
 
 type UpsertContentAsCodeOptions = {
@@ -265,6 +271,8 @@ export class CoderService extends BaseService {
         return getChartContentAsCodePermissionChecks(nextChart, currentChart);
     }
 
+    directAccessService: DirectAccessService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -288,6 +296,7 @@ export class CoderService extends BaseService {
         groupsModel,
         organizationMemberProfileModel,
         userModel,
+        directAccessService,
     }: CoderServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -311,6 +320,7 @@ export class CoderService extends BaseService {
         this.contentVerificationModel = contentVerificationModel;
         this.projectService = projectService;
         this.groupsModel = groupsModel;
+        this.directAccessService = directAccessService;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.userModel = userModel;
         this.virtualViewCoder = new VirtualViewCoder({
@@ -1073,6 +1083,139 @@ export class CoderService extends BaseService {
             }),
         );
         return portableGroups.some((portable) => !portable);
+    }
+
+    /**
+     * Portable access blocks for one resource type, keyed by resource uuid.
+     * Mirrors the space export rules: principals are identified by unique
+     * organization email or unique group name, and a policy containing any
+     * principal without a portable identity is omitted entirely — a file
+     * never half-represents a policy. Resources without direct assignments
+     * get no entry, so their files carry no access block and an upload of
+     * that file leaves the target environment's policy untouched.
+     *
+     * Public because the data-app bundle export (AppGenerateService) shares
+     * it — app manifests carry the same portable access block.
+     */
+    async getPortableDirectAccessByUuid(
+        user: SessionUser,
+        organizationUuid: string,
+        resourceType: DirectAccessResourceType,
+        resourceUuids: string[],
+    ): Promise<Map<string, ContentAsCodeDirectAccess>> {
+        const policies = await this.directAccessService.listPoliciesForExport(
+            { userUuid: user.userUuid, organizationUuid },
+            resourceType,
+            resourceUuids,
+        );
+        const assignmentsByUuid = Object.entries(policies);
+        if (assignmentsByUuid.length === 0) {
+            return new Map();
+        }
+
+        const allAssignments = assignmentsByUuid.flatMap(
+            ([, assignments]) => assignments,
+        );
+        const userEmails = [
+            ...new Set(
+                allAssignments.flatMap(({ principal }) =>
+                    principal.type === DirectAccessPrincipalType.USER &&
+                    principal.email !== null
+                        ? [principal.email.toLowerCase()]
+                        : [],
+                ),
+            ),
+        ];
+        const members =
+            await this.organizationMemberProfileModel.findOrganizationMembersByEmails(
+                organizationUuid,
+                userEmails,
+            );
+        const membersByUuid = new Map(
+            members.map((member) => [member.userUuid, member]),
+        );
+        const memberEmailCounts = members.reduce<Map<string, number>>(
+            (counts, member) => {
+                const email = member.email.toLowerCase();
+                counts.set(email, (counts.get(email) ?? 0) + 1);
+                return counts;
+            },
+            new Map(),
+        );
+
+        const uniqueGroups = [
+            ...new Map(
+                allAssignments.flatMap(({ principal }) =>
+                    principal.type === DirectAccessPrincipalType.GROUP
+                        ? [[principal.groupUuid, principal] as const]
+                        : [],
+                ),
+            ).values(),
+        ];
+        const portableGroupUuids = new Set(
+            (
+                await Promise.all(
+                    uniqueGroups.map(async (group) => {
+                        const matches = (
+                            await this.groupsModel.find({
+                                organizationUuid,
+                                name: group.name,
+                            })
+                        ).data;
+                        return matches.length === 1 &&
+                            matches[0].uuid === group.groupUuid
+                            ? group.groupUuid
+                            : null;
+                    }),
+                )
+            ).filter((groupUuid): groupUuid is string => groupUuid !== null),
+        );
+
+        const isPortable = (assignment: DirectAccessAssignment): boolean => {
+            const { principal } = assignment;
+            if (principal.type === DirectAccessPrincipalType.USER) {
+                if (principal.email === null) return false;
+                const normalizedEmail = principal.email.toLowerCase();
+                const member = membersByUuid.get(principal.userUuid);
+                return (
+                    member !== undefined &&
+                    member.email.toLowerCase() === normalizedEmail &&
+                    memberEmailCounts.get(normalizedEmail) === 1
+                );
+            }
+            return portableGroupUuids.has(principal.groupUuid);
+        };
+
+        return assignmentsByUuid.reduce<Map<string, ContentAsCodeDirectAccess>>(
+            (map, [resourceUuid, assignments]) => {
+                if (
+                    assignments.length === 0 ||
+                    !assignments.every(isPortable)
+                ) {
+                    return map;
+                }
+                const users = assignments.flatMap(({ principal, role }) =>
+                    principal.type === DirectAccessPrincipalType.USER
+                        ? [{ email: principal.email!.toLowerCase(), role }]
+                        : [],
+                );
+                const groups = assignments.flatMap(({ principal, role }) =>
+                    principal.type === DirectAccessPrincipalType.GROUP
+                        ? [{ name: principal.name, role }]
+                        : [],
+                );
+                map.set(resourceUuid, {
+                    users: users.sort((left, right) =>
+                        left.email.localeCompare(right.email),
+                    ),
+                    groups: groups.sort((left, right) =>
+                        left.name.localeCompare(right.name),
+                    ),
+                });
+                return map;
+            },
+            new Map(),
+        );
     }
 
     async upsertSpace(
@@ -2051,6 +2194,7 @@ export class CoderService extends BaseService {
             dashboardIds,
             offset,
             languageMap,
+            { includeAccess: true },
         );
     }
 
@@ -2091,6 +2235,10 @@ export class CoderService extends BaseService {
         dashboardIds: string[] | undefined,
         offset?: number,
         languageMap?: boolean,
+        // Access blocks are export-only: the AI/MCP read path enforces
+        // per-item view access, which is not enough to see who a resource
+        // is shared with.
+        { includeAccess = false }: { includeAccess?: boolean } = {},
     ): Promise<ApiDashboardAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
@@ -2177,10 +2325,29 @@ export class CoderService extends BaseService {
             ),
         );
 
+        const dashboardAccessByUuid = includeAccess
+            ? await this.getPortableDirectAccessByUuid(
+                  user,
+                  project.organizationUuid,
+                  DirectAccessResourceType.DASHBOARD,
+                  dashboardsWithAccess.map((dashboard) => dashboard.uuid),
+              )
+            : new Map<string, ContentAsCodeDirectAccess>();
+        const dashboardsWithPolicies = transformedDashboards.map(
+            (dashboard, index) => {
+                const access = dashboardAccessByUuid.get(
+                    dashboardsWithAccess[index].uuid,
+                );
+                return access === undefined
+                    ? dashboard
+                    : { ...dashboard, access };
+            },
+        );
+
         return {
-            dashboards: transformedDashboards,
+            dashboards: dashboardsWithPolicies,
             languageMap: languageMap
-                ? transformedDashboards.map((dashboard) => {
+                ? dashboardsWithPolicies.map((dashboard) => {
                       try {
                           return new DashboardAsCodeInternalization().getLanguageMap(
                               dashboard,
@@ -2361,6 +2528,7 @@ export class CoderService extends BaseService {
             chartIds,
             offset,
             languageMap,
+            { includeAccess: true },
         );
     }
 
@@ -2380,6 +2548,10 @@ export class CoderService extends BaseService {
         chartIds?: string[],
         offset?: number,
         languageMap?: boolean,
+        // Access blocks are export-only: the AI/MCP read path enforces
+        // per-item view access, which is not enough to see who a resource
+        // is shared with.
+        { includeAccess = false }: { includeAccess?: boolean } = {},
     ): Promise<ApiChartAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
@@ -2485,6 +2657,23 @@ export class CoderService extends BaseService {
             dataAppVizSlugByUuid,
         );
 
+        // Dashboard-owned chart definitions are not grantable, so only
+        // independently saved charts can carry an access block.
+        const chartAccessByUuid = includeAccess
+            ? await this.getPortableDirectAccessByUuid(
+                  user,
+                  project.organizationUuid,
+                  DirectAccessResourceType.CHART,
+                  charts.flatMap((chart) =>
+                      chart.dashboardUuid ? [] : [chart.uuid],
+                  ),
+              )
+            : new Map<string, ContentAsCodeDirectAccess>();
+        const chartsWithPolicies = transformedCharts.map((chart, index) => {
+            const access = chartAccessByUuid.get(charts[index].uuid);
+            return access === undefined ? chart : { ...chart, access };
+        });
+
         const missingIds = CoderService.getMissingIds(
             chartIds,
             charts,
@@ -2492,9 +2681,9 @@ export class CoderService extends BaseService {
         );
 
         return {
-            charts: transformedCharts,
+            charts: chartsWithPolicies,
             languageMap: languageMap
-                ? transformedCharts.map((chart) => {
+                ? chartsWithPolicies.map((chart) => {
                       try {
                           return new ChartAsCodeInternalization().getLanguageMap(
                               chart,
@@ -2692,6 +2881,28 @@ export class CoderService extends BaseService {
             ),
         );
 
+        // getSqlCharts is the export path itself (gated above), so access
+        // blocks always ride along. Dashboard-owned SQL charts never reach
+        // this listing (the space join excludes them) and are not grantable.
+        const sqlChartAccessByUuid = await this.getPortableDirectAccessByUuid(
+            user,
+            project.organizationUuid,
+            DirectAccessResourceType.SQL_CHART,
+            paginatedSqlChartRows.flatMap((row) =>
+                row.space_uuid ? [row.saved_sql_uuid] : [],
+            ),
+        );
+        const sqlChartsWithPolicies = transformedSqlCharts.map(
+            (sqlChart, index) => {
+                const access = sqlChartAccessByUuid.get(
+                    paginatedSqlChartRows[index].saved_sql_uuid,
+                );
+                return access === undefined
+                    ? sqlChart
+                    : { ...sqlChart, access };
+            },
+        );
+
         // Calculate missing IDs
         const foundSlugs = new Set(sqlChartRows.map((c) => c.slug));
         const missingIds = chartIds
@@ -2699,7 +2910,7 @@ export class CoderService extends BaseService {
             : [];
 
         return {
-            sqlCharts: transformedSqlCharts,
+            sqlCharts: sqlChartsWithPolicies,
             missingIds,
             spaces: CoderService.transformSpaces(
                 sqlChartSpaces.filter((s) =>

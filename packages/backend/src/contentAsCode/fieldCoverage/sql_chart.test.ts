@@ -20,6 +20,7 @@ describeContentAsCodeSchemaContract({
         'views',
     ],
     documentOnlyFields: [
+        'access',
         'contentType',
         'downloadedAt',
         'spaceSlug',
