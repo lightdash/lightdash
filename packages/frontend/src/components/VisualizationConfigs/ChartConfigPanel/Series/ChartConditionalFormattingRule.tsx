@@ -75,27 +75,14 @@ export const ChartConditionalFormattingRule: FC<Props> = ({
                         Condition {ruleIndex + 1}
                     </Text>
                     {hasRemove && hovered && (
-                        <Tooltip
-                            label="Remove condition"
-                            position="left"
-                            withinPortal
-                        >
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                onClick={onRemoveRule}
-                            >
+                        <Tooltip label="Remove condition" position="left">
+                            <ActionIcon onClick={onRemoveRule}>
                                 <MantineIcon icon={IconTrash} />
                             </ActionIcon>
                         </Tooltip>
                     )}
                 </Group>
-                <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    onClick={() => setIsOpen(!isOpen)}
-                    size="sm"
-                >
+                <ActionIcon onClick={() => setIsOpen(!isOpen)} size="sm">
                     <MantineIcon
                         icon={isOpen ? IconChevronUp : IconChevronDown}
                     />

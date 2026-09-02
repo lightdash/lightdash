@@ -7,7 +7,6 @@ import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { RowLimitControls } from '../common/RowLimitControls';
-import compactStyles from '../mantineTheme.module.css';
 import { MAX_PIVOTS } from './constants';
 import DroppableItemsList from './DroppableItemsList';
 
@@ -307,16 +306,11 @@ const GeneralSettings: FC = () => {
                                 : 'To use metrics as rows, you need to move a dimension to "Columns"'
                         }
                         w={300}
-                        multiline
-                        withinPortal
                         position="top-start"
                     >
                         <Box>
                             <Switch
                                 size="xs"
-                                classNames={{
-                                    label: compactStyles.compactCheckboxLabel,
-                                }}
                                 disabled={!canUseMetricsAsRows}
                                 label="Show metrics as rows"
                                 labelPosition="right"
@@ -333,9 +327,6 @@ const GeneralSettings: FC = () => {
 
                 <Checkbox
                     size="xs"
-                    classNames={{
-                        label: compactStyles.compactCheckboxLabel,
-                    }}
                     label="Show table names"
                     checked={showTableNames}
                     onChange={() => {
@@ -344,9 +335,6 @@ const GeneralSettings: FC = () => {
                 />
                 <Checkbox
                     size="xs"
-                    classNames={{
-                        label: compactStyles.compactCheckboxLabel,
-                    }}
                     label="Show row numbers"
                     checked={!hideRowNumbers}
                     onChange={() => {
@@ -370,9 +358,6 @@ const GeneralSettings: FC = () => {
                 {isPivotTableEnabled ? (
                     <Checkbox
                         size="xs"
-                        classNames={{
-                            label: compactStyles.compactCheckboxLabel,
-                        }}
                         label="Show row totals"
                         checked={showRowCalculation}
                         onChange={() => {
@@ -382,9 +367,6 @@ const GeneralSettings: FC = () => {
                 ) : null}
                 <Checkbox
                     size="xs"
-                    classNames={{
-                        label: compactStyles.compactCheckboxLabel,
-                    }}
                     label="Show column totals"
                     checked={showColumnCalculation}
                     onChange={() => {
@@ -393,9 +375,6 @@ const GeneralSettings: FC = () => {
                 />
                 <Checkbox
                     size="xs"
-                    classNames={{
-                        label: compactStyles.compactCheckboxLabel,
-                    }}
                     label="Show number of results"
                     checked={showResultsTotal}
                     onChange={() => {
@@ -408,16 +387,11 @@ const GeneralSettings: FC = () => {
                         isPivotTableEnabled ? 'un-pivoted' : ''
                     } dimensions`}
                     w={300}
-                    multiline
-                    withinPortal
                     position="top-start"
                 >
                     <Box>
                         <Checkbox
                             size="xs"
-                            classNames={{
-                                label: compactStyles.compactCheckboxLabel,
-                            }}
                             label="Show subtotals"
                             checked={canUseSubtotals && showSubtotals}
                             onChange={() => {
@@ -429,9 +403,6 @@ const GeneralSettings: FC = () => {
                 </Tooltip>
                 <Checkbox
                     size="xs"
-                    classNames={{
-                        label: compactStyles.compactCheckboxLabel,
-                    }}
                     ml="lg"
                     label="Expand subtotals by default"
                     checked={showSubtotalsExpanded ?? false}
@@ -454,16 +425,11 @@ const GeneralSettings: FC = () => {
                                 } dimensions`
                     }
                     w={300}
-                    multiline
-                    withinPortal
                     position="top-start"
                 >
                     <Box>
                         <Checkbox
                             size="xs"
-                            classNames={{
-                                label: compactStyles.compactCheckboxLabel,
-                            }}
                             label="Group repeated row values"
                             checked={
                                 showSubtotals ||

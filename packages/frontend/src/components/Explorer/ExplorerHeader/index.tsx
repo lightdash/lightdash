@@ -159,7 +159,6 @@ const ExplorerHeader: FC = memo(() => {
                     <Tooltip
                         w={400}
                         label={`Query limit of ${limit} reached. There may be additional results that have not been displayed. To see more, increase the query limit or try narrowing filters.`}
-                        multiline
                         position={'bottom'}
                     >
                         <Badge
@@ -171,7 +170,6 @@ const ExplorerHeader: FC = memo(() => {
                             }
                             color="yellow"
                             variant="outline"
-                            tt="none"
                             style={{ cursor: 'help' }}
                         >
                             Results may be incomplete
@@ -193,7 +191,6 @@ const ExplorerHeader: FC = memo(() => {
                     (!isEmbedded || canCreateEmbedSavedChart) && (
                         <Tooltip
                             disabled={buttonDisabledMessage === null}
-                            withinPortal
                             position="bottom"
                             label={buttonDisabledMessage}
                         >

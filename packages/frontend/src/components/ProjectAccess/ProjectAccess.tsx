@@ -392,10 +392,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                     size: 300,
                     Header: ({ column }) => (
                         <Group gap="two">
-                            <MantineIcon
-                                icon={IconUserCircle}
-                                color="ldGray.6"
-                            />
+                            <MantineIcon icon={IconUserCircle} color="dimmed" />
                             {column.columnDef.header}
                         </Group>
                     ),
@@ -405,7 +402,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                         // Build role summary tooltip
                         const roleSummary = (
                             <Stack>
-                                <Text fw={300} fz="xs">
+                                <Text fw={400} fz="xs">
                                     Organization role:{' '}
                                     <Text fw={600} span fz="xs">
                                         {getRoleName(
@@ -414,7 +411,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                                     </Text>
                                 </Text>
                                 {u.userGroupAccesses.map((uga) => (
-                                    <Text key={uga.group.uuid} fw={300}>
+                                    <Text key={uga.group.uuid} fw={400}>
                                         Group{' '}
                                         <Text fw={600} span>
                                             {uga.group.name}
@@ -426,7 +423,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                                     </Text>
                                 ))}
                                 {u.hasProjectRole && (
-                                    <Text fw={300}>
+                                    <Text fw={400}>
                                         Project role:{' '}
                                         <Text fw={600} span>
                                             {u.projectRole}
@@ -448,11 +445,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                                             {u.firstName} {u.lastName}
                                         </Text>
                                     )}
-                                    {u.email && (
-                                        <Badge variant="light" color="gray">
-                                            {u.email}
-                                        </Badge>
-                                    )}
+                                    {u.email && <Badge>{u.email}</Badge>}
                                 </Stack>
                             </Tooltip>
                         );
@@ -470,7 +463,6 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                             <Group gap="xs">
                                 <Tooltip
                                     disabled={u.hasProjectRole}
-                                    multiline
                                     w={
                                         u.highestRole ===
                                             OrganizationMemberRole.MEMBER &&
@@ -693,14 +685,10 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                 wrap="nowrap"
             >
                 <Group gap="xs" wrap="nowrap">
-                    <Tooltip
-                        withinPortal
-                        label="Search by name, email, or role"
-                    >
+                    <Tooltip label="Search by name, email, or role">
                         <TextInput
                             data-testid="project-access-search-input"
                             size="xs"
-                            radius="md"
                             type="search"
                             variant="default"
                             placeholder="Search users by name, email, or role"
@@ -708,7 +696,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                             leftSection={
                                 <MantineIcon
                                     size="md"
-                                    color="ldGray.6"
+                                    color="dimmed"
                                     icon={IconSearch}
                                 />
                             }
@@ -742,14 +730,10 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                         </Button>
                     )}
                     {hiddenMembersCount > 0 && (
-                        <Menu withinPortal position="bottom-end">
+                        <Menu position="bottom-end">
                             <Menu.Target>
-                                <Tooltip withinPortal label="View options">
-                                    <ActionIcon
-                                        variant="subtle"
-                                        color="ldGray.6"
-                                        size="sm"
-                                    >
+                                <Tooltip label="View options">
+                                    <ActionIcon size="sm">
                                         <MantineIcon icon={IconDotsVertical} />
                                     </ActionIcon>
                                 </Tooltip>
@@ -777,12 +761,12 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                                         <MantineIcon
                                             icon={IconInfoCircle}
                                             size="sm"
-                                            color="ldGray.6"
+                                            color="dimmed"
                                         />
                                     }
                                     disabled
                                 >
-                                    <Text size="xs" c="ldGray.6" maw={260}>
+                                    <Text size="xs" c="dimmed" maw={260}>
                                         Members have no project access by
                                         default. They only see content if given
                                         a role at project or group level.

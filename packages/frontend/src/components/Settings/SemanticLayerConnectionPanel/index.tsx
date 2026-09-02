@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import { CommercialFeatureFlags } from '@lightdash/common';
 import {
-    ActionIcon,
     Anchor,
     Box,
     CopyButton,
@@ -12,7 +11,6 @@ import {
     Tabs,
     Text,
     Title,
-    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import {
@@ -30,6 +28,7 @@ import { useProject } from '../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import Callout from '../../common/Callout';
+import { CopyActionIcon } from '../../common/CopyActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { GenerateTokenModal, type GeneratedToken } from './GenerateTokenModal';
@@ -73,22 +72,12 @@ const ConnectionChip: FC<{ label: string; value: string; span?: boolean }> = ({
                 {value}
             </Text>
         </Box>
-        <CopyButton value={value} timeout={2000}>
-            {({ copied, copy }) => (
-                <Tooltip
-                    label={copied ? 'Copied' : 'Copy'}
-                    withArrow
-                    position="left"
-                >
-                    <ActionIcon variant="default" size="sm" onClick={copy}>
-                        <MantineIcon
-                            icon={copied ? IconCheck : IconCopy}
-                            size="sm"
-                        />
-                    </ActionIcon>
-                </Tooltip>
-            )}
-        </CopyButton>
+        <CopyActionIcon
+            value={value}
+            tooltipPosition="left"
+            variant="default"
+            size="sm"
+        />
     </Box>
 );
 
@@ -112,7 +101,7 @@ const Step: FC<{
                 <Stack gap={2}>
                     <Title order={6}>{title}</Title>
                     {description && (
-                        <Text c="ldGray.6" fz="sm">
+                        <Text c="dimmed" fz="sm">
                             {description}
                         </Text>
                     )}
@@ -130,23 +119,7 @@ const CodeBlock: FC<{ displayValue: ReactNode; copyValue: string }> = ({
     <Box className={`${classes.codeBlock} sentry-block ph-no-capture`}>
         {displayValue}
         <Box className={classes.codeBlockCopy}>
-            <CopyButton value={copyValue} timeout={2000}>
-                {({ copied, copy }) => (
-                    <Tooltip
-                        label={copied ? 'Copied' : 'Copy'}
-                        withArrow
-                        position="left"
-                    >
-                        <ActionIcon
-                            color={copied ? 'teal' : 'gray'}
-                            variant="subtle"
-                            onClick={copy}
-                        >
-                            <MantineIcon icon={copied ? IconCheck : IconCopy} />
-                        </ActionIcon>
-                    </Tooltip>
-                )}
-            </CopyButton>
+            <CopyActionIcon value={copyValue} tooltipPosition="left" />
         </Box>
     </Box>
 );
@@ -184,7 +157,7 @@ const TokenAddedCard: FC<{
                     fz="sm"
                     fw={500}
                     onClick={onReplace}
-                    style={{ flexShrink: 0 }}
+                    className="ld-shrink-0"
                 >
                     Replace
                 </Anchor>
@@ -304,7 +277,7 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                 <Group justify="space-between" wrap="nowrap" align="flex-start">
                     <Stack gap="xxs">
                         <Title order={5}>Metric SQL API</Title>
-                        <Text c="ldGray.6" size="sm">
+                        <Text c="dimmed" size="sm">
                             Connect BI tools and SQL clients over the Postgres
                             wire protocol. Follow the three steps below.
                         </Text>
@@ -379,7 +352,7 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                                             }
                                         />
                                         {isServiceAccountsEnabled ? (
-                                            <Text c="ldGray.6" fz="sm">
+                                            <Text c="dimmed" fz="sm">
                                                 Don&apos;t have a token?{' '}
                                                 <Anchor
                                                     component="button"
@@ -393,7 +366,7 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                                                 </Anchor>
                                             </Text>
                                         ) : (
-                                            <Text c="ldGray.6" fz="sm">
+                                            <Text c="dimmed" fz="sm">
                                                 Paste a personal access token
                                                 from your account settings.
                                             </Text>

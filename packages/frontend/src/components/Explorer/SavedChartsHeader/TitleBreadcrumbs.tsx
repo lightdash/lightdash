@@ -41,8 +41,6 @@ export const TitleBreadCrumbs: FC<Props> = ({
                     <Group gap="xs">
                         <Tooltip
                             maw={300}
-                            multiline
-                            withinPortal
                             position="bottom"
                             label={
                                 <Text fz="xs">
@@ -55,7 +53,6 @@ export const TitleBreadCrumbs: FC<Props> = ({
                         >
                             {isChartWithinDashboard ? (
                                 <ActionIcon
-                                    variant="subtle"
                                     component={Link}
                                     to={`/projects/${projectUrlIdentifier}/dashboards/${dashboardSlug ?? dashboardUuid}`}
                                 >
@@ -68,7 +65,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                                 <Anchor
                                     fw={500}
                                     fz="md"
-                                    c="ldGray.6"
+                                    c="dimmed"
                                     component={Link}
                                     to={`/projects/${projectUrlIdentifier}/spaces/${spaceUuid}`}
                                     style={{
@@ -91,8 +88,6 @@ export const TitleBreadCrumbs: FC<Props> = ({
                 <>
                     <Tooltip
                         maw={300}
-                        multiline
-                        withinPortal
                         position="bottom"
                         label={
                             <Text fz="xs">
@@ -105,7 +100,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                     >
                         <Anchor
                             fw={500}
-                            c="ldGray.6"
+                            c="dimmed"
                             fz="md"
                             component={Link}
                             to={`/projects/${projectUrlIdentifier}/dashboards/${dashboardSlug ?? dashboardUuid}`}

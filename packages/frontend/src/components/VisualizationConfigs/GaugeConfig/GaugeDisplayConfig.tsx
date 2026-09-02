@@ -18,7 +18,6 @@ import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { LabelEditor } from '../common/LabelEditor';
-import compactStyles from '../mantineTheme.module.css';
 import GaugeSections from './GaugeSections';
 import { GaugeValueMode } from './types';
 
@@ -85,7 +84,7 @@ export const GaugeDisplayConfig: FC = memo(() => {
                                 onNumberChange={(value) => setMax(value ?? 0)}
                                 placeholder="100"
                                 decimalScale={2}
-                                style={{ flex: 1 }}
+                                flex={1}
                             />
                         ) : (
                             <FieldSelect
@@ -101,7 +100,7 @@ export const GaugeDisplayConfig: FC = memo(() => {
                                     );
                                 }}
                                 hasGrouping
-                                style={{ flex: 1 }}
+                                flex={1}
                             />
                         )}
                         <SegmentedControl
@@ -123,10 +122,7 @@ export const GaugeDisplayConfig: FC = memo(() => {
                             data={[
                                 {
                                     label: (
-                                        <Tooltip
-                                            label="Set the maximum value"
-                                            withinPortal
-                                        >
+                                        <Tooltip label="Set the maximum value">
                                             <Center>Value</Center>
                                         </Tooltip>
                                     ),
@@ -134,10 +130,7 @@ export const GaugeDisplayConfig: FC = memo(() => {
                                 },
                                 {
                                     label: (
-                                        <Tooltip
-                                            label="Select a field to use as the maximum value"
-                                            withinPortal
-                                        >
+                                        <Tooltip label="Select a field to use as the maximum value">
                                             <Center>Field</Center>
                                         </Tooltip>
                                     ),
@@ -154,9 +147,6 @@ export const GaugeDisplayConfig: FC = memo(() => {
 
                     <Checkbox
                         size="xs"
-                        classNames={{
-                            label: compactStyles.compactCheckboxLabel,
-                        }}
                         label="Show axis labels"
                         description="Display axis labels and tick marks"
                         checked={showAxisLabels}
@@ -167,9 +157,6 @@ export const GaugeDisplayConfig: FC = memo(() => {
 
                     <Checkbox
                         size="xs"
-                        classNames={{
-                            label: compactStyles.compactCheckboxLabel,
-                        }}
                         label="Show as percentage"
                         description="Display the value as a percentage of the scale"
                         checked={showPercentage}

@@ -379,6 +379,9 @@ const makeService = ({
             listReviewItemEvents: vi.fn().mockResolvedValue([]),
             upsertReviewItemState: vi.fn().mockResolvedValue(undefined),
             ensureReviewItemRow: vi.fn().mockResolvedValue(undefined),
+            listUnlinkedReviewItemsForLinearExport: vi
+                .fn()
+                .mockResolvedValue([]),
             getThreadWritebackPullRequests: vi
                 .fn()
                 .mockResolvedValue(
@@ -403,6 +406,14 @@ const makeService = ({
                 enabled: true,
                 slackChannelId: 'C123',
                 linearEnabled: false,
+                linearTeamId: null,
+                linearProjectId: null,
+            }),
+            getLinearRouting: vi.fn().mockResolvedValue({
+                organizationUuid: ORGANIZATION_UUID,
+                applyToAllProjects: true,
+                projectUuids: [],
+                enabled: false,
                 linearTeamId: null,
                 linearProjectId: null,
             }),
@@ -1679,6 +1690,51 @@ describe('AiAgentAdminService review notification settings', () => {
             'Select at least one project or apply Linear issues to all projects',
         );
         expect(upsertLinearRouting).not.toHaveBeenCalled();
+    });
+
+    it('rejects an on-demand export when Linear is not enabled', async () => {
+        const service = makeService();
+
+        await expect(
+            service.backfillReviewLinearIssues(makeAdminUser()),
+        ).rejects.toThrow(
+            'Enable Linear issues and choose a team before exporting existing findings',
+        );
+    });
+
+    it('queues Linear issues for existing findings on demand', async () => {
+        const createLinearIssues = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                listUnlinkedReviewItemsForLinearExport: vi
+                    .fn()
+                    .mockResolvedValue([
+                        { fingerprint: 'fp-1', projectUuid: PROJECT_UUID },
+                    ]),
+            },
+            aiAgentReviewNotificationModel: {
+                getLinearRouting: vi.fn().mockResolvedValue({
+                    organizationUuid: ORGANIZATION_UUID,
+                    applyToAllProjects: false,
+                    projectUuids: [PROJECT_UUID],
+                    enabled: true,
+                    linearTeamId: 'team-1',
+                    linearProjectId: null,
+                }),
+            },
+            aiAgentReviewNotificationService: { createLinearIssues },
+        });
+
+        await expect(
+            service.backfillReviewLinearIssues(makeAdminUser()),
+        ).resolves.toEqual({ queuedCount: 1 });
+        expect(createLinearIssues).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            fingerprints: ['fp-1'],
+            reviewRunUuid: null,
+            userUuid: USER_UUID,
+        });
     });
 });
 

@@ -46,6 +46,7 @@ import {
     SchedulerRunStatus,
     SchedulerTaskName,
     SchedulerWithLogs,
+    SendNowScheduler,
     SessionUser,
     UnexpectedGoogleSheetsError,
     UpdateSchedulerAndTargetsWithoutId,
@@ -186,7 +187,7 @@ export class SchedulerService extends BaseService {
     }
 
     public async getSchedulerProjectContext(
-        scheduler: Scheduler | CreateSchedulerAndTargets,
+        scheduler: Scheduler | CreateSchedulerAndTargets | SendNowScheduler,
     ): Promise<{
         projectUuid: string;
         organizationUuid: string;
@@ -1705,10 +1706,7 @@ export class SchedulerService extends BaseService {
         await this.schedulerModel.setJobStatus(jobId, status);
     }
 
-    async sendScheduler(
-        user: SessionUser,
-        scheduler: CreateSchedulerAndTargets,
-    ) {
+    async sendScheduler(user: SessionUser, scheduler: SendNowScheduler) {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }

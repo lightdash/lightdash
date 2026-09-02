@@ -43,13 +43,7 @@ export const AiArtifactInline: FC<AiArtifactInlineProps> = ({
     }
 
     return (
-        <Paper
-            variant="dotted"
-            p="xs"
-            radius="md"
-            style={{ height: '400px' }}
-            shadow={'none'}
-        >
+        <Paper variant="dotted" p="xs" radius="md" h="400px" shadow={'none'}>
             {artifactJsx}
         </Paper>
     );

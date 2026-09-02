@@ -12,6 +12,11 @@
                     "type": "boolean",
                     "default": false,
                     "description": "When true, uploaded content is tracked as Git-backed for content review and write-back workflows."
+                },
+                "path": {
+                    "type": "string",
+                    "default": "lightdash",
+                    "description": "Directory that holds the charts/ and dashboards/ folders, relative to the dbt project directory. Write-back pull requests put content files under it."
                 }
             },
             "additionalProperties": false

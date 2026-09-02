@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import { DbtProjectType } from '@lightdash/common';
 import {
     Group,
-    Paper,
     Stack,
     Text,
     Button,
@@ -20,6 +19,7 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import PageHeader from '../../../../components/common/Page/PageHeader';
 import { cartesianChartSelectors } from '../../../../components/DataViz/store/selectors';
 import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
 import { useGitIntegration } from '../../../../hooks/gitIntegration/useGitIntegration';
@@ -40,7 +40,6 @@ import {
 import { ChartErrorsAlert } from '../ChartErrorsAlert';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { WriteBackToDbtModal } from '../WriteBackToDbtModal';
-import headerStyles from './HeaderPaper.module.css';
 
 type CtaAction = 'save' | 'createVirtualView' | 'writeBackToDbt';
 
@@ -264,18 +263,12 @@ export const HeaderCreate: FC = () => {
 
     return (
         <>
-            <Paper
-                shadow="none"
-                radius={0}
-                withBorder={false}
-                px="md"
-                py="xs"
-                className={headerStyles.paper}
-            >
-                <Group justify="space-between">
+            <PageHeader cardProps={{ py: 'xs' }}>
+                <Group justify="space-between" flex={1} wrap="nowrap">
                     <Group gap="two">
                         {hasAnyAction && (
                             <EditableText
+                                heading
                                 size="md"
                                 w={400}
                                 placeholder={untitledName}
@@ -300,11 +293,9 @@ export const HeaderCreate: FC = () => {
                                     {getCtaLabels(ctaAction).label}
                                 </Button>
                                 <Menu
-                                    withinPortal
                                     disabled={!loadedColumns || !hasAnyAction}
                                     position="bottom-end"
                                     withArrow
-                                    shadow="md"
                                     offset={2}
                                     arrowOffset={10}
                                 >
@@ -327,18 +318,11 @@ export const HeaderCreate: FC = () => {
                                     <Menu.Dropdown>
                                         <Tooltip
                                             label="You don't have permission to save SQL charts in this project."
-                                            multiline
                                             maw={400}
                                             position="top"
-                                            withArrow
-                                            withinPortal
                                             disabled={canSaveChart}
                                         >
-                                            <Group
-                                                style={{
-                                                    cursor: 'pointer',
-                                                }}
-                                            >
+                                            <Group className="ld-pointer">
                                                 <Menu.Item
                                                     disabled={!canSaveChart}
                                                     onClick={() => {
@@ -366,8 +350,8 @@ export const HeaderCreate: FC = () => {
                                                             }
                                                         </Text>
                                                         <Text
-                                                            fz={10}
-                                                            c="ldGray.6"
+                                                            fz="xs"
+                                                            c="dimmed"
                                                         >
                                                             {
                                                                 getCtaLabels(
@@ -382,18 +366,11 @@ export const HeaderCreate: FC = () => {
 
                                         <Tooltip
                                             label="You don't have permission to create virtual views in this project."
-                                            multiline
                                             maw={400}
                                             position="top"
-                                            withArrow
-                                            withinPortal
                                             disabled={canCreateVirtualView}
                                         >
-                                            <Group
-                                                style={{
-                                                    cursor: 'pointer',
-                                                }}
-                                            >
+                                            <Group className="ld-pointer">
                                                 <Menu.Item
                                                     disabled={
                                                         !canCreateVirtualView
@@ -423,8 +400,8 @@ export const HeaderCreate: FC = () => {
                                                             }
                                                         </Text>
                                                         <Text
-                                                            fz={10}
-                                                            c="ldGray.6"
+                                                            fz="xs"
+                                                            c="dimmed"
                                                         >
                                                             {
                                                                 getCtaLabels(
@@ -439,11 +416,8 @@ export const HeaderCreate: FC = () => {
 
                                         <Tooltip
                                             label={writeBackDisabledMessage}
-                                            multiline
                                             maw={400}
                                             position="top"
-                                            withArrow
-                                            withinPortal
                                             disabled={
                                                 writeBackDisabledMessage ===
                                                 undefined
@@ -457,11 +431,7 @@ export const HeaderCreate: FC = () => {
                                                     );
                                             }}
                                         >
-                                            <Group
-                                                style={{
-                                                    cursor: 'pointer',
-                                                }}
-                                            >
+                                            <Group className="ld-pointer">
                                                 <Menu.Item
                                                     disabled={
                                                         writeBackDisabledMessage !==
@@ -492,8 +462,8 @@ export const HeaderCreate: FC = () => {
                                                             }
                                                         </Text>
                                                         <Text
-                                                            fz={10}
-                                                            c="ldGray.6"
+                                                            fz="xs"
+                                                            c="dimmed"
                                                         >
                                                             {
                                                                 getCtaLabels(
@@ -517,7 +487,7 @@ export const HeaderCreate: FC = () => {
                         </ActionIcon>
                     </Group>
                 </Group>
-            </Paper>
+            </PageHeader>
             <SaveSqlChartModal
                 key={`${isSaveModalOpen}-saveChartModal`}
                 opened={isSaveModalOpen}

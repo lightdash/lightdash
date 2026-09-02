@@ -168,7 +168,6 @@ const UpdateProjectConnection: FC<{
 
                     <Card
                         className={classes.stickyFooter}
-                        withBorder
                         shadow="sm"
                         radius="sm"
                     >

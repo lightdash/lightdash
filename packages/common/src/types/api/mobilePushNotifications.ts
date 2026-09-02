@@ -3,14 +3,18 @@ import { type UUID } from './uuid';
 
 export type MobilePushEnvironment = 'sandbox' | 'production';
 
+export type MobilePushPlatform = 'ios' | 'android';
+
 export type ApiMobilePushNotificationStatusResponse = ApiSuccess<{
     enabled: boolean;
     environments: MobilePushEnvironment[];
+    platforms: MobilePushPlatform[];
 }>;
 
 export type ApiMobilePushInstallationRequest = {
     environment: MobilePushEnvironment;
     deviceToken: string;
+    platform?: MobilePushPlatform;
 };
 
 export type ApiMobilePushInstallationResponse = ApiSuccessEmpty;

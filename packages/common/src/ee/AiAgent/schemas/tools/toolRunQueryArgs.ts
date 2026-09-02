@@ -4,6 +4,7 @@ import {
     customMetricsSchema,
     customMetricsSchemaTransformed,
 } from '../customMetrics';
+import { type ToolDescriptionContext } from '../defineTool';
 import { getFieldIdSchema } from '../fieldId';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
@@ -137,7 +138,7 @@ export const mergeConfigSchema = z
                 }),
             )
             .min(1),
-        joinType: z.nativeEnum(MergeJoinType),
+        joinType: z.enum(MergeJoinType),
     })
     .nullable()
     .describe(
@@ -271,7 +272,15 @@ export const isCustomChartTypeSlugChartConfig = (
 ): chartConfig is ToolRunQueryCustomChartTypeConfig =>
     !!chartConfig && 'customChartTypeSlug' in chartConfig;
 
-export const TOOL_RUN_QUERY_DESCRIPTION = `Execute a metric query.
+// The MCP lead paragraph carries the keywords lexical tool search ranks on;
+// the agent runtime has its own prompt and different sibling tool names.
+const MCP_RUN_QUERY_LEAD = `Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore.`;
+
+export const TOOL_RUN_QUERY_DESCRIPTION = ({
+    runtime,
+}: ToolDescriptionContext): string => `${
+    runtime === 'mcp' ? MCP_RUN_QUERY_LEAD : 'Execute a metric query.'
+}
 
 If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
 
@@ -387,7 +396,7 @@ export const toolRunQueryArgsSchemaV2RejectingMerge = z.preprocess(
             raw.mergeConfig !== undefined
         ) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 path: ['mergeConfig'],
                 message: 'Merge queries are not enabled for this organization.',
             });
@@ -443,13 +452,22 @@ const runQueryInternalSchemaV3 = runQueryInternalSchemaV2.extend({
     mergeConfig: mergeConfigInternalSchema.nullable().default(null),
 });
 
+// Zod 4 types every `z.coerce` input as unknown, so `.pipe` cannot see that the
+// already-parsed output satisfies the internal schema; assert the input type.
 export const toolRunQueryArgsSchemaV2Transformed =
-    toolRunQueryArgsSchemaV2.pipe(runQueryInternalSchemaV2);
+    toolRunQueryArgsSchemaV2.pipe(
+        runQueryInternalSchemaV2 as z.ZodType<
+            z.output<typeof runQueryInternalSchemaV2>,
+            z.output<typeof toolRunQueryArgsSchemaV2>
+        >,
+    );
 
-export const toolRunQueryArgsSchemaTransformed: z.ZodPipeline<
-    typeof toolRunQueryArgsSchemaV3,
-    typeof runQueryInternalSchemaV3
-> = toolRunQueryArgsSchemaV3.pipe(runQueryInternalSchemaV3);
+export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchemaV3.pipe(
+    runQueryInternalSchemaV3 as z.ZodType<
+        z.output<typeof runQueryInternalSchemaV3>,
+        z.output<typeof toolRunQueryArgsSchemaV3>
+    >,
+);
 
 export type ToolRunQueryArgsTransformed = z.infer<
     typeof toolRunQueryArgsSchemaTransformed

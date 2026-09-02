@@ -106,7 +106,7 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                             <Stack gap="sm" p="sm">
                                 <Group justify="space-between" align="center">
                                     <Group align="center" gap="xs">
-                                        <Paper p="xxs" withBorder radius="sm">
+                                        <Paper p="xxs" radius="sm">
                                             <MantineIcon
                                                 icon={IconTarget}
                                                 size="md"
@@ -142,7 +142,7 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                             >
                                                 <MantineIcon
                                                     icon={IconInfoCircle}
-                                                    color="ldGray.6"
+                                                    color="dimmed"
                                                 />
                                             </Tooltip>
                                         </Group>
@@ -177,7 +177,7 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                                 align="flex-start"
                                                 key={prompt.evalPromptUuid}
                                             >
-                                                <Box style={{ flex: 1 }}>
+                                                <Box flex={1}>
                                                     {prompt.type ===
                                                     'string' ? (
                                                         <EvalPromptText

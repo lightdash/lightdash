@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     ConflictError,
+    ContentReviewContentType,
     ContentType,
     CreateDashboard,
     CreateDashboardChartTile,
@@ -89,6 +90,8 @@ import {
 } from '../../utils/SlugUtils';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import Transaction = Knex.Transaction;
+import { dismissOpenContentDrafts } from '../ContentDraftModel';
+import { cancelPendingContentReviewRequests } from '../ContentReviewRequestModel';
 
 export type GetDashboardQuery = Pick<
     DashboardTable['base'],
@@ -1727,10 +1730,43 @@ export class DashboardModel {
         const dashboard = await this.getByIdOrSlug(dashboardUuid, {
             deleted: 'any',
         });
+        const ownedChartUuids =
+            await this.getDashboardScopedChartUuids(dashboardUuid);
         await this.database(DashboardsTableName)
             .where('dashboard_uuid', dashboardUuid)
             .delete();
+        await this.dismissContentDrafts(dashboardUuid, ownedChartUuids);
         return dashboard;
+    }
+
+    private async getDashboardScopedChartUuids(
+        dashboardUuid: string,
+    ): Promise<string[]> {
+        const rows = await this.database(SavedChartsTableName)
+            .select('saved_query_uuid')
+            .where('dashboard_uuid', dashboardUuid)
+            .whereNull('space_id');
+        return rows.map((row) => row.saved_query_uuid);
+    }
+
+    private async dismissContentDrafts(
+        dashboardUuid: string,
+        ownedChartUuids: string[],
+    ): Promise<void> {
+        await dismissOpenContentDrafts(this.database, 'dashboard', [
+            dashboardUuid,
+        ]);
+        await dismissOpenContentDrafts(this.database, 'chart', ownedChartUuids);
+        await cancelPendingContentReviewRequests(
+            this.database,
+            ContentReviewContentType.DASHBOARD,
+            [dashboardUuid],
+        );
+        await cancelPendingContentReviewRequests(
+            this.database,
+            ContentReviewContentType.CHART,
+            ownedChartUuids,
+        );
     }
 
     async softDelete(
@@ -1755,6 +1791,10 @@ export class DashboardModel {
             .where('dashboard_uuid', dashboardUuid)
             .whereNull('space_id')
             .whereNull('deleted_at');
+        await this.dismissContentDrafts(
+            dashboardUuid,
+            await this.getDashboardScopedChartUuids(dashboardUuid),
+        );
 
         return dashboard;
     }

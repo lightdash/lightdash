@@ -604,7 +604,7 @@ const FilterConfiguration: FC<Props> = ({
             </Tabs>
 
             <Flex gap="sm">
-                <Box style={{ flexGrow: 1 }} />
+                <Box className="ld-grow" />
 
                 {!isTemporary &&
                     isFilterModified &&
@@ -637,7 +637,6 @@ const FilterConfiguration: FC<Props> = ({
                     <Box>
                         <Button
                             size="xs"
-                            variant="filled"
                             disabled={
                                 isApplyDisabled || isLockedRequiredMissingValue
                             }

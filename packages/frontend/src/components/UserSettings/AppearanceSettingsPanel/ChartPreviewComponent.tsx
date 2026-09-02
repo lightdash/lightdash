@@ -247,7 +247,7 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
                     size="xs"
                 />
             </Group>
-            <Box h={170} pos="relative" style={{ marginBottom: '25%' }}>
+            <Box h={170} pos="relative" mb="25%">
                 <SingleChartPreview
                     chartType={ChartKind.VERTICAL_BAR}
                     currentChartType={chartType}

@@ -122,8 +122,6 @@ const ChartUpdateModal = ({
                         disabled={form.values.hideTitle}
                     />
                     <ActionIcon
-                        variant="subtle"
-                        color="gray"
                         size="lg"
                         onClick={() =>
                             form.setFieldValue(

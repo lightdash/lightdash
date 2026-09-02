@@ -91,6 +91,10 @@ export class AppModel {
                     | 'template'
                     | 'space_uuid'
                     | 'design_uuid'
+                    | 'registry_slug'
+                    | 'registry_url'
+                    | 'origin_app_uuid'
+                    | 'origin_app_version'
                 >
             >,
         version: Pick<DbAppVersion, 'version' | 'prompt'>,
@@ -103,7 +107,7 @@ export class AppModel {
         // silently minting suffixed duplicates. Default: app.slug is a base
         // hint — normalized and dedupe-suffixed (duplication derives copies'
         // slugs from the source slug this way).
-        opts?: { forceSlug?: boolean },
+        opts?: { forceSlug?: boolean; registryVersion?: string },
     ): Promise<{ app: DbApp; version: DbAppVersion }> {
         return this.database.transaction(async (trx) => {
             const appId = app.app_id ?? uuidv4();
@@ -179,6 +183,7 @@ export class AppModel {
                               ) as unknown as DataAppVizSchema,
                           }
                         : {}),
+                    registry_version: opts?.registryVersion ?? null,
                 })
                 .returning('*');
             return { app: appRow, version: versionRow };
@@ -705,6 +710,7 @@ export class AppModel {
         resources?: AppVersionResources,
         dependencies?: AppVersionDependencies,
         vizSchema?: DataAppVizSchema,
+        opts?: { registryVersion?: string },
     ): Promise<DbAppVersion> {
         const [row] = await this.database(AppVersionsTableName)
             .insert({
@@ -712,6 +718,7 @@ export class AppModel {
                 app_id: appId,
                 status,
                 created_by_user_uuid: createdByUserUuid,
+                registry_version: opts?.registryVersion ?? null,
                 ...(resources
                     ? {
                           resources: JSON.stringify(
@@ -759,6 +766,7 @@ export class AppModel {
             created_by_user_last_name: string | null;
         })[];
         hasMore: boolean;
+        registrySlug: string | null;
     }> {
         const limit = opts.limit ?? 20;
         const query = this.database(AppsTableName)
@@ -812,6 +820,7 @@ export class AppModel {
                 `${AppsTableName}.template`,
                 `${AppsTableName}.slug`,
                 `${AppsTableName}.views_count`,
+                `${AppsTableName}.registry_slug`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${PinnedAppTableName}.pinned_list_uuid`,
                 `${PinnedAppTableName}.order as pinned_list_order`,
@@ -838,6 +847,7 @@ export class AppModel {
             template: DbApp['template'];
             slug: string;
             views_count: number;
+            registry_slug: string | null;
             organization_uuid: string;
             pinned_list_uuid: string | null;
             pinned_list_order: number | null;
@@ -860,6 +870,7 @@ export class AppModel {
             template,
             slug,
             views_count: viewsCount,
+            registry_slug: registrySlug,
             organization_uuid: organizationUuid,
             pinned_list_uuid: pinnedListUuid,
             pinned_list_order: pinnedListOrder,
@@ -878,6 +889,7 @@ export class AppModel {
                 template: DbApp['template'];
                 slug: string;
                 views_count: number;
+                registry_slug: string | null;
                 organization_uuid: string;
                 pinned_list_uuid: string | null;
                 pinned_list_order: number | null;
@@ -900,6 +912,7 @@ export class AppModel {
             pinnedListOrder,
             versions: versions.slice(0, limit),
             hasMore,
+            registrySlug,
         };
     }
 
@@ -1078,6 +1091,37 @@ export class AppModel {
             );
         }
         return KnexPaginate.paginate(query, paginateArgs);
+    }
+
+    /** Registry-installed apps in the project, with their latest ready registry version. */
+    async listRegistryInstalledApps(projectUuid: string): Promise<
+        Array<{
+            app_id: string;
+            registry_slug: string;
+            latest_ready_registry_version: string | null;
+            created_by_user_uuid: string | null;
+        }>
+    > {
+        return this.joinLatestReadyVersion(this.database(AppsTableName))
+            .where(`${AppsTableName}.project_uuid`, projectUuid)
+            .whereNotNull(`${AppsTableName}.registry_slug`)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .orderBy(`${AppsTableName}.created_at`)
+            .select<
+                Array<{
+                    app_id: string;
+                    registry_slug: string;
+                    latest_ready_registry_version: string | null;
+                    created_by_user_uuid: string | null;
+                }>
+            >(
+                `${AppsTableName}.app_id`,
+                `${AppsTableName}.registry_slug`,
+                `${AppsTableName}.created_by_user_uuid`,
+                this.database
+                    .ref(`${AppVersionsTableName}.registry_version`)
+                    .as('latest_ready_registry_version'),
+            );
     }
 
     /**

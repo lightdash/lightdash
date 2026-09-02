@@ -143,10 +143,8 @@ export const SeriesContextMenu: FC<{
         <Menu
             opened={contextMenuIsOpen}
             onClose={onClose}
-            withinPortal
             closeOnItemClick
             closeOnEscape
-            shadow="md"
             radius={0}
             position="right-start"
             offset={{

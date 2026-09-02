@@ -9,7 +9,6 @@ type Props = {
 
 export const ShadowedReservedNameWarning: FC<Props> = ({ paramKey }) => (
     <Tooltip
-        withinPortal
         position="top"
         maw={350}
         label={`Parameter ${paramKey} overrides the system variable of the same name and takes priority over it.`}

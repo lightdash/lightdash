@@ -399,7 +399,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                     justify="space-between"
                     wrap="nowrap"
                 >
-                    <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
+                    <Group gap="sm" wrap="nowrap" flex={1}>
                         <TextInput
                             required
                             variant="subtle"
@@ -407,7 +407,8 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                             value={treeName}
                             onChange={(e) => setTreeName(e.currentTarget.value)}
                             size="sm"
-                            style={{ flex: 1, maxWidth: 300 }}
+                            flex={1}
+                            maw={300}
                         />
                     </Group>
                     <Group gap="sm" wrap="nowrap">
@@ -506,7 +507,6 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                         {lockByOther && (
                             <Badge
                                 size="sm"
-                                variant="light"
                                 color="yellow"
                                 leftSection={
                                     <MantineIcon icon={IconLock} size={12} />
@@ -531,18 +531,9 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                             label="Copy link to tree"
                         />
                         {canManageMetricsTree && (
-                            <Menu
-                                position="bottom-end"
-                                withArrow
-                                withinPortal
-                                shadow="md"
-                            >
+                            <Menu position="bottom-end" withArrow>
                                 <Menu.Target>
-                                    <ActionIcon
-                                        variant="subtle"
-                                        color="gray"
-                                        loading={isAcquiringLock}
-                                    >
+                                    <ActionIcon loading={isAcquiringLock}>
                                         <MantineIcon icon={IconDotsVertical} />
                                     </ActionIcon>
                                 </Menu.Target>

@@ -41,7 +41,6 @@ import {
 } from '../../SimpleMap/hexbin/zoomToResolution';
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
-import compactStyles from '../mantineTheme.module.css';
 
 const findPresetIdxByResolution = (resolution: number): number => {
     const idx = HEXBIN_SIZE_PRESETS.findIndex(
@@ -632,9 +631,6 @@ export const Display: FC = memo(() => {
                                         </Config.Label>
                                         <Switch
                                             size="xs"
-                                            classNames={{
-                                                label: compactStyles.compactCheckboxLabel,
-                                            }}
                                             checked={showEmpty}
                                             onChange={(e) =>
                                                 setHexbinConfig({
@@ -858,9 +854,6 @@ export const Display: FC = memo(() => {
                         <Config.Label>Save current map extent</Config.Label>
                         <Switch
                             size="xs"
-                            classNames={{
-                                label: compactStyles.compactCheckboxLabel,
-                            }}
                             checked={validConfig.saveMapExtent}
                             onChange={(e) =>
                                 setSaveMapExtent(e.currentTarget.checked)
@@ -877,9 +870,6 @@ export const Display: FC = memo(() => {
                         <Config.Label>Show legend</Config.Label>
                         <Switch
                             size="xs"
-                            classNames={{
-                                label: compactStyles.compactCheckboxLabel,
-                            }}
                             checked={validConfig.showLegend ?? false}
                             onChange={(e) =>
                                 setShowLegend(e.currentTarget.checked)

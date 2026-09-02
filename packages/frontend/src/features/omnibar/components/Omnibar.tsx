@@ -368,7 +368,6 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                     size={rem(960)}
                     closeOnClickOutside
                     closeOnEscape
-                    radius="lg"
                     opened={isOmnibarOpen}
                     onClose={handleOmnibarClose}
                     yOffset={100}
@@ -389,7 +388,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                 <MantineIcon
                                     icon={IconSearch}
                                     size="lg"
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                             )}
                             <TextInput
@@ -410,9 +409,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                             />
                             {query ? (
                                 <ActionIcon
-                                    variant="subtle"
                                     size="sm"
-                                    color="gray"
                                     onClick={() => setQuery('')}
                                 >
                                     <MantineIcon icon={IconX} size="md" />

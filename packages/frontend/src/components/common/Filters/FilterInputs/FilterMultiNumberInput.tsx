@@ -122,13 +122,8 @@ const FilterMultiNumberInput: FC<Props> = ({
     );
 
     const manageButton = disabled ? undefined : (
-        <Tooltip
-            withinPortal
-            label={getUiString('filters.autocomplete.editValuesTooltip')}
-        >
+        <Tooltip label={getUiString('filters.autocomplete.editValuesTooltip')}>
             <ActionIcon
-                variant="subtle"
-                color="gray"
                 size="sm"
                 onClick={open}
                 style={{
@@ -155,7 +150,6 @@ const FilterMultiNumberInput: FC<Props> = ({
                 {isSummaryMode ? (
                     <TextInput
                         size="xs"
-                        radius="md"
                         w="100%"
                         readOnly
                         value={`${values.length.toLocaleString()} values selected`}

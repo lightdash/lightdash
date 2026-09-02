@@ -57,13 +57,13 @@ const getLegacyCustomGroupWarning = (
     customGroup: UserGroupAccess,
 ): ReactNode => (
     <>
-        <Text fw={300}>
+        <Text fw={400}>
             This user belongs to a group{' '}
             <Text fw={600} span>
                 {customGroup.group.name}
             </Text>{' '}
         </Text>
-        <Text fw={300}>
+        <Text fw={400}>
             which has a custom role
             <Text fw={600} span>
                 {' '}
@@ -71,7 +71,7 @@ const getLegacyCustomGroupWarning = (
             </Text>{' '}
             assigned.{' '}
         </Text>
-        <Text fw={300}>
+        <Text fw={400}>
             Make sure the organization or project role doesn't override the
             group role permissions.
         </Text>
@@ -129,7 +129,7 @@ export const getAccessWarning = ({
                         systemRolesOrder.indexOf(typedProjectRole)
                 ) {
                     return (
-                        <Text fw={300} fz="sm">
+                        <Text fw={400} fz="sm">
                             User inherits role{' '}
                             <Text fw={600} span fz="sm">
                                 {bestGroup.roleName}
@@ -150,7 +150,7 @@ export const getAccessWarning = ({
                 systemRolesOrder.indexOf(typedProjectRole)
             ) {
                 return (
-                    <Text fw={300} fz="sm">
+                    <Text fw={400} fz="sm">
                         User inherits higher role{' '}
                         <Text fw={600} span fz="sm">
                             {organizationRole}
@@ -169,14 +169,14 @@ export const getAccessWarning = ({
                 // Scope data unavailable — keep the conservative warning
                 return (
                     <>
-                        <Text fw={300}>
+                        <Text fw={400}>
                             This user has a custom role and an organization role{' '}
                             <Text fw={600} span>
                                 {organizationRoleName ?? organizationRole}
                             </Text>{' '}
                             assigned.{' '}
                         </Text>
-                        <Text fw={300}>
+                        <Text fw={400}>
                             Make sure the organization or group role doesn't
                             override the project role permissions.
                         </Text>
@@ -233,7 +233,7 @@ export const getAccessWarning = ({
 
             return (
                 <>
-                    <Text fw={300}>
+                    <Text fw={400}>
                         This user has a custom role, but{' '}
                         {joinWithAnd(conflicts.map((c) => c.label))} grant
                         {conflicts.length === 1 ? 's' : ''} them permissions the
@@ -243,7 +243,7 @@ export const getAccessWarning = ({
                         </Text>
                         ).
                     </Text>
-                    <Text fw={300}>
+                    <Text fw={400}>
                         Organization and group permissions are additive and
                         cannot be restricted by the project role.
                     </Text>
@@ -287,7 +287,7 @@ export const getAccessWarning = ({
             if (uncoveredScopes.length > 0) {
                 return (
                     <>
-                        <Text fw={300}>
+                        <Text fw={400}>
                             This user belongs to group{' '}
                             <Text fw={600} span>
                                 {customGroup.group.name}
@@ -303,7 +303,7 @@ export const getAccessWarning = ({
                             </Text>
                             ).
                         </Text>
-                        <Text fw={300}>
+                        <Text fw={400}>
                             Organization and project permissions are additive
                             and cannot be restricted by the group role.
                         </Text>

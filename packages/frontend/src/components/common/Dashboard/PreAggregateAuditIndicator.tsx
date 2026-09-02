@@ -50,7 +50,7 @@ type TabGroup = {
 function TileDetail({ tile }: { tile: TilePreAggregateStatus }) {
     if (tile.hit && tile.preAggregateName) {
         return (
-            <Text fz={10} className={classes.tileDetail}>
+            <Text fz="xs" className={classes.tileDetail}>
                 {tile.preAggregateName}
             </Text>
         );
@@ -65,7 +65,7 @@ function TileDetail({ tile }: { tile: TilePreAggregateStatus }) {
                 : null;
         if (!fieldId) {
             return (
-                <Text fz={10} className={classes.tileDetail}>
+                <Text fz="xs" className={classes.tileDetail}>
                     {reasonLabel}
                 </Text>
             );
@@ -74,17 +74,16 @@ function TileDetail({ tile }: { tile: TilePreAggregateStatus }) {
         const showTooltip =
             tile.reasonFieldLabel !== null && tile.reasonFieldLabel !== fieldId;
         return (
-            <Text fz={10} className={classes.tileDetail}>
+            <Text fz="xs" className={classes.tileDetail}>
                 {reasonLabel}:{' '}
                 {showTooltip ? (
                     <Tooltip
                         label={fieldId}
                         position="top"
-                        withArrow
                         openDelay={150}
                         classNames={{ tooltip: classes.fieldIdTooltip }}
                     >
-                        <Text span fz={10} className={classes.fieldLabelHover}>
+                        <Text span fz="xs" className={classes.fieldLabelHover}>
                             {fieldDisplay}
                         </Text>
                     </Tooltip>
@@ -95,7 +94,7 @@ function TileDetail({ tile }: { tile: TilePreAggregateStatus }) {
         );
     }
     return (
-        <Text fz={10} className={classes.tileDetail}>
+        <Text fz="xs" className={classes.tileDetail}>
             —
         </Text>
     );
@@ -155,7 +154,7 @@ function IneligibleSection({ tiles }: { tiles: TilePreAggregateStatus[] }) {
                     size="xs"
                     color="ldGray.5"
                 />
-                <Text fz={11} className={classes.tileDetail}>
+                <Text fz="xs" className={classes.tileDetail}>
                     {tiles.length} without pre-aggregates
                 </Text>
             </PolymorphicGroupButton>
@@ -210,7 +209,7 @@ function GroupContent({
         <Stack gap="xs">
             {hasHits && (
                 <Stack gap={2}>
-                    <Badge size="xs" variant="light" color="green" radius="sm">
+                    <Badge size="xs" color="green">
                         {group.hits.length} hit
                     </Badge>
                     <TileList tiles={group.hits} onClick={onClick} />
@@ -218,7 +217,7 @@ function GroupContent({
             )}
             {hasMisses && (
                 <Stack gap={2}>
-                    <Badge size="xs" variant="light" color="red" radius="sm">
+                    <Badge size="xs" color="red">
                         {group.misses.length} miss
                     </Badge>
                     <TileList tiles={group.misses} onClick={onClick} />
@@ -298,7 +297,7 @@ export function PreAggregateAuditDrawer({
             size="sm"
             title={
                 <Group gap="xs">
-                    <Paper p="6px" withBorder radius="md" bg="ldGray.0">
+                    <Paper p="6px" radius="md" bg="ldGray.0">
                         <MantineIcon
                             icon={IconBolt}
                             size="sm"

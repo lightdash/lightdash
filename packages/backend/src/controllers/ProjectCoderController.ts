@@ -11,12 +11,15 @@ import {
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
     type ApiContentAsCodeProposeResponse,
+    type ApiContentAsCodePullResponse,
     type ApiContentAsCodeSettingsResponse,
     type ApiContentAsCodeUploadAdvisoryResponse,
     type ApiContentAsCodeWritebacksResponse,
+    type ApiContentDraftRebaseResponse,
     type ApiContentDraftReopenResponse,
     type ApiContentDraftReviewResponse,
     type ApiContentDraftsResponse,
+    type ApiContentDraftStalenessResponse,
     type ApiContentDraftWriteBackResponse,
     type ApiDashboardAsCodeListResponse,
     type ApiDashboardAsCodeUpsertResponse,
@@ -36,6 +39,8 @@ import {
     type ApiVirtualViewAsCodeListResponse,
     type ApiVirtualViewAsCodeUpsertResponse,
     type ChartAsCode,
+    type ContentAsCodeSettingsStamp,
+    type ContentDraftRebaseRequest,
     type ContentSlugRenameRequest,
     type DashboardAsCode,
     type ExternalConnectionAsCode,
@@ -238,6 +243,29 @@ export class ProjectCoderController extends BaseController {
     }
 
     /**
+     * Apply charts and dashboards as code from the project's repo, the in-app
+     * equivalent of `lightdash upload`
+     * @summary Pull content from git
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/pull')
+    @OperationId('pullContentAsCodeFromGit')
+    async pullContentAsCodeFromGit(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentAsCodePullResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getContentAsCodeWritebackService()
+                .pullFromGit(toSessionUser(req.account), projectUuid),
+        );
+    }
+
+    /**
      * Advisory state shown by the CLI before an upload. It never gates upload.
      * @summary Get content-as-code upload advisory
      */
@@ -271,12 +299,15 @@ export class ProjectCoderController extends BaseController {
     async listContentDrafts(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() refresh?: boolean,
     ): Promise<ApiContentDraftsResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         const drafts = await this.services
             .getContentAsCodeWritebackService()
-            .listDrafts(toSessionUser(req.account), projectUuid);
+            .listDrafts(toSessionUser(req.account), projectUuid, {
+                refresh,
+            });
         return codeSuccess(drafts.map(toDraftSummary));
     }
 
@@ -301,9 +332,66 @@ export class ProjectCoderController extends BaseController {
             .getDraftReview(toSessionUser(req.account), projectUuid, draftUuid);
         return codeSuccess({
             summary: toDraftSummary(review.draft),
+            filePath: review.filePath,
             publishedYaml: review.publishedYaml,
             draftYaml: review.draftYaml,
+            staleness: review.staleness,
         });
+    }
+
+    /**
+     * What the repo and the draft each changed since the draft's base
+     * @summary Get content draft staleness
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/drafts/{draftUuid}/staleness')
+    @OperationId('getContentDraftStaleness')
+    async getContentDraftStaleness(
+        @Path() projectUuid: string,
+        @Path() draftUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentDraftStalenessResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getContentAsCodeWritebackService()
+                .getDraftStalenessDetails(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    draftUuid,
+                ),
+        );
+    }
+
+    /**
+     * Move the caller's draft onto the repo's latest upload snapshot
+     * @summary Rebase content draft
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/drafts/{draftUuid}/rebase')
+    @OperationId('rebaseContentDraft')
+    async rebaseContentDraft(
+        @Path() projectUuid: string,
+        @Path() draftUuid: string,
+        @Request() req: express.Request,
+        @Body() body: ContentDraftRebaseRequest,
+    ): Promise<ApiContentDraftRebaseResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const draft = await this.services
+            .getContentAsCodeWritebackService()
+            .rebaseDraft(
+                toSessionUser(req.account),
+                projectUuid,
+                draftUuid,
+                body.resolutions,
+            );
+        return codeSuccess(toDraftSummary(draft));
     }
 
     /**
@@ -386,7 +474,7 @@ export class ProjectCoderController extends BaseController {
     async stampContentAsCodeSettings(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Body() body: { sync: boolean },
+        @Body() body: ContentAsCodeSettingsStamp,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -838,6 +926,7 @@ export class ProjectCoderController extends BaseController {
             spaceNames?: Record<string, string>;
             chartConfig: AnyType;
             description?: string | null;
+            filePath?: string;
         },
         @Request() req: express.Request,
     ): Promise<ApiChartAsCodeUpsertResponse> {
@@ -854,6 +943,7 @@ export class ProjectCoderController extends BaseController {
                     publicSpaceCreate: chart.publicSpaceCreate,
                     force: chart.force,
                     spaceNames: chart.spaceNames,
+                    filePath: chart.filePath,
                 },
             ),
         );
@@ -920,6 +1010,7 @@ export class ProjectCoderController extends BaseController {
             spaceNames?: Record<string, string>;
             tiles: AnyType;
             description?: string | null;
+            filePath?: string;
         },
         @Request() req: express.Request,
     ): Promise<ApiDashboardAsCodeUpsertResponse> {
@@ -939,6 +1030,7 @@ export class ProjectCoderController extends BaseController {
                     publicSpaceCreate: dashboard.publicSpaceCreate,
                     force: dashboard.force,
                     spaceNames: dashboard.spaceNames,
+                    filePath: dashboard.filePath,
                 },
             ),
         );

@@ -61,8 +61,6 @@ const MobileDashboards = () => {
                         <ActionIcon
                             aria-label="Clear search"
                             onMouseDown={(event) => event.preventDefault()}
-                            variant="subtle"
-                            color="gray"
                             onClick={() => setSearch('')}
                         >
                             <MantineIcon icon={IconX} />

@@ -146,10 +146,8 @@ const EmbeddedDashboardChartInteractions: FC<Props> = ({
             <Menu
                 opened={contextMenuIsOpen}
                 onClose={() => setContextMenuIsOpen(false)}
-                withinPortal
                 closeOnItemClick
                 closeOnEscape
-                shadow="md"
                 radius={0}
                 position="bottom-start"
                 offset={{ crossAxis: 0, mainAxis: 0 }}

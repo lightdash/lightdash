@@ -106,6 +106,7 @@ function buildService() {
         } as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
     // Bypass real CASL — the prompt/context selection is what these tests cover.
     (

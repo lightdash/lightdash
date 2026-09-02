@@ -40,7 +40,7 @@ export const AskAiAgentButton: FC<Props> = ({
     if (!canAsk) return null;
 
     return (
-        <Tooltip label="Ask AI Agent" withinPortal>
+        <Tooltip label="Ask AI Agent">
             <ActionIcon
                 variant={variant}
                 size={size}

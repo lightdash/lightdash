@@ -221,7 +221,7 @@ export const ReviewRemediationWorkspace = () => {
     );
 
     const buildPane = (className: string) => (
-        <Paper withBorder className={className}>
+        <Paper className={className}>
             <Group justify="space-between" p="sm" wrap="nowrap">
                 <Group gap="xs" wrap="nowrap" miw={0}>
                     <ThemeIcon
@@ -315,7 +315,7 @@ export const ReviewRemediationWorkspace = () => {
     );
 
     const testPane = (className: string) => (
-        <Paper withBorder className={className}>
+        <Paper className={className}>
             <Group
                 justify="space-between"
                 p="sm"
@@ -432,7 +432,6 @@ export const ReviewRemediationWorkspace = () => {
                     )}
                     {reviewItem.status !== 'resolved' && (
                         <Button
-                            color="dark"
                             size="xs"
                             variant={isVerified ? 'filled' : 'default'}
                             leftSection={
@@ -457,7 +456,7 @@ export const ReviewRemediationWorkspace = () => {
                     className={classes.panes}
                     h={WORKSPACE_HEIGHT}
                 >
-                    <Paper withBorder p="sm">
+                    <Paper p="sm">
                         <Group gap="xs" wrap="nowrap" miw={0}>
                             <ThemeIcon
                                 size="sm"
@@ -484,7 +483,7 @@ export const ReviewRemediationWorkspace = () => {
             )}
 
             {reviewItem.linkedPrUrl && (
-                <Paper withBorder radius="md">
+                <Paper radius="md">
                     <UnstyledButton
                         className={classes.diffHeader}
                         onClick={diffHandlers.toggle}
@@ -557,7 +556,7 @@ export const ReviewRemediationWorkspace = () => {
                             </ThemeIcon>
                             <Box miw={0}>
                                 <Group gap="xs" wrap="nowrap" miw={0}>
-                                    <Text fw={700} fz="md">
+                                    <Text fw={600} fz="md">
                                         Test the fix
                                     </Text>
                                     {testBadge && renderBadge(testBadge)}

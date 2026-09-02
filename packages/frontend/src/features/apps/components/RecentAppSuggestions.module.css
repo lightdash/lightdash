@@ -32,7 +32,7 @@
     &:focus-visible {
         color: var(--mantine-color-ldGray-9);
         border-color: var(--mantine-color-ldGray-2);
-        background: light-dark(#fff, var(--mantine-color-dark-6));
+        background: var(--mantine-color-body);
         text-decoration: none;
     }
 }

@@ -187,6 +187,11 @@ const ChartTypeBuilder: FC = () => {
         if (!canEdit) {
             return <Navigate to={`/projects/${projectUuid}/gallery`} replace />;
         }
+        // Server-enforced (registry apps are read-only); this only keeps
+        // the builder UI from being reached for an official chart type.
+        if (appMeta.registrySlug !== null) {
+            return <Navigate to={`/projects/${projectUuid}/gallery`} replace />;
+        }
     }
 
     // Remounted per viz so the selected tab belongs to the declaration on screen.

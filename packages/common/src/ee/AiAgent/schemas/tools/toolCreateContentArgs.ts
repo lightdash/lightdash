@@ -19,14 +19,14 @@ const TOOL_CHART_AS_CODE_METRIC_QUERY_DESCRIPTION =
     'Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.';
 
 const chartAsCodeMetricQueryShape = {
-    exploreName: z.unknown(),
+    exploreName: z.unknown().optional(),
     dimensions: z.array(z.unknown()),
     metrics: z.array(z.unknown()),
-    filters: z.unknown(),
+    filters: z.unknown().optional(),
     sorts: z.array(z.unknown()),
-    limit: z.unknown(),
+    limit: z.unknown().optional(),
     tableCalculations: z.array(z.unknown()),
-} satisfies Record<RequiredMetricQueryKeys, z.ZodTypeAny>;
+} satisfies Record<RequiredMetricQueryKeys, z.ZodType>;
 
 export const toolChartAsCodeMetricQuerySchema = z
     .object(chartAsCodeMetricQueryShape)
@@ -46,10 +46,10 @@ const baseContentSchema = z.object({
     spaceSlug: z.string().min(1),
     version: z.coerce.number(),
     contentType: z.string(),
-    updatedAt: z.unknown(),
-    downloadedAt: z.unknown(),
+    updatedAt: z.unknown().optional(),
+    downloadedAt: z.unknown().optional(),
     verified: z.boolean(),
-    verification: z.unknown(),
+    verification: z.unknown().optional(),
 });
 
 export const toolCreateContentArgsSchema = z.object({
@@ -61,9 +61,9 @@ export const toolCreateContentArgsSchema = z.object({
             .extend({
                 tiles: z.array(z.unknown()),
                 tabs: z.array(z.unknown()),
-                config: z.unknown(),
-                filters: z.unknown(),
-                parameters: z.unknown(),
+                config: z.unknown().optional(),
+                filters: z.unknown().optional(),
+                parameters: z.unknown().optional(),
             })
             .passthrough()
             .describe('Full Dashboard JSON to create.'),
@@ -71,11 +71,11 @@ export const toolCreateContentArgsSchema = z.object({
             .extend({
                 tableName: z.string().min(1),
                 metricQuery: toolChartAsCodeMetricQuerySchema,
-                chartConfig: z.unknown(),
-                pivotConfig: z.unknown(),
-                tableConfig: z.unknown(),
+                chartConfig: z.unknown().optional(),
+                pivotConfig: z.unknown().optional(),
+                tableConfig: z.unknown().optional(),
                 dashboardSlug: z.string(),
-                parameters: z.unknown(),
+                parameters: z.unknown().optional(),
             })
             .passthrough()
             .describe('Full Chart JSON to create.'),

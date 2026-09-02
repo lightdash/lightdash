@@ -355,7 +355,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                             align={subtitle ? 'center' : 'flex-start'}
                         >
                             {effectiveIcon ? (
-                                <Paper p="6px" withBorder radius="md">
+                                <Paper p="6px" radius="md">
                                     <MantineIcon
                                         icon={effectiveIcon}
                                         size="md"
@@ -363,11 +363,11 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                 </Paper>
                             ) : null}
                             <Stack gap={2} miw={0}>
-                                <Text c="ldDark.9" fw={700} fz="md" lh="28px">
+                                <Text c="ldDark.9" fw={600} fz="md" lh="28px">
                                     {title}
                                 </Text>
                                 {subtitle ? (
-                                    <Text c="ldGray.6" fz="sm" lh="20px">
+                                    <Text c="dimmed" fz="sm" lh="20px">
                                         {subtitle}
                                     </Text>
                                 ) : null}
@@ -438,7 +438,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                             px="xl"
                             py="md"
                         >
-                            <Text c="ldDark.9" fw={700} fz="md" lh="28px">
+                            <Text c="ldDark.9" fw={600} fz="md" lh="28px">
                                 Unsaved changes
                             </Text>
                             <Modal.CloseButton />

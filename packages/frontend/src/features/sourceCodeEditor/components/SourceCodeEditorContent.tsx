@@ -327,7 +327,7 @@ const SourceCodeEditorContent: FC = () => {
                 : null;
 
         if (projectBranch && currentBranch === projectBranch) {
-            refreshServer.mutate();
+            refreshServer.mutate({ syncContent: false });
         }
     }, [
         currentBranch,
@@ -357,7 +357,7 @@ const SourceCodeEditorContent: FC = () => {
     return (
         <>
             <Group gap={0} align="stretch" wrap="nowrap" h="100%" w="100%">
-                <Box w={300} style={{ flexShrink: 0 }}>
+                <Box w={300} className="ld-shrink-0">
                     <SourceCodeSidebar
                         projectUuid={projectUuid ?? ''}
                         branches={branches ?? []}

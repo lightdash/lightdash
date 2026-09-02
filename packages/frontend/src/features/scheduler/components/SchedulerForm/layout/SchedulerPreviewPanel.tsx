@@ -69,7 +69,7 @@ const BentoPlaceholder: FC<{ cta?: ReactNode }> = ({ cta }) => (
 );
 
 const AttachmentChip: FC<{ filename: string }> = ({ filename }) => (
-    <Paper withBorder radius="sm" p="xs">
+    <Paper radius="sm" p="xs">
         <Text size="xs">
             <MantineIcon
                 icon={IconPaperclip}
@@ -130,7 +130,7 @@ const AlertConditionCard: FC<{
             : (destinationParts[0] ?? '');
 
     return (
-        <Paper withBorder radius="md" p="md" bg="var(--mantine-color-body)">
+        <Paper radius="md" p="md" bg="var(--mantine-color-body)">
             <Stack gap="sm">
                 <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
                     Alert summary
@@ -255,12 +255,7 @@ export const SchedulerPreviewPanel: FC<Props> = ({
                 {isThresholdAlert ? (
                     <AlertConditionCard numericMetrics={numericMetrics} />
                 ) : (
-                    <Paper
-                        withBorder
-                        radius="md"
-                        p="md"
-                        bg="var(--mantine-color-body)"
-                    >
+                    <Paper radius="md" p="md" bg="var(--mantine-color-body)">
                         <Stack gap="sm">
                             <Text fw={600} size="sm" lineClamp={2}>
                                 {form.values.name || 'Your scheduled delivery'}

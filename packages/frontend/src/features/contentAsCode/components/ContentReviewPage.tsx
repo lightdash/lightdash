@@ -1,6 +1,11 @@
-import { type ContentDraftSummary } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type ApiError,
+    type ContentDraftSummary,
+} from '@lightdash/common';
 import {
     Anchor,
+    Badge,
     Avatar,
     Box,
     Button,
@@ -36,11 +41,14 @@ import {
 } from '../../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
 import {
     useContentDraftReview,
+    useDraftStaleness,
     useContentDrafts,
     useDismissDraftMutation,
     useWriteBackDraftMutation,
 } from '../hooks/useContentDrafts';
+import { draftFieldLabel } from '../utils/draftFieldLabel';
 import classes from './ContentReviewPage.module.css';
+import staleClasses from './DraftStalePanel.module.css';
 
 const timeAgo = (date: Date | string): string => {
     const seconds = Math.max(
@@ -89,12 +97,34 @@ const changeStats = (
     return { added, removed };
 };
 
+const writebackLabel = (
+    status: ContentDraftSummary['writebackStatus'],
+): string => {
+    switch (status) {
+        case 'merged':
+            return 'PR merged';
+        case 'closed':
+            return 'PR closed';
+        case 'error':
+            return 'Write-back failed';
+        case 'pending':
+        case 'open':
+        case null:
+            return 'PR opened';
+        default:
+            return assertUnreachable(
+                status,
+                `Unknown write-back status ${status}`,
+            );
+    }
+};
+
 const rowMeta = (draft: ContentDraftSummary): string => {
     const author = draft.authorName ?? 'Unknown author';
     const when = timeAgo(draft.updatedAt);
     switch (draft.status) {
         case 'written_back':
-            return `PR opened · ${author} · ${when}`;
+            return `${writebackLabel(draft.writebackStatus)} · ${author} · ${when}`;
         case 'dismissed':
             return `Dismissed · ${author} · ${when}`;
         case 'open':
@@ -129,10 +159,17 @@ const DraftRow: FC<{
                     {initials(draft.authorName)}
                 </Text>
             </Avatar>
-            <Stack gap={1} style={{ flex: 1, minWidth: 0 }}>
-                <Text size="sm" fw={isActive ? 600 : 500} truncate>
-                    {draft.slug}
-                </Text>
+            <Stack gap={1} flex={1} miw={0}>
+                <Group gap={6} wrap="nowrap">
+                    <Text size="sm" fw={isActive ? 600 : 500} truncate>
+                        {draft.slug}
+                    </Text>
+                    {draft.stale ? (
+                        <Badge size="xs" color="yellow">
+                            Behind repo
+                        </Badge>
+                    ) : null}
+                </Group>
                 <Text size="xs" c="dimmed" truncate>
                     {rowMeta(draft)}
                 </Text>
@@ -140,6 +177,46 @@ const DraftRow: FC<{
         </Group>
     </UnstyledButton>
 );
+
+const ReviewPlaceholder: FC<{
+    active: ContentDraftSummary | undefined;
+    error: ApiError | null;
+    onDismiss: (draftUuid: string) => void;
+}> = ({ active, error, onDismiss }) => {
+    if (!active || !error) {
+        return (
+            <Box mt="xl">
+                <Text c="dimmed" ta="center">
+                    Select a draft to review
+                </Text>
+            </Box>
+        );
+    }
+    const title =
+        error.error.statusCode === 404
+            ? `This draft's ${active.contentType} no longer exists.`
+            : "This draft couldn't be loaded.";
+    return (
+        <Stack mt="xl" gap={4} align="center">
+            <Text ta="center">{title}</Text>
+            {error.error.message ? (
+                <Text size="sm" c="dimmed" ta="center">
+                    {error.error.message}
+                </Text>
+            ) : null}
+            {active.status === 'open' ? (
+                <Button
+                    mt="xs"
+                    size="xs"
+                    variant="default"
+                    onClick={() => onDismiss(active.uuid)}
+                >
+                    Dismiss draft
+                </Button>
+            ) : null}
+        </Stack>
+    );
+};
 
 type ContentReviewPageProps = {
     projectUuid: string | undefined;
@@ -159,7 +236,14 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
     );
     const activeUuid =
         selectedUuid ?? openDrafts[0]?.uuid ?? historyDrafts[0]?.uuid;
-    const { data: review } = useContentDraftReview(projectUuid, activeUuid);
+    const { data: review, error: reviewError } = useContentDraftReview(
+        projectUuid,
+        activeUuid,
+    );
+    const { data: stalenessDetails } = useDraftStaleness(
+        projectUuid,
+        review?.staleness ? activeUuid : undefined,
+    );
     const { mutate: writeBack, isLoading: isWritingBack } =
         useWriteBackDraftMutation(projectUuid);
     const { mutate: dismiss } = useDismissDraftMutation(projectUuid);
@@ -208,7 +292,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
 
     return (
         <Group align="flex-start" gap="md" wrap="nowrap">
-            <Stack w={280} gap="sm" style={{ flexShrink: 0 }}>
+            <Stack w={280} gap="sm" className="ld-shrink-0">
                 <ScrollArea.Autosize mah="72vh">
                     <Stack gap="md">
                         {openDrafts.length > 0 && (
@@ -250,7 +334,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
 
             <Divider orientation="vertical" />
 
-            <Stack style={{ flex: 1, minWidth: 0 }} gap="xs">
+            <Stack flex={1} miw={0} gap="xs">
                 {active && review ? (
                     <>
                         <Group
@@ -258,7 +342,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                             align="flex-start"
                             wrap="nowrap"
                         >
-                            <Stack gap={2} style={{ minWidth: 0 }}>
+                            <Stack gap={2} miw={0}>
                                 <Text fw={600} size="lg">
                                     {active.slug}
                                 </Text>
@@ -295,7 +379,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                             <Group
                                 gap="xs"
                                 wrap="nowrap"
-                                style={{ flexShrink: 0 }}
+                                className="ld-shrink-0"
                             >
                                 {active.prUrl ? (
                                     <Button
@@ -357,11 +441,18 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                             </Popover.Dropdown>
                                         </Popover>
                                         <Tooltip
-                                            label={`Opens this ${active.contentType}'s pull request with the draft's content`}
-                                            withinPortal
+                                            label={
+                                                review.staleness
+                                                    ? `The repo changed ${review.staleness.changedFields.join(', ')} since this draft started. The author has to update it first.`
+                                                    : `Opens this ${active.contentType}'s pull request with the draft's content`
+                                            }
+                                            w={300}
                                         >
                                             <Button
                                                 loading={isWritingBack}
+                                                disabled={
+                                                    review.staleness !== null
+                                                }
                                                 leftSection={
                                                     <MantineIcon
                                                         icon={
@@ -380,34 +471,54 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                 ) : null}
                             </Group>
                         </Group>
+                        {review.staleness ? (
+                            <Box className={staleClasses.panel}>
+                                <Stack gap={4}>
+                                    <Group gap={8} wrap="nowrap">
+                                        <span className={staleClasses.dot} />
+                                        <Text size="sm" fw={600}>
+                                            Behind the repo
+                                        </Text>
+                                    </Group>
+                                    <Text size="sm" c="dimmed">
+                                        The repo published past the version this
+                                        draft started from. The author has to
+                                        update it before it can be written back.
+                                    </Text>
+                                    {(stalenessDetails?.changes ?? []).map(
+                                        (change) => (
+                                            <Text size="sm" key={change.field}>
+                                                <Text span fw={500}>
+                                                    {draftFieldLabel(
+                                                        change.field,
+                                                    )}
+                                                </Text>
+                                                : repo {change.repo}
+                                                {change.mine
+                                                    ? `; this draft ${change.mine}`
+                                                    : ''}
+                                            </Text>
+                                        ),
+                                    )}
+                                </Stack>
+                            </Box>
+                        ) : null}
                         <WorkerPoolContextProvider
                             poolOptions={PIERRE_POOL_OPTIONS}
                             highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
                         >
-                            <Paper
-                                withBorder
-                                radius="md"
-                                style={{ overflow: 'hidden' }}
-                            >
+                            <Paper radius="md" className="ld-overflow-hidden">
                                 <Virtualizer
                                     key={active.uuid}
                                     style={viewportStyle}
                                 >
                                     <MultiFileDiff
                                         oldFile={{
-                                            name: `lightdash/${
-                                                active.contentType === 'chart'
-                                                    ? 'charts'
-                                                    : 'dashboards'
-                                            }/${active.slug}.yml`,
+                                            name: review.filePath,
                                             contents: review.publishedYaml,
                                         }}
                                         newFile={{
-                                            name: `lightdash/${
-                                                active.contentType === 'chart'
-                                                    ? 'charts'
-                                                    : 'dashboards'
-                                            }/${active.slug}.yml`,
+                                            name: review.filePath,
                                             contents: review.draftYaml,
                                         }}
                                         style={{ colorScheme }}
@@ -417,11 +528,11 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                         </WorkerPoolContextProvider>
                     </>
                 ) : (
-                    <Box mt="xl">
-                        <Text c="dimmed" ta="center">
-                            Select a draft to review
-                        </Text>
-                    </Box>
+                    <ReviewPlaceholder
+                        active={active}
+                        error={reviewError}
+                        onDismiss={dismiss}
+                    />
                 )}
             </Stack>
         </Group>

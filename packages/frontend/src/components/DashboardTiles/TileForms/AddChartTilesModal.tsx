@@ -21,7 +21,6 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { IconChartAreaLine } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
 import React, {
-    forwardRef,
     useEffect,
     useLayoutEffect,
     useMemo,
@@ -48,57 +47,42 @@ type Props = {
     maxSelectedValues?: number;
 };
 
-interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
+type ItemProps = {
     label: string;
     chartKind: ChartKind;
     tooltipLabel?: string;
     disabled?: boolean;
     selected?: boolean;
-}
+};
 
-const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
-    (
-        {
-            label,
-            tooltipLabel,
-            chartKind,
-            disabled,
-            selected,
-            ...others
-        }: ItemProps,
-        ref,
-    ) => (
-        <div ref={ref} {...others}>
-            <Stack gap="1">
-                <Tooltip
-                    label={tooltipLabel}
-                    disabled={!tooltipLabel}
-                    position="top-start"
-                    withinPortal
+const SelectItem: FC<ItemProps> = ({
+    label,
+    tooltipLabel,
+    chartKind,
+    disabled,
+    selected,
+}) => (
+    <Stack gap="1">
+        <Tooltip
+            label={tooltipLabel}
+            disabled={!tooltipLabel}
+            position="top-start"
+        >
+            <Group gap="xs">
+                <ChartIcon
+                    chartKind={chartKind ?? ChartKind.VERTICAL_BAR}
+                    color={disabled ? 'ldGray.5' : undefined}
+                />
+                <Text
+                    c={disabled ? 'dimmed' : selected ? 'ldGray.9' : 'ldGray.8'}
+                    fw={500}
+                    fz="xs"
                 >
-                    <Group gap="xs">
-                        <ChartIcon
-                            chartKind={chartKind ?? ChartKind.VERTICAL_BAR}
-                            color={disabled ? 'ldGray.5' : undefined}
-                        />
-                        <Text
-                            c={
-                                disabled
-                                    ? 'dimmed'
-                                    : selected
-                                      ? 'ldGray.9'
-                                      : 'ldGray.8'
-                            }
-                            fw={500}
-                            fz="xs"
-                        >
-                            {label}
-                        </Text>
-                    </Group>
-                </Tooltip>
-            </Stack>
-        </div>
-    ),
+                    {label}
+                </Text>
+            </Group>
+        </Tooltip>
+    </Stack>
 );
 
 const AddChartTilesModal: FC<Props> = ({

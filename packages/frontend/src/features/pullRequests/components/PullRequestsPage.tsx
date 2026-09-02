@@ -165,9 +165,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                             pr.provider,
                                         )}. It may have been deleted, or access was revoked.`}
                                         openDelay={300}
-                                        multiline
                                         maw={420}
-                                        withinPortal
                                     >
                                         <Group gap="two" wrap="nowrap">
                                             <MantineIcon
@@ -189,9 +187,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                     <Tooltip
                                         label={pr.title}
                                         openDelay={400}
-                                        multiline
                                         maw={420}
-                                        withinPortal
                                     >
                                         <Text fz="sm" fw={600} truncate>
                                             {pr.title}
@@ -204,14 +200,13 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                         TimeFrames.MINUTE,
                                     )}
                                     openDelay={300}
-                                    withinPortal
                                 >
-                                    <Text fz="xs" c="ldGray.6" truncate span>
+                                    <Text fz="xs" c="dimmed" truncate span>
                                         opened {dayjs(pr.createdAt).fromNow()}
                                         {pr.author ? (
                                             <>
                                                 {' by '}
-                                                <Text span fw={700} fz="xs">
+                                                <Text span fw={600} fz="xs">
                                                     {pr.author.name}
                                                 </Text>
                                             </>
@@ -228,7 +223,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                         className={classes.reviewContext}
                                     >
                                         <Group gap="xs" wrap="wrap">
-                                            <Text fz="xs" fw={600} c="ldGray.6">
+                                            <Text fz="xs" fw={600} c="dimmed">
                                                 Fixes review:
                                             </Text>
                                             <Tooltip
@@ -236,7 +231,6 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                                     pr.reviewContext.reviewTitle
                                                 }
                                                 openDelay={300}
-                                                withinPortal
                                             >
                                                 <Text
                                                     fz="xs"
@@ -353,14 +347,8 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
             return (
                 <Group gap="two" wrap="nowrap" className={classes.rowActions}>
                     {threadPath !== null && threadTarget ? (
-                        <Tooltip
-                            label="Preview thread"
-                            openDelay={300}
-                            withinPortal
-                        >
+                        <Tooltip label="Preview thread" openDelay={300}>
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 aria-label="Preview thread"
                                 onClick={() => setPreviewTarget(threadTarget)}
                             >
@@ -371,15 +359,12 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                     <Tooltip
                         label={`View on ${getProviderLabel(pr.provider)}`}
                         openDelay={300}
-                        withinPortal
                     >
                         <ActionIcon
                             component="a"
                             href={pr.prUrl}
                             target="_blank"
                             rel="noreferrer"
-                            variant="subtle"
-                            color="dark"
                             aria-label={`View pull request on ${getProviderLabel(
                                 pr.provider,
                             )}`}
@@ -408,7 +393,6 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                 </Text>
                 <SegmentedControl
                     size="xs"
-                    radius="md"
                     value={stateFilter}
                     onChange={(value) => setStateFilter(value as StateFilter)}
                     data={STATE_FILTER_OPTIONS}

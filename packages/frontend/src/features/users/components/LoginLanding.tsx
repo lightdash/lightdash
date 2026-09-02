@@ -20,9 +20,10 @@ import {
     Anchor,
     PasswordInput,
 } from '@mantine/core';
-import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 import { useTimeout } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import {
     useCallback,
     useEffect,
@@ -132,7 +133,7 @@ const getAlternativeLoginIntent = ({
     return undefined;
 };
 
-const LoginForm: FC<{
+export const LoginForm: FC<{
     alternativeLoginIntent: MobileLoginIntent | undefined;
     availability: { email: boolean; emailOtp: boolean };
     form: UseFormReturnType<LoginParams>;
@@ -212,6 +213,11 @@ const LoginForm: FC<{
                 <TextInput
                     label={isNewLayout ? 'Work email' : 'Email address'}
                     name="email"
+                    type="email"
+                    inputMode="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     placeholder={
                         isNewLayout ? 'maya@acme.com' : 'Your email address'
                     }
@@ -224,8 +230,6 @@ const LoginForm: FC<{
                             <ActionIcon
                                 aria-label="Clear email address"
                                 onMouseDown={(event) => event.preventDefault()}
-                                variant="subtle"
-                                color="gray"
                                 onClick={onClearEmail}
                             >
                                 <MantineIcon icon={IconX} />

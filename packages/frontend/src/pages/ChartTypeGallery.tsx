@@ -22,6 +22,7 @@ import ChartTypeDeleteModal from '../features/chartTypes/components/ChartTypeDel
 import ChartTypeDetailModal from '../features/chartTypes/components/ChartTypeDetailModal';
 import ChartTypeGalleryCard from '../features/chartTypes/components/ChartTypeGalleryCard';
 import ChartTypeGalleryEmptyState from '../features/chartTypes/components/ChartTypeGalleryEmptyState';
+import ChartTypeLibrarySection from '../features/chartTypes/components/ChartTypeLibrarySection';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { useProjectUuid } from '../hooks/useProjectUuid';
@@ -207,6 +208,8 @@ const ChartTypeGallery = () => {
                         </>
                     )}
                 </Stack>
+
+                <ChartTypeLibrarySection projectUuid={projectUuid} />
             </Stack>
 
             {selected && (

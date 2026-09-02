@@ -59,7 +59,6 @@ export const AiDataAppModelToggles: FC<AiDataAppModelTogglesProps> = ({
                             key={model}
                             label="At least one model must stay available"
                             disabled={!isLocked}
-                            withArrow
                             position="top"
                         >
                             {/* Anchored on a wrapper, not the Switch: Mantine

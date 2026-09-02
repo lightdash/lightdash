@@ -1,4 +1,8 @@
-import { FeatureFlags, type ChartType } from '@lightdash/common';
+import {
+    FeatureFlags,
+    isOfficialChartType,
+    type ChartType,
+} from '@lightdash/common';
 import { ActionIcon, Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
     IconArrowLeft,
@@ -89,7 +93,8 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
     const canEditSelectedType =
         dataAppsEnabled &&
         selectedProjectType !== undefined &&
-        canEditChartType(selectedProjectType);
+        canEditChartType(selectedProjectType) &&
+        !isOfficialChartType(selectedProjectType);
 
     const selectedItem = getSelectedChartTypeItem(
         chartType,
@@ -130,8 +135,6 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                             position="right"
                         >
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 size="sm"
                                 aria-label="Close visualization config"
                                 onClick={handleClose}
@@ -147,8 +150,6 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                         <>
                             <Group gap="xs" wrap="nowrap">
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
                                     size="sm"
                                     aria-label="Back to configuration"
                                     onClick={showConfigure}
@@ -180,8 +181,6 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                         position="bottom"
                                     >
                                         <ActionIcon
-                                            variant="subtle"
-                                            color="gray"
                                             size="sm"
                                             aria-label="Edit chart type"
                                             onClick={() =>

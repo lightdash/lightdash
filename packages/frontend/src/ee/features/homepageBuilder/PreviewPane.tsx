@@ -130,11 +130,7 @@ export const ViewAsControl: FC<{
                 />
             )}
             {target && result.data?.resolved?.type === 'homepage' && (
-                <Badge
-                    variant="light"
-                    tt="none"
-                    className={classes.viewAsBadge}
-                >
+                <Badge className={classes.viewAsBadge}>
                     {result.data.resolved.homepage.name}
                     {result.data.reason
                         ? ` · ${reasonLabel(result.data.reason, groupNames)}`

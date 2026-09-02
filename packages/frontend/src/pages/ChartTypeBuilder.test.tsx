@@ -169,6 +169,7 @@ const appMeta = (overrides: Partial<AppMeta> = {}): AppMeta =>
         versions: [],
         hasMore: false,
         latestReadyVersion: 1,
+        registrySlug: null,
         ...overrides,
     }) as AppMeta;
 
@@ -326,6 +327,15 @@ describe('ChartTypeBuilder', () => {
     it('sends non-editors back to the gallery', () => {
         setApp(appMeta());
         vi.mocked(useCanEditDataApp).mockReturnValue(false);
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        expect(screen.getByText('gallery')).toBeInTheDocument();
+    });
+
+    it('sends an official (registry-installed) chart type back to the gallery', () => {
+        setApp(appMeta({ registrySlug: 'radial-gauge' }));
         renderBuilder(
             '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
         );

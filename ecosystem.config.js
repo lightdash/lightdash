@@ -74,9 +74,16 @@ const mapleBin = (() => {
     return (stdout || '').trim() || undefined;
 })();
 
-// One Maple server per data dir, so namespace it by instance the same way the
-// port is — two worktrees must not fight over ~/.maple/data.
-const mapleDataDir = path.join(os.homedir(), '.maple', `data-${instanceId}`);
+// Maple anchors its pidfile and store markers in the data dir's PARENT, so
+// each instance needs its own parent directory — sibling data dirs directly
+// under ~/.maple would share one maple.pid and lock each other out.
+const mapleDataDir = path.join(
+    os.homedir(),
+    '.maple',
+    'instances',
+    instanceId,
+    'data',
+);
 
 // Each app adds its own OTEL_SERVICE_NAME on top of this: service.name is what
 // namespaces traces per checkout in the Maple UI.

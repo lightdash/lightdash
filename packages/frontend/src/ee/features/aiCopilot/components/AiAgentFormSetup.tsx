@@ -79,12 +79,12 @@ import { SpaceAccessSelect } from './SpaceAccessSelect';
 import { ThreadRetentionSelect } from './ThreadRetentionSelect';
 
 const formSchema = z.object({
-    name: z.string().min(1),
+    name: z.string().min(1, 'Name is required'),
     description: z.string().nullable(),
     integrations: z.array(
         z.object({
             type: z.literal('slack'),
-            channelId: z.string().min(1),
+            channelId: z.string().min(1, 'Channel is required'),
         }),
     ),
     tags: z.array(z.string()).nullable(),
@@ -137,15 +137,11 @@ const SwitchLabel = ({
         <Tooltip
             label={help}
             events={{ hover: true, focus: true, touch: true }}
-            withArrow
-            withinPortal
-            multiline
             position="right"
             maw="300px"
         >
             <ActionIcon
                 type="button"
-                variant="subtle"
                 color="ldGray"
                 size="xs"
                 aria-label={help}
@@ -963,9 +959,6 @@ export const AiAgentFormSetup = ({
                                                         </Text>
                                                         <Tooltip
                                                             label="Admins and developers (Manage AI Agents scope) will always have access to this agent."
-                                                            withArrow
-                                                            withinPortal
-                                                            multiline
                                                             position="right"
                                                             maw="250px"
                                                         >

@@ -90,7 +90,6 @@ export const AgentPageHeader: FC<Props> = ({
                 {onShare && (
                     <Tooltip label="Share thread" position="bottom">
                         <ActionIcon
-                            variant="subtle"
                             color="ldGray"
                             className={styles.threadAction}
                             onClick={onShare}
@@ -108,7 +107,6 @@ export const AgentPageHeader: FC<Props> = ({
                 {showMinimize && (
                     <Tooltip label="Minimize" position="bottom">
                         <ActionIcon
-                            variant="subtle"
                             color="ldGray"
                             className={styles.threadAction}
                             onClick={onMinimize}

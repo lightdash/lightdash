@@ -221,6 +221,7 @@ const AiAgentsLauncherInner: FC = () => {
                         >
                             <AiDataAppPreviewPanel
                                 dataAppPreview={transitionDataAppPreview}
+                                showInspector={false}
                             />
                         </Box>
                     )}

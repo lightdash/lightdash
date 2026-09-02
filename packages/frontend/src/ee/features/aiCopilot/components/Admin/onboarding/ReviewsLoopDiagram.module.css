@@ -7,17 +7,11 @@
         var(--mantine-color-ldGray-0),
         var(--mantine-color-ldDark-6)
     );
-    --rld-border: light-dark(
-        var(--mantine-color-ldGray-2),
-        var(--mantine-color-ldDark-4)
-    );
+    --rld-border: var(--mantine-color-default-border);
     --rld-fg: var(--mantine-color-text);
     --rld-dimmed: var(--mantine-color-dimmed);
-    --rld-icon: light-dark(
-        var(--mantine-color-ldGray-7),
-        var(--mantine-color-ldGray-3)
-    );
-    --rld-primary: light-dark(#18181b, #fafafa);
+    --rld-icon: var(--mantine-color-ldGray-7);
+    --rld-primary: var(--mantine-color-text);
     --rld-primary-fg: light-dark(#fafafa, #18181b);
 }
 

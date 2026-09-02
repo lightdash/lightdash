@@ -1,7 +1,6 @@
 import { type SqlChart } from '@lightdash/common';
 import {
     Group,
-    Paper,
     Stack,
     Title,
     Button,
@@ -21,6 +20,7 @@ import isEqual from 'lodash/isEqual';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import PageHeader from '../../../../components/common/Page/PageHeader';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
 import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
 import {
@@ -41,7 +41,6 @@ import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { SqlQueryBeforeSaveAlert } from '../SqlQueryBeforeSaveAlert';
 import { UpdateSqlChartModal } from '../UpdateSqlChartModal';
-import headerStyles from './HeaderPaper.module.css';
 
 export const HeaderEdit: FC = () => {
     const queryClient = useQueryClient();
@@ -159,28 +158,19 @@ export const HeaderEdit: FC = () => {
 
     return (
         <>
-            <Paper
-                shadow="none"
-                radius={0}
-                withBorder={false}
-                px="md"
-                py="xs"
-                className={headerStyles.paper}
-            >
-                <Group justify="space-between">
-                    <Stack gap="none">
-                        <Group gap="two">
+            <PageHeader cardProps={{ py: 'xs' }}>
+                <Group justify="space-between" flex={1} wrap="nowrap">
+                    <Stack gap={0} miw={0}>
+                        <Group gap={4} wrap="nowrap">
                             <TitleBreadCrumbs
                                 projectUuid={savedSqlChart.project.projectUuid}
                                 spaceUuid={savedSqlChart.space.uuid}
                                 spaceName={savedSqlChart.space.name}
                             />
-                            <Title c="ldDark.6" order={5} fw={600}>
+                            <Title order={5} maw={500} lineClamp={1}>
                                 {savedSqlChart.name}
                             </Title>
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 size="xs"
                                 onClick={() => {
                                     dispatch(toggleModal('updateChartModal'));
@@ -249,15 +239,9 @@ export const HeaderEdit: FC = () => {
                                 </ActionIcon>
                             </Tooltip>
                         )}
-                        <Menu
-                            position="bottom"
-                            withArrow
-                            withinPortal
-                            shadow="md"
-                            width={200}
-                        >
+                        <Menu position="bottom" withArrow width={200}>
                             <Menu.Target>
-                                <ActionIcon color="gray" variant="subtle">
+                                <ActionIcon>
                                     <MantineIcon icon={IconDots} />
                                 </ActionIcon>
                             </Menu.Target>
@@ -281,7 +265,7 @@ export const HeaderEdit: FC = () => {
                         </Menu>
                     </Group>
                 </Group>
-            </Paper>
+            </PageHeader>
             <SaveSqlChartModal
                 key={`${isSaveModalOpen}-saveChartModal`}
                 opened={isSaveModalOpen}

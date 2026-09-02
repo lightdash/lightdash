@@ -13,9 +13,10 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { z } from 'zod';
 import Callout from '../../../components/common/Callout';
@@ -34,7 +35,7 @@ import { useGithubDbtWritePreview } from '../hooks/useGithubDbtWritePreview';
 import { useAppSelector } from '../store/hooks';
 
 const validationSchema = z.object({
-    name: z.string().min(1),
+    name: z.string().min(1, 'Name is required'),
 });
 
 type FormValues = z.infer<typeof validationSchema>;
@@ -132,7 +133,6 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
             headerActions={
                 <Tooltip
                     label="Create a new model in your dbt project from this SQL query. This will create a new branch and start a pull request."
-                    multiline
                     maw={300}
                 >
                     <MantineIcon
@@ -159,7 +159,6 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                             Files to be created in{' '}
                             <Badge
                                 radius="md"
-                                variant="light"
                                 color="ldGray.9"
                                 fz="xs"
                                 leftSection={
@@ -172,7 +171,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                                         'noopener,noreferrer',
                                     );
                                 }}
-                                style={{ cursor: 'pointer' }}
+                                className="ld-pointer"
                                 title={`Open "${writePreviewData?.url}" in new tab`}
                             >
                                 {writePreviewData?.repo}
@@ -185,7 +184,6 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                                     key={file}
                                     position="top-start"
                                     label={file}
-                                    multiline
                                     maw={300}
                                 >
                                     <List.Item fz="xs" ff="monospace">

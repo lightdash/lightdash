@@ -138,10 +138,9 @@ const DebouncedSearchInput = memo(
         );
 
         return (
-            <Tooltip withinPortal label="Search by name">
+            <Tooltip label="Search by name">
                 <TextInput
                     size="xs"
-                    radius="md"
                     classNames={{ input: classes.searchInput }}
                     styles={(inputTheme) => ({
                         input: {
@@ -163,7 +162,7 @@ const DebouncedSearchInput = memo(
                     leftSection={
                         <MantineIcon
                             size="md"
-                            color="ldGray.6"
+                            color="dimmed"
                             icon={IconSearch}
                         />
                     }
@@ -286,7 +285,7 @@ const InfiniteResourceTable = ({
                             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
                                 e.stopPropagation()
                             }
-                            fz={12}
+                            fz="xs"
                             fw={500}
                         >
                             {space.name}
@@ -297,7 +296,7 @@ const InfiniteResourceTable = ({
                 // Personal (space-less) data apps have no space to link to.
                 if (isResourceViewDataAppItem(item) && !item.data.spaceUuid) {
                     return (
-                        <Text fz={12} fw={500} c="dimmed">
+                        <Text fz="xs" fw={500} c="dimmed">
                             -
                         </Text>
                     );
@@ -309,7 +308,7 @@ const InfiniteResourceTable = ({
                     : undefined;
                 if (inaccessibleSpaceName) {
                     return (
-                        <Text fz={12} fw={500} c="ldGray.7">
+                        <Text fz="xs" fw={500} c="ldGray.7">
                             {inaccessibleSpaceName}
                         </Text>
                     );
@@ -326,7 +325,7 @@ const InfiniteResourceTable = ({
             Cell: ({ row }) => {
                 if (isResourceViewSpaceItem(row.original))
                     return (
-                        <Text fz={12} fw={500} c="ldGray.7">
+                        <Text fz="xs" fw={500} c="ldGray.7">
                             -
                         </Text>
                     );
@@ -343,7 +342,7 @@ const InfiniteResourceTable = ({
                 const item = row.original;
                 if (!isResourceViewItemDashboard(item) || !item.data.owner) {
                     return (
-                        <Text fz={12} fw={500} c="dimmed">
+                        <Text fz="xs" fw={500} c="dimmed">
                             -
                         </Text>
                     );
@@ -352,7 +351,7 @@ const InfiniteResourceTable = ({
                 const ownerName =
                     `${firstName} ${lastName}`.trim() || email || '-';
                 return (
-                    <Text fz={12} fw={500} c="ldGray.7">
+                    <Text fz="xs" fw={500} c="ldGray.7">
                         {ownerName}
                     </Text>
                 );
@@ -367,12 +366,12 @@ const InfiniteResourceTable = ({
             Cell: ({ row }) => {
                 if (isResourceViewSpaceItem(row.original))
                     return (
-                        <Text fz={12} fw={500} c="ldGray.7">
+                        <Text fz="xs" fw={500} c="ldGray.7">
                             -
                         </Text>
                     );
                 return (
-                    <Text fz={12} fw={500} c="ldGray.7">
+                    <Text fz="xs" fw={500} c="ldGray.7">
                         {row.original.data.views}
                     </Text>
                 );
@@ -768,9 +767,7 @@ const InfiniteResourceTable = ({
                                         w={1}
                                         h={20}
                                         color="#DEE2E6"
-                                        style={{
-                                            alignSelf: 'center',
-                                        }}
+                                        className="ld-self-center"
                                     />
                                     <ContentTypeFilter
                                         value={selectedContentType}
@@ -809,9 +806,7 @@ const InfiniteResourceTable = ({
                                         w={1}
                                         h={20}
                                         color="#DEE2E6"
-                                        style={{
-                                            alignSelf: 'center',
-                                        }}
+                                        className="ld-self-center"
                                     />
                                     <Box w={220}>
                                         <UserSelect
@@ -828,9 +823,7 @@ const InfiniteResourceTable = ({
                         {selectedItems.length > 0 ? (
                             <Button
                                 ml="auto"
-                                variant="filled"
                                 size="xs"
-                                color="blue"
                                 leftSection={
                                     <MantineIcon icon={IconFolderSymlink} />
                                 }
@@ -863,7 +856,7 @@ const InfiniteResourceTable = ({
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}
                         </Text>
-                        <Text fz="xs" fw={400} c="ldGray.6">
+                        <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
                                 ? `(${flatData.length} of ${totalResults} loaded)`
                                 : `(${flatData.length})`}

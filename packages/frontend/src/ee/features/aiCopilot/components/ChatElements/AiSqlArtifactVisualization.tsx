@@ -81,7 +81,6 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
                 <Menu.Target>
                     <ActionIcon
                         size="sm"
-                        variant="subtle"
                         color="ldGray.9"
                         aria-label="SQL artifact actions"
                     >

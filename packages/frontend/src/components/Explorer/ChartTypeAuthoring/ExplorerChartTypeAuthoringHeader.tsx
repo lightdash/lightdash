@@ -90,7 +90,6 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                     order={2}
                     className={classes.title}
                     fz="sm"
-                    fw={600}
                     title={headingText}
                     tabIndex={-1}
                 >
@@ -102,16 +101,8 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                     {title}
                 </Title>
                 {app && app.description && (
-                    <Tooltip
-                        withArrow
-                        multiline
-                        w={280}
-                        label={app.description}
-                        position="bottom"
-                    >
+                    <Tooltip w={280} label={app.description} position="bottom">
                         <ActionIcon
-                            variant="subtle"
-                            color="gray"
                             size="sm"
                             aria-label="Chart type description"
                         >
@@ -122,8 +113,6 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                 {app && (
                     <Tooltip label="Edit details" position="bottom">
                         <ActionIcon
-                            variant="subtle"
-                            color="gray"
                             size="sm"
                             aria-label="Edit chart type details"
                             onClick={() => setIsEditingDetails(true)}

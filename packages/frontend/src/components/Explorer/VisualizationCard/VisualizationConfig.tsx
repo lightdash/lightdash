@@ -87,7 +87,7 @@ const VisualizationConfig: FC<Props> = ({
             {withHeader ? (
                 <>
                     <Group justify="space-between">
-                        <Text fz={16} fw={600}>
+                        <Text fz="md" fw={600}>
                             Configure chart
                         </Text>
 
@@ -95,12 +95,7 @@ const VisualizationConfig: FC<Props> = ({
                             label="Close visualization config"
                             position="right"
                         >
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                size="sm"
-                                onClick={onClose}
-                            >
+                            <ActionIcon size="sm" onClick={onClose}>
                                 <MantineIcon icon={IconX} />
                             </ActionIcon>
                         </Tooltip>

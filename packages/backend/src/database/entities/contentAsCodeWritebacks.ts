@@ -6,18 +6,21 @@ export const ContentAsCodeProjectSettingsTableName =
 export type DbContentAsCodeProjectSettings = {
     project_uuid: string;
     sync_enabled: boolean;
+    content_path: string;
     stamped_at: Date;
 };
 
 export type CreateDbContentAsCodeProjectSettings = Pick<
     DbContentAsCodeProjectSettings,
     'project_uuid' | 'sync_enabled'
->;
+> &
+    Partial<Pick<DbContentAsCodeProjectSettings, 'content_path'>>;
 
 export type ContentAsCodeProjectSettingsTable = Knex.CompositeTableType<
     DbContentAsCodeProjectSettings,
     CreateDbContentAsCodeProjectSettings,
-    Pick<DbContentAsCodeProjectSettings, 'sync_enabled' | 'stamped_at'>
+    Pick<DbContentAsCodeProjectSettings, 'sync_enabled' | 'stamped_at'> &
+        Partial<Pick<DbContentAsCodeProjectSettings, 'content_path'>>
 >;
 
 export const ContentAsCodeWritebacksTableName = 'content_as_code_writebacks';

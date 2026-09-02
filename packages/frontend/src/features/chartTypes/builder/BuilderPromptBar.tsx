@@ -130,7 +130,6 @@ const QueuedPromptRow = ({
         )}
         {state !== 'sending' && (
             <ActionIcon
-                variant="subtle"
                 color="ldGray"
                 size="xs"
                 aria-label={`Remove queued prompt: ${item.request.description}`}
@@ -387,7 +386,6 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     className={classes.buildingLabel}
                                     fz="xs"
                                     fw={600}
-                                    c="ldGray.9"
                                     inherit
                                 >
                                     Reading your prompt…
@@ -423,7 +421,6 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     className={classes.buildingLabel}
                                     fz="xs"
                                     fw={600}
-                                    c="ldGray.9"
                                     inherit
                                 >
                                     Building…{elapsed ? ` ${elapsed}` : ''}
@@ -630,9 +627,8 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     event.target.value = '';
                                 }}
                             />
-                            <Tooltip withArrow label="Attach an image or file">
+                            <Tooltip label="Attach an image or file">
                                 <ActionIcon
-                                    variant="subtle"
                                     color="ldGray"
                                     size="sm"
                                     aria-label="Attach"
@@ -687,7 +683,7 @@ const BuilderPromptBar = forwardRef<BuilderPromptBarHandle, Props>(
             <Box className={classes.wrap}>
                 {props.build.error !== null && (
                     <Box className={classes.failedPill}>
-                        <Text fz={13} c="red.7" lineClamp={1}>
+                        <Text fz="sm" c="red.7" lineClamp={1}>
                             {props.build.error}
                         </Text>
                         {props.build.retry && (

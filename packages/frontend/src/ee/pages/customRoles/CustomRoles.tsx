@@ -97,11 +97,7 @@ export const CustomRoles = () => {
                                     <Text span inherit>
                                         Project
                                     </Text>
-                                    <Badge
-                                        className={classes.tabBadge}
-                                        variant="light"
-                                        radius="sm"
-                                    >
+                                    <Badge className={classes.tabBadge}>
                                         {projectRoles.length}
                                     </Badge>
                                 </Group>
@@ -119,11 +115,7 @@ export const CustomRoles = () => {
                                     <Text span inherit>
                                         Organization
                                     </Text>
-                                    <Badge
-                                        className={classes.tabBadge}
-                                        variant="light"
-                                        radius="sm"
-                                    >
+                                    <Badge className={classes.tabBadge}>
                                         {organizationRoles.length}
                                     </Badge>
                                 </Group>

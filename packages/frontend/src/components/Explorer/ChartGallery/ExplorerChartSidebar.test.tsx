@@ -138,6 +138,7 @@ describe('ExplorerChartSidebar', () => {
             name: 'Event pulse',
             spaceUuid: null,
             createdByUserUuid: 'user-1',
+            registrySlug: null,
         };
         const store = createExplorerStore();
         renderSidebar(
@@ -155,6 +156,30 @@ describe('ExplorerChartSidebar', () => {
         expect(
             store.getState().explorer.chartTypeAuthoring?.dataAppVizUuid,
         ).toBe('viz-1');
+    });
+
+    it('hides the edit entry for an official (registry-installed) chart type', () => {
+        vizConfig.current = {
+            chartType: ChartType.DATA_APP_VIZ,
+            chartConfig: { dataAppVizUuid: 'viz-1' },
+        };
+        selectedProjectType.current = {
+            dataAppVizUuid: 'viz-1',
+            name: 'Sankey',
+            spaceUuid: null,
+            createdByUserUuid: 'user-1',
+            registrySlug: 'sankey',
+        };
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.DATA_APP_VIZ}
+                onClose={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Edit chart type' }),
+        ).not.toBeInTheDocument();
     });
 
     it('retitles itself while a chart type is authored', () => {

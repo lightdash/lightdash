@@ -252,13 +252,11 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
 
             <Stack gap="lg">
                 <Group align="flex-start" gap="xs" wrap="nowrap">
-                    <Paper p="xxs" withBorder radius="sm">
+                    <Paper p="xxs" radius="sm">
                         <MantineIcon icon={IconLock} size="md" />
                     </Paper>
                     <Stack gap={2}>
-                        <Title order={5} c="ldGray.9" fw={700}>
-                            Warehouse access
-                        </Title>
+                        <Title order={5}>Warehouse access</Title>
                         <Text size="xs" c="dimmed">
                             Control which warehouse schemas and catalogs AI
                             agents can query with SQL.

@@ -24,12 +24,15 @@ const pushToStartToken =
     'ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789';
 const validDeviceToken =
     'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210';
+const androidRegistrationToken =
+    'fMEQ_p9nS0m:APA91bH-lightdash.mobile_registration-token';
 
 const installation = {
     mobilePushInstallationUuid: installationUuid,
     installationUuid,
     organizationUuid,
     userUuid,
+    platform: 'ios' as const,
     environment: 'sandbox' as const,
 };
 
@@ -42,6 +45,13 @@ const threadOwnership = {
     ownerIsServiceAccount: false,
 };
 
+const agent = {
+    uuid: agentUuid,
+    organizationUuid,
+    projectUuid,
+    name: 'Mobile Demo Agent',
+};
+
 const prompt = {
     organizationUuid,
     projectUuid,
@@ -49,6 +59,7 @@ const prompt = {
     threadUuid,
     agentUuid,
     createdByUserUuid: userUuid,
+    prompt: 'How many people used Chrome last month?',
 };
 
 const claimedStartAttempt = {
@@ -73,7 +84,9 @@ const createDependencies = () => {
         findLiveActivityOwner: vi.fn<
             MobilePushNotificationStore['findLiveActivityOwner']
         >(async () => undefined),
-        upsertInstallation: vi.fn(async () => installation),
+        upsertInstallation: vi.fn<
+            MobilePushNotificationStore['upsertInstallation']
+        >(async () => ({ status: 'stored', installation })),
         registerPushToStartToken: vi.fn<
             MobilePushNotificationStore['registerPushToStartToken']
         >(async () => true),
@@ -103,11 +116,7 @@ const createDependencies = () => {
         >(async () => []),
     } satisfies MobilePushNotificationStore;
     const threadStore = {
-        getAgent: vi.fn<MobilePushThreadStore['getAgent']>(async () => ({
-            uuid: agentUuid,
-            organizationUuid,
-            projectUuid,
-        })),
+        getAgent: vi.fn<MobilePushThreadStore['getAgent']>(async () => agent),
         findThreadOwnership: vi.fn<
             MobilePushThreadStore['findThreadOwnership']
         >(async () => threadOwnership),
@@ -128,6 +137,7 @@ const createDependencies = () => {
         teamId: 'TEAMID',
         sandbox: { keyId: 'KEYID', privateKey: 'private-key' },
         production: undefined,
+        fcm: undefined,
     };
 
     return {
@@ -213,6 +223,7 @@ describe('MobilePushNotificationService.registerLiveActivity', () => {
                 promptId: promptUuid,
                 installationId: installationUuid,
                 liveActivityId: liveActivityUuid,
+                platform: 'ios',
                 environment: 'sandbox',
             },
         });
@@ -333,6 +344,81 @@ describe('MobilePushNotificationService.registerLiveActivity', () => {
         const service = new MobilePushNotificationService(dependencies);
 
         await expect(register(service)).rejects.toBeInstanceOf(NotFoundError);
+        expect(
+            dependencies.mobilePushNotificationStore.upsertLiveActivity,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('registers an activity for an android installation', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.findInstallation.mockResolvedValue(
+            { ...installation, platform: 'android', environment: 'production' },
+        );
+        const service = new MobilePushNotificationService(dependencies);
+
+        await register(service, { pushToken: androidRegistrationToken });
+
+        expect(
+            dependencies.mobilePushNotificationStore.upsertLiveActivity,
+        ).toHaveBeenCalledWith({
+            liveActivityUuid,
+            mobilePushInstallationUuid: installationUuid,
+            organizationUuid,
+            userUuid,
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            promptUuid,
+            pushToken: androidRegistrationToken,
+        });
+        expect(dependencies.analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'mobile_push.live_activity_registered',
+                properties: expect.objectContaining({ platform: 'android' }),
+            }),
+        );
+        expect(
+            dependencies.scheduler.mobilePushLiveActivity,
+        ).toHaveBeenCalledWith({
+            liveActivityUuid,
+            organizationUuid,
+            projectUuid,
+            userUuid,
+        });
+    });
+
+    it.each(['', 'has spaces', 'a'.repeat(4097)])(
+        'rejects an invalid android registration token',
+        async (pushToken) => {
+            const dependencies = createDependencies();
+            dependencies.mobilePushNotificationStore.findInstallation.mockResolvedValue(
+                {
+                    ...installation,
+                    platform: 'android',
+                    environment: 'production',
+                },
+            );
+            const service = new MobilePushNotificationService(dependencies);
+
+            await expect(
+                register(service, { pushToken }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(
+                dependencies.threadStore.findThreadOwnership,
+            ).not.toHaveBeenCalled();
+            expect(
+                dependencies.mobilePushNotificationStore.upsertLiveActivity,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    it('still rejects an android registration token on an ios installation', async () => {
+        const dependencies = createDependencies();
+        const service = new MobilePushNotificationService(dependencies);
+
+        await expect(
+            register(service, { pushToken: androidRegistrationToken }),
+        ).rejects.toBeInstanceOf(ParameterError);
         expect(
             dependencies.mobilePushNotificationStore.upsertLiveActivity,
         ).not.toHaveBeenCalled();
@@ -699,6 +785,7 @@ describe('MobilePushNotificationService.startLiveActivitiesForPrompt', () => {
                     uuid: agentUuid,
                     organizationUuid,
                     projectUuid: 'foreign-project',
+                    name: 'Mobile Demo Agent',
                 });
             }
             if (mismatch === 'thread') {
@@ -799,8 +886,8 @@ describe('MobilePushNotificationService.deliverLiveActivityStart', () => {
                         agentUuid,
                         threadUuid,
                         promptUuid,
-                        agentName: 'Agent',
-                        taskSummary: null,
+                        agentName: 'Mobile Demo Agent',
+                        taskSummary: 'How many people used Chrome last month?',
                     },
                     'input-push-token': 1,
                     alert: {
@@ -1098,6 +1185,7 @@ describe('MobilePushNotificationService installation lifecycle', () => {
         expect(service.getStatus()).toEqual({
             enabled: true,
             environments: ['sandbox'],
+            platforms: ['ios'],
         });
     });
 
@@ -1108,6 +1196,7 @@ describe('MobilePushNotificationService installation lifecycle', () => {
         await service.registerInstallation({
             user: { userUuid, organizationUuid },
             installationUuid,
+            platform: 'ios',
             environment: 'sandbox',
             deviceToken: validDeviceToken,
         });
@@ -1118,6 +1207,7 @@ describe('MobilePushNotificationService installation lifecycle', () => {
             installationUuid,
             organizationUuid,
             userUuid,
+            platform: 'ios',
             environment: 'sandbox',
             deviceToken: validDeviceToken,
         });
@@ -1127,12 +1217,110 @@ describe('MobilePushNotificationService installation lifecycle', () => {
             properties: {
                 organizationId: organizationUuid,
                 installationId: installationUuid,
+                platform: 'ios',
                 environment: 'sandbox',
             },
         });
         expect(
             JSON.stringify(dependencies.analytics.track.mock.calls),
         ).not.toContain(validDeviceToken);
+    });
+
+    it('reports a refused reassignment as not found', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.upsertInstallation.mockResolvedValue(
+            { status: 'owner_mismatch' },
+        );
+        const service = new MobilePushNotificationService(dependencies);
+
+        await expect(
+            service.registerInstallation({
+                user: { userUuid, organizationUuid },
+                installationUuid,
+                platform: 'ios',
+                environment: 'sandbox',
+                deviceToken: validDeviceToken,
+            }),
+        ).rejects.toBeInstanceOf(NotFoundError);
+        expect(dependencies.analytics.track).not.toHaveBeenCalled();
+    });
+
+    it('rejects an android registration when FCM is not configured', async () => {
+        const dependencies = createDependencies();
+        const service = new MobilePushNotificationService(dependencies);
+
+        await expect(
+            service.registerInstallation({
+                user: { userUuid, organizationUuid },
+                installationUuid,
+                platform: 'android',
+                environment: 'production',
+                deviceToken: 'fcm-registration:token_value',
+            }),
+        ).rejects.toBeInstanceOf(NotFoundError);
+        expect(
+            dependencies.mobilePushNotificationStore.upsertInstallation,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('registers an android installation against the FCM credential', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationsConfig.fcm = {
+            projectId: 'lightdash-mobile',
+            clientEmail: 'push@lightdash-mobile.iam.gserviceaccount.com',
+            privateKey: 'private-key',
+        };
+        const service = new MobilePushNotificationService(dependencies);
+
+        await service.registerInstallation({
+            user: { userUuid, organizationUuid },
+            installationUuid,
+            platform: 'android',
+            environment: 'production',
+            deviceToken: 'fcm-registration:token_value',
+        });
+
+        expect(
+            dependencies.mobilePushNotificationStore.upsertInstallation,
+        ).toHaveBeenCalledWith({
+            installationUuid,
+            organizationUuid,
+            userUuid,
+            platform: 'android',
+            environment: 'production',
+            deviceToken: 'fcm-registration:token_value',
+        });
+    });
+
+    it('reports android as available once FCM is configured', () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationsConfig.fcm = {
+            projectId: 'lightdash-mobile',
+            clientEmail: 'push@lightdash-mobile.iam.gserviceaccount.com',
+            privateKey: 'private-key',
+        };
+        const service = new MobilePushNotificationService(dependencies);
+
+        expect(service.getStatus().platforms).toEqual(['ios', 'android']);
+    });
+
+    it('rejects a push-to-start token on an android installation', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.findInstallation.mockResolvedValue(
+            { ...installation, platform: 'android' },
+        );
+        const service = new MobilePushNotificationService(dependencies);
+
+        await expect(
+            service.registerPushToStartToken({
+                user: { userUuid, organizationUuid },
+                installationUuid,
+                pushToken: pushToStartToken,
+            }),
+        ).rejects.toBeInstanceOf(NotFoundError);
+        expect(
+            dependencies.mobilePushNotificationStore.registerPushToStartToken,
+        ).not.toHaveBeenCalled();
     });
 
     it.each(['', 'aa/bb', 'a'.repeat(513)])(
@@ -1145,6 +1333,7 @@ describe('MobilePushNotificationService installation lifecycle', () => {
                 service.registerInstallation({
                     user: { userUuid, organizationUuid },
                     installationUuid,
+                    platform: 'ios',
                     environment: 'sandbox',
                     deviceToken,
                 }),
@@ -1163,6 +1352,7 @@ describe('MobilePushNotificationService installation lifecycle', () => {
         await service.registerInstallation({
             user: { userUuid, organizationUuid },
             installationUuid,
+            platform: 'ios',
             environment: 'sandbox',
             deviceToken: 'device-token',
         });

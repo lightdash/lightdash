@@ -216,6 +216,13 @@ const getTagsForTask: {
         'user.uuid': payload.userUuid ?? '',
     }),
 
+    [SCHEDULER_TASKS.SEND_CONTENT_REVIEW_NOTIFICATION]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'project.uuid': payload.projectUuid,
+        'user.uuid': payload.userUuid,
+        'content_review_request.uuid': payload.requestUuid,
+    }),
+
     [SCHEDULER_TASKS.CREATE_REVIEW_LINEAR_ISSUE]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'project.uuid': payload.projectUuid,

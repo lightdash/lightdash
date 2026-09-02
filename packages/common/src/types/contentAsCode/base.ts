@@ -1,4 +1,41 @@
+import { ParameterError } from '../errors';
 import type { PromotionAction } from '../promotion';
+import type {
+    ContentDraftFieldResolution,
+    ContentDraftStaleness,
+    ContentDraftStalenessDetails,
+} from './draftRebase';
+import { joinContentAsCodePath } from './fileDiscovery';
+
+export const DEFAULT_CONTENT_AS_CODE_PATH = 'lightdash';
+
+// Repo directory for charts/ and dashboards/, relative to the project dir; '' is the project dir itself
+export const normalizeContentAsCodePath = (raw: string): string => {
+    const value = raw.trim().replace(/\\/g, '/');
+    if (value.startsWith('/')) {
+        throw new ParameterError(
+            'content_as_code.path must be relative to the project directory',
+        );
+    }
+    const segments = value
+        .split('/')
+        .filter((segment) => segment !== '' && segment !== '.');
+    if (segments.includes('..')) {
+        throw new ParameterError(
+            'content_as_code.path cannot point outside the project directory',
+        );
+    }
+    return segments.join('/');
+};
+
+export const getContentAsCodeFilePath = (
+    contentPath: string,
+    contentType: 'chart' | 'dashboard',
+    slug: string,
+): string => {
+    const folder = contentType === 'chart' ? 'charts' : 'dashboards';
+    return joinContentAsCodePath(contentPath, folder, `${slug}.yml`);
+};
 
 export const CONTENT_AS_CODE_VERSION = 1 as const;
 
@@ -100,7 +137,31 @@ export type ApiContentAsCodeProposeResponse = {
 
 export type ContentAsCodeProjectSettings = {
     syncEnabled: boolean;
+    path: string;
     stampedAt: Date;
+};
+
+// What an upload or pull stamps; path absent means the client predates it
+export type ContentAsCodeSettingsStamp = {
+    sync: boolean;
+    path?: string;
+};
+
+export type ContentAsCodePullFailure = {
+    file: string;
+    message: string;
+};
+
+// Outcome of pulling content-as-code from the project's repo in the app
+export type ContentAsCodePullSummary = {
+    charts: number;
+    dashboards: number;
+    failures: ContentAsCodePullFailure[];
+};
+
+export type ApiContentAsCodePullResponse = {
+    status: 'ok';
+    results: ContentAsCodePullSummary;
 };
 
 export type ApiContentAsCodeSettingsResponse = {
@@ -126,14 +187,33 @@ export type ContentDraftSummary = {
     authorName: string | null;
     status: 'open' | 'written_back' | 'dismissed';
     prUrl: string | null;
+    writebackStatus: ContentAsCodeWritebackStatus | null;
+    // The repo moved past the upload snapshot the draft started from
+    stale: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
 
 export type ContentDraftReview = {
     summary: ContentDraftSummary;
+    filePath: string;
     publishedYaml: string;
     draftYaml: string;
+    staleness: ContentDraftStaleness | null;
+};
+
+export type ContentDraftRebaseRequest = {
+    resolutions: Record<string, ContentDraftFieldResolution>;
+};
+
+export type ApiContentDraftRebaseResponse = {
+    status: 'ok';
+    results: ContentDraftSummary;
+};
+
+export type ApiContentDraftStalenessResponse = {
+    status: 'ok';
+    results: ContentDraftStalenessDetails | null;
 };
 
 export type ApiContentDraftsResponse = {

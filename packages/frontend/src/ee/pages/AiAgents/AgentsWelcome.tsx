@@ -177,7 +177,7 @@ const AgentsWelcome = () => {
                         </Text>
                     </Stack>
 
-                    <Paper p="xl" shadow="subtle">
+                    <Paper p="xl">
                         <Stack>
                             <Title order={5}>
                                 What you can do with AI Agents:
@@ -227,7 +227,6 @@ const AgentsWelcome = () => {
                     <Paper
                         variant="dotted"
                         p="xl"
-                        shadow="subtle"
                         component={Stack}
                         gap="xxs"
                         align="center"

@@ -97,7 +97,7 @@ const OverflowTabsList: FC<Props> = ({ children, className, ...boxProps }) => {
                             <MantineIcon
                                 icon={IconChevronLeft}
                                 size={14}
-                                color="ldGray.6"
+                                color="dimmed"
                             />
                         </UnstyledButton>
                     </Box>
@@ -112,7 +112,7 @@ const OverflowTabsList: FC<Props> = ({ children, className, ...boxProps }) => {
                             <MantineIcon
                                 icon={IconChevronRight}
                                 size={14}
-                                color="ldGray.6"
+                                color="dimmed"
                             />
                         </UnstyledButton>
                     </Box>

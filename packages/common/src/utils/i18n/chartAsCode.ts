@@ -134,7 +134,7 @@ const chartAsCodeSchema = z.object({
             type: z.literal(ChartType.CUSTOM),
             config: z
                 .object({
-                    spec: z.record(z.unknown()).optional(),
+                    spec: z.record(z.string(), z.unknown()).optional(),
                 })
                 .nullable()
                 .optional()
@@ -152,7 +152,7 @@ export class ChartAsCodeInternalization extends AsCodeInternalization<
     }
 
     public getLanguageMap(chartAsCode: ChartAsCode) {
-        const languageMapSchema = this.schema.deepPartial().strip();
+        const languageMapSchema = this.schema.partial().strip();
         type ChartAsCodeLanguageMapEntry = z.infer<typeof languageMapSchema>;
 
         const parsedChartAsCode = languageMapSchema.safeParse(chartAsCode);

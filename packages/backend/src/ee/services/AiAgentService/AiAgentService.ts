@@ -213,6 +213,7 @@ import {
     searchRepoCode,
 } from '../../../clients/github/Github';
 import { type SlackClient } from '../../../clients/Slack/SlackClient';
+import { safeUrl } from '../../../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { isUniqueConstraintViolation } from '../../../database/errors';
 import Logger from '../../../logging/logger';
@@ -249,7 +250,10 @@ import { SavedChartService } from '../../../services/SavedChartsService/SavedCha
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
-import { UnfurlService } from '../../../services/UnfurlService/UnfurlService';
+import {
+    ScreenshotContext,
+    UnfurlService,
+} from '../../../services/UnfurlService/UnfurlService';
 import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
@@ -9451,6 +9455,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 appUuid,
                 version,
                 name: app.name,
+                slug: app.slug,
                 status: appVersion.status,
                 error: appVersion.error,
                 statusMessage: appVersion.status_message,
@@ -9550,12 +9555,26 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
         const { metadata } = outcome;
         if (metadata.status === 'success') {
+            const screenshotBlock = await this.tryBuildDataAppScreenshotBlock(
+                prompt,
+                metadata,
+            );
+            const isFirstVersion = metadata.version === 1;
+            const readyPhrase = isFirstVersion
+                ? `Your data app **${metadata.name}** is ready.`
+                : `Version ${metadata.version} of **${metadata.name}** is ready.`;
+            const readyText = isFirstVersion
+                ? `Your data app "${metadata.name}" is ready: ${metadata.href}`
+                : `Version ${metadata.version} of "${metadata.name}" is ready: ${metadata.href}`;
             await this.postOutcomeToSlack(
                 prompt,
-                getMarkdownBlocks(
-                    `:white_check_mark: Your data app **${metadata.name}** is ready — [Open it in the builder](${metadata.href})`,
-                ),
-                `Your data app "${metadata.name}" is ready: ${metadata.href}`,
+                [
+                    ...getMarkdownBlocks(
+                        `:white_check_mark: ${readyPhrase} [Open it in the builder](${metadata.href})`,
+                    ),
+                    ...(screenshotBlock ? [screenshotBlock] : []),
+                ],
+                readyText,
             );
             return;
         }
@@ -9565,6 +9584,72 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getMarkdownBlocks(`:x: ${text}`),
             text,
         );
+    }
+
+    private static readonly DATA_APP_SCREENSHOT_TIMEOUT_MS = 60_000;
+
+    // Renders as the prompt author, who owns the personal app the build
+    // created. Best-effort: undefined degrades to the text-only outcome.
+    private async tryBuildDataAppScreenshotBlock(
+        prompt: SlackPrompt,
+        metadata: { appUuid: string; name: string },
+    ): Promise<KnownBlock | undefined> {
+        const capture = async (): Promise<KnownBlock | undefined> => {
+            const { imageBuffer, imageUrl } =
+                await this.unfurlService.exportDataApp({
+                    projectUuid: prompt.projectUuid,
+                    appUuid: metadata.appUuid,
+                    appName: metadata.name,
+                    authUserUuid: prompt.createdByUserUuid,
+                    organizationUuid: prompt.organizationUuid,
+                    context: ScreenshotContext.SLACK,
+                    contextId: prompt.promptUuid,
+                });
+            const image = await this.slackClient.tryUploadingImageToSlack({
+                organizationUuid: prompt.organizationUuid,
+                imageUrl,
+                imageBuffer,
+                title: metadata.name,
+            });
+            if (!image) {
+                return undefined;
+            }
+            if (image.source === 'slackFile') {
+                return {
+                    type: 'image',
+                    slack_file: { id: image.fileId },
+                    alt_text: metadata.name,
+                };
+            }
+            const safeImageUrl = safeUrl(image.url);
+            if (!safeImageUrl) {
+                return undefined;
+            }
+            return {
+                type: 'image',
+                image_url: safeImageUrl,
+                alt_text: metadata.name,
+            };
+        };
+        try {
+            return await Promise.race([
+                capture(),
+                new Promise<undefined>((resolve) => {
+                    setTimeout(
+                        () => resolve(undefined),
+                        AiAgentService.DATA_APP_SCREENSHOT_TIMEOUT_MS,
+                    ).unref();
+                }),
+            ]);
+        } catch (error) {
+            this.logger.warn('Data app build outcome screenshot skipped', {
+                appUuid: metadata.appUuid,
+                promptUuid: prompt.promptUuid,
+                organizationUuid: prompt.organizationUuid,
+                error: getErrorMessage(error),
+            });
+            return undefined;
+        }
     }
 
     /**
@@ -10350,6 +10435,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findContent: toolsRuntime.findContent,
             readContent: toolsRuntime.readContent,
             generateDataApp: toolsRuntime.generateDataApp,
+            iterateDataApp: toolsRuntime.iterateDataApp,
             resolveUrl: toolsRuntime.resolveUrl,
             editContent: toolsRuntime.editContent,
             createContent: toolsRuntime.createContent,
@@ -10562,6 +10648,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findContent,
             readContent,
             generateDataApp,
+            iterateDataApp,
             resolveUrl,
             editContent,
             createContent,
@@ -11157,6 +11244,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findContent,
             readContent,
             generateDataApp,
+            iterateDataApp,
             resolveUrl,
             editContent,
             createContent,
@@ -12600,6 +12688,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 case 'syncDbtProject':
                     return 'Preparing the semantic-layer changes...';
                 case 'generateDataApp':
+                case 'iterateDataApp':
                     return 'Starting the data app build...';
                 case 'setupPreviewDeploy':
                     return 'Setting up the preview...';

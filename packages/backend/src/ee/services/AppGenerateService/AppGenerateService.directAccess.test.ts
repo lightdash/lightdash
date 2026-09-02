@@ -170,6 +170,7 @@ const buildService = (role: SpaceMemberRole) => {
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
     return { appModel, service, spacePermissionService, userModel };
 };

@@ -83,8 +83,8 @@ const LoadingSkeletonOverlay = ({
             gap="sm"
             style={{ zIndex: 1 }}
         >
-            {hasTitle && <Box h={28} style={{ flexShrink: 0 }} />}
-            <Box flex={1} mih={0} style={{ overflow: 'hidden' }}>
+            {hasTitle && <Box h={28} className="ld-shrink-0" />}
+            <Box flex={1} mih={0} className="ld-overflow-hidden">
                 {chartKind ? (
                     getSkeletonByChartKind(chartKind)
                 ) : (

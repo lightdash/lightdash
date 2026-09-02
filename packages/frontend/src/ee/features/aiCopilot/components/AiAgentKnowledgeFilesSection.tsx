@@ -332,7 +332,6 @@ export const AiAgentKnowledgeFilesSection = ({
 
             <Paper
                 p={0}
-                withBorder
                 variant={isLoading || isEmpty ? 'dotted' : undefined}
                 {...(!isEmpty && { h: 400 })}
             >
@@ -377,13 +376,10 @@ export const AiAgentKnowledgeFilesSection = ({
                         <ScrollArea
                             h="100%"
                             type="hover"
-                            style={{ flex: '1 1 70%', minWidth: 0 }}
+                            flex="1 1 70%"
+                            miw={0}
                         >
-                            <Table
-                                stickyHeader
-                                verticalSpacing="sm"
-                                highlightOnHover
-                            >
+                            <Table stickyHeader highlightOnHover>
                                 <Table.Thead>
                                     <Table.Tr>
                                         <Table.Th
@@ -447,13 +443,11 @@ export const AiAgentKnowledgeFilesSection = ({
                                             contextIndicator: (
                                                 <Badge
                                                     size="xs"
-                                                    variant="light"
                                                     color={
                                                         doc.alwaysIncludeInContext
                                                             ? 'violet'
                                                             : 'gray'
                                                     }
-                                                    tt="none"
                                                 >
                                                     {doc.alwaysIncludeInContext
                                                         ? 'Always included'
@@ -491,16 +485,12 @@ export const AiAgentKnowledgeFilesSection = ({
                                                                     IconFileText
                                                                 }
                                                                 color="dimmed"
-                                                                style={{
-                                                                    flexShrink: 0,
-                                                                }}
+                                                                className="ld-shrink-0"
                                                             />
                                                             <Stack
                                                                 gap={2}
-                                                                style={{
-                                                                    minWidth: 0,
-                                                                    flex: 1,
-                                                                }}
+                                                                miw={0}
+                                                                flex={1}
                                                             >
                                                                 <Text
                                                                     size="sm"
@@ -532,7 +522,6 @@ export const AiAgentKnowledgeFilesSection = ({
                         </ScrollArea>
                         {(selectedPending || selectedDocument) && (
                             <Paper
-                                withBorder
                                 m="-md"
                                 mr="-xxs"
                                 p="md"
@@ -547,7 +536,7 @@ export const AiAgentKnowledgeFilesSection = ({
                                         justify="space-between"
                                         wrap="nowrap"
                                     >
-                                        <Stack gap={2} style={{ minWidth: 0 }}>
+                                        <Stack gap={2} miw={0}>
                                             <Text size="sm" fw={600} truncate>
                                                 {selectedPending
                                                     ? selectedPending.name
@@ -567,10 +556,8 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 <Tooltip
                                                     label="View and edit document"
                                                     position="left"
-                                                    withArrow
                                                 >
                                                     <ActionIcon
-                                                        variant="subtle"
                                                         onClick={() =>
                                                             setViewingDocument(
                                                                 selectedDocument,
@@ -585,10 +572,8 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 <Tooltip
                                                     label="Delete document"
                                                     position="left"
-                                                    withArrow
                                                 >
                                                     <ActionIcon
-                                                        variant="subtle"
                                                         color="red"
                                                         loading={
                                                             deleteDocument.isLoading &&

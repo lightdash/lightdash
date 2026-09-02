@@ -9,6 +9,7 @@ import {
     ChartSummary,
     ChartType,
     ChartVersion,
+    computeContentDraftStaleness,
     ContentAsCodeType,
     ContentType,
     countCustomDimensionsInMetricQuery,
@@ -56,6 +57,7 @@ import {
     UpdateSavedChart,
     ViewStatistics,
     type ChartFieldUpdates,
+    type ContentDraftStaleness,
     type ContentVerificationInfo,
     type Explore,
     type ExploreError,
@@ -81,7 +83,12 @@ import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
 import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
-import { ContentDraftModel } from '../../models/ContentDraftModel';
+import {
+    ContentDraftModel,
+    pruneUnchangedDraftFields,
+    type ContentDraft,
+    type ContentDraftBase,
+} from '../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -100,6 +107,11 @@ import type {
 } from '../SoftDeletableService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
+import {
+    assertChartDraftOverlay,
+    mergeDraftIntoChart,
+    type ChartDraftOverlay,
+} from './chartDraftOverlay';
 
 type SavedChartServiceArguments = {
     analytics: LightdashAnalytics;
@@ -128,56 +140,6 @@ type SavedChartServiceArguments = {
 
 type ContentAsCodeDeleteOptions = SoftDeleteOptions & {
     contentAsCodePolicyChecked?: boolean;
-};
-
-type ChartDraftOverlay = Partial<
-    Pick<
-        SavedChartDAO,
-        | 'name'
-        | 'description'
-        | 'tableName'
-        | 'metricQuery'
-        | 'chartConfig'
-        | 'tableConfig'
-        | 'pivotConfig'
-        | 'parameters'
-        | 'merge'
-        | 'spaceUuid'
-    >
-> & { verified?: boolean };
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-    typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const assertChartDraftOverlay: (
-    draft: unknown,
-) => asserts draft is ChartDraftOverlay = (draft) => {
-    if (!isRecord(draft)) throw new Error('Chart draft must be an object');
-    const validators: Record<
-        keyof ChartDraftOverlay,
-        (value: unknown) => boolean
-    > = {
-        name: (value) => typeof value === 'string',
-        description: (value) => typeof value === 'string',
-        tableName: (value) => typeof value === 'string',
-        metricQuery: isRecord,
-        chartConfig: isRecord,
-        tableConfig: isRecord,
-        pivotConfig: isRecord,
-        parameters: isRecord,
-        merge: (value) => value === null || isRecord(value),
-        spaceUuid: (value) => typeof value === 'string',
-        verified: (value) => typeof value === 'boolean',
-    };
-    for (const [field, validate] of Object.entries(validators)) {
-        if (
-            Object.prototype.hasOwnProperty.call(draft, field) &&
-            draft[field] !== undefined &&
-            !validate(draft[field])
-        ) {
-            throw new Error(`Invalid chart draft field: ${field}`);
-        }
-    }
 };
 
 type GoogleSheetValidationOptions = {
@@ -764,42 +726,6 @@ export class SavedChartService
         );
     }
 
-    private static mergeDraftIntoChart<T extends SavedChartDAO>(
-        chart: T,
-        draft: unknown,
-    ): T {
-        assertChartDraftOverlay(draft);
-        return {
-            ...chart,
-            ...(draft.name !== undefined && { name: draft.name }),
-            ...(draft.description !== undefined && {
-                description: draft.description,
-            }),
-            ...(draft.tableName !== undefined && {
-                tableName: draft.tableName,
-            }),
-            ...(draft.metricQuery !== undefined && {
-                metricQuery: draft.metricQuery,
-            }),
-            ...(draft.chartConfig !== undefined && {
-                chartConfig: draft.chartConfig,
-            }),
-            ...(draft.tableConfig !== undefined && {
-                tableConfig: draft.tableConfig,
-            }),
-            ...(draft.pivotConfig !== undefined && {
-                pivotConfig: draft.pivotConfig,
-            }),
-            ...(draft.parameters !== undefined && {
-                parameters: draft.parameters,
-            }),
-            ...(draft.merge !== undefined && { merge: draft.merge }),
-            ...(draft.spaceUuid !== undefined && {
-                spaceUuid: draft.spaceUuid,
-            }),
-        };
-    }
-
     private async maybeStoreDraft(
         user: SessionUser,
         existingChart: SavedChartDAO | ChartSummary,
@@ -811,38 +737,34 @@ export class SavedChartService
         },
     ): Promise<SavedChart | undefined> {
         if (Object.keys(draftFields).length === 0) return undefined;
-        if (!(await this.shouldStoreDraft(user, existingChart))) {
-            return undefined;
-        }
+        const base = await this.resolveDraftBase(existingChart);
+        if (base === null) return undefined;
         return this.storeDraft(
             user,
             existingChart,
             draftFields,
             verificationAfterUpdate,
             spaceContext,
+            base,
         );
     }
 
-    private async shouldStoreDraft(
-        user: SessionUser,
+    // Every role drafts git-backed content; the repo is the only publisher.
+    // Null means the save publishes normally
+    private async resolveDraftBase(
         existingChart: Pick<SavedChartDAO, 'projectUuid' | 'slug'>,
-    ): Promise<boolean> {
+    ): Promise<ContentDraftBase | null> {
         const settings = await this.contentAsCodeProjectSettingsModel.get(
             existingChart.projectUuid,
         );
-        if (!settings?.syncEnabled) return false;
+        if (!settings?.syncEnabled) return null;
         const snapshot = await this.contentAsCodeSnapshotModel.get(
             existingChart.projectUuid,
             ContentAsCodeType.CHART,
             existingChart.slug,
         );
-        if (snapshot === undefined) return false;
-        if (
-            await this.canManageContentAsCode(user, existingChart.projectUuid)
-        ) {
-            return false;
-        }
-        return true;
+        if (snapshot === undefined) return null;
+        return { snapshot: snapshot.snapshot, hash: snapshot.snapshotHash };
     }
 
     private async storeDraft(
@@ -854,6 +776,7 @@ export class SavedChartService
             inheritsFromOrgOrProject: boolean;
             access: SpaceAccess[];
         },
+        base: ContentDraftBase,
     ): Promise<SavedChart> {
         assertChartDraftOverlay(draftFields);
         const stored = await this.contentDraftModel.upsertOpenDraft({
@@ -862,17 +785,15 @@ export class SavedChartService
             contentUuid: existingChart.uuid,
             slug: existingChart.slug,
             authorUserUuid: user.userUuid,
-            draft: draftFields,
+            draft: pruneUnchangedDraftFields(existingChart, draftFields),
+            base,
         });
         const chartForOverlay =
             'metricQuery' in existingChart
                 ? existingChart
                 : await this.savedChartModel.get(existingChart.uuid);
         return {
-            ...SavedChartService.mergeDraftIntoChart(
-                chartForOverlay,
-                stored.draft,
-            ),
+            ...mergeDraftIntoChart(chartForOverlay, stored.draft),
             verification: verificationAfterUpdate,
             ...spaceContext,
             hasUnpublishedChanges: true,
@@ -897,16 +818,18 @@ export class SavedChartService
             if (draft) {
                 try {
                     assertChartDraftOverlay(draft.draft);
+                    const draftStaleness = await this.getDraftStaleness(
+                        chart,
+                        draft,
+                    );
                     return {
-                        ...SavedChartService.mergeDraftIntoChart(
-                            chart,
-                            draft.draft,
-                        ),
+                        ...mergeDraftIntoChart(chart, draft.draft),
                         verification:
                             draft.draft.verified === false
                                 ? null
                                 : chart.verification,
                         hasUnpublishedChanges: true,
+                        ...(draftStaleness && { draftStaleness }),
                     };
                 } catch (error) {
                     this.logger.warn(
@@ -960,6 +883,28 @@ export class SavedChartService
             this.logger.warn('Chart draft overlay failed', error);
             return chart;
         }
+    }
+
+    private async getDraftStaleness(
+        chart: Pick<SavedChartDAO, 'projectUuid' | 'slug'>,
+        draft: ContentDraft,
+    ): Promise<ContentDraftStaleness | null> {
+        if (!draft.baseSnapshotHash) return null;
+        const current = await this.contentAsCodeSnapshotModel.get(
+            chart.projectUuid,
+            ContentAsCodeType.CHART,
+            chart.slug,
+        );
+        if (!current || current.snapshotHash === draft.baseSnapshotHash) {
+            return null;
+        }
+        return computeContentDraftStaleness({
+            draftUuid: draft.uuid,
+            contentType: 'chart',
+            base: draft.baseSnapshot,
+            current: current.snapshot,
+            overlay: draft.draft,
+        });
     }
 
     async createVersion(
@@ -1598,9 +1543,9 @@ export class SavedChartService
             }),
         );
 
-        const shouldStoreDraft = await Promise.all(
+        const draftBases = await Promise.all(
             chartSpaceContexts.map(({ existingChart }) =>
-                this.shouldStoreDraft(user, existingChart),
+                this.resolveDraftBase(existingChart),
             ),
         );
         // Draft upserts are idempotent and happen before the transactional
@@ -1610,9 +1555,11 @@ export class SavedChartService
                 async (
                     { chart, existingChart, spaceContexts, verification },
                     index,
-                ) =>
-                    shouldStoreDraft[index]
-                        ? this.storeDraft(
+                ) => {
+                    const base = draftBases[index];
+                    return base === null
+                        ? undefined
+                        : this.storeDraft(
                               user,
                               existingChart,
                               {
@@ -1622,13 +1569,14 @@ export class SavedChartService
                               },
                               verification,
                               spaceContexts[1],
-                          )
-                        : undefined,
+                              base,
+                          );
+                },
             ),
         );
 
         const directUpdates = data.filter(
-            (_chart, index) => !shouldStoreDraft[index],
+            (_chart, index) => draftBases[index] === null,
         );
         const savedChartsDaos =
             directUpdates.length > 0

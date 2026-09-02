@@ -89,7 +89,7 @@ const DeleteSpaceModalContent: FC<
                     />
                     <Text
                         size="sm"
-                        fw={700}
+                        fw={600}
                         c={softDeleteEnabled ? 'yellow.7' : 'red.7'}
                     >
                         {descendantCount} space
@@ -105,7 +105,7 @@ const DeleteSpaceModalContent: FC<
                     />
                     <Text
                         size="sm"
-                        fw={700}
+                        fw={600}
                         c={softDeleteEnabled ? 'yellow.7' : 'red.7'}
                     >
                         {impact.chartCount} chart
@@ -121,7 +121,7 @@ const DeleteSpaceModalContent: FC<
                     />
                     <Text
                         size="sm"
-                        fw={700}
+                        fw={600}
                         c={softDeleteEnabled ? 'yellow.7' : 'red.7'}
                     >
                         {impact.dashboardCount} dashboard
@@ -138,7 +138,7 @@ const DeleteSpaceModalContent: FC<
                         />
                         <Text
                             size="sm"
-                            fw={700}
+                            fw={600}
                             c={softDeleteEnabled ? 'yellow.7' : 'red.7'}
                         >
                             {impact.appCount} data app
@@ -181,7 +181,7 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
                 {softDeleteEnabled ? (
                     <>
                         Are you sure you want to delete the space{' '}
-                        <Text span fw={700} fz="sm">
+                        <Text span fw={600} fz="sm">
                             &ldquo;{data?.name}&rdquo;
                         </Text>
                         ?
@@ -189,7 +189,7 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
                 ) : (
                     <>
                         Are you sure you want to delete the space{' '}
-                        <Text span fw={700}>
+                        <Text span fw={600}>
                             &ldquo;{data?.name}&rdquo;
                         </Text>
                         ?

@@ -225,7 +225,7 @@ describe('useDataAppVizResolvedColors', () => {
         });
         expect(result.current.valueColors.orders_priority).toEqual({
             '1': '#ff0000',
-            null: '#868e96',
+            null: '#71717a',
         });
         expect(result.current.valueColors.orders_count).toBeUndefined();
     });

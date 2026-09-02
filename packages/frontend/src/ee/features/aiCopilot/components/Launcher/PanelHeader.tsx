@@ -125,8 +125,8 @@ export const PanelHeader: FC<Props> = ({
                                         >
                                             <Text
                                                 size="10px"
-                                                fw={700}
-                                                c="ldGray.6"
+                                                fw={600}
+                                                c="dimmed"
                                             >
                                                 AI
                                             </Text>
@@ -147,7 +147,7 @@ export const PanelHeader: FC<Props> = ({
                                     </Text>
                                     <MantineIcon
                                         icon={IconChevronDown}
-                                        color="ldGray.6"
+                                        color="dimmed"
                                         size={14}
                                     />
                                 </Group>
@@ -164,8 +164,8 @@ export const PanelHeader: FC<Props> = ({
                                         >
                                             <Text
                                                 size="9px"
-                                                fw={700}
-                                                c="ldGray.6"
+                                                fw={600}
+                                                c="dimmed"
                                             >
                                                 AI
                                             </Text>
@@ -209,7 +209,7 @@ export const PanelHeader: FC<Props> = ({
                     <Group gap="xs" wrap="nowrap" className={styles.minWidth0}>
                         {isAuto ? (
                             <Avatar size="sm" color="ldGray" radius="xl">
-                                <Text size="10px" fw={700} c="ldGray.6">
+                                <Text size="10px" fw={600} c="dimmed">
                                     AI
                                 </Text>
                             </Avatar>
@@ -232,8 +232,6 @@ export const PanelHeader: FC<Props> = ({
             </Group>
             <Group gap="xs" wrap="nowrap">
                 <ActionIcon
-                    variant="subtle"
-                    color="gray"
                     size="sm"
                     onClick={handleExpand}
                     disabled={!agent}
@@ -246,8 +244,6 @@ export const PanelHeader: FC<Props> = ({
                     />
                 </ActionIcon>
                 <ActionIcon
-                    variant="subtle"
-                    color="gray"
                     size="sm"
                     onClick={handleClose}
                     aria-label="Close panel"

@@ -38,9 +38,15 @@ const MAX_CHANGES = 50;
 /** A JSON-Schema-ish object; we only read top-level `properties` / `required`. */
 export interface JsonSchemaish {
     type?: string;
-    properties?: Record<string, { type?: string | string[] }>;
+    properties?: Record<string, JsonSchemaProperty>;
     required?: string[];
     [k: string]: unknown;
+}
+
+interface JsonSchemaProperty {
+    type?: string | string[];
+    anyOf?: JsonSchemaProperty[];
+    oneOf?: JsonSchemaProperty[];
 }
 
 export interface SnapshotTool {
@@ -58,7 +64,7 @@ export interface ToolsSnapshot {
 }
 
 function topLevel(schema: JsonSchemaish | null | undefined): {
-    properties: Record<string, { type?: string | string[] }>;
+    properties: Record<string, JsonSchemaProperty>;
     required: Set<string>;
 } {
     const properties = (schema && typeof schema === 'object' && schema.properties) || {};
@@ -68,9 +74,23 @@ function topLevel(schema: JsonSchemaish | null | undefined): {
     return { properties, required };
 }
 
-function typeLabel(t: string | string[] | undefined): string {
-    if (Array.isArray(t)) return t.join('|');
-    return t ?? 'unknown';
+function schemaTypes(schema: JsonSchemaProperty | undefined): string[] | null {
+    if (!schema) return null;
+    if (schema.type) {
+        return [...new Set(Array.isArray(schema.type) ? schema.type : [schema.type])].sort();
+    }
+
+    const alternatives = schema.anyOf ?? schema.oneOf;
+    if (!alternatives?.length) return null;
+
+    const alternativeTypes = alternatives.map(schemaTypes);
+    if (alternativeTypes.some((types) => types === null)) return null;
+
+    return [...new Set(alternativeTypes.flatMap((types) => types ?? []))].sort();
+}
+
+function typeLabel(schema: JsonSchemaProperty | undefined): string {
+    return schemaTypes(schema)?.join('|') ?? 'unknown';
 }
 
 /**
@@ -125,8 +145,8 @@ export function diffSnapshots(
             }
             // R4: input field type changed.
             if (inOld && inNew) {
-                const ot = typeLabel(oldIn.properties[prop]?.type);
-                const nt = typeLabel(newIn.properties[prop]?.type);
+                const ot = typeLabel(oldIn.properties[prop]);
+                const nt = typeLabel(newIn.properties[prop]);
                 if (ot !== nt) {
                     changes.push(`MCP tool \`${name}\`: input \`${prop}\` type changed ${ot} → ${nt}`);
                 }

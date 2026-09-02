@@ -1,6 +1,7 @@
 import {
     AllVizChartConfig,
     ConflictError,
+    ContentReviewContentType,
     CreateSqlChart,
     generateSlug,
     NotFoundError,
@@ -31,6 +32,7 @@ import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
+import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
 
 const isProjectSlugUniqueViolation = (error: unknown): boolean =>
     error instanceof DatabaseError &&
@@ -447,6 +449,11 @@ export class SavedSqlModel {
         if (updateCount !== 1) {
             throw new NotFoundError('Saved sql not found');
         }
+        await cancelPendingContentReviewRequests(
+            this.database,
+            ContentReviewContentType.SQL_CHART,
+            [savedSqlUuid],
+        );
     }
 
     async restore(savedSqlUuid: string): Promise<void> {

@@ -77,12 +77,12 @@ const FavoritePills: FC<{
                     <MantineIcon
                         icon={FAVORITE_ICONS[item.type] ?? IconChartBar}
                         size={15}
-                        color="ldGray.6"
+                        color="dimmed"
                     />
                     <TruncatedText
                         maxWidth={160}
                         inline
-                        fz={13}
+                        fz="sm"
                         fw={500}
                         c="inherit"
                     >

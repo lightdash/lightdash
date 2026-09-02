@@ -74,7 +74,6 @@ const TreeItem: React.FC<Props> = ({
             pr={withPadding ? 'xs' : undefined}
             radius="sm"
             withBorder={false}
-            shadow="none"
             wrap="nowrap"
             onClick={restricted ? undefined : onClick}
         >
@@ -92,7 +91,7 @@ const TreeItem: React.FC<Props> = ({
                     <MantineIcon
                         icon={expanded ? IconChevronDown : IconChevronRight}
                         size="lg"
-                        color="ldGray.6"
+                        color="dimmed"
                     />
                 </ActionIcon>
             )}
@@ -102,14 +101,14 @@ const TreeItem: React.FC<Props> = ({
                 color="ldGray.7"
                 size="lg"
                 stroke={1.5}
-                style={{ flexShrink: 0 }}
+                className="ld-shrink-0"
             />
 
             <Highlight
                 truncate="end"
                 fz={rem(13)}
                 fw={500}
-                style={{ flexGrow: 1 }}
+                className="ld-grow"
                 highlight={matchHighlights}
                 highlightStyles={{
                     backgroundColor: 'transparent',
@@ -124,7 +123,7 @@ const TreeItem: React.FC<Props> = ({
                     icon={IconCheck}
                     size="lg"
                     color="blue.6"
-                    style={{ flexShrink: 0 }}
+                    className="ld-shrink-0"
                 />
             )}
         </Paper>
@@ -135,7 +134,6 @@ const TreeItem: React.FC<Props> = ({
             <Tooltip
                 label="You do not have access to this space"
                 position="top-start"
-                withArrow
             >
                 {content}
             </Tooltip>

@@ -1,0 +1,8 @@
+.control {
+    font-weight: 500;
+    border-color: var(--mantine-color-default-border);
+}
+
+.control:not([data-active]):hover {
+    background-color: var(--mantine-color-default-hover);
+}

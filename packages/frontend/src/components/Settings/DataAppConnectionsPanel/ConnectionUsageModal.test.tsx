@@ -1,4 +1,5 @@
 import {
+    type EmbedProjectApp,
     type ExternalConnectionLinkedApps,
     type ExternalConnectionListItem,
 } from '@lightdash/common';
@@ -13,6 +14,21 @@ import { ConnectionUsageModal } from './ConnectionUsageModal';
 const mocks = vi.hoisted(() => ({
     data: { items: [], total: 0 } as ExternalConnectionLinkedApps,
     refetch: vi.fn(),
+    unlink: vi.fn(),
+    link: vi.fn(),
+    projectApps: [] as EmbedProjectApp[],
+    projectChartTypes: [] as EmbedProjectApp[],
+}));
+
+vi.mock('../../../features/apps/hooks/useProjectApps', () => ({
+    useProjectAppsByKind: (
+        _projectUuid: string,
+        kind: 'data_app' | 'project_chart_type',
+    ) => ({
+        data: kind === 'data_app' ? mocks.projectApps : mocks.projectChartTypes,
+        isLoading: false,
+        isError: false,
+    }),
 }));
 
 vi.mock(
@@ -23,6 +39,26 @@ vi.mock(
             isLoading: false,
             isError: false,
             refetch: mocks.refetch,
+        }),
+    }),
+);
+
+vi.mock(
+    '../../../features/externalConnections/hooks/useUnlinkAppExternalConnection',
+    () => ({
+        useUnlinkAppExternalConnection: () => ({
+            mutate: mocks.unlink,
+            isLoading: false,
+        }),
+    }),
+);
+
+vi.mock(
+    '../../../features/externalConnections/hooks/useLinkAppExternalConnection',
+    () => ({
+        useLinkAppExternalConnection: () => ({
+            mutate: mocks.link,
+            isLoading: false,
         }),
     }),
 );
@@ -94,6 +130,8 @@ describe('external connection usage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.data = { items: [], total: 0 };
+        mocks.projectApps = [];
+        mocks.projectChartTypes = [];
     });
 
     it('opens the usage modal from a zero count', () => {
@@ -107,7 +145,15 @@ describe('external connection usage', () => {
 
         expect(screen.getByRole('dialog')).toBeInTheDocument();
         expect(screen.getByText('Linked to “Example API”')).toBeInTheDocument();
-        expect(screen.getByText('No linked apps')).toBeInTheDocument();
+        expect(
+            screen.getByRole('tab', { name: 'Data apps (0)' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('tab', { name: 'Chart types (0)' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('textbox', { name: 'Link a data app' }),
+        ).toBeInTheDocument();
     });
 
     it('keeps chart-type-only usage visible and clickable', () => {
@@ -141,7 +187,7 @@ describe('external connection usage', () => {
         );
     });
 
-    it('groups data apps and chart types with their destination links', () => {
+    it('shows linked resources and confirms before unlinking every alias', () => {
         mocks.data = {
             items: [
                 {
@@ -175,11 +221,20 @@ describe('external connection usage', () => {
             />,
         );
 
-        expect(screen.getByText('Data apps')).toBeInTheDocument();
-        expect(screen.getByText('Chart types')).toBeInTheDocument();
+        expect(
+            screen.getByRole('tab', { name: 'Data apps (1)' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('tab', { name: 'Chart types (1)' }),
+        ).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: /Revenue dashboard/ }),
         ).toHaveAttribute('href', '/projects/project-uuid/apps/app-1');
+        expect(
+            screen.queryByRole('link', { name: /Region map/ }),
+        ).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('tab', { name: 'Chart types (1)' }));
         expect(
             screen.getByRole('link', { name: /Region map/ }),
         ).toHaveAttribute(
@@ -187,5 +242,134 @@ describe('external connection usage', () => {
             '/projects/project-uuid/chart-types/chart-type-1',
         );
         expect(screen.queryByText(/Aliases?:/)).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('tab', { name: 'Data apps (1)' }));
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Unlink Revenue dashboard',
+            }),
+        );
+
+        const confirmation = screen
+            .getByText('Unlink Example API?')
+            .closest('[role="dialog"]');
+        expect(confirmation).toHaveTextContent(
+            'Unlinking removes access to this connection.',
+        );
+        expect(confirmation).not.toHaveTextContent(
+            'You may not be able to link it again without help from a project admin.',
+        );
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Unlink connection' }),
+        );
+        expect(mocks.unlink).toHaveBeenCalledWith(
+            {
+                projectUuid: 'project-uuid',
+                appUuid: 'app-1',
+                aliases: ['acme', 'acme-v2'],
+                name: 'Example API',
+            },
+            expect.objectContaining({ onSuccess: expect.any(Function) }),
+        );
+    });
+
+    it('links an unlinked data app from the inline add row', () => {
+        mocks.data = {
+            items: [
+                {
+                    appUuid: 'app-1',
+                    name: 'Already linked',
+                    slug: 'already-linked',
+                    kind: 'data_app',
+                    spaceUuid: null,
+                    spaceName: null,
+                    aliases: ['example_api'],
+                },
+            ],
+            total: 1,
+        };
+        mocks.projectApps = [
+            {
+                appUuid: 'app-1',
+                name: 'Already linked',
+                slug: 'already-linked',
+            },
+            {
+                appUuid: 'app-2',
+                name: 'Revenue dashboard',
+                slug: 'revenue-dashboard',
+            },
+        ];
+        renderWithRouter(
+            <ConnectionUsageModal
+                opened
+                onClose={vi.fn()}
+                projectUuid="project-uuid"
+                connection={connection}
+            />,
+        );
+
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        expect(
+            screen.getByRole('link', { name: /Already linked/ }),
+        ).toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('textbox', { name: 'Link a data app' }),
+        );
+
+        expect(
+            screen.queryByRole('option', { name: /Already linked/ }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('option', {
+                name: 'Revenue dashboard · revenue-dashboard',
+            }),
+        );
+
+        expect(mocks.link).toHaveBeenCalledWith({
+            projectUuid: 'project-uuid',
+            appUuid: 'app-2',
+            appName: 'Revenue dashboard',
+            externalConnectionUuid: 'connection-uuid',
+            connectionName: 'Example API',
+        });
+    });
+
+    it('links an unlinked chart type from its tab', () => {
+        mocks.projectChartTypes = [
+            {
+                appUuid: 'chart-type-1',
+                name: 'Region map',
+                slug: 'region-map',
+            },
+        ];
+        renderWithRouter(
+            <ConnectionUsageModal
+                opened
+                onClose={vi.fn()}
+                projectUuid="project-uuid"
+                connection={connection}
+            />,
+        );
+
+        fireEvent.click(screen.getByRole('tab', { name: 'Chart types (0)' }));
+        fireEvent.click(
+            screen.getByRole('textbox', { name: 'Link a chart type' }),
+        );
+        fireEvent.click(
+            screen.getByRole('option', {
+                name: 'Region map · region-map',
+            }),
+        );
+
+        expect(mocks.link).toHaveBeenCalledWith({
+            projectUuid: 'project-uuid',
+            appUuid: 'chart-type-1',
+            appName: 'Region map',
+            externalConnectionUuid: 'connection-uuid',
+            connectionName: 'Example API',
+        });
     });
 });

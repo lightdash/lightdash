@@ -8,6 +8,7 @@ import {
     ChartSummary,
     ChartVersionSummary,
     ConflictError,
+    ContentReviewContentType,
     ContentType,
     CreateSavedChart,
     CreateSavedChartVersion,
@@ -106,6 +107,8 @@ import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
+import { dismissOpenContentDrafts } from './ContentDraftModel';
+import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
 
 type DbSavedChartDetails = {
@@ -1338,6 +1341,14 @@ export class SavedChartModel {
         await this.database(SavedChartsTableName)
             .delete()
             .where('saved_query_uuid', savedChartUuid);
+        await dismissOpenContentDrafts(this.database, 'chart', [
+            savedChartUuid,
+        ]);
+        await cancelPendingContentReviewRequests(
+            this.database,
+            ContentReviewContentType.CHART,
+            [savedChartUuid],
+        );
         return savedChart;
     }
 
@@ -1352,6 +1363,14 @@ export class SavedChartModel {
                 deleted_by_user_uuid: userUuid,
             })
             .where('saved_query_uuid', savedChartUuid);
+        await dismissOpenContentDrafts(this.database, 'chart', [
+            savedChartUuid,
+        ]);
+        await cancelPendingContentReviewRequests(
+            this.database,
+            ContentReviewContentType.CHART,
+            [savedChartUuid],
+        );
         return savedChart;
     }
 

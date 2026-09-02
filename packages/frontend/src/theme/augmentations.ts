@@ -1,25 +1,20 @@
-import type {
-    ButtonVariant,
-    DefaultMantineColor,
-    MantineColorsTuple,
-} from '@mantine/core';
+import type { DefaultMantineColor, MantineColorsTuple } from '@mantine/core';
 import type { LD_FIELD_COLORS } from './fieldColors';
 
 type ExtendedCustomColors =
+    | 'primary'
     | 'ldGray'
     | 'ldDark'
     | 'ldBrandGray'
     | 'ldBrandViolet'
+    | 'background'
+    | 'foreground'
     | DefaultMantineColor;
 
 declare module '@mantine/core' {
     export interface AccordionProps {
         // When true, the active item won't get the variant's filled background.
         transparentActiveItem?: boolean;
-    }
-
-    export interface ButtonProps {
-        variant?: ButtonVariant | 'compact-outline' | 'dark';
     }
 
     export interface PaperProps {

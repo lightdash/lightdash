@@ -114,8 +114,9 @@ describe('VersionHistoryPanel', () => {
             /\.entry\[data-active='true'\]\s*\{([^}]*)\}/s,
         )?.[1];
 
-        expect(activeEntryStyles).toContain('var(--mantine-color-ldGray-1)');
-        expect(activeEntryStyles).toContain('var(--mantine-color-dark-5)');
+        expect(activeEntryStyles).toContain(
+            'var(--mantine-color-default-hover)',
+        );
         expect(styles).not.toContain('ldBrandViolet');
     });
 

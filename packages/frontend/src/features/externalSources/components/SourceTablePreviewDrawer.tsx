@@ -98,9 +98,7 @@ export const SourceTablePreviewDrawer: FC<Props> = ({
                                 <Text fz="xs" c="dimmed">
                                     First {preview.sampleRows.length} rows
                                 </Text>
-                                <Badge variant="light" color="gray" size="xs">
-                                    Read only
-                                </Badge>
+                                <Badge size="xs">Read only</Badge>
                             </Group>
                             <ScrollArea type="auto">
                                 <LightTable

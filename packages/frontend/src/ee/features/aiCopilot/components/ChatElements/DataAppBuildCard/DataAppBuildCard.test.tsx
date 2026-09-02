@@ -1,10 +1,20 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { DataAppBuildCard } from './DataAppBuildCard';
 
 const noop = () => undefined;
+
+/** jsdom lays nothing out, so overflow has to be faked to test the clamp. */
+const mockSummaryOverflow = () => {
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(400);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(100);
+};
+
+afterEach(() => {
+    vi.restoreAllMocks();
+});
 
 describe('DataAppBuildCard', () => {
     it('queued: explains the wait and offers the builder', async () => {
@@ -115,6 +125,77 @@ describe('DataAppBuildCard', () => {
             />,
         );
         expect(screen.getByText('v3')).toBeVisible();
+    });
+
+    it('ready: renders the summary as markdown', () => {
+        renderWithProviders(
+            <DataAppBuildCard
+                state={{
+                    kind: 'ready',
+                    name: 'Weekly revenue by region',
+                    version: 1,
+                    durationMs: 372_000,
+                    completionMessage:
+                        'Built **five pages** from `src/App.jsx`.',
+                }}
+                compact={false}
+                isActive={false}
+                onOpenBuilder={noop}
+                onView={noop}
+            />,
+        );
+        expect(screen.getByText('five pages')).toHaveAttribute(
+            'data-streamdown',
+            'strong',
+        );
+        expect(screen.getByText('src/App.jsx')).toHaveAttribute(
+            'data-streamdown',
+            'inline-code',
+        );
+    });
+
+    it('ready: a long summary stays clamped until See more is clicked', async () => {
+        mockSummaryOverflow();
+        renderWithProviders(
+            <DataAppBuildCard
+                state={{
+                    kind: 'ready',
+                    name: 'Weekly revenue by region',
+                    version: 1,
+                    durationMs: 372_000,
+                    completionMessage: 'A very long summary. '.repeat(50),
+                }}
+                compact={false}
+                isActive={false}
+                onOpenBuilder={noop}
+                onView={noop}
+            />,
+        );
+        await userEvent.click(
+            await screen.findByRole('button', { name: 'See more' }),
+        );
+        expect(screen.getByRole('button', { name: 'See less' })).toBeVisible();
+    });
+
+    it('ready: a short summary has no See more button', () => {
+        renderWithProviders(
+            <DataAppBuildCard
+                state={{
+                    kind: 'ready',
+                    name: 'Weekly revenue by region',
+                    version: 1,
+                    durationMs: 372_000,
+                    completionMessage: 'Your app is ready.',
+                }}
+                compact={false}
+                isActive={false}
+                onOpenBuilder={noop}
+                onView={noop}
+            />,
+        );
+        expect(
+            screen.queryByRole('button', { name: 'See more' }),
+        ).not.toBeInTheDocument();
     });
 
     it('failed: shows the builder failure message and opens the builder', async () => {

@@ -5,24 +5,21 @@ import {
     type RoleLevel,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Anchor,
     Button,
-    CopyButton,
     SegmentedControl,
     Select,
     Stack,
     Text,
     TextInput,
-    Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconCheck, IconCopy, IconKey } from '@tabler/icons-react';
+import { IconKey } from '@tabler/icons-react';
 import { addDays } from 'date-fns';
 import { useMemo, type FC } from 'react';
 import { Link } from 'react-router';
 import Callout from '../../../components/common/Callout';
-import MantineIcon from '../../../components/common/MantineIcon';
+import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useProjects } from '../../../hooks/useProjects';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -358,28 +355,10 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
                         className="sentry-block ph-no-capture"
                         value={token}
                         rightSection={
-                            <CopyButton value={token}>
-                                {({ copied, copy }) => (
-                                    <Tooltip
-                                        label={copied ? 'Copied' : 'Copy'}
-                                        withArrow
-                                        position="right"
-                                    >
-                                        <ActionIcon
-                                            color={copied ? 'teal' : 'gray'}
-                                            onClick={copy}
-                                        >
-                                            <MantineIcon
-                                                icon={
-                                                    copied
-                                                        ? IconCheck
-                                                        : IconCopy
-                                                }
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                )}
-                            </CopyButton>
+                            <CopyActionIcon
+                                value={token}
+                                tooltipPosition="right"
+                            />
                         }
                     />
                     <Callout

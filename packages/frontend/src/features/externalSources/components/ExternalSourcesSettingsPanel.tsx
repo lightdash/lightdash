@@ -49,25 +49,13 @@ import { SourceTablePreviewDrawer } from './SourceTablePreviewDrawer';
 const StatusBadge: FC<{ source: ExternalSource }> = ({ source }) => {
     switch (source.status) {
         case ExternalSourceStatus.READY:
-            return (
-                <Badge variant="light" color="green">
-                    Ready
-                </Badge>
-            );
+            return <Badge color="green">Ready</Badge>;
         case ExternalSourceStatus.SYNCING:
         case ExternalSourceStatus.STAGED:
-            return (
-                <Badge variant="light" color="blue">
-                    Syncing
-                </Badge>
-            );
+            return <Badge color="blue">Syncing</Badge>;
         case ExternalSourceStatus.ERROR:
             return (
-                <Badge
-                    variant="light"
-                    color="red"
-                    title={source.errorMessage ?? undefined}
-                >
+                <Badge color="red" title={source.errorMessage ?? undefined}>
                     Error
                 </Badge>
             );
@@ -135,8 +123,8 @@ export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
                 />
             )}
             {sources.length > 0 && (
-                <Paper withBorder radius="md">
-                    <Table verticalSpacing="sm" horizontalSpacing="md">
+                <Paper radius="md">
+                    <Table>
                         <Table.Thead>
                             <Table.Tr>
                                 <Table.Th>Source</Table.Th>
@@ -194,8 +182,6 @@ export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
                                                 <Menu withArrow>
                                                     <Menu.Target>
                                                         <ActionIcon
-                                                            variant="subtle"
-                                                            color="gray"
                                                             aria-label={`Actions for ${label}`}
                                                         >
                                                             <MantineIcon

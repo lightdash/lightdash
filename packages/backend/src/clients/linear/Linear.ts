@@ -327,3 +327,34 @@ export const createLinearIssue = async (
 
     return data.issueCreate.issue;
 };
+
+export const linkLinearIssueUrl = async (
+    token: string,
+    input: {
+        issueId: string;
+        url: string;
+        title: string;
+    },
+): Promise<void> => {
+    const data = await linearGraphql<{
+        attachmentLinkURL: {
+            success: boolean;
+        };
+    }>(
+        token,
+        `mutation LinearAttachmentLinkURL($issueId: String!, $url: String!, $title: String) {
+            attachmentLinkURL(issueId: $issueId, url: $url, title: $title) {
+                success
+            }
+        }`,
+        {
+            issueId: input.issueId,
+            url: input.url,
+            title: input.title,
+        },
+    );
+
+    if (!data.attachmentLinkURL.success) {
+        throw new UnexpectedServerError('Failed to attach URL to Linear issue');
+    }
+};

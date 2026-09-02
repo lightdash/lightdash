@@ -94,7 +94,7 @@ const DatabricksSSOInput: FC<{
 
     if (disabled && disabledTooltip) {
         return (
-            <Tooltip label={disabledTooltip} withArrow>
+            <Tooltip label={disabledTooltip}>
                 <div>{button}</div>
             </Tooltip>
         );
@@ -208,7 +208,7 @@ const DatabricksForm: FC<{
 
     return (
         <>
-            <Stack style={{ marginTop: '8px' }}>
+            <Stack mt="xs">
                 <TextInput
                     name="warehouse.serverHostName"
                     {...form.getInputProps('warehouse.serverHostName')}
@@ -377,7 +377,7 @@ const DatabricksForm: FC<{
                     disabled={disabled}
                 />
                 <FormSection isOpen={isOpen} name="advanced">
-                    <Stack style={{ marginTop: '8px' }}>
+                    <Stack mt="xs">
                         <BooleanSwitch
                             name="warehouse.requireUserCredentials"
                             label="Require users to provide their own credentials"
@@ -411,9 +411,7 @@ const DatabricksForm: FC<{
                                             gap="xs"
                                         >
                                             <TextInput
-                                                style={{
-                                                    flexGrow: 1,
-                                                }}
+                                                className="ld-grow"
                                                 size="xs"
                                                 {...form.getInputProps(
                                                     `warehouse.compute.${index}.name`,
@@ -422,9 +420,7 @@ const DatabricksForm: FC<{
                                                 required
                                             />
                                             <TextInput
-                                                style={{
-                                                    flexGrow: 1,
-                                                }}
+                                                className="ld-grow"
                                                 size="xs"
                                                 {...form.getInputProps(
                                                     `warehouse.compute.${index}.httpPath`,
@@ -434,8 +430,6 @@ const DatabricksForm: FC<{
                                             />
                                             <Tooltip label="Remove compute">
                                                 <ActionIcon
-                                                    variant="subtle"
-                                                    color="gray"
                                                     size="sm"
                                                     onClick={() =>
                                                         removeCompute(index)

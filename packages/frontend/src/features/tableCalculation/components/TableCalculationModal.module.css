@@ -32,7 +32,6 @@
     border-radius: var(--mantine-radius-md);
 
     @mixin dark {
-        background-color: var(--mantine-color-ldDark-3);
         border-color: var(--mantine-color-ldDark-4);
     }
 }

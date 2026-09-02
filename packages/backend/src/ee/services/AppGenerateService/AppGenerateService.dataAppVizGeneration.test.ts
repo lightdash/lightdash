@@ -35,6 +35,7 @@ function buildService(
             created_by_user_uuid: 'user-1',
             space_uuid: null,
             design_uuid: null,
+            registry_slug: null,
         }),
         getLatestVersion: vi.fn().mockResolvedValue({
             version: 1,
@@ -98,6 +99,7 @@ function buildService(
         } as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
     // Bypass real CASL — the mapping/flow is what these tests cover.
     (
@@ -271,6 +273,39 @@ describe('AppGenerateService.iterateApp creation experience', () => {
                 }),
             }),
         );
+    });
+
+    it('forwards the AI-agent tool call correlation to the pipeline', async () => {
+        const { service, schedulerClient } = buildService();
+
+        await service.iterateApp(
+            USER,
+            'project-1',
+            'app-1',
+            'make the bars teal',
+            [],
+            undefined,
+            undefined,
+            undefined,
+            {
+                creationExperience: 'ai_agent',
+                aiAgentToolCall: {
+                    promptUuid: 'prompt-1',
+                    toolCallId: 'tool-call-1',
+                },
+            },
+        );
+
+        expect(
+            (schedulerClient.appGeneratePipeline as ReturnType<typeof vi.fn>)
+                .mock.calls[0][0],
+        ).toMatchObject({
+            isIteration: true,
+            aiAgentToolCall: {
+                promptUuid: 'prompt-1',
+                toolCallId: 'tool-call-1',
+            },
+        });
     });
 
     it('does not misclassify an older iteration caller', async () => {

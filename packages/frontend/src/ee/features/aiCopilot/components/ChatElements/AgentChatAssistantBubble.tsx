@@ -4,7 +4,7 @@ import {
     type AiMcpServer,
     isToolEditDbtProjectResult,
     isToolEditRepoResult,
-    isToolGenerateDataAppResult,
+    isToolDataAppBuildResult,
     isToolSetupPreviewDeployResult,
     type ToolEditDbtProjectOutput,
     type ToolEditRepoOutput,
@@ -16,7 +16,6 @@ import {
     Box,
     Button,
     Code,
-    CopyButton,
     Group,
     Paper,
     Popover,
@@ -28,8 +27,6 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconBug,
-    IconCheck,
-    IconCopy,
     IconExclamationCircle,
     IconMessageX,
     IconRefresh,
@@ -44,6 +41,7 @@ import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { type CustomRendererProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
+import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     useRetryAiAgentThreadMessageMutation,
@@ -558,10 +556,11 @@ const AssistantBubbleContent: FC<{
     const generateDataAppMetadata:
         | ToolGenerateDataAppOutput['metadata']
         | null = (() => {
-        const persisted = message.toolResults.find(isToolGenerateDataAppResult);
+        const persisted = message.toolResults.find(isToolDataAppBuildResult);
         if (persisted) return persisted.metadata;
         const liveOutput = findLiveToolPart(streamingState?.parts, [
             'generateDataApp',
+            'iterateDataApp',
         ])?.toolResult as ToolGenerateDataAppOutput | undefined;
         return liveOutput?.metadata ?? null;
     })();
@@ -569,13 +568,7 @@ const AssistantBubbleContent: FC<{
     return (
         <>
             {shouldShowRetry && (
-                <Paper
-                    variant="dotted"
-                    radius="md"
-                    pr="md"
-                    shadow="none"
-                    bg="ldGray.0"
-                >
+                <Paper variant="dotted" radius="md" pr="md" bg="ldGray.0">
                     <Group gap="xs" align="center" justify="space-between">
                         <Alert
                             icon={
@@ -587,7 +580,6 @@ const AssistantBubbleContent: FC<{
                             }
                             color="ldGray.0"
                             variant="outline"
-                            radius="md"
                             w="80%"
                         >
                             <Stack gap={4}>
@@ -1144,7 +1136,7 @@ export const AssistantBubble: FC<Props> = memo(
                     </Stack>
                 )}
                 {!popoverOpened && downVoted && message.humanFeedback && (
-                    <Paper p="xs" mt="xs" radius="md" withBorder>
+                    <Paper p="xs" mt="xs" radius="md">
                         <Stack gap="xs">
                             <Group gap="xs">
                                 <MantineIcon
@@ -1164,24 +1156,14 @@ export const AssistantBubble: FC<Props> = memo(
                 )}
                 {isLoading ? null : (
                     <Group gap={0}>
-                        <CopyButton value={message.message ?? ''}>
-                            {({ copied, copy }) => (
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="ldGray.9"
-                                    aria-label="copy"
-                                    onClick={copy}
-                                >
-                                    <MantineIcon
-                                        icon={copied ? IconCheck : IconCopy}
-                                    />
-                                </ActionIcon>
-                            )}
-                        </CopyButton>
+                        <CopyActionIcon
+                            value={message.message ?? ''}
+                            color="ldGray.9"
+                            aria-label="copy"
+                        />
 
                         {(!hasRating || upVoted) && (
                             <ActionIcon
-                                variant="subtle"
                                 color="ldGray.9"
                                 aria-label="upvote"
                                 onClick={handleUpvote}
@@ -1189,8 +1171,6 @@ export const AssistantBubble: FC<Props> = memo(
                                 <Tooltip
                                     label="Feedback sent"
                                     position="top"
-                                    withinPortal
-                                    withArrow
                                     // Hack to only render tooltip (on hover) when `hasRating` is false
                                     opened={hasRating ? undefined : false}
                                 >
@@ -1219,7 +1199,6 @@ export const AssistantBubble: FC<Props> = memo(
                             >
                                 <Popover.Target>
                                     <ActionIcon
-                                        variant="subtle"
                                         color="ldGray.9"
                                         aria-label="downvote"
                                         onClick={handleDownvote}
@@ -1255,7 +1234,6 @@ export const AssistantBubble: FC<Props> = memo(
                                                 }
                                                 minRows={3}
                                                 maxRows={5}
-                                                radius="md"
                                                 resize="vertical"
                                             />
                                             <Group gap="xs">
@@ -1286,7 +1264,6 @@ export const AssistantBubble: FC<Props> = memo(
                         {showAddToEvalsButton && onAddToEvals && (
                             <Tooltip label="Add this response to evals">
                                 <ActionIcon
-                                    variant="subtle"
                                     color="ldGray.9"
                                     aria-label="Add to evaluation set"
                                     onClick={() => onAddToEvals(message.uuid)}
@@ -1298,7 +1275,6 @@ export const AssistantBubble: FC<Props> = memo(
 
                         {isArtifactAvailable && (
                             <ActionIcon
-                                variant="subtle"
                                 color="ldGray.9"
                                 aria-label="Debug information"
                                 onClick={openDrawer}

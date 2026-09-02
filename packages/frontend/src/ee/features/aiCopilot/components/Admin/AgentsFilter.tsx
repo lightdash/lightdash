@@ -61,7 +61,7 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
                                 name={agent.name}
                                 src={agent.imageUrl}
                             />
-                            <Text fz="xs" c="ldGray.9" truncate>
+                            <Text fz="xs" truncate>
                                 {agent.name}
                             </Text>
                         </Group>

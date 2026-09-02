@@ -14,7 +14,7 @@ import { type FC } from 'react';
 import classes from './ErrorMessage.module.css';
 
 const CustomMark: FC<React.PropsWithChildren<{}>> = ({ children }) => (
-    <Mark color="gray" px={2} fw={500} fz={11} className={classes.mark}>
+    <Mark color="gray" px={2} fw={500} fz="xs" className={classes.mark}>
         {children}
     </Mark>
 );
@@ -28,7 +28,7 @@ const ErrorMessageByType: FC<{
             validationError.errorType === ValidationErrorType.ChartConfiguration
         ) {
             return (
-                <Text fz={11}>
+                <Text fz="xs">
                     <CustomMark>{validationError.fieldName}</CustomMark>
                     {': '}
                     {validationError.error}
@@ -38,7 +38,7 @@ const ErrorMessageByType: FC<{
         // Model-level errors: the whole model is gone or failed to compile
         if (validationError.errorType === ValidationErrorType.Model) {
             return (
-                <Text fz={11}>
+                <Text fz="xs">
                     Model <CustomMark>{validationError.tableName}</CustomMark>{' '}
                     {validationError.error.includes('failed to compile')
                         ? 'failed to compile'
@@ -47,7 +47,7 @@ const ErrorMessageByType: FC<{
             );
         }
         return (
-            <Text fz={11}>
+            <Text fz="xs">
                 <CustomMark>{validationError.fieldName}</CustomMark> no longer
                 exists
             </Text>
@@ -60,7 +60,7 @@ const ErrorMessageByType: FC<{
             switch (validationError.dashboardFilterErrorType) {
                 case DashboardFilterValidationErrorType.TableNotUsedByAnyChart:
                     return (
-                        <Text fz={11}>
+                        <Text fz="xs">
                             <CustomMark>{validationError.fieldName}</CustomMark>{' '}
                             references table{' '}
                             <CustomMark>{validationError.tableName}</CustomMark>{' '}
@@ -69,14 +69,14 @@ const ErrorMessageByType: FC<{
                     );
                 case DashboardFilterValidationErrorType.FieldDoesNotExist:
                     return (
-                        <Text fz={11}>
+                        <Text fz="xs">
                             <CustomMark>{validationError.fieldName}</CustomMark>{' '}
                             no longer exists
                         </Text>
                     );
                 case DashboardFilterValidationErrorType.TableDoesNotExist:
                     return (
-                        <Text fz={11}>
+                        <Text fz="xs">
                             Table{' '}
                             <CustomMark>{validationError.tableName}</CustomMark>{' '}
                             no longer exists
@@ -84,7 +84,7 @@ const ErrorMessageByType: FC<{
                     );
                 case DashboardFilterValidationErrorType.FieldTableMismatch:
                     return (
-                        <Text fz={11}>
+                        <Text fz="xs">
                             <CustomMark>{validationError.fieldName}</CustomMark>{' '}
                             does not match table{' '}
                             <CustomMark>{validationError.tableName}</CustomMark>
@@ -101,7 +101,7 @@ const ErrorMessageByType: FC<{
         // Handle broken chart errors
         if (validationError.chartName) {
             return (
-                <Text fz={11}>
+                <Text fz="xs">
                     <CustomMark>{validationError.chartName}</CustomMark> is
                     broken
                 </Text>
@@ -109,15 +109,15 @@ const ErrorMessageByType: FC<{
         }
 
         // Fallback for unexpected cases
-        return <Text fz={11}>{validationError.error}</Text>;
+        return <Text fz="xs">{validationError.error}</Text>;
     }
 
     if (isDataAppValidationError(validationError)) {
-        return <Text fz={11}>{validationError.error}</Text>;
+        return <Text fz="xs">{validationError.error}</Text>;
     }
 
     if (isTableValidationError(validationError) && validationError) {
-        return <Text fz={11}>{validationError.error}</Text>;
+        return <Text fz="xs">{validationError.error}</Text>;
     }
 
     return null;
@@ -132,7 +132,7 @@ export const ErrorMessage: FC<{ validationError: ValidationResponse }> = ({
 
     return (
         <Stack gap={4}>
-            <Text fw={600} c={isWarning ? 'orange.6' : 'red.6'} fz={10}>
+            <Text fw={600} c={isWarning ? 'orange.6' : 'red.6'} fz="xs">
                 {validationError.errorType
                     ? friendlyName(validationError.errorType)
                     : ''}{' '}

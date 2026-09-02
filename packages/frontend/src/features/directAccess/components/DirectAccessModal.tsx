@@ -113,18 +113,18 @@ const AssignmentRow: FC<AssignmentRowProps> = ({
                     <Text fw={600} fz="sm" truncate>
                         {isUser ? userDisplayName(principal) : principal.name}
                         {isSelf ? (
-                            <Text fw={400} fz="sm" span c="ldGray.6">
+                            <Text fw={400} fz="sm" span c="dimmed">
                                 {' '}
                                 (you)
                             </Text>
                         ) : null}
                     </Text>
                     {isUser && principal.email ? (
-                        <Text fz="xs" c="ldGray.6" truncate>
+                        <Text fz="xs" c="dimmed" truncate>
                             {principal.email}
                         </Text>
                     ) : (
-                        <Text fz="xs" c="ldGray.6">
+                        <Text fz="xs" c="dimmed">
                             {isUser ? 'User' : 'Group'}
                         </Text>
                     )}
@@ -148,9 +148,8 @@ const AssignmentRow: FC<AssignmentRowProps> = ({
                         }
                     }}
                 />
-                <Tooltip label="Remove access" withArrow>
+                <Tooltip label="Remove access">
                     <ActionIcon
-                        variant="subtle"
                         color="red"
                         aria-label={`Remove access for ${
                             isUser ? userDisplayName(principal) : principal.name
@@ -431,7 +430,7 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
                             </Stack>
                         </Callout>
                     ) : assignments.length === 0 ? (
-                        <Text fz="sm" c="ldGray.6" ta="center" py="md">
+                        <Text fz="sm" c="dimmed" ta="center" py="md">
                             {resource.resourceType ===
                             DirectAccessResourceType.APP
                                 ? 'Not shared with anyone yet.'

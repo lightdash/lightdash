@@ -114,9 +114,7 @@ const DbtSourceRow: FC<{
                 </Text>
                 {source.hasCredentialError && (
                     <Tooltip
-                        multiline
                         w={260}
-                        withinPortal
                         label="Connection could not be loaded — remove and add it again"
                     >
                         <MantineIcon
@@ -131,13 +129,9 @@ const DbtSourceRow: FC<{
                 {sourceIdentity(source)}
             </Text>
         </div>
-        <Menu withinPortal position="bottom-end" shadow="md">
+        <Menu position="bottom-end">
             <Menu.Target>
-                <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    aria-label={`Actions for ${source.name}`}
-                >
+                <ActionIcon aria-label={`Actions for ${source.name}`}>
                     <MantineIcon icon={IconDots} />
                 </ActionIcon>
             </Menu.Target>
@@ -444,37 +438,19 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     );
 
     return (
-        <Card
-            withBorder
-            shadow="xs"
-            padding="lg"
-            radius="md"
-            className={classes.panel}
-        >
-            <Badge
-                className={classes.beta}
-                variant="light"
-                color="violet"
-                size="sm"
-            >
+        <Card shadow="xs" padding="lg" radius="md" className={classes.panel}>
+            <Badge className={classes.beta} color="violet" size="sm">
                 Beta
             </Badge>
             <Stack gap="md">
                 <Group gap={6}>
                     <Title order={5}>dbt sources</Title>
                     <Tooltip
-                        multiline
                         w={300}
-                        withinPortal
                         position="right"
                         label="Merge models from other git-backed dbt projects. They're combined with this project's dbt connection on every deploy. If a model or metric name exists in more than one source, each one is renamed to <source>__<name>."
                     >
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            size="sm"
-                            aria-label="About dbt sources"
-                        >
+                        <ActionIcon size="sm" aria-label="About dbt sources">
                             <MantineIcon icon={IconInfoCircle} />
                         </ActionIcon>
                     </Tooltip>

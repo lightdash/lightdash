@@ -225,7 +225,7 @@ const EditConnectionModalContent: FC<Props> = ({
 
                     <Tabs.Panel value="instructions">
                         <Stack gap="sm">
-                            <Text c="ldGray.6" fz="sm">
+                            <Text c="dimmed" fz="sm">
                                 Notes on how apps should use this API — auth
                                 quirks, pagination, which endpoints matter,
                                 response caveats. Passed to the app builder when
@@ -244,11 +244,12 @@ const EditConnectionModalContent: FC<Props> = ({
                         </Stack>
                     </Tabs.Panel>
 
-                    <Tabs.Panel value="examples">
+                    <Tabs.Panel value="examples" keepMounted>
                         <ConnectionExamplesPanel
                             projectUuid={projectUuid}
                             connection={connection}
                             config={draftConfig}
+                            configFingerprint={draftConfigFingerprint}
                             hasUnsavedChanges={form.isDirty()}
                             isSampleQueued={validPendingSample !== null}
                             onQueueSample={(sample) =>

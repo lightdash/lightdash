@@ -30,6 +30,7 @@ import {
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
+import { ReviewRequestsMenuItem } from '../../ee/features/contentReview';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
@@ -119,7 +120,6 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
     return (
         <Menu
             withArrow
-            shadow="lg"
             position="bottom-start"
             arrowOffset={16}
             offset={-2}
@@ -137,7 +137,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     size="xs"
                     fz="sm"
                     leftSection={
-                        <MantineIcon color="ldGray.6" icon={IconCategory} />
+                        <MantineIcon color="dimmed" icon={IconCategory} />
                     }
                 >
                     Browse
@@ -193,6 +193,8 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     <MetricsLink projectUuid={projectUuid} asMenu />
                 )}
 
+                <ReviewRequestsMenuItem projectUuid={projectUuid} />
+
                 {hasFavorites ? (
                     <>
                         <Menu.Divider />
@@ -247,7 +249,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                 Spaces
                             </Text>
                             <MantineIcon
-                                color="ldGray.6"
+                                color="dimmed"
                                 size={14}
                                 icon={
                                     spacesExpanded

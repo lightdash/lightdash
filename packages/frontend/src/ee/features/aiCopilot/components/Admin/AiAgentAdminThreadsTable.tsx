@@ -248,7 +248,7 @@ const AiAgentAdminThreadsTable = ({
             size: 300,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconTextCaption} color="ldGray.6" />
+                    <MantineIcon icon={IconTextCaption} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -257,10 +257,8 @@ const AiAgentAdminThreadsTable = ({
                 const thread = row.original;
                 return (
                     <Tooltip
-                        withinPortal
                         label={thread.title || 'Untitled Thread'}
                         disabled={!isTruncated.isTruncated}
-                        multiline
                         maw={300}
                     >
                         <Text fw={500} fz="sm" truncate ref={isTruncated.ref}>
@@ -278,7 +276,7 @@ const AiAgentAdminThreadsTable = ({
             size: 170,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconRobotFace} color="ldGray.6" />
+                    <MantineIcon icon={IconRobotFace} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -299,7 +297,7 @@ const AiAgentAdminThreadsTable = ({
             enableEditing: false,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconBox} color="ldGray.6" />
+                    <MantineIcon icon={IconBox} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -307,7 +305,7 @@ const AiAgentAdminThreadsTable = ({
                 const thread = row.original;
 
                 return (
-                    <Text c="ldGray.9" fz="sm" fw={400}>
+                    <Text fz="sm" fw={400}>
                         {thread.project.name}
                     </Text>
                 );
@@ -320,15 +318,15 @@ const AiAgentAdminThreadsTable = ({
             enableEditing: false,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconUser} color="ldGray.6" />
+                    <MantineIcon icon={IconUser} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
             Cell: ({ row }) => {
                 const thread = row.original;
                 return (
-                    <Tooltip withinPortal label={thread.user.email}>
-                        <Text c="ldGray.9" fz="sm" fw={400}>
+                    <Tooltip label={thread.user.email}>
+                        <Text fz="sm" fw={400}>
                             {thread.user.name}
                         </Text>
                     </Tooltip>
@@ -343,7 +341,7 @@ const AiAgentAdminThreadsTable = ({
             size: 120,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconRadar} color="ldGray.6" />
+                    <MantineIcon icon={IconRadar} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -408,7 +406,7 @@ const AiAgentAdminThreadsTable = ({
             size: 125,
             Header: ({ column }) => (
                 <Group gap="two" wrap="nowrap">
-                    <MantineIcon icon={IconMessages} color="ldGray.6" />
+                    <MantineIcon icon={IconMessages} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -425,7 +423,7 @@ const AiAgentAdminThreadsTable = ({
             size: 140,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconClick} color="ldGray.6" />
+                    <MantineIcon icon={IconClick} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -438,7 +436,7 @@ const AiAgentAdminThreadsTable = ({
                         feedbackSummary.downvotes === 0 ? (
                             <MantineIcon
                                 icon={IconCircleDotted}
-                                color="ldGray.6"
+                                color="dimmed"
                             />
                         ) : (
                             <Group gap="sm">
@@ -489,10 +487,7 @@ const AiAgentAdminThreadsTable = ({
             size: 240,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon
-                        icon={IconMessageCircleStar}
-                        color="ldGray.6"
-                    />
+                    <MantineIcon icon={IconMessageCircleStar} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -522,14 +517,13 @@ const AiAgentAdminThreadsTable = ({
                 return (
                     <Stack gap={4} miw={0}>
                         <Group gap={6} wrap="nowrap">
-                            <Badge variant="light" color="violet">
+                            <Badge color="violet">
                                 {summary.findingCount}{' '}
                                 {summary.findingCount === 1
                                     ? 'finding'
                                     : 'findings'}
                             </Badge>
                             <Badge
-                                variant="light"
                                 color={
                                     threadReviewStatusColors[
                                         latestReviewItem.status
@@ -558,7 +552,7 @@ const AiAgentAdminThreadsTable = ({
                                     ]
                                 }
                             />
-                            <Text fz="xs" c="ldGray.6" lineClamp={1}>
+                            <Text fz="xs" c="dimmed" lineClamp={1}>
                                 {headline}
                             </Text>
                         </Group>
@@ -573,7 +567,7 @@ const AiAgentAdminThreadsTable = ({
             enableEditing: false,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconClock} color="ldGray.6" />
+                    <MantineIcon icon={IconClock} color="dimmed" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -764,7 +758,7 @@ const AiAgentAdminThreadsTable = ({
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}
                         </Text>
-                        <Text fz="xs" fw={400} c="ldGray.6">
+                        <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
                                 ? `(${flatData.length} of ${totalResults} loaded)`
                                 : `(${flatData.length})`}
@@ -797,14 +791,8 @@ const AiAgentAdminThreadsTable = ({
             return (
                 <Group gap={0} wrap="nowrap">
                     {isThreadDumpEnabled && (
-                        <Tooltip
-                            label="Download debug dump"
-                            openDelay={300}
-                            withinPortal
-                        >
+                        <Tooltip label="Download debug dump" openDelay={300}>
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 aria-label="Download debug dump"
                                 loading={
                                     isDownloadingThreadDump &&
@@ -819,10 +807,8 @@ const AiAgentAdminThreadsTable = ({
                             </ActionIcon>
                         </Tooltip>
                     )}
-                    <Tooltip label="Delete thread" openDelay={300} withinPortal>
+                    <Tooltip label="Delete thread" openDelay={300}>
                         <ActionIcon
-                            variant="subtle"
-                            color="gray"
                             aria-label="Delete thread"
                             onClick={(e) => {
                                 e.stopPropagation();

@@ -2,7 +2,6 @@ import {
     AI_DEFAULT_MAX_QUERY_LIMIT,
     applyDimensionOverrides,
     assertUnreachable,
-    CreateSchedulerAndTargets,
     ForbiddenError,
     hasAiAgentAccessToSpace,
     hasSchedulerUuid,
@@ -14,6 +13,7 @@ import {
     QueryExecutionContext,
     SchedulerAiAugmentation,
     SchedulerAndTargets,
+    SendNowScheduler,
     SessionUser,
     type Account,
     type DashboardDAO,
@@ -215,7 +215,7 @@ export class SchedulerAiAugmentationService {
         createdBy,
         deliveryQueries,
     }: {
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets;
+        scheduler: SchedulerAndTargets | SendNowScheduler;
         createdBy: string;
         deliveryQueries?: SchedulerDeliveryQuery[];
     }): Promise<string | null> {
@@ -283,7 +283,7 @@ export class SchedulerAiAugmentationService {
     // before the org lost copilot (or via an older client) must not keep
     // running the ambient model.
     private async runFastModelForDelivery(
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        scheduler: SchedulerAndTargets | SendNowScheduler,
         createdBy: string,
         prompt: string,
         deliveryQueries: SchedulerDeliveryQuery[] | undefined,
@@ -332,7 +332,7 @@ export class SchedulerAiAugmentationService {
         account: Account;
         projectUuid: string;
         dashboard: DashboardDAO | null;
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets;
+        scheduler: SchedulerAndTargets | SendNowScheduler;
         deliveryQueries: SchedulerDeliveryQuery[] | undefined;
     }): Promise<string> {
         if (deliveryQueries && deliveryQueries.length > 0) {
@@ -387,7 +387,7 @@ export class SchedulerAiAugmentationService {
     // summarises what the delivery renders (image/PDF formats).
     private async getChartDeliveryContent(
         account: Account,
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        scheduler: SchedulerAndTargets | SendNowScheduler,
         projectUuid: string,
     ): Promise<string> {
         if (!scheduler.savedChartUuid) return '';
@@ -422,7 +422,7 @@ export class SchedulerAiAugmentationService {
     private async getDashboardDeliveryContent(
         account: Account,
         dashboard: DashboardDAO,
-        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        scheduler: SchedulerAndTargets | SendNowScheduler,
     ): Promise<string> {
         const dashboardFilters = dashboard.filters;
         const schedulerFilters = isDashboardScheduler(scheduler)
@@ -441,7 +441,7 @@ export class SchedulerAiAugmentationService {
         };
 
         const selectedTabs = isDashboardScheduler(scheduler)
-            ? scheduler.selectedTabs
+            ? (scheduler.selectedTabs ?? null)
             : null;
         const chartTiles = dashboard.tiles
             .filter(isDashboardChartTileType)

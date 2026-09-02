@@ -183,7 +183,7 @@ export const ExploreErrorState = ({
         title="Error loading results"
         description={
             <Fragment>
-                <Text style={{ whiteSpace: 'pre-wrap' }}>
+                <Text className="ld-pre-wrap">
                     {errorDetail?.message ||
                         'There was an error loading the results'}
                 </Text>

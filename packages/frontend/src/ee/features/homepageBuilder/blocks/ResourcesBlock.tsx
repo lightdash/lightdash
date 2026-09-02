@@ -442,8 +442,6 @@ const BuildCard: FC<EditProps & { standalone: boolean }> = ({
                     onChange={(kind) => onPatch({ kind })}
                 />
                 <ActionIcon
-                    variant="subtle"
-                    color="ldGray.6"
                     size="sm"
                     aria-label={`Remove ${item.title}`}
                     onClick={onRemove}
@@ -502,8 +500,6 @@ const BuildTile: FC<EditProps> = ({ item, projectUuid, onPatch, onRemove }) => (
             <KindControl item={item} onChange={(kind) => onPatch({ kind })} />
         )}
         <ActionIcon
-            variant="subtle"
-            color="ldGray.6"
             size="sm"
             aria-label={`Remove ${item.title}`}
             onClick={onRemove}
@@ -718,7 +714,6 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
 
             <TextInput
                 size="sm"
-                radius="md"
                 placeholder="Paste a Claude artifact, YouTube, or any link…"
                 value={pasteValue}
                 onChange={(e) => setPasteValue(e.currentTarget.value)}
@@ -729,8 +724,6 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                     <Group gap={2} wrap="nowrap">
                         <Tooltip label="Add data app" openDelay={200}>
                             <ActionIcon
-                                variant="subtle"
-                                color="ldGray.6"
                                 size="sm"
                                 aria-label="Add data app"
                                 onClick={() => setIsAppPickerOpen(true)}
@@ -740,8 +733,6 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                         </Tooltip>
                         <Tooltip label="Add link" openDelay={200}>
                             <ActionIcon
-                                variant="subtle"
-                                color="ldGray.6"
                                 size="sm"
                                 aria-label="Add resource"
                                 onClick={() => startResolving(pasteValue)}

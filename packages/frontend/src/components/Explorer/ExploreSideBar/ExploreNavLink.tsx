@@ -92,13 +92,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
             role="listitem"
             disabled={isError}
             leftSection={
-                <Paper
-                    radius="sm"
-                    bg="ldGray.0"
-                    p={0}
-                    shadow="none"
-                    withBorder={false}
-                >
+                <Paper radius="sm" bg="ldGray.0" p={0} withBorder={false}>
                     <MantineIcon
                         icon={getExploreIcon(explore)}
                         size="md"
@@ -173,13 +167,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
     }
 
     return (
-        <HoverCard
-            withinPortal
-            position="right"
-            withArrow
-            radius="md"
-            shadow="sm"
-        >
+        <HoverCard position="right" withArrow>
             <HoverCard.Target>
                 <Box>{navLink}</Box>
             </HoverCard.Target>

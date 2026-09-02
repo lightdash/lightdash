@@ -16,6 +16,7 @@ const config: MobilePushNotificationsConfig = {
     teamId: 'TEAMID',
     sandbox: { keyId: 'SANDBOX', privateKey: 'sandbox-private-key' },
     production: { keyId: 'PRODUCTION', privateKey: 'production-private-key' },
+    fcm: undefined,
 };
 
 const createClient = (response: { status: number; body?: string }) => {
@@ -236,6 +237,8 @@ describe('ApnsClient.sendLiveActivityStart', () => {
             agentUuid: '00000000-0000-0000-0000-000000000005',
             threadUuid: '00000000-0000-0000-0000-000000000006',
             promptUuid: '00000000-0000-0000-0000-000000000007',
+            agentName: 'Mobile Demo Agent',
+            taskSummary: 'Getting your Chrome usage stats',
         });
 
         await client.sendLiveActivityStart({
@@ -365,7 +368,7 @@ describe('buildLiveActivityPayload', () => {
 });
 
 describe('buildLiveActivityStartPayload', () => {
-    it('matches AgentRunActivityAttributes without private prompt content', () => {
+    it('matches AgentRunActivityAttributes with display context', () => {
         const payload = buildLiveActivityStartPayload({
             timestamp: new Date('2026-08-31T12:00:00.000Z'),
             staleAt: new Date('2026-08-31T12:05:00.000Z'),
@@ -375,6 +378,8 @@ describe('buildLiveActivityStartPayload', () => {
             agentUuid: 'agent-uuid',
             threadUuid: 'thread-uuid',
             promptUuid: 'prompt-uuid',
+            agentName: 'Mobile Demo Agent',
+            taskSummary: 'Getting your Chrome usage stats',
         });
 
         expect(payload).toEqual({
@@ -397,8 +402,8 @@ describe('buildLiveActivityStartPayload', () => {
                     agentUuid: 'agent-uuid',
                     threadUuid: 'thread-uuid',
                     promptUuid: 'prompt-uuid',
-                    agentName: 'Agent',
-                    taskSummary: null,
+                    agentName: 'Mobile Demo Agent',
+                    taskSummary: 'Getting your Chrome usage stats',
                 },
                 'input-push-token': 1,
                 alert: {
@@ -408,7 +413,45 @@ describe('buildLiveActivityStartPayload', () => {
             },
         });
         expect(JSON.stringify(payload)).not.toMatch(
-            /prompt text|answer text|dashboard|organization|customer|secret/i,
+            /answer text|dashboard|organization|customer|secret/i,
         );
+    });
+
+    it('limits display context to the text rendered by iOS', () => {
+        const payload = buildLiveActivityStartPayload({
+            timestamp: new Date('2026-08-31T12:00:00.000Z'),
+            staleAt: new Date('2026-08-31T12:05:00.000Z'),
+            liveActivityUuid: 'live-activity-uuid',
+            installationUuid: 'installation-uuid',
+            projectUuid: 'project-uuid',
+            agentUuid: 'agent-uuid',
+            threadUuid: 'thread-uuid',
+            promptUuid: 'prompt-uuid',
+            agentName: '  Mobile\n Demo   Agent  ',
+            taskSummary: `  ${'chrome usage '.repeat(40)}  `,
+        });
+
+        expect(payload.aps.attributes.agentName).toBe('Mobile Demo Agent');
+        expect(payload.aps.attributes.taskSummary).toBe(
+            'chrome usage chrome usage chrome usage chrome usage chrome…',
+        );
+    });
+
+    it('keeps the safe fallback when display context is empty', () => {
+        const payload = buildLiveActivityStartPayload({
+            timestamp: new Date('2026-08-31T12:00:00.000Z'),
+            staleAt: new Date('2026-08-31T12:05:00.000Z'),
+            liveActivityUuid: 'live-activity-uuid',
+            installationUuid: 'installation-uuid',
+            projectUuid: 'project-uuid',
+            agentUuid: 'agent-uuid',
+            threadUuid: 'thread-uuid',
+            promptUuid: 'prompt-uuid',
+            agentName: '   ',
+            taskSummary: '\n',
+        });
+
+        expect(payload.aps.attributes.agentName).toBeNull();
+        expect(payload.aps.attributes.taskSummary).toBeNull();
     });
 });

@@ -137,7 +137,7 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                                     user.isInternal,
                                 )}
                                 {isSessionUser ? (
-                                    <Text fw={400} fz="sm" span c="ldGray.6">
+                                    <Text fw={400} fz="sm" span c="dimmed">
                                         {' '}
                                         (you)
                                     </Text>
@@ -148,7 +148,6 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
 
                         <Badge
                             size="sm"
-                            variant="light"
                             color={`${roleColor}.${roleShade}`}
                             radius="xl"
                         >
@@ -168,7 +167,7 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                     hasPreviousPage={page > 1}
                     onNextPage={handleNextPage}
                     onPreviousPage={handlePreviousPage}
-                    style={{ alignSelf: 'flex-end' }}
+                    className="ld-self-end"
                 />
             )}
         </Stack>
@@ -545,7 +544,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
 
                                     {effectiveGroupsAccess.length > 0 && (
                                         <Stack gap="xs">
-                                            <Text fw={400} c="ldGray.6" fz="sm">
+                                            <Text fw={400} c="dimmed" fz="sm">
                                                 Groups
                                             </Text>
                                             <GroupsAccessList
@@ -567,7 +566,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                         <Stack gap="xs">
                                             <Text
                                                 fw={400}
-                                                c="ldGray.6"
+                                                c="dimmed"
                                                 fz="sm"
                                                 mt={
                                                     effectiveGroupsAccess.length >

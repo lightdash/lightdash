@@ -11,7 +11,6 @@ import {
     Badge,
     Box,
     Button,
-    CopyButton,
     Group,
     SegmentedControl,
     Stack,
@@ -25,8 +24,6 @@ import {
     IconAlertCircle,
     IconArrowUpRight,
     IconBrandGithub,
-    IconCheck,
-    IconCopy,
     IconFlag,
     IconGitPullRequest,
     IconLayoutKanban,
@@ -45,6 +42,7 @@ import {
     type ContentTableColumnDef,
     type ContentTableSortingState,
 } from '../../components/common/ContentTable';
+import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import FilterFacet from '../../components/common/FilterFacet';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -207,39 +205,12 @@ const RoadmapDetailsModal: FC<{
                                     <Text className={styles.detailTicketId}>
                                         {item.ticketId}
                                     </Text>
-                                    <CopyButton value={item.ticketId}>
-                                        {({ copied, copy }) => (
-                                            <Tooltip
-                                                label={
-                                                    copied
-                                                        ? 'Copied'
-                                                        : 'Copy ticket ID'
-                                                }
-                                                withArrow
-                                            >
-                                                <ActionIcon
-                                                    aria-label={
-                                                        copied
-                                                            ? 'Copied'
-                                                            : 'Copy ticket ID'
-                                                    }
-                                                    color="ldGray.6"
-                                                    onClick={copy}
-                                                    size="xs"
-                                                    variant="transparent"
-                                                >
-                                                    <MantineIcon
-                                                        icon={
-                                                            copied
-                                                                ? IconCheck
-                                                                : IconCopy
-                                                        }
-                                                        size={13}
-                                                    />
-                                                </ActionIcon>
-                                            </Tooltip>
-                                        )}
-                                    </CopyButton>
+                                    <CopyActionIcon
+                                        value={item.ticketId}
+                                        copyLabel="Copy ticket ID"
+                                        size="xs"
+                                        variant="transparent"
+                                    />
                                 </Group>
                             </RoadmapRailRow>
                             <RoadmapRailRow label="Created">
@@ -328,12 +299,10 @@ const RoadmapColumn: FC<{
                     bg={`${color}.5`}
                     className={styles.statusDot}
                 />
-                <Text fz="sm" fw={650}>
+                <Text fz="sm" fw={600}>
                     {label}
                 </Text>
-                <Badge color="gray" variant="light" size="sm">
-                    {count}
-                </Badge>
+                <Badge size="sm">{count}</Badge>
                 {recencyLabel && (
                     <Text c="dimmed" fz="xs">
                         {recencyLabel}
@@ -375,7 +344,7 @@ const RoadmapColumn: FC<{
                                         gap="sm"
                                         wrap="nowrap"
                                     >
-                                        <Text fw={550} fz="sm" lineClamp={3}>
+                                        <Text fw={500} fz="sm" lineClamp={3}>
                                             {item.title}
                                         </Text>
                                         <Text
@@ -402,7 +371,6 @@ const RoadmapColumn: FC<{
                                                 item.priority,
                                             )}
                                             size="xs"
-                                            variant="light"
                                         >
                                             {item.priority}
                                         </Badge>
@@ -417,9 +385,7 @@ const RoadmapColumn: FC<{
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             aria-label={`Open GitHub issue: ${item.title}`}
-                                                            color="gray"
                                                             size="sm"
-                                                            variant="subtle"
                                                             onClick={(event) =>
                                                                 event.stopPropagation()
                                                             }
@@ -442,9 +408,7 @@ const RoadmapColumn: FC<{
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             aria-label={`Open pull request: ${item.title}`}
-                                                            color="gray"
                                                             size="sm"
-                                                            variant="subtle"
                                                             onClick={(event) =>
                                                                 event.stopPropagation()
                                                             }
@@ -673,10 +637,7 @@ const RoadmapTable: FC<RoadmapTableProps> = ({
                 enableSorting: true,
                 sortDescFirst: false,
                 Cell: ({ row }) => (
-                    <Badge
-                        color={getStatusColor(row.original.status)}
-                        variant="light"
-                    >
+                    <Badge color={getStatusColor(row.original.status)}>
                         {row.original.status}
                     </Badge>
                 ),
@@ -688,10 +649,7 @@ const RoadmapTable: FC<RoadmapTableProps> = ({
                 enableSorting: true,
                 sortDescFirst: false,
                 Cell: ({ row }) => (
-                    <Badge
-                        color={getPriorityColor(row.original.priority)}
-                        variant="light"
-                    >
+                    <Badge color={getPriorityColor(row.original.priority)}>
                         {row.original.priority}
                     </Badge>
                 ),

@@ -1,10 +1,12 @@
 import {
+    DEFAULT_UI_STRINGS,
     formatDate,
     parseDate,
     TimeFrames,
     type LightdashProjectParameter,
     type ParametersValuesMap,
     type ParameterValue,
+    type UiStringResolver,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -39,6 +41,7 @@ type Props = {
     triggerClassName?: string;
     dropdownClassName?: string;
     shadowedReservedNames?: string[];
+    getUiString?: UiStringResolver;
 };
 
 const Parameter: FC<Props> = ({
@@ -56,11 +59,15 @@ const Parameter: FC<Props> = ({
     triggerClassName,
     dropdownClassName,
     shadowedReservedNames = [],
+    getUiString,
 }) => {
     const popoverId = useId();
     const isPopoverOpen = openPopoverId === popoverId;
 
     const displayLabel = parameter.label || paramKey;
+    const isLabel = getUiString
+        ? getUiString('parameters.is')
+        : DEFAULT_UI_STRINGS['parameters.is'];
 
     const displayValue = useMemo(() => {
         if (value === null || value === undefined || value === '') {
@@ -124,10 +131,8 @@ const Parameter: FC<Props> = ({
             onDismiss={handleClose}
             transitionProps={{ transition: 'pop-top-left' }}
             withArrow
-            shadow="md"
             offset={1}
             arrowOffset={14}
-            withinPortal
             classNames={{ dropdown: dropdownClassName }}
         >
             <Popover.Target>
@@ -135,9 +140,7 @@ const Parameter: FC<Props> = ({
                     label={parameter.description}
                     disabled={!parameter.description || isPopoverOpen}
                     position="top"
-                    withinPortal
                     maw={350}
-                    multiline
                 >
                     <Button
                         pos="relative"
@@ -174,9 +177,7 @@ const Parameter: FC<Props> = ({
                                     <ActionIcon
                                         onClick={handleClear}
                                         size="xs"
-                                        color="dark"
                                         radius="xl"
-                                        variant="subtle"
                                     >
                                         <MantineIcon size="sm" icon={IconX} />
                                     </ActionIcon>
@@ -196,8 +197,7 @@ const Parameter: FC<Props> = ({
                                     {displayLabel}
                                 </Text>
                                 <Text span c="gray.6">
-                                    {' '}
-                                    is{' '}
+                                    {` ${isLabel} `}
                                 </Text>
                                 <Text span>{displayValue}</Text>
                             </Text>

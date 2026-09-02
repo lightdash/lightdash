@@ -48,11 +48,8 @@ export const SqlEditorPreferencesPopover: FC = () => {
             opened={opened}
             onClose={() => setOpened(false)}
             withArrow
-            shadow="subtle"
-            radius="md"
             width={280}
             offset={10}
-            withinPortal
             disabled={isPopoverDisabled}
         >
             <Popover.Target>
@@ -85,7 +82,6 @@ export const SqlEditorPreferencesPopover: FC = () => {
 
                             <SegmentedControl
                                 size="xs"
-                                radius="md"
                                 data={[
                                     { label: 'Always', value: 'always' },
                                     { label: 'Never', value: 'never' },
@@ -105,7 +101,6 @@ export const SqlEditorPreferencesPopover: FC = () => {
                             </Text>
                             <SegmentedControl
                                 size="xs"
-                                radius="md"
                                 data={[
                                     { label: 'Uppercase', value: 'uppercase' },
                                     { label: 'Lowercase', value: 'lowercase' },

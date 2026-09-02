@@ -7,6 +7,7 @@ import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import {
     createBranch,
     createPullRequest,
+    findOpenPullRequestByHead,
     getFileContent,
     getLastCommit,
     updateFile,
@@ -44,6 +45,7 @@ vi.mock('../../clients/github/Github.ts', () => ({
         title: 'Adds custom metric',
         number: 1,
     }),
+    findOpenPullRequestByHead: vi.fn().mockResolvedValue(null),
     getOrRefreshToken: vi.fn().mockImplementation((token, refreshToken) => ({
         token,
         refreshToken,
@@ -121,6 +123,41 @@ describe('GitIntegrationService', () => {
             expect(updateFile.mock.calls[0][0].content).toEqual(
                 EXPECTED_SCHEMA_YML_WITH_CUSTOM_DIMENSION,
             );
+        });
+    });
+
+    describe('findOpenPullRequestForBranch', () => {
+        it('returns the open PR the provider has for the branch', async () => {
+            vi.mocked(findOpenPullRequestByHead).mockResolvedValueOnce({
+                number: 12,
+                url: 'https://example.com/pull/12',
+            });
+
+            await expect(
+                service.findOpenPullRequestForBranch(
+                    { ...user, organizationUuid: 'organizationUuid' },
+                    'projectUuid',
+                    'lightdash/write-back/host/slug',
+                ),
+            ).resolves.toEqual({
+                prNumber: 12,
+                prUrl: 'https://example.com/pull/12',
+            });
+            expect(findOpenPullRequestByHead).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    head: 'lightdash/write-back/host/slug',
+                }),
+            );
+        });
+
+        it('returns null when the branch has no open PR', async () => {
+            await expect(
+                service.findOpenPullRequestForBranch(
+                    { ...user, organizationUuid: 'organizationUuid' },
+                    'projectUuid',
+                    'lightdash/write-back/host/slug',
+                ),
+            ).resolves.toBeNull();
         });
     });
 

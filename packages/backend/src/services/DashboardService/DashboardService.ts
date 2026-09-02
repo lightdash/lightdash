@@ -4,6 +4,7 @@ import {
     assertRegisteredAccount,
     BulkActionable,
     canMutateVerifiedContent,
+    computeContentDraftStaleness,
     ContentAsCodeType,
     ContentType,
     CreateDashboard,
@@ -51,6 +52,7 @@ import {
     type ChartFieldUpdates,
     type ChartVersionDifference,
     type ChartVersionSummary,
+    type ContentDraftStaleness,
     type ContentVerificationInfo,
     type CreateDashboardSqlChartTile,
     type DashboardBasicDetailsWithTileTypes,
@@ -84,7 +86,9 @@ import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodePro
 import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
 import {
     ContentDraftModel,
+    pruneUnchangedDraftFields,
     type ContentDraft,
+    type ContentDraftBase,
 } from '../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -1797,52 +1801,50 @@ export class DashboardService
         };
     }
 
-    // Drafts mode: with content_as_code.sync on, a business user's save of
-    // GIT-BACKED content becomes an unpublished draft that only they see;
-    // reviewers later write it back to the repo. The published dashboard is
-    // untouched. Content never uploaded as code (no last-applied snapshot
-    // row) publishes normally — drafts exist to protect the repo contract,
-    // not to intercept every save in the project.
+    // Drafts mode: with content_as_code.sync on, every save of GIT-BACKED
+    // content becomes an unpublished draft that only its author sees, for
+    // any role; the repo is the only publisher, through a reviewed
+    // write-back and an upload. Content never uploaded as code (no
+    // last-applied snapshot row) publishes normally — drafts exist to
+    // protect the repo contract, not to intercept every save in the project.
     private async maybeStoreDraft(
         user: SessionUser,
         existingDashboardDao: DashboardDAO,
         dashboardFields: object,
     ): Promise<Dashboard | undefined> {
-        if (!(await this.shouldStoreDraft(user, existingDashboardDao))) {
-            return undefined;
-        }
-        return this.storeDraft(user, existingDashboardDao, dashboardFields);
+        const base = await this.resolveDraftBase(existingDashboardDao);
+        if (base === null) return undefined;
+        return this.storeDraft(
+            user,
+            existingDashboardDao,
+            dashboardFields,
+            base,
+        );
     }
 
-    private async shouldStoreDraft(
-        user: SessionUser,
+    // The upload snapshot a draft starts from, or null when the save should
+    // publish normally
+    private async resolveDraftBase(
         existingDashboardDao: Pick<DashboardDAO, 'projectUuid' | 'slug'>,
-    ): Promise<boolean> {
+    ): Promise<ContentDraftBase | null> {
         const settings = await this.contentAsCodeProjectSettingsModel.get(
             existingDashboardDao.projectUuid,
         );
-        if (!settings?.syncEnabled) return false;
+        if (!settings?.syncEnabled) return null;
         const snapshot = await this.contentAsCodeSnapshotModel.get(
             existingDashboardDao.projectUuid,
             ContentAsCodeType.DASHBOARD,
             existingDashboardDao.slug,
         );
-        if (snapshot === undefined) return false;
-        if (
-            await this.canManageContentAsCode(
-                user,
-                existingDashboardDao.projectUuid,
-            )
-        ) {
-            return false;
-        }
-        return true;
+        if (snapshot === undefined) return null;
+        return { snapshot: snapshot.snapshot, hash: snapshot.snapshotHash };
     }
 
     private async storeDraft(
         user: SessionUser,
         existingDashboardDao: DashboardDAO,
         dashboardFields: object,
+        base: ContentDraftBase,
     ): Promise<Dashboard> {
         DashboardService.mergeDraftIntoDashboard(
             existingDashboardDao,
@@ -1854,7 +1856,11 @@ export class DashboardService
             contentUuid: existingDashboardDao.uuid,
             slug: existingDashboardDao.slug,
             authorUserUuid: user.userUuid,
-            draft: dashboardFields,
+            draft: pruneUnchangedDraftFields(
+                existingDashboardDao,
+                dashboardFields,
+            ),
+            base,
         });
         const overlaid = DashboardService.mergeDraftIntoDashboard(
             existingDashboardDao,
@@ -1889,12 +1895,18 @@ export class DashboardService
             );
             if (draft) {
                 try {
+                    const overlaid = DashboardService.mergeDraftIntoDashboard(
+                        dashboard,
+                        draft.draft,
+                    );
+                    const draftStaleness = await this.getDraftStaleness(
+                        dashboard,
+                        draft,
+                    );
                     return {
-                        ...DashboardService.mergeDraftIntoDashboard(
-                            dashboard,
-                            draft.draft,
-                        ),
+                        ...overlaid,
                         hasUnpublishedChanges: true,
+                        ...(draftStaleness && { draftStaleness }),
                     };
                 } catch (error) {
                     this.logger.warn(
@@ -1951,6 +1963,29 @@ export class DashboardService
             this.logger.warn('Draft overlay failed', error);
             return dashboard;
         }
+    }
+
+    // The repo moved past the snapshot the draft started from
+    private async getDraftStaleness(
+        dashboard: Pick<DashboardDAO, 'projectUuid' | 'slug'>,
+        draft: ContentDraft,
+    ): Promise<ContentDraftStaleness | null> {
+        if (!draft.baseSnapshotHash) return null;
+        const current = await this.contentAsCodeSnapshotModel.get(
+            dashboard.projectUuid,
+            ContentAsCodeType.DASHBOARD,
+            dashboard.slug,
+        );
+        if (!current || current.snapshotHash === draft.baseSnapshotHash) {
+            return null;
+        }
+        return computeContentDraftStaleness({
+            draftUuid: draft.uuid,
+            contentType: 'dashboard',
+            base: draft.baseSnapshot,
+            current: current.snapshot,
+            overlay: draft.draft,
+        });
     }
 
     async update(
@@ -2468,24 +2503,31 @@ export class DashboardService
             }),
         );
 
-        const shouldStoreDraft = await Promise.all(
+        const draftBases = await Promise.all(
             dashboardContexts.map(({ dashboard }) =>
-                this.shouldStoreDraft(user, dashboard),
+                this.resolveDraftBase(dashboard),
             ),
         );
         // Draft upserts are idempotent and happen before the transactional
         // published update, so a retry cannot duplicate or partially publish.
         const draftResults = await Promise.all(
             dashboardContexts.map(
-                async ({ dashboardToUpdate, dashboard }, index) =>
-                    shouldStoreDraft[index]
-                        ? this.storeDraft(user, dashboard, dashboardToUpdate)
-                        : undefined,
+                async ({ dashboardToUpdate, dashboard }, index) => {
+                    const base = draftBases[index];
+                    return base === null
+                        ? undefined
+                        : this.storeDraft(
+                              user,
+                              dashboard,
+                              dashboardToUpdate,
+                              base,
+                          );
+                },
             ),
         );
 
         const directUpdates = dashboards.filter(
-            (_dashboard, index) => !shouldStoreDraft[index],
+            (_dashboard, index) => draftBases[index] === null,
         );
         const updatedDashboards =
             directUpdates.length > 0

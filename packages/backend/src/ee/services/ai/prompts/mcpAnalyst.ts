@@ -28,6 +28,26 @@ Rules:
 - Page parameters are numbers — never \`NaN\` or \`"null"\`
 `;
 
+const SQL_ONLY_PROMPT = `# Lightdash MCP — SQL Runner Mode
+
+Governed metric execution (\`run_metric_query\`) is not available in this session, so the semantic layer cannot answer questions here. \`run_sql\` is the only way to execute queries.
+
+## Query Workflow
+
+0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool
+1. **Confirm the schema**: Semantic-layer discovery tools are not available in this session. If the user's request does not include the warehouse tables and columns you need, ask for the missing identifiers — never guess or invent them
+2. **Run queries**: Call \`run_sql\` with the raw SQL
+   - Defaults to 500 rows (max 5000) — use the \`limit\` parameter to control result size
+   - Use the SQL dialect appropriate for the connected warehouse
+3. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
+4. **Browse content**: Use \`list_content\` to browse accessible spaces and \`find_content\` to search dashboards, charts, and Data Apps — \`read_content\` returns definitions and links, not data values
+
+## Rules
+
+- When an answer depends on governed metric definitions, prefer linking the user to existing saved content over re-deriving the metric in SQL
+- Page parameters are numbers — never \`NaN\` or \`"null"\`
+`;
+
 const buildMcpAnalystPrompt = (
     runSqlEnabled: boolean,
 ): string => `# Lightdash MCP Tools — Usage Guidelines
@@ -52,6 +72,9 @@ ${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. **Get started with context**
 8. **Find content**: Use \`find_content\` to search for existing dashboards, charts, and Data Apps
 
 ## Critical Rules
+
+### Tool Catalogue
+- \`run_metric_query\` is registered for this session. If it is not in your catalogue, your client cached an outdated tool list — say so and ask the user to reconnect the connector${runSqlEnabled ? '; never substitute `run_sql` for it' : ''}
 
 ### Explore Selection
 - When the user's query contains a domain word matching an explore name, prefer that explore if \`grep_fields\` also surfaces relevant fields there
@@ -100,6 +123,9 @@ export const getMcpAnalystPrompt = (args?: {
     const runMetricQueryEnabled = args?.runMetricQueryEnabled ?? true;
     if (!runSqlEnabled && !runMetricQueryEnabled) {
         return CONTENT_ONLY_PROMPT;
+    }
+    if (!runMetricQueryEnabled) {
+        return SQL_ONLY_PROMPT;
     }
     return buildMcpAnalystPrompt(runSqlEnabled);
 };

@@ -134,7 +134,7 @@ export const SchedulerFormAiInput: FC<Props> = ({
             </Group>
             <Text
                 fz="xs"
-                c="ldGray.6"
+                c="dimmed"
                 mt={2}
                 className={bare ? undefined : classes.subtitle}
             >

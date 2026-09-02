@@ -7,7 +7,8 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import { Button, Group, Stack, Text, Textarea, TextInput } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
@@ -37,7 +38,7 @@ type Props = {
 type SaveToDashboardFormValues = { name: string; description: string };
 
 const validationSchema = z.object({
-    name: z.string().nonempty(),
+    name: z.string().min(1, 'Name is required'),
     description: z.string(),
 });
 
@@ -194,7 +195,7 @@ export const SaveToDashboard: FC<Props> = ({
                 </Stack>
                 <Stack gap={4}>
                     <Text fw={500}>Saving to "{dashboardName}" dashboard</Text>
-                    <Text fw={400} c="ldGray.6" fz="xs">
+                    <Text fw={400} c="dimmed" fz="xs">
                         This chart will be saved exclusively to the dashboard "
                         {dashboardName}", keeping your space clutter-free.
                     </Text>

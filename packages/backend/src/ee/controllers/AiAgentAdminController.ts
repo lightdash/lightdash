@@ -20,6 +20,7 @@ import {
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadDumpResponse,
     ApiAiOrganizationSettingsResponse,
+    ApiAiReviewLinearBackfillResponse,
     ApiAiReviewLinearDestinationResponse,
     ApiAiReviewLinearRoutingResponse,
     ApiAiReviewNotificationSettingsResponse,
@@ -1029,6 +1030,32 @@ export class AiAgentAdminController extends BaseController {
                 await this.getAiAgentAdminService().updateReviewLinearRouting(
                     toSessionUser(req.account),
                     body,
+                ),
+        };
+    }
+
+    /**
+     * Create Linear issues for existing open AI review findings
+     * @summary Backfill AI review Linear issues
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/review-linear-issues/backfill')
+    @OperationId('backfillAiReviewLinearIssues')
+    async backfillReviewLinearIssues(
+        @Request() req: express.Request,
+    ): Promise<ApiAiReviewLinearBackfillResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().backfillReviewLinearIssues(
+                    toSessionUser(req.account),
                 ),
         };
     }

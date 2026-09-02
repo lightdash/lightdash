@@ -199,7 +199,7 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
                     <Text fw={600} size="sm">
                         Type:
                     </Text>
-                    <Badge color="blue" variant="light">
+                    <Badge color="blue">
                         {formatTemplateType(template.type)}
                     </Badge>
                 </Group>
@@ -283,8 +283,6 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
                             />
                             <Tooltip label="Move up">
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
                                     disabled={index === 0}
                                     onClick={() => {
                                         const nextOrderBy = [...orderBy];
@@ -303,8 +301,6 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
                             </Tooltip>
                             <Tooltip label="Move down">
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
                                     disabled={index === orderBy.length - 1}
                                     onClick={() => {
                                         const nextOrderBy = [...orderBy];
@@ -323,8 +319,6 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
                             </Tooltip>
                             <Tooltip label="Remove sort">
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
                                     onClick={() =>
                                         handleOrderByChange(
                                             orderBy.filter(

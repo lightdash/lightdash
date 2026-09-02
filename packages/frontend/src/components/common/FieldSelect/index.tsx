@@ -11,6 +11,8 @@ import {
     type Item,
 } from '@lightdash/common';
 import {
+    Box,
+    CheckIcon,
     Group,
     Select,
     Text,
@@ -227,7 +229,7 @@ const FieldSelectComponent = <T extends Item = Item>({
     }, [sortedItems, hasGrouping, tableLabelMap, inactiveItemIds]);
 
     const renderOption = useCallback(
-        ({ option }: { option: ComboboxItem }) => {
+        ({ option, checked }: { option: ComboboxItem; checked?: boolean }) => {
             const fieldOption = option as FieldSelectItem;
             const fieldItem = fieldOption.item;
             return (
@@ -239,13 +241,12 @@ const FieldSelectComponent = <T extends Item = Item>({
                         </Text>
                     }
                     position="top"
-                    multiline
                     maw={400}
                     offset={-2}
                     openDelay={500}
                 >
                     <Group wrap="nowrap" gap={rest.size} maw="100%">
-                        <FieldIcon style={{ flexShrink: 0 }} item={fieldItem} />
+                        <FieldIcon className="ld-shrink-0" item={fieldItem} />
                         <Text
                             span
                             fz="xs"
@@ -254,6 +255,11 @@ const FieldSelectComponent = <T extends Item = Item>({
                         >
                             {fieldOption.label}
                         </Text>
+                        {checked && (
+                            <Box component="span" ml="auto" display="flex">
+                                <CheckIcon size={12} />
+                            </Box>
+                        )}
                     </Group>
                 </Tooltip>
             );

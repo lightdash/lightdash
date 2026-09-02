@@ -39,6 +39,7 @@ import {
     getErrorMessage,
     GoogleSheetsSyncAsCode,
     LightdashError,
+    normalizeContentAsCodePath,
     ParameterError,
     Project,
     PromotionAction,
@@ -48,9 +49,11 @@ import {
     SqlChartAsCode,
     validateDataAppDependencies,
     VirtualViewAsCode,
+    type ContentAsCodeSettingsStamp,
     type ContentAsCodeUploadAdvisory,
     type DashboardAsCodeUpsertResult,
     type DataAppCodeDownload,
+    type LightdashProjectConfig,
     type SpaceAsCode,
 } from '@lightdash/common';
 import { Dirent, promises as fs, type Stats } from 'fs';
@@ -482,6 +485,19 @@ const isLooseContentFile = (entry: Dirent) => {
     );
 };
 
+// The file's path relative to the project dir, posix; undefined outside it
+const sourceFilePath = (filePath: string): string | undefined => {
+    const relative = path.relative(process.cwd(), filePath);
+    if (
+        path.isAbsolute(relative) ||
+        relative === '..' ||
+        relative.startsWith(`..${path.sep}`)
+    ) {
+        return undefined;
+    }
+    return relative.split(path.sep).join('/');
+};
+
 const processYamlItem = <
     T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
 >(
@@ -490,6 +506,7 @@ const processYamlItem = <
     stats: Stats,
     folder: 'charts' | 'dashboards',
     metadata: LightdashMetadata,
+    filePath: string,
 ) => {
     if (hasUnsortedKeys(item)) {
         GlobalState.log(
@@ -517,6 +534,8 @@ const processYamlItem = <
         ...item,
         updatedAt: needsUpdating ? stats.mtime : item.updatedAt,
         needsUpdating: needsUpdating ?? true,
+        // Sent with the upsert so write-back returns to this file
+        filePath: sourceFilePath(filePath),
     };
 };
 
@@ -534,7 +553,7 @@ const loadYamlFile = async <
     ]);
 
     const item = yaml.load(fileContent) as T;
-    return processYamlItem(item, file.name, stats, folder, metadata);
+    return processYamlItem(item, file.name, stats, folder, metadata, filePath);
 };
 
 const readCodeFiles = async <
@@ -643,6 +662,7 @@ const readLooseCodeFiles = async (
                                 stats,
                                 'charts',
                                 metadata,
+                                filePath,
                             ),
                         );
                     } else if (
@@ -655,6 +675,7 @@ const readLooseCodeFiles = async (
                                 stats,
                                 'dashboards',
                                 metadata,
+                                filePath,
                             ),
                         );
                     } else if (contentType === ContentAsCodeTypeEnum.SPACE) {
@@ -2887,38 +2908,19 @@ export const downloadHandler = async (
 
 const storeUploadChanges = (
     changes: Record<string, number>,
+    type: 'charts' | 'dashboards',
     promoteChanges: PromotionChanges,
 ): Record<string, number> => {
-    const getPromoteChanges = (
-        resource: 'spaces' | 'charts' | 'dashboards',
-    ) => {
-        const promotions: { action: PromotionAction }[] =
-            promoteChanges[resource];
-        return promotions.reduce<Record<string, number>>(
-            (acc, promoteChange) => {
-                const action = getPromoteAction(promoteChange.action);
-                const key = `${resource} ${action}`;
-                acc[key] = (acc[key] ?? 0) + 1;
-                return acc;
-            },
-            {},
-        );
-    };
-
-    const updatedChanges: Record<string, number> = {
-        ...changes,
-    };
-
-    ['spaces', 'charts', 'dashboards'].forEach((resource) => {
-        const resourceChanges = getPromoteChanges(
-            resource as 'spaces' | 'charts' | 'dashboards',
-        );
-        Object.entries(resourceChanges).forEach(([key, value]) => {
-            updatedChanges[key] = (updatedChanges[key] ?? 0) + value;
-        });
-    });
-
-    return updatedChanges;
+    // The API also echoes untouched spaces and chart tiles; only count the uploaded type
+    const promotions: { action: PromotionAction }[] = promoteChanges[type];
+    return promotions.reduce<Record<string, number>>(
+        (acc, promoteChange) => {
+            const key = `${type} ${getPromoteAction(promoteChange.action)}`;
+            acc[key] = (acc[key] ?? 0) + 1;
+            return acc;
+        },
+        { ...changes },
+    );
 };
 
 const UPLOAD_CHANGE_SUFFIXES = [
@@ -3047,7 +3049,7 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
         );
 
         // Merge storeUploadChanges result into changes in-place
-        const updatedChanges = storeUploadChanges(changes, upsertData);
+        const updatedChanges = storeUploadChanges(changes, type, upsertData);
         Object.keys(updatedChanges).forEach((key) => {
             changes[key] = updatedChanges[key];
         });
@@ -3523,10 +3525,48 @@ const reportOpenDraftsForUpload = async (
     }
 };
 
+// null when the project dir has no lightdash.config.yml
+const readUploadProjectConfig =
+    async (): Promise<LightdashProjectConfig | null> => {
+        const configExists = await fs
+            .access(path.join(process.cwd(), 'lightdash.config.yml'))
+            .then(() => true)
+            .catch(() => false);
+        if (!configExists) return null;
+        try {
+            return await readAndLoadLightdashProjectConfig(process.cwd());
+        } catch (error) {
+            throw new LightdashError({
+                message: `Upload aborted: lightdash.config.yml exists but could not be read, so the repo's content_as_code settings cannot be honoured. Fix the config and retry. ${getErrorMessage(error)}`,
+                name: 'ParseError',
+                statusCode: 400,
+                data: {},
+            });
+        }
+    };
+
+// The stamped path is the uploaded directory relative to the project dir;
+// a directory outside it has no repo path to stamp
+const getStampedContentPath = (uploadRoot: string): string | undefined => {
+    const relative = path.relative(process.cwd(), uploadRoot);
+    if (
+        path.isAbsolute(relative) ||
+        relative === '..' ||
+        relative.startsWith(`..${path.sep}`)
+    ) {
+        return undefined;
+    }
+    return normalizeContentAsCodePath(relative.split(path.sep).join('/'));
+};
+
 export const uploadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
+    const projectConfig = await readUploadProjectConfig();
+    // --path wins; otherwise content_as_code.path from lightdash.config.yml
+    const contentPathOption =
+        options.path ?? projectConfig?.content_as_code?.path;
 
     if (options.spacesOnly && options.skipSpaces) {
         throw new ParameterError(
@@ -3602,7 +3642,7 @@ export const uploadHandler = async (
     let preflightSpaceFiles: SpaceCodeFile[] = [];
     if (shouldReconcileSpaces) {
         try {
-            preflightSpaceFiles = await readSpaceFiles(options.path);
+            preflightSpaceFiles = await readSpaceFiles(contentPathOption);
         } catch (error) {
             throw createSpaceAsCodeUploadError(getErrorMessage(error));
         }
@@ -3621,7 +3661,7 @@ export const uploadHandler = async (
 
     if (isOrganizationUpload) {
         await uploadOrganizationContent({
-            customPath: options.path,
+            customPath: contentPathOption,
             config,
             sendInvites: options.sendInvites,
         });
@@ -3645,33 +3685,16 @@ export const uploadHandler = async (
     await reportOpenDraftsForUpload(projectId);
 
     // Persist repo-owned sync settings for the review/write-back workflow.
-    let syncEnabled: boolean | undefined;
-    const configExists = await fs
-        .access(path.join(process.cwd(), 'lightdash.config.yml'))
-        .then(() => true)
-        .catch(() => false);
-    if (configExists) {
-        try {
-            const projectConfig = await readAndLoadLightdashProjectConfig(
-                process.cwd(),
-                projectId,
-            );
-            syncEnabled = projectConfig.content_as_code?.sync === true;
-        } catch (error) {
-            throw new LightdashError({
-                message: `Upload aborted: lightdash.config.yml exists but could not be read, so the repo's content_as_code.sync opt-in cannot be honoured. Fix the config and retry. ${getErrorMessage(error)}`,
-                name: 'ParseError',
-                statusCode: 400,
-                data: {},
-            });
-        }
+    if (projectConfig) {
+        const stamp: ContentAsCodeSettingsStamp = {
+            sync: projectConfig.content_as_code?.sync === true,
+            path: getStampedContentPath(getDownloadFolder(contentPathOption)),
+        };
         try {
             await lightdashApi({
                 method: 'POST',
                 url: `/api/v1/projects/${projectId}/code/sync-settings`,
-                body: JSON.stringify({
-                    sync: syncEnabled,
-                }),
+                body: JSON.stringify(stamp),
             });
         } catch (error) {
             // Older servers don't have this endpoint; stamping is advisory.
@@ -3699,7 +3722,7 @@ export const uploadHandler = async (
         operation: 'upload',
         scope: 'project',
     });
-    const uploadRoot = getDownloadFolder(options.path);
+    const uploadRoot = getDownloadFolder(contentPathOption);
     const completeUpload = () => {
         const renderedSummary = output.complete(
             uploadRoot,
@@ -3725,7 +3748,7 @@ export const uploadHandler = async (
         const spaceFiles = preflightSpaceFiles;
         const spaceNames = shouldReconcileSpaces
             ? getSpaceNames(spaceFiles)
-            : await readSpaceNames(options.path);
+            : await readSpaceNames(contentPathOption);
         if (spaceFiles.length > 0) {
             logContentAsCodeDiscovery(
                 `Found ${spaceFiles.length} space definition(s)`,
@@ -3777,7 +3800,7 @@ export const uploadHandler = async (
         // Discover loose YAML files (outside charts/ and dashboards/) classified by contentType
         const looseFiles = await output.runItem({
             label: 'Content files',
-            action: () => readLooseCodeFiles(options.path),
+            action: () => readLooseCodeFiles(contentPathOption),
             detail: ({ charts, dashboards }) =>
                 `${charts.length + dashboards.length} discovered`,
         });
@@ -3812,7 +3835,7 @@ export const uploadHandler = async (
         const loadDashboardItems = () => {
             dashboardItemsPromise =
                 dashboardItemsPromise ??
-                readDashboardItems(options.path, looseFiles.dashboards);
+                readDashboardItems(contentPathOption, looseFiles.dashboards);
             return dashboardItemsPromise;
         };
 
@@ -3830,7 +3853,7 @@ export const uploadHandler = async (
                     chartItems: [
                         ...(await readCodeFiles<ChartAsCode>(
                             'charts',
-                            options.path,
+                            contentPathOption,
                         )),
                         ...looseFiles.charts,
                     ],
@@ -3866,7 +3889,7 @@ export const uploadHandler = async (
                             changes,
                             options.force,
                             uploadPermissions.virtualViews,
-                            options.path,
+                            contentPathOption,
                             virtualViewCandidates,
                         ),
                     onCount: (count) => {
@@ -3897,7 +3920,7 @@ export const uploadHandler = async (
                             changes,
                             options.force,
                             uploadPermissions.externalConnections,
-                            options.path,
+                            contentPathOption,
                         ),
                     onCount: (count) => {
                         counts.externalConnectionsNum = count;
@@ -4075,7 +4098,7 @@ export const uploadHandler = async (
                 );
             }
 
-            const baseDir = getDownloadFolder(options.path);
+            const baseDir = getDownloadFolder(contentPathOption);
             const appsDir = path.join(baseDir, phase.dirName);
 
             let appFolderEntries: import('fs').Dirent[];
@@ -4509,7 +4532,7 @@ export const uploadHandler = async (
                     options.force,
                     chartSlugs,
                     uploadPermissions.charts,
-                    options.path,
+                    contentPathOption,
                     options.skipSpaceCreate,
                     options.public,
                     options.validate,
@@ -4563,7 +4586,7 @@ export const uploadHandler = async (
                     options.force,
                     options.dashboards,
                     uploadPermissions.dashboards,
-                    options.path,
+                    contentPathOption,
                     options.skipSpaceCreate,
                     options.public,
                     options.validate,
@@ -4594,7 +4617,7 @@ export const uploadHandler = async (
                                 options.agents,
                                 changes,
                                 options.force,
-                                options.path,
+                                contentPathOption,
                                 options.agents.length === 0,
                             ),
                         onCount: (count) => {
@@ -4625,7 +4648,7 @@ export const uploadHandler = async (
                             options.force,
                             ContentAsCodeTypeEnum.ALERT,
                             uploadPermissions.alerts,
-                            options.path,
+                            contentPathOption,
                         ),
                     onCount: (count) => {
                         counts.alertsNum = count;
@@ -4654,7 +4677,7 @@ export const uploadHandler = async (
                             options.force,
                             ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
                             uploadPermissions.scheduledDeliveries,
-                            options.path,
+                            contentPathOption,
                         ),
                     onCount: (count) => {
                         counts.scheduledDeliveriesNum = count;
@@ -4683,7 +4706,7 @@ export const uploadHandler = async (
                             options.force,
                             ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
                             uploadPermissions.googleSheets,
-                            options.path,
+                            contentPathOption,
                         ),
                     onCount: (count) => {
                         counts.googleSheetsNum = count;
@@ -4753,6 +4776,7 @@ export const testHelpers = {
     summarizeUploadChanges,
     upsertAiAgents,
     upsertExternalConnections,
+    upsertResources,
     upsertSpaces,
     upsertVirtualViews,
     validateSpaceIdentity,

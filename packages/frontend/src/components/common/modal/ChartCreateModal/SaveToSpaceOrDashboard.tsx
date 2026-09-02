@@ -23,8 +23,9 @@ import {
     Textarea,
     TextInput,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
@@ -63,7 +64,7 @@ import {
 
 const saveToSpaceOrDashboardSchema = z
     .object({
-        name: z.string().min(1),
+        name: z.string().min(1, 'Name is required'),
         description: z.string().nullable(),
     })
     // for saving to the dashboard

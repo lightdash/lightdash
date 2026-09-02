@@ -254,10 +254,7 @@ const AgentOnboardingRunPage: FC = () => {
                                 <Title order={2}>
                                     Building your Lightdash project
                                 </Title>
-                                <Badge
-                                    color={statusConfig.color}
-                                    variant="light"
-                                >
+                                <Badge color={statusConfig.color}>
                                     {statusConfig.label}
                                 </Badge>
                             </Group>
@@ -298,11 +295,7 @@ const AgentOnboardingRunPage: FC = () => {
                         </Alert>
                     ) : null}
 
-                    <Paper
-                        withBorder
-                        radius="md"
-                        className={classes.progressActivityCard}
-                    >
+                    <Paper radius="md" className={classes.progressActivityCard}>
                         <Box p="lg">
                             <AgentOnboardingProgress run={run} />
                         </Box>
@@ -313,7 +306,7 @@ const AgentOnboardingRunPage: FC = () => {
                         />
                     </Paper>
 
-                    <Paper withBorder radius="md" className={classes.workspace}>
+                    <Paper radius="md" className={classes.workspace}>
                         <Box className={classes.workspacePanel}>
                             <Group h={48} px="md" justify="space-between">
                                 <Text fw={600} fz="sm">

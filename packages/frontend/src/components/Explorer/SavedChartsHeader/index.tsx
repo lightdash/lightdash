@@ -3,6 +3,7 @@ import {
     DirectAccessResourceType,
     ChartSourceType,
     canMutateVerifiedContent,
+    ContentReviewContentType,
     ContentType,
     DashboardTileTypes,
     FeatureFlags,
@@ -44,8 +45,6 @@ import {
     IconPin,
     IconPinnedOff,
     IconSend,
-    IconStar,
-    IconStarFilled,
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
@@ -60,10 +59,20 @@ import {
 } from 'react';
 import { Link, useBlocker, useLocation, useNavigate } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import {
+    PendingReviewBadge,
+    RequestReviewModal,
+    useContentReviewEligibility,
+} from '../../../ee/features/contentReview';
 import ChartAsCodeModal from '../../../features/contentAsCode/components/ChartAsCodeModal';
 import DismissedDraftAlert from '../../../features/contentAsCode/components/DismissedDraftAlert';
 import DraftOverlayFailureAlert from '../../../features/contentAsCode/components/DraftOverlayFailureAlert';
-import { useReopenDraftMutation } from '../../../features/contentAsCode/hooks/useContentDrafts';
+import DraftStaleAlert from '../../../features/contentAsCode/components/DraftStaleAlert';
+import {
+    useDraftStaleness,
+    useRebaseDraftMutation,
+    useReopenDraftMutation,
+} from '../../../features/contentAsCode/hooks/useContentDrafts';
 import {
     DirectAccessModal,
     useCanManageDirectAccess,
@@ -119,6 +128,7 @@ import { ExplorerSection } from '../../../providers/Explorer/types';
 import useNativeFullscreenToggle from '../../../providers/Fullscreen/useNativeFullscreenToggle';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import { FavoriteActionIcon } from '../../common/FavoriteActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 const ChangeChartExploreModal = lazy(
@@ -186,6 +196,12 @@ const SavedChartsHeader: FC = () => {
     const savedChart = useExplorerSelector(selectSavedChart);
     const { mutate: reopenDraft, isLoading: isReopeningDraft } =
         useReopenDraftMutation(projectUuid);
+    const { mutate: rebaseDraft, isLoading: isRebasingDraft } =
+        useRebaseDraftMutation(projectUuid);
+    const { data: draftStalenessDetails } = useDraftStaleness(
+        projectUuid,
+        savedChart?.draftStaleness?.draftUuid,
+    );
     const dashboardIdentifier = savedChart?.dashboardSlug ?? dashboardUuid;
 
     const hasUnsavedChanges = useExplorerSelector(selectHasUnsavedChanges);
@@ -237,6 +253,14 @@ const SavedChartsHeader: FC = () => {
     const [isDirectAccessModalOpen, directAccessModalHandlers] =
         useDisclosure(false);
     const directAccessAvailability = useDirectAccessAvailability();
+    const [isRequestReviewModalOpen, requestReviewModalHandlers] =
+        useDisclosure(false);
+    const contentReview = useContentReviewEligibility({
+        projectUuid,
+        contentType: ContentReviewContentType.CHART,
+        contentUuid: savedChart?.uuid,
+        spaceUuid: savedChart?.spaceUuid,
+    });
     const canManageChartAccess = useCanManageDirectAccess({
         projectUuid,
         spaceUuid: savedChart?.spaceUuid ?? null,
@@ -594,30 +618,19 @@ const SavedChartsHeader: FC = () => {
                                         dashboardName={savedChart.dashboardName}
                                     />
                                 )}
-                                <Title
-                                    c="ldDark.9"
-                                    order={5}
-                                    fw={600}
-                                    maw={500}
-                                    lineClamp={1}
-                                >
+                                <Title order={5} maw={500} lineClamp={1}>
                                     {savedChart.name}
                                 </Title>
 
                                 {savedChart.hasUnpublishedChanges && (
                                     <Tooltip
                                         label="Only you can see these changes. A reviewer can write them back to the repo from Content review."
-                                        multiline
                                         maw={280}
-                                        withinPortal
                                     >
                                         <Badge
                                             color="yellow"
                                             variant="dot"
                                             size="sm"
-                                            radius="sm"
-                                            tt="none"
-                                            fw={500}
                                         >
                                             Unpublished changes
                                         </Badge>
@@ -631,9 +644,6 @@ const SavedChartsHeader: FC = () => {
                                         color="blue"
                                         variant="dot"
                                         size="sm"
-                                        radius="sm"
-                                        tt="none"
-                                        fw={500}
                                     >
                                         {savedChart.draftsAwaitingReview} draft
                                         {savedChart.draftsAwaitingReview === 1
@@ -643,6 +653,12 @@ const SavedChartsHeader: FC = () => {
                                     </Badge>
                                 )}
 
+                                {contentReview.pendingRequest && (
+                                    <PendingReviewBadge
+                                        request={contentReview.pendingRequest}
+                                    />
+                                )}
+
                                 {isChartVerified && (
                                     <Tooltip
                                         label={
@@ -650,8 +666,6 @@ const SavedChartsHeader: FC = () => {
                                                 ? `Verified by ${savedChart.verification.verifiedBy.firstName} ${savedChart.verification.verifiedBy.lastName}`
                                                 : 'Verified'
                                         }
-                                        withArrow
-                                        withinPortal
                                         zIndex={10000}
                                     >
                                         <IconCircleCheckFilled
@@ -663,30 +677,21 @@ const SavedChartsHeader: FC = () => {
                                     </Tooltip>
                                 )}
 
-                                <ActionIcon
+                                <FavoriteActionIcon
                                     size="xs"
                                     variant="transparent"
-                                    color={
-                                        isChartFavorited ? 'orange' : 'ldGray.6'
-                                    }
-                                    onClick={() => {
+                                    isFavorite={isChartFavorited}
+                                    onToggle={() => {
                                         toggleFavorite({
                                             contentType: ContentType.CHART,
                                             contentUuid: savedChart.uuid,
                                         });
                                     }}
-                                >
-                                    {isChartFavorited ? (
-                                        <IconStarFilled size={16} />
-                                    ) : (
-                                        <IconStar size={16} />
-                                    )}
-                                </ActionIcon>
+                                />
 
                                 {isEditMode && userCanManageChart && (
                                     <ActionIcon
                                         size="xs"
-                                        color="ldGray.6"
                                         disabled={updateSavedChart.isLoading}
                                         onClick={() => setIsRenamingChart(true)}
                                     >
@@ -789,7 +794,6 @@ const SavedChartsHeader: FC = () => {
                                                 <Tooltip
                                                     offset={-1}
                                                     label="Return to dashboard"
-                                                    withinPortal
                                                     position="bottom"
                                                 >
                                                     <ActionIcon
@@ -817,7 +821,6 @@ const SavedChartsHeader: FC = () => {
                                     ? 'Exit Fullscreen Mode'
                                     : 'Enter Fullscreen Mode'
                             }
-                            withinPortal
                             position="bottom"
                             openDelay={200}
                             transitionProps={{
@@ -832,7 +835,6 @@ const SavedChartsHeader: FC = () => {
                                         : 'Enter Fullscreen Mode'
                                 }
                                 variant="default"
-                                radius="md"
                                 onClick={handleToggleFullscreen}
                             >
                                 <MantineIcon
@@ -850,8 +852,6 @@ const SavedChartsHeader: FC = () => {
                         <Menu
                             position="bottom"
                             withArrow
-                            withinPortal
-                            shadow="md"
                             width={200}
                             disabled={!unsavedChartVersion.tableName}
                         >
@@ -907,6 +907,19 @@ const SavedChartsHeader: FC = () => {
                                             }
                                         >
                                             Move to space
+                                        </Menu.Item>
+                                    )}
+                                {contentReview.canRequest &&
+                                    !hasUnsavedChanges && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconSend} />
+                                            }
+                                            onClick={
+                                                requestReviewModalHandlers.open
+                                            }
+                                        >
+                                            Request review
                                         </Menu.Item>
                                     )}
 
@@ -999,7 +1012,6 @@ const SavedChartsHeader: FC = () => {
                                     <Tooltip
                                         label="You must enable first an upstream project in settings > Data ops"
                                         disabled={!promoteDisabled}
-                                        withinPortal
                                     >
                                         <div>
                                             <Menu.Item
@@ -1200,6 +1212,21 @@ const SavedChartsHeader: FC = () => {
                 />
             ) : null}
 
+            {savedChart?.draftStaleness ? (
+                <DraftStaleAlert
+                    contentLabel="chart"
+                    staleness={savedChart.draftStaleness}
+                    details={draftStalenessDetails}
+                    isUpdating={isRebasingDraft}
+                    onUpdate={(resolutions) =>
+                        rebaseDraft({
+                            draftUuid: savedChart.draftStaleness!.draftUuid,
+                            resolutions,
+                        })
+                    }
+                />
+            ) : null}
+
             {savedChart && isAddToDashboardModalOpen && projectUuid && (
                 <AddTilesToDashboardModal
                     isOpen={isAddToDashboardModalOpen}
@@ -1306,6 +1333,16 @@ const SavedChartsHeader: FC = () => {
                         resourceUuid: savedChart.uuid,
                         name: savedChart.name,
                     }}
+                />
+            )}
+            {isRequestReviewModalOpen && projectUuid && savedChart && (
+                <RequestReviewModal
+                    projectUuid={projectUuid}
+                    contentType={ContentReviewContentType.CHART}
+                    contentUuid={savedChart.uuid}
+                    contentName={savedChart.name}
+                    opened={isRequestReviewModalOpen}
+                    onClose={requestReviewModalHandlers.close}
                 />
             )}
             {isTransferToSpaceModalOpen && projectUuid && (

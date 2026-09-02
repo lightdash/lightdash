@@ -472,6 +472,7 @@ export const MetricExploreModal: FC<Props> = (props) => {
             onClose={handleClose}
             scrollAreaComponent={undefined}
             size="auto"
+            centered
         >
             <Modal.Overlay />
             <Modal.Content className={styles.modalContent} radius={12} w="100%">
@@ -558,13 +559,7 @@ export const MetricExploreModal: FC<Props> = (props) => {
                     </Group>
                 </Modal.Header>
 
-                <Modal.Body
-                    p={0}
-                    h="80vh"
-                    className={styles.modalBody}
-                    miw={800}
-                    mih={600}
-                >
+                <Modal.Body p={0} className={styles.modalBody} miw={800}>
                     <Stack w={460}>
                         <Box
                             px="lg"
@@ -603,9 +598,7 @@ export const MetricExploreModal: FC<Props> = (props) => {
                                         </Text>
                                         <Button
                                             variant="subtle"
-                                            color="dark"
                                             size="compact-xs"
-                                            radius="md"
                                             className={styles.clearButton}
                                             data-visible={
                                                 query.comparison !==

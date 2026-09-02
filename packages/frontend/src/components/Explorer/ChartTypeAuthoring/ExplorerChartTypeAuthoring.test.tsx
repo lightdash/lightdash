@@ -157,6 +157,7 @@ const dataAppViz = {
     },
     createdAt: new Date('2026-08-19T00:00:00Z'),
     createdByUserUuid: 'user-1',
+    registrySlug: null,
 } satisfies DataAppViz;
 
 const readyVersion = {
@@ -601,6 +602,18 @@ describe('ExplorerChartTypeAuthoring', () => {
 
     it('leaves authoring when data-apps is switched off under it', () => {
         dataAppsEnabled.current = false;
+        const store = renderAuthoring({ dataAppVizUuid: 'viz-1' });
+
+        expect(showToastError).toHaveBeenCalled();
+        expect(store.getState().explorer.chartTypeAuthoring).toBeNull();
+    });
+
+    it('leaves authoring when the type is an official (registry-installed) chart type', () => {
+        vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
+            workspaceStub({
+                dataAppViz: { ...dataAppViz, registrySlug: 'radial-gauge' },
+            }),
+        );
         const store = renderAuthoring({ dataAppVizUuid: 'viz-1' });
 
         expect(showToastError).toHaveBeenCalled();

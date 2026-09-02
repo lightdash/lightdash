@@ -14,7 +14,7 @@ export const AiAgentDocumentRelevanceCard = ({ summary }: Props) => {
 
     if (isNotRelevant) {
         return (
-            <Paper p="sm" radius="md" withBorder>
+            <Paper p="sm" radius="md">
                 <Group gap="xs" wrap="nowrap" align="flex-start">
                     <MantineIcon
                         icon={IconAlertTriangle}
@@ -32,7 +32,7 @@ export const AiAgentDocumentRelevanceCard = ({ summary }: Props) => {
     }
 
     return (
-        <Paper p="sm" radius="md" withBorder>
+        <Paper p="sm" radius="md">
             <Group gap="xs" wrap="nowrap" align="flex-start">
                 <MantineIcon
                     icon={IconInfoCircle}

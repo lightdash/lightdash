@@ -61,7 +61,7 @@ const FilterRuleDisplay: FC<{
                 {ruleLabels.value && (
                     <>
                         {' '}
-                        <Text fw={700} span fz="xs">
+                        <Text fw={600} span fz="xs">
                             {ruleLabels.value}
                         </Text>
                     </>
@@ -93,7 +93,7 @@ const FilterGroupDisplay: FC<{
                         rule={rule as AiFilterRule}
                     />
                     {combinator === 'or' && index !== rules.length - 1 && (
-                        <Text fz="xs" color="ldGray.6" fw={500}>
+                        <Text fz="xs" c="dimmed" fw={500}>
                             OR
                         </Text>
                     )}

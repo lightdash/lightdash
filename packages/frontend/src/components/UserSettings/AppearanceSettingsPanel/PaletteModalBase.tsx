@@ -152,14 +152,13 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
 
                 <Button
                     variant="subtle"
-                    color="blue"
                     size="compact-xs"
                     onClick={() => setShowAllColors(!showAllColors)}
                     rightSection={
                         <MantineIcon icon={IconChevronDown} size="xs" />
                     }
                     fullWidth
-                    style={{ alignSelf: 'flex-end' }}
+                    className="ld-self-end"
                 >
                     {showAllColors ? 'Show fewer colors' : 'Show all colors'}
                 </Button>

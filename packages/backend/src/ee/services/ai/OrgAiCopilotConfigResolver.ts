@@ -1,6 +1,5 @@
 import {
     BYO_AI_PROVIDERS,
-    FeatureFlags,
     MissingConfigError,
     type AiOrgModelVisibility,
     type ByoAiProvider,
@@ -8,7 +7,6 @@ import {
 } from '@lightdash/common';
 import { AiCopilotConfigSchemaType } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
-import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
 import {
     AiOrganizationSettingsModel,
@@ -121,7 +119,6 @@ export const overlayOrgProviderApiKeys = (
 type Dependencies = {
     lightdashConfig: LightdashConfig;
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
-    featureFlagService: FeatureFlagService;
     aiModelCatalog: AiModelCatalog;
 };
 
@@ -130,27 +127,13 @@ export class OrgAiCopilotConfigResolver {
 
     private aiOrganizationSettingsModel: AiOrganizationSettingsModel;
 
-    private featureFlagService: FeatureFlagService;
-
     private aiModelCatalog: AiModelCatalog;
 
     constructor(dependencies: Dependencies) {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.aiOrganizationSettingsModel =
             dependencies.aiOrganizationSettingsModel;
-        this.featureFlagService = dependencies.featureFlagService;
         this.aiModelCatalog = dependencies.aiModelCatalog;
-    }
-
-    async isEnabled(organizationUuid: string): Promise<boolean> {
-        // Org-scoped check with no acting user: use the 'system' placeholder
-        // like other AI flag checks; a non-uuid userUuid skips the per-user
-        // lookup and the flag resolves via the org override.
-        const flag = await this.featureFlagService.get({
-            user: { userUuid: 'system', organizationUuid },
-            featureFlagId: FeatureFlags.OrgAiProviderApiKeys,
-        });
-        return flag.enabled;
     }
 
     async getCopilotConfig(
@@ -159,7 +142,6 @@ export class OrgAiCopilotConfigResolver {
         const base = this.lightdashConfig.ai.copilot;
         const managed: ResolvedCopilotConfig = { ...base, byoProviders: [] };
         if (!organizationUuid) return managed;
-        if (!(await this.isEnabled(organizationUuid))) return managed;
         const orgKeys =
             await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
                 organizationUuid,
@@ -185,7 +167,6 @@ export class OrgAiCopilotConfigResolver {
         const base = this.lightdashConfig.ai.copilot;
         const managed: ResolvedCopilotConfig = { ...base, byoProviders: [] };
         if (!organizationUuid) return managed;
-        if (!(await this.isEnabled(organizationUuid))) return managed;
         const orgKeys =
             await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
                 organizationUuid,
@@ -215,7 +196,6 @@ export class OrgAiCopilotConfigResolver {
         const base = this.lightdashConfig.ai.copilot;
         const managed: ResolvedCopilotConfig = { ...base, byoProviders: [] };
         if (!organizationUuid) return managed;
-        if (!(await this.isEnabled(organizationUuid))) return managed;
         const orgKeys =
             await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
                 organizationUuid,
@@ -235,8 +215,8 @@ export class OrgAiCopilotConfigResolver {
     /**
      * Org overrides for model LISTINGS (visibility settings + which hidden
      * models the org's own Anthropic key unlocks). Both are null unless the
-     * feature flag is on AND the org has at least one BYO key, so deleting
-     * the key leaves stored visibility settings inert.
+     * org has at least one BYO key, so deleting the key leaves stored
+     * visibility settings inert.
      */
     async getOrgModelOverrides(
         organizationUuid: string | null | undefined,
@@ -246,7 +226,6 @@ export class OrgAiCopilotConfigResolver {
             keyAccessibleModelIds: null,
         };
         if (!organizationUuid) return none;
-        if (!(await this.isEnabled(organizationUuid))) return none;
         const orgKeys =
             await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
                 organizationUuid,
@@ -299,8 +278,8 @@ export class OrgAiCopilotConfigResolver {
 
     /**
      * Org-admin visibility settings for Data App Claude models (opus/sonnet/
-     * haiku). Gated the same way as getOrgModelOverrides: null unless the flag
-     * is on AND the org brings its own Anthropic key, so removing the key
+     * haiku). Gated the same way as getOrgModelOverrides: null unless the org
+     * brings its own Anthropic key, so removing the key
      * leaves stored settings inert rather than restricting models on the
      * instance's own key. Anthropic specifically — getClaudeCodeConfig only
      * swaps in an org key for Anthropic, since the Claude CLI speaks no other
@@ -310,7 +289,6 @@ export class OrgAiCopilotConfigResolver {
         organizationUuid: string | null | undefined,
     ): Promise<DataAppModelVisibility | null> {
         if (!organizationUuid) return null;
-        if (!(await this.isEnabled(organizationUuid))) return null;
         const orgKeys =
             await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
                 organizationUuid,
@@ -385,7 +363,6 @@ export class OrgAiCopilotConfigResolver {
             canJudgeOnByoKey: false,
         };
         if (!organizationUuid) return none;
-        if (!(await this.isEnabled(organizationUuid))) return none;
         const orgKeys =
             await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
                 organizationUuid,

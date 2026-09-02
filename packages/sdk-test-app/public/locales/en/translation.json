@@ -1,4 +1,9 @@
 {
+    "parameters": {
+        "metric_type": {
+            "label": "Metric Type"
+        }
+    },
     "dashboard": {
         "jaffle-dashboard": {
             "name": "Jaffle dashboard",
@@ -81,5 +86,7 @@
             ]
         }
     },
-    "uiOverrides": {}
+    "uiOverrides": {
+        "parameters.is": "is"
+    }
 }

@@ -16,7 +16,7 @@ const numberRangeSchema = z
     .superRefine(([min, max], ctx) => {
         if (isNil(min) || isNil(max)) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'bothValuesRequired',
                 fatal: true,
             });
@@ -24,7 +24,7 @@ const numberRangeSchema = z
         }
         if (min > max) {
             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
+                code: 'custom',
                 message: 'minLessThanMax',
             });
         }

@@ -103,11 +103,16 @@ export const runningStepsInfo = (steps: JobStep[]) => {
 
 export const TOAST_KEY_FOR_REFRESH_JOB = 'refresh-job';
 
-const refresh = async (projectUuid: string) =>
+export type RefreshServerVariables = { syncContent: boolean };
+
+const refresh = async (
+    projectUuid: string,
+    { syncContent }: RefreshServerVariables,
+) =>
     lightdashApi<ApiRefreshResults>({
         method: 'POST',
         url: `/projects/${projectUuid}/refresh`,
-        body: undefined,
+        body: JSON.stringify({ syncContent }),
     });
 
 const getJob = async (jobUuid: string) =>
@@ -149,9 +154,9 @@ export const useRefreshServer = () => {
     const queryClient = useQueryClient();
     const { setActiveJobId } = useActiveJob();
     const { showToastApiError } = useToaster();
-    return useMutation<ApiRefreshResults, ApiError>({
+    return useMutation<ApiRefreshResults, ApiError, RefreshServerVariables>({
         mutationKey: ['refresh', projectUuid],
-        mutationFn: () => refresh(projectUuid!),
+        mutationFn: (variables) => refresh(projectUuid!, variables),
         onSettled: async () =>
             queryClient.setQueryData(['status', projectUuid], 'loading'),
         onSuccess: (data) => setActiveJobId(data.jobUuid),

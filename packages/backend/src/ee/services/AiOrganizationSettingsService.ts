@@ -580,15 +580,12 @@ export class AiOrganizationSettingsService extends BaseService {
             aiSettingsUpdate.providerApiKeys !== undefined ||
             aiSettingsUpdate.modelVisibility !== undefined
         ) {
-            // BYO keys and model visibility require both AI copilot (env/ai-copilot
-            // flag) and the org-ai-provider-api-keys flag to be enabled for this org.
-            const [copilotEnabled, byoKeysEnabled] = await Promise.all([
-                this.getIsCopilotEnabled(user),
-                this.orgAiCopilotConfigResolver.isEnabled(organizationUuid),
-            ]);
-            if (!copilotEnabled || !byoKeysEnabled) {
+            // BYO keys and model visibility require AI copilot (env/ai-copilot
+            // flag) to be enabled for this org.
+            const copilotEnabled = await this.getIsCopilotEnabled(user);
+            if (!copilotEnabled) {
                 throw new ForbiddenError(
-                    'Organization AI provider API keys are not enabled',
+                    'AI copilot is not enabled for this organization',
                 );
             }
         }

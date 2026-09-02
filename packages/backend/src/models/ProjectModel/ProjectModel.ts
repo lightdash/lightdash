@@ -4484,12 +4484,16 @@ export class ProjectModel {
     }
 
     // Easier to mock in ProjectService
-    // eslint-disable-next-line class-methods-use-this
     getWarehouseClientFromCredentials(
         credentials: CreateWarehouseCredentials,
         options?: Parameters<typeof warehouseClientFromCredentials>[1],
     ) {
-        return warehouseClientFromCredentials(credentials, options);
+        return warehouseClientFromCredentials(credentials, {
+            // The client is shared by all concurrent async query jobs
+            maxOpenConnections:
+                this.lightdashConfig.natsWorker.workerConcurrency,
+            ...options,
+        });
     }
 
     async createVirtualView(

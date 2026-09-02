@@ -9,9 +9,9 @@ import {
 } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { ConfirmDeleteButton } from '../../common/ConfirmDeleteButton';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './Accordion.module.css';
-import { ConfirmDeleteButton } from './ConfirmDeleteButton';
 
 type Props = {
     label: string;

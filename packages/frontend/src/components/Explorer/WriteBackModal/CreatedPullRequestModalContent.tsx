@@ -24,7 +24,7 @@ export const CreatedPullRequestModalContent = ({
             <Stack gap="md">
                 <Text>
                     Your pull request{' '}
-                    <Anchor href={data.prUrl} target="_blank" fw={700}>
+                    <Anchor href={data.prUrl} target="_blank" fw={600}>
                         #{data.prUrl.split('/').pop()}
                     </Anchor>{' '}
                     was successfully created on git.

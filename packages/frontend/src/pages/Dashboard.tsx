@@ -36,7 +36,12 @@ import PageSpinner from '../components/PageSpinner';
 import { useDashboardCommentsCheck } from '../features/comments';
 import DismissedDraftAlert from '../features/contentAsCode/components/DismissedDraftAlert';
 import DraftOverlayFailureAlert from '../features/contentAsCode/components/DraftOverlayFailureAlert';
-import { useReopenDraftMutation } from '../features/contentAsCode/hooks/useContentDrafts';
+import DraftStaleAlert from '../features/contentAsCode/components/DraftStaleAlert';
+import {
+    useDraftStaleness,
+    useRebaseDraftMutation,
+    useReopenDraftMutation,
+} from '../features/contentAsCode/hooks/useContentDrafts';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
 import {
@@ -75,6 +80,12 @@ const Dashboard: FC = () => {
     const dashboardIdentifier = dashboard?.slug ?? routeDashboardIdentifier;
     const { mutate: reopenDraft, isLoading: isReopeningDraft } =
         useReopenDraftMutation(projectUuid);
+    const { mutate: rebaseDraft, isLoading: isRebasingDraft } =
+        useRebaseDraftMutation(projectUuid);
+    const { data: draftStalenessDetails } = useDraftStaleness(
+        projectUuid,
+        dashboard?.draftStaleness?.draftUuid,
+    );
 
     const dashboardError = useDashboardContext((c) => c.dashboardError);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
@@ -1029,6 +1040,22 @@ const Dashboard: FC = () => {
                             isReopening={isReopeningDraft}
                             onReopen={() =>
                                 reopenDraft(dashboard.dismissedDraftUuid!)
+                            }
+                        />
+                    ) : null}
+
+                    {dashboard.draftStaleness ? (
+                        <DraftStaleAlert
+                            contentLabel="dashboard"
+                            staleness={dashboard.draftStaleness}
+                            details={draftStalenessDetails}
+                            isUpdating={isRebasingDraft}
+                            onUpdate={(resolutions) =>
+                                rebaseDraft({
+                                    draftUuid:
+                                        dashboard.draftStaleness!.draftUuid,
+                                    resolutions,
+                                })
                             }
                         />
                     ) : null}

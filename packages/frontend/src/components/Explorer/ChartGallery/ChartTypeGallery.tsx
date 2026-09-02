@@ -1,4 +1,8 @@
-import { FeatureFlags, type DataAppViz } from '@lightdash/common';
+import {
+    FeatureFlags,
+    isOfficialChartType,
+    type DataAppViz,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -133,15 +137,12 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                         ) : null}
                     </>
                 }
-                withinPortal
                 position="top"
-                withArrow
                 openDelay={500}
                 color="dark"
                 events={{ hover: true, focus: true, touch: false }}
                 disabled={clampedLabel === null && item.description === null}
                 maw={300}
-                multiline
             >
                 <UnstyledButton
                     className={classes.card}
@@ -268,7 +269,7 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
                                 icon={IconDots}
                                 size="xl"
                                 stroke={1.5}
-                                color="ldGray.6"
+                                color="dimmed"
                             />
                         )}
                         <Text fz="xs" fw={500} lh={1.2}>
@@ -289,7 +290,7 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
                             icon={IconPlus}
                             size="xl"
                             stroke={1.5}
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                         <Text fz="xs" fw={500} lh={1.2}>
                             New chart type
@@ -448,14 +449,18 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                     }
                     onSelected();
                 },
-                onEdit: canEditChartType(dataAppViz)
-                    ? () =>
-                          dispatch(
-                              explorerActions.startChartTypeAuthoring({
-                                  dataAppVizUuid: dataAppViz.dataAppVizUuid,
-                              }),
-                          )
-                    : null,
+                // Official (registry-installed) types are read-only; forking
+                // them lives in the gallery page, not this inline picker.
+                onEdit:
+                    canEditChartType(dataAppViz) &&
+                    !isOfficialChartType(dataAppViz)
+                        ? () =>
+                              dispatch(
+                                  explorerActions.startChartTypeAuthoring({
+                                      dataAppVizUuid: dataAppViz.dataAppVizUuid,
+                                  }),
+                              )
+                        : null,
             };
         },
     );

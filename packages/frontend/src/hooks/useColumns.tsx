@@ -821,7 +821,6 @@ export const useColumns = (): TableColumn[] => {
                         header: () => (
                             <Group gap="two">
                                 <Tooltip
-                                    withinPortal
                                     label="This field was not found in the dbt project."
                                     position="top"
                                 >

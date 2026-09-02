@@ -137,7 +137,7 @@ export const toolDiscoverFieldsOutputSchema = z.union([
         result: z.literal(''),
         metadata: z.object({
             status: z.literal('streaming'),
-            streamingMessage: z.unknown(),
+            streamingMessage: z.unknown().optional(),
         }),
     }),
     z.object({

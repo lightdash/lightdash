@@ -55,10 +55,7 @@
 .dockTabActive {
     background: var(--mantine-color-body);
     color: var(--mantine-color-text);
-    border-color: light-dark(
-        var(--mantine-color-gray-3),
-        var(--mantine-color-ldDark-4)
-    );
+    border-color: var(--mantine-color-ldGray-3);
     box-shadow: var(--mantine-shadow-md);
     transform: translateY(rem(-2px));
 }

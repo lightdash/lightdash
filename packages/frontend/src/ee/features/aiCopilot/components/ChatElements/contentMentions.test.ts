@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../../../../api';
 import {
     buildContentMentionSuggestionItems,
+    contentMentionMenuOwnsEnter,
     contextItemsToContentMentionSuggestions,
     fuzzyContentMentionLabelMatch,
     getContentMentionEmptyMessage,
@@ -269,5 +270,40 @@ describe('contentMentions', () => {
             'Type 1 more character to search content',
         );
         expect(getContentMentionEmptyMessage('re')).toBe('No content found');
+    });
+
+    describe('Enter ownership', () => {
+        it('lets the dropdown select while it has items', () => {
+            expect(
+                contentMentionMenuOwnsEnter(
+                    { status: 'open', itemCount: 3 },
+                    true,
+                ),
+            ).toBe(true);
+        });
+
+        it('hands Enter back when the dropdown has no items', () => {
+            expect(
+                contentMentionMenuOwnsEnter(
+                    { status: 'open', itemCount: 0 },
+                    true,
+                ),
+            ).toBe(false);
+        });
+
+        it('hands Enter back once the dropdown is dismissed', () => {
+            expect(
+                contentMentionMenuOwnsEnter({ status: 'dismissed' }, true),
+            ).toBe(false);
+        });
+
+        it('holds Enter while items are still resolving', () => {
+            expect(
+                contentMentionMenuOwnsEnter({ status: 'closed' }, true),
+            ).toBe(true);
+            expect(
+                contentMentionMenuOwnsEnter({ status: 'closed' }, false),
+            ).toBe(false);
+        });
     });
 });

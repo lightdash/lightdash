@@ -185,7 +185,7 @@ const AiSearchBoxInner: FC<Props> = ({
         aiRouterConfigQuery.isLoading
     ) {
         return (
-            <Paper style={{ overflow: 'hidden' }} p="md">
+            <Paper className="ld-overflow-hidden" p="md">
                 <Group wrap="nowrap" align="center">
                     <Skeleton circle height={38} width={38} />
                     <Skeleton height={36} flex={1} />
@@ -354,7 +354,7 @@ const AiSearchBoxInner: FC<Props> = ({
                                         className={styles.reviewsPromoButton}
                                     >
                                         <Group gap="xs" wrap="nowrap">
-                                            <Text span fz="xs" fw={700}>
+                                            <Text span fz="xs" fw={600}>
                                                 {reviewsPromoLabel}
                                             </Text>
                                             <CategoryBadge

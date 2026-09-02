@@ -190,7 +190,6 @@ export const QuickActionCards: FC<{
                         <Tooltip
                             key={actionKey(action)}
                             label="Resolves to each viewer's own personal space."
-                            withinPortal
                         >
                             <span
                                 className={chipClassName(action)}
@@ -292,11 +291,11 @@ const ContentPickerModal: FC<{
                             className={classes.pickerRow}
                             onClick={() => onPick(content.uuid, content.name)}
                         >
-                            <MantineIcon icon={copy.icon} color="ldGray.6" />
+                            <MantineIcon icon={copy.icon} color="dimmed" />
                             <Text size="sm" fw={500} flex={1} truncate>
                                 {content.name}
                             </Text>
-                            <MantineIcon icon={IconPlus} color="ldGray.6" />
+                            <MantineIcon icon={IconPlus} color="dimmed" />
                         </Group>
                     ))}
                 </Stack>
@@ -396,10 +395,8 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                                 ? 'Primary action'
                                                 : 'Make primary'
                                         }
-                                        withinPortal
                                     >
                                         <ActionIcon
-                                            variant="subtle"
                                             color={
                                                 action.primary
                                                     ? 'yellow'
@@ -435,8 +432,6 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                         </ActionIcon>
                                     </Tooltip>
                                     <ActionIcon
-                                        variant="subtle"
-                                        color="ldGray.6"
                                         size="sm"
                                         disabled={index === 0}
                                         aria-label={`Move ${presentation.title} earlier`}
@@ -445,8 +440,6 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                         <MantineIcon icon={IconArrowLeft} />
                                     </ActionIcon>
                                     <ActionIcon
-                                        variant="subtle"
-                                        color="ldGray.6"
                                         size="sm"
                                         disabled={
                                             index ===
@@ -458,8 +451,6 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                         <MantineIcon icon={IconArrowRight} />
                                     </ActionIcon>
                                     <ActionIcon
-                                        variant="subtle"
-                                        color="ldGray.6"
                                         size="sm"
                                         aria-label={`Remove ${presentation.title}`}
                                         onClick={() =>
@@ -502,11 +493,10 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                     STATIC_ACTION_HINTS[type] ? (
                                         <Tooltip
                                             label={STATIC_ACTION_HINTS[type]}
-                                            withinPortal
                                         >
                                             <MantineIcon
                                                 icon={IconInfoCircle}
-                                                color="ldGray.6"
+                                                color="dimmed"
                                             />
                                         </Tooltip>
                                     ) : undefined

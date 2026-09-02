@@ -75,9 +75,12 @@ import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
 import {
+    CLOSED_CONTENT_MENTION_MENU,
+    contentMentionMenuOwnsEnter,
     createContentMentionExtension,
     extractContentMentionContext,
     isContentMentionSuggestionActive,
+    type ContentMentionMenuState,
     type ContentMentionSuggestionItem,
 } from './contentMentions';
 import { getAgentSuggestionModes } from './suggestionModes';
@@ -274,11 +277,12 @@ export const AgentChatInput = ({
     projectUuidRef.current = projectUuid;
     const contentMentionPriorityItemsRef = useRef(contentMentionPriorityItems);
     contentMentionPriorityItemsRef.current = contentMentionPriorityItems;
-    // Tracks whether the @-mention dropdown is open, sourced from the suggestion
-    // render lifecycle. Enter must select from the dropdown (or be a no-op while
-    // it loads), never submit, so we guard on this in addition to the plugin's
-    // `active` flag — which can read stale in the keydown vs async-items race.
-    const contentMentionPopupOpenRef = useRef(false);
+    // What the @-mention dropdown is doing, sourced from the suggestion render
+    // lifecycle — the plugin's own `active` flag alone can't tell an open
+    // menu from a dismissed or empty one.
+    const contentMentionMenuRef = useRef<ContentMentionMenuState>(
+        CLOSED_CONTENT_MENTION_MENU,
+    );
 
     // Hide the chip strip while the user is scrolled away from the input.
     // Reappears as they scroll back toward the bottom of the thread — chips
@@ -384,19 +388,22 @@ export const AgentChatInput = ({
             createContentMentionExtension({
                 getProjectUuid: () => projectUuidRef.current,
                 getPriorityItems: () => contentMentionPriorityItemsRef.current,
-                onPopupOpenChange: (open) => {
-                    contentMentionPopupOpenRef.current = open;
+                onMenuStateChange: (state) => {
+                    contentMentionMenuRef.current = state;
                 },
             }),
         ],
         [],
     );
 
-    // An open @-mention dropdown owns Enter — it selects rather than submits.
+    // An @-mention dropdown with something to select owns Enter — it selects
+    // rather than submits.
     const shouldBlockSubmit = useCallback(
         (ed: Editor | null) =>
-            isContentMentionSuggestionActive(ed) ||
-            contentMentionPopupOpenRef.current,
+            contentMentionMenuOwnsEnter(
+                contentMentionMenuRef.current,
+                isContentMentionSuggestionActive(ed),
+            ),
         [],
     );
 
@@ -829,11 +836,9 @@ export const AgentChatInput = ({
         );
 
         return (
-            <Menu position="bottom-start" withinPortal shadow="md" width={220}>
+            <Menu position="bottom-start" width={220}>
                 <Menu.Target>
                     <ActionIcon
-                        variant="subtle"
-                        color="ldGray.6"
                         size={30}
                         radius="xl"
                         aria-label="Composer options"
@@ -845,11 +850,7 @@ export const AgentChatInput = ({
                                 : undefined
                         }
                     >
-                        <MantineIcon
-                            icon={IconPlus}
-                            size={16}
-                            color="ldGray.6"
-                        />
+                        <MantineIcon icon={IconPlus} size={16} color="dimmed" />
                     </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>

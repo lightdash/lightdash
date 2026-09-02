@@ -118,8 +118,6 @@ export const BigNumberConditionalFormatting = ({
                         />
 
                         <ActionIcon
-                            variant="subtle"
-                            color="ldGray.6"
                             aria-label="Remove rule"
                             onClick={() =>
                                 dispatch(removeConditionalFormattingRule(index))

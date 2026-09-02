@@ -122,7 +122,7 @@ const ProjectResultsCacheForm: FC<FormProps> = ({
                     step={1}
                     rightSectionWidth={90}
                     rightSection={
-                        <Text c="ldGray.6" fz="xs">
+                        <Text c="dimmed" fz="xs">
                             {formatDurationHint(form.values.ttlMinutes)}
                         </Text>
                     }
@@ -155,7 +155,7 @@ const ProjectResultsCache: FC<Props> = ({ projectUuid }) => {
         <SettingsGridCard>
             <Box>
                 <Title order={5}>Cache duration</Title>
-                <Text c="ldGray.6" fz="xs">
+                <Text c="dimmed" fz="xs">
                     How long cached results are kept before Lightdash queries
                     the warehouse again.
                 </Text>

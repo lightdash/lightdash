@@ -1,6 +1,8 @@
 import {
     getErrorMessage,
+    type AiAgentReviewItemSummary,
     type AiAgentTargetRef,
+    type AiReviewLinearDestination,
     type CreateReviewLinearIssuePayload,
 } from '@lightdash/common'; // pragma: allowlist secret
 import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics'; // pragma: allowlist secret
@@ -60,6 +62,80 @@ export const buildIssueDescription = (args: {
         .join('\n\n');
 };
 
+const exportReviewItem = async (
+    deps: CreateReviewLinearIssueDeps,
+    args: {
+        payload: CreateReviewLinearIssuePayload;
+        fingerprint: string;
+        reviewItem: AiAgentReviewItemSummary;
+        destination: AiReviewLinearDestination & { linearTeamId: string };
+        projectName: string;
+    },
+): Promise<void> => {
+    const { payload, fingerprint, reviewItem, destination } = args;
+    const reviewUrl = `${deps.siteUrl}${REVIEWS_BOARD_PATH}?${buildReviewDrawerSearchParams(
+        payload.projectUuid,
+        fingerprint,
+        reviewItem,
+    )}`;
+
+    await deps.aiAgentReviewClassifierModel.withReviewItemLinkedIssueLock(
+        { organizationUuid: payload.organizationUuid, fingerprint },
+        async (linkedIssueUrl, setLinkedIssueUrl) => {
+            if (linkedIssueUrl !== null) {
+                return;
+            }
+
+            const created =
+                await deps.linearAppService.createIssueForOrganization(
+                    payload.organizationUuid,
+                    {
+                        title: reviewItem.title,
+                        description: buildIssueDescription({
+                            description: reviewItem.description,
+                            rootCause: reviewItem.primaryRootCause,
+                            priority: reviewItem.priority,
+                            findingCount: reviewItem.findingCount,
+                            targetRefs: reviewItem.targetRefs,
+                            projectName: args.projectName,
+                            reviewUrl,
+                        }),
+                        teamId: destination.linearTeamId,
+                        projectId: destination.linearProjectId,
+                    },
+                );
+
+            await setLinkedIssueUrl(created.url);
+
+            try {
+                await deps.linearAppService.linkIssueUrlForOrganization(
+                    payload.organizationUuid,
+                    {
+                        issueId: created.id,
+                        url: reviewUrl,
+                        title: 'Open in Lightdash', // pragma: allowlist secret
+                    },
+                );
+            } catch (error) {
+                Logger.warn(
+                    `Failed to attach review URL to Linear issue ${created.identifier}: ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+            }
+
+            deps.analytics.track({
+                event: 'ai_review_linear_issue.created',
+                anonymousId: payload.organizationUuid,
+                properties: {
+                    organizationId: payload.organizationUuid,
+                    projectId: payload.projectUuid,
+                },
+            });
+        },
+    );
+};
+
 export const createReviewLinearIssue =
     (deps: CreateReviewLinearIssueDeps) =>
     async (payload: CreateReviewLinearIssuePayload): Promise<void> => {
@@ -75,7 +151,8 @@ export const createReviewLinearIssue =
             payload.organizationUuid,
             payload.projectUuid,
         );
-        if (!destination.enabled || !destination.linearTeamId) {
+        const { linearTeamId } = destination;
+        if (!destination.enabled || !linearTeamId) {
             return;
         }
 
@@ -98,46 +175,13 @@ export const createReviewLinearIssue =
                         'Skipping Linear issue creation for missing review item',
                         { fingerprint },
                     );
-                } else if (reviewItem.linkedIssueUrl === null) {
-                    const reviewUrl = `${deps.siteUrl}${REVIEWS_BOARD_PATH}?${buildReviewDrawerSearchParams(
-                        payload.projectUuid,
+                } else {
+                    await exportReviewItem(deps, {
+                        payload,
                         fingerprint,
                         reviewItem,
-                    )}`;
-                    const created =
-                        await deps.linearAppService.createIssueForOrganization(
-                            payload.organizationUuid,
-                            {
-                                title: reviewItem.title,
-                                description: buildIssueDescription({
-                                    description: reviewItem.description,
-                                    rootCause: reviewItem.primaryRootCause,
-                                    priority: reviewItem.priority,
-                                    findingCount: reviewItem.findingCount,
-                                    targetRefs: reviewItem.targetRefs,
-                                    projectName: project.name,
-                                    reviewUrl,
-                                }),
-                                teamId: destination.linearTeamId,
-                                projectId: destination.linearProjectId,
-                            },
-                        );
-
-                    await deps.aiAgentReviewClassifierModel.updateReviewItemLinkedIssueUrl(
-                        {
-                            organizationUuid: payload.organizationUuid,
-                            fingerprint,
-                            linkedIssueUrl: created.url,
-                        },
-                    );
-
-                    deps.analytics.track({
-                        event: 'ai_review_linear_issue.created',
-                        anonymousId: payload.organizationUuid,
-                        properties: {
-                            organizationId: payload.organizationUuid,
-                            projectId: payload.projectUuid,
-                        },
+                        destination: { ...destination, linearTeamId },
+                        projectName: project.name,
                     });
                 }
             } catch (error) {

@@ -109,7 +109,6 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                         row.original.contentType === ContentType.CHART;
                     return (
                         <Badge
-                            variant="light"
                             color={isChart ? 'blue' : 'violet'}
                             leftSection={
                                 <MantineIcon
@@ -172,11 +171,9 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 enableSorting: false,
                 size: 80,
                 Cell: ({ row }) => (
-                    <Menu withinPortal position="bottom-end">
+                    <Menu position="bottom-end">
                         <Menu.Target>
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                 }}

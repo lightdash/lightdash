@@ -225,8 +225,6 @@ const SaveChartButton: FC<{
                             : 'A custom metric ID matches an existing table metric. Rename it to avoid conflicts.'
                     }
                     disabled={isMergeValid && !foundCustomMetricWithDuplicateId}
-                    withinPortal
-                    multiline
                     position={'bottom'}
                     maw={300}
                 >
@@ -269,8 +267,6 @@ const SaveChartButton: FC<{
                     <Tooltip
                         label="Save as new chart"
                         position="bottom"
-                        withArrow
-                        withinPortal
                         disabled={isSaveAsDisabled}
                     >
                         <Button

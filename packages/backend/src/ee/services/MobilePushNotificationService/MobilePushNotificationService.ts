@@ -15,7 +15,10 @@ import {
 } from '../../../clients/Apns/ApnsClient';
 import { type MobilePushNotificationsConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
-import { type MobilePushEnvironment } from '../../database/entities/mobilePushNotifications';
+import {
+    type MobilePushEnvironment,
+    type MobilePushPlatform,
+} from '../../database/entities/mobilePushNotifications';
 import {
     type LiveActivityStartAttempt,
     type SchedulableLiveActivityStartAttempt,
@@ -31,8 +34,13 @@ type MobilePushInstallation = {
     installationUuid: string;
     organizationUuid: string;
     userUuid: string;
+    platform: MobilePushPlatform;
     environment: MobilePushEnvironment;
 };
+
+type UpsertInstallationResult =
+    | { status: 'stored'; installation: MobilePushInstallation }
+    | { status: 'owner_mismatch' };
 
 type MobilePushThreadOwnership = {
     threadUuid: string;
@@ -50,6 +58,7 @@ type MobilePushPrompt = {
     threadUuid: string;
     agentUuid: string | null;
     createdByUserUuid: string;
+    prompt: string;
 };
 
 type UpsertLiveActivity = {
@@ -84,9 +93,10 @@ export type MobilePushNotificationStore = {
         installationUuid: string;
         organizationUuid: string;
         userUuid: string;
+        platform: MobilePushPlatform;
         environment: MobilePushEnvironment;
         deviceToken: string;
-    }): Promise<MobilePushInstallation>;
+    }): Promise<UpsertInstallationResult>;
     registerPushToStartToken(args: {
         installationUuid: string;
         organizationUuid: string;
@@ -163,6 +173,7 @@ export type MobilePushThreadStore = {
         uuid: string;
         organizationUuid: string;
         projectUuid: string;
+        name: string;
     }>;
     findThreadOwnership(args: {
         organizationUuid: string;
@@ -233,6 +244,23 @@ const validatePushToken = (pushToken: string): void => {
     }
 };
 
+const validateDeviceToken = (
+    platform: MobilePushPlatform,
+    deviceToken: string,
+): void => {
+    if (platform === 'ios') {
+        validatePushToken(deviceToken);
+        return;
+    }
+    if (
+        deviceToken.length === 0 ||
+        deviceToken.length > 4096 ||
+        !/^[A-Za-z0-9_:.%-]+$/.test(deviceToken)
+    ) {
+        throw new ParameterError('Push token is invalid');
+    }
+};
+
 const LIVE_ACTIVITY_START_STALE_AFTER_MS = 5 * 60 * 1000;
 const LIVE_ACTIVITY_START_PROCESSING_LEASE_MS = 5 * 60 * 1000;
 
@@ -282,16 +310,32 @@ export class MobilePushNotificationService {
     getStatus(): {
         enabled: boolean;
         environments: MobilePushEnvironment[];
+        platforms: MobilePushPlatform[];
     } {
         const environments: MobilePushEnvironment[] = [];
         if (this.config.sandbox !== undefined) environments.push('sandbox');
         if (this.config.production !== undefined)
             environments.push('production');
 
+        const platforms: MobilePushPlatform[] = [];
+        if (this.config.teamId !== undefined && environments.length > 0)
+            platforms.push('ios');
+        if (this.config.fcm !== undefined) platforms.push('android');
+
         return {
             enabled: this.config.enabled,
             environments: this.config.enabled ? environments : [],
+            platforms: this.config.enabled ? platforms : [],
         };
+    }
+
+    private isPlatformConfigured(
+        platform: MobilePushPlatform,
+        environment: MobilePushEnvironment,
+    ): boolean {
+        return platform === 'android'
+            ? this.config.fcm !== undefined
+            : this.config[environment] !== undefined;
     }
 
     private getConfiguredEnvironments(): MobilePushEnvironment[] {
@@ -368,32 +412,39 @@ export class MobilePushNotificationService {
     async registerInstallation(args: {
         user: MobilePushUser;
         installationUuid: string;
+        platform: MobilePushPlatform;
         environment: MobilePushEnvironment;
         deviceToken: string;
     }): Promise<void> {
         if (!this.config.enabled) return;
-        validatePushToken(args.deviceToken);
+        validateDeviceToken(args.platform, args.deviceToken);
         const { organizationUuid } = args.user;
         if (
             organizationUuid == null ||
-            this.config[args.environment] === undefined
+            !this.isPlatformConfigured(args.platform, args.environment)
         ) {
             throw new NotFoundError('Mobile push registration not found');
         }
 
-        await this.mobilePushNotificationStore.upsertInstallation({
-            installationUuid: args.installationUuid,
-            organizationUuid,
-            userUuid: args.user.userUuid,
-            environment: args.environment,
-            deviceToken: args.deviceToken,
-        });
+        const result =
+            await this.mobilePushNotificationStore.upsertInstallation({
+                installationUuid: args.installationUuid,
+                organizationUuid,
+                userUuid: args.user.userUuid,
+                platform: args.platform,
+                environment: args.environment,
+                deviceToken: args.deviceToken,
+            });
+        if (result.status === 'owner_mismatch') {
+            throw new NotFoundError('Mobile push registration not found');
+        }
         this.track({
             event: 'mobile_push.installation_registered',
             userId: args.user.userUuid,
             properties: {
                 organizationId: organizationUuid,
                 installationId: args.installationUuid,
+                platform: args.platform,
                 environment: args.environment,
             },
         });
@@ -419,7 +470,8 @@ export class MobilePushNotificationService {
             );
         if (
             installation?.organizationUuid !== organizationUuid ||
-            installation.userUuid !== args.user.userUuid
+            installation.userUuid !== args.user.userUuid ||
+            installation.platform !== 'ios'
         ) {
             throw new NotFoundError('Mobile push registration not found');
         }
@@ -627,6 +679,12 @@ export class MobilePushNotificationService {
             return;
         }
 
+        const agent = await this.threadStore.getAgent({
+            organizationUuid: attempt.organizationUuid,
+            projectUuid: prompt.projectUuid,
+            agentUuid: prompt.agentUuid,
+        });
+
         const payload = buildLiveActivityStartPayload({
             timestamp: attemptedAt,
             staleAt: new Date(
@@ -638,6 +696,8 @@ export class MobilePushNotificationService {
             agentUuid: prompt.agentUuid,
             threadUuid: prompt.threadUuid,
             promptUuid: prompt.promptUuid,
+            agentName: agent.name,
+            taskSummary: prompt.prompt,
         });
         const result = await this.apnsClient.sendLiveActivityStart({
             environment: attempt.environment,
@@ -724,30 +784,35 @@ export class MobilePushNotificationService {
 
     async registerLiveActivity(args: RegisterLiveActivity): Promise<void> {
         if (!this.config.enabled) return;
-        validatePushToken(args.pushToken);
         const { organizationUuid } = args.user;
         if (organizationUuid == null) {
             throw new NotFoundError('Mobile push registration not found');
         }
 
-        const [installation, existingActivity, ownership, prompt] =
-            await Promise.all([
-                this.mobilePushNotificationStore.findInstallation(
-                    args.installationUuid,
-                ),
-                this.mobilePushNotificationStore.findLiveActivityOwner(
-                    args.liveActivityUuid,
-                ),
-                this.threadStore.findThreadOwnership({
-                    organizationUuid,
-                    threadUuid: args.threadUuid,
-                }),
-                this.threadStore.findWebAppPrompt(args.promptUuid),
-            ]);
-
+        const installation =
+            await this.mobilePushNotificationStore.findInstallation(
+                args.installationUuid,
+            );
         if (
             installation?.organizationUuid !== organizationUuid ||
-            installation.userUuid !== args.user.userUuid ||
+            installation.userUuid !== args.user.userUuid
+        ) {
+            throw new NotFoundError('Mobile push registration not found');
+        }
+        validateDeviceToken(installation.platform, args.pushToken);
+
+        const [existingActivity, ownership, prompt] = await Promise.all([
+            this.mobilePushNotificationStore.findLiveActivityOwner(
+                args.liveActivityUuid,
+            ),
+            this.threadStore.findThreadOwnership({
+                organizationUuid,
+                threadUuid: args.threadUuid,
+            }),
+            this.threadStore.findWebAppPrompt(args.promptUuid),
+        ]);
+
+        if (
             (existingActivity !== undefined &&
                 (existingActivity.mobilePushInstallationUuid !==
                     installation.mobilePushInstallationUuid ||
@@ -794,6 +859,7 @@ export class MobilePushNotificationService {
                 promptId: args.promptUuid,
                 installationId: args.installationUuid,
                 liveActivityId: args.liveActivityUuid,
+                platform: installation.platform,
                 environment: installation.environment,
             },
         });

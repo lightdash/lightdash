@@ -133,14 +133,12 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
                     </List>
                 )
             }
-            multiline
             position={'bottom'}
         >
             <Badge
                 leftSection={<MantineIcon icon={IconAlertCircle} size={'sm'} />}
                 color="yellow"
                 variant="outline"
-                tt="none"
             >
                 Results may be incorrect
             </Badge>

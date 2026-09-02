@@ -1,7 +1,8 @@
 import { DbtProjectType, snakeCaseName } from '@lightdash/common';
 import { Button, Stack, TextInput, Tooltip } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconInfoCircle, IconTableAlias } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -15,7 +16,7 @@ import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useCreateVirtualView } from '../hooks/useVirtualView';
 
 const validationSchema = z.object({
-    name: z.string().min(1),
+    name: z.string().min(1, 'Name is required'),
 });
 
 type FormValues = z.infer<typeof validationSchema>;
@@ -98,8 +99,6 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
             cancelDisabled={isLoadingVirtual}
             headerActions={
                 <Tooltip
-                    withinPortal
-                    multiline
                     maw={300}
                     label={`Create a virtual view so others can reuse this query in Lightdash. The query won't be saved to or managed in your dbt project. ${
                         canWriteToDbtProject

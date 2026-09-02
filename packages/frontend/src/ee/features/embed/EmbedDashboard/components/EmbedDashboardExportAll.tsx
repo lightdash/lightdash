@@ -70,11 +70,10 @@ const EmbedDashboardExportAll: FC<Props> = ({ dashboard, projectUuid }) => {
     };
 
     return (
-        <Menu position="bottom-end" withinPortal>
+        <Menu position="bottom-end">
             <Menu.Target>
                 <Tooltip
                     label={getUiString('dashboard.exportAllTiles')}
-                    withinPortal
                     position="bottom"
                 >
                     <ActionIcon
@@ -83,7 +82,6 @@ const EmbedDashboardExportAll: FC<Props> = ({ dashboard, projectUuid }) => {
                         )}
                         variant="default"
                         size="lg"
-                        radius="md"
                         loading={exportDashboardContentMutation.isLoading}
                     >
                         <MantineIcon icon={IconTableExport} />

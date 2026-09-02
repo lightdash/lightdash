@@ -10,7 +10,7 @@ import {
     SpaceMemberRole,
     UnexpectedGoogleSheetsError,
     type ChartScheduler,
-    type CreateSchedulerAndTargets,
+    type SendNowScheduler,
     type UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -251,7 +251,7 @@ describe('SchedulerService', () => {
             includeLinks: true,
             plainTextEmail: false,
             targets: [{ recipient: 'recipient@example.com' }],
-        } as unknown as CreateSchedulerAndTargets;
+        } as unknown as SendNowScheduler;
 
         const userWhoCanSend = buildUser([
             { subject: 'ScheduledDeliveries', action: ['create'] },
@@ -286,6 +286,10 @@ describe('SchedulerService', () => {
                     ...sendNowPayload,
                     savedChartUuid: null,
                     dashboardUuid: 'dashboardUuid',
+                    savedSqlUuid: null,
+                    appUuid: null,
+                    filters: undefined,
+                    selectedTabs: null,
                     sourceSchedulerUuid:
                         chartSchedulerInPrivateSpace.schedulerUuid,
                 }),
@@ -405,7 +409,7 @@ describe('SchedulerService', () => {
                     includeLinks: true,
                     plainTextEmail: false,
                     targets: [{ recipient: 'recipient@example.com' }],
-                }) as unknown as CreateSchedulerAndTargets;
+                }) as unknown as SendNowScheduler;
 
             test.each([SchedulerFormat.GSHEETS, SchedulerFormat.PDF])(
                 'rejects a %s send-now app payload',

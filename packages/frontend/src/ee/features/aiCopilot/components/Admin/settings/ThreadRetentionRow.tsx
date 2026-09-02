@@ -37,7 +37,7 @@ export const ThreadRetentionRow = ({
                     <Title order={5} mb={4}>
                         Thread retention
                     </Title>
-                    <Text c="ldGray.6" fz="xs">
+                    <Text c="dimmed" fz="xs">
                         Automatically delete agent threads after a period of
                         inactivity. Agents can shorten this window but not
                         extend it.

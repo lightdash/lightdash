@@ -1,29 +1,25 @@
 .filterButton {
-    border: 1px dashed
-        light-dark(var(--mantine-color-ldGray-3), var(--mantine-color-dark-4));
+    border: 1px dashed var(--mantine-color-ldGray-3);
     background-color: transparent;
     text-overflow: ellipsis;
     box-shadow: var(--mantine-shadow-subtle);
 }
 
 .filterButton:hover {
-    background-color: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-dark-6)
-    );
+    background-color: var(--mantine-color-default-hover);
     transition: background-color var(--mantine-other-transitionDuration)
         var(--mantine-other-transitionTimingFunction);
 }
 
 .filterButtonSelected {
-    border: 1px solid var(--mantine-color-indigo-outline);
-    background-color: var(--mantine-color-indigo-light);
+    border: 1px solid var(--mantine-color-ldGray-3);
+    background-color: var(--mantine-color-ldGray-1);
     text-overflow: ellipsis;
     box-shadow: var(--mantine-shadow-subtle);
 }
 
 .filterButtonSelected:hover {
-    background-color: var(--mantine-color-indigo-light-hover);
+    background-color: var(--mantine-color-default-hover);
     transition: background-color var(--mantine-other-transitionDuration)
         var(--mantine-other-transitionTimingFunction);
 }
@@ -36,10 +32,7 @@
 }
 
 .option:hover {
-    background-color: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-dark-6)
-    );
+    background-color: var(--mantine-color-default-hover);
 }
 
 .optionDisabled {
@@ -51,12 +44,13 @@
     background-color: transparent;
 }
 
+.optionLabel {
+    overflow: hidden;
+}
+
 .groupLabel {
     padding: 4px 8px 2px;
-    color: light-dark(
-        var(--mantine-color-ldGray-6),
-        var(--mantine-color-dark-2)
-    );
+    color: var(--mantine-color-dimmed);
     font-family: var(--mantine-font-family);
     font-size: 11px;
     font-weight: 500;

@@ -113,7 +113,7 @@ const SpaceSelector = ({
                 placeholder="Search spaces"
             />
 
-            <Paper w="100%" h={400} className={styles.treeContainer} withBorder>
+            <Paper w="100%" h={400} className={styles.treeContainer}>
                 <Tree
                     withRootSelectable={isRootSelectionEnabled}
                     data={fuzzyFilteredSpaces ?? filteredSpaces}

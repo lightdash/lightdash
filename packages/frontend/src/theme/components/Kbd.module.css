@@ -1,0 +1,16 @@
+.root {
+    font-family: var(--mantine-font-family);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    line-height: 1;
+    padding: rem(3px) rem(5px);
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+    border-bottom-width: rem(2px);
+    border-radius: var(--mantine-radius-sm);
+    background-color: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-7)
+    );
+    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
+}

@@ -502,6 +502,7 @@ export class QueryController extends BaseController {
                 context: context ?? QueryExecutionContext.API,
                 parameters: body.parameters,
                 pivotResults: body.pivotResults,
+                includeUnpublishedDraft: body.includeUnpublishedDraft,
             });
 
         return {

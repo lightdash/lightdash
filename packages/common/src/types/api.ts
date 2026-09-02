@@ -71,7 +71,9 @@ import type {
     ApiGetUserAgentPreferencesResponse,
     ApiHomepageLinkMetadataResponse,
     ApiHomepageViewAsResponse,
+    ApiInstallRegistryChartTypeResponse,
     ApiListDataAppVizsResponse,
+    ApiListRegistryChartTypesResponse,
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
     ApiManagedAgentRunsListResponse,
@@ -144,12 +146,15 @@ import {
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
     type ApiContentAsCodeProposeResponse,
+    type ApiContentAsCodePullResponse,
     type ApiContentAsCodeSettingsResponse,
     type ApiContentAsCodeUploadAdvisoryResponse,
     type ApiContentAsCodeWritebacksResponse,
+    type ApiContentDraftRebaseResponse,
     type ApiContentDraftReopenResponse,
     type ApiContentDraftReviewResponse,
     type ApiContentDraftsResponse,
+    type ApiContentDraftStalenessResponse,
     type ApiContentDraftWriteBackResponse,
     type ApiDashboardAsCodeListResponse,
     type ApiGoogleSheetsSyncAsCodeListResponse,
@@ -166,6 +171,13 @@ import {
     type ApiChartContentResponse,
     type ApiContentResponse,
 } from './content';
+import {
+    type ContentReviewRequest,
+    type ContentReviewRequestDetail,
+    type ContentReviewRequestListItem,
+    type ContentReviewSettings,
+    type ContentReviewSimilarContentItem,
+} from './contentReviewRequests';
 import {
     type ApiContentVerificationDeleteResponse,
     type ApiContentVerificationResponse,
@@ -219,6 +231,7 @@ import type {
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
+import { type KnexPaginatedData } from './knex-paginate';
 import type { LinearInstallation, LinearProject, LinearTeam } from './linear';
 import {
     type ApiCompiledMergeQueryResults,
@@ -460,6 +473,12 @@ export type ApiStatusResults = 'loading' | 'ready' | 'error';
 
 export type ApiRefreshResults = {
     jobUuid: string;
+};
+
+// Optional so callers that send no body (the CLI, API clients) keep working
+export type ApiRefreshBody = {
+    // Run the content-as-code pull as a job step after compiling
+    syncContent?: boolean;
 };
 
 export type ApiCreatePreviewResults = {
@@ -1216,6 +1235,11 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | ContentReviewRequest
+    | ContentReviewRequestDetail
+    | ContentReviewSettings
+    | ContentReviewSimilarContentItem[]
+    | KnexPaginatedData<ContentReviewRequestListItem[]>
     | BigqueryProjectRecommendation
     | EnsurePlaygroundProjectResults
     | ApiWarehouseConnectCodeResponse['results']
@@ -1392,9 +1416,12 @@ type ApiResults =
     | ApiContentAsCodeWritebacksResponse['results']
     | ApiContentDraftsResponse['results']
     | ApiContentDraftReviewResponse['results']
+    | ApiContentDraftRebaseResponse['results']
+    | ApiContentDraftStalenessResponse['results']
     | ApiContentDraftReopenResponse['results']
     | ApiContentDraftWriteBackResponse['results']
     | ApiContentAsCodeProposeResponse['results']
+    | ApiContentAsCodePullResponse['results']
     | ApiContentAsCodeSettingsResponse['results']
     | ApiContentAsCodeUploadAdvisoryResponse['results']
     | ApiGetMetricsTree['results']
@@ -1506,6 +1533,8 @@ type ApiResults =
     | ApiGetDataAppAuthoringContextResponse['results']
     | ApiGetAppResponse['results']
     | ApiListDataAppVizsResponse['results']
+    | ApiListRegistryChartTypesResponse['results']
+    | ApiInstallRegistryChartTypeResponse['results']
     | ApiGetDataAppVizResponse['results']
     | ApiDataAppVizRenderMetadataResponse['results']
     | ApiDataAppVizPreviewTokenResponse['results']

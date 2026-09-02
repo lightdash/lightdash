@@ -14,6 +14,7 @@ import {
     type ApiDataAppVizPreviewTokenResponse,
     type ApiDataAppVizRenderMetadataResponse,
     type ApiDeleteAppResponse,
+    type ApiDuplicateAppRequest,
     type ApiDuplicateAppResponse,
     type ApiEmbedProjectAppsResponse,
     type ApiGenerateAppResponse,
@@ -22,7 +23,9 @@ import {
     type ApiGetDataAppAuthoringContextResponse,
     type ApiGetDataAppVizResponse,
     type ApiImportAppCodeResponse,
+    type ApiInstallRegistryChartTypeResponse,
     type ApiListDataAppVizsResponse,
+    type ApiListRegistryChartTypesResponse,
     type ApiMyAppsResponse,
     type ApiPreviewTokenResponse,
     type ApiPromoteAppDiffResponse,
@@ -156,6 +159,60 @@ export class AppGenerateController extends BaseController {
             projectUuid,
             'only',
         );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * The installable chart type catalog from the configured chart
+     * registry, merged with this project's install state.
+     * @summary List installable chart types from the chart registry
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/registry/charts')
+    @OperationId('listRegistryChartTypes')
+    async listRegistryChartTypes(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiListRegistryChartTypesResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results =
+            await this.getAppGenerateService().listRegistryChartTypes(
+                toSessionUser(req.account),
+                projectUuid,
+            );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Install a chart type from the chart registry, or append a new version
+     * when it's already installed at an older registry version.
+     * @summary Install or upgrade a chart type from the chart registry
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/registry/charts/{chartSlug}/install')
+    @OperationId('installRegistryChartType')
+    async installRegistryChartType(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() chartSlug: string,
+    ): Promise<ApiInstallRegistryChartTypeResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results =
+            await this.getAppGenerateService().installRegistryChartType(
+                toSessionUser(req.account),
+                projectUuid,
+                chartSlug,
+            );
         return {
             status: 'ok',
             results,
@@ -618,12 +675,14 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
+        @Body() body?: ApiDuplicateAppRequest,
     ): Promise<ApiDuplicateAppResponse> {
         assertRegisteredAccount(req.account);
         const result = await this.getAppGenerateService().duplicateApp(
             toSessionUser(req.account),
             projectUuid,
             appUuid,
+            body,
         );
         this.setStatus(200);
         return {

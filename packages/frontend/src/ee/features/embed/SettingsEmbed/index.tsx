@@ -226,7 +226,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     icon={
                         <MantineIcon
                             icon={IconKey}
-                            color="ldGray.6"
+                            color="dimmed"
                             stroke={1}
                             size="5xl"
                         />

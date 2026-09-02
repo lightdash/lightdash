@@ -106,7 +106,7 @@ const DeepResearchLimitsForm = ({
         <SettingsGridCard>
             <Box>
                 <Title order={5}>Run limits</Title>
-                <Text c="ldGray.6" fz="xs">
+                <Text c="dimmed" fz="xs">
                     Ceilings applied to every deep research run in your
                     organization. A run that reaches any of these limits stops
                     and reports what it has.
@@ -163,7 +163,7 @@ const DeepResearchRawSqlSetting = ({ enabled }: { enabled: boolean }) => {
             >
                 <Box flex={1}>
                     <Title order={5}>Allow raw SQL</Title>
-                    <Text c="ldGray.6" fz="xs">
+                    <Text c="dimmed" fz="xs">
                         Let Deep Research run raw SQL when the initiating user
                         has SQL Runner permission. Disable to keep
                         investigations on governed explores and metrics.

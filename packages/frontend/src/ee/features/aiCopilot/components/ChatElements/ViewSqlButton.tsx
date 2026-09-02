@@ -17,13 +17,8 @@ export const ViewSqlButton: FC<ViewSqlButtonProps> = memo(({ sql }) => {
 
     return (
         <>
-            <Tooltip label="View SQL" position="top" withinPortal>
-                <ActionIcon
-                    size="sm"
-                    variant="subtle"
-                    color="ldGray.9"
-                    onClick={open}
-                >
+            <Tooltip label="View SQL" position="top">
+                <ActionIcon size="sm" color="ldGray.9" onClick={open}>
                     <MantineIcon icon={IconEye} />
                 </ActionIcon>
             </Tooltip>

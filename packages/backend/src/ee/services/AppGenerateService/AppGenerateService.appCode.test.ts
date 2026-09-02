@@ -235,6 +235,7 @@ function buildService(
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
 
     // Stub ability checks to allow everything
@@ -401,6 +402,7 @@ describe('AppGenerateService.importAppCode', () => {
             name: 'Test App',
             description: 'A test app',
             slug: EXISTING_APP_SLUG,
+            registry_slug: null,
         };
         appModel.findApp.mockResolvedValue(existingApp);
         appModel.getLatestVersion.mockResolvedValue({ version: 4 });
@@ -499,6 +501,7 @@ describe('AppGenerateService.importAppCode', () => {
             name: 'Test App',
             description: 'A test app',
             slug: EXISTING_APP_SLUG,
+            registry_slug: null,
         });
         appModel.getLatestVersion.mockResolvedValue({ version: 4 });
 
@@ -525,6 +528,7 @@ describe('AppGenerateService.importAppCode', () => {
             name: 'Test App',
             description: 'A test app',
             slug: EXISTING_APP_SLUG,
+            registry_slug: null,
         });
         appModel.getLatestVersion.mockResolvedValue({ version: 4 });
 
@@ -547,6 +551,7 @@ describe('AppGenerateService.importAppCode', () => {
             name: 'Test App',
             description: 'A test app',
             slug: EXISTING_APP_SLUG,
+            registry_slug: null,
         });
         appModel.getLatestVersion.mockResolvedValue({ version: 4 });
 
@@ -603,6 +608,7 @@ describe('AppGenerateService.importAppCode', () => {
             description: 'A test viz',
             slug: EXISTING_APP_SLUG,
             template: 'data_app_viz',
+            registry_slug: null,
         });
         appModel.getLatestVersion.mockResolvedValue({ version: 4 });
 
@@ -728,6 +734,7 @@ describe('AppGenerateService.importAppCode', () => {
             organization_uuid: PROJECT_ORG_UUID,
             name: 'Old Name',
             description: 'Old description',
+            registry_slug: null,
         };
         appModel.findApp.mockResolvedValue(existingApp);
         appModel.getLatestVersion.mockResolvedValue({ version: 1 });
@@ -759,6 +766,7 @@ describe('AppGenerateService.importAppCode', () => {
             organization_uuid: PROJECT_ORG_UUID,
             name: 'Test App',
             description: 'A test app',
+            registry_slug: null,
         };
         appModel.findApp.mockResolvedValue(existingApp);
         appModel.getLatestVersion.mockResolvedValue({ version: 1 });
@@ -807,6 +815,7 @@ describe('AppGenerateService.importAppCode', () => {
             name: 'Test App',
             description: 'A test app',
             template: 'data_app_viz',
+            registry_slug: null,
         };
         appModel.findApp.mockResolvedValue(existingApp);
         appModel.getLatestVersion.mockResolvedValue({ version: 4 });
@@ -1548,6 +1557,7 @@ describe('AppGenerateService.importAppCode unchanged skip', () => {
         description: 'A test app',
         slug: EXISTING_APP_SLUG,
         template: null,
+        registry_slug: null,
     };
     const readyVersion = {
         version: 4,
@@ -1952,6 +1962,7 @@ describe('importAppCode slug identity', () => {
         name: 'Test App',
         description: 'A test app',
         slug: EXISTING_APP_SLUG,
+        registry_slug: null,
     };
 
     it('appends when the manifest slug matches an app in the target project', async () => {

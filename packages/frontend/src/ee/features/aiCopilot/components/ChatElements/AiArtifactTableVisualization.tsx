@@ -69,7 +69,6 @@ export const AiArtifactTableVisualization: FC<Props> = ({
                 mah="100%"
                 mih={0}
                 pos="relative"
-                withBorder
                 radius="md"
                 bg="ldGray.0"
                 className={styles.tableContainer}

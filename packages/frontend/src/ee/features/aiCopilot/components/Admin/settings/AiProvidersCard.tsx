@@ -101,7 +101,6 @@ const ProviderRow: FC<ProviderRowProps> = ({
                     {isSet && (
                         <Badge
                             size="sm"
-                            variant="light"
                             color="green"
                             leftSection={
                                 <MantineIcon icon={IconKey} size={12} />
@@ -129,7 +128,7 @@ const ProviderRow: FC<ProviderRowProps> = ({
 
             <Group gap="xs" wrap="nowrap" align="flex-end">
                 <PasswordInput
-                    style={{ flex: 1 }}
+                    flex={1}
                     size="xs"
                     aria-label={label}
                     value={value}

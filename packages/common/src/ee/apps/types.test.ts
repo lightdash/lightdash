@@ -4,6 +4,7 @@ import {
     dataAppVizSchema,
     getEffectiveOptionValues,
     getVisibleDataAppClaudeModels,
+    isOfficialChartType,
     pruneDataAppVizOptionValues,
     resolveDefaultDataAppClaudeModel,
     resolveDefaultVisibleDataAppClaudeModel,
@@ -23,6 +24,15 @@ const validFields = {
         { name: 'series', label: 'Series', type: 'series', required: false },
     ],
 };
+
+describe('isOfficialChartType', () => {
+    it('is true only when registrySlug is set', () => {
+        expect(isOfficialChartType({ registrySlug: 'radial-gauge' })).toBe(
+            true,
+        );
+        expect(isOfficialChartType({ registrySlug: null })).toBe(false);
+    });
+});
 
 describe('dataAppVizSchema', () => {
     it('accepts a well-formed fields declaration (configOptions defaults to [], colorPalette to null)', () => {

@@ -33,6 +33,18 @@ describe('loadLightdashProjectConfig', () => {
         });
     });
 
+    it('should load content_as_code sync and path', async () => {
+        const config = await loadLightdashProjectConfig(`
+content_as_code:
+  sync: true
+  path: analytics/content
+`);
+        expect(config.content_as_code).toEqual({
+            sync: true,
+            path: 'analytics/content',
+        });
+    });
+
     it('should load a valid config with parameters', async () => {
         const config = await loadLightdashProjectConfig(
             validConfigWithParameters,

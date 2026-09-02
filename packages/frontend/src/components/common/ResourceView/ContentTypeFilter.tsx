@@ -43,7 +43,6 @@ const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
     return (
         <SegmentedControl
             size="xs"
-            radius="md"
             value={value ?? 'all'}
             onChange={(newValue) =>
                 onChange(

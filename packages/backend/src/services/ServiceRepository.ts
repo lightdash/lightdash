@@ -181,6 +181,8 @@ interface ServiceManifest {
     aiService: unknown;
     aiAgentCoderService: unknown;
     projectHomepageService: unknown;
+    contentReviewRequestService: unknown;
+    contentReviewNotificationService: unknown;
     aiAgentService: unknown;
     aiAgentToolsService: unknown;
     aiAgentAdminService: unknown;
@@ -948,6 +950,7 @@ export class ServiceRepository
                 new AsyncQueryService({
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
+                    contentDraftModel: this.models.getContentDraftModel(),
                     projectModel: this.models.getProjectModel(),
                     projectDbtSourcesModel:
                         this.models.getProjectDbtSourcesModel(),
@@ -1340,6 +1343,7 @@ export class ServiceRepository
                     contentAsCodeWritebackModel:
                         this.models.getContentAsCodeWritebackModel(),
                     contentDraftModel: this.models.getContentDraftModel(),
+                    userModel: this.models.getUserModel(),
                 }),
         );
     }
@@ -1623,6 +1627,18 @@ export class ServiceRepository
         ProjectHomepageServiceImplT,
     >(): ProjectHomepageServiceImplT {
         return this.getService('projectHomepageService');
+    }
+
+    public getContentReviewRequestService<
+        ContentReviewRequestServiceImplT,
+    >(): ContentReviewRequestServiceImplT {
+        return this.getService('contentReviewRequestService');
+    }
+
+    public getContentReviewNotificationService<
+        ContentReviewNotificationServiceImplT,
+    >(): ContentReviewNotificationServiceImplT {
+        return this.getService('contentReviewNotificationService');
     }
 
     public getHomepageRecommendedActionSkipsService<

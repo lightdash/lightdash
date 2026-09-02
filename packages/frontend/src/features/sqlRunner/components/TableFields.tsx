@@ -2,7 +2,6 @@ import {
     TextInput,
     Box,
     Center,
-    CopyButton,
     Group,
     Loader,
     Stack,
@@ -13,8 +12,9 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
-import { IconCopy, IconSearch, IconX } from '@tabler/icons-react';
+import { IconSearch, IconX } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
+import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TableFieldIcon } from '../../../components/DataViz/Icons';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
@@ -36,42 +36,26 @@ const TableField: FC<{
         <Group gap={'xs'} wrap="nowrap" ref={hoverRef}>
             {hovered ? (
                 <Box display={hovered ? 'block' : 'none'}>
-                    <CopyButton value={`${activeTable}.${field.name}`}>
-                        {({ copied, copy }) => (
-                            <Tooltip
-                                label={copied ? 'Copied to clipboard' : 'Copy'}
-                                withArrow
-                                position="right"
-                            >
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
-                                    size={16}
-                                    onClick={copy}
-                                    bg="ldGray.1"
-                                >
-                                    <MantineIcon
-                                        icon={IconCopy}
-                                        color={copied ? 'green' : 'blue'}
-                                        onClick={copy}
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                    </CopyButton>
+                    <CopyActionIcon
+                        value={`${activeTable}.${field.name}`}
+                        copiedLabel="Copied to clipboard"
+                        tooltipPosition="right"
+                        size={16}
+                        bg="ldGray.1"
+                    />
                 </Box>
             ) : (
                 <TableFieldIcon fieldType={field.type} />
             )}
 
-            <Tooltip withinPortal label={field.name} disabled={!isTruncated}>
+            <Tooltip label={field.name} disabled={!isTruncated}>
                 <Text
                     ref={truncatedRef}
                     fw={500}
                     p={4}
-                    fz={13}
+                    fz="sm"
                     c="ldGray.7"
-                    style={{ flex: 1 }}
+                    flex={1}
                     truncate
                 >
                     <Highlight
@@ -83,7 +67,7 @@ const TableField: FC<{
                     </Highlight>
                 </Text>
             </Tooltip>
-            <Text fz={12} c="ldGray.5">
+            <Text fz="xs" c="ldGray.5">
                 {field.type}
             </Text>
         </Group>
@@ -140,8 +124,6 @@ export const TableFields: FC = () => {
                                     onMouseDown={(event) =>
                                         event.preventDefault()
                                     }
-                                    variant="subtle"
-                                    color="gray"
                                     size="xs"
                                     onClick={() => setSearch('')}
                                 >
@@ -170,7 +152,7 @@ export const TableFields: FC = () => {
                     offsetScrollbars
                     scrollbars="y"
                     classNames={{ content: scrollAreaClasses.verticalContent }}
-                    style={{ flex: 1 }}
+                    flex={1}
                     type="auto"
                     scrollbarSize={8}
                     pl="sm"

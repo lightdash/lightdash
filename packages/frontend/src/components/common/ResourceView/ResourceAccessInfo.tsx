@@ -75,8 +75,6 @@ const ResourceAccessInfo: React.FC<ResourceAccessInfoProps> = ({
 
     return (
         <Tooltip
-            withinPortal
-            withArrow
             position="top"
             // Hack the tooltip to never open when `withTooltip` is false
             opened={withTooltip ? undefined : false}

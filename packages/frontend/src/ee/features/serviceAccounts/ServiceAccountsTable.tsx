@@ -291,7 +291,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                         <Group gap="two" wrap="nowrap">
                             <MantineIcon
                                 icon={IconTextCaption}
-                                color="ldGray.6"
+                                color="dimmed"
                             />
                             {column.columnDef.header}
                         </Group>
@@ -306,16 +306,13 @@ export const ServiceAccountsTable: FC<Props> = ({
                                 </Text>
                                 {stale && (
                                     <Tooltip
-                                        withinPortal
                                         position="top"
                                         label={`Not used in the last ${STALE_THRESHOLD_DAYS} days`}
                                     >
                                         <Badge
-                                            variant="light"
                                             color="red"
                                             size="xs"
                                             radius="md"
-                                            tt="none"
                                         >
                                             Stale
                                         </Badge>
@@ -336,10 +333,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                     size: 180,
                     Header: ({ column }) => (
                         <Group gap="two" wrap="nowrap">
-                            <MantineIcon
-                                icon={IconShieldLock}
-                                color="ldGray.6"
-                            />
+                            <MantineIcon icon={IconShieldLock} color="dimmed" />
                             {column.columnDef.header}
                         </Group>
                     ),
@@ -354,13 +348,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                             // only at-a-glance signal that the SA is
                             // project-scoped.
                             const badge = (
-                                <Badge
-                                    variant="light"
-                                    color="teal"
-                                    radius="xs"
-                                    size="sm"
-                                    tt="none"
-                                >
+                                <Badge color="teal" radius="xs" size="sm">
                                     {count}{' '}
                                     {count === 1 ? 'project' : 'projects'}
                                 </Badge>
@@ -386,20 +374,14 @@ export const ServiceAccountsTable: FC<Props> = ({
                             // coded `indigo.1` / `indigo.9` we had before
                             // didn't invert and looked washed-out on dark.
                             return (
-                                <Badge
-                                    variant="light"
-                                    color="indigo"
-                                    radius="xs"
-                                    size="sm"
-                                    tt="none"
-                                >
+                                <Badge color="indigo" radius="xs" size="sm">
                                     {role?.name ?? 'Custom role'}
                                 </Badge>
                             );
                         }
                         if (scopes.length > 2) {
                             return (
-                                <HoverCard offset={-20} withinPortal>
+                                <HoverCard offset={-20}>
                                     <HoverCard.Target>
                                         <Group>
                                             <Text fz="sm">
@@ -409,15 +391,12 @@ export const ServiceAccountsTable: FC<Props> = ({
                                     </HoverCard.Target>
                                     <HoverCard.Dropdown>
                                         <Stack>
-                                            <Text fw={700}>Permissions</Text>
+                                            <Text fw={600}>Permissions</Text>
                                             {scopes.map((scope) => (
                                                 <Badge
                                                     key={scope}
-                                                    variant="light"
-                                                    color="gray"
                                                     radius="xs"
                                                     size="sm"
-                                                    tt="none"
                                                 >
                                                     {SCOPE_LABEL[scope] ??
                                                         scope}
@@ -431,14 +410,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                         return (
                             <Group gap="xs">
                                 {scopes.map((scope) => (
-                                    <Badge
-                                        key={scope}
-                                        variant="light"
-                                        color="gray"
-                                        radius="xs"
-                                        size="sm"
-                                        tt="none"
-                                    >
+                                    <Badge key={scope} radius="xs" size="sm">
                                         {SCOPE_LABEL[scope] ?? scope}
                                     </Badge>
                                 ))}
@@ -454,7 +426,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                     size: 150,
                     Header: ({ column }) => (
                         <Group gap="two" wrap="nowrap">
-                            <MantineIcon icon={IconUser} color="ldGray.6" />
+                            <MantineIcon icon={IconUser} color="dimmed" />
                             {column.columnDef.header}
                         </Group>
                     ),
@@ -474,13 +446,12 @@ export const ServiceAccountsTable: FC<Props> = ({
                     size: 120,
                     Header: ({ column }) => (
                         <Group gap="two" wrap="nowrap">
-                            <MantineIcon icon={IconClock} color="ldGray.6" />
+                            <MantineIcon icon={IconClock} color="dimmed" />
                             {column.columnDef.header}
                         </Group>
                     ),
                     Cell: ({ row }) => (
                         <Tooltip
-                            withinPortal
                             position="top"
                             label={formatTimestamp(row.original.createdAt)}
                         >
@@ -497,7 +468,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                     size: 140,
                     Header: ({ column }) => (
                         <Group gap="two" wrap="nowrap">
-                            <MantineIcon icon={IconCalendar} color="ldGray.6" />
+                            <MantineIcon icon={IconCalendar} color="dimmed" />
                             {column.columnDef.header}
                         </Group>
                     ),
@@ -524,7 +495,6 @@ export const ServiceAccountsTable: FC<Props> = ({
                                 </Text>
                                 {rotatedAt && (
                                     <Tooltip
-                                        withinPortal
                                         position="top"
                                         maw={350}
                                         label={`Last rotated at ${formatTimestamp(
@@ -533,7 +503,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                     >
                                         <MantineIcon
                                             icon={IconInfoCircle}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                             size="md"
                                         />
                                     </Tooltip>
@@ -549,7 +519,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                     size: 140,
                     Header: ({ column }) => (
                         <Group gap="two" wrap="nowrap">
-                            <MantineIcon icon={IconClock} color="ldGray.6" />
+                            <MantineIcon icon={IconClock} color="dimmed" />
                             {column.columnDef.header}
                         </Group>
                     ),
@@ -576,7 +546,6 @@ export const ServiceAccountsTable: FC<Props> = ({
                         }
                         return (
                             <Tooltip
-                                withinPortal
                                 position="top"
                                 label={formatTimestamp(lastUsedAt)}
                             >
@@ -598,14 +567,12 @@ export const ServiceAccountsTable: FC<Props> = ({
                         const sa = row.original;
                         return (
                             <Menu
-                                withinPortal
                                 position="bottom-end"
                                 withArrow
                                 arrowPosition="center"
-                                shadow="md"
                             >
                                 <Menu.Target>
-                                    <ActionIcon variant="subtle" color="gray">
+                                    <ActionIcon>
                                         <MantineIcon icon={IconDots} />
                                     </ActionIcon>
                                 </Menu.Target>
@@ -707,7 +674,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                     color="ldGray.4"
                     className={classes.emptyStateIcon}
                 />
-                <Text fz="sm" fw={500} c="ldGray.6">
+                <Text fz="sm" fw={500} c="dimmed">
                     {search
                         ? `No service accounts matching "${search}"`
                         : 'No service accounts match the current filters'}
@@ -736,10 +703,9 @@ export const ServiceAccountsTable: FC<Props> = ({
                 className={classes.toolbar}
             >
                 <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
-                    <Tooltip withinPortal label="Search by description">
+                    <Tooltip label="Search by description">
                         <TextInput
                             size="xs"
-                            radius="md"
                             type="search"
                             variant="default"
                             placeholder="Search service accounts..."
@@ -752,7 +718,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                             leftSection={
                                 <MantineIcon
                                     size="md"
-                                    color="ldGray.6"
+                                    color="dimmed"
                                     icon={IconSearch}
                                 />
                             }
@@ -781,7 +747,6 @@ export const ServiceAccountsTable: FC<Props> = ({
 
                     <SegmentedControl
                         size="xs"
-                        radius="md"
                         value={statusFilter}
                         onChange={handleStatusFilterChange}
                         classNames={{
@@ -792,7 +757,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                         data={STATUS_FILTER_OPTIONS.map((option) => ({
                             value: option.value,
                             label: (
-                                <Tooltip label={option.tooltip} withinPortal>
+                                <Tooltip label={option.tooltip}>
                                     <Box>
                                         <Text fz="xs" fw={500}>
                                             {option.label}
@@ -813,17 +778,12 @@ export const ServiceAccountsTable: FC<Props> = ({
                             />
                             <Popover width={250} position="bottom-start">
                                 <Popover.Target>
-                                    <Tooltip
-                                        withinPortal
-                                        label="Filter by creator"
-                                    >
+                                    <Tooltip label="Filter by creator">
                                         <Button
                                             h={32}
                                             c="foreground"
-                                            fw={500}
                                             fz="sm"
                                             variant="default"
-                                            radius="md"
                                             px="sm"
                                             className={
                                                 selectedCreators.length > 0
@@ -857,7 +817,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                 </Popover.Target>
                                 <Popover.Dropdown p="sm">
                                     <Stack gap={4}>
-                                        <Text fz="xs" c="ldGray.9" fw={600}>
+                                        <Text fz="xs" fw={600}>
                                             Filter by creator:
                                         </Text>
                                         <ScrollArea.Autosize
@@ -912,9 +872,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                 {hasActiveFilters && (
                     <Tooltip label="Clear all filters">
                         <ActionIcon
-                            variant="subtle"
                             size="sm"
-                            color="gray"
                             onClick={() => {
                                 setSearch('');
                                 setStatusFilter('all');

@@ -40,8 +40,7 @@
 .floatingPanel[data-collapsed='false'] {
     transform: translateX(0);
     border-radius: 0;
-    border-right: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    border-right: 1px solid var(--mantine-color-default-border);
     box-shadow: none;
     transition: transform var(--sidebar-reveal-duration)
         var(--sidebar-ease-reveal);
@@ -53,8 +52,7 @@
     transform: translateX(calc(-100% - 24px));
     margin: 8px;
     border-radius: var(--mantine-radius-md);
-    border: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    border: 1px solid var(--mantine-color-default-border);
     box-shadow: light-dark(
         0 8px 24px -6px rgba(15, 18, 22, 0.12),
         0 8px 24px -6px rgba(0, 0, 0, 0.5)
@@ -167,6 +165,16 @@
 
 .sidebarPaper[data-no-padding='true'] {
     --sidebar-padding: 0px;
+}
+
+/* Only the edge that meets the content gets a hairline; the other sides sit
+   against the navbar and viewport, where a border reads as a stray box. */
+.sidebarPaper[data-position='left'] {
+    border-right: 1px solid var(--mantine-color-default-border);
+}
+
+.sidebarPaper[data-position='right'] {
+    border-left: 1px solid var(--mantine-color-default-border);
 }
 
 .sidebarContent {

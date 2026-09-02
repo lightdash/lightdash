@@ -79,7 +79,7 @@ export const SingleSeriesConfiguration = ({
                         justify="flex-start"
                         wrap="nowrap"
                         grow
-                        style={{ flex: 3 }}
+                        flex={3}
                     >
                         <Box
                             style={{
@@ -102,7 +102,6 @@ export const SingleSeriesConfiguration = ({
                             <TextInput
                                 size="xs"
                                 maw="100%"
-                                radius="md"
                                 value={label}
                                 onChange={(e) =>
                                     onLabelChange(reference, e.target.value)
@@ -134,7 +133,6 @@ export const SingleSeriesConfiguration = ({
                     <SegmentedControl
                         miw={130}
                         flex={1}
-                        radius="md"
                         fz="sm"
                         data={[
                             {

@@ -67,7 +67,7 @@ const UserNameDisplay: FC<{
                     : user.email}
             </Title>
             {user.email && user.firstName && (
-                <Text fz="xs" c="ldGray.6">
+                <Text fz="xs" c="dimmed">
                     {user.email}
                 </Text>
             )}
@@ -255,21 +255,15 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
     return (
         <>
             <Menu
-                withinPortal
                 position="bottom-start"
                 withArrow
                 arrowPosition="center"
-                shadow="md"
                 offset={-4}
                 closeOnItemClick
                 closeOnClickOutside
             >
                 <Menu.Target>
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        disabled={disabled}
-                    >
+                    <ActionIcon disabled={disabled}>
                         <MantineIcon icon={IconDots} />
                     </ActionIcon>
                 </Menu.Target>
@@ -342,7 +336,7 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                 <Stack gap="md">
                     <Text>Are you sure you want to delete this user?</Text>
 
-                    <Card withBorder>
+                    <Card>
                         <UserNameDisplay user={user} />
                     </Card>
 
@@ -459,7 +453,7 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                                 <Group gap="xs" wrap="nowrap">
                                                     <MantineIcon
                                                         icon={IconInfoCircle}
-                                                        color="ldGray.6"
+                                                        color="dimmed"
                                                         size="lg"
                                                     />
                                                     <Text fz="xs" c="dimmed">
@@ -590,7 +584,7 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                         <Group gap="xs">
                             <MantineIcon
                                 icon={IconAlertCircle}
-                                color="ldGray.6"
+                                color="dimmed"
                             />
                             <Text fz="xs" c="dimmed" span>
                                 This user has no scheduled deliveries or

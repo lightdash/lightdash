@@ -544,11 +544,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                             <ActionIcon.Group>
                                 {TEXT_STYLE_TOGGLES.map(
                                     ({ key, label, icon }) => (
-                                        <Tooltip
-                                            key={key}
-                                            label={label}
-                                            withinPortal
-                                        >
+                                        <Tooltip key={key} label={label}>
                                             <ActionIcon
                                                 variant={
                                                     config.textStyle?.[key]

@@ -44,8 +44,7 @@
 
 /* Table container — slides in */
 .tableWrapper {
-    border: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
     overflow: hidden;
     background-color: light-dark(
@@ -87,8 +86,7 @@
         var(--mantine-color-dark-7)
     );
     padding: 7px 12px;
-    border-bottom: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
 /* Row — staggered entrance + smooth hover */
@@ -156,8 +154,7 @@
     font-size: 13px;
     line-height: 1.5;
     vertical-align: middle;
-    border-bottom: 1px solid
-        light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
+    border-bottom: 1px solid var(--mantine-color-default-hover);
 }
 
 .row:last-child td {
@@ -171,12 +168,8 @@
     gap: 6px;
     padding: 2px 10px;
     border-radius: 8px;
-    border: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
-    background-color: light-dark(
-        var(--mantine-color-white),
-        var(--mantine-color-dark-6)
-    );
+    border: 1px solid var(--mantine-color-default-border);
+    background-color: var(--mantine-color-body);
 }
 
 .statusDot {
@@ -234,15 +227,11 @@
 
 .rowSelected,
 .rowSelected:hover {
-    background-color: light-dark(
-        var(--mantine-color-gray-1),
-        var(--mantine-color-dark-5)
-    );
+    background-color: var(--mantine-color-default-hover);
 }
 
 .rowSelected td:first-child {
-    box-shadow: inset 2px 0 0
-        light-dark(var(--mantine-color-gray-5), var(--mantine-color-gray-6));
+    box-shadow: inset 2px 0 0 var(--mantine-color-placeholder);
 }
 
 .rowReversed {
@@ -251,10 +240,7 @@
 
 .rowReversed .actionPill {
     text-decoration: line-through;
-    text-decoration-color: light-dark(
-        var(--mantine-color-gray-5),
-        var(--mantine-color-gray-6)
-    );
+    text-decoration-color: var(--mantine-color-placeholder);
 }
 
 /* Resize handle */
@@ -265,16 +251,12 @@
 
 .resizeHandle:hover,
 .resizeHandle[data-resize-handle-state='drag'] {
-    background-color: light-dark(
-        var(--mantine-color-gray-3),
-        var(--mantine-color-dark-4)
-    );
+    background-color: var(--mantine-color-ldGray-3);
 }
 
 /* Sidebar */
 .sidebar {
-    border-left: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border-left: 1px solid var(--mantine-color-default-border);
     background-color: light-dark(
         var(--mantine-color-white),
         var(--mantine-color-dark-7)
@@ -283,8 +265,7 @@
 
 .sidebarHeader {
     padding: 12px 16px;
-    border-bottom: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
 .reversedBanner {
@@ -293,8 +274,7 @@
         var(--mantine-color-gray-0),
         var(--mantine-color-dark-6)
     );
-    border-bottom: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
 .deletedBanner {
@@ -329,10 +309,7 @@
 }
 
 .closeBtn:hover {
-    background-color: light-dark(
-        var(--mantine-color-gray-1),
-        var(--mantine-color-dark-5)
-    );
+    background-color: var(--mantine-color-default-hover);
 }
 
 .titleAction {
@@ -342,12 +319,8 @@
 .fieldPill {
     padding: 2px 8px;
     border-radius: 4px;
-    background-color: light-dark(
-        var(--mantine-color-gray-1),
-        var(--mantine-color-dark-5)
-    );
-    border: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    background-color: var(--mantine-color-default-hover);
+    border: 1px solid var(--mantine-color-default-border);
 }
 
 .fieldPillRemoved {
@@ -401,7 +374,7 @@
 }
 
 .metaToggle:hover {
-    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-3));
+    color: var(--mantine-color-ldGray-7);
 }
 
 .metaBlock {
@@ -425,18 +398,14 @@
 
 .slackBadge {
     border-radius: 8px;
-    border: 1px solid
-        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+    border: 1px solid var(--mantine-color-ldGray-3);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 /* Page header */
 .headerDivider {
     height: 1px;
-    background-color: light-dark(
-        var(--mantine-color-gray-2),
-        var(--mantine-color-dark-4)
-    );
+    background-color: var(--mantine-color-default-border);
 }
 
 .setupOrb {
@@ -451,8 +420,7 @@
         var(--mantine-color-gray-1),
         var(--mantine-color-dark-6)
     );
-    border: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border: 1px solid var(--mantine-color-default-border);
     color: light-dark(
         var(--mantine-color-violet-6),
         var(--mantine-color-violet-4)
@@ -467,9 +435,8 @@
     font-weight: 500;
     padding: 2px 10px;
     border-radius: 8px;
-    color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-gray-4));
-    border: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    color: var(--mantine-color-dimmed);
+    border: 1px solid var(--mantine-color-default-border);
 }
 
 .activeDotInline {
@@ -563,10 +530,8 @@
 
 .quietGroupRow td {
     padding: 2px 12px;
-    border-top: 1px solid
-        light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
-    border-bottom: 1px solid
-        light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
+    border-top: 1px solid var(--mantine-color-default-hover);
+    border-bottom: 1px solid var(--mantine-color-default-hover);
 }
 
 .quietRunRow td {
@@ -610,10 +575,8 @@
 
 .runHeaderRow td {
     padding: 11px 12px;
-    border-bottom: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
-    border-top: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    border-top: 1px solid var(--mantine-color-default-border);
 }
 
 .runChevron {
@@ -635,15 +598,14 @@
     gap: 4px;
     font-size: 11px;
     font-weight: 500;
-    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-4));
+    color: var(--mantine-color-ldGray-7);
     padding: 1px 6px;
     border-radius: 6px;
     background-color: light-dark(
         var(--mantine-color-white),
         var(--mantine-color-dark-7)
     );
-    border: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border: 1px solid var(--mantine-color-default-border);
 }
 
 .showMoreRow {
@@ -653,8 +615,7 @@
 .showMoreRow td {
     padding: 10px 12px;
     text-align: center;
-    border-top: 1px dashed
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border-top: 1px dashed var(--mantine-color-default-border);
 }
 
 .thinkingRow td {
@@ -663,14 +624,12 @@
         var(--mantine-color-dark-7)
     );
     padding: 8px 12px;
-    border-bottom: 1px solid
-        light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
+    border-bottom: 1px solid var(--mantine-color-default-hover);
 }
 
 .liveActivityRow td {
     padding: 8px 12px;
-    border-bottom: 1px solid
-        light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
+    border-bottom: 1px solid var(--mantine-color-default-hover);
     background-color: light-dark(
         var(--mantine-color-white),
         var(--mantine-color-ldDark-1)
@@ -728,7 +687,7 @@
 
 .showMoreButton {
     display: inline-block;
-    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-4));
+    color: var(--mantine-color-ldGray-7);
     font-size: 12px;
     font-weight: 500;
     padding: 4px 12px;
@@ -737,10 +696,7 @@
 }
 
 .showMoreButton:hover {
-    background-color: light-dark(
-        var(--mantine-color-gray-1),
-        var(--mantine-color-dark-5)
-    );
+    background-color: var(--mantine-color-default-hover);
 }
 
 /* Reduced motion */
@@ -796,8 +752,7 @@
     flex-wrap: wrap;
     gap: 8px;
     padding: 8px 10px;
-    border-bottom: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border-bottom: 1px solid var(--mantine-color-default-border);
     background-color: light-dark(
         var(--mantine-color-white),
         var(--mantine-color-dark-7)
@@ -827,10 +782,7 @@
 
 .filterChip[data-expanded],
 .filterChip.filterChipActive {
-    background-color: light-dark(
-        var(--mantine-color-ldGray-1),
-        var(--mantine-color-ldDark-5)
-    );
+    background-color: var(--mantine-color-default-hover);
     color: light-dark(
         var(--mantine-color-ldGray-9),
         var(--mantine-color-ldGray-9)

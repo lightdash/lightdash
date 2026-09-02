@@ -29,7 +29,6 @@ export const CartesianChartXAxisDateFormatConfig: FC<Props> = ({
 }) => {
     return (
         <Select
-            radius="md"
             data={DATE_FORMAT_OPTIONS}
             renderOption={({ option }) => {
                 const opt = DATE_FORMAT_OPTIONS.find(

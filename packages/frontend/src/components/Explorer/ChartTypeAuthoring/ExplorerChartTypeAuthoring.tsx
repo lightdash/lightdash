@@ -136,7 +136,8 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
     const isForbidden =
         (!dataAppsFlag.isLoading && !dataAppsFlag.data?.enabled) ||
         (dataAppVizUuid === null && !canCreate) ||
-        (dataAppViz !== undefined && !canEdit);
+        (dataAppViz !== undefined && !canEdit) ||
+        (dataAppViz !== undefined && dataAppViz.registrySlug !== null);
     useEffect(() => {
         if (!isForbidden) return;
         showToastError({ title: 'You cannot author this chart type' });

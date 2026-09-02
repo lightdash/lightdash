@@ -44,6 +44,7 @@ const meta: Meta<typeof DataAppBuildCard> = {
     component: DataAppBuildCard,
     args: {
         compact: false,
+        isActive: false,
         onOpenBuilder: fn(),
         onView: fn(),
     },
@@ -72,6 +73,23 @@ export const ReadyWithoutDuration: Story = {
     args: { state: { ...states.ready, version: 3, durationMs: null } },
 };
 
+export const ReadyWithLongSummary: Story = {
+    args: {
+        state: {
+            ...states.ready,
+            completionMessage: [
+                'This completes the report build. Summary of what was built:',
+                '',
+                '-   **`src/App.jsx`** — full report shell with a screen-only toolbar (Print + Download PDF), title page, and 6 content sections.',
+                '-   **`src/components/`** — `ReportPage`/`SectionHeading` (A4 page shell), `HeadlineKpis`, `MonthlyTrendChart`, `EventFamilyChart`, `TopOrgsTable`, each with loading and error states.',
+                '-   **`src/lib/constants.js`** — shared `EXPLORE`, an explicit date-range filter, and the `Lightdash Internal` org exclusion.',
+                '',
+                'Narrative text stays descriptive and historical only, as requested.',
+            ].join('\n'),
+        },
+    },
+};
+
 export const Failed: Story = { args: { state: states.failed } };
 
 export const Cancelled: Story = { args: { state: states.cancelled } };
@@ -84,6 +102,11 @@ export const CompactReady: Story = {
 
 export const CompactFailed: Story = {
     args: { state: states.failed, compact: true },
+};
+
+/** Open in the preview panel — should match an active artifact card. */
+export const CompactReadyActive: Story = {
+    args: { state: states.ready, compact: true, isActive: true },
 };
 
 /** Every state at a phone-width column; nothing should overflow. */

@@ -5,6 +5,7 @@ import {
     createDashboardFilterRuleFromField,
     DashboardTileTypes,
     getChartKind,
+    getConditionalFormattingsFromChartConfig,
     getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
@@ -1149,8 +1150,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             {hasFiltersToShow && (
                                 <HoverCard
                                     withArrow
-                                    withinPortal
-                                    shadow="md"
                                     position="bottom-end"
                                     offset={4}
                                     arrowOffset={10}
@@ -1214,15 +1213,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     }
                                                                     variant="outline"
                                                                     color="ldGray.4"
-                                                                    radius="sm"
                                                                     size="lg"
                                                                     fz="xs"
                                                                     fw="normal"
-                                                                    style={{
-                                                                        textTransform:
-                                                                            'none',
-                                                                        color: 'black',
-                                                                    }}
+                                                                    c="black"
                                                                 >
                                                                     <Text
                                                                         fw={600}
@@ -1340,7 +1334,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     }
                                                                     variant="outline"
                                                                     color="ldGray.4"
-                                                                    radius="sm"
                                                                     size="lg"
                                                                     fz="xs"
                                                                     fw="normal"
@@ -1435,11 +1428,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                     </HoverCard.Dropdown>
 
                                     <HoverCard.Target>
-                                        <ActionIcon
-                                            size="sm"
-                                            variant="subtle"
-                                            color="gray"
-                                        >
+                                        <ActionIcon size="sm">
                                             <MantineIcon icon={IconFilter} />
                                         </ActionIcon>
                                     </HoverCard.Target>
@@ -1450,8 +1439,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                     0 && (
                                     <HoverCard
                                         withArrow
-                                        withinPortal
-                                        shadow="md"
                                         position="bottom-end"
                                         offset={4}
                                         arrowOffset={10}
@@ -1471,7 +1458,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                     <Text
                                                         key={key}
                                                         size="xs"
-                                                        c="ldGray.6"
+                                                        c="dimmed"
                                                     >
                                                         <Text span fw={600}>
                                                             {parameterDefinitions[
@@ -1488,11 +1475,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                         </HoverCard.Dropdown>
 
                                         <HoverCard.Target>
-                                            <ActionIcon
-                                                size="sm"
-                                                variant="subtle"
-                                                color="gray"
-                                            >
+                                            <ActionIcon size="sm">
                                                 <MantineIcon
                                                     icon={IconVariable}
                                                 />
@@ -1739,10 +1722,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                         <Menu
                             opened={contextMenuIsOpen}
                             onClose={() => setContextMenuIsOpen(false)}
-                            withinPortal
                             closeOnItemClick
                             closeOnEscape
-                            shadow="md"
                             radius={0}
                             position="bottom-start"
                             offset={{
@@ -1861,6 +1842,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     chartName={title || chart.name}
                     columnOrder={chart.tableConfig.columnOrder}
                     customLabels={getCustomLabelsFromTableConfig(
+                        chart.chartConfig.config,
+                    )}
+                    conditionalFormattings={getConditionalFormattingsFromChartConfig(
                         chart.chartConfig.config,
                     )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
@@ -2133,10 +2117,8 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                     <Menu
                         opened={contextMenuIsOpen}
                         onClose={() => setContextMenuIsOpen(false)}
-                        withinPortal
                         closeOnItemClick
                         closeOnEscape
-                        shadow="md"
                         radius={0}
                         position="bottom-start"
                         offset={{
@@ -2217,6 +2199,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                     chartName={title || chart.name}
                     columnOrder={chart.tableConfig.columnOrder}
                     customLabels={getCustomLabelsFromTableConfig(
+                        chart.chartConfig.config,
+                    )}
+                    conditionalFormattings={getConditionalFormattingsFromChartConfig(
                         chart.chartConfig.config,
                     )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}

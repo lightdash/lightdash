@@ -219,7 +219,7 @@ export const PullRequestCiChecks: FC<{
                         <MantineIcon
                             icon={IconChevronRight}
                             size={14}
-                            color="ldGray.6"
+                            color="dimmed"
                             className={
                                 expanded ? styles.chevronOpen : styles.chevron
                             }

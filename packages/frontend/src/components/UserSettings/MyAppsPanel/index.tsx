@@ -233,7 +233,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                     return (
                         <Group gap="xs">
                             <Badge
-                                variant="light"
                                 color={statusColor(lastVersionStatus)}
                                 size="sm"
                             >
@@ -270,13 +269,9 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                     const app = row.original;
 
                     return (
-                        <Menu position="bottom-end" withinPortal>
+                        <Menu position="bottom-end">
                             <Menu.Target>
-                                <ActionIcon
-                                    variant="transparent"
-                                    color="ldGray.6"
-                                    size="sm"
-                                >
+                                <ActionIcon variant="transparent" size="sm">
                                     <MantineIcon icon={IconDots} size={16} />
                                 </ActionIcon>
                             </Menu.Target>
@@ -410,7 +405,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 <Divider orientation="vertical" h={20} />
                 <SegmentedControl
                     size="xs"
-                    radius="md"
                     aria-label="App project scope"
                     value={includePreviewApps ? 'all' : 'production'}
                     onChange={(value) => setIncludePreviewApps(value === 'all')}

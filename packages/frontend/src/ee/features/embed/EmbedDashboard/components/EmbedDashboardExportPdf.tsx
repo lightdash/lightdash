@@ -21,11 +21,7 @@ const EmbedDashboardExportPdf: FC<Props> = ({ projectUuid, dashboard }) => {
         return null;
     }
     return (
-        <Tooltip
-            label={getUiString('dashboard.printPage')}
-            withinPortal
-            position="bottom"
-        >
+        <Tooltip label={getUiString('dashboard.printPage')} position="bottom">
             <ActionIcon
                 variant="default"
                 onClick={() => {
@@ -83,7 +79,6 @@ const EmbedDashboardExportPdf: FC<Props> = ({ projectUuid, dashboard }) => {
                     pageStyle?.remove();
                 }}
                 size="lg"
-                radius="md"
             >
                 <MantineIcon icon={IconPrinter} />
             </ActionIcon>

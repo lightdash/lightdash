@@ -110,12 +110,7 @@ const NavItemIcon = ({
     }
     if (tzAffordance) {
         return (
-            <Tooltip
-                withinPortal
-                maw={300}
-                multiline
-                label={tzAffordance.tooltip}
-            >
+            <Tooltip maw={300} label={tzAffordance.tooltip}>
                 {tzAffordance.pinIcon ? (
                     <MantineIcon
                         icon={tzAffordance.pinIcon}
@@ -378,15 +373,13 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
             return (
                 <Tooltip
                     key={type}
-                    withinPortal
                     maw={300}
-                    multiline
                     label={messages.map((m) => m.message).join('\n')}
                 >
                     <MantineIcon
                         icon={alertIcon}
                         color={color}
-                        style={{ flexShrink: 0 }}
+                        className="ld-shrink-0"
                     />
                 </Tooltip>
             );
@@ -438,12 +431,9 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                     <HoverCard
                         openDelay={300}
                         keepMounted={false}
-                        shadow="subtle"
-                        withinPortal
                         withArrow
                         disabled={isHoverCardDisabled}
                         position="right"
-                        radius="md"
                         /**
                          * Regular fields show a filter ActionIcon on hover and
                          * custom metrics a delete ActionIcon, each eating ~28px
@@ -455,7 +445,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         offset={isCustomDimension(item) ? 36 : 70}
                     >
                         <HoverCard.Target>
-                            <Text truncate fz="sm" style={{ flexGrow: 1 }}>
+                            <Text truncate fz="sm" className="ld-grow">
                                 <Highlight
                                     component="span"
                                     highlight={searchQuery || ''}
@@ -492,62 +482,48 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                     {renderAlerts}
                     {isTruncated && (
                         <Tooltip
-                            withinPortal
                             maw={300}
-                            multiline
                             label={`Located ${truncatedActualDepth} levels deep`}
                         >
                             <MantineIcon
                                 icon={IconHierarchyOff}
-                                color="ldGray.6"
-                                style={{ flexShrink: 0 }}
+                                color="dimmed"
+                                className="ld-shrink-0"
                             />
                         </Tooltip>
                     )}
                     {showFilterAction && (
                         <Tooltip
-                            withinPortal
                             label={
                                 isFiltered
                                     ? 'This field is filtered'
                                     : 'Click here to add filter'
                             }
                         >
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                onClick={handleFilterClick}
-                            >
+                            <ActionIcon onClick={handleFilterClick}>
                                 <MantineIcon
                                     icon={IconFilter}
-                                    style={{ flexShrink: 0 }}
+                                    className="ld-shrink-0"
                                 />
                             </ActionIcon>
                         </Tooltip>
                     )}
                     {showDeleteAction && (
-                        <Tooltip withinPortal label="Delete custom metric">
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                onClick={handleDeleteClick}
-                            >
+                        <Tooltip label="Delete custom metric">
+                            <ActionIcon onClick={handleDeleteClick}>
                                 <MantineIcon
                                     icon={IconTrash}
-                                    style={{ flexShrink: 0 }}
+                                    className="ld-shrink-0"
                                 />
                             </ActionIcon>
                         </Tooltip>
                     )}
                     {isField(item) && item.hidden ? (
-                        <Tooltip
-                            withinPortal
-                            label="This field has been hidden in the dbt project. It's recommend to remove it from the query"
-                        >
+                        <Tooltip label="This field has been hidden in the dbt project. It's recommend to remove it from the query">
                             <MantineIcon
                                 icon={IconAlertTriangle}
                                 color="yellow.9"
-                                style={{ flexShrink: 0 }}
+                                className="ld-shrink-0"
                             />
                         </Tooltip>
                     ) : null}

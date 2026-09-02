@@ -45,7 +45,7 @@ const DataAppVizTestPanel: FC<Props> = ({
     } = state;
 
     return (
-        <Card withBorder radius="md" p="sm">
+        <Card radius="md" p="sm">
             <Stack gap="xs">
                 <Text size="sm" fw={600}>
                     Visualization ready

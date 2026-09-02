@@ -142,7 +142,7 @@ export const AgentOnboardingDemoOffer: FC<{ run: AgentOnboardingRun }> = ({
     if (offerType === null) return null;
 
     return (
-        <Paper withBorder radius="md" p="lg">
+        <Paper radius="md" p="lg">
             <Group justify="space-between" align="center" wrap="nowrap">
                 <Group gap="md" align="flex-start" wrap="nowrap">
                     <MantineIcon

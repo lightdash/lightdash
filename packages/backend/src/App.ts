@@ -1,4 +1,4 @@
-import './sentry'; // Sentry has to be initialized before anything else
+import './tracing/bootstrap'; // Must run before modules that can load Knex
 import {
     AnyType,
     ApiError,
@@ -80,6 +80,10 @@ import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { apiV1Router } from './routers/apiV1Router';
 import { createAppPreviewRouter } from './routers/appPreviewRouter';
 import {
+    createAndroidAssetLinksHandler,
+    createAppleAppSiteAssociationHandler,
+} from './routers/mobileAppAssociation';
+import {
     oauthAuthorizationServerHandler,
     oauthProtectedResourceHandler,
 } from './routers/oauthRouter';
@@ -128,6 +132,8 @@ const schedulerWorkerFactory = (context: {
         dashboardService: context.serviceRepository.getDashboardService(),
         deployService: context.serviceRepository.getDeployService(),
         projectService: context.serviceRepository.getProjectService(),
+        contentAsCodeWritebackService:
+            context.serviceRepository.getContentAsCodeWritebackService(),
         schedulerService: context.serviceRepository.getSchedulerService(),
         validationService: context.serviceRepository.getValidationService(),
         userService: context.serviceRepository.getUserService(),
@@ -861,6 +867,25 @@ export default class App {
         expressApp.get(
             '/.well-known/oauth-protected-resource/api/v1/mcp',
             oauthProtectedResourceHandler,
+        );
+
+        const appleAppSiteAssociationHandler =
+            createAppleAppSiteAssociationHandler(
+                this.lightdashConfig.mobileAppAssociation,
+            );
+        expressApp.get(
+            '/.well-known/apple-app-site-association',
+            appleAppSiteAssociationHandler,
+        );
+        expressApp.get(
+            '/apple-app-site-association',
+            appleAppSiteAssociationHandler,
+        );
+        expressApp.get(
+            '/.well-known/assetlinks.json',
+            createAndroidAssetLinksHandler(
+                this.lightdashConfig.mobileAppAssociation,
+            ),
         );
 
         // OpenAI Apps domain verification: serves the portal-issued token so

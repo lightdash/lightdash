@@ -91,7 +91,7 @@ const EmbedDataAppTile: FC<Props> = ({ tile, projectUuid }) => {
             onDelete={() => {}}
             onEdit={() => {}}
         >
-            <Box className="non-draggable" style={{ flex: 1, minHeight: 0 }}>
+            <Box className="non-draggable" flex={1} mih={0}>
                 {isNotFound ? (
                     <SuboptimalState
                         icon={IconAppsOff}

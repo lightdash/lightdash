@@ -63,6 +63,7 @@ import {
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isSlackTarget,
+    normalizeContentAsCodePath,
     NotFoundError,
     NotificationFrequency,
     NotImplementedError,
@@ -88,6 +89,8 @@ import {
     UpdatedByUser,
     validateEmail,
     VirtualViewAsCode,
+    type ContentAsCodeProjectSettings,
+    type ContentAsCodeSettingsStamp,
     type ContentVerificationInfo,
     type DashboardTileWithSlug,
     type Filters,
@@ -208,6 +211,9 @@ type UpsertContentAsCodeOptions = {
     // Gates snapshot recording: a project that never opts into sync has no
     // use for a last-applied baseline.
     syncEnabled?: boolean;
+    // Repo file the document came from, relative to the project dir, so
+    // write-back returns to the same place
+    filePath?: string;
 };
 
 export class CoderService extends BaseService {
@@ -2888,6 +2894,7 @@ export class CoderService extends BaseService {
         contentType: ContentAsCodeSnapshotType,
         content: SnapshotAsCodeContent,
         appliedByUserUuid: string,
+        filePath: string | undefined,
     ): Promise<void> {
         const { snapshot, snapshotHash } = buildContentAsCodeSnapshot(content);
         await this.contentAsCodeSnapshotModel.upsert({
@@ -2897,7 +2904,19 @@ export class CoderService extends BaseService {
             snapshot,
             snapshotHash,
             appliedByUserUuid,
+            filePath: CoderService.sourceFilePath(filePath),
         });
+    }
+
+    // A malformed path from a client is not worth failing the upload over
+    private static sourceFilePath(filePath: string | undefined): string | null {
+        if (filePath === undefined) return null;
+        try {
+            const normalized = normalizeContentAsCodePath(filePath);
+            return normalized === '' ? null : normalized;
+        } catch {
+            return null;
+        }
     }
 
     // The instance content in its canonical as-code form — the same document
@@ -3040,10 +3059,7 @@ export class CoderService extends BaseService {
     async getContentAsCodeSettings(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<{
-        syncEnabled: boolean;
-        stampedAt: Date;
-    } | null> {
+    ): Promise<ContentAsCodeProjectSettings | null> {
         const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -3102,7 +3118,7 @@ export class CoderService extends BaseService {
     async stampContentAsCodeSettings(
         user: SessionUser,
         projectUuid: string,
-        settings: { sync: boolean },
+        settings: ContentAsCodeSettingsStamp,
     ): Promise<void> {
         const project = await this.projectModel.get(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
@@ -3126,6 +3142,10 @@ export class CoderService extends BaseService {
         await this.contentAsCodeProjectSettingsModel.upsert({
             projectUuid,
             syncEnabled: settings.sync,
+            path:
+                settings.path === undefined
+                    ? null
+                    : normalizeContentAsCodePath(settings.path),
         });
     }
 
@@ -3156,6 +3176,7 @@ export class CoderService extends BaseService {
         projectUuid: string,
         chartUuid: string,
         syncEnabled: boolean,
+        filePath: string | undefined,
     ): Promise<void> {
         if (!syncEnabled) return;
         try {
@@ -3183,6 +3204,7 @@ export class CoderService extends BaseService {
                     verificationMap,
                 ),
                 user.userUuid,
+                filePath,
             );
         } catch (error) {
             this.logger.warn(
@@ -3197,6 +3219,7 @@ export class CoderService extends BaseService {
         projectUuid: string,
         dashboardUuid: string,
         syncEnabled: boolean,
+        filePath: string | undefined,
     ): Promise<void> {
         if (!syncEnabled) return;
         try {
@@ -3219,6 +3242,7 @@ export class CoderService extends BaseService {
                     verificationMap,
                 ),
                 user.userUuid,
+                filePath,
             );
         } catch (error) {
             this.logger.warn(
@@ -3258,6 +3282,7 @@ export class CoderService extends BaseService {
                     row.path,
                 ),
                 user.userUuid,
+                undefined,
             );
         } catch (error) {
             this.logger.warn(
@@ -3531,6 +3556,7 @@ export class CoderService extends BaseService {
                     projectUuid,
                     newChart.uuid,
                     syncEnabled,
+                    options.filePath,
                 );
             }
 
@@ -3689,6 +3715,7 @@ export class CoderService extends BaseService {
                 projectUuid,
                 chart.uuid,
                 syncEnabled,
+                options.filePath,
             );
         }
 
@@ -4591,6 +4618,7 @@ export class CoderService extends BaseService {
                     projectUuid,
                     newDashboard.uuid,
                     syncEnabled,
+                    options.filePath,
                 );
             }
 
@@ -4755,6 +4783,7 @@ export class CoderService extends BaseService {
                 projectUuid,
                 dashboard.uuid,
                 syncEnabled,
+                options.filePath,
             );
         }
 

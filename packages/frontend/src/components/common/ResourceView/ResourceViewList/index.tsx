@@ -232,7 +232,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                             )}
                                     </Group>
                                     {canBelongToSpace && (
-                                        <Text fz="xs" c="ldGray.6">
+                                        <Text fz="xs" c="dimmed">
                                             {getResourceTypeName(item)} •{' '}
                                             <Tooltip
                                                 position="top-start"

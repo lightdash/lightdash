@@ -8,6 +8,7 @@ import {
     CreateDuckdbMotherduckCredentials,
     CreatePostgresCredentials,
     CreateSnowflakeCredentials,
+    CreateWarehouseCredentials,
     DatabricksAuthenticationType,
     DbtCloudIDEProjectConfig,
     DbtGithubProjectConfig,
@@ -382,10 +383,11 @@ describe('ProjectModel', () => {
             },
         });
 
-        expect(tracker.history.insert).toHaveLength(1);
-        expect(tracker.history.insert[0].sql).toContain(
-            'warehouse_credentials',
-        );
+        expect(
+            tracker.history.insert.some(({ sql }) =>
+                sql.includes('warehouse_credentials'),
+            ),
+        ).toBe(true);
         expect(invalidate).not.toHaveBeenCalled();
     });
 

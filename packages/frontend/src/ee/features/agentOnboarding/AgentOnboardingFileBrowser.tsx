@@ -279,7 +279,6 @@ export const AgentOnboardingFileBrowser: FC<{
                             </Text>
                             <ActionIcon
                                 aria-label="Expand file preview"
-                                variant="subtle"
                                 size="sm"
                                 onClick={() => setIsExpanded(true)}
                                 disabled={!fileQuery.data}

@@ -78,14 +78,11 @@ export const UserBubble: FC<Props> = ({
                         {name}
                     </Text>
                 ) : null}
-                <Tooltip
-                    label={format(parseISO(message.createdAt), 'PPpp')}
-                    withinPortal
-                >
+                <Tooltip label={format(parseISO(message.createdAt), 'PPpp')}>
                     <Anchor
                         component={Link}
                         c="dimmed"
-                        fz={10}
+                        fz="xs"
                         to={`/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${message.threadUuid}/messages/${message.uuid}`}
                     >
                         {timeAgo}
@@ -121,7 +118,6 @@ export const UserBubble: FC<Props> = ({
                 radius="md"
                 py={6}
                 px="sm"
-                withBorder
                 color="white"
                 className={`${styles.messageCard} ${
                     isEmptyMessage ? styles.emptyMessageCard : ''
@@ -186,7 +182,6 @@ export const UserBubble: FC<Props> = ({
                             radius="md"
                             py={4}
                             px="xs"
-                            withBorder
                             className={styles.steerCard}
                         >
                             <MDEditor.Markdown

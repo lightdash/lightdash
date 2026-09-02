@@ -21,7 +21,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { zodResolver } from 'mantine-form-zod-resolver';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC, type FormEvent, useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import AboutFooter from '../components/AboutFooter';
@@ -375,8 +375,8 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                                     />
                                                 ) : (
                                                     <Text
-                                                        fw={700}
-                                                        fz={20}
+                                                        fw={600}
+                                                        fz="xl"
                                                         c="white"
                                                     >
                                                         {logoTileInitial}
@@ -414,7 +414,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                 <Group>
                                     <Button
                                         type="submit"
-                                        color="dark"
                                         size="md"
                                         disabled={
                                             !form.values.organizationName.trim()
@@ -506,7 +505,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     )}
                                     <Button
                                         type="submit"
-                                        color="dark"
                                         size="md"
                                         loading={completeMutation.isLoading}
                                         disabled={!form.values.jobTitle}

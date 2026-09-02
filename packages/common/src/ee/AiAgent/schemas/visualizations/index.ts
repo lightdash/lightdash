@@ -32,6 +32,7 @@ export const ToolNameSchema = z.enum([
     'loadProjectContext',
     'loadMcpTools',
     'generateDataApp',
+    'iterateDataApp',
     'editDbtProject',
     'editProjectContext',
     'editRepo',
@@ -63,7 +64,10 @@ export const isToolName = (toolName: string): toolName is ToolName =>
     ToolNameSchema.safeParse(toolName).success;
 
 // display messages schema
-export const ToolDisplayMessagesSchema = z.record(ToolNameSchema, z.string());
+export const ToolDisplayMessagesSchema = z.partialRecord(
+    ToolNameSchema,
+    z.string(),
+);
 
 export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     findExplores: 'Finding relevant explores',
@@ -96,6 +100,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     loadProjectContext: 'Loading project context',
     loadMcpTools: 'Loading MCP tools',
     generateDataApp: 'Starting a data app build',
+    iterateDataApp: 'Iterating on a data app',
     editDbtProject: 'Editing semantic layer',
     editRepo: 'Editing repository',
     syncDbtProject: 'Syncing dbt project',
@@ -153,6 +158,7 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         loadProjectContext: 'Loaded project context',
         loadMcpTools: 'Loaded MCP tools',
         generateDataApp: 'Started a data app build',
+        iterateDataApp: 'Started a data app build',
         editDbtProject: 'Edited semantic layer',
         editRepo: 'Edited repository',
         syncDbtProject: 'Synced dbt project',

@@ -113,8 +113,6 @@ export const ServiceAccountProjectRoles = <
                     />
                     <Tooltip label="Remove">
                         <ActionIcon
-                            variant="subtle"
-                            color="gray"
                             disabled={disabled}
                             onClick={() =>
                                 form.removeListItem('projectRoles', idx)

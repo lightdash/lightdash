@@ -91,18 +91,17 @@ const ConnectionRow: FC<
             <Text fz="sm">{connection.origin}</Text>
         </Table.Td>
         <Table.Td>
-            <Text fz="sm" c="ldGray.6">
+            <Text fz="sm" c="dimmed">
                 {authLabel(connection.type)}
             </Text>
         </Table.Td>
         <Table.Td>
-            <Text fz="sm" c="ldGray.6">
+            <Text fz="sm" c="dimmed">
                 {accessLabel(connection)}
             </Text>
         </Table.Td>
         <Table.Td>
             <Tooltip
-                withinPortal
                 label={`${linkedResourcesLabel(
                     connection,
                 )}. Click to view the full list.`}
@@ -111,7 +110,6 @@ const ConnectionRow: FC<
                     size="compact-xs"
                     variant="subtle"
                     c="ldGray.7"
-                    fw={500}
                     px={0}
                     onClick={() => setConnectionToViewUsage(connection)}
                     rightSection={
@@ -133,7 +131,6 @@ const ConnectionRow: FC<
         <Table.Td>
             <Badge
                 color={connection.allowDataAppBuilderLinking ? 'green' : 'gray'}
-                variant="light"
             >
                 {connection.allowDataAppBuilderLinking
                     ? 'Allowed'
@@ -141,12 +138,11 @@ const ConnectionRow: FC<
             </Badge>
         </Table.Td>
         <Table.Td w="1%">
-            <Menu position="bottom-end" withinPortal>
+            <Menu position="bottom-end">
                 <Menu.Target>
                     <ActionIcon
                         variant="transparent"
                         size="sm"
-                        color="ldGray.6"
                         aria-label={`Actions for ${connection.name}`}
                     >
                         <MantineIcon icon={IconDots} />
@@ -179,7 +175,7 @@ export const ConnectionsTable: FC<Props> = ({
     setConnectionToViewUsage,
 }) => {
     return (
-        <Paper withBorder style={{ overflow: 'hidden' }}>
+        <Paper className="ld-overflow-hidden">
             <Table
                 className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                 ta="left"

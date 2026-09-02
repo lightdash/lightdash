@@ -119,7 +119,6 @@ const SortableColumn: FC<{
                 >
                     <Box>
                         <ActionIcon
-                            variant="subtle"
                             size="xs"
                             color="ldGray.5"
                             {...attributes}
@@ -130,12 +129,11 @@ const SortableColumn: FC<{
                         </ActionIcon>
                     </Box>
                 </Tooltip>
-                <Text fz={13} fw={500} c="ldDark.9">
+                <Text fz="sm" fw={500} c="ldDark.9">
                     {column.name}
                 </Text>
             </Group>
             <ActionIcon
-                variant="subtle"
                 size="xs"
                 color="ldGray.5"
                 style={{
@@ -338,7 +336,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                     {/* Search input */}
                     <TextInput
                         size="xs"
-                        radius="md"
                         classNames={{ input: classes.searchInput }}
                         styles={(theme) => ({
                             input: {
@@ -361,7 +358,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         leftSection={
                             <MantineIcon
                                 size="md"
-                                color="ldGray.6"
+                                color="dimmed"
                                 icon={IconSearch}
                             />
                         }
@@ -424,7 +421,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         radius={6}
                         py="sm"
                         px="xs"
-                        tt="none"
                         h={32}
                     >
                         <Group gap={6}>
@@ -434,11 +430,9 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             </Text>
                         </Group>
                     </Badge>
-                    <Popover shadow="subtle" withArrow>
+                    <Popover withArrow>
                         <Popover.Target>
                             <Tooltip
-                                withinPortal
-                                multiline
                                 maw={150}
                                 label="Manage column visibility"
                                 position="top"
@@ -503,7 +497,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                         <>
                                             <Tooltip
                                                 position="bottom"
-                                                withinPortal
                                                 label={
                                                     hasConfigChanges
                                                         ? 'Discard unsaved changes'
@@ -513,7 +506,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                 <Button
                                                     size="xs"
                                                     variant="default"
-                                                    radius="md"
                                                     h={28}
                                                     onClick={handleReset}
                                                     style={(theme) => ({
@@ -548,14 +540,12 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                     ) : (
                                         <Tooltip
                                             position="bottom"
-                                            withinPortal
                                             label={'Discard unsaved changes'}
                                         >
                                             <Button
                                                 fullWidth
                                                 size="xs"
                                                 h={28}
-                                                radius="md"
                                                 variant="default"
                                                 onClick={handleReset}
                                                 disabled={!hasConfigChanges}
@@ -604,7 +594,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             {
                                 label: (
                                     <Tooltip
-                                        withinPortal
                                         label="List view"
                                         position="bottom-end"
                                     >
@@ -621,7 +610,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             {
                                 label: (
                                     <Tooltip
-                                        withinPortal
                                         label="Canvas"
                                         position="bottom-end"
                                     >

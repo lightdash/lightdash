@@ -37,10 +37,6 @@
     background-color: var(--mantine-color-ldGray-2);
     cursor: row-resize;
     transition: background-color 120ms ease;
-
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-3);
-    }
 }
 
 .resizeHandle:hover,
@@ -103,18 +99,16 @@
 
     /* Mantine Kbd-style keycap: white bg, subtle border, 3D-ish shadow */
     background-color: var(--mantine-color-body);
-    color: var(--mantine-color-ldDark-9);
+    color: var(--mantine-color-text);
     border: 1px solid var(--mantine-color-gray-3);
-    box-shadow: 0 1px 0 0 var(--mantine-color-gray-3);
+    box-shadow: 0 1px 0 0 var(--mantine-color-ldGray-3);
 
     pointer-events: none;
     user-select: none;
 
     @mixin dark {
         background-color: var(--mantine-color-ldDark-3);
-        color: var(--mantine-color-ldGray-7);
         border-color: var(--mantine-color-ldDark-5);
-        box-shadow: 0 1px 0 0 var(--mantine-color-ldDark-5);
     }
 }
 

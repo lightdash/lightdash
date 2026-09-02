@@ -91,6 +91,12 @@ export const lightdashConfigMock: LightdashConfig = {
         },
     },
     lightdashCloudInstance: 'test-instance',
+    mobileAppAssociation: {
+        appleTeamId: 'TEAMID',
+        appleBundleId: 'com.lightdash.mobile',
+        androidPackageName: 'com.lightdash.mobile',
+        androidCertificateFingerprints: [],
+    },
     openaiAppsChallengeToken: undefined,
     k8s: {
         podNamespace: undefined,
@@ -242,6 +248,7 @@ export const lightdashConfigMock: LightdashConfig = {
         teamId: undefined,
         sandbox: undefined,
         production: undefined,
+        fcm: undefined,
     },
     license: {
         licenseKey: null,
@@ -512,6 +519,7 @@ export const lightdashConfigMock: LightdashConfig = {
         // Off in the test fixture (real default is `true`) so tests never make
         // a live OSV call.
         dependencyMalwareCheckEnabled: false,
+        chartRegistry: { url: null, allowInsecure: false },
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),

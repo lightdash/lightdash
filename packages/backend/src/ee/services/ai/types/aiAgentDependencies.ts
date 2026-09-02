@@ -655,6 +655,16 @@ export type GenerateDataAppFn = (args: {
     toolCallId: string;
 }) => Promise<{ appUuid: string; version: number }>;
 
+// Starts a build that appends a version to an existing data app; the worker
+// patches the tool result (keyed by toolCallId) when the build ends.
+export type IterateDataAppFn = (args: {
+    appSlug: string;
+    prompt: string;
+    dashboardSlug: string | null;
+    chartSlugs: string[] | null;
+    toolCallId: string;
+}) => Promise<{ appUuid: string; version: number }>;
+
 // Applies a structured project-context entry to lightdash.project_context.yml
 // via the deterministic GitHub-API merge (no sandbox) and opens/updates a PR.
 export type EditProjectContextFn = (

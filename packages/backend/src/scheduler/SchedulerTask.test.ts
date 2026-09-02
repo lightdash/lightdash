@@ -23,11 +23,13 @@ import {
     type CapturedQuery,
     type CreateSchedulerAndTargets,
     type DeliveryCaptureManifest,
+    type EmailNotificationPayload,
     type MetricQuery,
     type NotificationPayloadBase,
     type ReadyQueryResultsPage,
     type ScheduledDeliveryPayload,
     type SchedulerAndTargets,
+    type SendNowScheduler,
     type UploadGsheetPayload,
 } from '@lightdash/common';
 import ExecutionContext from 'node-execution-context';
@@ -973,8 +975,17 @@ describe('uploadGsheetFromQuery', () => {
 
 type TaskDeps = ConstructorParameters<typeof SchedulerTask>[0];
 
+class TestSchedulerTask extends SchedulerTask {
+    public sendEmailNotificationForTest(
+        jobId: string,
+        notification: EmailNotificationPayload,
+    ) {
+        return this.sendEmailNotification(jobId, notification);
+    }
+}
+
 const makeTaskWithDeps = (overrides: Partial<TaskDeps> = {}) =>
-    new SchedulerTask({ ...({} as TaskDeps), ...overrides });
+    new TestSchedulerTask({ ...({} as TaskDeps), ...overrides });
 
 const asDep = <K extends keyof TaskDeps>(value: unknown): TaskDeps[K] =>
     value as TaskDeps[K];
@@ -3391,6 +3402,53 @@ describe('app delivery target senders', () => {
         expect(args[15]).toEqual(page.notices);
         // isApp — drives the app-aware headline in the template.
         expect(args[17]).toBe(true);
+    });
+
+    it('sends an inline plain-text dashboard email without a cron', async () => {
+        const sendDashboardCsvNotificationEmail = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const task = makeTaskWithDeps({
+            ...senderBaseDeps(),
+            emailClient: asDep<'emailClient'>({
+                sendDashboardCsvNotificationEmail,
+            }),
+            emailWhitelabelService: asDep<'emailWhitelabelService'>({
+                resolveSenderIdentity: vi.fn().mockResolvedValue(null),
+            }),
+        });
+        const scheduler: SendNowScheduler = {
+            ...appScheduler({
+                appUuid: null,
+                appName: null,
+                dashboardUuid: 'dashboard-1',
+                plainTextEmail: true,
+            }),
+            savedChartUuid: null,
+            dashboardUuid: 'dashboard-1',
+            savedSqlUuid: null,
+            appUuid: null,
+            cron: undefined,
+            selectedTabs: null,
+        };
+
+        const notification: EmailNotificationPayload = {
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            userUuid: 'user-1',
+            scheduledTime: new Date('2026-07-30T09:00:00Z'),
+            jobGroup: 'job-1',
+            scheduler,
+            page: senderPage(),
+            recipient: 'recipient@example.com',
+        };
+
+        await task.sendEmailNotificationForTest('job-1', notification);
+
+        expect(sendDashboardCsvNotificationEmail).toHaveBeenCalledTimes(1);
+        expect(sendDashboardCsvNotificationEmail.mock.calls[0][18]).toEqual({
+            cadence: undefined,
+        });
     });
 
     it('posts an app xlsx delivery to the MS Teams webhook', async () => {

@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "2.70.0",
+    "version": "2.96.0",
     "private": true,
     "license": "MIT",
     "main": "dist/index",
@@ -89,6 +89,7 @@
         "@opentelemetry/exporter-trace-otlp-http": "0.219.0",
         "@opentelemetry/instrumentation-express": "0.60.0",
         "@opentelemetry/instrumentation-http": "0.219.0",
+        "@opentelemetry/instrumentation-knex": "0.63.0",
         "@opentelemetry/resources": "2.8.0",
         "@opentelemetry/sdk-metrics": "2.8.0",
         "@opentelemetry/sdk-node": "0.219.0",
@@ -196,7 +197,7 @@
         "vitest": "4.1.6",
         "winston": "3.13.0",
         "yaml": "2.8.3",
-        "zod": "3.25.55"
+        "zod": "4.4.3"
     },
     "devDependencies": {
         "@tsoa/cli": "6.6.0",
@@ -237,7 +238,6 @@
         "nodemon": "3.1.9",
         "oxlint": "1.75.0",
         "oxlint-tsgolint": "7.0.2001",
-        "typescript": "7.0.2",
-        "zod-to-json-schema": "3.25.1"
+        "typescript": "7.0.2"
     }
 }

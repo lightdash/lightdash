@@ -125,7 +125,7 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                     fit="contain"
                 />
             ) : (
-                <Paper p="lg" withBorder h={200}>
+                <Paper p="lg" h={200}>
                     <Stack h="100%" align="center" justify="center" gap="xs">
                         {screenshotError ? (
                             <>
@@ -166,11 +166,7 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                 We will also share your Lightdash logs and your recent network
                 requests to help us investigate this issue.
             </Text>
-            <Button
-                mt="xs"
-                style={{ alignSelf: 'flex-end' }}
-                onClick={handleShare}
-            >
+            <Button mt="xs" className="ld-self-end" onClick={handleShare}>
                 Share
             </Button>
         </Stack>

@@ -256,12 +256,9 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
             <HoverCard
                 openDelay={300}
                 keepMounted={false}
-                shadow="subtle"
-                withinPortal
                 withArrow
                 disabled={isHoverCardDisabled}
                 position="right"
-                radius="md"
                 offset={70}
             >
                 <HoverCard.Target>
@@ -287,7 +284,6 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
             <span className={classes.actions}>
                 {showFilterAction && (
                     <Tooltip
-                        withinPortal
                         label={
                             isFiltered
                                 ? 'This field is filtered'
@@ -298,8 +294,6 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                             aria-label={
                                 isFiltered ? 'Field is filtered' : 'Add filter'
                             }
-                            variant="subtle"
-                            color="gray"
                             onClick={handleFilterClick}
                         >
                             <MantineIcon icon={IconFilter} />
@@ -307,12 +301,8 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                     </Tooltip>
                 )}
                 {showDeleteAction && (
-                    <Tooltip withinPortal label="Delete custom metric">
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            onClick={handleDeleteClick}
-                        >
+                    <Tooltip label="Delete custom metric">
+                        <ActionIcon onClick={handleDeleteClick}>
                             <MantineIcon icon={IconTrash} />
                         </ActionIcon>
                     </Tooltip>

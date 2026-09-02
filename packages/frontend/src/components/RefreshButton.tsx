@@ -4,13 +4,11 @@ import {
     Button,
     Group,
     Kbd,
-    rgba,
-    Text,
     Tooltip,
     type MantineSize,
 } from '@mantine/core';
 import { useHotkeys, useOs } from '@mantine/hooks';
-import { IconPlayerPlay, IconX } from '@tabler/icons-react';
+import { IconPlayerPlay } from '@tabler/icons-react';
 import { memo, useCallback, useTransition, type FC } from 'react';
 import {
     explorerActions,
@@ -90,106 +88,63 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
 
     useHotkeys([['mod + enter', onClick, { preventDefault: true }]]);
 
+    const isRunning = isLoading || !!merge.isRunning;
+
     return (
         <Box pos="relative">
             <Button.Group>
                 <Tooltip
                     label={
                         mergeBlockedReason ?? (
-                            <Group gap="xxs">
-                                <Kbd fw={600}>
+                            <Group gap={4} wrap="nowrap">
+                                <Kbd size="xs">
                                     {os === 'macos' || os === 'ios'
                                         ? '⌘'
-                                        : 'ctrl'}
+                                        : 'Ctrl'}
                                 </Kbd>
-
-                                <Text fw={600}>+</Text>
-
-                                <Kbd fw={600}>Enter</Kbd>
+                                <Kbd size="xs">↵</Kbd>
                             </Group>
                         )
                     }
                     position="bottom"
-                    withArrow
-                    withinPortal
                     disabled={
-                        isLoading || (!canRunQuery && !mergeBlockedReason)
+                        isRunning || (!canRunQuery && !mergeBlockedReason)
                     }
                 >
                     <Button
                         size={size}
-                        pr={limit ? 'xs' : undefined}
                         // data-disabled keeps the button hoverable so the
                         // tooltip can say why the merge cannot run yet.
                         disabled={!canRunQuery && !mergeBlockedReason}
                         data-disabled={mergeBlockedReason ? true : undefined}
                         aria-disabled={mergeBlockedReason ? true : undefined}
                         leftSection={<MantineIcon icon={IconPlayerPlay} />}
-                        loading={isLoading || !!merge.isRunning}
+                        loading={isRunning}
                         onClick={onClick}
-                        style={(theme) => ({
-                            flex: 1,
-                            borderRight: canRunQuery
-                                ? `1px solid ${rgba(theme.colors.ldGray[5], 0.6)}`
-                                : undefined,
-                            borderTopRightRadius: 0,
-                            borderBottomRightRadius: 0,
-                            opacity: mergeBlockedReason ? 0.55 : undefined,
-                            cursor: mergeBlockedReason
-                                ? 'not-allowed'
-                                : undefined,
-                        })}
                         data-testid="RefreshButton/RunQueryButton"
                     >
-                        {`Run query (${limit})`}
+                        Run query
                     </Button>
                 </Tooltip>
 
-                {isLoading ? (
-                    <Tooltip
-                        label={'Cancel query'}
-                        position="bottom"
-                        withArrow
-                        withinPortal
-                    >
-                        <Button
-                            size={size}
-                            p="xs"
-                            onClick={() =>
-                                startTransition(() => {
-                                    cancelQuery();
-                                })
-                            }
-                            style={{
-                                borderTopLeftRadius: 0,
-                                borderBottomLeftRadius: 0,
-                            }}
-                        >
-                            <MantineIcon icon={IconX} size="sm" />
-                        </Button>
-                    </Tooltip>
-                ) : (
-                    <RunQuerySettings
-                        disabled={!canRunQuery}
-                        size={size}
-                        maxLimit={maxLimit}
-                        limit={limit}
-                        onLimitChange={setRowLimit}
-                        showAutoFetchSetting
-                        showPreAggregateSetting={preAggVisible}
-                        showTimezoneSetting={
-                            timezoneSupportFlag?.enabled ?? false
-                        }
-                        timezone={timezone ?? undefined}
-                        onTimezoneChange={setTimeZone}
-                        targetProps={{
-                            style: {
-                                borderTopLeftRadius: 0,
-                                borderBottomLeftRadius: 0,
-                            },
-                        }}
-                    />
-                )}
+                <RunQuerySettings
+                    disabled={!canRunQuery}
+                    size={size}
+                    maxLimit={maxLimit}
+                    limit={limit}
+                    onLimitChange={setRowLimit}
+                    showAutoFetchSetting
+                    showPreAggregateSetting={preAggVisible}
+                    showTimezoneSetting={timezoneSupportFlag?.enabled ?? false}
+                    timezone={timezone ?? undefined}
+                    onTimezoneChange={setTimeZone}
+                    isQueryRunning={isLoading}
+                    onCancelQuery={() =>
+                        startTransition(() => {
+                            cancelQuery();
+                        })
+                    }
+                />
             </Button.Group>
             <PreAggregateStatusBadge />
         </Box>

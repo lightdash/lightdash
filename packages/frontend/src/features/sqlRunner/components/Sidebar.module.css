@@ -1,0 +1,13 @@
+.root {
+    flex: 1;
+    overflow: hidden;
+}
+
+.panel {
+    flex: 1;
+    overflow: hidden;
+}
+
+.panel[data-active='false'] {
+    display: none;
+}

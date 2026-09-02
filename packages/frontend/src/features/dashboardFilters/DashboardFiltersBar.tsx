@@ -175,7 +175,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                 </Group>
 
                 {/* Right section - date zoom and hide button */}
-                <Group gap="xs" style={{ marginLeft: 'auto' }} wrap="nowrap">
+                <Group gap="xs" ml="auto" wrap="nowrap">
                     {hasDashboardTiles &&
                         (!isDateZoomDisabled || isEditMode) && (
                             <>
@@ -197,7 +197,6 @@ export const DashboardFiltersBar: FC<Props> = ({
                                 />
                                 {isEditMode && (
                                     <Tooltip
-                                        withinPortal
                                         label={
                                             isDateZoomDisabled
                                                 ? 'Date zoom is hidden from viewers. Click to show.'
@@ -206,7 +205,6 @@ export const DashboardFiltersBar: FC<Props> = ({
                                     >
                                         <ActionIcon
                                             aria-label="Toggle date zoom visibility for viewers"
-                                            variant="subtle"
                                             onClick={() =>
                                                 setIsDateZoomDisabled(
                                                     !isDateZoomDisabled,
@@ -214,7 +212,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                                             }
                                         >
                                             <MantineIcon
-                                                color="ldGray.6"
+                                                color="dimmed"
                                                 icon={
                                                     isDateZoomDisabled
                                                         ? IconEyeOff

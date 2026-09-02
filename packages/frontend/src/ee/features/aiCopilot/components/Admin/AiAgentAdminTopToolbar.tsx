@@ -97,9 +97,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                             orientation="vertical"
                             w={1}
                             h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
+                            className="ld-self-center"
                         />
                         <ProjectsFilter
                             selectedProjectUuids={selectedProjectUuids}
@@ -111,9 +109,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                             orientation="vertical"
                             w={1}
                             h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
+                            className="ld-self-center"
                         />
                         <AgentsFilter
                             selectedAgentUuids={selectedAgentUuids}
@@ -125,9 +121,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                             orientation="vertical"
                             w={1}
                             h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
+                            className="ld-self-center"
                         />
                         <UsersFilter
                             selectedUserUuids={selectedUserUuids}
@@ -137,9 +131,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                             orientation="vertical"
                             w={1}
                             h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
+                            className="ld-self-center"
                         />
                         <FeedbackFilter
                             selectedFeedback={selectedFeedback}
@@ -150,9 +142,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                             orientation="vertical"
                             w={1}
                             h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
+                            className="ld-self-center"
                         />
                         <SourceFilter
                             selectedSource={selectedSource}
@@ -163,9 +153,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                             orientation="vertical"
                             w={1}
                             h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
+                            className="ld-self-center"
                         />
                         <Switch
                             size="xs"
@@ -184,9 +172,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                                     orientation="vertical"
                                     w={1}
                                     h={20}
-                                    style={{
-                                        alignSelf: 'center',
-                                    }}
+                                    className="ld-self-center"
                                 />
                                 <Button
                                     variant="subtle"

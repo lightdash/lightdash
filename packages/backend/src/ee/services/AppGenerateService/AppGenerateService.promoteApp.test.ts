@@ -51,6 +51,7 @@ type AppRow = {
     created_by_user_uuid: string;
     deleted_at: null;
     deleted_by_user_uuid: null;
+    registry_slug: null;
 };
 
 type VersionRow = {
@@ -109,6 +110,7 @@ async function buildScenario() {
         created_by_user_uuid: USER_UUID,
         deleted_at: null,
         deleted_by_user_uuid: null,
+        registry_slug: null,
     };
     const productionApp: AppRow = {
         ...previewApp,
@@ -292,6 +294,7 @@ async function buildScenario() {
             findServiceAccountByUserUuid: async () => undefined,
         } as never,
         appModel: appModel as never,
+        chartRegistryClient: {} as never,
         featureFlagModel: { get: async () => ({ enabled: true }) } as never,
         organizationDesignModel: {
             findInOrganization: async () => null,

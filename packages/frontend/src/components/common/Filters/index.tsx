@@ -129,13 +129,9 @@ const AddFilterSection: FC<AddFilterSectionProps> = ({
             }}
         >
             {!isOpen ? (
-                <Group
-                    align="center"
-                    justify="space-between"
-                    style={{ flex: 1 }}
-                >
+                <Group align="center" justify="space-between" flex={1}>
                     <Button
-                        variant="outline"
+                        variant="light"
                         size="xs"
                         leftSection={<MantineIcon icon={IconPlus} />}
                         disabled={fields.length <= 0}
@@ -172,11 +168,7 @@ const AddFilterSection: FC<AddFilterSectionProps> = ({
                     }}
                     onClosed={toggleFieldInput}
                     rightSection={
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            onClick={toggleFieldInput}
-                        >
+                        <ActionIcon onClick={toggleFieldInput}>
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
                     }
@@ -296,7 +288,7 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
     }, [andRootFilterGroupItems, orRootFilterGroups]);
 
     return (
-        <Stack gap="xs" pos="relative" m="sm" style={{ flexGrow: 1 }}>
+        <Stack gap="xs" pos="relative" m="sm" className="ld-grow">
             {totalFilterRules.length >= 1 &&
                 (showSimplifiedForm ? (
                     <SimplifiedFilterGroupForm
@@ -354,7 +346,7 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                                 icon={IconAlertTriangle}
                                 color="yellow.6"
                             />
-                            <Text c="yellow.6" fz="xs" style={{ flex: 1 }}>
+                            <Text c="yellow.6" fz="xs" flex={1}>
                                 {entry.reason === 'unknown_field' ? (
                                     <>
                                         Tried to reference field with unknown
@@ -377,9 +369,7 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                                 )}
                             </Text>
                             <ActionIcon
-                                variant="subtle"
                                 size="sm"
-                                color="gray"
                                 onClick={() =>
                                     updateFiltersFromGroup(
                                         deleteFilterRuleFromGroup(

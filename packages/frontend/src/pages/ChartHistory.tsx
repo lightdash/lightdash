@@ -209,11 +209,7 @@ const ChartHistory = () => {
                                             <Tooltip
                                                 label={`This is the current version.`}
                                             >
-                                                <Badge
-                                                    size="xs"
-                                                    variant="light"
-                                                    color="green"
-                                                >
+                                                <Badge size="xs" color="green">
                                                     current
                                                 </Badge>
                                             </Tooltip>
@@ -231,20 +227,15 @@ const ChartHistory = () => {
                                                     )}
                                                 >
                                                     <Menu
-                                                        withinPortal
                                                         position="bottom-start"
                                                         withArrow
                                                         arrowPosition="center"
-                                                        shadow="md"
                                                         offset={-4}
                                                         closeOnItemClick
                                                         closeOnClickOutside
                                                     >
                                                         <Menu.Target>
-                                                            <ActionIcon
-                                                                variant="subtle"
-                                                                color="gray"
-                                                            >
+                                                            <ActionIcon>
                                                                 <IconDots
                                                                     size={16}
                                                                 />

@@ -100,19 +100,16 @@ const ChartErrorListItem: FC<{
         <Group gap="xs" wrap="nowrap">
             <MantineIcon icon={IconAlertHexagon} color="orange" size={16} />
             <Tooltip
-                withinPortal
                 label={
                     <Stack gap={2}>
                         {errorMessages.map((message, index) => (
-                            <Text fz={11} key={index}>
+                            <Text fz="xs" key={index}>
                                 {message}
                             </Text>
                         ))}
                     </Stack>
                 }
-                withArrow
                 position="right"
-                multiline
                 maw={300}
             >
                 <Anchor
@@ -180,7 +177,7 @@ const ChangesReviewModal: FC<
                     <Text fz="sm" fw={500} c="ldGray.7">
                         Column changes
                     </Text>
-                    <Paper p="sm" radius="md" withBorder bg="ldGray.0">
+                    <Paper p="sm" radius="md" bg="ldGray.0">
                         <Stack gap="xs">
                             {newColumnsAddedNr > 0 && (
                                 <Group gap="xs">
@@ -207,7 +204,6 @@ const ChangesReviewModal: FC<
                                 <Button
                                     size="compact-xs"
                                     variant="subtle"
-                                    color="ldGray.6"
                                     onClick={() =>
                                         setShowAllDiffs(!showAllDiffs)
                                     }
@@ -229,7 +225,7 @@ const ChangesReviewModal: FC<
                         <Text fz="sm" fw={500} c="ldGray.7">
                             Affected charts ({chartErrorEntries.length})
                         </Text>
-                        <Paper p="sm" radius="md" withBorder bg="ldGray.0">
+                        <Paper p="sm" radius="md" bg="ldGray.0">
                             <Stack gap="xs">
                                 {visibleChartErrors.map(
                                     ([chartUuid, errors]) => (
@@ -275,7 +271,7 @@ const ChangesReviewModal: FC<
                 )}
 
                 {/* Warning Footer */}
-                <Text fz="sm" c="ldGray.6">
+                <Text fz="sm" c="dimmed">
                     These changes could break existing content using this
                     virtual view.
                 </Text>
@@ -539,7 +535,7 @@ export const HeaderVirtualView: FC<{
 
             <Group gap="xs">
                 <Group gap="xs">
-                    <Paper p="xxs" withBorder radius="sm">
+                    <Paper p="xxs" radius="sm">
                         <MantineIcon icon={IconTableAlias} />
                     </Paper>
                     Editing

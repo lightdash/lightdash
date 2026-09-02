@@ -19,7 +19,7 @@ export const DEFAULT_BEDROCK_EMBEDDING_MODEL = 'cohere.embed-english-v3';
  */
 export const DEFAULT_AI_TOOL_DESCRIPTION_MAX_CHARS = 600;
 
-const customHeadersSchema = z.record(z.string()).default({});
+const customHeadersSchema = z.record(z.string(), z.string()).default({});
 
 // Capability of the gateway/endpoint the provider points at, not a feature
 // toggle — some LLM gateways don't support streaming (SSE) completions.
@@ -182,36 +182,38 @@ export const aiCopilotConfigSchema = z
             .positive()
             .default(DEFAULT_AI_TOOL_DESCRIPTION_MAX_CHARS),
     })
-    .refine(
-        ({ providers, defaultProvider, enabled }) =>
-            !(enabled && providers[defaultProvider] === undefined),
-        ({ defaultProvider }) => ({
-            message: `Configuration for the default provider "${defaultProvider}" must be present`,
-            params: {
+    .superRefine(
+        (
+            {
+                providers,
                 defaultProvider,
+                enabled,
+                defaultEmbeddingModelProvider,
+                embeddingEnabled,
             },
-            path: ['providers'],
-        }),
-    )
-    .refine(
-        ({
-            providers,
-            defaultEmbeddingModelProvider,
-            enabled,
-            embeddingEnabled,
-        }) =>
-            !(
+            ctx,
+        ) => {
+            if (enabled && providers[defaultProvider] === undefined) {
+                ctx.addIssue({
+                    code: 'custom',
+                    message: `Configuration for the default provider "${defaultProvider}" must be present`,
+                    params: { defaultProvider },
+                    path: ['providers'],
+                });
+            }
+            if (
                 enabled &&
                 embeddingEnabled &&
                 providers[defaultEmbeddingModelProvider] === undefined
-            ),
-        ({ defaultEmbeddingModelProvider }) => ({
-            message: `Configuration for the default embedding provider "${defaultEmbeddingModelProvider}" must be present`,
-            params: {
-                defaultEmbeddingModelProvider,
-            },
-            path: ['providers'],
-        }),
+            ) {
+                ctx.addIssue({
+                    code: 'custom',
+                    message: `Configuration for the default embedding provider "${defaultEmbeddingModelProvider}" must be present`,
+                    params: { defaultEmbeddingModelProvider },
+                    path: ['providers'],
+                });
+            }
+        },
     );
 
 export type AiCopilotConfigSchemaType = z.infer<typeof aiCopilotConfigSchema>;

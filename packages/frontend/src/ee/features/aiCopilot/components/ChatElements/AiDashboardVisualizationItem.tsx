@@ -217,7 +217,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                     <Paper p="md" bg="ldGray.0">
                         <Center h={100}>
                             <Stack gap="xs" align="center">
-                                <HoverCard withinPortal position="left">
+                                <HoverCard position="left">
                                     <HoverCard.Target>
                                         <MantineIcon
                                             icon={IconExclamationCircle}

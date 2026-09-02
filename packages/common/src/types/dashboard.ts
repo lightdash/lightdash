@@ -1,3 +1,4 @@
+import { type ContentDraftStaleness } from './contentAsCode/draftRebase';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type FilterableDimension, type Metric } from './field';
 import { type DashboardFieldTarget, type DashboardFilters } from './filter';
@@ -268,6 +269,8 @@ export type Dashboard = {
     draftOverlayError?: DashboardDraftOverlayError;
     /** The viewer authored a dismissed draft that can be reopened */
     dismissedDraftUuid?: string;
+    /** The viewer's draft started from an upload snapshot the repo has since moved past */
+    draftStaleness?: ContentDraftStaleness;
     dashboardVersionId: number;
     versionUuid: string;
     uuid: string;

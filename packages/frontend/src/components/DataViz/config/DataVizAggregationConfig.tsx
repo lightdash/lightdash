@@ -86,7 +86,7 @@ export const DataVizAggregationConfig: FC<Props> = ({
     }));
 
     return (
-        <Tooltip label="Aggregation type" withinPortal>
+        <Tooltip label="Aggregation type">
             <Select
                 allowDeselect={false}
                 comboboxProps={{ withinPortal: true }}

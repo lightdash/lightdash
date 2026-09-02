@@ -1,0 +1,27 @@
+.root {
+    --sc-padding: rem(3px);
+    --sc-shadow: var(--mantine-shadow-xs);
+    background-color: light-dark(
+        var(--mantine-color-gray-1),
+        var(--mantine-color-dark-7)
+    );
+}
+
+.indicator {
+    background-color: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-default-border);
+}
+
+.label {
+    font-weight: 500;
+    color: var(--mantine-color-dimmed);
+    transition: color 120ms ease;
+}
+
+.label:hover {
+    color: var(--mantine-color-text);
+}
+
+.label[data-active] {
+    color: var(--mantine-color-text);
+}

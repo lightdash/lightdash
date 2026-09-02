@@ -344,7 +344,7 @@ describe('SavedChartService chart drafts', () => {
         );
     });
 
-    it('publishes every bulk chart update for a Content as Code manager', async () => {
+    it('drafts every bulk chart update for a Content as Code manager', async () => {
         const managedChart = {
             ...chart,
             uuid: 'managed-chart',
@@ -365,11 +365,8 @@ describe('SavedChartService chart drafts', () => {
 
         await service.updateMultiple(reviewer, chart.projectUuid, updates);
 
-        expect(upsertOpenDraft).not.toHaveBeenCalled();
-        expect(savedChartModel.updateMultiple).toHaveBeenCalledWith(
-            chart.projectUuid,
-            updates,
-        );
+        expect(upsertOpenDraft).toHaveBeenCalledTimes(1);
+        expect(savedChartModel.updateMultiple).not.toHaveBeenCalled();
     });
 
     it('publishes UI-only charts through the existing path', async () => {
@@ -389,7 +386,7 @@ describe('SavedChartService chart drafts', () => {
         expect(upsertOpenDraft).not.toHaveBeenCalled();
     });
 
-    it('lets content-as-code reviewers publish directly', async () => {
+    it('drafts for content-as-code reviewers too, recording the upload snapshot as base', async () => {
         const { service, upsertOpenDraft } = buildService();
 
         const result = await service['maybeStoreDraft'](
@@ -400,8 +397,13 @@ describe('SavedChartService chart drafts', () => {
             spaceContext,
         );
 
-        expect(result).toBeUndefined();
-        expect(upsertOpenDraft).not.toHaveBeenCalled();
+        expect(result?.hasUnpublishedChanges).toBe(true);
+        expect(upsertOpenDraft).toHaveBeenCalledWith(
+            expect.objectContaining({
+                authorUserUuid: reviewer.userUuid,
+                base: expect.objectContaining({ hash: 'hash' }),
+            }),
+        );
     });
 
     it('blocks an editor from deleting a Git-backed chart', async () => {

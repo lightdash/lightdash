@@ -53,7 +53,6 @@ const DesignRow: FC<{
                     {design.isDefault && (
                         <Badge
                             color="blue"
-                            variant="light"
                             leftSection={
                                 <MantineIcon icon={IconCheck} size={12} />
                             }
@@ -63,25 +62,24 @@ const DesignRow: FC<{
                     )}
                 </Group>
                 {design.description && (
-                    <Text size="xs" c="ldGray.6" lineClamp={2}>
+                    <Text size="xs" c="dimmed" lineClamp={2}>
                         {design.description}
                     </Text>
                 )}
             </Stack>
         </Table.Td>
         <Table.Td>
-            <Text fz="sm" c="ldGray.6">
+            <Text fz="sm" c="dimmed">
                 {design.files.length}{' '}
                 {design.files.length === 1 ? 'file' : 'files'}
             </Text>
         </Table.Td>
         <Table.Td w="1%">
-            <Menu position="bottom-end" withinPortal>
+            <Menu position="bottom-end">
                 <Menu.Target>
                     <ActionIcon
                         variant="transparent"
                         size="sm"
-                        color="ldGray.6"
                         aria-label="More actions"
                     >
                         <MantineIcon icon={IconDots} />
@@ -164,7 +162,7 @@ const DesignListPage: FC = () => {
                 />
             ) : (
                 <SettingsCard>
-                    <Paper withBorder>
+                    <Paper>
                         <Table
                             className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                         >
