@@ -1,6 +1,7 @@
 import {
     DbtProjectType,
     ProjectType,
+    SupportedDbtVersions,
     WarehouseTypes,
     WeekDay,
     type Project,
@@ -15,6 +16,7 @@ const project: Project = {
     type: ProjectType.DEFAULT,
     dbtConnection: {
         type: DbtProjectType.GITHUB,
+        authorization_method: 'personal_access_token',
         repository: 'acme/analytics',
         branch: 'main',
         project_sub_path: '/',
@@ -31,7 +33,7 @@ const project: Project = {
     },
     pinnedListUuid: 'pinned-uuid',
     upstreamProjectUuid: 'upstream-uuid',
-    dbtVersion: 'v1.11',
+    dbtVersion: SupportedDbtVersions.V1_11,
     schedulerTimezone: 'UTC',
     queryTimezone: 'Asia/Tokyo',
     useProjectTimezoneInFilters: true,
@@ -61,7 +63,7 @@ describe('pickEmbedProject', () => {
                 type: WarehouseTypes.SNOWFLAKE,
                 startOfWeek: WeekDay.SUNDAY,
             },
-            dbtVersion: 'v1.11',
+            dbtVersion: SupportedDbtVersions.V1_11,
             schedulerTimezone: 'UTC',
             queryTimezone: 'Asia/Tokyo',
             useProjectTimezoneInFilters: true,
