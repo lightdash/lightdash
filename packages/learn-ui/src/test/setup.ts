@@ -23,5 +23,5 @@ beforeAll(() => {
         removeEventListener: () => {},
         dispatchEvent: () => false,
     })) as unknown as typeof window.matchMedia;
-    window.HTMLElement.prototype.scrollIntoView = () => {};
+    window.Element.prototype.scrollIntoView = () => {};
 });
