@@ -1,4 +1,7 @@
-import { type AppClarification } from '@lightdash/common';
+import {
+    type AppClarification,
+    type TemplateQuestion,
+} from '@lightdash/common';
 import {
     Button,
     Group,
@@ -9,11 +12,17 @@ import {
     TextInput,
     ThemeIcon,
 } from '@mantine/core';
+import { IconTemplate } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { type TemplateDefinition } from './templates';
+
+export type QuestionsTemplate = {
+    slug: string;
+    name: string;
+    questions: TemplateQuestion[];
+};
 
 type Props = {
-    template: TemplateDefinition;
+    template: QuestionsTemplate;
     disabled?: boolean;
     onBuild: (payload: {
         clarifications: AppClarification[];
@@ -35,7 +44,7 @@ const TemplateQuestionsForm: FC<Props> = ({
     onBuild,
     onChangeTemplate,
 }) => {
-    const questions = template.questions ?? [];
+    const { questions } = template;
     const [answers, setAnswers] = useState<Record<string, string>>(() =>
         Object.fromEntries(questions.map((q) => [q.key, q.default ?? ''])),
     );
@@ -43,7 +52,6 @@ const TemplateQuestionsForm: FC<Props> = ({
     const missing = questions.filter(
         (q) => q.required && !(answers[q.key] ?? '').trim(),
     );
-    const Icon = template.icon;
 
     const handleBuild = () => {
         if (missing.length > 0) return;
@@ -55,8 +63,7 @@ const TemplateQuestionsForm: FC<Props> = ({
             .filter((c) => c.answer.length > 0);
         onBuild({
             clarifications,
-            prompt:
-                extra.trim() || `Build the ${template.title} as configured.`,
+            prompt: extra.trim() || `Build the ${template.name} as configured.`,
         });
     };
 
@@ -70,11 +77,11 @@ const TemplateQuestionsForm: FC<Props> = ({
                         variant="light"
                         color="gray"
                     >
-                        <Icon size={20} />
+                        <IconTemplate size={20} />
                     </ThemeIcon>
                     <div>
                         <Text fw={600} size="sm">
-                            {template.title}
+                            {template.name}
                         </Text>
                         <Text size="xs" c="dimmed">
                             Answer a few questions and the template is bound to

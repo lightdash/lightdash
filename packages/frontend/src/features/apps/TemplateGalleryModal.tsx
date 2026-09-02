@@ -1,4 +1,4 @@
-import { type DataAppTemplate } from '@lightdash/common';
+import { type DataAppTemplateSummary } from '@lightdash/common';
 import {
     Badge,
     Modal,
@@ -8,27 +8,27 @@ import {
     Text,
     ThemeIcon,
 } from '@mantine/core';
+import { IconTemplate } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { type TemplateDefinition } from './templates';
 
 type Props = {
     opened: boolean;
     onClose: () => void;
-    templates: TemplateDefinition[];
-    selected: DataAppTemplate | null;
-    onSelect: (templateId: DataAppTemplate) => void;
+    templates: DataAppTemplateSummary[];
+    selectedSlug: string | null;
+    onSelect: (template: DataAppTemplateSummary) => void;
 };
 
 /**
- * The gallery behind the picker's "From Template" card: every registry
- * template surfaced with `inGallery`, in a grid that scales as the set grows.
- * Selecting a card hands the template id back to the picker's selection.
+ * The gallery behind the picker's "From Template" card: the organization's
+ * uploaded templates, in a grid that scales as the set grows. Selecting a
+ * card hands the template back to the picker's selection.
  */
 const TemplateGalleryModal: FC<Props> = ({
     opened,
     onClose,
     templates,
-    selected,
+    selectedSlug,
     onSelect,
 }) => (
     <Modal
@@ -40,18 +40,17 @@ const TemplateGalleryModal: FC<Props> = ({
     >
         <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
             {templates.map((template) => {
-                const Icon = template.icon;
-                const isSelected = selected === template.id;
+                const isSelected = selectedSlug === template.slug;
                 return (
                     <Paper
-                        key={template.id}
+                        key={template.slug}
                         component="button"
                         type="button"
                         withBorder
                         radius="md"
                         p="md"
                         aria-pressed={isSelected}
-                        onClick={() => onSelect(template.id)}
+                        onClick={() => onSelect(template)}
                         style={{
                             cursor: 'pointer',
                             textAlign: 'left',
@@ -68,11 +67,11 @@ const TemplateGalleryModal: FC<Props> = ({
                                 variant="light"
                                 color="gray"
                             >
-                                <Icon size={20} />
+                                <IconTemplate size={20} />
                             </ThemeIcon>
                             <Stack gap={4}>
                                 <Text fw={600} size="sm">
-                                    {template.title}
+                                    {template.name}
                                 </Text>
                                 <Badge size="xs" variant="light" color="gray">
                                     {template.category}

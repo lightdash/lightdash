@@ -11,6 +11,7 @@ import {
     type AppExternalConnectionReference,
     type AppVersionDependencyEntry,
     type DataAppTemplate,
+    type DataAppTemplateSummary,
     type DataAppVizContext,
 } from '@lightdash/common';
 import {
@@ -115,6 +116,7 @@ import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
 import { useRestoreAppVersion } from '../features/apps/hooks/useRestoreAppVersion';
 import { useSdkUpgradeStatus } from '../features/apps/hooks/useSdkUpgradeStatus';
+import { useTemplateGallery } from '../features/apps/hooks/useTemplateGallery';
 import {
     countReadyQueriesSinceBoundary,
     useTrackedAppQueries,
@@ -385,6 +387,10 @@ const AppGenerate: FC = () => {
     //             wizard no longer asks any questions of its own.
     const [selectedTemplate, setSelectedTemplate] =
         useState<DataAppTemplate | null>(null);
+    // Organization template picked in the gallery; exclusive with the
+    // flavour selection above (the picker clears one when setting the other).
+    const [selectedOrgTemplate, setSelectedOrgTemplate] =
+        useState<DataAppTemplateSummary | null>(null);
     const [themeChipOverride, setThemeChipOverride] = useState<{
         appUuid: string | null; // null = override set from the new-app page
         designUuid: string | null;
@@ -591,6 +597,7 @@ const AppGenerate: FC = () => {
         setHoveredQueryUuid(null);
         setFocusedQueryUuid(null);
         setSelectedTemplate(null);
+        setSelectedOrgTemplate(null);
         setThemeChipOverride(null);
         resetClarification();
         setTestVizContext(null);
@@ -721,12 +728,10 @@ const AppGenerate: FC = () => {
         return capture();
     }, []);
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
-    // Fetched in parallel with EnableDataApps and included in the page gate
-    // below, so the first paint always has the template set settled and the
-    // fan renders fully populated with the page — no late card pop-in.
-    const templatesFlag = useServerFeatureFlag(
-        FeatureFlags.EnableDataAppTemplates,
-    );
+    // Resolved in parallel with EnableDataApps and included in the page gate
+    // below, so the first paint always has the gallery's availability
+    // settled and the fan renders fully populated — no late card pop-in.
+    const templateGallery = useTemplateGallery();
     const { user, health } = useApp();
     const sampleDataEnabled = health.data?.dataApps.sampleDataEnabled !== false;
     const ability = useAbilityContext();
@@ -895,13 +900,15 @@ const AppGenerate: FC = () => {
             : null;
     // New-app empty screen: arch + composer, centered, no preview/split yet.
     const newAppLanding = isNewApp && messages.length === 0 && !isLoading;
-    // A gallery template with declared questions swaps the composer for its
-    // question form on the landing view; the form is the clarification round.
+    // An organization template with declared questions swaps the composer
+    // for its question form on the landing view; the form is the
+    // clarification round. A template without questions keeps the composer.
     const templateQuestionsDefinition = useMemo(() => {
-        if (!selectedTemplate || !newAppLanding) return null;
-        const def = getTemplate(selectedTemplate);
-        return def.questions && def.questions.length > 0 ? def : null;
-    }, [selectedTemplate, newAppLanding]);
+        if (!selectedOrgTemplate || !newAppLanding) return null;
+        return selectedOrgTemplate.questions.length > 0
+            ? selectedOrgTemplate
+            : null;
+    }, [selectedOrgTemplate, newAppLanding]);
 
     // `hasNextPage` reflects the server's "more pages exist" signal, but we
     // accumulate versions across fetches in `versionCacheRef` — so even if the
@@ -1299,7 +1306,7 @@ const AppGenerate: FC = () => {
         };
     }, []);
 
-    if (dataAppsFlag.isLoading || templatesFlag.isLoading) {
+    if (dataAppsFlag.isLoading || templateGallery.isLoading) {
         return null;
     }
     if (!dataAppsFlag.data?.enabled) {
@@ -1530,6 +1537,7 @@ const AppGenerate: FC = () => {
         // path; the pipeline keys the viz behaviour off the app's stored template.
         const starterTemplate: DataAppTemplate | undefined =
             selectedTemplate ?? undefined;
+        const starterTemplateSlug = selectedOrgTemplate?.slug;
 
         try {
             // Send structured chart refs (uuid + per-chart sample-data opt-in).
@@ -1701,6 +1709,7 @@ const AppGenerate: FC = () => {
                 clarification.send({
                     prompt: trimmed,
                     template: starterTemplate,
+                    templateSlug: starterTemplateSlug,
                     fileIds,
                     appUuid: targetAppUuid,
                     charts,
@@ -1727,7 +1736,9 @@ const AppGenerate: FC = () => {
         clarifications: AppClarification[];
         prompt: string;
     }) => {
-        if (isLoading || isSubmittingRef.current || !selectedTemplate) return;
+        if (isLoading || isSubmittingRef.current || !selectedOrgTemplate) {
+            return;
+        }
         isSubmittingRef.current = true;
         if (newAppLanding) {
             withViewTransition(() => {
@@ -1761,7 +1772,8 @@ const AppGenerate: FC = () => {
             onClarifiedBuild(
                 {
                     prompt,
-                    template: selectedTemplate,
+                    template: undefined,
+                    templateSlug: selectedOrgTemplate.slug,
                     fileIds: undefined,
                     appUuid: targetAppUuid,
                     charts: undefined,
@@ -1854,6 +1866,12 @@ const AppGenerate: FC = () => {
                                     <AppTemplatePicker
                                         selected={selectedTemplate}
                                         onSelectedChange={setSelectedTemplate}
+                                        selectedOrgTemplate={
+                                            selectedOrgTemplate
+                                        }
+                                        onSelectedOrgTemplateChange={
+                                            setSelectedOrgTemplate
+                                        }
                                     />
                                 )}
                             </Stack>
@@ -2565,12 +2583,12 @@ const AppGenerate: FC = () => {
                                 )}
                                 {templateQuestionsDefinition ? (
                                     <TemplateQuestionsForm
-                                        key={templateQuestionsDefinition.id}
+                                        key={templateQuestionsDefinition.slug}
                                         template={templateQuestionsDefinition}
                                         disabled={isSubmitting || isLoading}
                                         onBuild={handleTemplateFormBuild}
                                         onChangeTemplate={() =>
-                                            setSelectedTemplate(null)
+                                            setSelectedOrgTemplate(null)
                                         }
                                     />
                                 ) : (

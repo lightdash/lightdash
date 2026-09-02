@@ -1,14 +1,10 @@
 import {
     DATA_APP_TEMPLATE_DEFINITIONS,
     type DataAppTemplate,
-    type FeatureFlags,
-    type TemplateQuestion,
 } from '@lightdash/common';
 import {
-    IconChartLine,
     IconFileText,
     IconLayoutDashboard,
-    IconLayoutGrid,
     IconPencil,
     IconPresentation,
     IconPuzzle,
@@ -21,7 +17,6 @@ export type TemplateDefinition = {
     description: string;
     category: string;
     icon: TablerIcon;
-    questions?: TemplateQuestion[];
 };
 
 // Icons are React components so they stay on the frontend; everything else
@@ -32,8 +27,6 @@ const TEMPLATE_ICONS: Record<DataAppTemplate, TablerIcon> = {
     pdf: IconFileText,
     custom: IconPencil,
     data_app_viz: IconPuzzle,
-    forecaster: IconChartLine,
-    scorecard: IconLayoutGrid,
 };
 
 const toDefinition = (id: DataAppTemplate): TemplateDefinition => {
@@ -47,40 +40,16 @@ const toDefinition = (id: DataAppTemplate): TemplateDefinition => {
         description: def.description,
         category: def.category,
         icon: TEMPLATE_ICONS[id],
-        questions: def.questions,
     };
 };
 
 /**
- * Templates offered when creating a data app, honoring each definition's
- * picker eligibility and feature-flag gate.
+ * Built-in flavours offered as fan cards when creating a data app. Templates
+ * with content are organization uploads and live in the gallery instead.
  */
-export const getPickerTemplates = (
-    enabledFlags: Set<FeatureFlags>,
-): TemplateDefinition[] =>
+export const getPickerTemplates = (): TemplateDefinition[] =>
     Object.values(DATA_APP_TEMPLATE_DEFINITIONS)
-        .filter(
-            (def) =>
-                def.inPicker &&
-                (def.requiredFlag === undefined ||
-                    enabledFlags.has(def.requiredFlag)),
-        )
-        .map((def) => toDefinition(def.id));
-
-/**
- * Templates listed in the gallery behind the picker's "From Template" card,
- * honoring each definition's feature-flag gate.
- */
-export const getGalleryTemplates = (
-    enabledFlags: Set<FeatureFlags>,
-): TemplateDefinition[] =>
-    Object.values(DATA_APP_TEMPLATE_DEFINITIONS)
-        .filter(
-            (def) =>
-                def.inGallery &&
-                (def.requiredFlag === undefined ||
-                    enabledFlags.has(def.requiredFlag)),
-        )
+        .filter((def) => def.inPicker)
         .map((def) => toDefinition(def.id));
 
 export const getTemplate = (id: DataAppTemplate): TemplateDefinition =>
