@@ -44,6 +44,7 @@ import { AiWritebackRunModel } from './models/AiWritebackRunModel';
 import { AiWritebackThreadModel } from './models/AiWritebackThreadModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
+import { DataAppTemplateModel } from './models/DataAppTemplateModel';
 import { EmbedModel } from './models/EmbedModel';
 import { ExternalConnectionModel } from './models/ExternalConnectionModel';
 import { ExternalSourceModel } from './models/ExternalSourceModel';
@@ -87,6 +88,7 @@ import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggr
 import { PreAggregationExternalResolver } from './services/AsyncQueryService/PreAggregationExternalResolver';
 import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
+import { DataAppTemplateService } from './services/DataAppTemplateService/DataAppTemplateService';
 import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
@@ -443,6 +445,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     registry,
                 });
             },
+            dataAppTemplateService: ({ context, models }) =>
+                new DataAppTemplateService({
+                    lightdashConfig: context.lightdashConfig,
+                    dataAppTemplateModel:
+                        models.getDataAppTemplateModel<DataAppTemplateModel>(),
+                }),
             appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({
                     lightdashConfig: context.lightdashConfig,
@@ -1253,6 +1261,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             projectHomepageModel: ({ database }) =>
                 new ProjectHomepageModel({ database }),
+            dataAppTemplateModel: ({ database }) =>
+                new DataAppTemplateModel({ database }),
             homepageRecommendedActionSkipsModel: ({ database }) =>
                 new HomepageRecommendedActionSkipsModel({ database }),
             aiAgentModel: ({ database, utils }) =>
