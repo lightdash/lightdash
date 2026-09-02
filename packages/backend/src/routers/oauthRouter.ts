@@ -30,9 +30,9 @@ function getOAuthService(req: express.Request): OAuthService {
 
 const getValidatedRedirectUrl = async (
     req: express.Request,
+    params: { clientId: unknown; redirectUri: unknown },
 ): Promise<URL | null> => {
-    const clientId = req.body.client_id;
-    const redirectUri = req.body.redirect_uri;
+    const { clientId, redirectUri } = params;
     if (typeof clientId !== 'string' || typeof redirectUri !== 'string') {
         return null;
     }
@@ -72,6 +72,61 @@ const sendOAuthRedirectResponse = (
     );
 };
 
+type OAuthIdentity =
+    | { missingField: string }
+    | { userId: number; organizationUuid: string };
+
+const resolveOAuthIdentity = (user: Express.User): OAuthIdentity => {
+    if (!user.userId) return { missingField: 'userId' };
+    if (!user.organizationUuid) return { missingField: 'organizationUuid' };
+    return {
+        userId: user.userId,
+        organizationUuid: user.organizationUuid,
+    };
+};
+
+const getInstanceHost = (req: express.Request): string => {
+    const siteUrl = getOAuthService(req).getSiteUrl();
+    try {
+        return new URL(siteUrl).host;
+    } catch {
+        return siteUrl;
+    }
+};
+
+const sendMissingOrganizationResponse = async (
+    req: express.Request,
+    res: express.Response,
+    params: {
+        missingField: string;
+        clientId: unknown;
+        redirectUri: unknown;
+        state: unknown;
+    },
+) => {
+    Logger.warn(
+        `OAuth authorize rejected: the session user is missing ${params.missingField}`,
+    );
+
+    const redirectUrl = await getValidatedRedirectUrl(req, {
+        clientId: params.clientId,
+        redirectUri: params.redirectUri,
+    });
+    if (!redirectUrl) {
+        return sendInvalidRedirectResponse(res);
+    }
+
+    const message = `Your account is not a member of an organization on ${getInstanceHost(
+        req,
+    )}. Sign in to the Lightdash instance where you were invited.`;
+    redirectUrl.searchParams.set('error', 'access_denied');
+    redirectUrl.searchParams.set('error_description', message);
+    if (typeof params.state === 'string' && params.state !== '') {
+        redirectUrl.searchParams.set('state', params.state);
+    }
+    return sendOAuthRedirectResponse(res, redirectUrl, message);
+};
+
 // Get authorization - use OAuth2Server
 oauthRouter.get('/authorize', async (req, res, next) => {
     const loginUrl = `/login?redirect=${encodeURIComponent(
@@ -90,6 +145,16 @@ oauthRouter.get('/authorize', async (req, res, next) => {
     } = req.query;
     if (!client_id || !redirect_uri) {
         return res.status(400).send('Missing required parameters');
+    }
+
+    const identity = resolveOAuthIdentity(req.user);
+    if ('missingField' in identity) {
+        return sendMissingOrganizationResponse(req, res, {
+            missingField: identity.missingField,
+            clientId: client_id,
+            redirectUri: redirect_uri,
+            state,
+        });
     }
 
     // Render authorize page using Handlebars template
@@ -152,11 +217,20 @@ oauthRouter.post('/authorize', async (req, res) => {
     if (!req.user) {
         return res.status(401).send('Unauthorized');
     }
-    if (!req.user.userId || !req.user.organizationUuid) {
-        return res.status(400).send('Missing userUuid or organizationUuid');
+    const identity = resolveOAuthIdentity(req.user);
+    if ('missingField' in identity) {
+        return sendMissingOrganizationResponse(req, res, {
+            missingField: identity.missingField,
+            clientId: req.body.client_id,
+            redirectUri: req.body.redirect_uri,
+            state: req.body.state,
+        });
     }
 
-    const redirectUrl = await getValidatedRedirectUrl(req);
+    const redirectUrl = await getValidatedRedirectUrl(req, {
+        clientId: req.body.client_id,
+        redirectUri: req.body.redirect_uri,
+    });
     if (!redirectUrl) {
         return sendInvalidRedirectResponse(res);
     }
@@ -189,8 +263,8 @@ oauthRouter.post('/authorize', async (req, res) => {
             oauthReq,
             oauthRes,
             {
-                userId: req.user.userId,
-                organizationUuid: req.user.organizationUuid,
+                userId: identity.userId,
+                organizationUuid: identity.organizationUuid,
             },
         );
         redirectUrl.searchParams.set(
