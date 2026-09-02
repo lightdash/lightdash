@@ -58,6 +58,12 @@ const parseKeyManagement = (value: string | null): AiKeyManagement | null =>
  * Token counts for a single AI call, normalized across providers and call
  * kinds (LLM text/object generation, embeddings). Null means the provider
  * did not report that class of tokens.
+ *
+ * `inputTokens` is the total prompt tokens INCLUSIVE of cache reads and
+ * writes. The warehouse `ai_token_usage` model derives uncached input by
+ * subtracting the cache classes (`input_tokens - cache_read - cache_write`),
+ * so every producer must keep this inclusive — emitting the uncached slice
+ * here undercounts input and zeroes out the derived uncached column.
  */
 export type AiUsageTokens = {
     inputTokens: number | null;
@@ -72,28 +78,17 @@ export type AiUsageTokens = {
 // usage, and a missing field must never throw into the AI call path.
 export const languageModelUsageToTokens = (
     usage: LanguageModelUsage,
-): AiUsageTokens => {
-    const inputTokens = usage?.inputTokens ?? null;
-    const cacheReadTokens = usage?.inputTokenDetails?.cacheReadTokens ?? null;
-    const cacheWriteTokens = usage?.inputTokenDetails?.cacheWriteTokens ?? null;
-    const noCacheTokens = usage?.inputTokenDetails?.noCacheTokens ?? null;
-    const normalizedInputTokens =
-        noCacheTokens ??
-        (inputTokens !== null &&
-        cacheReadTokens !== null &&
-        cacheWriteTokens !== null
-            ? inputTokens - cacheReadTokens - cacheWriteTokens
-            : null);
-
-    return {
-        inputTokens: normalizedInputTokens,
-        outputTokens: usage?.outputTokens ?? null,
-        cacheReadTokens,
-        cacheWriteTokens,
-        reasoningTokens: usage?.outputTokenDetails?.reasoningTokens ?? null,
-        totalTokens: usage?.totalTokens ?? null,
-    };
-};
+): AiUsageTokens => ({
+    // AI SDK `inputTokens` is the total input, inclusive of cache reads and
+    // writes (`inputTokenDetails` breaks out the classes). Keep it inclusive —
+    // the warehouse derives uncached input by subtracting the cache classes.
+    inputTokens: usage?.inputTokens ?? null,
+    outputTokens: usage?.outputTokens ?? null,
+    cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens ?? null,
+    cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens ?? null,
+    reasoningTokens: usage?.outputTokenDetails?.reasoningTokens ?? null,
+    totalTokens: usage?.totalTokens ?? null,
+});
 
 export const embeddingModelUsageToTokens = (
     usage: EmbeddingModelUsage,

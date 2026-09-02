@@ -18,7 +18,7 @@ vi.mock('../logging/logger', () => ({
 }));
 
 describe('languageModelUsageToTokens', () => {
-    it('maps AI SDK usage to token classes', () => {
+    it('maps AI SDK usage to token classes, keeping input inclusive of cache', () => {
         expect(
             languageModelUsageToTokens({
                 inputTokens: 1000,
@@ -35,7 +35,9 @@ describe('languageModelUsageToTokens', () => {
                 totalTokens: 1200,
             }),
         ).toEqual({
-            inputTokens: 150,
+            // inclusive of cache (150 uncached + 800 read + 50 write), NOT the
+            // uncached slice — the warehouse subtracts the cache classes itself
+            inputTokens: 1000,
             outputTokens: 200,
             cacheReadTokens: 800,
             cacheWriteTokens: 50,
@@ -44,7 +46,7 @@ describe('languageModelUsageToTokens', () => {
         });
     });
 
-    it('derives non-cached input only when every input class is reported', () => {
+    it('passes the inclusive input through regardless of which cache classes are reported', () => {
         expect(
             languageModelUsageToTokens({
                 inputTokens: 1_000,
@@ -60,7 +62,7 @@ describe('languageModelUsageToTokens', () => {
                 },
                 totalTokens: 1_200,
             }).inputTokens,
-        ).toBe(150);
+        ).toBe(1_000);
 
         expect(
             languageModelUsageToTokens({
@@ -77,7 +79,7 @@ describe('languageModelUsageToTokens', () => {
                 },
                 totalTokens: 1_200,
             }).inputTokens,
-        ).toBeNull();
+        ).toBe(1_000);
     });
 
     it('maps unreported token classes to null', () => {
