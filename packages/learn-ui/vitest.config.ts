@@ -3,8 +3,8 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
     plugins: [react()],
-    css: { modules: { classNameStrategy: 'non-scoped' } },
     test: {
+        css: { modules: { classNameStrategy: 'non-scoped' } },
         globals: true,
         environment: 'jsdom',
         include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],

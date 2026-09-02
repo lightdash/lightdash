@@ -38,6 +38,7 @@
     },
     "devDependencies": {
         "@lightdash/common": "workspace:*",
+        "@types/node": "22.13.1",
         "@mantine/core": "8.3.18",
         "@mantine/hooks": "8.3.18",
         "@testing-library/jest-dom": "6.9.1",

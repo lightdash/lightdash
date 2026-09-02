@@ -162,9 +162,6 @@
     "jest-dom/prefer-required": "error",
     "jest-dom/prefer-to-have-attribute": "error",
 
-/* ── lodash (via jsPlugin) ────────────────────────────────────── */
-    "lodash/import-scope": ["error", "method"],
-
     "no-restricted-imports": [
       "error",
       {
@@ -175,6 +172,7 @@
           { "name": "@tabler/icons-react", "message": "Icons are host concerns; take an icon as a prop." }
         ],
         "patterns": [
+          { "group": ["@lightdash/common", "@lightdash/common/*"], "message": "learn-ui has no runtime dependency on common." },
           { "group": ["@lightdash/frontend", "@lightdash/frontend/*"], "message": "No app imports inside the package." },
           {
             "group": [
@@ -189,33 +187,6 @@
     ]
   },
   "overrides": [
-    {
-      /* Date-native picker seam: features must not touch Mantine date strings.
-         Widen the files list as more features migrate to components/common/DatePickers. */
-      "files": [
-        "src/features/funnelBuilder/**",
-        "src/features/metricsCatalog/**",
-        "src/features/omnibar/**",
-        "src/features/parameters/**"
-      ],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "patterns": [
-              {
-                "group": [
-                  "@mantine/dates",
-                  "**/mantineDateAdapter",
-                  "**/mantineDateSerialization"
-                ],
-                "message": "Use the Date-native pickers in components/common/DatePickers instead of raw Mantine date-string APIs."
-              }
-            ]
-          }
-        ]
-      }
-    },
     {
       "files": ["**/*.stories.tsx", "**/*.stories.ts"],
       "rules": {
