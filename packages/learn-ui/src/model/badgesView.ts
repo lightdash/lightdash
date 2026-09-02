@@ -1,5 +1,5 @@
-// Badge card copy over the copied badges.ts. Lightdash side only: nothing here
-// has a twin in lightdash-university.
+// Badge card copy over the copied badges.ts.
+// Shared by the in-app Learn section and learn.lightdash.com via @lightdash/learn-ui.
 
 import { type LearnBadgeTier } from '../types';
 import { RUNG_LADDER, type RoleBadge } from './badges';

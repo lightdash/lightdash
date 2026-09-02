@@ -2,8 +2,7 @@
  * CS-169 per-lesson scope visibility. Shared by the in-app Learn section and
  * learn.lightdash.com via @lightdash/learn-ui. The panel maps catalogue
  * entries through `effectiveEntry` BEFORE handing them to railModel /
- * moduleProgress / lessonCount renders, so all board math sees visible
- * counts without the twin model changing.
+ * moduleProgress / lessonCount renders, so all board math sees visible counts.
  *
  * Visibility rule mirrors `model.ts` `isUnlocked`: a null/untagged
  * lesson is always visible, and a scope whose base the scope registry does
