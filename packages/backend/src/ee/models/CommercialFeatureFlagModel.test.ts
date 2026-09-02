@@ -82,3 +82,45 @@ describe('CommercialFeatureFlagModel direct access', () => {
         });
     });
 });
+
+describe('CommercialFeatureFlagModel AI copilot', () => {
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    const createGatedModel = () =>
+        new CommercialFeatureFlagModel({
+            database,
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                enabledFeatureFlags: new Set<string>(),
+                disabledFeatureFlags: new Set<string>(),
+                ai: {
+                    ...lightdashConfigMock.ai,
+                    copilot: {
+                        ...lightdashConfigMock.ai.copilot,
+                        enabled: true,
+                        requiresFeatureFlag: true,
+                    },
+                },
+            },
+        });
+
+    it('fails closed without a user when the flag is org-gated', async () => {
+        await expect(
+            createGatedModel().get({
+                featureFlagId: CommercialFeatureFlags.AiCopilot,
+            }),
+        ).resolves.toEqual({
+            id: CommercialFeatureFlags.AiCopilot,
+            enabled: false,
+        });
+        expect(tracker.history.select).toHaveLength(0);
+    });
+});

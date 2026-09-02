@@ -58,10 +58,10 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             return { id: featureFlagId, enabled: copilotConfigEnabled };
         }
 
+        // Anonymous and embed callers have no organization to resolve
+        // overrides against, so the per-org gate fails closed.
         if (!user) {
-            throw new Error(
-                'User is required to check if AI copilot is enabled',
-            );
+            return { id: featureFlagId, enabled: false };
         }
 
         const dbResult = await this.tryGetFromDatabase({ user, featureFlagId });
