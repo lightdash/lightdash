@@ -3,6 +3,7 @@ import {
     DirectAccessResourceType,
     ChartSourceType,
     canMutateVerifiedContent,
+    ContentReviewContentType,
     ContentType,
     DashboardTileTypes,
     FeatureFlags,
@@ -256,7 +257,7 @@ const SavedChartsHeader: FC = () => {
         useDisclosure(false);
     const contentReview = useContentReviewEligibility({
         projectUuid,
-        contentType: ContentType.CHART,
+        contentType: ContentReviewContentType.CHART,
         contentUuid: savedChart?.uuid,
         spaceUuid: savedChart?.spaceUuid,
     });
@@ -1337,7 +1338,7 @@ const SavedChartsHeader: FC = () => {
             {isRequestReviewModalOpen && projectUuid && savedChart && (
                 <RequestReviewModal
                     projectUuid={projectUuid}
-                    contentType={ContentType.CHART}
+                    contentType={ContentReviewContentType.CHART}
                     contentUuid={savedChart.uuid}
                     contentName={savedChart.name}
                     opened={isRequestReviewModalOpen}

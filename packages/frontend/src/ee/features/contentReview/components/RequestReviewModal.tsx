@@ -1,8 +1,7 @@
 import {
-    ContentType,
+    ContentReviewContentType,
     DEFAULT_USER_SPACES_PARENT_NAME,
     ResourceViewItemType,
-    type ContentReviewContentType,
     type SpaceSummary,
 } from '@lightdash/common';
 import { Button, Group, Stack, Text, Textarea } from '@mantine/core';
@@ -18,7 +17,11 @@ import {
     useSpaceSummaries,
 } from '../../../../hooks/useSpaces';
 import { useCreateContentReviewRequest } from '../hooks/useContentReviewRequests';
-import { getContentTypeColor, getContentTypeIcon } from '../utils';
+import {
+    getContentTypeColor,
+    getContentTypeIcon,
+    getContentTypeNoun,
+} from '../utils';
 import classes from './RequestReviewModal.module.css';
 
 type Props = {
@@ -105,7 +108,7 @@ const RequestReviewModal: FC<Props> = ({
         handleClose();
     });
 
-    const typeLabel = contentType === ContentType.CHART ? 'chart' : 'dashboard';
+    const typeLabel = getContentTypeNoun(contentType);
     const isSpaceStep = step === 'space';
 
     return (
@@ -161,9 +164,10 @@ const RequestReviewModal: FC<Props> = ({
                             spaces={targetSpaces}
                             isLoading={isLoadingSpaces}
                             itemType={
-                                contentType === ContentType.CHART
-                                    ? ResourceViewItemType.CHART
-                                    : ResourceViewItemType.DASHBOARD
+                                contentType ===
+                                ContentReviewContentType.DASHBOARD
+                                    ? ResourceViewItemType.DASHBOARD
+                                    : ResourceViewItemType.CHART
                             }
                             onSelectSpace={(spaceUuid) =>
                                 form.setFieldValue('targetSpaceUuid', spaceUuid)

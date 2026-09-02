@@ -1,4 +1,4 @@
-import { ContentType } from '@lightdash/common';
+import { ContentReviewContentType } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../../testing/testUtils';
@@ -63,7 +63,7 @@ const renderModal = () =>
     renderWithProviders(
         <RequestReviewModal
             projectUuid="project"
-            contentType={ContentType.CHART}
+            contentType={ContentReviewContentType.CHART}
             contentUuid="chart"
             contentName="Weekly revenue"
             opened
@@ -102,7 +102,7 @@ describe('RequestReviewModal', () => {
 
         await waitFor(() =>
             expect(createRequest).toHaveBeenCalledWith({
-                contentType: ContentType.CHART,
+                contentType: ContentReviewContentType.CHART,
                 contentUuid: 'chart',
                 targetSpaceUuid: 'finance',
                 note: 'For the weekly review',

@@ -1,4 +1,5 @@
 import {
+    ContentReviewContentType,
     assertUnreachable,
     ChartSourceType,
     ContentType,
@@ -405,8 +406,10 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     projectUuid={projectUuid}
                     contentType={
                         action.item.type === ResourceViewItemType.DASHBOARD
-                            ? ContentType.DASHBOARD
-                            : ContentType.CHART
+                            ? ContentReviewContentType.DASHBOARD
+                            : action.item.data.source === ChartSourceType.SQL
+                              ? ContentReviewContentType.SQL_CHART
+                              : ContentReviewContentType.CHART
                     }
                     contentUuid={action.item.data.uuid}
                     contentName={action.item.data.name}

@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     DirectAccessResourceType,
     canMutateVerifiedContent,
+    ContentReviewContentType,
     ContentType,
     ResourceViewItemType,
     type Dashboard,
@@ -189,7 +190,7 @@ const DashboardHeader = memo(
             useDisclosure(false);
         const contentReview = useContentReviewEligibility({
             projectUuid,
-            contentType: ContentType.DASHBOARD,
+            contentType: ContentReviewContentType.DASHBOARD,
             contentUuid: dashboard.uuid,
             spaceUuid: dashboard.spaceUuid,
         });
@@ -535,7 +536,7 @@ const DashboardHeader = memo(
                     {isRequestReviewModalOpen && projectUuid && (
                         <RequestReviewModal
                             projectUuid={projectUuid}
-                            contentType={ContentType.DASHBOARD}
+                            contentType={ContentReviewContentType.DASHBOARD}
                             contentUuid={dashboard.uuid}
                             contentName={dashboard.name}
                             opened={isRequestReviewModalOpen}

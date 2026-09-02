@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     ChartSourceType,
-    ContentType,
+    ContentReviewContentType,
     DirectAccessResourceType,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
@@ -199,10 +199,11 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const contentReview = useContentReviewEligibility({
         projectUuid,
         contentType: isResourceViewItemDashboard(item)
-            ? ContentType.DASHBOARD
-            : ContentType.CHART,
-        contentUuid:
-            isChartOrDashboard && !isSqlChart ? item.data.uuid : undefined,
+            ? ContentReviewContentType.DASHBOARD
+            : isSqlChart
+              ? ContentReviewContentType.SQL_CHART
+              : ContentReviewContentType.CHART,
+        contentUuid: isChartOrDashboard ? item.data.uuid : undefined,
         spaceUuid: isChartOrDashboard ? item.data.spaceUuid : null,
     });
 
@@ -702,25 +703,23 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                     </Menu.Item>
                                 )}
 
-                            {contentReview.canRequest &&
-                                isChartOrDashboard &&
-                                !isSqlChart && (
-                                    <Menu.Item
-                                        component="button"
-                                        role="menuitem"
-                                        leftSection={
-                                            <MantineIcon icon={IconSend} />
-                                        }
-                                        onClick={() => {
-                                            onAction({
-                                                type: ResourceViewItemAction.REQUEST_REVIEW,
-                                                item,
-                                            });
-                                        }}
-                                    >
-                                        Request review
-                                    </Menu.Item>
-                                )}
+                            {contentReview.canRequest && isChartOrDashboard && (
+                                <Menu.Item
+                                    component="button"
+                                    role="menuitem"
+                                    leftSection={
+                                        <MantineIcon icon={IconSend} />
+                                    }
+                                    onClick={() => {
+                                        onAction({
+                                            type: ResourceViewItemAction.REQUEST_REVIEW,
+                                            item,
+                                        });
+                                    }}
+                                >
+                                    Request review
+                                </Menu.Item>
+                            )}
 
                             <Menu.Divider
                                 display={isSqlChart ? 'none' : 'block'}
