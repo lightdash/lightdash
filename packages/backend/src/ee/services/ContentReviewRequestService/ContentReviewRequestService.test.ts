@@ -29,7 +29,6 @@ import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type SpaceModel } from '../../../models/SpaceModel';
 import { type DashboardService } from '../../../services/DashboardService/DashboardService';
 import { type DirectAccessFeatureGate } from '../../../services/DirectAccess/DirectAccessFeatureGate';
-import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { type SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { type SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { type SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
@@ -192,9 +191,6 @@ const buildService = () => {
         upsertAccess: vi.fn().mockResolvedValue({}),
         revokeAccess: vi.fn().mockResolvedValue({}),
     };
-    const featureFlagService = {
-        get: vi.fn().mockResolvedValue({ enabled: true }),
-    };
     const groupsModel = {
         findUserInGroups: vi.fn().mockResolvedValue([]),
         getGroup: vi.fn(),
@@ -241,7 +237,6 @@ const buildService = () => {
         directAccessFeatureGate:
             directAccessFeatureGate as unknown as DirectAccessFeatureGate,
         directAccessModel: directAccessModel as unknown as DirectAccessModel,
-        featureFlagService: featureFlagService as unknown as FeatureFlagService,
         groupsModel: groupsModel as unknown as GroupsModel,
         projectModel: projectModel as unknown as ProjectModel,
         savedChartService: savedChartService as unknown as SavedChartService,
@@ -260,7 +255,6 @@ const buildService = () => {
         contentVerificationModel,
         directAccessFeatureGate,
         directAccessModel,
-        featureFlagService,
         groupsModel,
         savedChartService,
         spacePermissionService,
@@ -382,9 +376,9 @@ describe('ContentReviewRequestService', () => {
             expect(directAccessModel.revokeAccess).toHaveBeenCalledTimes(1);
         });
 
-        test('is forbidden when the flag is off', async () => {
-            const { service, featureFlagService } = buildService();
-            featureFlagService.get.mockResolvedValue({ enabled: false });
+        test('is forbidden when direct access is off', async () => {
+            const { service, directAccessFeatureGate } = buildService();
+            directAccessFeatureGate.isEnabledForUser.mockResolvedValue(false);
 
             await expect(
                 service.submit(requester, PROJECT, submitBody),

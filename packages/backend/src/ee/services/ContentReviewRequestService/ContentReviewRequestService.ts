@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
-    CommercialFeatureFlags,
     ConflictError,
     ContentReviewContentType,
     ContentReviewRequestStatus,
@@ -47,7 +46,6 @@ import { type SpaceModel } from '../../../models/SpaceModel';
 import { BaseService } from '../../../services/BaseService';
 import { type DashboardService } from '../../../services/DashboardService/DashboardService';
 import { type DirectAccessFeatureGate } from '../../../services/DirectAccess/DirectAccessFeatureGate';
-import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { type SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { type SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { type SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
@@ -61,7 +59,6 @@ type ContentReviewRequestServiceArguments = {
     dashboardService: DashboardService;
     directAccessFeatureGate: DirectAccessFeatureGate;
     directAccessModel: DirectAccessModel;
-    featureFlagService: FeatureFlagService;
     groupsModel: GroupsModel;
     projectModel: ProjectModel;
     savedChartService: SavedChartService;
@@ -112,8 +109,6 @@ export class ContentReviewRequestService extends BaseService {
 
     private readonly directAccessModel: DirectAccessModel;
 
-    private readonly featureFlagService: FeatureFlagService;
-
     private readonly groupsModel: GroupsModel;
 
     private readonly projectModel: ProjectModel;
@@ -136,7 +131,6 @@ export class ContentReviewRequestService extends BaseService {
         this.dashboardService = args.dashboardService;
         this.directAccessFeatureGate = args.directAccessFeatureGate;
         this.directAccessModel = args.directAccessModel;
-        this.featureFlagService = args.featureFlagService;
         this.groupsModel = args.groupsModel;
         this.projectModel = args.projectModel;
         this.savedChartService = args.savedChartService;
@@ -146,13 +140,8 @@ export class ContentReviewRequestService extends BaseService {
     }
 
     // Reviewers see personal-space content through direct-access grants, so
-    // the feature needs both flags
+    // that flag is the switch for the whole loop
     async isEnabled(user: SessionUser): Promise<boolean> {
-        const flag = await this.featureFlagService.get({
-            user,
-            featureFlagId: CommercialFeatureFlags.ContentReviewRequests,
-        });
-        if (!flag.enabled) return false;
         return this.directAccessFeatureGate.isEnabledForUser({
             userUuid: user.userUuid,
             organizationUuid: user.organizationUuid,
