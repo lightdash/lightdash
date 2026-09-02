@@ -231,6 +231,13 @@ import type {
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
+import type {
+    JiraInstallation,
+    JiraInstallUrl,
+    JiraIssueType,
+    JiraProject,
+    JiraSite,
+} from './jira';
 import { type KnexPaginatedData } from './knex-paginate';
 import type { LinearInstallation, LinearProject, LinearTeam } from './linear';
 import {
@@ -710,6 +717,7 @@ export type HealthState = {
     hasSlack: boolean;
     hasGithub: boolean;
     hasGitlab: boolean;
+    hasJira: boolean;
     hasLinear: boolean;
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
@@ -1334,6 +1342,11 @@ type ApiResults =
     | ApiGitFileContent
     | GitIntegrationConfiguration
     | GithubUserCredential
+    | JiraInstallation
+    | JiraInstallUrl
+    | Array<JiraSite>
+    | Array<JiraProject>
+    | Array<JiraIssueType>
     | LinearInstallation
     | Array<LinearTeam>
     | Array<LinearProject>

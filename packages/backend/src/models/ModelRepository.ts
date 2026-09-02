@@ -31,6 +31,7 @@ import { GitUserCredentialsModel } from './GitUserCredentials/GitUserCredentials
 import { GroupsModel } from './GroupsModel';
 import { HeadlessBrowserLoginGrantModel } from './HeadlessBrowserLoginGrantModel';
 import { InviteLinkModel } from './InviteLinkModel';
+import { JiraAppInstallationsModel } from './JiraAppInstallations/JiraAppInstallationsModel';
 import { JobModel } from './JobModel/JobModel';
 import { LinearAppInstallationsModel } from './LinearAppInstallations/LinearAppInstallationsModel';
 import { McpContextModel } from './McpContextModel';
@@ -108,6 +109,7 @@ export type ModelManifest = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
     gitUserCredentialsModel: GitUserCredentialsModel;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
+    jiraAppInstallationsModel: JiraAppInstallationsModel;
     linearAppInstallationsModel: LinearAppInstallationsModel;
     groupsModel: GroupsModel;
     headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
@@ -440,6 +442,17 @@ export class ModelRepository
             'linearAppInstallationsModel',
             () =>
                 new LinearAppInstallationsModel({
+                    database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                }),
+        );
+    }
+
+    public getJiraAppInstallationsModel(): JiraAppInstallationsModel {
+        return this.getModel(
+            'jiraAppInstallationsModel',
+            () =>
+                new JiraAppInstallationsModel({
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                 }),

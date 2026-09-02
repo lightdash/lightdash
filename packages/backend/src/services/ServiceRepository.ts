@@ -45,6 +45,7 @@ import { GitlabAppService } from './GitlabAppService/GitlabAppService';
 import { GroupsService } from './GroupService';
 import { HeadlessBrowserService } from './HeadlessBrowserService';
 import { HealthService } from './HealthService/HealthService';
+import { JiraAppService } from './JiraAppService/JiraAppService';
 import { LicenseService } from './LicenseService/LicenseService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
 import { LinearAppService } from './LinearAppService/LinearAppService';
@@ -111,6 +112,7 @@ interface ServiceManifest {
     pullRequestsService: PullRequestsService;
     githubAppService: GithubAppService;
     gitlabAppService: GitlabAppService;
+    jiraAppService: JiraAppService;
     linearAppService: LinearAppService;
     gdriveService: GdriveService;
     groupService: GroupsService;
@@ -578,6 +580,19 @@ export class ServiceRepository
                 new LinearAppService({
                     linearAppInstallationsModel:
                         this.models.getLinearAppInstallationsModel(),
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics, // pragma: allowlist secret
+                }),
+        );
+    }
+
+    public getJiraAppService(): JiraAppService {
+        return this.getService(
+            'jiraAppService',
+            () =>
+                new JiraAppService({
+                    jiraAppInstallationsModel:
+                        this.models.getJiraAppInstallationsModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics, // pragma: allowlist secret
                 }),
