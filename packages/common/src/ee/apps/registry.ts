@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { type ApiSuccess } from '../../types/api/success';
 import { isValidDataAppSlug } from './code';
-import { dataAppVizSchema } from './types';
+import { dataAppVizSchema, type DataAppVizSchema } from './types';
 
 export const CHART_REGISTRY_INDEX_SCHEMA_VERSION = 1 as const;
 
@@ -36,11 +36,39 @@ const registrySlug = z
     .string()
     .refine(isValidDataAppSlug, { message: 'must be a valid chart type slug' });
 
+// Explicit TS types (for the OpenAPI spec) plus zod schemas (runtime
+// validation of the registry index), kept in sync by the compile-time
+// assertions below — TSOA can't resolve types derived purely from
+// `z.infer<...>`, so every registry type exposed via the API is declared
+// by hand here, mirroring the data-app-viz schema/type split in `./types`.
+
+export type ChartRegistryArtifact = {
+    path: string;
+    sha256: string;
+};
+
 const registryArtifactSchema = z.object({
     path: z.string().min(1),
     sha256: z.string().regex(/^[a-f0-9]{64}$/),
 });
-export type ChartRegistryArtifact = z.infer<typeof registryArtifactSchema>;
+
+export type ChartRegistryEntry = {
+    slug: string;
+    name: string;
+    description: string;
+    version: string;
+    publishedAt: string;
+    tags: string[];
+    changelog: string;
+    minLightdashVersion: string | null;
+    vizSchema: DataAppVizSchema;
+    thumbnail: string | null;
+    screenshots: string[];
+    artifacts: {
+        source: ChartRegistryArtifact;
+        dist: ChartRegistryArtifact;
+    };
+};
 
 const registryEntrySchema = z.object({
     slug: registrySlug,
@@ -59,14 +87,29 @@ const registryEntrySchema = z.object({
         dist: registryArtifactSchema,
     }),
 });
-export type ChartRegistryEntry = z.infer<typeof registryEntrySchema>;
+
+export type ChartRegistryIndex = {
+    schemaVersion: typeof CHART_REGISTRY_INDEX_SCHEMA_VERSION;
+    generatedAt: string;
+    charts: ChartRegistryEntry[];
+};
 
 export const chartRegistryIndexSchema = z.object({
     schemaVersion: z.literal(CHART_REGISTRY_INDEX_SCHEMA_VERSION),
     generatedAt: z.string(),
     charts: z.array(registryEntrySchema),
 });
-export type ChartRegistryIndex = z.infer<typeof chartRegistryIndexSchema>;
+
+type AssertMutuallyAssignable<A, B> = [A] extends [B]
+    ? [B] extends [A]
+        ? true
+        : never
+    : never;
+const chartRegistryIndexSchemaMatchesApiType: AssertMutuallyAssignable<
+    z.infer<typeof chartRegistryIndexSchema>,
+    ChartRegistryIndex
+> = true;
+void chartRegistryIndexSchemaMatchesApiType;
 
 export type RegistryChartTypeState =
     | 'not_installed'
