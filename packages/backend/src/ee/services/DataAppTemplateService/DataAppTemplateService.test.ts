@@ -406,3 +406,91 @@ describe('DataAppTemplateService.importPackage', () => {
         expect(result.templateUuid).toBe(existing.templateUuid);
     });
 });
+
+describe('DataAppTemplateService.importFromApp', () => {
+    const b64 = (s: string) => Buffer.from(s, 'utf-8').toString('base64');
+    const APP_FILES = [
+        {
+            path: 'src/App.jsx',
+            contentBase64: b64('export default () => null;'),
+        },
+        {
+            path: 'src/template.json',
+            contentBase64: b64(
+                JSON.stringify({
+                    templateVersion: 1,
+                    template: {
+                        id: 'old',
+                        name: 'Old',
+                        description: 'o',
+                        category: 'o',
+                    },
+                    bindings: { history: { explore: 'orders' } },
+                }),
+            ),
+        },
+        { path: 'package.json', contentBase64: b64('{}') },
+    ];
+    const REQUEST = {
+        projectUuid: 'test-project-uuid',
+        appUuid: 'app-1',
+        template: {
+            id: 'revenue-forecaster',
+            name: 'Revenue Forecaster',
+            description: 'Forecasts revenue.',
+            category: 'Forecasting',
+        },
+        questions: [{ key: 'metric', label: 'What should we forecast?' }],
+        guardrails: 'Keep the monthly methodology.',
+    };
+
+    it("packages the app's src tree with a merged manifest and the guardrails as AGENTS.md", async () => {
+        const { service, model, send } = buildService();
+        const result = await service.importFromApp(
+            buildAccount(),
+            REQUEST,
+            APP_FILES,
+        );
+        expect(result.action).toBe('created');
+        expect(result.slug).toBe('revenue-forecaster');
+        const [write] = (model.upsert as ReturnType<typeof vi.fn>).mock
+            .calls[0];
+        expect(
+            write.files.map((f: { filename: string }) => f.filename),
+        ).toEqual(['AGENTS.md', 'src/App.jsx', 'src/template.json']);
+        const puts = send.mock.calls
+            .map(([command]) => command as PutObjectCommand)
+            .filter((command) => command instanceof PutObjectCommand);
+        const manifestPut = puts.find((c) =>
+            c.input.Key?.endsWith('src/template.json'),
+        );
+        const manifest = JSON.parse(String(manifestPut?.input.Body));
+        expect(manifest.template.id).toBe('revenue-forecaster');
+        expect(manifest.questions).toEqual(REQUEST.questions);
+        expect(manifest.bindings).toEqual({ history: { explore: 'orders' } });
+        const guardrailsPut = puts.find((c) =>
+            c.input.Key?.endsWith('AGENTS.md'),
+        );
+        expect(String(guardrailsPut?.input.Body)).toBe(
+            'Keep the monthly methodology.\n',
+        );
+    });
+
+    it('needs create:DataAppTemplate like any other publish', async () => {
+        const { service, model } = buildService();
+        withRole(service, OrganizationMemberRole.INTERACTIVE_VIEWER);
+        await expect(
+            service.importFromApp(buildAccount(), REQUEST, APP_FILES),
+        ).rejects.toThrow(ForbiddenError);
+        expect(model.upsert).not.toHaveBeenCalled();
+    });
+
+    it('rejects an app with no source files to package', async () => {
+        const { service } = buildService();
+        await expect(
+            service.importFromApp(buildAccount(), REQUEST, [
+                { path: 'package.json', contentBase64: b64('{}') },
+            ]),
+        ).rejects.toThrow(ParameterError);
+    });
+});

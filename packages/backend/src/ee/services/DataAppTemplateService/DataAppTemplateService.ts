@@ -8,6 +8,7 @@ import { subject } from '@casl/ability';
 import {
     assertIsAccountWithOrg,
     assertRegisteredAccount,
+    buildDataAppTemplateManifest,
     DATA_APP_TEMPLATE_GUARDRAILS_PATH,
     DATA_APP_TEMPLATE_MANIFEST_PATH,
     DataAppTemplatePackageError,
@@ -15,6 +16,7 @@ import {
     ForbiddenError,
     MAX_DATA_APP_TEMPLATE_FILE_BYTES,
     MAX_DATA_APP_TEMPLATE_FILES,
+    MAX_DATA_APP_TEMPLATE_GUARDRAILS_CHARS,
     MAX_DATA_APP_TEMPLATE_PACKAGE_BYTES,
     MAX_DATA_APP_TEMPLATES_PER_ORG,
     MissingConfigError,
@@ -23,8 +25,10 @@ import {
     parseDataAppTemplateManifest,
     validateDataAppTemplateEntryPath,
     type Account,
+    type DataAppCodeFile,
     type DataAppTemplateImportResult,
     type DataAppTemplateSummary,
+    type SaveAppAsTemplateRequest,
 } from '@lightdash/common';
 import { Readable } from 'node:stream';
 import { extract as tarExtract } from 'tar-stream';
@@ -274,7 +278,7 @@ export class DataAppTemplateService extends BaseService {
         account: Account,
         input: { body: Readable; contentLength: number },
     ): Promise<DataAppTemplateImportResult> {
-        const { organizationUuid, userUuid } = this.accountContext(account);
+        this.accountContext(account);
         await this.assertTemplatesEnabled(account);
         if (
             input.contentLength <= 0 ||
@@ -301,7 +305,109 @@ export class DataAppTemplateService extends BaseService {
             }
             throw e;
         }
-        files.sort((a, b) => a.filename.localeCompare(b.filename));
+        return this.importFiles(account, files);
+    }
+
+    /**
+     * Save-as-template from the UI: the app's current source (as returned
+     * by the app code read) becomes the package. Only the src tree travels;
+     * an existing manifest keeps its bindings while the request owns the
+     * identity block and questions; guardrails become AGENTS.md.
+     */
+    async importFromApp(
+        account: Account,
+        request: SaveAppAsTemplateRequest,
+        appFiles: DataAppCodeFile[],
+    ): Promise<DataAppTemplateImportResult> {
+        const guardrails = request.guardrails?.trim() ?? '';
+        if (guardrails.length > MAX_DATA_APP_TEMPLATE_GUARDRAILS_CHARS) {
+            throw new ParameterError(
+                `Guardrails must be at most ${MAX_DATA_APP_TEMPLATE_GUARDRAILS_CHARS} characters`,
+            );
+        }
+        // Scaffold, config and dependency files never belong in a package;
+        // the server rebuilds against its own template. Only the src tree
+        // travels, and an existing manifest is merged rather than copied.
+        const sourceFiles = appFiles
+            .map((file) => ({
+                filename: file.path.replace(/^\.\//, ''),
+                body: Buffer.from(file.contentBase64, 'base64'),
+            }))
+            .filter((file) => file.filename.startsWith('src/'));
+        const existingManifest = sourceFiles
+            .find((file) => file.filename === DATA_APP_TEMPLATE_MANIFEST_PATH)
+            ?.body.toString('utf-8');
+        const files: PackageFile[] = sourceFiles.filter(
+            (file) => file.filename !== DATA_APP_TEMPLATE_MANIFEST_PATH,
+        );
+        if (files.length === 0) {
+            throw new ParameterError(
+                'The app has no source files to save as a template',
+            );
+        }
+        let manifest: string;
+        try {
+            manifest = buildDataAppTemplateManifest({
+                existing: existingManifest,
+                template: request.template,
+                questions: request.questions ?? [],
+            });
+        } catch (e) {
+            if (e instanceof DataAppTemplatePackageError) {
+                throw new ParameterError(e.message);
+            }
+            throw e;
+        }
+        files.push({
+            filename: DATA_APP_TEMPLATE_MANIFEST_PATH,
+            body: Buffer.from(manifest, 'utf-8'),
+        });
+        if (guardrails.length > 0) {
+            files.push({
+                filename: DATA_APP_TEMPLATE_GUARDRAILS_PATH,
+                body: Buffer.from(`${guardrails}\n`, 'utf-8'),
+            });
+        }
+        return this.importFiles(account, files);
+    }
+
+    /**
+     * Shared publish path for a set of validated package files: manifest
+     * parse, permissions, caps, storage writes, record upsert.
+     */
+    private async importFiles(
+        account: Account,
+        input: PackageFile[],
+    ): Promise<DataAppTemplateImportResult> {
+        const { organizationUuid, userUuid } = this.accountContext(account);
+        await this.assertTemplatesEnabled(account);
+        let files: PackageFile[];
+        try {
+            files = input
+                .map((file) => ({
+                    filename: validateDataAppTemplateEntryPath(file.filename),
+                    body: file.body,
+                }))
+                .sort((a, b) => a.filename.localeCompare(b.filename));
+        } catch (e) {
+            if (e instanceof DataAppTemplatePackageError) {
+                throw new ParameterError(e.message);
+            }
+            throw e;
+        }
+        if (files.length > MAX_DATA_APP_TEMPLATE_FILES) {
+            throw new ParameterError(
+                `Template package has more than ${MAX_DATA_APP_TEMPLATE_FILES} files`,
+            );
+        }
+        const oversized = files.find(
+            (file) => file.body.length > MAX_DATA_APP_TEMPLATE_FILE_BYTES,
+        );
+        if (oversized) {
+            throw new ParameterError(
+                `${oversized.filename} exceeds ${MAX_DATA_APP_TEMPLATE_FILE_BYTES} bytes`,
+            );
+        }
 
         const manifestFile = files.find(
             (file) => file.filename === DATA_APP_TEMPLATE_MANIFEST_PATH,

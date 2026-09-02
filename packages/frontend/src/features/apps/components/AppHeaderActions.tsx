@@ -18,6 +18,7 @@ import {
     IconCamera,
     IconCirclesRelation,
     IconCopy,
+    IconTemplate,
     IconDatabaseExport,
     IconDots,
     IconEdit,
@@ -56,10 +57,12 @@ import {
 import { useCanCreateDataApp } from '../hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../hooks/useCanEditDataApp';
 import { useDuplicateApp } from '../hooks/useDuplicateApp';
+import { useCanSaveAppAsTemplate } from '../hooks/useSaveAppAsTemplate';
 import { type SdkUpgradeOffer } from '../hooks/useSdkUpgradeStatus';
 import AppUpgradeModal from './AppUpgradeModal';
 import { MoveAppToSpaceModal } from './MoveAppToSpaceModal';
 import { PromoteAppModal } from './PromoteAppModal';
+import { SaveAppAsTemplateModal } from './SaveAppAsTemplateModal';
 
 type Props = {
     projectUuid: string;
@@ -228,6 +231,8 @@ const AppHeaderActions: FC<Props> = ({
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [isMoveToSpaceOpen, setIsMoveToSpaceOpen] = useState(false);
     const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
+    const [isSaveAsTemplateOpen, setIsSaveAsTemplateOpen] = useState(false);
+    const canSaveAsTemplate = useCanSaveAppAsTemplate();
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDirectAccessModalOpen, setIsDirectAccessModalOpen] =
         useState(false);
@@ -435,6 +440,16 @@ const AppHeaderActions: FC<Props> = ({
                             Duplicate
                         </Menu.Item>
                     )}
+                    {canSaveAsTemplate && hasReadyVersion && (
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconTemplate} size={14} />
+                            }
+                            onClick={() => setIsSaveAsTemplateOpen(true)}
+                        >
+                            Save as template
+                        </Menu.Item>
+                    )}
                     {canEdit && (
                         <>
                             <Menu.Item
@@ -566,6 +581,14 @@ const AppHeaderActions: FC<Props> = ({
                     onClose={() => setSyncModalOpen(false)}
                 />
             )}
+            <SaveAppAsTemplateModal
+                opened={isSaveAsTemplateOpen}
+                onClose={() => setIsSaveAsTemplateOpen(false)}
+                projectUuid={projectUuid}
+                appUuid={appUuid}
+                appName={appName}
+                appDescription={appDescription}
+            />
             {isPromoteModalOpen && (
                 <PromoteAppModal
                     projectUuid={projectUuid}

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+    buildDataAppTemplateManifest,
+    DataAppTemplatePackageError,
     parseDataAppTemplateManifest,
     validateDataAppTemplateEntryPath,
 } from './templatePackage';
@@ -99,5 +101,83 @@ describe('parseDataAppTemplateManifest', () => {
             ),
         ).toThrow(/duplicate/);
         expect(() => parseDataAppTemplateManifest('{')).toThrow(/valid JSON/);
+    });
+
+    describe('buildDataAppTemplateManifest', () => {
+        it("keeps an existing manifest's bindings and lets the request own metadata and questions", () => {
+            const existing = JSON.stringify({
+                templateVersion: 1,
+                template: {
+                    id: 'old',
+                    name: 'Old',
+                    description: 'Old',
+                    category: 'Old',
+                },
+                questions: [{ key: 'old', label: 'Old?' }],
+                bindings: { history: { explore: 'orders' } },
+                parameters: { horizon: { months: 24 } },
+            });
+            const merged = JSON.parse(
+                buildDataAppTemplateManifest({
+                    existing,
+                    template: {
+                        id: 'revenue-forecaster',
+                        name: 'Revenue Forecaster',
+                        description: 'Forecasts revenue.',
+                        category: 'Forecasting',
+                    },
+                    questions: [
+                        { key: 'metric', label: 'What should we forecast?' },
+                    ],
+                }),
+            );
+            expect(merged.bindings).toEqual({ history: { explore: 'orders' } });
+            expect(merged.parameters).toEqual({ horizon: { months: 24 } });
+            expect(merged.template.id).toBe('revenue-forecaster');
+            expect(merged.questions).toEqual([
+                { key: 'metric', label: 'What should we forecast?' },
+            ]);
+            expect(merged.templateVersion).toBe(1);
+        });
+
+        it('starts a fresh manifest when the app has none', () => {
+            const built = JSON.parse(
+                buildDataAppTemplateManifest({
+                    existing: undefined,
+                    template: {
+                        id: 'plain',
+                        name: 'Plain',
+                        description: 'd',
+                        category: 'c',
+                    },
+                    questions: [],
+                }),
+            );
+            expect(built).toEqual({
+                templateVersion: 1,
+                template: {
+                    id: 'plain',
+                    name: 'Plain',
+                    description: 'd',
+                    category: 'c',
+                },
+                questions: [],
+            });
+        });
+
+        it('rejects an existing manifest that is not valid JSON', () => {
+            expect(() =>
+                buildDataAppTemplateManifest({
+                    existing: '{not json',
+                    template: {
+                        id: 'x',
+                        name: 'x',
+                        description: 'x',
+                        category: 'x',
+                    },
+                    questions: [],
+                }),
+            ).toThrow(DataAppTemplatePackageError);
+        });
     });
 });
