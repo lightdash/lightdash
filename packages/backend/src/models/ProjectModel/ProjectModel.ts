@@ -928,9 +928,15 @@ export class ProjectModel {
     }
 
     async update(projectUuid: string, data: UpdateProject): Promise<void> {
-        const previousConnectionString = getMotherduckConnectionString(
-            await this.getWarehouseCredentialsForProject(projectUuid),
-        );
+        let previousConnectionString: string | undefined;
+        try {
+            previousConnectionString = getMotherduckConnectionString(
+                await this.getWarehouseCredentialsForProject(projectUuid),
+            );
+        } catch (e) {
+            // Projects created without warehouse credentials have none to invalidate
+            if (!(e instanceof NotFoundError)) throw e;
+        }
         const nextConnectionString = getMotherduckConnectionString(
             data.warehouseConnection,
         );

@@ -8,6 +8,7 @@ import {
     CreateDuckdbMotherduckCredentials,
     CreatePostgresCredentials,
     CreateSnowflakeCredentials,
+    CreateWarehouseCredentials,
     DatabricksAuthenticationType,
     DbtCloudIDEProjectConfig,
     DbtGithubProjectConfig,
@@ -351,6 +352,37 @@ describe('ProjectModel', () => {
             'md:analytics?motherduck_token=previous-token&saas_mode=true',
             'credentials_updated',
         );
+    });
+
+    test('updates a project that was created without warehouse credentials', async () => {
+        vi.spyOn(model, 'getWarehouseCredentialsForProject').mockRejectedValue(
+            new NotFoundError('Cannot find any warehouse credentials'),
+        );
+        const invalidate = vi
+            .spyOn(MotherduckInstanceCache, 'invalidateByConnectionString')
+            .mockImplementation(() => undefined);
+        tracker.on
+            .update(({ sql }) => sql.includes('projects'))
+            .response([{ project_id: 1 }]);
+        tracker.on
+            .insert(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
+
+        await model.update(projectUuid, {
+            name: expectedProject.name,
+            dbtConnection: expectedProject.dbtConnection,
+            dbtVersion: expectedProject.dbtVersion,
+            warehouseConnection: {
+                type: WarehouseTypes.BIGQUERY,
+            } as CreateWarehouseCredentials,
+        });
+
+        expect(
+            tracker.history.insert.some(({ sql }) =>
+                sql.includes('warehouse_credentials'),
+            ),
+        ).toBe(true);
+        expect(invalidate).not.toHaveBeenCalled();
     });
 
     test('checks project membership without requiring an email row', async () => {
