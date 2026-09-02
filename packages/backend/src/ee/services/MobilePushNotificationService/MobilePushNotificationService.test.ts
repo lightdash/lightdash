@@ -84,7 +84,9 @@ const createDependencies = () => {
         findLiveActivityOwner: vi.fn<
             MobilePushNotificationStore['findLiveActivityOwner']
         >(async () => undefined),
-        upsertInstallation: vi.fn(async () => installation),
+        upsertInstallation: vi.fn<
+            MobilePushNotificationStore['upsertInstallation']
+        >(async () => ({ status: 'stored', installation })),
         registerPushToStartToken: vi.fn<
             MobilePushNotificationStore['registerPushToStartToken']
         >(async () => true),
@@ -1222,6 +1224,25 @@ describe('MobilePushNotificationService installation lifecycle', () => {
         expect(
             JSON.stringify(dependencies.analytics.track.mock.calls),
         ).not.toContain(validDeviceToken);
+    });
+
+    it('reports a refused reassignment as not found', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.upsertInstallation.mockResolvedValue(
+            { status: 'owner_mismatch' },
+        );
+        const service = new MobilePushNotificationService(dependencies);
+
+        await expect(
+            service.registerInstallation({
+                user: { userUuid, organizationUuid },
+                installationUuid,
+                platform: 'ios',
+                environment: 'sandbox',
+                deviceToken: validDeviceToken,
+            }),
+        ).rejects.toBeInstanceOf(NotFoundError);
+        expect(dependencies.analytics.track).not.toHaveBeenCalled();
     });
 
     it('rejects an android registration when FCM is not configured', async () => {
