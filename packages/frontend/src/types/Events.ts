@@ -157,8 +157,10 @@ export enum EventName {
     NOTIFICATIONS_COMMENTS_ITEM_CLICKED = 'notifications_comments_item.clicked',
     DASHBOARD_AUTO_REFRESH_UPDATED = 'dashboard_auto_refresh.updated',
 
-    // Metrics Catalog
+    // Learn
     LEARN_CLICKED = 'learn.clicked',
+
+    // Metrics Catalog
     METRICS_CATALOG_CLICKED = 'metrics_catalog.clicked',
     METRICS_CATALOG_SEARCH_APPLIED = 'metrics_catalog_search.applied',
     METRICS_CATALOG_CHART_USAGE_CLICKED = 'metrics_catalog_chart_usage.clicked',

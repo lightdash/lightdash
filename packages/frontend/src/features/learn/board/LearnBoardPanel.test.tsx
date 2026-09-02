@@ -118,6 +118,9 @@ const defaultSelectedCourse = () => ({
     isError: false,
 });
 const selectedCourseState = { value: defaultSelectedCourse() };
+// Hoisted so the mock factory can hand it over directly: recording the argument
+// is what proves the panel passes `selectedId ?? undefined` down to the hook.
+const useLearnCourseMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../hooks', () => ({
     useLearnCatalogue: () => ({
@@ -140,7 +143,7 @@ vi.mock('../hooks', () => ({
         isLoading: false,
         serverSynced: false,
     }),
-    useLearnCourse: () => selectedCourseState.value,
+    useLearnCourse: useLearnCourseMock,
     useLearnBadges: () => badgesState,
     useLearnAsk: () => ({
         mutate: askMutate,
@@ -159,6 +162,8 @@ describe('LearnBoardPanel', () => {
         askMutate.mockClear();
         askCalls.length = 0;
         setLessonBookmarkMock.mockClear();
+        useLearnCourseMock.mockReset();
+        useLearnCourseMock.mockImplementation(() => selectedCourseState.value);
         askState.isLoading = false;
         askState.isError = false;
         badgesState.data = bronzeEverywhere;
@@ -347,6 +352,10 @@ describe('LearnBoardPanel', () => {
             },
         );
         expect(await screen.findAllByRole('tab')).toHaveLength(5);
+        // Nothing selected yet: the hook is called with undefined, which is
+        // what disables the query.
+        expect(useLearnCourseMock).toHaveBeenCalled();
+        expect(useLearnCourseMock.mock.lastCall?.[0]).toBeUndefined();
         fireEvent.click(await screen.findByRole('tab', { name: 'editor' }));
         const node = within(screen.getByTestId('learn-board')).getByRole(
             'button',
@@ -354,6 +363,9 @@ describe('LearnBoardPanel', () => {
         );
         await waitFor(() => expect(node).toHaveAttribute('tabindex', '0'));
         fireEvent.click(node);
+        await waitFor(() =>
+            expect(useLearnCourseMock.mock.lastCall?.[0]).toBe('dashboards'),
+        );
         expect(screen.getByText('manage:Dashboard')).toBeInTheDocument();
         expect(screen.getByText(/Anatomy of a dashboard/)).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Start module' }));

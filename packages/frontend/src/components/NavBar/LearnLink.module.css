@@ -8,7 +8,9 @@
 }
 
 .menuItem {
-    @media (min-width: 1551px) {
+    /* .01px past the max-width above: a fractional viewport width (browser
+       zoom, fractional DPI) must never match both queries. */
+    @media (min-width: 1550.01px) {
         display: none;
     }
 }
