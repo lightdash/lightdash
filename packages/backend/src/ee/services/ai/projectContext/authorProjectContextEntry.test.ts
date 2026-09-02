@@ -94,6 +94,7 @@ const model = getModel(lightdashConfigMock.ai.copilot, {
 const telemetry = getAiCallTelemetry({
     functionId: 'projectContextEntryAuthoringTest',
     feature: 'review-classifier',
+    keyManagement: model.keyManagement,
 });
 
 describe('authorProjectContextEntry', () => {

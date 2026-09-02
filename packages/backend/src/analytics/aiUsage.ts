@@ -58,6 +58,13 @@ const parseKeyManagement = (value: string | null): AiKeyManagement | null =>
  * Token counts for a single AI call, normalized across providers and call
  * kinds (LLM text/object generation, embeddings). Null means the provider
  * did not report that class of tokens.
+ *
+ * `inputTokens` is the total number of prompt tokens. This total includes the
+ * cache-read tokens and the cache-write tokens. The warehouse model
+ * `ai_token_usage` calculates the uncached input tokens. To do this, it
+ * subtracts the cache tokens (`input_tokens - cache_read - cache_write`). Each
+ * producer must keep this total. If a producer records only the uncached part,
+ * the input count becomes too low. The uncached column then becomes zero.
  */
 export type AiUsageTokens = {
     inputTokens: number | null;
@@ -72,28 +79,18 @@ export type AiUsageTokens = {
 // usage, and a missing field must never throw into the AI call path.
 export const languageModelUsageToTokens = (
     usage: LanguageModelUsage,
-): AiUsageTokens => {
-    const inputTokens = usage?.inputTokens ?? null;
-    const cacheReadTokens = usage?.inputTokenDetails?.cacheReadTokens ?? null;
-    const cacheWriteTokens = usage?.inputTokenDetails?.cacheWriteTokens ?? null;
-    const noCacheTokens = usage?.inputTokenDetails?.noCacheTokens ?? null;
-    const normalizedInputTokens =
-        noCacheTokens ??
-        (inputTokens !== null &&
-        cacheReadTokens !== null &&
-        cacheWriteTokens !== null
-            ? inputTokens - cacheReadTokens - cacheWriteTokens
-            : null);
-
-    return {
-        inputTokens: normalizedInputTokens,
-        outputTokens: usage?.outputTokens ?? null,
-        cacheReadTokens,
-        cacheWriteTokens,
-        reasoningTokens: usage?.outputTokenDetails?.reasoningTokens ?? null,
-        totalTokens: usage?.totalTokens ?? null,
-    };
-};
+): AiUsageTokens => ({
+    // The AI SDK `inputTokens` is the total input. It includes the cache-read
+    // tokens and the cache-write tokens. `inputTokenDetails` gives each class.
+    // Keep this total. The warehouse calculates the uncached input. To do this,
+    // it subtracts the cache tokens.
+    inputTokens: usage?.inputTokens ?? null,
+    outputTokens: usage?.outputTokens ?? null,
+    cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens ?? null,
+    cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens ?? null,
+    reasoningTokens: usage?.outputTokenDetails?.reasoningTokens ?? null,
+    totalTokens: usage?.totalTokens ?? null,
+});
 
 export const embeddingModelUsageToTokens = (
     usage: EmbeddingModelUsage,

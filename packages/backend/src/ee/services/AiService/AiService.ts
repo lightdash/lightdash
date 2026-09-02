@@ -50,7 +50,11 @@ import {
     sanitizeCustomFormat,
 } from '../ai/agents/tableCalculationGenerator';
 import { generateTooltip as generateTooltipFromContext } from '../ai/agents/tooltipGenerator';
-import { getModel, pickAmbientAnthropicPreset } from '../ai/models';
+import {
+    getModel,
+    pickAmbientAnthropicPreset,
+    resolveKeyManagement,
+} from '../ai/models';
 import { getAnthropicModel } from '../ai/models/anthropic-claude';
 import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import { AiCallAttribution } from '../ai/utils/aiCallTelemetry';
@@ -139,6 +143,10 @@ export class AiService extends BaseService {
                 ...getAnthropicModel(anthropicConfig, preset, {
                     enableReasoning: false,
                 }),
+                // getAnthropicModel does not use getModel and withKeyManagement.
+                // Set keyManagement here. If you do not, the ambient calls
+                // record a null key origin.
+                keyManagement: resolveKeyManagement(copilotConfig, 'anthropic'),
                 telemetry: attribution,
             };
         }

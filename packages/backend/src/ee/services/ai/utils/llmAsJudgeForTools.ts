@@ -302,6 +302,9 @@ export const evaluateToolCallSequence = async (
         functionId: 'evaluateToolCallSequence',
         feature: 'llm-judge',
         ...getLanguageModelAttribution(judge),
+        // This is an instance-only evaluation path. It does not record the
+        // key origin.
+        keyManagement: null,
     });
     const result = await generateObject({
         model: judge,

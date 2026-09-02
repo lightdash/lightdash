@@ -468,7 +468,8 @@ describe('recordAgentStepUsage', () => {
             event: 'ai.usage',
             properties: {
                 feature: 'agent',
-                inputTokens: 10,
+                // The total includes the cache tokens: 10 uncached + 4 read + 2 write.
+                inputTokens: 16,
                 outputTokens: 7,
                 cacheReadTokens: 4,
                 cacheWriteTokens: 2,
@@ -528,7 +529,8 @@ describe('recordAgentStepUsage', () => {
             runUuid: 'run-1',
             phase: 'investigating',
             tokens: {
-                inputTokens: 10,
+                // The total includes the cache tokens: 10 uncached + 4 read + 2 write.
+                inputTokens: 16,
                 outputTokens: 7,
                 cacheReadTokens: 4,
                 cacheWriteTokens: 2,

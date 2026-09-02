@@ -1559,6 +1559,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             agentUuid: candidate.subject.agentUuid,
             threadUuid: candidate.subject.threadUuid,
             promptUuid: candidate.subject.assistantPromptUuid,
+            keyManagement: model.keyManagement,
             ...getLanguageModelAttribution(model.model),
         });
         const result = await generateObject({
@@ -1724,6 +1725,7 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
             agentUuid: candidate.subject.agentUuid,
             threadUuid: candidate.subject.threadUuid,
             promptUuid: candidate.subject.assistantPromptUuid,
+            keyManagement: model.keyManagement,
             ...getLanguageModelAttribution(model.model),
         });
         try {

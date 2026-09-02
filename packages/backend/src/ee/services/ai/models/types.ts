@@ -38,8 +38,9 @@ export type GeneratorModelOptions = {
     // construction point where that context is in scope; read via
     // getGeneratorTelemetry. See utils/aiCallTelemetry.
     telemetry?: AiCallAttribution;
-    // Whether the model runs on a Lightdash-managed or self-managed (BYO) key.
-    // Stamped by the model builder and rides along when the builder result is
-    // spread into modelOptions; read by getGeneratorTelemetry.
-    keyManagement?: AiKeyManagement | null;
+    // The key origin for the model: a Lightdash-managed key or a self-managed
+    // (BYO) key. This field is necessary, but it can be null. The model builder
+    // sets it. getGeneratorTelemetry reads it. Use null only for a path that
+    // does not record the key origin.
+    keyManagement: AiKeyManagement | null;
 };
