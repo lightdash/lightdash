@@ -78,6 +78,18 @@ const getChartResourceUrl = (
     }
 };
 
+export const getViewStatsResourceType = (
+    item: ResourceViewItem,
+): 'chart' | 'dashboard' | undefined => {
+    if (item.type === ResourceViewItemType.DASHBOARD) return 'dashboard';
+    if (
+        item.type === ResourceViewItemType.CHART &&
+        item.data.source !== ChartSourceType.SQL
+    )
+        return 'chart';
+    return undefined;
+};
+
 export const getResourceUrl = (
     projectUuid: string,
     item: ResourceViewItem,

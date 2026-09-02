@@ -31,6 +31,29 @@ dashboardRouter.get(
 );
 
 dashboardRouter.get(
+    '/:dashboardUuidOrSlug/view-stats',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            res.json({
+                status: 'ok',
+                results: await req.services
+                    .getDashboardService()
+                    .getViewStats(req.user!, req.params.dashboardUuidOrSlug, {
+                        projectUuid:
+                            typeof req.query.projectUuid === 'string'
+                                ? req.query.projectUuid
+                                : undefined,
+                    }),
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+dashboardRouter.get(
     '/:dashboardUuid/views',
     allowApiKeyAuthentication,
     isAuthenticated,

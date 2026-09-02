@@ -23,6 +23,7 @@ import { Link } from 'react-router';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import MantineIcon from '../MantineIcon';
+import ViewsCountPopover from '../ViewsCountPopover';
 import styles from './DashboardInfoOverlay.module.css';
 import InfoRow from './InfoRow';
 
@@ -66,7 +67,14 @@ const DashboardInfoOverlay: FC<DashboardInfoOverlayProps> = ({
                 </InfoRow>
 
                 <InfoRow icon={IconEye} label="Views">
-                    {(dashboard.views ?? 0).toLocaleString()}
+                    <ViewsCountPopover
+                        resourceType="dashboard"
+                        resourceUuid={dashboard.uuid}
+                        projectUuid={projectUuid}
+                        views={dashboard.views ?? 0}
+                    >
+                        {(dashboard.views ?? 0).toLocaleString()}
+                    </ViewsCountPopover>
                 </InfoRow>
 
                 {dashboard.spaceName && (
