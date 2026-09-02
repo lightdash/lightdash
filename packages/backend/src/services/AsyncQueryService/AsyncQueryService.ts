@@ -1249,7 +1249,9 @@ export class AsyncQueryService extends ProjectService {
             pagination,
             counts: {
                 ...counts,
-                total: Object.values(counts.windows).reduce(
+                // The "All" tab ignores the trigger filter, so it sums the
+                // per-trigger totals rather than the trigger-filtered windows.
+                total: Object.values(counts.triggers).reduce(
                     (sum, count) => sum + count,
                     0,
                 ),

@@ -23,6 +23,7 @@ import { useQueryResultsPreview } from '../hooks/useQueryResultsPreview';
 import { useRerunQuery, canRerunQuery } from '../hooks/useRerunQuery';
 import styles from '../QueryHistory.module.css';
 import { formatRunTime, formatWhen, getTriggerLabel } from '../utils/format';
+import { getQueryTimings } from '../utils/timings';
 
 const SQL_PREVIEW_LINES = 12;
 const RESULTS_PREVIEW_COLUMNS = 6;
@@ -72,27 +73,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
     const rerunMutation = useRerunQuery(projectUuid);
     const { mutate: cancelQuery } = useCancelQuery(projectUuid, item.queryUuid);
 
-    // Queued/warehouse/fetch add up to the total: time before the worker
-    // picked the job up, time in the warehouse, and everything after
-    // (writing + serving the results file).
-    const timings = useMemo(() => {
-        const endedAt = failed ? item.erroredAt : item.resultsUpdatedAt;
-        const totalMs = endedAt
-            ? dayjs(endedAt).diff(dayjs(item.createdAt))
-            : null;
-        const queuedMs = item.processingStartedAt
-            ? Math.max(
-                  dayjs(item.processingStartedAt).diff(dayjs(item.createdAt)),
-                  0,
-              )
-            : null;
-        const warehouseMs = item.warehouseExecutionTimeMs;
-        const fetchMs =
-            totalMs !== null && queuedMs !== null && warehouseMs !== null
-                ? Math.max(totalMs - queuedMs - warehouseMs, 0)
-                : null;
-        return { totalMs, queuedMs, warehouseMs, fetchMs };
-    }, [item, failed]);
+    const timings = useMemo(() => getQueryTimings(item), [item]);
 
     const exploreUrl = useMemo(() => {
         if (!item.metricQuery || !item.exploreName) return null;

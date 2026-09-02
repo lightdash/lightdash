@@ -700,11 +700,13 @@ export class QueryHistoryModel {
         windows: Record<QueryHistoryWindow, number>;
         warehouseTimeMsLast7Days: number;
     }> {
+        // Trigger totals span every window, so the tabs keep their counts as
+        // the page's window sections load.
         const triggerCountsQuery = this.buildUserHistoryQuery(
             projectUuid,
             userUuid,
             filters,
-            { skipTrigger: true },
+            { skipTrigger: true, skipWindow: true },
         )
             .select(`${QueryHistoryTableName}.context`)
             .count(`${QueryHistoryTableName}.query_uuid as count`)
