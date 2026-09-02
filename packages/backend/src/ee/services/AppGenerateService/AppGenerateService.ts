@@ -8658,6 +8658,8 @@ export class AppGenerateService extends BaseService {
                     installedAppUuid: inst?.app_id ?? null,
                     installedRegistryVersion:
                         inst?.latest_ready_registry_version ?? null,
+                    installedCreatedByUserUuid:
+                        inst?.created_by_user_uuid ?? null,
                 };
             },
         );

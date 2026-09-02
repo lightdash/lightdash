@@ -1099,6 +1099,7 @@ export class AppModel {
             app_id: string;
             registry_slug: string;
             latest_ready_registry_version: string | null;
+            created_by_user_uuid: string | null;
         }>
     > {
         return this.joinLatestReadyVersion(this.database(AppsTableName))
@@ -1111,10 +1112,12 @@ export class AppModel {
                     app_id: string;
                     registry_slug: string;
                     latest_ready_registry_version: string | null;
+                    created_by_user_uuid: string | null;
                 }>
             >(
                 `${AppsTableName}.app_id`,
                 `${AppsTableName}.registry_slug`,
+                `${AppsTableName}.created_by_user_uuid`,
                 this.database
                     .ref(`${AppVersionsTableName}.registry_version`)
                     .as('latest_ready_registry_version'),
