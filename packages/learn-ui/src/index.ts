@@ -32,3 +32,21 @@ export * from './model/badgesView';
 export * from './model/badgeArt';
 export * from './model/tokens';
 export * from './model/citations';
+export { AskBar, type AskBarProps } from './components/AskBar';
+export { BoardNode, type BoardNodeProps } from './components/BoardNode';
+export { BoardRail } from './components/BoardRail';
+export {
+    ClusterBoard,
+    type ClusterBoardProps,
+} from './components/ClusterBoard';
+export { LearnDemo } from './components/LearnDemo';
+// The component export above shadows the star-exported `LearnDemo` manifest
+// type from './types'. Alias it so consumers can still name that type.
+export type { LearnDemo as LearnDemoManifest } from './types/course';
+export { LessonBody, type LessonBodyProps } from './components/LessonBody';
+export { ModulePane } from './components/ModulePane';
+export {
+    RoleBadgeCard,
+    type RoleBadgeCardProps,
+} from './components/RoleBadgeCard';
+export { RoleTabs } from './components/RoleTabs';
