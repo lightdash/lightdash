@@ -58,6 +58,7 @@ import {
     getContentTypeColor,
     getContentTypeIcon,
     getContentTypeLabel,
+    getContentTypeNoun,
     getUserFullName,
 } from '../utils';
 import classes from './ContentReviewRequestPage.module.css';
@@ -409,7 +410,7 @@ export const ContentReviewRequestDetailView: FC<{
                         size="xs"
                         leftSection={<MantineIcon icon={IconExternalLink} />}
                     >
-                        Open {typeLabel.toLowerCase()}
+                        Open {getContentTypeNoun(request.contentType)}
                     </Button>
                 )}
             </Group>
