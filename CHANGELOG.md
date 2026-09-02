@@ -1,3 +1,10 @@
+# [2.83.0](https://github.com/lightdash/lightdash/compare/2.82.2...2.83.0) (2026-09-02)
+
+
+### Features
+
+* **backend:** add safe OpenTelemetry diagnostics ([#28303](https://github.com/lightdash/lightdash/issues/28303)) ([90b5a57](https://github.com/lightdash/lightdash/commit/90b5a57b9fd475481e17014759989d222ae730a8))
+
 ## [2.82.2](https://github.com/lightdash/lightdash/compare/2.82.1...2.82.2) (2026-09-02)
 
 
