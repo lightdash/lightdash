@@ -234,6 +234,17 @@ export type AiPromptContextItemInput =
           // The preview project where a semantic-layer fix can be tested.
           type: 'preview_environment';
           previewProjectUuid: string;
+      }
+    | {
+          // An element reference picked from a data app preview: the app and
+          // version it was picked from plus the element's tag, visible text,
+          // and source location (`path:line`, empty when unavailable).
+          type: 'data_app_element';
+          appUuid: string;
+          version: number;
+          tag: string;
+          text: string;
+          loc: string;
       };
 
 export type AiPromptContextInput = AiPromptContextItemInput[];
@@ -323,6 +334,16 @@ export type AiPromptContextItem =
           previewThreadUuid: string | null;
           status: AiAgentReviewRemediationStatus | null;
           projectName: string | null;
+      }
+    | {
+          type: 'data_app_element';
+          appUuid: string;
+          version: number;
+          tag: string;
+          text: string;
+          loc: string;
+          appSlug: string | null;
+          displayName: string | null;
       };
 
 export type AiPromptContext = AiPromptContextItem[];

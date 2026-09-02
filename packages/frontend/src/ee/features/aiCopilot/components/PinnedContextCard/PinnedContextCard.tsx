@@ -1,5 +1,6 @@
 import { assertUnreachable, type AiPromptContextItem } from '@lightdash/common';
 import { type FC } from 'react';
+import { elementRefChipLabel } from '../../../../../features/apps/utils/elementRefs';
 import { ContentReferenceLink } from '../ChatElements/ContentReferenceLink';
 import { PinnedReviewEntityCard } from './PinnedReviewEntityCard';
 
@@ -15,7 +16,8 @@ type ItemMeta = {
         | 'thread'
         | 'file'
         | 'repository'
-        | 'external_source';
+        | 'external_source'
+        | 'data_app_element';
     label: string;
     href: string | null;
 };
@@ -30,7 +32,8 @@ const getItemMeta = (
                 | 'thread'
                 | 'file'
                 | 'repository'
-                | 'external_source';
+                | 'external_source'
+                | 'data_app_element';
         }
     >,
     projectUuid: string,
@@ -66,6 +69,13 @@ const getItemMeta = (
                 label: item.displayName,
                 href: null,
             };
+        // The app's source is not browsable from the thread, so no link.
+        case 'data_app_element':
+            return {
+                kind: 'data_app_element',
+                label: elementRefChipLabel(item),
+                href: null,
+            };
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
@@ -78,7 +88,8 @@ export const PinnedContextCard: FC<Props> = ({ item, projectUuid }) => {
         case 'thread':
         case 'file':
         case 'repository':
-        case 'external_source': {
+        case 'external_source':
+        case 'data_app_element': {
             const meta = getItemMeta(item, projectUuid);
             return (
                 <ContentReferenceLink

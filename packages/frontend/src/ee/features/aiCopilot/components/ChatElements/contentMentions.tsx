@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     ChartSourceType,
     ContentType,
+    dataAppElementContextKey,
     type AiPromptContextInput,
     type AiPromptContextItem,
     type ApiContentResponse,
@@ -319,6 +320,8 @@ const getContextKey = (item: AiPromptContextInput[number]) => {
             return `review_finding:${item.fingerprint}`;
         case 'preview_environment':
             return `preview_environment:${item.previewProjectUuid}`;
+        case 'data_app_element':
+            return dataAppElementContextKey(item);
         default:
             return assertUnreachable(
                 item,

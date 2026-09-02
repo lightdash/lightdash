@@ -1,6 +1,9 @@
 import { ChartKind } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { buildContentReferenceSegments } from './contentReferenceUtils';
+import {
+    buildContentReferenceSegments,
+    getPromptContextItemKey,
+} from './contentReferenceUtils';
 
 describe('contentReferenceUtils', () => {
     it('turns mentioned content labels into ordered reference segments', () => {
@@ -183,5 +186,26 @@ describe('contentReferenceUtils', () => {
             (segment) => segment.type === 'reference',
         );
         expect(references).toHaveLength(2);
+    });
+
+    it('never inlines an element reference, even when its wire string appears in the text', () => {
+        const message = 'make [h1 "FORMULA 1" @src/App.jsx:14] bigger';
+        const item = {
+            type: 'data_app_element' as const,
+            appUuid: 'app-1',
+            version: 3,
+            tag: 'h1',
+            text: 'FORMULA 1',
+            loc: 'src/App.jsx:14',
+            appSlug: 'f1-standings',
+            displayName: 'F1 standings',
+        };
+        const result = buildContentReferenceSegments(message, [item]);
+
+        expect(result.segments).toEqual([{ type: 'text', text: message }]);
+        expect(result.matchedKeys.size).toBe(0);
+        expect(getPromptContextItemKey(item)).toBe(
+            'data_app_element:app-1:3:[h1 "FORMULA 1" @src/App.jsx:14]',
+        );
     });
 });

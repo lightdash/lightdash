@@ -303,4 +303,29 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
             'One external node may read multiple tables from this source',
         );
     });
+
+    it('renders an element reference with its wire string, app, and iterateDataApp note', () => {
+        const content = buildMessage([
+            {
+                type: 'data_app_element',
+                appUuid: 'app-1',
+                version: 3,
+                tag: 'h1',
+                text: 'FORMULA 1',
+                loc: 'src/App.jsx:14',
+                appSlug: 'f1-standings',
+                displayName: 'F1 standings',
+            },
+        ]);
+
+        expect(content).toContain(
+            '- Element reference [h1 "FORMULA 1" @src/App.jsx:14] in data app "F1 standings" (appSlug: f1-standings, version 3)',
+        );
+        expect(content).toContain(
+            "the app's source is not readable in this thread",
+        );
+        expect(content).toContain(
+            'copy the bracketed reference verbatim into the iterateDataApp brief',
+        );
+    });
 });

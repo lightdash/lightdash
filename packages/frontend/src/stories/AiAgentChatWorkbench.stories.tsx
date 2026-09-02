@@ -74,6 +74,16 @@ const contextItems: AiPromptContextItem[] = [
         path: 'analytics/revenue_definitions.md',
     },
     {
+        type: 'data_app_element',
+        appUuid: 'app-revenue-explorer',
+        appSlug: 'revenue-explorer',
+        displayName: 'Revenue explorer',
+        version: 3,
+        tag: 'button',
+        text: 'Send',
+        loc: 'src/App.jsx:42',
+    },
+    {
         type: 'repository',
         fullName: 'lightdash/customer-analytics',
     },
@@ -1104,7 +1114,7 @@ const PinnedContextScenario = () => (
             description="What the user sees before sending a context-aware prompt."
         >
             <Group gap="xs" wrap="wrap">
-                {contextItems.slice(0, 4).map((item) => (
+                {contextItems.slice(0, 5).map((item) => (
                     <PinnedContextCard
                         key={`${item.type}-${JSON.stringify(item)}`}
                         item={item}

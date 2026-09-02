@@ -655,6 +655,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userModel: models.getUserModel(),
                     aiAgentModel: models.getAiAgentModel(),
                     appModel: models.getAppModel(),
+                    appGenerateService:
+                        repository.getAppGenerateService<AppGenerateService>(),
                     aiAgentMemoryModel:
                         models.getAiAgentMemoryModel<AiAgentMemoryModel>(),
                     aiAgentDocumentModel:
