@@ -928,9 +928,11 @@ export class ProjectModel {
     }
 
     async update(projectUuid: string, data: UpdateProject): Promise<void> {
-        const previousConnectionString = getMotherduckConnectionString(
-            await this.getWarehouseCredentialsForProject(projectUuid),
-        );
+        const previousCredentials =
+            await this.findWarehouseCredentialsForProject(projectUuid);
+        const previousConnectionString = previousCredentials
+            ? getMotherduckConnectionString(previousCredentials)
+            : undefined;
         const nextConnectionString = getMotherduckConnectionString(
             data.warehouseConnection,
         );
@@ -3021,6 +3023,20 @@ export class ProjectModel {
     async getWarehouseCredentialsForProject(
         projectUuid: string,
     ): Promise<CreateWarehouseCredentials> {
+        const credentials =
+            await this.findWarehouseCredentialsForProject(projectUuid);
+        if (credentials === null) {
+            throw new NotFoundError(
+                `Cannot find any warehouse credentials for project.`,
+            );
+        }
+        return credentials;
+    }
+
+    /** Returns null for projects created without warehouse credentials */
+    async findWarehouseCredentialsForProject(
+        projectUuid: string,
+    ): Promise<CreateWarehouseCredentials | null> {
         // Try to get from cache first
         const cachedCredentials =
             warehouseCredentialsCache?.get<CreateWarehouseCredentials>(
@@ -3055,9 +3071,7 @@ export class ProjectModel {
             ])
             .where('project_uuid', projectUuid);
         if (row === undefined) {
-            throw new NotFoundError(
-                `Cannot find any warehouse credentials for project.`,
-            );
+            return null;
         }
         if (row.organization_warehouse_credentials_uuid) {
             // If organization_warehouse_credentials_uuid is set, we overwrite the credentials with the organization credentials

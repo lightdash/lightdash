@@ -327,7 +327,7 @@ describe('ProjectModel', () => {
             ...previousCredentials,
             token: 'next-token',
         };
-        vi.spyOn(model, 'getWarehouseCredentialsForProject').mockResolvedValue(
+        vi.spyOn(model, 'findWarehouseCredentialsForProject').mockResolvedValue(
             previousCredentials,
         );
         const invalidate = vi
@@ -351,6 +351,42 @@ describe('ProjectModel', () => {
             'md:analytics?motherduck_token=previous-token&saas_mode=true',
             'credentials_updated',
         );
+    });
+
+    test('saves first warehouse credentials for a project created without any', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
+        const invalidate = vi
+            .spyOn(MotherduckInstanceCache, 'invalidateByConnectionString')
+            .mockImplementation(() => undefined);
+        tracker.on
+            .update(({ sql }) => sql.includes('projects'))
+            .response([{ project_id: 1 }]);
+        tracker.on
+            .insert(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
+
+        await model.update(projectUuid, {
+            name: expectedProject.name,
+            dbtConnection: expectedProject.dbtConnection,
+            dbtVersion: expectedProject.dbtVersion,
+            warehouseConnection: {
+                type: WarehouseTypes.POSTGRES,
+                host: 'localhost',
+                user: 'postgres',
+                password: 'password',
+                port: 5432,
+                dbname: 'postgres',
+                schema: 'jaffle',
+            },
+        });
+
+        expect(tracker.history.insert).toHaveLength(1);
+        expect(tracker.history.insert[0].sql).toContain(
+            'warehouse_credentials',
+        );
+        expect(invalidate).not.toHaveBeenCalled();
     });
 
     test('checks project membership without requiring an email row', async () => {
