@@ -59,11 +59,12 @@ const parseKeyManagement = (value: string | null): AiKeyManagement | null =>
  * kinds (LLM text/object generation, embeddings). Null means the provider
  * did not report that class of tokens.
  *
- * `inputTokens` is the total prompt tokens INCLUSIVE of cache reads and
- * writes. The warehouse `ai_token_usage` model derives uncached input by
- * subtracting the cache classes (`input_tokens - cache_read - cache_write`),
- * so every producer must keep this inclusive — emitting the uncached slice
- * here undercounts input and zeroes out the derived uncached column.
+ * `inputTokens` is the total number of prompt tokens. This total includes the
+ * cache-read tokens and the cache-write tokens. The warehouse model
+ * `ai_token_usage` calculates the uncached input tokens. To do this, it
+ * subtracts the cache tokens (`input_tokens - cache_read - cache_write`). Each
+ * producer must keep this total. If a producer records only the uncached part,
+ * the input count becomes too low. The uncached column then becomes zero.
  */
 export type AiUsageTokens = {
     inputTokens: number | null;
@@ -79,9 +80,10 @@ export type AiUsageTokens = {
 export const languageModelUsageToTokens = (
     usage: LanguageModelUsage,
 ): AiUsageTokens => ({
-    // AI SDK `inputTokens` is the total input, inclusive of cache reads and
-    // writes (`inputTokenDetails` breaks out the classes). Keep it inclusive —
-    // the warehouse derives uncached input by subtracting the cache classes.
+    // The AI SDK `inputTokens` is the total input. It includes the cache-read
+    // tokens and the cache-write tokens. `inputTokenDetails` gives each class.
+    // Keep this total. The warehouse calculates the uncached input. To do this,
+    // it subtracts the cache tokens.
     inputTokens: usage?.inputTokens ?? null,
     outputTokens: usage?.outputTokens ?? null,
     cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens ?? null,

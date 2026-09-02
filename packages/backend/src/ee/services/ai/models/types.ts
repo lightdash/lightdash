@@ -38,12 +38,14 @@ export type GeneratorModelOptions = {
     // construction point where that context is in scope; read via
     // getGeneratorTelemetry. See utils/aiCallTelemetry.
     telemetry?: AiCallAttribution;
-    // Whether the model runs on a Lightdash-managed or self-managed (BYO) key.
-    // REQUIRED (nullable): stamped by the model builder and carried when the
-    // builder result is spread into modelOptions. Required — not optional — so a
-    // construction site that bypasses the builder (and would otherwise log null,
-    // dropping the call out of managed-key reporting) is a compile error rather
-    // than a silent gap. Read by getGeneratorTelemetry. null only for paths
-    // where key origin genuinely isn't tracked.
+    // This field shows the key that the model uses. The key is a
+    // Lightdash-managed key or a self-managed (BYO) key. This field is
+    // necessary. It can be null. The model builder sets it. The value stays
+    // with the builder result when you spread that result into modelOptions.
+    // This field is necessary, not optional. If a construction site does not
+    // use the builder, it can record null. The call then does not show in the
+    // managed-key reports. Because the field is necessary, this is a compile
+    // error, not a silent gap. getGeneratorTelemetry reads the field. Use null
+    // only for a path that does not record the key origin.
     keyManagement: AiKeyManagement | null;
 };

@@ -88,7 +88,8 @@ export async function generateEmbedding(
         ...attribution,
         model: modelName,
         provider,
-        // Embeddings run on an instance-only path where key origin isn't tracked.
+        // The embeddings use an instance-only path. This path does not record
+        // the key origin.
         keyManagement: null,
         extra,
     });

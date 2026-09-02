@@ -35,8 +35,9 @@ describe('languageModelUsageToTokens', () => {
                 totalTokens: 1200,
             }),
         ).toEqual({
-            // inclusive of cache (150 uncached + 800 read + 50 write), NOT the
-            // uncached slice — the warehouse subtracts the cache classes itself
+            // The value includes the cache tokens (150 uncached + 800 read +
+            // 50 write). It is not the uncached part. The warehouse subtracts
+            // the cache tokens.
             inputTokens: 1000,
             outputTokens: 200,
             cacheReadTokens: 800,

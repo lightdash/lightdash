@@ -143,8 +143,9 @@ export class AiService extends BaseService {
                 ...getAnthropicModel(anthropicConfig, preset, {
                     enableReasoning: false,
                 }),
-                // getAnthropicModel bypasses getModel's withKeyManagement, so
-                // stamp it here or ambient calls log a null key origin.
+                // getAnthropicModel does not use getModel and withKeyManagement.
+                // Set keyManagement here. If you do not, the ambient calls
+                // record a null key origin.
                 keyManagement: resolveKeyManagement(copilotConfig, 'anthropic'),
                 telemetry: attribution,
             };

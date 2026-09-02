@@ -61,13 +61,15 @@ export type AiCallTelemetryOptions = AiCallAttribution & {
     functionId: string;
     feature: AiCallFeature;
     /**
-     * Required (nullable), unlike the optional `keyManagement` on
-     * AiCallAttribution: every emitter must state whether the call ran on a
-     * Lightdash-managed key, a self-managed (BYO) key, or a path where key
-     * origin isn't tracked (`null`, e.g. embeddings / instance-only evals).
-     * Forgetting it is then a compile error rather than a silent `null` that
-     * drops the call out of managed-key reporting — which is how several
-     * features (review-classifier on Haiku included) went missing before.
+     * This field is necessary. It can be null. The `keyManagement` field on
+     * AiCallAttribution is optional, but this field is not. Each emitter must
+     * show the key that the call used. The key is a Lightdash-managed key, a
+     * self-managed (BYO) key, or null. Use null for a path that does not record
+     * the key origin. Examples are embeddings and internal evaluations. If an
+     * emitter does not set this field, the code does not compile. Before this
+     * change, an emitter could set null by mistake. The call then did not show
+     * in the managed-key reports. Several features were absent because of this,
+     * for example the review-classifier, which uses the Haiku model.
      */
     keyManagement: AiKeyManagement | null;
     /**
@@ -159,7 +161,8 @@ export const getGeneratorTelemetry = (
             ? getLanguageModelAttribution(modelOptions.model)
             : {}),
         ...(modelOptions.telemetry ?? {}),
-        // Always set (last so it wins): the model builder is the source of
-        // truth for key origin, and the required field must be present.
+        // Always set this field. Set it last so that it is the final value.
+        // The model builder is the correct source for the key origin. This
+        // necessary field must be present.
         keyManagement: modelOptions.keyManagement ?? null,
     });
