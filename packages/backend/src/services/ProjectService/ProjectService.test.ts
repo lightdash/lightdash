@@ -35,6 +35,7 @@ import {
     SnowflakeAuthenticationType,
     SupportedDbtAdapter,
     WarehouseTypes,
+    WeekDay,
     type ChartSummary,
     type CreateProject,
     type CreateWarehouseCredentials,
@@ -690,6 +691,42 @@ describe('ProjectService', () => {
             expect(result.dbtConnection).toHaveProperty('environment', [
                 { key: 'DBT_ENV_SECRET_PASSWORD', value: 'super-secret' },
             ]);
+        });
+
+        test('returns only render settings to embed tokens', async () => {
+            projectModel.get.mockResolvedValueOnce({
+                ...projectWithEnvironment,
+                warehouseConnection: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    account: 'acme-prod.eu-west-1',
+                    role: 'ANALYTICS_READER',
+                    database: 'PROD',
+                    warehouse: 'WH_SMALL',
+                    schema: 'REPORTING',
+                    startOfWeek: WeekDay.SUNDAY,
+                },
+            });
+            const jwtAccount = buildAccount({ accountType: 'jwt' });
+            const embedAccount = {
+                ...jwtAccount,
+                user: {
+                    ...jwtAccount.user,
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'Project', action: ['update', 'view'] },
+                    ]),
+                },
+            } as typeof jwtAccount;
+
+            const result = await service.getProject(projectUuid, embedAccount);
+
+            expect(result.warehouseConnection).toEqual({
+                type: WarehouseTypes.SNOWFLAKE,
+                startOfWeek: WeekDay.SUNDAY,
+            });
+            expect(result.dbtConnection).toEqual({
+                type: DbtProjectType.NONE,
+            });
+            expect(result.createdByUserUuid).toBeNull();
         });
     });
 
