@@ -56,6 +56,12 @@ can be cancelled; a version whose build finished is **ready**, and only
 ready versions can be previewed, restored, duplicated, or promoted.
 _Avoid_: job, run, generation (as a noun)
 
+**Build outcome**:
+The terminal result of a build the AI agent started — ready, failed, or
+cancelled — recorded exactly once against the prompt that started it. A
+build started from a Slack thread announces its outcome in that thread.
+_Avoid_: build result, completion notification, follow-up message
+
 **Iterate**:
 To add a version to an existing data app with a new prompt. The coding
 agent works from the current source, so follow-up prompts land as targeted
