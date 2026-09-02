@@ -57,6 +57,9 @@ const withCurrent = (
         ? options
         : [...options, { value: current, label: current }];
 
+// Matches MAX_CREDENTIAL_LENGTH in JiraAppService
+const MAX_CREDENTIAL_LENGTH = 255;
+
 const JiraLogo = ({ compact = false }: { compact?: boolean }) => (
     <img
         src={jiraSvg}
@@ -291,6 +294,7 @@ export const JiraReviewSettings = () => {
                                             size="xs"
                                             label="Client ID"
                                             value={clientId}
+                                            maxLength={MAX_CREDENTIAL_LENGTH}
                                             disabled={!canEdit || isUpdating}
                                             onChange={(event) =>
                                                 setClientId(
@@ -303,6 +307,7 @@ export const JiraReviewSettings = () => {
                                             size="xs"
                                             label="Client secret"
                                             value={clientSecret}
+                                            maxLength={MAX_CREDENTIAL_LENGTH}
                                             disabled={!canEdit || isUpdating}
                                             onChange={(event) =>
                                                 setClientSecret(
