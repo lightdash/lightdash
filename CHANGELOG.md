@@ -1,3 +1,15 @@
+# [2.88.0](https://github.com/lightdash/lightdash/compare/2.87.0...2.88.0) (2026-09-02)
+
+
+### Bug Fixes
+
+* **embed:** trim project and account responses for embedded sessions ([#28481](https://github.com/lightdash/lightdash/issues/28481)) ([77950db](https://github.com/lightdash/lightdash/commit/77950db9dcdef372c60f119f1decbbd0b975af8c))
+
+
+### Features
+
+* **ai:** include a screenshot of the ready app in the Slack build outcome ([#28413](https://github.com/lightdash/lightdash/issues/28413)) ([b7c7861](https://github.com/lightdash/lightdash/commit/b7c78610afc0e26903ac2a6ac8385d120bcfdd12))
+
 # [2.87.0](https://github.com/lightdash/lightdash/compare/2.86.0...2.87.0) (2026-09-02)
 
 

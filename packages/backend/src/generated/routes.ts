@@ -40295,7 +40295,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Partial_Pick_Organization.name-or-organizationUuid-or-createdAt__': {
+    'Partial_Pick_Organization.organizationUuid-or-name-or-createdAt__': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -40326,139 +40326,25 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SessionAuth: {
+    AccountOrganization: {
         dataType: 'refAlias',
         type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                source: { dataType: 'string', required: true },
-                type: { dataType: 'enum', enums: ['session'], required: true },
-            },
+            ref: 'Partial_Pick_Organization.organizationUuid-or-name-or-createdAt__',
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    JwtAuth: {
+    AuthType: {
         dataType: 'refAlias',
         type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                source: { dataType: 'string', required: true },
-                data: { ref: 'CreateEmbedJwt', required: true },
-                type: { dataType: 'enum', enums: ['jwt'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ServiceAccountAuth: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                serviceAccountDescription: {
-                    dataType: 'string',
-                    required: true,
-                },
-                serviceAccountUuid: { dataType: 'string', required: true },
-                source: { dataType: 'string', required: true },
-                type: {
-                    dataType: 'enum',
-                    enums: ['service-account'],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PersonalAccessTokenAuth: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                source: { dataType: 'string', required: true },
-                type: { dataType: 'enum', enums: ['pat'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'url.URL': {
-        dataType: 'refAlias',
-        type: { dataType: 'string', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    OauthAuth: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                resource: { ref: 'url.URL' },
-                expiresAt: { dataType: 'double' },
-                scopes: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-                clientId: { dataType: 'string', required: true },
-                token: { dataType: 'string', required: true },
-                source: { dataType: 'string', required: true },
-                type: { dataType: 'enum', enums: ['oauth'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AccountRequestContext: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                requestId: { dataType: 'string' },
-                userAgent: { dataType: 'string' },
-                ip: { dataType: 'string' },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Account.Exclude_keyofAccount.user-or-keyofAccountHelpers__': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                organization: {
-                    ref: 'Partial_Pick_Organization.name-or-organizationUuid-or-createdAt__',
-                    required: true,
-                },
-                authentication: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'SessionAuth' },
-                        { ref: 'JwtAuth' },
-                        { ref: 'ServiceAccountAuth' },
-                        { ref: 'PersonalAccessTokenAuth' },
-                        { ref: 'OauthAuth' },
-                    ],
-                    required: true,
-                },
-                requestContext: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'AccountRequestContext' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_Account.user-or-keyofAccountHelpers_': {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Pick_Account.Exclude_keyofAccount.user-or-keyofAccountHelpers__',
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['session'] },
+                { dataType: 'enum', enums: ['pat'] },
+                { dataType: 'enum', enums: ['service-account'] },
+                { dataType: 'enum', enums: ['jwt'] },
+                { dataType: 'enum', enums: ['oauth'] },
+            ],
             validators: {},
         },
     },
@@ -40503,19 +40389,40 @@ const models: TsoaRoute.Models = {
     SerializedAccount: {
         dataType: 'refAlias',
         type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'Omit_Account.user-or-keyofAccountHelpers_' },
-                {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                embedWriteContext: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        user: {
-                            ref: 'Omit_Account-at-user.ability-or-abilityRules_',
+                        aiAgentErrorMessage: { dataType: 'string' },
+                        canUseAiAgent: { dataType: 'boolean', required: true },
+                        canCreateSavedChart: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                        canUpdateSavedChart: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                        canUpdateDashboard: {
+                            dataType: 'boolean',
                             required: true,
                         },
                     },
                 },
-            ],
+                user: {
+                    ref: 'Omit_Account-at-user.ability-or-abilityRules_',
+                    required: true,
+                },
+                authentication: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        type: { ref: 'AuthType', required: true },
+                    },
+                    required: true,
+                },
+                organization: { ref: 'AccountOrganization', required: true },
+            },
             validators: {},
         },
     },
