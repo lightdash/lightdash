@@ -132,6 +132,14 @@ export const themeComponents: MantineThemeOverride['components'] = {
                     'light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4))';
                 root['--button-color'] = 'var(--mantine-color-text)';
             }
+            // White always paints a white fill. Default/primary ink is
+            // near-white in dark scheme (and the navbar is always dark).
+            if (
+                props.variant === 'white' &&
+                (props.color === undefined || props.color === 'primary')
+            ) {
+                root['--button-color'] = 'var(--mantine-color-black)';
+            }
             return { root };
         },
     }),
