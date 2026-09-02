@@ -19,6 +19,8 @@ import {
     Text,
     Tooltip,
     type ComboboxItem,
+    type ComboboxParsedItem,
+    type OptionsFilter,
     type SelectProps,
 } from '@mantine/core';
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
@@ -30,9 +32,45 @@ interface FieldSelectItem extends ComboboxItem {
     item: Item;
     description?: string;
     size?: SelectProps['size'];
+    /** Dimmed table context rendered before the label; the "Add to query"
+     *  group has no per-table headers to carry it. */
+    tablePrefix?: string;
 }
 
 const ADD_TO_QUERY_GROUP_LABEL = 'Add to query';
+
+// Mantine's default filter only sees `label`, which no longer carries the
+// table name for "Add to query" options — match the prefix too, so searching
+// "orders amount" still finds them.
+const optionsFilter: OptionsFilter = ({ options, search, limit }) => {
+    const words = search.toLowerCase().trim().split(/\s+/);
+    const matches = (option: ComboboxItem) => {
+        const { label, tablePrefix } = option as FieldSelectItem;
+        const haystack = `${tablePrefix ?? ''} ${label}`.toLowerCase();
+        return words.every((word) => haystack.includes(word));
+    };
+
+    const result: ComboboxParsedItem[] = [];
+    let count = 0;
+    for (const item of options) {
+        if (count >= limit) break;
+        if ('group' in item) {
+            const kept: ComboboxItem[] = [];
+            for (const option of item.items) {
+                if (count >= limit) break;
+                if (matches(option)) {
+                    kept.push(option);
+                    count += 1;
+                }
+            }
+            if (kept.length > 0) result.push({ ...item, items: kept });
+        } else if (matches(item)) {
+            result.push(item);
+            count += 1;
+        }
+    }
+    return result;
+};
 
 type FieldSelectProps<T extends Item = Item> = Omit<
     SelectProps,
@@ -232,12 +270,20 @@ const FieldSelectComponent = <T extends Item = Item>({
             }),
         );
 
-        // Not-in-query fields sit in one trailing group; full labels keep
-        // same-named fields from different tables distinguishable.
+        // Not-in-query fields sit in one trailing group. The label matches
+        // the in-query options (and the input once picked); the dimmed
+        // tablePrefix keeps same-named fields from different tables readable.
         const addEntries: FieldSelectItem[] = sortedAddItems.map((i) => ({
             item: i,
             value: getItemId(i),
-            label: getItemLabel(i),
+            label: getLabel(i, hasGrouping),
+            tablePrefix: hasGrouping
+                ? isField(i) && !isCustomDimension(i)
+                    ? i.tableLabel
+                    : isCustomDimension(i)
+                      ? tableLabelMap.get(i.table)
+                      : undefined
+                : undefined,
             description: isField(i) ? i.description : undefined,
             disabled: inactiveItemIds.includes(getItemId(i)),
         }));
@@ -282,6 +328,11 @@ const FieldSelectComponent = <T extends Item = Item>({
                             size={rest.size}
                             style={{ wordBreak: 'normal' }}
                         >
+                            {fieldOption.tablePrefix && (
+                                <Text span inherit c="dimmed">
+                                    {fieldOption.tablePrefix}{' '}
+                                </Text>
+                            )}
                             {fieldOption.label}
                         </Text>
                         {checked && (
@@ -299,6 +350,7 @@ const FieldSelectComponent = <T extends Item = Item>({
     return (
         <Select
             limit={FILTER_SELECT_LIMIT}
+            filter={optionsFilter}
             ref={inputRef}
             w="100%"
             miw={250}
