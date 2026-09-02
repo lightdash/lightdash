@@ -8,7 +8,6 @@
   "plugins": ["typescript", "react", "jsx-a11y", "import", "vitest"],
   "jsPlugins": [
     "eslint-plugin-jest-dom",
-    "eslint-plugin-lodash",
     { "name": "vitest-js", "specifier": "@vitest/eslint-plugin" }
   ],
   "rules": {
