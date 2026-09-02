@@ -133,7 +133,7 @@ const getAlternativeLoginIntent = ({
     return undefined;
 };
 
-const LoginForm: FC<{
+export const LoginForm: FC<{
     alternativeLoginIntent: MobileLoginIntent | undefined;
     availability: { email: boolean; emailOtp: boolean };
     form: UseFormReturnType<LoginParams>;
@@ -213,6 +213,11 @@ const LoginForm: FC<{
                 <TextInput
                     label={isNewLayout ? 'Work email' : 'Email address'}
                     name="email"
+                    type="email"
+                    inputMode="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     placeholder={
                         isNewLayout ? 'maya@acme.com' : 'Your email address'
                     }

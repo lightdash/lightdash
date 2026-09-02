@@ -8,6 +8,8 @@ import {
 
 const VIEWPORT_META =
     '<meta name="viewport" content="width=device-width, initial-scale=1" />';
+const AUTHORIZE_VIEWPORT_META =
+    '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />';
 const JAVASCRIPT_SCHEME = ['javascript', ''].join(':');
 const JAVASCRIPT_REDIRECT_URI = `${JAVASCRIPT_SCHEME}alert(1)`;
 
@@ -52,14 +54,23 @@ describe('isSafeRedirectScheme', () => {
 });
 
 describe('OAuth page templates', () => {
-    it('declares the viewport on the authorize page so it renders at 1:1 on mobile', () => {
-        expect(authorizePage()).toContain(VIEWPORT_META);
+    it('declares the viewport on the authorize page so it renders at 1:1 on mobile and exposes safe-area insets', () => {
+        expect(authorizePage()).toContain(AUTHORIZE_VIEWPORT_META);
     });
 
     it('declares the viewport on the response page', () => {
         expect(generateOAuthSuccessResponse('Authorized', ['Done'])).toContain(
             VIEWPORT_META,
         );
+    });
+
+    it('reserves bottom safe-area inset plus toolbar clearance so the action row is not hidden by the browser sheet toolbar', () => {
+        const bodyRules = authorizePage().match(/body \{[^}]*\}/g) ?? [];
+        expect(
+            bodyRules.some((rule) =>
+                rule.includes('env(safe-area-inset-bottom, 0px)'),
+            ),
+        ).toBe(true);
     });
 
     it('sizes the card with border-box so it cannot overflow a narrow screen', () => {

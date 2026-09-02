@@ -166,10 +166,13 @@ const OAUTH_REDIRECT_TEMPLATE = `
 const OAUTH_AUTHORIZE_TEMPLATE = `
 <html>
     <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <title>Authorize Application</title>
         <style>
             {{{styles}}}
+            body {
+                padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px) + 60px);
+            }
             .container { text-align: left; }
             .oauth-header {
                 text-align: center;
