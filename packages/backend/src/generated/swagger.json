@@ -12434,10 +12434,20 @@
                 "type": "string",
                 "enum": ["sandbox", "production"]
             },
-            "ApiSuccess__enabled-boolean--environments-MobilePushEnvironment-Array__": {
+            "MobilePushPlatform": {
+                "type": "string",
+                "enum": ["ios", "android"]
+            },
+            "ApiSuccess__enabled-boolean--environments-MobilePushEnvironment-Array--platforms-MobilePushPlatform-Array__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "platforms": {
+                                "items": {
+                                    "$ref": "#/components/schemas/MobilePushPlatform"
+                                },
+                                "type": "array"
+                            },
                             "environments": {
                                 "items": {
                                     "$ref": "#/components/schemas/MobilePushEnvironment"
@@ -12448,7 +12458,7 @@
                                 "type": "boolean"
                             }
                         },
-                        "required": ["environments", "enabled"],
+                        "required": ["platforms", "environments", "enabled"],
                         "type": "object"
                     },
                     "status": {
@@ -12461,13 +12471,16 @@
                 "type": "object"
             },
             "ApiMobilePushNotificationStatusResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__enabled-boolean--environments-MobilePushEnvironment-Array__"
+                "$ref": "#/components/schemas/ApiSuccess__enabled-boolean--environments-MobilePushEnvironment-Array--platforms-MobilePushPlatform-Array__"
             },
             "ApiMobilePushInstallationResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
             },
             "ApiMobilePushInstallationRequest": {
                 "properties": {
+                    "platform": {
+                        "$ref": "#/components/schemas/MobilePushPlatform"
+                    },
                     "deviceToken": {
                         "type": "string"
                     },
@@ -32851,21 +32864,6 @@
                 "enum": ["chart", "dashboard", "sql_chart"],
                 "type": "string"
             },
-            "ContentReviewUser": {
-                "properties": {
-                    "lastName": {
-                        "type": "string"
-                    },
-                    "firstName": {
-                        "type": "string"
-                    },
-                    "userUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["lastName", "firstName", "userUuid"],
-                "type": "object"
-            },
             "ContentReviewSimilarContentItem": {
                 "properties": {
                     "score": {
@@ -32904,6 +32902,38 @@
                     "contentUuid",
                     "contentType"
                 ],
+                "type": "object"
+            },
+            "ApiContentReviewSimilarContentResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentReviewSimilarContentItem"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ContentReviewUser": {
+                "properties": {
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["lastName", "firstName", "userUuid"],
                 "type": "object"
             },
             "ContentReviewRequestStatus": {
@@ -58776,7 +58806,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.94.0",
+        "version": "2.95.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -64527,7 +64557,7 @@
                         "name": "installationUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ],
@@ -64574,7 +64604,7 @@
                         "name": "installationUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
@@ -71855,6 +71885,71 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/review-requests/similar": {
+            "get": {
+                "operationId": "findSimilarContentForReview",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentReviewSimilarContentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Charts or dashboards in shared spaces with a similar name, so a requester can check before submitting",
+                "summary": "Find similar content",
+                "tags": ["Content Review Requests"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "contentType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/ContentReviewContentType"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "excludeContentUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/review-requests/content/{contentType}/{contentUuid}": {
