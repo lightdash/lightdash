@@ -29,6 +29,7 @@ export type ContentReviewSimilarContentItem = {
     contentType: ContentReviewContentType;
     contentUuid: string;
     name: string;
+    slug: string;
     spaceUuid: string;
     spaceName: string;
     isVerified: boolean;
