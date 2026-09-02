@@ -1,4 +1,8 @@
-import { FeatureFlags, type ChartType } from '@lightdash/common';
+import {
+    FeatureFlags,
+    isOfficialChartType,
+    type ChartType,
+} from '@lightdash/common';
 import { ActionIcon, Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
     IconArrowLeft,
@@ -89,7 +93,8 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
     const canEditSelectedType =
         dataAppsEnabled &&
         selectedProjectType !== undefined &&
-        canEditChartType(selectedProjectType);
+        canEditChartType(selectedProjectType) &&
+        !isOfficialChartType(selectedProjectType);
 
     const selectedItem = getSelectedChartTypeItem(
         chartType,

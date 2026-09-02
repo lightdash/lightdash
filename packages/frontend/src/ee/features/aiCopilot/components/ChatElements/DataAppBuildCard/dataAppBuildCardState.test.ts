@@ -37,6 +37,7 @@ const app = (
     createdByUserUuid: 'user-1',
     spaceUuid: null,
     spaceName: null,
+    registrySlug: null,
     template: null,
     pinnedListUuid: null,
     pinnedListOrder: null,

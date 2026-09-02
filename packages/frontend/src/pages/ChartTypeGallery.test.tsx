@@ -3,8 +3,10 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAppVersionHistory } from '../features/apps/hooks/useAppVersionHistory';
+import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useDeleteApp } from '../features/apps/hooks/useDeleteApp';
+import { useDuplicateApp } from '../features/apps/hooks/useDuplicateApp';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
@@ -26,8 +28,16 @@ vi.mock('../features/apps/hooks/useCanEditDataApp', () => ({
     useCanEditDataApp: vi.fn(),
 }));
 
+vi.mock('../features/apps/hooks/useCanCreateDataApp', () => ({
+    useCanCreateDataApp: vi.fn(),
+}));
+
 vi.mock('../features/apps/hooks/useDeleteApp', () => ({
     useDeleteApp: vi.fn(),
+}));
+
+vi.mock('../features/apps/hooks/useDuplicateApp', () => ({
+    useDuplicateApp: vi.fn(),
 }));
 
 vi.mock('../features/chartTypes/components/ChartTypeSamplePreview', () => ({
@@ -51,6 +61,7 @@ const makeDataAppViz = (overrides: Partial<DataAppViz>): DataAppViz => ({
     },
     createdAt: new Date('2026-06-30'),
     createdByUserUuid: 'user-1',
+    registrySlug: null,
     ...overrides,
 });
 
@@ -110,6 +121,11 @@ describe('ChartTypeGallery', () => {
         vi.clearAllMocks();
         setFlag(true);
         vi.mocked(useCanEditDataApp).mockReturnValue(true);
+        vi.mocked(useCanCreateDataApp).mockReturnValue(true);
+        vi.mocked(useDuplicateApp).mockReturnValue({
+            mutate: vi.fn(),
+            isLoading: false,
+        } as unknown as ReturnType<typeof useDuplicateApp>);
         mockedDeleteApp.mockResolvedValue(undefined);
         vi.mocked(useDeleteApp).mockReturnValue({
             mutateAsync: mockedDeleteApp,
@@ -296,5 +312,73 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(screen.getByText('home')).toBeInTheDocument();
+    });
+
+    describe('official (registry-installed) chart types', () => {
+        it('shows the Official badge and a fork action instead of edit', () => {
+            setData([makeDataAppViz({ registrySlug: 'radial-gauge' })]);
+            renderPage();
+
+            expect(screen.getByText('Official')).toBeInTheDocument();
+            expect(
+                screen.queryByLabelText('Edit Radial gauge'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByLabelText('Fork Radial gauge'),
+            ).toBeInTheDocument();
+        });
+
+        it('hides the fork action from users who cannot create data apps', () => {
+            vi.mocked(useCanCreateDataApp).mockReturnValue(false);
+            setData([makeDataAppViz({ registrySlug: 'radial-gauge' })]);
+            renderPage();
+
+            expect(
+                screen.queryByLabelText('Fork Radial gauge'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByLabelText('Edit Radial gauge'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('opens the fork modal from the card and submits the fork', () => {
+            const mockedDuplicate = vi.fn();
+            vi.mocked(useDuplicateApp).mockReturnValue({
+                mutate: mockedDuplicate,
+                isLoading: false,
+            } as unknown as ReturnType<typeof useDuplicateApp>);
+            setData([makeDataAppViz({ registrySlug: 'radial-gauge' })]);
+            renderPage();
+
+            fireEvent.click(screen.getByLabelText('Fork Radial gauge'));
+
+            expect(screen.getByText('Fork to customize')).toBeInTheDocument();
+            expect(screen.getByLabelText(/Name/)).toHaveValue(
+                'Radial gauge (custom)',
+            );
+
+            fireEvent.click(screen.getAllByRole('button', { name: 'Fork' })[0]);
+
+            expect(mockedDuplicate).toHaveBeenCalledWith(
+                {
+                    projectUuid: 'project-1',
+                    appUuid: 'data-app-viz-1',
+                    name: 'Radial gauge (custom)',
+                },
+                expect.objectContaining({ onSuccess: expect.any(Function) }),
+            );
+        });
+
+        it('shows the badge and a fork action in the detail modal', () => {
+            setData([makeDataAppViz({ registrySlug: 'radial-gauge' })]);
+            renderPage();
+
+            fireEvent.click(screen.getByText('Radial gauge'));
+
+            expect(
+                screen.getByRole('button', { name: /Fork to customize/ }),
+            ).toBeInTheDocument();
+            expect(screen.queryByText('Edit')).not.toBeInTheDocument();
+        });
     });
 });

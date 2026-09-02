@@ -766,6 +766,7 @@ export class AppModel {
             created_by_user_last_name: string | null;
         })[];
         hasMore: boolean;
+        registrySlug: string | null;
     }> {
         const limit = opts.limit ?? 20;
         const query = this.database(AppsTableName)
@@ -819,6 +820,7 @@ export class AppModel {
                 `${AppsTableName}.template`,
                 `${AppsTableName}.slug`,
                 `${AppsTableName}.views_count`,
+                `${AppsTableName}.registry_slug`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${PinnedAppTableName}.pinned_list_uuid`,
                 `${PinnedAppTableName}.order as pinned_list_order`,
@@ -845,6 +847,7 @@ export class AppModel {
             template: DbApp['template'];
             slug: string;
             views_count: number;
+            registry_slug: string | null;
             organization_uuid: string;
             pinned_list_uuid: string | null;
             pinned_list_order: number | null;
@@ -867,6 +870,7 @@ export class AppModel {
             template,
             slug,
             views_count: viewsCount,
+            registry_slug: registrySlug,
             organization_uuid: organizationUuid,
             pinned_list_uuid: pinnedListUuid,
             pinned_list_order: pinnedListOrder,
@@ -885,6 +889,7 @@ export class AppModel {
                 template: DbApp['template'];
                 slug: string;
                 views_count: number;
+                registry_slug: string | null;
                 organization_uuid: string;
                 pinned_list_uuid: string | null;
                 pinned_list_order: number | null;
@@ -907,6 +912,7 @@ export class AppModel {
             pinnedListOrder,
             versions: versions.slice(0, limit),
             hasMore,
+            registrySlug,
         };
     }
 
