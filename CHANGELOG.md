@@ -1,3 +1,10 @@
+# [2.93.0](https://github.com/lightdash/lightdash/compare/2.92.0...2.93.0) (2026-09-02)
+
+
+### Features
+
+* **review-requests:** service and API ([#28427](https://github.com/lightdash/lightdash/issues/28427)) ([874ac06](https://github.com/lightdash/lightdash/commit/874ac06b5f82cf3d8cd5bce1aaa46568d7b9a334)), closes [#28426](https://github.com/lightdash/lightdash/issues/28426) [#26967](https://github.com/lightdash/lightdash/issues/26967)
+
 # [2.92.0](https://github.com/lightdash/lightdash/compare/2.91.0...2.92.0) (2026-09-02)
 
 
