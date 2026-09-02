@@ -1,5 +1,6 @@
 import {
     type AiDeepResearchChartData,
+    buildDeepResearchVizConfig,
     isApiError,
     isWarehouseResourceLimitError,
     type ToolRunQueryArgs,
@@ -16,10 +17,7 @@ import AgentVisualizationFilters from '../ChatElements/AgentVisualizationFilters
 import { AiVisualizationRenderer } from '../ChatElements/AiVisualizationRenderer';
 import { shouldDisplayVisualizationFilters } from '../ChatElements/AiVisualizationRenderer.utils';
 import styles from './DeepResearchReport.module.css';
-import {
-    buildDeepResearchVizConfig,
-    useDeepResearchOpenInExploreUrl,
-} from './useDeepResearchExploreUrl';
+import { useDeepResearchOpenInExploreUrl } from './useDeepResearchExploreUrl';
 
 type Props = {
     chartKey: string;
