@@ -9,6 +9,7 @@ import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
 import { ContentDraftsTableName } from '../../database/entities/contentDrafts';
+import { ContentReviewRequestsTableName } from '../../database/entities/contentReviewRequests';
 import {
     DashboardsTableName,
     DashboardTabsTableName,
@@ -620,16 +621,24 @@ describe('DashboardModel', () => {
             .select(queryMatcher(SavedChartsTableName, [dashboardUuid]))
             .responseOnce([{ saved_query_uuid: 'owned-chart-uuid' }]);
         tracker.on.update(ContentDraftsTableName).response(1);
+        tracker.on.update(ContentReviewRequestsTableName).response(0);
 
         await model.permanentDelete(dashboardUuid);
         expect(tracker.history.delete).toHaveLength(1);
-        // The dashboard's open drafts and its dashboard-scoped charts' drafts are dismissed
-        expect(tracker.history.update).toHaveLength(2);
+        // Open drafts are dismissed and pending review requests cancelled for
+        // the dashboard and its dashboard-scoped charts
+        expect(tracker.history.update).toHaveLength(4);
         expect(tracker.history.update[0].bindings).toEqual(
             expect.arrayContaining(['dismissed', 'dashboard', dashboardUuid]),
         );
         expect(tracker.history.update[1].bindings).toEqual(
             expect.arrayContaining(['dismissed', 'chart', 'owned-chart-uuid']),
+        );
+        expect(tracker.history.update[2].bindings).toEqual(
+            expect.arrayContaining(['cancelled', 'dashboard', dashboardUuid]),
+        );
+        expect(tracker.history.update[3].bindings).toEqual(
+            expect.arrayContaining(['cancelled', 'chart', 'owned-chart-uuid']),
         );
     });
 

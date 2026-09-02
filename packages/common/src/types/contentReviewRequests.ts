@@ -2,6 +2,7 @@ import {
     type DirectAccessPrincipalRef,
     type DirectAccessResourceType,
 } from './directAccess';
+import { type KnexPaginatedData } from './knex-paginate';
 
 // Review-specific so SQL charts can be reviewed without widening the
 // global content type
@@ -80,3 +81,65 @@ export type ContentReviewSettings = {
 export type UpdateContentReviewSettings = Partial<
     Omit<ContentReviewSettings, 'projectUuid'>
 >;
+
+export enum ContentReviewRequestView {
+    TO_REVIEW = 'to-review',
+    MINE = 'mine',
+}
+
+export type CreateContentReviewRequestBody = {
+    contentType: ContentReviewContentType;
+    contentUuid: string;
+    targetSpaceUuid: string;
+    note: string | null;
+    similarContent: ContentReviewSimilarContentItem[];
+};
+
+export type ApproveContentReviewRequestBody = {
+    verify: boolean;
+    note: string | null;
+};
+
+export type RejectContentReviewRequestBody = {
+    note: string;
+};
+
+// Null when the content was deleted after the request was made
+export type ContentReviewContentSummary = {
+    name: string;
+    slug: string;
+};
+
+export type ContentReviewRequestListItem = ContentReviewRequest & {
+    content: ContentReviewContentSummary | null;
+    sourceSpaceName: string | null;
+    targetSpaceName: string | null;
+};
+
+export type ContentReviewRequestDetail = ContentReviewRequestListItem & {
+    // What approval would move today, recomputed on every read
+    moveSet: ContentReviewMovedItem[];
+    canReview: boolean;
+    canVerify: boolean;
+    verifyByDefault: boolean;
+};
+
+export type ApiContentReviewRequestResponse = {
+    status: 'ok';
+    results: ContentReviewRequestDetail;
+};
+
+export type ApiContentReviewRequestOrNullResponse = {
+    status: 'ok';
+    results: ContentReviewRequest | null;
+};
+
+export type ApiContentReviewRequestListResponse = {
+    status: 'ok';
+    results: KnexPaginatedData<ContentReviewRequestListItem[]>;
+};
+
+export type ApiContentReviewSettingsResponse = {
+    status: 'ok';
+    results: ContentReviewSettings;
+};

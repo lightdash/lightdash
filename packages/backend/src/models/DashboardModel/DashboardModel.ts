@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     ConflictError,
+    ContentReviewContentType,
     ContentType,
     CreateDashboard,
     CreateDashboardChartTile,
@@ -90,6 +91,7 @@ import {
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import Transaction = Knex.Transaction;
 import { dismissOpenContentDrafts } from '../ContentDraftModel';
+import { cancelPendingContentReviewRequests } from '../ContentReviewRequestModel';
 
 export type GetDashboardQuery = Pick<
     DashboardTable['base'],
@@ -1755,6 +1757,16 @@ export class DashboardModel {
             dashboardUuid,
         ]);
         await dismissOpenContentDrafts(this.database, 'chart', ownedChartUuids);
+        await cancelPendingContentReviewRequests(
+            this.database,
+            ContentReviewContentType.DASHBOARD,
+            [dashboardUuid],
+        );
+        await cancelPendingContentReviewRequests(
+            this.database,
+            ContentReviewContentType.CHART,
+            ownedChartUuids,
+        );
     }
 
     async softDelete(

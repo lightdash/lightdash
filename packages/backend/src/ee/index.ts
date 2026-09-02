@@ -88,6 +88,7 @@ import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggr
 import { PreAggregationExternalResolver } from './services/AsyncQueryService/PreAggregationExternalResolver';
 import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
+import { ContentReviewRequestService } from './services/ContentReviewRequestService/ContentReviewRequestService';
 import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
@@ -271,6 +272,28 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
+                }),
+            contentReviewRequestService: ({ models, repository, context }) =>
+                new ContentReviewRequestService({
+                    analytics: context.lightdashAnalytics,
+                    contentReviewRequestModel:
+                        models.getContentReviewRequestModel(),
+                    contentReviewSettingsModel:
+                        models.getContentReviewSettingsModel(),
+                    contentVerificationModel:
+                        models.getContentVerificationModel(),
+                    dashboardModel: models.getDashboardModel(),
+                    dashboardService: repository.getDashboardService(),
+                    savedSqlService: repository.getSavedSqlService(),
+                    directAccessFeatureGate:
+                        repository.getDirectAccessFeatureGate(),
+                    directAccessModel: models.getDirectAccessModel(),
+                    groupsModel: models.getGroupsModel(),
+                    projectModel: models.getProjectModel(),
+                    savedChartService: repository.getSavedChartService(),
+                    spaceModel: models.getSpaceModel(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
                 }),
             homepageRecommendedActionSkipsService: ({ models }) =>
                 new HomepageRecommendedActionSkipsService({
