@@ -334,6 +334,13 @@ export enum FeatureFlags {
      * chart types from the configured chart registry. Default: off.
      */
     ChartTypeRegistry = 'chart-type-registry',
+
+    /**
+     * Custom metrics created while building a chart inside a dashboard are
+     * kept on the dashboard and offered when building later charts there.
+     * Off by default.
+     */
+    DashboardCustomMetrics = 'dashboard-custom-metrics',
 }
 
 export type FeatureFlag = {
