@@ -31,9 +31,21 @@ export type StoredAiOrganizationSettings = Omit<
     'aiAgentMemoryEnabled'
 >;
 
-export type AiOrgProviderApiKeys = Partial<Record<ByoAiProvider, string>>;
+const storedAiOrgProviderApiKeyFields = {
+    anthropic: z.string().optional(),
+    google: z.string().optional(),
+    openai: z.string().optional(),
+} satisfies Record<ByoAiProvider, z.ZodOptional<z.ZodString>>;
 
-const storedAiOrgProviderApiKeysSchema = z.record(z.string(), z.string());
+// Keep known provider keys strongly typed and exhaustive, but strip unknown
+// future-provider keys so mixed-version deploys do not invalidate the whole blob.
+const storedAiOrgProviderApiKeysSchema = z
+    .object(storedAiOrgProviderApiKeyFields)
+    .strip();
+
+export type AiOrgProviderApiKeys = z.infer<
+    typeof storedAiOrgProviderApiKeysSchema
+>;
 
 export const parseAiOrgProviderApiKeys = (
     value: unknown,
@@ -41,12 +53,7 @@ export const parseAiOrgProviderApiKeys = (
     const result = storedAiOrgProviderApiKeysSchema.safeParse(value);
     if (!result.success) return null;
 
-    const keys: AiOrgProviderApiKeys = {};
-    BYO_AI_PROVIDERS.forEach((provider) => {
-        const key = result.data[provider];
-        if (key) keys[provider] = key;
-    });
-    return keys;
+    return result.data;
 };
 
 const emptyProviderApiKeyHints = (): AiProviderApiKeyHints => ({
