@@ -21,6 +21,8 @@ import {
     QueryExecutionContext,
     QueryHistory,
     QueryHistoryStatus,
+    QueryHistoryWindow,
+    QueryTrigger,
     ResultColumns,
     VizAggregationOptions,
     VizIndexType,
@@ -5357,5 +5359,59 @@ describe('checkDashboardChartQueryPermissions', () => {
                 spaceUuid: chartSpace.uuid,
             },
         );
+    });
+});
+
+describe('getQueryHistoryList', () => {
+    const buildService = (
+        counts: Awaited<ReturnType<QueryHistoryModel['getUserHistoryCounts']>>,
+    ) =>
+        getMockedAsyncQueryService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async ({ featureFlagId }: AnyType) => ({
+                    id: featureFlagId,
+                    enabled: featureFlagId === FeatureFlags.QueryHistory,
+                })),
+            } as unknown as FeatureFlagModel,
+            queryHistoryModel: {
+                findUserHistory: vi.fn(async () => ({
+                    data: [],
+                    pagination: {
+                        page: 1,
+                        pageSize: 10,
+                        totalPageCount: 0,
+                        totalResults: 0,
+                    },
+                })),
+                getUserHistoryCounts: vi.fn(async () => counts),
+            } as unknown as QueryHistoryModel,
+        } as never);
+
+    it('totals across every trigger, not just the filtered one', async () => {
+        const service = buildService({
+            triggers: {
+                [QueryTrigger.INTERACTIVE]: 218,
+                [QueryTrigger.APPS]: 129,
+                [QueryTrigger.SCHEDULED]: 0,
+            },
+            // Windows keep the trigger filter, so they only cover interactive.
+            windows: {
+                [QueryHistoryWindow.LAST_FEW_MINUTES]: 0,
+                [QueryHistoryWindow.LAST_HOUR]: 8,
+                [QueryHistoryWindow.LAST_24_HOURS]: 20,
+                [QueryHistoryWindow.LAST_7_DAYS]: 28,
+                [QueryHistoryWindow.LAST_30_DAYS]: 162,
+            },
+            warehouseTimeMsLast7Days: 13331,
+        });
+
+        const { counts } = await service.getQueryHistoryList({
+            account: buildAccount(),
+            projectUuid: projectSummary.projectUuid,
+            filters: { trigger: QueryTrigger.INTERACTIVE },
+            paginateArgs: { page: 1, pageSize: 10 },
+        });
+
+        expect(counts.total).toBe(347);
     });
 });
