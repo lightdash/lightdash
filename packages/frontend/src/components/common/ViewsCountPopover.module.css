@@ -5,14 +5,6 @@
     cursor: default;
 }
 
-.heading {
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--mantine-color-dimmed);
-}
-
 .note {
     font-size: 10px;
     color: var(--mantine-color-dimmed);
@@ -27,9 +19,4 @@
     font-size: 12px;
     font-weight: 500;
     color: var(--mantine-color-text);
-}
-
-.section {
-    padding-top: 8px;
-    border-top: 1px solid var(--mantine-color-default-border);
 }

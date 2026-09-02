@@ -1,7 +1,4 @@
-import {
-    type DetailedViewStatistics,
-    type RecentViews,
-} from '@lightdash/common';
+import { type DetailedViewStatistics } from '@lightdash/common';
 import {
     Box,
     Group,
@@ -16,9 +13,6 @@ import { type FC, type ReactNode, useState } from 'react';
 import { useChartViewStats } from '../../hooks/chart/useChartViewStats';
 import { useDashboardViewStats } from '../../hooks/dashboard/useDashboardViewStats';
 import classes from './ViewsCountPopover.module.css';
-
-const getWindowLabel = ({ unit, length }: RecentViews) =>
-    `Last ${length} ${unit}${length === 1 ? '' : 's'}`;
 
 const StatRow: FC<{ label: string; children: ReactNode }> = ({
     label,
@@ -38,46 +32,29 @@ const ViewStatsCard: FC<{ stats: DetailedViewStatistics | undefined }> = ({
             <Stack gap="xs">
                 <Skeleton height={14} />
                 <Skeleton height={14} />
-                <Skeleton height={14} />
             </Stack>
         );
     }
 
     return (
-        <Stack gap={6}>
-            <Group justify="space-between" wrap="nowrap">
-                <Text className={classes.heading}>
-                    {getWindowLabel(stats.recentViews)}
-                </Text>
-                <Text className={classes.heading}>
-                    {stats.recentViews.views.toLocaleString()}{' '}
-                    {stats.recentViews.views === 1 ? 'view' : 'views'}
-                </Text>
-            </Group>
-
-            <Stack gap={4} className={classes.section}>
-                <Text className={classes.heading} mb={2}>
-                    All time
-                </Text>
-                <StatRow label="Views">{stats.views.toLocaleString()}</StatRow>
-                <StatRow label="Unique viewers">
-                    {stats.uniqueViewerCount.toLocaleString()}
+        <Stack gap={4}>
+            <StatRow label="Unique viewers">
+                {stats.uniqueViewerCount.toLocaleString()}
+            </StatRow>
+            {stats.firstViewedAt && (
+                <StatRow label="First viewed">
+                    {dayjs(stats.firstViewedAt).format('MMM D, YYYY')}
                 </StatRow>
-                {stats.firstViewedAt && (
-                    <StatRow label="First viewed">
-                        {dayjs(stats.firstViewedAt).format('MMM D, YYYY')}
-                    </StatRow>
-                )}
-                {stats.anonymousViewCount > 0 && (
-                    <Text className={classes.note}>
-                        Includes {stats.anonymousViewCount.toLocaleString()}{' '}
-                        {stats.anonymousViewCount === 1
-                            ? 'anonymous view'
-                            : 'anonymous views'}{' '}
-                        not tied to a user
-                    </Text>
-                )}
-            </Stack>
+            )}
+            {stats.anonymousViewCount > 0 && (
+                <Text className={classes.note}>
+                    Includes {stats.anonymousViewCount.toLocaleString()}{' '}
+                    {stats.anonymousViewCount === 1
+                        ? 'anonymous view'
+                        : 'anonymous views'}{' '}
+                    not tied to a user
+                </Text>
+            )}
         </Stack>
     );
 };

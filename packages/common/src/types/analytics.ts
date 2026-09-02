@@ -94,21 +94,9 @@ export type ViewStatistics = {
     firstViewedAt: Date | string | null;
 };
 
-/**
- * Views inside a window sized to the asset's age: the last 24 hours for
- * assets first viewed under two days ago, the days since the first view up
- * to 30, then a rolling 30 days.
- */
-export type RecentViews = {
-    unit: 'hour' | 'day';
-    length: number;
-    views: number;
-};
-
 export type DetailedViewStatistics = ViewStatistics & {
     uniqueViewerCount: number;
     anonymousViewCount: number;
-    recentViews: RecentViews;
 };
 
 export type DownloadAuditEntry = {

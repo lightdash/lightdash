@@ -1,7 +1,6 @@
 import {
     DetailedViewStatistics,
     OrganizationMemberRole,
-    RecentViews,
     UnusedContent,
     UnusedContentItem,
     UnusedContentOptions,
@@ -51,62 +50,6 @@ type DbUserWithCount = {
     count: number | null;
 };
 
-const RECENT_VIEWS_MAX_DAYS = 30;
-const RECENT_VIEWS_HOURS = 24;
-const HOURLY_WINDOW_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000;
-const HOUR_MS = 60 * 60 * 1000;
-const DAY_MS = 24 * HOUR_MS;
-
-type RecentViewsWindow = Pick<RecentViews, 'unit' | 'length'> & {
-    since: Date;
-};
-
-const getRecentViewsWindow = (
-    firstViewedAt: Date | null,
-    now: Date,
-): RecentViewsWindow => {
-    const ageMs = firstViewedAt
-        ? now.getTime() - firstViewedAt.getTime()
-        : null;
-    if (ageMs !== null && ageMs < HOURLY_WINDOW_MAX_AGE_MS) {
-        const currentHour = Math.floor(now.getTime() / HOUR_MS) * HOUR_MS;
-        return {
-            unit: 'hour',
-            length: RECENT_VIEWS_HOURS,
-            since: new Date(currentHour - (RECENT_VIEWS_HOURS - 1) * HOUR_MS),
-        };
-    }
-    const today = Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate(),
-    );
-    const daysSinceFirstView = firstViewedAt
-        ? Math.floor(
-              (today -
-                  Date.UTC(
-                      firstViewedAt.getUTCFullYear(),
-                      firstViewedAt.getUTCMonth(),
-                      firstViewedAt.getUTCDate(),
-                  )) /
-                  DAY_MS,
-          ) + 1
-        : RECENT_VIEWS_MAX_DAYS;
-    const length = Math.min(
-        RECENT_VIEWS_MAX_DAYS,
-        Math.max(1, daysSinceFirstView),
-    );
-    return {
-        unit: 'day',
-        length,
-        since: new Date(today - (length - 1) * DAY_MS),
-    };
-};
-
-// Timestamps are stored without a zone, so bind the UTC wall-clock text
-const toSqlTimestamp = (date: Date) =>
-    date.toISOString().slice(0, 19).replace('T', ' ');
-
 export class AnalyticsModel {
     private database: Knex;
 
@@ -153,7 +96,7 @@ export class AnalyticsModel {
         uuidColumn: 'chart_uuid' | 'dashboard_uuid',
         uuid: string,
     ): Promise<DetailedViewStatistics> {
-        const totals = await this.database(tableName)
+        const stats = await this.database(tableName)
             .count({ views: '*' })
             .countDistinct({ unique_viewer_count: 'user_uuid' })
             .count({
@@ -164,24 +107,12 @@ export class AnalyticsModel {
             .min({ first_viewed_at: 'timestamp' })
             .where(uuidColumn, uuid)
             .first();
-        const firstViewedAt = totals?.first_viewed_at ?? null;
-        const window = getRecentViewsWindow(firstViewedAt, new Date());
-        const recent = await this.database(tableName)
-            .count({ views: '*' })
-            .where(uuidColumn, uuid)
-            .andWhere('timestamp', '>=', toSqlTimestamp(window.since))
-            .first();
 
         return {
-            views: Number(totals?.views ?? 0),
-            firstViewedAt,
-            uniqueViewerCount: Number(totals?.unique_viewer_count ?? 0),
-            anonymousViewCount: Number(totals?.anonymous_view_count ?? 0),
-            recentViews: {
-                unit: window.unit,
-                length: window.length,
-                views: Number(recent?.views ?? 0),
-            },
+            views: Number(stats?.views ?? 0),
+            firstViewedAt: stats?.first_viewed_at ?? null,
+            uniqueViewerCount: Number(stats?.unique_viewer_count ?? 0),
+            anonymousViewCount: Number(stats?.anonymous_view_count ?? 0),
         };
     }
 

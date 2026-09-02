@@ -21,105 +21,35 @@ describe('AnalyticsModel', () => {
         tracker.reset();
     });
 
-    describe('detailed view statistics', () => {
-        const now = new Date('2025-03-01T10:30:00Z');
-        const totalsQuery = /count\(distinct "user_uuid"\)/i;
-        const recentQuery = /"timestamp" >= /i;
+    it.each([
+        ['chart', 'chart_uuid', () => model.getChartViewStats(projectUuid)],
+        [
+            'dashboard',
+            'dashboard_uuid',
+            () => model.getDashboardViewStats(projectUuid),
+        ],
+    ])(
+        'returns detailed %s view statistics',
+        async (_resourceType, uuidColumn, getStats) => {
+            tracker.on
+                .select(new RegExp(`where "${uuidColumn}" =`, 'i'))
+                .response([
+                    {
+                        views: '12',
+                        unique_viewer_count: '4',
+                        anonymous_view_count: '2',
+                        first_viewed_at: new Date('2025-01-01'),
+                    },
+                ]);
 
-        beforeEach(() => {
-            vi.useFakeTimers({ toFake: ['Date'] });
-            vi.setSystemTime(now);
-        });
-
-        afterEach(() => {
-            vi.useRealTimers();
-        });
-
-        const mockQueries = (
-            firstViewedAt: Date | null,
-            recentViews: string,
-        ) => {
-            tracker.on.select(totalsQuery).response([
-                {
-                    views: '12',
-                    unique_viewer_count: '4',
-                    anonymous_view_count: '2',
-                    first_viewed_at: firstViewedAt,
-                },
-            ]);
-            tracker.on.select(recentQuery).response([{ views: recentViews }]);
-        };
-
-        const recentBinding = () =>
-            tracker.history.select.find((query) => recentQuery.test(query.sql))
-                ?.bindings;
-
-        it.each([
-            ['chart', 'chart_uuid', () => model.getChartViewStats(projectUuid)],
-            [
-                'dashboard',
-                'dashboard_uuid',
-                () => model.getDashboardViewStats(projectUuid),
-            ],
-        ])(
-            'returns %s totals with a rolling 30-day window for older assets',
-            async (_resourceType, uuidColumn, getStats) => {
-                mockQueries(new Date('2025-01-01'), '7');
-
-                await expect(getStats()).resolves.toEqual({
-                    views: 12,
-                    uniqueViewerCount: 4,
-                    anonymousViewCount: 2,
-                    firstViewedAt: new Date('2025-01-01'),
-                    recentViews: { unit: 'day', length: 30, views: 7 },
-                });
-
-                const recent = tracker.history.select.find((query) =>
-                    recentQuery.test(query.sql),
-                );
-                expect(recent?.sql).toContain(`where "${uuidColumn}" =`);
-                expect(recent?.bindings).toContain('2025-01-31 00:00:00');
-            },
-        );
-
-        it('shortens the window to the days since the first view', async () => {
-            mockQueries(new Date('2025-02-24T18:00:00Z'), '5');
-
-            const stats = await model.getChartViewStats(projectUuid);
-
-            expect(stats.recentViews).toEqual({
-                unit: 'day',
-                length: 6,
-                views: 5,
+            await expect(getStats()).resolves.toEqual({
+                views: 12,
+                uniqueViewerCount: 4,
+                anonymousViewCount: 2,
+                firstViewedAt: new Date('2025-01-01'),
             });
-            expect(recentBinding()).toContain('2025-02-24 00:00:00');
-        });
-
-        it('uses the last 24 hours for assets first viewed under two days ago', async () => {
-            mockQueries(new Date('2025-02-28T09:00:00Z'), '2');
-
-            const stats = await model.getChartViewStats(projectUuid);
-
-            expect(stats.recentViews).toEqual({
-                unit: 'hour',
-                length: 24,
-                views: 2,
-            });
-            expect(recentBinding()).toContain('2025-02-28 11:00:00');
-        });
-
-        it('falls back to a rolling 30-day window when there are no views', async () => {
-            mockQueries(null, '0');
-
-            const stats = await model.getChartViewStats(projectUuid);
-
-            expect(stats.recentViews).toEqual({
-                unit: 'day',
-                length: 30,
-                views: 0,
-            });
-        });
-    });
+        },
+    );
 
     it('includes organization custom-role users in the project population', () => {
         const sql = usersInProjectSql(projectUuid, organizationUuid).replace(
