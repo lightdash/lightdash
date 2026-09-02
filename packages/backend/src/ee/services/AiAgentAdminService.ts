@@ -1618,13 +1618,19 @@ export class AiAgentAdminService extends BaseService {
         });
 
         if (item.projectUuid) {
-            await this.aiAgentReviewNotificationService.createLinearIssues({
+            const exportArgs = {
                 organizationUuid,
                 projectUuid: item.projectUuid,
                 fingerprints: [item.fingerprint],
                 reviewRunUuid: null,
                 userUuid: user.userUuid,
-            });
+            };
+            await this.aiAgentReviewNotificationService.createLinearIssues(
+                exportArgs,
+            );
+            await this.aiAgentReviewNotificationService.createJiraIssues(
+                exportArgs,
+            );
         }
 
         return item;
