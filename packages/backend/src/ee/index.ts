@@ -27,6 +27,7 @@ import { RolesService } from '../services/RolesService/RolesService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { failInFlightAiAgentStreams } from './aiAgentShutdown';
 import { AiModelCatalog } from './clients/Ai/AiModelCatalog';
+import { ChartRegistryClient } from './clients/ChartRegistryClient';
 import LicenseClient from './clients/License/LicenseClient';
 import { ManagedAgentClient } from './clients/ManagedAgentClient';
 import OpenAi from './clients/OpenAi';
@@ -480,6 +481,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                     sandboxManager: null,
                     appRuntimeS3: null,
+                    chartRegistryClient: new ChartRegistryClient({
+                        lightdashConfig: context.lightdashConfig,
+                    }),
                 }),
             roadmapService: ({ context, repository }) =>
                 new RoadmapService({

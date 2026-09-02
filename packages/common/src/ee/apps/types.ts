@@ -547,6 +547,10 @@ export type ApiRestoreAppVersionResponse = ApiSuccess<{
     version: number;
 }>;
 
+export type ApiDuplicateAppRequest = {
+    name?: string;
+};
+
 export type ApiDuplicateAppResponse = ApiSuccess<{
     appUuid: string;
     version: number;

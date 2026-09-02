@@ -177,6 +177,7 @@ import {
     getOtelTraceHeaders,
     runWithOtelSpanContext,
 } from '../../../tracing/tracing';
+import { ChartRegistryClient } from '../../clients/ChartRegistryClient';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -370,6 +371,7 @@ type AppGenerateServiceDeps = {
     /** Test seams: null in production, where both are built from config. */
     sandboxManager: SandboxManagerPort | null;
     appRuntimeS3: AppRuntimeS3 | null;
+    chartRegistryClient: ChartRegistryClient;
 };
 
 // Inputs for the AI agent's code-free data app read: manifest fields, the
@@ -593,6 +595,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly appRuntimeS3: AppRuntimeS3 | null;
 
+    private readonly chartRegistryClient: ChartRegistryClient;
+
     private sandboxManager: SandboxManagerPort | undefined;
 
     private readonly dataReferenceRefreshes = new Map<
@@ -626,6 +630,7 @@ export class AppGenerateService extends BaseService {
         orgAiCopilotConfigResolver,
         sandboxManager,
         appRuntimeS3,
+        chartRegistryClient,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -653,6 +658,7 @@ export class AppGenerateService extends BaseService {
         this.orgAiCopilotConfigResolver = orgAiCopilotConfigResolver;
         this.sandboxManager = sandboxManager ?? undefined;
         this.appRuntimeS3 = appRuntimeS3;
+        this.chartRegistryClient = chartRegistryClient;
     }
 
     private async getDataAppProjectContext(
@@ -867,6 +873,18 @@ export class AppGenerateService extends BaseService {
             },
         );
         return appContext;
+    }
+
+    /** Registry-installed chart types only receive versions from the registry. */
+    private static assertNotRegistryManaged(
+        app: Pick<DbApp, 'registry_slug'>,
+        verb: string,
+    ): void {
+        if (app.registry_slug !== null) {
+            throw new ForbiddenError(
+                `This is an official chart type and cannot be ${verb}. Fork it to customize.`,
+            );
+        }
     }
 
     /**
@@ -6416,6 +6434,7 @@ export class AppGenerateService extends BaseService {
             app,
             'Insufficient permissions to modify data apps',
         );
+        AppGenerateService.assertNotRegistryManaged(app, 'edited');
 
         // Resolve attachment types/filenames from the staged S3 objects so the
         // version resources can split image chips from file chips in the chat.
@@ -6778,6 +6797,7 @@ export class AppGenerateService extends BaseService {
             app,
             'Insufficient permissions to upgrade this data app',
         );
+        AppGenerateService.assertNotRegistryManaged(app, 'upgraded here');
 
         const latestVersion = await this.appModel.getLatestVersion(appUuid);
         if (
@@ -7009,6 +7029,7 @@ export class AppGenerateService extends BaseService {
             // declares a schema, so dropping it here delists the viz and
             // strips the contract from every chart bound to it.
             source.viz_schema ?? undefined,
+            { registryVersion: source.registry_version ?? undefined },
         );
         await this.persistVersionDataReferences(
             appUuid,
@@ -7425,6 +7446,21 @@ export class AppGenerateService extends BaseService {
             'Insufficient permissions to promote into the upstream project',
         );
 
+        // Resolved (and guarded) before any persistent write below —
+        // getOrCreateUpstreamSpace() can create the upstream space and its
+        // ancestors, so the registry check must run first or a blocked
+        // promotion still leaves orphan empty spaces behind.
+        const upstreamApp = await this.findLinkedUpstreamApp(
+            sourceApp,
+            upstreamProjectUuid,
+        );
+        if (upstreamApp) {
+            AppGenerateService.assertNotRegistryManaged(
+                upstreamApp,
+                'promoted onto',
+            );
+        }
+
         const sourceVersion = await this.appModel.getLatestReadyVersion(
             sourceApp.app_id,
         );
@@ -7478,14 +7514,6 @@ export class AppGenerateService extends BaseService {
             : `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/view`;
         const prompt = `Promote [${sourceDisplayName}](${sourcePreviewPath})`;
         const { client: s3Client, bucket } = this.getS3Client();
-
-        // Re-read the link immediately before branching to narrow (not fully
-        // close) the window where two concurrent first-promotions could both
-        // create a production app. A duplicate is a rare, recoverable outcome.
-        const upstreamApp = await this.findLinkedUpstreamApp(
-            sourceApp,
-            upstreamProjectUuid,
-        );
 
         const metadata = {
             name: sourceApp.name,
@@ -7763,6 +7791,7 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         sourceAppUuid: string,
+        options?: { name?: string },
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
 
@@ -7781,6 +7810,14 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             'Insufficient permissions to duplicate this data app',
         );
+
+        // Mirrors updateApp's name validation. Empty-after-trim is not an
+        // error here — it falls back to the default "Duplicate of ..." name.
+        if (options?.name !== undefined && options.name.trim().length > 255) {
+            throw new ParameterError(
+                'App name must be 255 characters or fewer',
+            );
+        }
 
         const sourceVersion = await this.appModel.getLatestReadyVersion(
             sourceApp.app_id,
@@ -7826,6 +7863,8 @@ export class AppGenerateService extends BaseService {
         const sourceDisplayName = sourceApp.name || 'untitled app';
         const sourcePreviewPath = `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/view`;
         const duplicatePrompt = `Duplicate [${sourceDisplayName}](${sourcePreviewPath})`;
+        const newAppName =
+            options?.name?.trim() || `Duplicate of ${sourceDisplayName}`;
 
         try {
             await this.appModel.createWithVersion(
@@ -7833,10 +7872,14 @@ export class AppGenerateService extends BaseService {
                     app_id: newAppUuid,
                     project_uuid: projectUuid,
                     created_by_user_uuid: user.userUuid,
-                    name: `Duplicate of ${sourceDisplayName}`,
+                    name: newAppName,
                     description: sourceApp.description,
                     template: sourceApp.template,
                     space_uuid: null,
+                    // A fork is a plain local chart type — registry lineage
+                    // is never copied, only fork lineage.
+                    origin_app_uuid: sourceApp.app_id,
+                    origin_app_version: sourceVersion.version,
                 },
                 { version: newVersion, prompt: duplicatePrompt },
                 'ready',
@@ -8993,6 +9036,7 @@ export class AppGenerateService extends BaseService {
             app,
             'Insufficient permissions to manage data apps',
         );
+        AppGenerateService.assertNotRegistryManaged(app, 'renamed');
 
         const fieldsToUpdate: Partial<{ name: string; description: string }> =
             {};
@@ -11171,6 +11215,14 @@ export class AppGenerateService extends BaseService {
                     `App ${body.targetAppUuid} not found in project ${projectUuid}`,
                 );
             }
+        }
+        // Registry-managed apps never receive uploads, including the
+        // identical-bundle short-circuit below that only patches metadata.
+        if (existingApp) {
+            AppGenerateService.assertNotRegistryManaged(
+                existingApp,
+                'updated by upload',
+            );
         }
         const action: 'create' | 'append' =
             existingApp !== undefined ? 'append' : 'create';

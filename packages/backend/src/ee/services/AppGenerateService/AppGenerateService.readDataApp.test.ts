@@ -121,6 +121,7 @@ function buildService(appModel: Record<string, unknown>): AppGenerateService {
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
     vi.spyOn(
         svc as unknown as { createAuditedAbility: () => unknown },

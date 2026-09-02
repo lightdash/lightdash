@@ -2090,6 +2090,12 @@ export type AppRuntimeConfig = {
      * the UI. Env var `LIGHTDASH_APP_SAMPLE_DATA_ENABLED`; defaults to `true`.
      */
     sampleDataEnabled: boolean;
+    chartRegistry: {
+        /** null disables the chart type library entirely */
+        url: string | null;
+        /** dev-only: allow http/private addresses for a local fixture registry */
+        allowInsecure: boolean;
+    };
 };
 
 export type DataAppOtelConfig = {
@@ -2297,6 +2303,10 @@ export type PostmarkConfig = {
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
 
+// The official chart type registry (lightdash/lightdash-gallery, GitHub Pages).
+const DEFAULT_CHART_REGISTRY_URL: string | null =
+    'https://lightdash.github.io/lightdash-gallery';
+
 const parseSandboxProvider = (
     value: string | undefined,
 ): AppRuntimeConfig['sandboxProvider'] => {
@@ -2335,6 +2345,21 @@ const parseDataAppOtelConfig = (): DataAppOtelConfig => {
                   }
                 : { type: 'none' },
     };
+};
+
+const parseChartRegistryAllowInsecure = (): boolean => {
+    const enabled =
+        process.env.LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE === 'true';
+    if (enabled) {
+        console.warn(
+            'SECURITY WARNING: LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE is enabled. ' +
+                'SSRF defenses for chart registry fetches are OFF (http:// and ' +
+                'private addresses allowed, IP pinning skipped). Only use this ' +
+                'with a local dev fixture or a fully trusted internal registry ' +
+                'mirror — never with a registry you do not control.',
+        );
+    }
+    return enabled;
 };
 
 const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
@@ -2520,6 +2545,19 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             'false',
         sampleDataEnabled:
             process.env.LIGHTDASH_APP_SAMPLE_DATA_ENABLED !== 'false',
+        chartRegistry: {
+            // Unset → official registry once the repo exists; explicit '' → disabled.
+            url: ((raw) => {
+                if (raw === undefined) return DEFAULT_CHART_REGISTRY_URL;
+                const trimmed = raw.trim();
+                return trimmed === '' ? null : trimmed.replace(/\/$/, '');
+            })(process.env.LIGHTDASH_CHART_REGISTRY_URL),
+            // Disables the registry client's SSRF defenses (allows http://
+            // and private/loopback addresses, skips IP pinning). Only for
+            // local dev fixtures and trusted internal registry mirrors —
+            // never with a registry URL you do not fully control.
+            allowInsecure: parseChartRegistryAllowInsecure(),
+        },
     };
 };
 

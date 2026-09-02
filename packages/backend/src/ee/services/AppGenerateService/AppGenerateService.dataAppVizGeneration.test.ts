@@ -35,6 +35,7 @@ function buildService(
             created_by_user_uuid: 'user-1',
             space_uuid: null,
             design_uuid: null,
+            registry_slug: null,
         }),
         getLatestVersion: vi.fn().mockResolvedValue({
             version: 1,
@@ -98,6 +99,7 @@ function buildService(
         } as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
     // Bypass real CASL — the mapping/flow is what these tests cover.
     (

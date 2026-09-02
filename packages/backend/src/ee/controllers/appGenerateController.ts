@@ -14,6 +14,7 @@ import {
     type ApiDataAppVizPreviewTokenResponse,
     type ApiDataAppVizRenderMetadataResponse,
     type ApiDeleteAppResponse,
+    type ApiDuplicateAppRequest,
     type ApiDuplicateAppResponse,
     type ApiEmbedProjectAppsResponse,
     type ApiGenerateAppResponse,
@@ -618,12 +619,14 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
+        @Body() body?: ApiDuplicateAppRequest,
     ): Promise<ApiDuplicateAppResponse> {
         assertRegisteredAccount(req.account);
         const result = await this.getAppGenerateService().duplicateApp(
             toSessionUser(req.account),
             projectUuid,
             appUuid,
+            body,
         );
         this.setStatus(200);
         return {
