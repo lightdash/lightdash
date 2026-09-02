@@ -4441,6 +4441,10 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                customMetrics: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'AdditionalMetric' },
+                },
                 requiredFiltersNote: { dataType: 'string' },
                 dateZoomConfig: { ref: 'DateZoomConfig' },
                 defaultDateZoomGranularity: {

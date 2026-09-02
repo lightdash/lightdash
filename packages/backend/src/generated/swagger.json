@@ -4852,6 +4852,13 @@
             },
             "DashboardConfig": {
                 "properties": {
+                    "customMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AdditionalMetric"
+                        },
+                        "type": "array",
+                        "description": "Custom metrics offered to charts built inside this dashboard. Interim\nstore — moves to a semantic-layer draft later; don't read it elsewhere."
+                    },
                     "requiredFiltersNote": {
                         "type": "string",
                         "description": "Editor-authored note shown to viewers while filter rules are unmet"
@@ -58806,7 +58813,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.96.0",
+        "version": "2.97.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

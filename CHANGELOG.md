@@ -1,3 +1,10 @@
+# [2.97.0](https://github.com/lightdash/lightdash/compare/2.96.0...2.97.0) (2026-09-02)
+
+
+### Features
+
+* **frontend:** show unique viewers on hover over views counts ([#27705](https://github.com/lightdash/lightdash/issues/27705)) ([eafabaf](https://github.com/lightdash/lightdash/commit/eafabaf785d0c7e39e5d1ea864a5e6556f1f9db9))
+
 # [2.96.0](https://github.com/lightdash/lightdash/compare/2.95.2...2.96.0) (2026-09-02)
 
 
