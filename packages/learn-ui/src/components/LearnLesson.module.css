@@ -49,7 +49,7 @@
 }
 
 .lesson a {
-    color: var(--learn-accent, #7262FF);
+    color: var(--learn-accent, #7262ff);
 }
 
 /* Citation pins: a numbered dot after the sentence that describes a region of
@@ -61,7 +61,7 @@
     width: 15px;
     height: 15px;
     border-radius: 50%;
-    background: var(--learn-accent, #7262FF);
+    background: var(--learn-accent, #7262ff);
     color: #ffffff;
     font-size: 9px;
     font-weight: 700;
@@ -113,7 +113,7 @@
     pointer-events: none;
     opacity: 0;
     box-shadow:
-        0 0 0 2px var(--learn-accent, #7262FF),
+        0 0 0 2px var(--learn-accent, #7262ff),
         0 0 0 9999px rgba(39, 40, 53, 0.58);
     transition: opacity 0.18s ease;
 }
@@ -129,7 +129,7 @@
     transform: translateX(-50%);
     bottom: 100%;
     margin-bottom: 6px;
-    background: var(--learn-accent, #7262FF);
+    background: var(--learn-accent, #7262ff);
     color: #ffffff;
     font-size: 12px;
     font-weight: 500;
@@ -189,7 +189,7 @@
 .demoHotspot {
     position: absolute;
     background: transparent;
-    border: 2px solid var(--learn-accent, #7262FF);
+    border: 2px solid var(--learn-accent, #7262ff);
     border-radius: 6px;
     padding: 0;
     cursor: pointer;
@@ -219,7 +219,7 @@
 
 .demoStepCount {
     font-weight: 600;
-    color: var(--learn-accent, #7262FF);
+    color: var(--learn-accent, #7262ff);
     margin-right: 6px;
 }
 
