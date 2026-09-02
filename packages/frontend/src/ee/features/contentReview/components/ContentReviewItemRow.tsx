@@ -1,5 +1,5 @@
 import { type ContentReviewContentType } from '@lightdash/common';
-import { Anchor, Badge, Group, Stack, Text } from '@mantine/core';
+import { Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconCircleCheckFilled, IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -77,16 +77,13 @@ const ContentReviewItemRow: FC<Props> = ({
                 </Stack>
             )}
             {isVerified && (
-                <Badge
-                    size="xs"
-                    color="green"
-                    variant="light"
-                    leftSection={
-                        <MantineIcon icon={IconCircleCheckFilled} size={10} />
-                    }
-                >
-                    Verified
-                </Badge>
+                <Tooltip label="Verified" withArrow>
+                    <MantineIcon
+                        icon={IconCircleCheckFilled}
+                        color="green.6"
+                        aria-label="Verified"
+                    />
+                </Tooltip>
             )}
             {href && (
                 <MantineIcon
