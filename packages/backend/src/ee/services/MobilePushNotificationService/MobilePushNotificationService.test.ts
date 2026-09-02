@@ -24,6 +24,8 @@ const pushToStartToken =
     'ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789';
 const validDeviceToken =
     'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210';
+const androidRegistrationToken =
+    'fMEQ_p9nS0m:APA91bH-lightdash.mobile_registration-token';
 
 const installation = {
     mobilePushInstallationUuid: installationUuid,
@@ -219,6 +221,7 @@ describe('MobilePushNotificationService.registerLiveActivity', () => {
                 promptId: promptUuid,
                 installationId: installationUuid,
                 liveActivityId: liveActivityUuid,
+                platform: 'ios',
                 environment: 'sandbox',
             },
         });
@@ -339,6 +342,81 @@ describe('MobilePushNotificationService.registerLiveActivity', () => {
         const service = new MobilePushNotificationService(dependencies);
 
         await expect(register(service)).rejects.toBeInstanceOf(NotFoundError);
+        expect(
+            dependencies.mobilePushNotificationStore.upsertLiveActivity,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('registers an activity for an android installation', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.findInstallation.mockResolvedValue(
+            { ...installation, platform: 'android', environment: 'production' },
+        );
+        const service = new MobilePushNotificationService(dependencies);
+
+        await register(service, { pushToken: androidRegistrationToken });
+
+        expect(
+            dependencies.mobilePushNotificationStore.upsertLiveActivity,
+        ).toHaveBeenCalledWith({
+            liveActivityUuid,
+            mobilePushInstallationUuid: installationUuid,
+            organizationUuid,
+            userUuid,
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            promptUuid,
+            pushToken: androidRegistrationToken,
+        });
+        expect(dependencies.analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'mobile_push.live_activity_registered',
+                properties: expect.objectContaining({ platform: 'android' }),
+            }),
+        );
+        expect(
+            dependencies.scheduler.mobilePushLiveActivity,
+        ).toHaveBeenCalledWith({
+            liveActivityUuid,
+            organizationUuid,
+            projectUuid,
+            userUuid,
+        });
+    });
+
+    it.each(['', 'has spaces', 'a'.repeat(4097)])(
+        'rejects an invalid android registration token',
+        async (pushToken) => {
+            const dependencies = createDependencies();
+            dependencies.mobilePushNotificationStore.findInstallation.mockResolvedValue(
+                {
+                    ...installation,
+                    platform: 'android',
+                    environment: 'production',
+                },
+            );
+            const service = new MobilePushNotificationService(dependencies);
+
+            await expect(
+                register(service, { pushToken }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(
+                dependencies.threadStore.findThreadOwnership,
+            ).not.toHaveBeenCalled();
+            expect(
+                dependencies.mobilePushNotificationStore.upsertLiveActivity,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    it('still rejects an android registration token on an ios installation', async () => {
+        const dependencies = createDependencies();
+        const service = new MobilePushNotificationService(dependencies);
+
+        await expect(
+            register(service, { pushToken: androidRegistrationToken }),
+        ).rejects.toBeInstanceOf(ParameterError);
         expect(
             dependencies.mobilePushNotificationStore.upsertLiveActivity,
         ).not.toHaveBeenCalled();

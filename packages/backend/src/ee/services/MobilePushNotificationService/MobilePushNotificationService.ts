@@ -776,31 +776,35 @@ export class MobilePushNotificationService {
 
     async registerLiveActivity(args: RegisterLiveActivity): Promise<void> {
         if (!this.config.enabled) return;
-        validatePushToken(args.pushToken);
         const { organizationUuid } = args.user;
         if (organizationUuid == null) {
             throw new NotFoundError('Mobile push registration not found');
         }
 
-        const [installation, existingActivity, ownership, prompt] =
-            await Promise.all([
-                this.mobilePushNotificationStore.findInstallation(
-                    args.installationUuid,
-                ),
-                this.mobilePushNotificationStore.findLiveActivityOwner(
-                    args.liveActivityUuid,
-                ),
-                this.threadStore.findThreadOwnership({
-                    organizationUuid,
-                    threadUuid: args.threadUuid,
-                }),
-                this.threadStore.findWebAppPrompt(args.promptUuid),
-            ]);
-
+        const installation =
+            await this.mobilePushNotificationStore.findInstallation(
+                args.installationUuid,
+            );
         if (
             installation?.organizationUuid !== organizationUuid ||
-            installation.userUuid !== args.user.userUuid ||
-            installation.platform !== 'ios' ||
+            installation.userUuid !== args.user.userUuid
+        ) {
+            throw new NotFoundError('Mobile push registration not found');
+        }
+        validateDeviceToken(installation.platform, args.pushToken);
+
+        const [existingActivity, ownership, prompt] = await Promise.all([
+            this.mobilePushNotificationStore.findLiveActivityOwner(
+                args.liveActivityUuid,
+            ),
+            this.threadStore.findThreadOwnership({
+                organizationUuid,
+                threadUuid: args.threadUuid,
+            }),
+            this.threadStore.findWebAppPrompt(args.promptUuid),
+        ]);
+
+        if (
             (existingActivity !== undefined &&
                 (existingActivity.mobilePushInstallationUuid !==
                     installation.mobilePushInstallationUuid ||
@@ -847,6 +851,7 @@ export class MobilePushNotificationService {
                 promptId: args.promptUuid,
                 installationId: args.installationUuid,
                 liveActivityId: args.liveActivityUuid,
+                platform: installation.platform,
                 environment: installation.environment,
             },
         });

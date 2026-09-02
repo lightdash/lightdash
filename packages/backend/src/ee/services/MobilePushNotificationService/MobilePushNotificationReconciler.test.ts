@@ -516,6 +516,21 @@ describe('MobilePushNotificationReconciler platform routing', () => {
         });
     });
 
+    it('sends to the installation device token, not the stored activity token', async () => {
+        const dependencies = createDependencies();
+        dependencies.notificationStore.findLiveActivity.mockResolvedValue({
+            ...androidActivity,
+            pushToken: 'a-stale-registration-token',
+        });
+        const reconciler = new MobilePushNotificationReconciler(dependencies);
+
+        await reconciler.reconcileLiveActivity(activity.liveActivityUuid);
+
+        expect(dependencies.fcmClient.sendAgentRunUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({ pushToken: 'fcm-registration-token' }),
+        );
+    });
+
     it('records the platform on an android delivery', async () => {
         const dependencies = createDependencies();
         dependencies.notificationStore.findLiveActivity.mockResolvedValue(
