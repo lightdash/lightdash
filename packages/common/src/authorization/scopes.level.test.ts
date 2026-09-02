@@ -24,6 +24,10 @@ const ORG_ONLY_SCOPE_NAMES = [
     'impersonate:User',
     'view:OrganizationDesign',
     'manage:OrganizationDesign',
+    'create:DataAppTemplate',
+    'manage:DataAppTemplate@self',
+    'manage:DataAppTemplate',
+    'create:DataAppFromTemplate',
     'view:OrganizationAiAgent',
     'manage:OrganizationAiAgent',
 ];

@@ -37,6 +37,8 @@ export type CaslSubjectNames =
     | 'CustomSqlTableCalculations'
     | 'DataApp'
     | 'DataAppDependency'
+    | 'DataAppFromTemplate'
+    | 'DataAppTemplate'
     | 'Dashboard'
     | 'DeployProject'
     | 'DashboardComments'

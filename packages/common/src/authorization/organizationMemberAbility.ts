@@ -255,6 +255,16 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('create', 'DataApp', {
             organizationUuid: member.organizationUuid,
         });
+        can('create', 'DataAppTemplate', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'DataAppTemplate', {
+            organizationUuid: member.organizationUuid,
+            createdByUserUuid: member.userUuid,
+        });
+        can('create', 'DataAppFromTemplate', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
             inheritsFromOrgOrProject: true,
@@ -453,6 +463,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         });
 
         can('manage', 'OrganizationDesign', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'DataAppTemplate', {
             organizationUuid: member.organizationUuid,
         });
 

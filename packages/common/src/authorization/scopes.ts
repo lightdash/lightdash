@@ -1590,6 +1590,70 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
 
+    // Data App Templates (org-uploaded starter apps offered in the
+    // builder's template gallery). Org-scoped resource following the data
+    // app pattern: create + manage@self for authors, manage for curators,
+    // and a separate capability for building from a template so each can
+    // be tiered independently in custom roles.
+    {
+        name: 'create:DataAppTemplate',
+        description: 'Upload new organization data app templates',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        dependencies: [
+            {
+                name: 'manage:DataAppTemplate@self',
+                description: 'Replace or delete the templates you upload',
+            },
+        ],
+        level: 'organization',
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:DataAppTemplate@self',
+        description:
+            'Replace and delete organization data app templates you uploaded',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        dependencies: [
+            {
+                name: 'create:DataAppTemplate',
+                description: 'Upload the templates you look after',
+            },
+        ],
+        level: 'organization',
+        getConditions: (context) => [
+            {
+                ...addUuidCondition(context),
+                createdByUserUuid: context.userUuid || false,
+            },
+        ],
+    },
+    {
+        name: 'manage:DataAppTemplate',
+        description: 'Replace and delete any organization data app template',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        dependencies: [],
+        level: 'organization',
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'create:DataAppFromTemplate',
+        description:
+            'Browse the template gallery and create data apps from organization templates',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        dependencies: [
+            {
+                name: 'create:DataApp',
+                description: 'Build an app from the chosen template',
+            },
+        ],
+        level: 'organization',
+        getConditions: addDefaultUuidCondition,
+    },
+
     // Spotlight Scopes
     {
         name: 'manage:SpotlightTableConfig',

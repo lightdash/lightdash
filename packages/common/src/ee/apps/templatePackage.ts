@@ -44,6 +44,8 @@ export type DataAppTemplateSummary = {
     category: string;
     questions: TemplateQuestion[];
     fileCount: number;
+    /** Uploader; the ownership condition behind manage:DataAppTemplate@self. */
+    createdByUserUuid: string | null;
     createdAt: Date;
     updatedAt: Date;
 };

@@ -100,6 +100,9 @@ const BASE_ROLE_SCOPES = {
         'view:ContentAsCode',
         'create:ContentAsCode',
         'create:DataApp',
+        'create:DataAppTemplate', // Publish org templates
+        'manage:DataAppTemplate@self', // Replace/delete own templates
+        'create:DataAppFromTemplate', // Build from org templates
     ],
 
     [ProjectMemberRole.DEVELOPER]: [
@@ -168,6 +171,7 @@ const BASE_ROLE_SCOPES = {
         'manage:DataAppDependency', // Add custom npm deps (supply-chain capability)
         'manage:ExternalConnection',
         'manage:OrganizationDesign',
+        'manage:DataAppTemplate', // Replace/delete any org template
         'delete:Project', // Any project
         'view:Analytics',
         'manage:Dashboard', // All dashboards
@@ -285,6 +289,10 @@ export const getNonEnterpriseScopesForRole = (
         'manage:ExternalConnection',
         'view:OrganizationDesign',
         'manage:OrganizationDesign',
+        'create:DataAppTemplate',
+        'manage:DataAppTemplate@self',
+        'manage:DataAppTemplate',
+        'create:DataAppFromTemplate',
         'view:Roadmap',
         'manage:PersonalAccessToken',
         'manage:PreAggregation',

@@ -138,6 +138,8 @@ const PROJECT_PARITY_IGNORE = new Set([
     '*:Organization',
     '*:OrganizationColorPalette',
     '*:OrganizationDesign',
+    '*:DataAppTemplate',
+    '*:DataAppFromTemplate',
     '*:Roadmap',
     '*:Group',
     '*:InviteLink',
