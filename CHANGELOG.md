@@ -1,3 +1,10 @@
+# [2.99.0](https://github.com/lightdash/lightdash/compare/2.98.0...2.99.0) (2026-09-02)
+
+
+### Features
+
+* **ai-reviews:** export findings to Jira ([#28511](https://github.com/lightdash/lightdash/issues/28511)) ([4c770f2](https://github.com/lightdash/lightdash/commit/4c770f2e0ab78fe93234e63a86082cc07a868f9b))
+
 # [2.98.0](https://github.com/lightdash/lightdash/compare/2.97.1...2.98.0) (2026-09-02)
 
 

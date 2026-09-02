@@ -1,21 +1,23 @@
 {
   "schemaVersion": "2",
-  "version": "2.98.0",
-  "previousVersion": "2.97.1",
-  "releaseDate": "2026-09-02T19:02:28.267Z",
+  "version": "2.99.0",
+  "previousVersion": "2.98.0",
+  "releaseDate": "2026-09-02T19:11:26.696Z",
   "migrations": {
     "present": true,
     "count": 1,
-    "coreCount": 1,
-    "eeCount": 0,
+    "coreCount": 0,
+    "eeCount": 1,
     "files": [
       {
-        "name": "20260902100000_add_jira_app_installations.ts",
-        "edition": "core",
+        "name": "20260902101000_add_jira_to_ai_reviews.ts",
+        "edition": "ee",
         "tables": [
-          "jira_app_installations",
+          "ai_agent_review_item",
+          "ai_agent_review_jira_destinations",
+          "ai_agent_review_notification_settings",
           "organizations",
-          "users"
+          "projects"
         ],
         "heaviness": {
           "locksTable": true,
@@ -35,8 +37,11 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/schedulers/runs/{runId}/logs — added the new `createReviewJiraIssue` enum value to the `results/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`",
+        "GET /api/v1/schedulers/{projectUuid}/logs — added the new `createReviewJiraIssue` enum value to the `results/data/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`"
+      ],
+      "advisoryCount": 2
     },
     "mcp": {
       "checked": true,
