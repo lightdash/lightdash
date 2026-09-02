@@ -38,6 +38,10 @@ type MobilePushInstallation = {
     environment: MobilePushEnvironment;
 };
 
+type UpsertInstallationResult =
+    | { status: 'stored'; installation: MobilePushInstallation }
+    | { status: 'owner_mismatch' };
+
 type MobilePushThreadOwnership = {
     threadUuid: string;
     projectUuid: string;
@@ -92,7 +96,7 @@ export type MobilePushNotificationStore = {
         platform: MobilePushPlatform;
         environment: MobilePushEnvironment;
         deviceToken: string;
-    }): Promise<MobilePushInstallation>;
+    }): Promise<UpsertInstallationResult>;
     registerPushToStartToken(args: {
         installationUuid: string;
         organizationUuid: string;
@@ -422,14 +426,18 @@ export class MobilePushNotificationService {
             throw new NotFoundError('Mobile push registration not found');
         }
 
-        await this.mobilePushNotificationStore.upsertInstallation({
-            installationUuid: args.installationUuid,
-            organizationUuid,
-            userUuid: args.user.userUuid,
-            platform: args.platform,
-            environment: args.environment,
-            deviceToken: args.deviceToken,
-        });
+        const result =
+            await this.mobilePushNotificationStore.upsertInstallation({
+                installationUuid: args.installationUuid,
+                organizationUuid,
+                userUuid: args.user.userUuid,
+                platform: args.platform,
+                environment: args.environment,
+                deviceToken: args.deviceToken,
+            });
+        if (result.status === 'owner_mismatch') {
+            throw new NotFoundError('Mobile push registration not found');
+        }
         this.track({
             event: 'mobile_push.installation_registered',
             userId: args.user.userUuid,

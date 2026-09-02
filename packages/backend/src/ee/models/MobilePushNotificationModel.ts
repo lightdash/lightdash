@@ -29,6 +29,10 @@ export type MobilePushInstallation = {
     environment: MobilePushEnvironment;
 };
 
+export type UpsertInstallationResult =
+    | { status: 'stored'; installation: MobilePushInstallation }
+    | { status: 'owner_mismatch' };
+
 export type AiAgentLiveActivity = {
     liveActivityUuid: string;
     mobilePushInstallationUuid: string;
@@ -110,7 +114,7 @@ export class MobilePushNotificationModel {
         platform: MobilePushPlatform;
         environment: MobilePushEnvironment;
         deviceToken: string;
-    }): Promise<MobilePushInstallation> {
+    }): Promise<UpsertInstallationResult> {
         const fingerprint = tokenFingerprint(args.deviceToken);
         const encryptedDeviceToken = this.encryptionUtil.encrypt(
             args.deviceToken,
@@ -130,6 +134,7 @@ export class MobilePushNotificationModel {
                     'user_uuid',
                     'platform',
                     'environment',
+                    'device_token_fingerprint',
                 )
                 .where('installation_uuid', args.installationUuid)
                 .forUpdate()
@@ -139,6 +144,14 @@ export class MobilePushNotificationModel {
                 existing !== undefined &&
                 (existing.organization_uuid !== args.organizationUuid ||
                     existing.user_uuid !== args.userUuid);
+
+            if (
+                ownershipChanged &&
+                existing.device_token_fingerprint !== fingerprint
+            ) {
+                return { status: 'owner_mismatch' };
+            }
+
             const environmentChanged =
                 existing !== undefined &&
                 (existing.environment !== args.environment ||
@@ -215,12 +228,16 @@ export class MobilePushNotificationModel {
                 ]);
 
             return {
-                mobilePushInstallationUuid: row.mobile_push_installation_uuid,
-                installationUuid: row.installation_uuid,
-                organizationUuid: row.organization_uuid,
-                userUuid: row.user_uuid,
-                platform: row.platform,
-                environment: row.environment,
+                status: 'stored',
+                installation: {
+                    mobilePushInstallationUuid:
+                        row.mobile_push_installation_uuid,
+                    installationUuid: row.installation_uuid,
+                    organizationUuid: row.organization_uuid,
+                    userUuid: row.user_uuid,
+                    platform: row.platform,
+                    environment: row.environment,
+                },
             };
         });
     }
