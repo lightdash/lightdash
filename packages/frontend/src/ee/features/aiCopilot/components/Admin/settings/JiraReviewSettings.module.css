@@ -17,3 +17,19 @@
 .credentialInput {
     flex: 1;
 }
+
+.logo {
+    display: block;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: 6px;
+}
+
+.logoSm {
+    display: block;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: 5px;
+}

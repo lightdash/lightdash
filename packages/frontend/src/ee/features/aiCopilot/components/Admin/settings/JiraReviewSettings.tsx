@@ -23,7 +23,6 @@ import {
     IconCheck,
     IconCopy,
     IconExternalLink,
-    IconTicket,
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FormEvent } from 'react';
@@ -39,6 +38,7 @@ import {
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useProjects } from '../../../../../../hooks/useProjects';
 import useApp from '../../../../../../providers/App/useApp';
+import jiraSvg from '../../../../../../svgs/jira.svg';
 import {
     useBackfillReviewJiraIssues,
     useReviewJiraRouting,
@@ -56,6 +56,14 @@ const withCurrent = (
     !current || options.some(({ value }) => value === current)
         ? options
         : [...options, { value: current, label: current }];
+
+const JiraLogo = ({ compact = false }: { compact?: boolean }) => (
+    <img
+        src={jiraSvg}
+        alt="Jira"
+        className={compact ? styles.logoSm : styles.logo}
+    />
+);
 
 export const JiraReviewSettings = () => {
     const { health, user } = useApp();
@@ -161,7 +169,7 @@ export const JiraReviewSettings = () => {
             <Group justify="space-between" wrap="nowrap" align="flex-start">
                 <Box maw={620}>
                     <Group gap="xs" mb={4}>
-                        <MantineIcon icon={IconTicket} size={22} />
+                        <JiraLogo compact={hasJira} />
                         <Title order={6}>Jira issues</Title>
                         {hasJira && (
                             <Badge
@@ -211,9 +219,10 @@ export const JiraReviewSettings = () => {
                                 </Text>
                                 <Text c="dimmed" fz="xs">
                                     In the developer console create an OAuth 2.0
-                                    integration, add the Jira API with the
-                                    read:jira-work and write:jira-work scopes,
-                                    and use this callback URL.
+                                    integration. Under Permissions add the Jira
+                                    API and tick the classic scopes
+                                    read:jira-work and write:jira-work. Under
+                                    Authorization set this callback URL.
                                 </Text>
                                 <Group gap="xs" wrap="nowrap">
                                     <Code>{callbackUrl}</Code>
@@ -266,7 +275,10 @@ export const JiraReviewSettings = () => {
                                 <Text c="dimmed" fz="xs">
                                     Both are on the app's Settings page. The
                                     secret is stored encrypted and only used for
-                                    this organization.
+                                    this organization. Connecting opens
+                                    Atlassian: sign in there with an account
+                                    that has Jira on the site you want to use,
+                                    or Atlassian shows Access denied.
                                 </Text>
                                 <form onSubmit={submitCredentials}>
                                     <Group
