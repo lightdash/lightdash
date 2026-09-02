@@ -10,8 +10,8 @@ export const TOOL_ITERATE_DATA_APP_DESCRIPTION = [
     'Start a build that adds a version to an existing data app from a follow-up brief.',
     'Use it when the user wants to change, fix, or extend a data app that already exists — one built earlier in this thread, or one found with findContent; use generateDataApp only for a brand-new app.',
     "The coding agent works from the app's current source, so the brief should describe the change, not restate the whole app.",
-    'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending"). One request, one call: tell the user the build has started, then end your turn — never wait, poll, or call this tool again for the same request.',
-    'A later turn sees the outcome on this call\'s result: "success" carries the app name and the builder link (href) to share; "error" carries the failure message. While a version is already building for the app, the call fails — relay that the user should wait for the current build to finish.',
+    'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request.',
+    'While a version is already building for the app, the call fails — relay that the user should wait for the current build to finish.',
 ].join(' ');
 
 export const toolIterateDataAppArgsSchema = z.object({
@@ -23,7 +23,7 @@ export const toolIterateDataAppArgsSchema = z.object({
     prompt: z
         .string()
         .describe(
-            "A self-contained brief of the change for the coding agent, which sees the app's current source and the semantic layer but not this conversation. Describe what to change and the outcome you expect, and include every detail from this thread the change depends on.",
+            "A self-contained brief of the change for the coding agent, which works from the app's current source and explores the semantic layer itself, but sees neither this conversation nor its query results. Describe what to change and the outcome you expect; carry over any analysis this thread already settled as queries — a number pasted into the brief gets hardcoded into the app.",
         ),
     dashboardSlug: z
         .string()
