@@ -679,6 +679,19 @@ describe('Organization member permissions', () => {
                 expect(ability.can('manage', 'Organization')).toEqual(false);
             });
 
+            it('cannot manage verified content', () => {
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('VerifiedContent', {
+                            organizationUuid:
+                                ORGANIZATION_EDITOR.organizationUuid,
+                            projectUuid: 'any-project',
+                        }),
+                    ),
+                ).toEqual(false);
+            });
+
             it('can view and manage public & accessable dashboards', () => {
                 expect(
                     ability.can(
@@ -1197,6 +1210,33 @@ describe('Organization member permissions', () => {
 
             it('can use the SemanticViewer', () => {
                 expect(ability.can('manage', 'SemanticViewer')).toEqual(true);
+            });
+
+            describe('VerifiedContent', () => {
+                it('can manage verified content', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('VerifiedContent', {
+                                organizationUuid:
+                                    ORGANIZATION_DEVELOPER.organizationUuid,
+                                projectUuid: 'any-project',
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage verified content from another organization', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('VerifiedContent', {
+                                organizationUuid: '5678',
+                                projectUuid: 'any-project',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
             });
 
             describe('JobStatus', () => {
