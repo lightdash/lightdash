@@ -71,6 +71,7 @@ const DashboardInfoOverlay: FC<DashboardInfoOverlayProps> = ({
                         resourceType="dashboard"
                         resourceUuid={dashboard.uuid}
                         projectUuid={projectUuid}
+                        views={dashboard.views ?? 0}
                     >
                         {(dashboard.views ?? 0).toLocaleString()}
                     </ViewsCountPopover>

@@ -93,23 +93,19 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
                     resourceType="dashboard"
                     resourceUuid={item.data.uuid}
                     projectUuid={projectUuid}
+                    views={item.data.views}
+                    fallbackTooltip={getResourceViewsSinceWhenDescription(item)}
                 >
-                    <Tooltip
-                        position="bottom-start"
-                        disabled={!item.data.views || !item.data.firstViewedAt}
-                        label={getResourceViewsSinceWhenDescription(item)}
-                    >
-                        <Flex align="center" gap={4}>
-                            <IconEye
-                                color="var(--mantine-color-ldGray-6)"
-                                size={14}
-                            />
+                    <Flex align="center" gap={4}>
+                        <IconEye
+                            color="var(--mantine-color-ldGray-6)"
+                            size={14}
+                        />
 
-                            <Text c="dimmed" fz="xs">
-                                {item.data.views} views
-                            </Text>
-                        </Flex>
-                    </Tooltip>
+                        <Text c="dimmed" fz="xs">
+                            {item.data.views} views
+                        </Text>
+                    </Flex>
                 </ViewsCountPopover>
 
                 <Box

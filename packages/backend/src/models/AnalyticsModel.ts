@@ -7,6 +7,7 @@ import {
     UnusedContentReason,
     UserActivity,
     UserWithCount,
+    VIEW_STATS_TREND_DAYS,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
@@ -50,6 +51,20 @@ type DbUserWithCount = {
     count: number | null;
 };
 
+// UTC calendar days ending today, oldest first
+const getTrendDays = (now: Date): string[] =>
+    Array.from({ length: VIEW_STATS_TREND_DAYS }, (_, index) => {
+        const offset = VIEW_STATS_TREND_DAYS - 1 - index;
+        const day = new Date(
+            Date.UTC(
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                now.getUTCDate() - offset,
+            ),
+        );
+        return day.toISOString().slice(0, 10);
+    });
+
 export class AnalyticsModel {
     private database: Knex;
 
@@ -65,23 +80,12 @@ export class AnalyticsModel {
                 op: 'AnalyticsModel.getChartStats',
                 name: 'AnalyticsModel.getChartStats',
             },
-            async () => {
-                const stats = await this.database(AnalyticsChartViewsTableName)
-                    .count({ views: '*' })
-                    .countDistinct({ unique_viewer_count: 'user_uuid' })
-                    .count({
-                        anonymous_view_count: this.database.raw(
-                            'CASE WHEN user_uuid IS NULL THEN 1 END',
-                        ),
-                    })
-                    .min({
-                        first_viewed_at: 'timestamp',
-                    })
-                    .where('chart_uuid', chartUuid)
-                    .first();
-
-                return this.formatViewStatistics(stats);
-            },
+            () =>
+                this.getViewStats(
+                    AnalyticsChartViewsTableName,
+                    'chart_uuid',
+                    chartUuid,
+                ),
         );
     }
 
@@ -93,41 +97,57 @@ export class AnalyticsModel {
                 op: 'AnalyticsModel.getDashboardViewStats',
                 name: 'AnalyticsModel.getDashboardViewStats',
             },
-            async () => {
-                const stats = await this.database(
+            () =>
+                this.getViewStats(
                     AnalyticsDashboardViewsTableName,
-                )
-                    .count({ views: '*' })
-                    .countDistinct({ unique_viewer_count: 'user_uuid' })
-                    .count({
-                        anonymous_view_count: this.database.raw(
-                            'CASE WHEN user_uuid IS NULL THEN 1 END',
-                        ),
-                    })
-                    .min({ first_viewed_at: 'timestamp' })
-                    .where('dashboard_uuid', dashboardUuid)
-                    .first();
-
-                return this.formatViewStatistics(stats);
-            },
+                    'dashboard_uuid',
+                    dashboardUuid,
+                ),
         );
     }
 
-    private formatViewStatistics(
-        stats:
-            | {
-                  views?: string | number;
-                  unique_viewer_count?: string | number;
-                  anonymous_view_count?: string | number;
-                  first_viewed_at?: Date;
-              }
-            | undefined,
-    ): DetailedViewStatistics {
+    private async getViewStats(
+        tableName: string,
+        uuidColumn: 'chart_uuid' | 'dashboard_uuid',
+        uuid: string,
+    ): Promise<DetailedViewStatistics> {
+        const trendDays = getTrendDays(new Date());
+        const [totals, dailyRows] = await Promise.all([
+            this.database(tableName)
+                .count({ views: '*' })
+                .countDistinct({ unique_viewer_count: 'user_uuid' })
+                .count({
+                    anonymous_view_count: this.database.raw(
+                        'CASE WHEN user_uuid IS NULL THEN 1 END',
+                    ),
+                })
+                .min({ first_viewed_at: 'timestamp' })
+                .where(uuidColumn, uuid)
+                .first(),
+            this.database(tableName)
+                .select<{ day: string; views: string | number }[]>(
+                    this.database.raw(
+                        "to_char(timestamp, 'YYYY-MM-DD') AS day",
+                    ),
+                    this.database.raw('COUNT(*) AS views'),
+                )
+                .where(uuidColumn, uuid)
+                .andWhere('timestamp', '>=', trendDays[0])
+                .groupBy('day'),
+        ]);
+        const viewsByDay = new Map(
+            dailyRows.map((row) => [row.day, Number(row.views)]),
+        );
+
         return {
-            views: Number(stats?.views ?? 0),
-            firstViewedAt: stats?.first_viewed_at ?? null,
-            uniqueViewerCount: Number(stats?.unique_viewer_count ?? 0),
-            anonymousViewCount: Number(stats?.anonymous_view_count ?? 0),
+            views: Number(totals?.views ?? 0),
+            firstViewedAt: totals?.first_viewed_at ?? null,
+            uniqueViewerCount: Number(totals?.unique_viewer_count ?? 0),
+            anonymousViewCount: Number(totals?.anonymous_view_count ?? 0),
+            dailyViews: trendDays.map((date) => ({
+                date,
+                views: viewsByDay.get(date) ?? 0,
+            })),
         };
     }
 

@@ -376,6 +376,7 @@ const InfiniteResourceTable = ({
                         resourceType={getViewStatsResourceType(row.original)}
                         resourceUuid={row.original.data.uuid}
                         projectUuid={filters.projectUuid}
+                        views={row.original.data.views}
                     >
                         <Text fz="xs" fw={500} c="ldGray.7">
                             {row.original.data.views}

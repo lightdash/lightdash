@@ -53,8 +53,6 @@ export type ResourceInfoPopupProps = {
     spaceUuid?: string | null;
     projectUuid: string;
     viewStats?: number;
-    uniqueViewerCount?: number;
-    anonymousViewCount?: number;
     viewStatsResourceType?: 'chart' | 'dashboard';
     firstViewedAt?: Date | string | null;
     latestVersion?: { number: number; status: AppVersionStatus } | null;
@@ -90,8 +88,6 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
     spaceUuid,
     projectUuid,
     viewStats,
-    uniqueViewerCount,
-    anonymousViewCount,
     viewStatsResourceType,
     firstViewedAt,
     withChartData = false,
@@ -162,25 +158,10 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
                             resourceType={viewStatsResourceType}
                             resourceUuid={resourceUuid}
                             projectUuid={projectUuid}
-                            viewStats={
-                                uniqueViewerCount !== undefined &&
-                                anonymousViewCount !== undefined
-                                    ? {
-                                          views: viewStats,
-                                          firstViewedAt: firstViewedAt ?? null,
-                                          uniqueViewerCount,
-                                          anonymousViewCount,
-                                      }
-                                    : undefined
-                            }
+                            views={viewStats}
+                            fallbackTooltip={label}
                         >
-                            <Tooltip
-                                position="top-start"
-                                label={label}
-                                disabled={!viewStats || !firstViewedAt}
-                            >
-                                <span>{viewStats.toLocaleString()}</span>
-                            </Tooltip>
+                            {viewStats.toLocaleString()}
                         </ViewsCountPopover>
                     </InfoRow>
                 ) : null}

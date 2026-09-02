@@ -94,9 +94,19 @@ export type ViewStatistics = {
     firstViewedAt: Date | string | null;
 };
 
+export const VIEW_STATS_TREND_DAYS = 30;
+
+export type DailyViewCount = {
+    /** UTC calendar day as YYYY-MM-DD */
+    date: string;
+    views: number;
+};
+
 export type DetailedViewStatistics = ViewStatistics & {
     uniqueViewerCount: number;
     anonymousViewCount: number;
+    /** One entry per day for the last VIEW_STATS_TREND_DAYS days, oldest first, zero-filled */
+    dailyViews: DailyViewCount[];
 };
 
 export type DownloadAuditEntry = {

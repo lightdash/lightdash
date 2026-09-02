@@ -722,14 +722,6 @@ const SavedChartsHeader: FC = () => {
                                         spaceName={savedChart.spaceName}
                                         spaceUuid={savedChart.spaceUuid}
                                         viewStats={chartViewStats.data?.views}
-                                        uniqueViewerCount={
-                                            chartViewStats.data
-                                                ?.uniqueViewerCount
-                                        }
-                                        anonymousViewCount={
-                                            chartViewStats.data
-                                                ?.anonymousViewCount
-                                        }
                                         viewStatsResourceType="chart"
                                         firstViewedAt={
                                             chartViewStats.data?.firstViewedAt

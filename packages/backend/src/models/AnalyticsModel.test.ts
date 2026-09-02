@@ -21,35 +21,86 @@ describe('AnalyticsModel', () => {
         tracker.reset();
     });
 
-    it.each([
-        ['chart', 'chart_uuid', () => model.getChartViewStats(projectUuid)],
-        [
-            'dashboard',
-            'dashboard_uuid',
-            () => model.getDashboardViewStats(projectUuid),
-        ],
-    ])(
-        'returns detailed %s view statistics',
-        async (_resourceType, uuidColumn, getStats) => {
-            tracker.on
-                .select(new RegExp(`where "${uuidColumn}" =`, 'i'))
-                .response([
-                    {
-                        views: '12',
-                        unique_viewer_count: '4',
-                        anonymous_view_count: '2',
-                        first_viewed_at: new Date('2025-01-01'),
-                    },
-                ]);
+    describe('detailed view statistics', () => {
+        beforeEach(() => {
+            vi.useFakeTimers({ toFake: ['Date'] });
+            vi.setSystemTime(new Date('2025-03-01T10:00:00Z'));
+        });
 
-            await expect(getStats()).resolves.toEqual({
-                views: 12,
-                uniqueViewerCount: 4,
-                anonymousViewCount: 2,
-                firstViewedAt: new Date('2025-01-01'),
-            });
-        },
-    );
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        it.each([
+            ['chart', 'chart_uuid', () => model.getChartViewStats(projectUuid)],
+            [
+                'dashboard',
+                'dashboard_uuid',
+                () => model.getDashboardViewStats(projectUuid),
+            ],
+        ])(
+            'returns detailed %s view statistics with a zero-filled daily trend',
+            async (_resourceType, uuidColumn, getStats) => {
+                tracker.on
+                    .select(
+                        new RegExp(
+                            `count\\(distinct "user_uuid"\\).*where "${uuidColumn}" =`,
+                            'is',
+                        ),
+                    )
+                    .response([
+                        {
+                            views: '12',
+                            unique_viewer_count: '4',
+                            anonymous_view_count: '2',
+                            first_viewed_at: new Date('2025-01-01'),
+                        },
+                    ]);
+                tracker.on
+                    .select(
+                        new RegExp(
+                            `where "${uuidColumn}" = .* and "timestamp" >= .* group by "day"`,
+                            'is',
+                        ),
+                    )
+                    .response([
+                        { day: '2025-02-27', views: '3' },
+                        { day: '2025-03-01', views: '1' },
+                    ]);
+
+                const stats = await getStats();
+
+                expect(stats).toMatchObject({
+                    views: 12,
+                    uniqueViewerCount: 4,
+                    anonymousViewCount: 2,
+                    firstViewedAt: new Date('2025-01-01'),
+                });
+                expect(stats.dailyViews).toHaveLength(30);
+                expect(stats.dailyViews[0]).toEqual({
+                    date: '2025-01-31',
+                    views: 0,
+                });
+                expect(stats.dailyViews[27]).toEqual({
+                    date: '2025-02-27',
+                    views: 3,
+                });
+                expect(stats.dailyViews[28]).toEqual({
+                    date: '2025-02-28',
+                    views: 0,
+                });
+                expect(stats.dailyViews[29]).toEqual({
+                    date: '2025-03-01',
+                    views: 1,
+                });
+
+                const trendQuery = tracker.history.select.find((query) =>
+                    query.sql.includes('group by "day"'),
+                );
+                expect(trendQuery?.bindings).toContain('2025-01-31');
+            },
+        );
+    });
 
     it('includes organization custom-role users in the project population', () => {
         const sql = usersInProjectSql(projectUuid, organizationUuid).replace(

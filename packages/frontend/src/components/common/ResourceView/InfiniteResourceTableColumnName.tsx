@@ -247,21 +247,12 @@ const InfiniteResourceTableColumnName = ({
                                     )}
                                     resourceUuid={item.data.uuid}
                                     projectUuid={projectUuid}
+                                    views={item.data.views}
+                                    fallbackTooltip={getResourceViewsSinceWhenDescription(
+                                        item,
+                                    )}
                                 >
-                                    <Tooltip
-                                        position="top-start"
-                                        disabled={
-                                            !item.data.views ||
-                                            !item.data.firstViewedAt
-                                        }
-                                        label={getResourceViewsSinceWhenDescription(
-                                            item,
-                                        )}
-                                    >
-                                        <span>
-                                            {item.data.views || '0'} views
-                                        </span>
-                                    </Tooltip>
+                                    {item.data.views || '0'} views
                                 </ViewsCountPopover>
                             </Text>
                             {showDataAppVersionStatus &&
