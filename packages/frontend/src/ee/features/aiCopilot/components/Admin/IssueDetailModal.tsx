@@ -1,5 +1,6 @@
 import {
     capitalize,
+    getJiraIssueIdentifier,
     getLinearIssueIdentifier,
     type AiAgentReviewItemSummary,
 } from '@lightdash/common'; // pragma: allowlist secret
@@ -430,6 +431,25 @@ export const IssueDetailModal: FC<Props> = ({
                                                 {getLinearIssueIdentifier(
                                                     item.linkedIssueUrl,
                                                 ) ?? 'Open in Linear'}
+                                            </Anchor>
+                                        </RailRow>
+                                    )}
+                                    {item.linkedJiraIssueUrl && (
+                                        <RailRow label="Jira">
+                                            <Anchor
+                                                href={item.linkedJiraIssueUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={styles.railLink}
+                                            >
+                                                <MantineIcon
+                                                    icon={IconExternalLink}
+                                                    size={14}
+                                                    stroke={1.4}
+                                                />
+                                                {getJiraIssueIdentifier(
+                                                    item.linkedJiraIssueUrl,
+                                                ) ?? 'Open in Jira'}
                                             </Anchor>
                                         </RailRow>
                                     )}

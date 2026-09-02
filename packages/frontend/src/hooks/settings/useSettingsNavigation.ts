@@ -341,7 +341,7 @@ export const useSettingsNavigation = (
                 label: 'Integrations',
                 to: '/generalSettings/integrations',
                 icon: IconPlug,
-                keywords: ['slack', 'github', 'gitlab', 'linear'],
+                keywords: ['slack', 'github', 'gitlab', 'linear', 'jira'],
                 children: [],
                 exact: true,
             });
