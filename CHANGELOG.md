@@ -1,3 +1,10 @@
+# [2.101.0](https://github.com/lightdash/lightdash/compare/2.100.0...2.101.0) (2026-09-02)
+
+
+### Features
+
+* only ask the org creator "how did you hear about us?" ([#28547](https://github.com/lightdash/lightdash/issues/28547)) ([b67f26d](https://github.com/lightdash/lightdash/commit/b67f26d8191cf58f462fa2701cd761691e0162c8))
+
 # [2.100.0](https://github.com/lightdash/lightdash/compare/2.99.0...2.100.0) (2026-09-02)
 
 
