@@ -232,6 +232,10 @@ const convertDimension = (
     let name = meta.dimension?.name || column.name;
     let sql = meta.dimension?.sql || defaultSql(column.name);
     let label = meta.dimension?.label || friendlyName(name);
+    const isTimestampNormalizedToUtc =
+        type === DimensionType.TIMESTAMP &&
+        !disableTimestampConversion &&
+        targetWarehouse === SupportedDbtAdapter.SNOWFLAKE;
     if (type === DimensionType.TIMESTAMP && !disableTimestampConversion) {
         sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
     }
@@ -343,6 +347,9 @@ const convertDimension = (
             ? { skipTimezoneConversion: true }
             : {}),
         ...(timestampDomain ? { timestampDomain } : {}),
+        ...(isTimestampNormalizedToUtc && type === DimensionType.TIMESTAMP
+            ? { isTimestampNormalizedToUtc: true as const }
+            : {}),
         groups,
         isIntervalBase,
         ...(meta.dimension && meta.dimension.tags

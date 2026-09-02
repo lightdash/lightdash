@@ -7536,6 +7536,22 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
         ],
     };
 
+    const snowflakeWrappedDimensionSql = `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', \${TABLE}.occurred_at))`;
+    const snowflakeWrappedSql = `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', "events".occurred_at))`;
+    const buildSnowflakeNormalizedExplore = () => {
+        const explore = buildNaiveExplore(
+            SupportedDbtAdapter.SNOWFLAKE,
+            'naive',
+        );
+        ['occurred_at', 'occurred_at_raw'].forEach((dimensionName) => {
+            const dimension = explore.tables.events.dimensions[dimensionName];
+            dimension.sql = snowflakeWrappedDimensionSql;
+            dimension.compiledSql = snowflakeWrappedSql;
+            dimension.isTimestampNormalizedToUtc = true;
+        });
+        return explore;
+    };
+
     test('MIN/MAX over a known-naive TIMESTAMP base converts the aggregate operand (Postgres)', () => {
         const { query } = buildQuery({
             explore: buildNaiveExplore(SupportedDbtAdapter.POSTGRES, 'naive'),
@@ -7628,6 +7644,154 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
         });
         expect(query).toContain(
             `MAX(CONVERT_TIMEZONE('Asia/Tokyo', 'UTC', "events".occurred_at)) AS "events_max_ts"`,
+        );
+    });
+
+    test('MIN/MAX inherited from a Snowflake timestamp dimension keeps its normalized instant', () => {
+        const snowflakeClientMock = {
+            ...warehouseClientMock,
+            getAdapterType: () => SupportedDbtAdapter.SNOWFLAKE,
+        };
+        const explore = buildSnowflakeNormalizedExplore();
+        const queryWithInheritedMetric: CompiledMetricQuery = {
+            ...maxNaiveQuery,
+            dimensions: ['events_occurred_at_raw'],
+            additionalMetrics: maxNaiveQuery.additionalMetrics?.map(
+                (metric) => ({
+                    ...metric,
+                    sql: snowflakeWrappedDimensionSql,
+                }),
+            ),
+            compiledAdditionalMetrics:
+                maxNaiveQuery.compiledAdditionalMetrics?.map((metric) => ({
+                    ...metric,
+                    sql: snowflakeWrappedDimensionSql,
+                    compiledSql: `MAX(${snowflakeWrappedSql})`,
+                })),
+        };
+
+        const { query } = buildQuery({
+            explore,
+            compiledMetricQuery: queryWithInheritedMetric,
+            warehouseSqlBuilder: snowflakeClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'UTC',
+            dataTimezone: 'Asia/Tokyo',
+        });
+
+        expect(query).toContain(
+            `${snowflakeWrappedSql} AS "events_occurred_at_raw"`,
+        );
+        expect(query).toContain(
+            `MAX(${snowflakeWrappedSql}) AS "events_max_ts"`,
+        );
+        expect(query).not.toContain(
+            `CONVERT_TIMEZONE('Asia/Tokyo', 'UTC', ${snowflakeWrappedSql})`,
+        );
+    });
+
+    test('Snowflake filtered MIN/MAX distinguishes inherited dimension SQL from an explicit bare column', () => {
+        const snowflakeClientMock = {
+            ...warehouseClientMock,
+            getAdapterType: () => SupportedDbtAdapter.SNOWFLAKE,
+        };
+        const filters = [
+            {
+                id: 'f1',
+                target: { fieldRef: 'events.occurred_at' },
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+        ];
+        const inheritedFilteredSql = `MAX(CASE WHEN "events".occurred_at IS NOT NULL THEN ${snowflakeWrappedSql} ELSE NULL END)`;
+        const explicitFilteredSql = `MAX(CASE WHEN "events".occurred_at IS NOT NULL THEN "events".occurred_at ELSE NULL END)`;
+        const inheritedQuery: CompiledMetricQuery = {
+            ...maxNaiveQuery,
+            additionalMetrics: maxNaiveQuery.additionalMetrics?.map(
+                (metric) => ({
+                    ...metric,
+                    sql: snowflakeWrappedDimensionSql,
+                }),
+            ),
+            compiledAdditionalMetrics:
+                maxNaiveQuery.compiledAdditionalMetrics?.map((metric) => ({
+                    ...metric,
+                    sql: snowflakeWrappedDimensionSql,
+                    filters,
+                    compiledSql: inheritedFilteredSql,
+                })),
+        };
+        const explicitQuery: CompiledMetricQuery = {
+            ...maxNaiveQuery,
+            compiledAdditionalMetrics:
+                maxNaiveQuery.compiledAdditionalMetrics?.map((metric) => ({
+                    ...metric,
+                    filters,
+                    compiledSql: explicitFilteredSql,
+                })),
+        };
+        const build = (compiledMetricQuery: CompiledMetricQuery) =>
+            buildQuery({
+                explore: buildSnowflakeNormalizedExplore(),
+                compiledMetricQuery,
+                warehouseSqlBuilder: snowflakeClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: 'Asia/Tokyo',
+                useTimezoneAwareDateTrunc: true,
+                columnTimezone: 'UTC',
+                dataTimezone: 'Asia/Tokyo',
+            }).query;
+
+        expect(build(inheritedQuery)).toContain(
+            `${inheritedFilteredSql} AS "events_max_ts"`,
+        );
+        expect(build(explicitQuery)).toContain(
+            `CONVERT_TIMEZONE('Asia/Tokyo', 'UTC', ${explicitFilteredSql}) AS "events_max_ts"`,
+        );
+    });
+
+    test('Snowflake non-normalized timestamp expressions still receive the data-timezone rebase', () => {
+        const snowflakeClientMock = {
+            ...warehouseClientMock,
+            getAdapterType: () => SupportedDbtAdapter.SNOWFLAKE,
+        };
+        const dimensionSql = `COALESCE(\${TABLE}.occurred_at, \${TABLE}.occurred_at)`;
+        const compiledDimensionSql = `COALESCE("events".occurred_at, "events".occurred_at)`;
+        const explore = buildNaiveExplore(
+            SupportedDbtAdapter.SNOWFLAKE,
+            'naive',
+        );
+        explore.tables.events.dimensions.occurred_at.sql = dimensionSql;
+        explore.tables.events.dimensions.occurred_at.compiledSql =
+            compiledDimensionSql;
+        const queryWithExpression: CompiledMetricQuery = {
+            ...maxNaiveQuery,
+            additionalMetrics: maxNaiveQuery.additionalMetrics?.map(
+                (metric) => ({ ...metric, sql: dimensionSql }),
+            ),
+            compiledAdditionalMetrics:
+                maxNaiveQuery.compiledAdditionalMetrics?.map((metric) => ({
+                    ...metric,
+                    sql: dimensionSql,
+                    compiledSql: `MAX(${compiledDimensionSql})`,
+                })),
+        };
+
+        const { query } = buildQuery({
+            explore,
+            compiledMetricQuery: queryWithExpression,
+            warehouseSqlBuilder: snowflakeClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'UTC',
+            dataTimezone: 'Asia/Tokyo',
+        });
+
+        expect(query).toContain(
+            `MAX(CONVERT_TIMEZONE('Asia/Tokyo', 'UTC', ${compiledDimensionSql})) AS "events_max_ts"`,
         );
     });
 

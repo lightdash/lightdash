@@ -917,6 +917,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             colors: undefined,
             index: 0,
             isIntervalBase: true,
+            isTimestampNormalizedToUtc: true,
         },
         user_created_raw: {
             fieldType: FieldType.DIMENSION,
@@ -942,6 +943,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             colors: undefined,
             index: 0,
             isIntervalBase: false,
+            isTimestampNormalizedToUtc: true,
         },
         user_created_day: {
             fieldType: FieldType.DIMENSION,

@@ -237,6 +237,29 @@ describe('timestamp domain', () => {
         );
     });
 
+    it('should mark Snowflake timestamp dimensions normalized to UTC', () => {
+        const snowflake = convertTable(
+            SupportedDbtAdapter.SNOWFLAKE,
+            MODEL_WITH_TIMESTAMP_DOMAIN,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        const postgres = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            MODEL_WITH_TIMESTAMP_DOMAIN,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(
+            snowflake.dimensions.user_created.isTimestampNormalizedToUtc,
+        ).toBe(true);
+        expect(
+            snowflake.dimensions.user_created_raw.isTimestampNormalizedToUtc,
+        ).toBe(true);
+        expect(postgres.dimensions.user_created).not.toHaveProperty(
+            'isTimestampNormalizedToUtc',
+        );
+    });
+
     it('should prefer the YAML timestamp_domain over the catalog', () => {
         const result = convertTable(
             SupportedDbtAdapter.POSTGRES,

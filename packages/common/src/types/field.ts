@@ -811,6 +811,8 @@ export interface Dimension extends Field {
     isAdditionalDimension?: boolean;
     skipTimezoneConversion?: boolean;
     timestampDomain?: TimestampDomain;
+    /** True when compilation normalized the timestamp expression to UTC. */
+    isTimestampNormalizedToUtc?: true;
     colors?: Record<string, string>;
     isIntervalBase?: boolean;
     aiHint?: string | string[];

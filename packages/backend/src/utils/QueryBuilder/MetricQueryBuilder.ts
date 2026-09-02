@@ -1180,6 +1180,14 @@ export class MetricQueryBuilder {
                 metric,
             );
             if (baseDimension?.skipTimezoneConversion) return baseSql;
+            // Inherited Snowflake dimension SQL is already normalized to UTC;
+            // explicit metric SQL still needs the data-timezone rebase below.
+            if (
+                baseDimension?.isTimestampNormalizedToUtc &&
+                metric.sql === baseDimension.sql
+            ) {
+                return baseSql;
+            }
             const {
                 castToInstant,
                 castNaiveAggregateToInstant,
