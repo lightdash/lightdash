@@ -1,160 +1,75 @@
-# rainbow.toml — Lightdash preview environments (Rainbow Machine).
-#
-# This file is the recipe Rainbow Machine adopts to serve per-PR preview
-# environments for this repo: the mothership assigns the repo to a host, the
-# daemon reads this file from the default branch, builds a warm parent, and
-# forks a live URL for every pull request. Absolute paths point at the host's
-# Rainbow Machine install, not at anything in this repo.
-#
-# Facts baked into the base image: S3/MinIO is mandatory for the backend; the
-# seed runs EE migrations once with a dummy LIGHTDASH_LICENSE_KEY; project
-# compile shells out to a versioned dbt binary (per the official image's
-# /usr/local/dbt<ver> venvs).
+# rainbow.toml — how Lightdash runs on Rainbow.
+# Everything here describes the app. How Rainbow forks it in ~160ms is not your
+# concern: the kernel, the network pool, the guest-access transport, the paint
+# and warm harnesses, and the per-env IP/origin/secret values all live with the
+# platform (design/repo-config-and-ownership.md §6, §7), not in this file.
 
-repo = "lightdash/lightdash"
+[[app.service]]
+name = "backend"
+command = "pnpm -F backend dev"
+port = 8080
 
-[image]
-kernel = "/root/rainbow-test/vmlinux-6.1.155"
-rootfs = "/srv/rainbow/images/lightdash-base.ext4"
+[[app.service]]
+name = "frontend"
+command = "pnpm -F frontend dev"
+port = 3000
+serve = true                       # the port a browser hits; exactly one service sets it
 
-[vm]
-vcpus = 8
-mem_mib = 8192
-guest_ip = "172.16.0.2"
-host_ip = "172.16.0.1"
-cidr_bits = 24
-guest_mac = "AA:FC:00:00:00:01"
+[resources]
+cpu = 8
+memory = "8gb"                      # a starting guess; the measured working set corrects an over-guess
 
+# No [runtime] block: node comes from .nvmrc, pnpm from package.json's
+# packageManager field, and postgresql-16 from [datastores] below. Add
+# [runtime] only to override a pin or to list an OS package nothing else owns.
+
+[datastores]
+postgres = true                    # provisioned, localhost, seeded once
+
+[seed]
+run = "pnpm -F backend seed"       # the migrate tier below has already run by now
+env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }  # dummy: the backend config loads it; enables nothing
+
+# Readiness — truths about the app, in the app's own frame (localhost, not the
+# guest IP). The platform decides when each runs: http polls during boot and
+# re-runs at the snapshot gate; paints drives headless Chrome at the gate and
+# records first_paint_ms so a slow-parent regression becomes a tracked number.
 [ready]
-timeout_sec = 900
-
-[[ready.http]]
-url = "http://172.16.0.2:8080/api/v1/health"
-
-[[ready.http]]
-url = "http://172.16.0.2:3000/"
+http = "http://localhost:8080/api/v1/health"
+paints = { url = "http://localhost:3000/login", within = "10s", selector = "#root > *" }
 
 [warm]
-base = "http://172.16.0.2:3000"
-routes = ["/", "/login", "/api/v1/health", "/api/v1/livez"]
-# Crawl Vite's module graph so no fork pays lazy transforms (~3,900 modules;
-# skipping this hands every fork seconds of compiles). The crawl doubles as a
-# transform oracle: any module answering 5xx fails the parent build (a missing
-# generated file surfaces here, not in a browser).
-exec = ["python3", "/root/rainbowmachines/recipes/warm_vite.py"]
-settle_sec = 3
+routes = ["/", "/login"]           # pre-served so the first preview is instant
 
-# Post-warm oracle: checks that gate the snapshot. first-paint drives a real
-# headless browser at the login page and records how long a human waits for the
-# app to mount — the budget catches a parent that snapshotted slow (e.g. an
-# unwarmed module graph adds seconds to every fork). Baseline ~1.7s at zero RTT.
-[[oracle.check]]
-name = "first-paint"
-exec = ["python3", "/root/rainbowmachines/oracle/paint.py", "--path", "/login", "--selector", "#root > *", "--budget-ms", "10000"]
-timeout_sec = 120
-
-[serve]
-port = 3000
-path = "/"
-
-[guest]
-ssh_user = "root"
-ssh_key = "/root/rainbow-test/id_ed25519"
-app_dir = "/usr/app"
-
-[services]
-lightdash = "/var/log/lightdash.log"
-
-# Declared secrets — names and kinds only, never values. The base image carries
-# stub values; the control plane injects stored real values over vsock after
-# every fork. With nothing stored, injection is skipped and previews run on
-# stubs (the default posture for Lightdash previews).
-[[secrets]]
-name = "LIGHTDASH_SECRET"
-kind = "app-secret"
-stub = true
-
-[[secrets]]
-name = "PGPASSWORD"
-kind = "postgres-password"
-stub = true
-
-# Parent builder: how to bring the image from one SHA to the next. Tier
-# commands run in a chroot of the image with env_file sourced and Postgres up,
-# from the guest app dir, and only when the git diff touches their globs — a
-# source-only merge runs none of them.
-#
-# [build].src is intentionally omitted: on adoption the daemon fills it with its
-# own clone of this repo, so the recipe is not tied to any one host's checkout
-# path.
-[build]
-agent_binary = "/root/rainbowmachines/bin/rainbow-agent"
-env_file = "/etc/lightdash.env"
-
-# The cache-tier ladder, deepest first: each tier owns a set of files and states
-# how a change to them reaches a running env. A change is claimed by the first
-# tier it matches; the deepest busted tier decides fork catch-up (hot vs
-# rebuild) and parent advance (coast vs invest).
+# The cache-tier ladder (cache-tiers.md), deepest first. The apply verb is the
+# key that carries the command; the list is ordered and first-match-wins.
+[[tier]]
+rebuild = "pnpm install --frozen-lockfile"
+preset = "pnpm"                     # lockfile globs; explicit files win
 
 [[tier]]
-name = "deps"
-# Lockfile only — deliberately NOT "**/package.json". Measured on main
-# (Jul–Aug 2026): 31% of merges touch a package.json, but nearly all are version
-# bumps riding in each squash merge; only ~1.4/day change pnpm-lock.yaml. Any
-# dependency change that matters to --frozen-lockfile changes the lockfile by
-# definition, so the package.json globs only forced needless ~54s branch-parent
-# rebuilds (killing live envs) whenever an update or rebase crossed a bump.
-files = ["pnpm-lock.yaml", ".npmrc"]
-apply = "rebuild"                       # can't hot-apply a node_modules change
-run   = "pnpm install --frozen-lockfile"
-
-[[tier]]
-name = "packages"
+name = "common-build"
 files = ["packages/common/**", "packages/warehouses/**"]
-apply = "run"
-run   = "pnpm common-build && pnpm warehouses-build"
-# Hot-applyable but measured at 12.2s per fork — invest-worthy despite never
-# forcing a rebuild.
-eager = true
+run = "pnpm common-build && pnpm warehouses-build"
 
 [[tier]]
-name = "migrations"
+name = "migrate"
 files = ["packages/backend/src/database/migrations/**"]
-apply = "run"
-# Runs only the new migrations against the already-seeded database — knex tracks
-# applied ones; the fork is never re-seeded. EE migrations need a license key
-# present to apply; a dummy value creates the schema without enabling anything.
-run   = "pnpm -F backend migrate"
-env   = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }
+run = "pnpm -F backend migrate"
+env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }
 
-# Probed during the gate test: writing a source file triggers the in-process
-# watchers (Vite HMR / tsx watch) — no restart needed, so the catch-all is a
-# watch tier with no command.
 [[tier]]
-name = "source"
-files = ["**"]
-apply = "watch"
+name = "app"
+watch = ["**"]                     # Vite HMR / tsx watch notice the write; bottom catch-all
 
-# Public origin. The parent snapshots warm, before any env exists to be named,
-# so the backend boots believing SITE_URL is http://localhost:3000 — which is
-# what a preview would otherwise tell the browser about itself.
-#
-# The browser learns the origin from one field of one response: parseConfig
-# freezes process.env.SITE_URL into lightdashConfig at startup, HealthService
-# returns it as `siteUrl`, and the frontend reads health.data.siteUrl at runtime
-# (never a build-time constant). So the ingress corrects it in flight and forks
-# stay at ~190ms.
-#
-# vars/restart is the truthful fallback for the rest — scheduler delivery links,
-# Slack unfurls, OAuth callbacks, CSV links — none of which a preview exercises.
+# The browser learns its origin from one field of one response (results.siteUrl),
+# so the ingress corrects it in flight and forks stay fast. No service carries
+# restart_on_inject: Lightdash previews are stub-only and patch-based, so nothing
+# is re-execed on fork.
 [origin]
 vars = ["SITE_URL"]
-restart = "systemctl restart lightdash"
+patch = [{ path = "/api/v1/health", field = "results.siteUrl" }]
 
-# The payload is wrapped — {"status": ..., "results": {...}} — so the field the
-# frontend reads is results.siteUrl, not a top-level one. The patch refuses to
-# create fields, so a wrong path here is a visible no-op rather than a response
-# that looks corrected while the real value stays stale.
-[[origin.patch]]
-path = "/api/v1/health"
-json_field = "results.siteUrl"
+[secrets]
+LIGHTDASH_SECRET = "app-secret"
+PGPASSWORD = "postgres-password"
