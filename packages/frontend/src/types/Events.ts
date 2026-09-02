@@ -66,6 +66,8 @@ export enum PageName {
     METRICS_CATALOG = 'metrics_catalog',
     FUNNEL_BUILDER = 'funnel_builder',
     ROADMAP = 'roadmap',
+    LEARN = 'learn',
+    LEARN_COURSE = 'learn_course',
 }
 
 export enum CategoryName {
@@ -154,6 +156,9 @@ export enum EventName {
     COMMENTS_CLICKED = 'comments.clicked',
     NOTIFICATIONS_COMMENTS_ITEM_CLICKED = 'notifications_comments_item.clicked',
     DASHBOARD_AUTO_REFRESH_UPDATED = 'dashboard_auto_refresh.updated',
+
+    // Learn
+    LEARN_CLICKED = 'learn.clicked',
 
     // Metrics Catalog
     METRICS_CATALOG_CLICKED = 'metrics_catalog.clicked',
