@@ -5,7 +5,6 @@ import { renderWithProviders } from '../../../../testing/testUtils';
 import RequestReviewModal from './RequestReviewModal';
 
 const createRequest = vi.fn().mockResolvedValue({});
-
 const similarContent = vi.fn().mockReturnValue({ data: [] });
 
 vi.mock('../hooks/useSimilarContent', () => ({
@@ -27,26 +26,33 @@ vi.mock('../../../../hooks/useSpaces', () => ({
         data: [
             { uuid: 'personal', name: 'Personal', parentSpaceUuid: null },
             { uuid: 'finance', name: 'Finance', parentSpaceUuid: null },
+            {
+                uuid: 'users-root',
+                name: 'Default User Spaces',
+                parentSpaceUuid: null,
+            },
+            {
+                uuid: 'other-personal',
+                name: 'Someone else',
+                parentSpaceUuid: 'users-root',
+            },
         ],
         isInitialLoading: false,
     }),
 }));
 
-vi.mock('../../../../components/common/SpaceSelector/SpaceSelector', () => ({
+vi.mock('./TargetSpaceSelect', () => ({
     default: ({
         spaces,
-        onSelectSpace,
+        onChange,
     }: {
         spaces: { uuid: string; name: string }[];
-        onSelectSpace: (uuid: string) => void;
+        onChange: (uuid: string) => void;
     }) => (
         <ul>
             {spaces.map((space) => (
                 <li key={space.uuid}>
-                    <button
-                        type="button"
-                        onClick={() => onSelectSpace(space.uuid)}
-                    >
+                    <button type="button" onClick={() => onChange(space.uuid)}>
                         {space.name}
                     </button>
                 </li>
@@ -67,21 +73,28 @@ const renderModal = () =>
         />,
     );
 
+const pickFinanceAndContinue = async () => {
+    await userEvent.click(screen.getByRole('button', { name: 'Finance' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+};
+
 describe('RequestReviewModal', () => {
     beforeEach(() => {
         createRequest.mockClear();
         similarContent.mockReturnValue({ data: [] });
     });
 
-    it('hides the personal space and waits for a target before submitting', async () => {
+    it('offers only shared spaces and waits for a target before continuing', async () => {
         renderModal();
 
         expect(screen.queryByText('Personal')).not.toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Request review' }),
-        ).toBeDisabled();
+            screen.queryByText('Default User Spaces'),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Someone else')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
 
-        await userEvent.click(screen.getByRole('button', { name: 'Finance' }));
+        await pickFinanceAndContinue();
         await userEvent.type(
             screen.getByLabelText('Note for reviewers'),
             '  For the weekly review  ',
@@ -101,6 +114,16 @@ describe('RequestReviewModal', () => {
         );
     });
 
+    it('goes back to the space step without losing the choice', async () => {
+        renderModal();
+
+        await pickFinanceAndContinue();
+        expect(screen.getByText('Finance')).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+        expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
+    });
+
     it('requires a note when similar content exists and snapshots it', async () => {
         const match = {
             contentType: ContentType.CHART,
@@ -115,10 +138,10 @@ describe('RequestReviewModal', () => {
         similarContent.mockReturnValue({ data: [match] });
         renderModal();
 
+        await pickFinanceAndContinue();
         expect(
             screen.getByText('Something similar already exists'),
         ).toBeInTheDocument();
-        await userEvent.click(screen.getByRole('button', { name: 'Finance' }));
         expect(
             screen.getByRole('button', { name: 'Request review' }),
         ).toBeDisabled();

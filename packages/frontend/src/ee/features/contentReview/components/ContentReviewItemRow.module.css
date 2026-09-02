@@ -3,6 +3,10 @@
     border-radius: var(--mantine-radius-md);
 }
 
+.compact {
+    padding: 6px var(--mantine-spacing-sm);
+}
+
 .text {
     flex: 1;
     min-width: 0;
@@ -23,4 +27,14 @@
 
 .link:hover .linkIcon {
     opacity: 1;
+}
+
+.name {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.meta {
+    flex: 0 0 auto;
+    white-space: nowrap;
 }

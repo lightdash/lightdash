@@ -1,11 +1,13 @@
 import { type ContentReviewSimilarContentItem } from '@lightdash/common';
-import { Group, Paper, Stack, Text } from '@mantine/core';
+import { Button, Group, Paper, Stack, Text } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { getContentHref, getContentTypeLabel } from '../utils';
+import { getContentHref } from '../utils';
 import ContentReviewItemRow from './ContentReviewItemRow';
 import classes from './SimilarContentPanel.module.css';
+
+const VISIBLE_ROWS = 3;
 
 type Props = {
     projectUuid: string;
@@ -13,7 +15,10 @@ type Props = {
 };
 
 const SimilarContentPanel: FC<Props> = ({ projectUuid, items }) => {
+    const [showAll, setShowAll] = useState(false);
     if (items.length === 0) return null;
+    const hidden = Math.max(items.length - VISIBLE_ROWS, 0);
+    const visible = showAll ? items : items.slice(0, VISIBLE_ROWS);
     return (
         <Paper className={classes.panel}>
             <Group gap="sm" wrap="nowrap" className={classes.header}>
@@ -31,20 +36,31 @@ const SimilarContentPanel: FC<Props> = ({ projectUuid, items }) => {
                 </Stack>
             </Group>
             <Stack gap={0} p={4}>
-                {items.map((item) => (
+                {visible.map((item) => (
                     <ContentReviewItemRow
                         key={item.contentUuid}
                         contentType={item.contentType}
                         name={item.name}
-                        meta={`${getContentTypeLabel(item.contentType)} in ${item.spaceName}`}
+                        meta={`in ${item.spaceName}`}
                         href={getContentHref(
                             projectUuid,
                             item.contentType,
                             item,
                         )}
                         isVerified={item.isVerified}
+                        compact
                     />
                 ))}
+                {hidden > 0 && (
+                    <Button
+                        variant="subtle"
+                        size="compact-xs"
+                        className={classes.toggle}
+                        onClick={() => setShowAll((current) => !current)}
+                    >
+                        {showAll ? 'Show fewer' : `Show ${hidden} more`}
+                    </Button>
+                )}
             </Stack>
         </Paper>
     );

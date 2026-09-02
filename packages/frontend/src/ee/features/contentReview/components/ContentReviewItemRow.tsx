@@ -17,33 +17,65 @@ type Props = {
     meta?: string;
     href?: string;
     isVerified?: boolean;
+    compact?: boolean;
 };
 
 // One chart or dashboard, as a row in a list. Links open in a new tab so the
-// modal or request page underneath stays put.
+// modal or request page underneath stays put. Compact rows fit inside modals.
 const ContentReviewItemRow: FC<Props> = ({
     contentType,
     name,
     meta,
     href,
     isVerified = false,
+    compact = false,
 }) => {
+    const metaLabel = meta ?? getContentTypeLabel(contentType);
     const body = (
-        <Group gap="sm" wrap="nowrap" className={classes.row}>
-            <IconBox
-                icon={getContentTypeIcon(contentType)}
-                color={getContentTypeColor(contentType)}
-                boxSize={28}
-                size="md"
-            />
-            <Stack gap={0} className={classes.text}>
-                <Text fz="sm" fw={500} lineClamp={1}>
-                    {name}
-                </Text>
-                <Text fz="xs" c="dimmed" lineClamp={1}>
-                    {meta ?? getContentTypeLabel(contentType)}
-                </Text>
-            </Stack>
+        <Group
+            gap="sm"
+            wrap="nowrap"
+            className={
+                compact ? `${classes.row} ${classes.compact}` : classes.row
+            }
+        >
+            {compact ? (
+                <MantineIcon
+                    icon={getContentTypeIcon(contentType)}
+                    color={getContentTypeColor(contentType)}
+                />
+            ) : (
+                <IconBox
+                    icon={getContentTypeIcon(contentType)}
+                    color={getContentTypeColor(contentType)}
+                    boxSize={28}
+                    size="md"
+                />
+            )}
+            {compact ? (
+                <Group gap={6} wrap="nowrap" className={classes.text}>
+                    <Text
+                        fz="sm"
+                        fw={500}
+                        lineClamp={1}
+                        className={classes.name}
+                    >
+                        {name}
+                    </Text>
+                    <Text fz="xs" c="dimmed" className={classes.meta}>
+                        {metaLabel}
+                    </Text>
+                </Group>
+            ) : (
+                <Stack gap={0} className={classes.text}>
+                    <Text fz="sm" fw={500} lineClamp={1}>
+                        {name}
+                    </Text>
+                    <Text fz="xs" c="dimmed" lineClamp={1}>
+                        {metaLabel}
+                    </Text>
+                </Stack>
+            )}
             {isVerified && (
                 <Badge
                     size="xs"
