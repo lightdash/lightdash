@@ -55,7 +55,7 @@ export const LearnLink: FC<Props> = ({ projectUuid, asMenu }) => {
             variant="default"
             size="xs"
             fz="sm"
-            leftSection={<MantineIcon icon={IconSchool} color="ldGray.6" />}
+            leftSection={<MantineIcon icon={IconSchool} color="dimmed" />}
             onClick={handleLearnClick}
         >
             Learn
