@@ -861,20 +861,21 @@ export class DashboardService
             dashboardUuidOrSlug,
             { projectUuid: options?.projectUuid },
         );
-        const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboard.spaceUuid,
-            );
+        const spaceContext = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            },
+        );
         const auditedAbility = this.createAuditedAbility(user);
 
         if (
             auditedAbility.cannot(
                 'view',
                 subject('Dashboard', {
-                    ...dashboard,
-                    inheritsFromOrgOrProject,
-                    access,
+                    ...spaceContext,
                     metadata: {
                         dashboardUuid: dashboard.uuid,
                         dashboardName: dashboard.name,
