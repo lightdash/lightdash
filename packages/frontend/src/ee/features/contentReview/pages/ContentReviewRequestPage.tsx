@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    ContentReviewContentType,
     ContentReviewRequestStatus,
     getContentReviewRequestsPath,
     type ContentReviewRequestDetail,
@@ -150,7 +151,12 @@ const DecisionCard: FC<{
                     </Text>
                 </Stack>
                 <Tooltip
-                    label="You need permission to verify content"
+                    label={
+                        request.contentType ===
+                        ContentReviewContentType.SQL_CHART
+                            ? 'SQL charts cannot be verified yet'
+                            : 'You need permission to verify content'
+                    }
                     disabled={request.canVerify}
                     withArrow
                 >

@@ -1,6 +1,6 @@
 import {
+    ContentReviewContentType,
     ContentReviewRequestStatus,
-    ContentType,
     type ContentReviewRequestDetail,
 } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
@@ -31,7 +31,7 @@ vi.mock('../hooks/useContentReviewRequests', () => ({
 const request: ContentReviewRequestDetail = {
     uuid: 'request-uuid',
     projectUuid: 'project',
-    contentType: ContentType.DASHBOARD,
+    contentType: ContentReviewContentType.DASHBOARD,
     contentUuid: 'dashboard',
     sourceSpaceUuid: 'personal',
     targetSpaceUuid: 'finance',
@@ -52,11 +52,15 @@ const request: ContentReviewRequestDetail = {
     targetSpaceName: 'Finance',
     moveSet: [
         {
-            contentType: ContentType.DASHBOARD,
+            contentType: ContentReviewContentType.DASHBOARD,
             contentUuid: 'dashboard',
             name: 'Weekly revenue',
         },
-        { contentType: ContentType.CHART, contentUuid: 'c1', name: 'Revenue' },
+        {
+            contentType: ContentReviewContentType.CHART,
+            contentUuid: 'c1',
+            name: 'Revenue',
+        },
     ],
     canReview: true,
     canVerify: true,
